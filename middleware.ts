@@ -5,7 +5,17 @@ import { defaultLocale, isValidLocale, locales } from "@/lib/i18n";
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  if (pathname === "/admin-login") {
+    return NextResponse.next();
+  }
+
   if (pathname.startsWith("/admin")) {
+    const auth = request.cookies.get("admin_auth")?.value;
+
+    if (auth !== process.env.ADMIN_PASSWORD) {
+      return NextResponse.redirect(new URL("/admin-login", request.url));
+    }
+
     return NextResponse.next();
   }
 
@@ -15,15 +25,18 @@ export function middleware(request: NextRequest) {
 
   if (pathnameHasLocale) {
     const segment = pathname.split("/")[1];
+
     if (segment && !isValidLocale(segment)) {
-      return NextResponse.redirect(
-        new URL(`/${defaultLocale}`, request.url),
-      );
+      return NextResponse.redirect(new URL(`/${defaultLocale}`, request.url));
     }
+
     return NextResponse.next();
   }
 
-  request.nextUrl.pathname = `/${defaultLocale}${pathname === "/" ? "" : pathname}`;
+  request.nextUrl.pathname = `/${defaultLocale}${
+    pathname === "/" ? "" : pathname
+  }`;
+
   return NextResponse.redirect(request.nextUrl);
 }
 
