@@ -2,17 +2,13 @@ import { supabase } from "@/lib/supabase";
 import type { Talent } from "@/lib/types/talent";
 
 export async function getTalents(): Promise<Talent[]> {
-  try {
-    const { data, error } = await supabase
-      .from("talents")
-      .select("*");
+  console.log("SUPABASE URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
 
-    if (error) {
-      return [];
-    }
+  const response = await supabase
+    .from("talents")
+    .select("*");
 
-    return (data ?? []) as Talent[];
-  } catch {
-    return [];
-  }
+  console.log("FULL RESPONSE:", response);
+
+  return (response.data ?? []) as Talent[];
 }

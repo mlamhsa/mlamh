@@ -42,6 +42,16 @@ const en = {
     empty:
       "Our talent roster is being curated. Be among the first faces on MLAMH.",
   },
+  talentProfile: {
+    back: "All Talents",
+    city: "City",
+    age: "Age",
+    height: "Height",
+    bio: "Biography",
+    years: "years",
+    whatsapp: "Book via WhatsApp",
+    metadataTitle: "Talent Profile",
+  },
   agencies: {
     sectionLabel: "02 — Agencies",
     title: "Trusted by the",

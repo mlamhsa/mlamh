@@ -9,4 +9,11 @@ export type Talent = {
   featured: boolean;
   sort_order: number | null;
   published: boolean;
+  city_en?: string | null;
+  city_ar?: string | null;
+  age?: number | null;
+  height?: string | null;
+  bio_en?: string | null;
+  bio_ar?: string | null;
+  whatsapp?: string | null;
 };
