@@ -39,14 +39,8 @@ const en = {
     description:
       "Carefully selected talents from across the Kingdom — connected to advertising, cinematic, and documentary productions.",
     cta: "Join The First MLAMH Roster",
-    items: [
-      { name: "Layla Al-Harbi", category: "Editorial" },
-      { name: "Omar Al-Rashid", category: "Runway" },
-      { name: "Noura Al-Salem", category: "Commercial" },
-      { name: "Faisal Al-Qahtani", category: "Cinema" },
-      { name: "Rania Al-Mutairi", category: "Luxury" },
-      { name: "Hassan Al-Dosari", category: "Campaign" },
-    ],
+    empty:
+      "Our talent roster is being curated. Be among the first faces on MLAMH.",
   },
   agencies: {
     sectionLabel: "02 — Agencies",
