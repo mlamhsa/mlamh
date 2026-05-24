@@ -33,12 +33,13 @@ export async function ModelsShowcase({
                 className="group block"
               >
                 <div className="relative aspect-[3/4] overflow-hidden bg-neutral-900">
-                  <Image
-                    src={talent.image_url}
-                    alt={name}
-                    fill
-                    className="object-cover transition duration-700 group-hover:scale-105"
-                  />
+                <Image
+  src={talent.image_url}
+  alt={name}
+  fill
+  sizes="(max-width: 768px) 100vw, 50vw"
+  className="object-cover"
+/>
                 </div>
 
                 <div className="mt-4">

@@ -16,4 +16,10 @@ export type Talent = {
   bio_en?: string | null;
   bio_ar?: string | null;
   whatsapp?: string | null;
+  gallery_images?: string[] | string | null;
+  instagram?: string | null;
+  tiktok?: string | null;
+  snapchat?: string | null;
+  portfolio_url?: string | null;
+  status?: string | null;
 };

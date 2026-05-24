@@ -84,12 +84,12 @@ export function Navbar({
           >
             {nav.forClients}
           </a>
-          <a
-            href="#join"
+          <Link
+            href={`/${locale}/join`}
             className="btn-luxury border border-gold/40 px-6 py-2.5 text-[10px] uppercase tracking-[0.3em] text-gold transition-colors hover:border-gold hover:bg-gold/10"
           >
             {nav.joinAsTalent}
-          </a>
+          </Link>
         </div>
 
         <div className="flex items-center gap-4 md:hidden">
@@ -147,13 +147,13 @@ export function Navbar({
             </a>
           ))}
           <div className="gold-line my-4 w-24" />
-          <a
-            href="#talents"
+          <Link
+            href={`/${locale}/join`}
             onClick={() => setMenuOpen(false)}
             className="btn-luxury inline-flex w-fit border border-gold/40 px-8 py-3 text-[10px] uppercase tracking-[0.3em] text-gold"
           >
             {nav.joinPlatform}
-          </a>
+          </Link>
         </div>
         <p
           className="pb-12 text-center text-sm text-gray-muted"
