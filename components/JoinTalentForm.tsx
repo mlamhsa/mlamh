@@ -114,11 +114,7 @@ function SectionTitle({
   isRtl: boolean;
 }) {
   return (
-    <div
-      className={`mb-8 flex items-center gap-4 ${
-        isRtl ? "flex-row-reverse" : ""
-      }`}
-    >
+    <div className={`mb-8 flex items-center gap-4 ${isRtl ? "flex-row-reverse" : ""}`}>
       <h2 className="text-[10px] uppercase tracking-[0.4em] text-gold">
         {title}
       </h2>
@@ -214,11 +210,7 @@ export function JoinTalentForm({
   }
 
   return (
-    <form
-      action={formAction}
-      noValidate
-      className={isRtl ? "text-right" : "text-left"}
-    >
+    <form action={formAction} noValidate className={isRtl ? "text-right" : "text-left"}>
       <input type="hidden" name="locale" value={locale} />
 
       {state?.message && !state?.success ? (
@@ -247,59 +239,23 @@ export function JoinTalentForm({
 
       <div className="mb-12 grid gap-6 md:grid-cols-2">
         <div>
-          <FieldLabel htmlFor="name_en" required>
-            {j.nameEn}
-          </FieldLabel>
-          <FormInput
-            id="name_en"
-            name="name_en"
-            placeholder={j.placeholderNameEn}
-            required
-            error={errors.name_en}
-            dir="ltr"
-          />
+          <FieldLabel htmlFor="name_en" required>{j.nameEn}</FieldLabel>
+          <FormInput id="name_en" name="name_en" placeholder={j.placeholderNameEn} required error={errors.name_en} dir="ltr" />
         </div>
 
         <div>
-          <FieldLabel htmlFor="name_ar" required>
-            {j.nameAr}
-          </FieldLabel>
-          <FormInput
-            id="name_ar"
-            name="name_ar"
-            placeholder={j.placeholderNameAr}
-            required
-            error={errors.name_ar}
-            dir="rtl"
-          />
+          <FieldLabel htmlFor="name_ar" required>{j.nameAr}</FieldLabel>
+          <FormInput id="name_ar" name="name_ar" placeholder={j.placeholderNameAr} required error={errors.name_ar} dir="rtl" />
         </div>
 
         <div>
-          <FieldLabel htmlFor="category_en" required>
-            {j.categoryEn}
-          </FieldLabel>
-          <FormInput
-            id="category_en"
-            name="category_en"
-            placeholder={j.placeholderCategoryEn}
-            required
-            error={errors.category_en}
-            dir="ltr"
-          />
+          <FieldLabel htmlFor="category_en" required>{j.categoryEn}</FieldLabel>
+          <FormInput id="category_en" name="category_en" placeholder={j.placeholderCategoryEn} required error={errors.category_en} dir="ltr" />
         </div>
 
         <div>
-          <FieldLabel htmlFor="category_ar" required>
-            {j.categoryAr}
-          </FieldLabel>
-          <FormInput
-            id="category_ar"
-            name="category_ar"
-            placeholder={j.placeholderCategoryAr}
-            required
-            error={errors.category_ar}
-            dir="rtl"
-          />
+          <FieldLabel htmlFor="category_ar" required>{j.categoryAr}</FieldLabel>
+          <FormInput id="category_ar" name="category_ar" placeholder={j.placeholderCategoryAr} required error={errors.category_ar} dir="rtl" />
         </div>
       </div>
 
@@ -308,71 +264,32 @@ export function JoinTalentForm({
       <div className="mb-12 grid gap-6 md:grid-cols-2">
         <div>
           <FieldLabel htmlFor="city_en">{j.cityEn}</FieldLabel>
-          <FormInput
-            id="city_en"
-            name="city_en"
-            placeholder={j.placeholderCityEn}
-            error={errors.city_en}
-            dir="ltr"
-          />
+          <FormInput id="city_en" name="city_en" placeholder={j.placeholderCityEn} error={errors.city_en} dir="ltr" />
         </div>
 
         <div>
           <FieldLabel htmlFor="city_ar">{j.cityAr}</FieldLabel>
-          <FormInput
-            id="city_ar"
-            name="city_ar"
-            placeholder={j.placeholderCityAr}
-            error={errors.city_ar}
-            dir="rtl"
-          />
+          <FormInput id="city_ar" name="city_ar" placeholder={j.placeholderCityAr} error={errors.city_ar} dir="rtl" />
         </div>
 
         <div>
           <FieldLabel htmlFor="age">{j.age}</FieldLabel>
-          <FormInput
-            id="age"
-            name="age"
-            type="number"
-            min={1}
-            max={120}
-            placeholder="25"
-            error={errors.age}
-            dir="ltr"
-          />
+          <FormInput id="age" name="age" type="number" min={1} max={120} placeholder="25" error={errors.age} dir="ltr" />
         </div>
 
         <div>
           <FieldLabel htmlFor="height">{j.height}</FieldLabel>
-          <FormInput
-            id="height"
-            name="height"
-            placeholder={j.placeholderHeight}
-            error={errors.height}
-            dir="ltr"
-          />
+          <FormInput id="height" name="height" placeholder={j.placeholderHeight} error={errors.height} dir="ltr" />
         </div>
 
         <div className="md:col-span-2">
           <FieldLabel htmlFor="bio_en">{j.bioEn}</FieldLabel>
-          <FormTextarea
-            id="bio_en"
-            name="bio_en"
-            placeholder={j.placeholderBioEn}
-            error={errors.bio_en}
-            dir="ltr"
-          />
+          <FormTextarea id="bio_en" name="bio_en" placeholder={j.placeholderBioEn} error={errors.bio_en} dir="ltr" />
         </div>
 
         <div className="md:col-span-2">
           <FieldLabel htmlFor="bio_ar">{j.bioAr}</FieldLabel>
-          <FormTextarea
-            id="bio_ar"
-            name="bio_ar"
-            placeholder={j.placeholderBioAr}
-            error={errors.bio_ar}
-            dir="rtl"
-          />
+          <FormTextarea id="bio_ar" name="bio_ar" placeholder={j.placeholderBioAr} error={errors.bio_ar} dir="rtl" />
         </div>
       </div>
 
@@ -380,31 +297,26 @@ export function JoinTalentForm({
 
       <div className="mb-12 grid gap-6 md:grid-cols-2">
         <div>
-          <FieldLabel htmlFor="whatsapp" required>
-            {j.whatsapp}
-          </FieldLabel>
-          <FormInput
-            id="whatsapp"
-            name="whatsapp"
-            type="tel"
-            placeholder={j.placeholderWhatsapp}
-            required
-            error={errors.whatsapp}
-            dir="ltr"
-          />
+          <FieldLabel htmlFor="whatsapp" required>{j.whatsapp}</FieldLabel>
+          <FormInput id="whatsapp" name="whatsapp" type="tel" placeholder={j.placeholderWhatsapp} required error={errors.whatsapp} dir="ltr" />
         </div>
 
         <div>
           <FieldLabel htmlFor="instagram">{j.instagram}</FieldLabel>
-          <FormInput
-            id="instagram"
-            name="instagram"
-            type="url"
-            placeholder={j.placeholderInstagram}
-            error={errors.instagram}
-            dir="ltr"
-          />
+          <FormInput id="instagram" name="instagram" type="url" placeholder={j.placeholderInstagram} error={errors.instagram} dir="ltr" />
         </div>
+      </div>
+
+      <div className="mb-8">
+        <FieldLabel htmlFor="image">Profile Image</FieldLabel>
+
+        <input
+          id="image"
+          name="image"
+          type="file"
+          accept="image/*"
+          className="w-full border border-white/10 bg-black/30 px-4 py-3 text-sm text-white file:mr-4 file:border-0 file:bg-gold/10 file:px-4 file:py-2 file:text-gold"
+        />
       </div>
 
       <button
