@@ -1,9 +1,12 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 
-export async function uploadTalentImage(file: File) {
+export async function uploadTalentImage(
+  file: File,
+) {
   const supabase = createAdminClient();
 
   const fileExt = file.name.split(".").pop();
+
   const fileName = `${Date.now()}-${Math.random()
     .toString(36)
     .slice(2)}.${fileExt}`;
@@ -27,4 +30,18 @@ export async function uploadTalentImage(file: File) {
     .getPublicUrl(filePath);
 
   return publicUrl;
+}
+
+export async function uploadGalleryImages(
+  files: File[],
+) {
+  const uploadedUrls: string[] = [];
+
+  for (const file of files) {
+    const imageUrl = await uploadTalentImage(file);
+
+    uploadedUrls.push(imageUrl);
+  }
+
+  return uploadedUrls;
 }

@@ -1,7 +1,10 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import { uploadTalentImage } from "@/lib/supabase/storage";
+import {
+  uploadTalentImage,
+  uploadGalleryImages,
+} from "@/lib/supabase/storage";
 import { isValidLocale, type Locale } from "@/lib/i18n";
 import {
   getValidationMessages,
@@ -46,13 +49,9 @@ export async function submitTalentAction(
   };
 
   const data = parseTalentSubmissionForm(formData);
-
   const validationMessages = getValidationMessages(locale);
 
-  const errors = validateTalentSubmission(
-    data,
-    validationMessages,
-  );
+  const errors = validateTalentSubmission(data, validationMessages);
 
   if (hasValidationErrors(errors)) {
     return {
@@ -65,51 +64,55 @@ export async function submitTalentAction(
   try {
     const supabase = createAdminClient();
 
-    // رفع الصورة
     const imageFile = formData.get("image");
 
     let imageUrl = PENDING_IMAGE_PLACEHOLDER;
 
-    if (
-      imageFile instanceof File &&
-      imageFile.size > 0
-    ) {
+    if (imageFile instanceof File && imageFile.size > 0) {
       imageUrl = await uploadTalentImage(imageFile);
     }
 
-    const { error } = await supabase
-      .from("talents")
-      .insert({
-        name_en: data.name_en,
-        name_ar: data.name_ar,
+    const galleryFiles = formData.getAll("gallery");
 
-        category_en: data.category_en,
-        category_ar: data.category_ar,
+    const validGalleryFiles = galleryFiles.filter(
+      (file): file is File =>
+        file instanceof File && file.size > 0,
+    );
 
-        city_en: data.city_en,
-        city_ar: data.city_ar,
+    const galleryImages =
+      validGalleryFiles.length > 0
+        ? await uploadGalleryImages(validGalleryFiles)
+        : [];
 
-        age: data.age,
-        height: data.height,
+    const { error } = await supabase.from("talents").insert({
+      name_en: data.name_en,
+      name_ar: data.name_ar,
 
-        bio_en: data.bio_en,
-        bio_ar: data.bio_ar,
+      category_en: data.category_en,
+      category_ar: data.category_ar,
 
-        whatsapp: data.whatsapp,
-        instagram: data.instagram,
+      city_en: data.city_en,
+      city_ar: data.city_ar,
 
-        status: "pending",
-        published: false,
-        featured: false,
+      age: data.age,
+      height: data.height,
 
-        image_url: imageUrl,
-      });
+      bio_en: data.bio_en,
+      bio_ar: data.bio_ar,
+
+      whatsapp: data.whatsapp,
+      instagram: data.instagram,
+
+      status: "pending",
+      published: false,
+      featured: false,
+
+      image_url: imageUrl,
+      gallery_images: galleryImages,
+    });
 
     if (error) {
-      console.error(
-        "[submitTalentAction]",
-        error.message,
-      );
+      console.error("[submitTalentAction]", error.message);
 
       return {
         success: false,

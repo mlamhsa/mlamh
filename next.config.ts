@@ -2,7 +2,9 @@ import type { NextConfig } from "next";
 
 function supabaseImageHostname(): string | undefined {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+
   if (!url) return undefined;
+
   try {
     return new URL(url).hostname;
   } catch {
@@ -13,6 +15,12 @@ function supabaseImageHostname(): string | undefined {
 const supabaseHost = supabaseImageHostname();
 
 const nextConfig: NextConfig = {
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "20mb",
+    },
+  },
+
   images: {
     remotePatterns: [
       {
@@ -20,6 +28,7 @@ const nextConfig: NextConfig = {
         hostname: "images.unsplash.com",
         pathname: "/**",
       },
+
       ...(supabaseHost
         ? [
             {
