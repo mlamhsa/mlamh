@@ -10,6 +10,8 @@ import { PUBLIC_TALENTS_PAGE_SIZE } from "@/lib/constants/ui";
 import { getDictionary, isValidLocale, type Locale } from "@/lib/i18n";
 import { getPublicTalents } from "@/lib/supabase/public-talents";
 
+export const dynamic = "force-dynamic";
+
 type PageProps = {
   params: Promise<{ locale: string }>;
   searchParams: Promise<{
@@ -30,35 +32,26 @@ export default async function TalentListingPage({
 }: PageProps) {
   const { locale: localeParam } = await params;
 
-  const { q, category, page } =
-    await searchParams;
+  const { q, category, page } = await searchParams;
 
   if (!isValidLocale(localeParam)) {
     notFound();
   }
 
   const locale = localeParam as Locale;
-
   const isRtl = locale === "ar";
-
   const dict = getDictionary(locale);
 
-  const currentPage = Math.max(
-    1,
-    Number(page) || 1
-  );
+  const currentPage = Math.max(1, Number(page) || 1);
 
-  const { talents, total, totalPages } =
-    await getPublicTalents({
-      page: currentPage,
-      pageSize: PUBLIC_TALENTS_PAGE_SIZE,
-      search: q,
-      category,
-    });
+  const { talents, total, totalPages } = await getPublicTalents({
+    page: currentPage,
+    pageSize: PUBLIC_TALENTS_PAGE_SIZE,
+    search: q,
+    category,
+  });
 
-  const hasFilters = Boolean(
-    q?.trim() || category?.trim()
-  );
+  const hasFilters = Boolean(q?.trim() || category?.trim());
 
   const featuredIds = new Set(
     talents
@@ -68,13 +61,9 @@ export default async function TalentListingPage({
 
   const regularTalents = hasFilters
     ? talents
-    : talents.filter(
-        (talent) => !featuredIds.has(talent.id)
-      );
+    : talents.filter((talent) => !featuredIds.has(talent.id));
 
-  const visibleTalents = hasFilters
-    ? talents
-    : regularTalents;
+  const visibleTalents = hasFilters ? talents : regularTalents;
 
   return (
     <main
@@ -87,9 +76,7 @@ export default async function TalentListingPage({
         <div className="relative mx-auto max-w-7xl px-6">
           <header className="mb-12">
             <p className="mb-4 text-[10px] uppercase tracking-[0.4em] text-gold">
-              {isRtl
-                ? "مواهب ملامح"
-                : "MLAMH TALENTS"}
+              {isRtl ? "مواهب ملامح" : "MLAMH TALENTS"}
             </p>
 
             <h1
@@ -100,9 +87,7 @@ export default async function TalentListingPage({
                   : "var(--font-cormorant)",
               }}
             >
-              {isRtl
-                ? "اكتشف المواهب"
-                : "Discover Talents"}
+              {isRtl ? "اكتشف المواهب" : "Discover Talents"}
             </h1>
 
             <p className="mt-6 max-w-2xl text-sm leading-relaxed text-gray-muted md:text-base">
@@ -112,36 +97,23 @@ export default async function TalentListingPage({
             </p>
           </header>
 
-          <TalentFilters
-            locale={locale}
-            q={q}
-            category={category}
-          />
+          <TalentFilters locale={locale} q={q} category={category} />
 
           {!hasFilters ? (
-            <FeaturedTalentGrid
-              talents={talents}
-              locale={locale}
-            />
+            <FeaturedTalentGrid talents={talents} locale={locale} />
           ) : null}
 
           <div className="mb-6 flex items-center justify-between gap-4">
             <p className="text-sm text-gray-muted">
               {isRtl
                 ? `${total} نتيجة`
-                : `${total} result${
-                    total === 1 ? "" : "s"
-                  }`}
+                : `${total} result${total === 1 ? "" : "s"}`}
             </p>
           </div>
 
           {talents.length === 0 ? (
             <TalentEmptyState
-              title={
-                isRtl
-                  ? "لا توجد نتائج"
-                  : "No talents found"
-              }
+              title={isRtl ? "لا توجد نتائج" : "No talents found"}
             />
           ) : visibleTalents.length === 0 ? (
             <TalentEmptyState

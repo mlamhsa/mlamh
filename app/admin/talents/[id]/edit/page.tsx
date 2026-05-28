@@ -6,6 +6,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getTalentById } from "@/lib/supabase/talent-by-id";
 
+export const dynamic = "force-dynamic";
+
 type PageProps = {
   params: Promise<{
     id: string;
@@ -29,15 +31,15 @@ async function requireAdminAccess() {
 
   const adminClient = createAdminClient();
 
-  const { data: adminUser } = await adminClient
+  const { data: adminUser, error: adminError } = await adminClient
     .from("admin_users")
     .select("id")
     .eq("id", user.id)
     .eq("role", "admin")
     .maybeSingle();
 
-  if (!adminUser) {
-    redirect("/");
+  if (adminError || !adminUser) {
+    redirect("/admin-login");
   }
 }
 
@@ -110,7 +112,7 @@ export default async function EditTalentPage({
 
   const talentId = Number(id);
 
-  if (!Number.isFinite(talentId)) {
+  if (!Number.isFinite(talentId) || talentId <= 0) {
     notFound();
   }
 
@@ -222,11 +224,11 @@ export default async function EditTalentPage({
           </h2>
 
           <EditTalentGalleryManager
-  talentId={talent.id}
-  imageUrl={talent.image_url}
-  galleryImages={talent.gallery_images}
-  alt={talent.name_en || "Talent image"}
-/>
+            talentId={talent.id}
+            imageUrl={talent.image_url}
+            galleryImages={talent.gallery_images}
+            alt={talent.name_en || "Talent image"}
+          />
         </section>
 
         <section className="mb-10">
