@@ -95,6 +95,9 @@ export async function submitTalentAction(
 
       whatsapp: data.whatsapp,
       instagram: data.instagram,
+      tiktok: data.tiktok,
+      snapchat: data.snapchat,
+      portfolio_url: data.portfolio_url,
 
       status: "pending",
       published: false,

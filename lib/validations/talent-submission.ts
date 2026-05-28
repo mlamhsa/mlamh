@@ -13,6 +13,9 @@ export type TalentSubmissionInput = {
   bio_ar: string | null;
   whatsapp: string;
   instagram: string | null;
+  tiktok: string | null;
+  snapchat: string | null;
+  portfolio_url: string | null;
 };
 
 export type TalentSubmissionErrors = Partial<
@@ -29,13 +32,18 @@ function optionalTrim(value: FormDataEntryValue | null): string | null {
 }
 
 export function parseTalentSubmissionForm(
-  formData: FormData,
+  formData: FormData
 ): TalentSubmissionInput {
   const ageRaw = trim(formData.get("age"));
+
   let age: number | null = null;
+
   if (ageRaw) {
     const parsed = Number(ageRaw);
-    if (Number.isFinite(parsed)) age = Math.round(parsed);
+
+    if (Number.isFinite(parsed)) {
+      age = Math.round(parsed);
+    }
   }
 
   return {
@@ -51,6 +59,9 @@ export function parseTalentSubmissionForm(
     bio_ar: optionalTrim(formData.get("bio_ar")),
     whatsapp: trim(formData.get("whatsapp")),
     instagram: optionalTrim(formData.get("instagram")),
+    tiktok: optionalTrim(formData.get("tiktok")),
+    snapchat: optionalTrim(formData.get("snapchat")),
+    portfolio_url: optionalTrim(formData.get("portfolio_url")),
   };
 }
 
@@ -59,7 +70,7 @@ export function validateTalentSubmission(
   messages: {
     required: string;
     invalidAge: string;
-  },
+  }
 ): TalentSubmissionErrors {
   const errors: TalentSubmissionErrors = {};
 
@@ -82,6 +93,7 @@ export function hasValidationErrors(errors: TalentSubmissionErrors): boolean {
 
 export function getValidationMessages(locale: Locale) {
   const isAr = locale === "ar";
+
   return {
     required: isAr ? "هذا الحقل مطلوب" : "This field is required",
     invalidAge: isAr
