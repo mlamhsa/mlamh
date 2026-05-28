@@ -25,69 +25,8 @@ function getExtension(type: string) {
   if (type === "image/png") return "png";
   if (type === "image/webp") return "webp";
   if (type === "image/avif") return "avif";
+
   return null;
-}
-
-async function compressImageFile(
-  file: File,
-  options: {
-    maxWidth: number;
-    quality: number;
-  }
-): Promise<File> {
-  if (
-    !file.type.startsWith("image/") ||
-    file.type.includes("heic")
-  ) {
-    return file;
-  }
-
-  const imageUrl = URL.createObjectURL(file);
-
-  try {
-    const image = await new Promise<HTMLImageElement>(
-      (resolve, reject) => {
-        const img = new Image();
-        img.decoding = "async";
-        img.onload = () => resolve(img);
-        img.onerror = reject;
-        img.src = imageUrl;
-      }
-    );
-
-    const scale = Math.min(1, options.maxWidth / image.width);
-    const width = Math.round(image.width * scale);
-    const height = Math.round(image.height * scale);
-
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-
-    const ctx = canvas.getContext("2d");
-
-    if (!ctx) {
-      return file;
-    }
-
-    ctx.drawImage(image, 0, 0, width, height);
-
-    const blob = await new Promise<Blob | null>((resolve) => {
-      canvas.toBlob(resolve, "image/webp", options.quality);
-    });
-
-    if (!blob) {
-      return file;
-    }
-
-    const originalName = file.name.replace(/\.[^/.]+$/, "");
-
-    return new File([blob], `${originalName}.webp`, {
-      type: "image/webp",
-      lastModified: Date.now(),
-    });
-  } finally {
-    URL.revokeObjectURL(imageUrl);
-  }
 }
 
 async function uploadPublicSubmissionImage(file: File) {
@@ -288,7 +227,9 @@ function JoinSuccess({
           onClick={onReset}
           className="inline-flex items-center justify-center border border-white/15 px-8 py-3 text-[10px] uppercase tracking-[0.3em] text-white/70 transition-colors hover:border-gold/40 hover:text-gold"
         >
-          {locale === "ar" ? "إرسال طلب جديد" : "Submit another application"}
+          {locale === "ar"
+            ? "إرسال طلب جديد"
+            : "Submit another application"}
         </button>
 
         <Link
@@ -331,8 +272,11 @@ function JoinTalentFormInner({
   const j = dict.join;
   const isRtl = locale === "ar";
 
-  const [clientError, setClientError] = useState<string | null>(null);
-  const [isUploadingImages, setIsUploadingImages] = useState(false);
+  const [clientError, setClientError] =
+    useState<string | null>(null);
+
+  const [isUploadingImages, setIsUploadingImages] =
+    useState(false);
 
   const displayFont = isRtl
     ? "var(--font-noto-arabic)"
@@ -384,37 +328,22 @@ function JoinTalentFormInner({
       const imageFile = formData.get("image");
 
       if (imageFile instanceof File && imageFile.size > 0) {
-        const compressedProfileImage = await compressImageFile(imageFile, {
-          maxWidth: 1200,
-          quality: 0.75,
-        });
-
-        const imageUrl = await uploadPublicSubmissionImage(
-          compressedProfileImage
-        );
-
+        const imageUrl = await uploadPublicSubmissionImage(imageFile);
         formData.set("image_url", imageUrl);
       }
 
       const galleryFiles = formData
         .getAll("gallery")
         .filter(
-          (file): file is File => file instanceof File && file.size > 0
+          (file): file is File =>
+            file instanceof File && file.size > 0
         )
         .slice(0, MAX_GALLERY_IMAGES);
 
       formData.delete("gallery_images");
 
       for (const file of galleryFiles) {
-        const compressedGalleryImage = await compressImageFile(file, {
-          maxWidth: 1600,
-          quality: 0.75,
-        });
-
-        const imageUrl = await uploadPublicSubmissionImage(
-          compressedGalleryImage
-        );
-
+        const imageUrl = await uploadPublicSubmissionImage(file);
         formData.append("gallery_images", imageUrl);
       }
 
@@ -678,7 +607,7 @@ function JoinTalentFormInner({
       </div>
 
       <div className="mb-10">
-        <FieldLabel htmlFor="gallery">Gallery Images</FieldLabel>
+        <FieldLabel htmlFor="gallery">Gallery Image</FieldLabel>
 
         <input
           id="gallery"
@@ -690,8 +619,8 @@ function JoinTalentFormInner({
 
         <p className="mt-2 text-xs text-gray-muted">
           {locale === "ar"
-            ? `يمكن رفع حتى ${MAX_GALLERY_IMAGES} صور. سيتم رفع الصور قبل إرسال الطلب.`
-            : `You can upload up to ${MAX_GALLERY_IMAGES} images. Images will be uploaded before submission.`}
+            ? "يمكن رفع صورة واحدة للمعرض حاليًا."
+            : "You can upload one gallery image for now."}
         </p>
       </div>
 
