@@ -1,18 +1,18 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Talent } from "@/lib/types/talent";
 
-export async function getPendingTalents(): Promise<Talent[]> {
+export async function getTalentBySlug(slug: string): Promise<Talent | null> {
   const supabase = createAdminClient();
 
   const { data, error } = await supabase
     .from("talents")
     .select("*")
-    .eq("status", "pending")
-    .order("id", { ascending: false });
+    .eq("slug", slug)
+    .maybeSingle();
 
   if (error) {
-    throw new Error(`[getPendingTalents] ${error.message}`);
+    throw new Error(`[getTalentBySlug] ${error.message}`);
   }
 
-  return (data ?? []) as Talent[];
+  return data as Talent | null;
 }

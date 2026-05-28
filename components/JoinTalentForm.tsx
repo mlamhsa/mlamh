@@ -1,58 +1,45 @@
 "use client";
 
 import Link from "next/link";
-import {
-  useActionState,
-  useState,
-  startTransition,
-} from "react";
-
+import { useActionState, useState, startTransition } from "react";
 import type { ReactNode } from "react";
-
-import { submitTalentAction } from "@/lib/actions/submit-talent";
-import { initialSubmitTalentState } from "@/lib/actions/submit-talent-state";
-
+import { submitTalentAction as rawSubmitTalentAction } from "@/lib/actions/submit-talent";
+import {
+  initialSubmitTalentState,
+  type SubmitTalentState,
+} from "@/lib/actions/submit-talent-state";
 import type { Dictionary, Locale } from "@/lib/i18n";
-
 import type { TalentSubmissionErrors } from "@/lib/validations/talent-submission";
 
 const MAX_GALLERY_IMAGES = 8;
+const MAX_IMAGE_SIZE_MB = 15;
 
 async function compressImageFile(
   file: File,
   options: {
     maxWidth: number;
     quality: number;
-  },
+  }
 ): Promise<File> {
-  if (!file.type.startsWith("image/")) {
+  if (!file.type.startsWith("image/") || file.type.includes("heic")) {
     return file;
   }
 
   const imageUrl = URL.createObjectURL(file);
 
   try {
-    const image = await new Promise<HTMLImageElement>(
-      (resolve, reject) => {
-        const img = new Image();
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image();
 
-        img.onload = () => resolve(img);
-        img.onerror = reject;
+      img.decoding = "async";
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = imageUrl;
+    });
 
-        img.src = imageUrl;
-      },
-    );
-
-    const scale = Math.min(
-      1,
-      options.maxWidth / image.width,
-    );
-
+    const scale = Math.min(1, options.maxWidth / image.width);
     const width = Math.round(image.width * scale);
-
-    const height = Math.round(
-      image.height * scale,
-    );
+    const height = Math.round(image.height * scale);
 
     const canvas = document.createElement("canvas");
 
@@ -67,33 +54,20 @@ async function compressImageFile(
 
     ctx.drawImage(image, 0, 0, width, height);
 
-    const blob = await new Promise<Blob | null>(
-      (resolve) => {
-        canvas.toBlob(
-          resolve,
-          "image/webp",
-          options.quality,
-        );
-      },
-    );
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob(resolve, "image/webp", options.quality);
+    });
 
     if (!blob) {
       return file;
     }
 
-    const originalName = file.name.replace(
-      /\.[^/.]+$/,
-      "",
-    );
+    const originalName = file.name.replace(/\.[^/.]+$/, "");
 
-    return new File(
-      [blob],
-      `${originalName}.webp`,
-      {
-        type: "image/webp",
-        lastModified: Date.now(),
-      },
-    );
+    return new File([blob], `${originalName}.webp`, {
+      type: "image/webp",
+      lastModified: Date.now(),
+    });
   } finally {
     URL.revokeObjectURL(imageUrl);
   }
@@ -114,26 +88,15 @@ function FieldLabel({
       className="mb-2 block text-[9px] uppercase tracking-[0.35em] text-gray-muted"
     >
       {children}
-
-      {required ? (
-        <span className="text-gold"> *</span>
-      ) : null}
+      {required ? <span className="text-gold"> *</span> : null}
     </label>
   );
 }
 
-function FieldError({
-  message,
-}: {
-  message?: string;
-}) {
+function FieldError({ message }: { message?: string }) {
   if (!message) return null;
 
-  return (
-    <p className="mt-1.5 text-xs text-red-400/90">
-      {message}
-    </p>
-  );
+  return <p className="mt-1.5 text-xs text-red-400/90">{message}</p>;
 }
 
 function FormInput({
@@ -169,12 +132,9 @@ function FormInput({
         min={min}
         max={max}
         className={`w-full border bg-black/30 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition-colors duration-300 focus:border-gold/50 ${
-          error
-            ? "border-red-400/50"
-            : "border-white/10"
+          error ? "border-red-400/50" : "border-white/10"
         }`}
       />
-
       <FieldError message={error} />
     </div>
   );
@@ -204,12 +164,9 @@ function FormTextarea({
         placeholder={placeholder}
         dir={dir}
         className={`w-full resize-y border bg-black/30 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition-colors duration-300 focus:border-gold/50 ${
-          error
-            ? "border-red-400/50"
-            : "border-white/10"
+          error ? "border-red-400/50" : "border-white/10"
         }`}
       />
-
       <FieldError message={error} />
     </div>
   );
@@ -231,7 +188,6 @@ function SectionTitle({
       <h2 className="text-[10px] uppercase tracking-[0.4em] text-gold">
         {title}
       </h2>
-
       <span className="gold-line flex-1" />
     </div>
   );
@@ -243,12 +199,14 @@ function JoinSuccess({
   isRtl,
   displayFont,
   bodyFont,
+  onReset,
 }: {
   dict: Dictionary;
   locale: Locale;
   isRtl: boolean;
   displayFont: string;
   bodyFont: string;
+  onReset: () => void;
 }) {
   const j = dict.join;
 
@@ -274,34 +232,58 @@ function JoinSuccess({
         {j.successMessage}
       </p>
 
-      <Link
-        href={`/${locale}`}
-        className={`btn-luxury mt-10 inline-flex items-center gap-2 border border-gold/40 px-8 py-3 text-[10px] uppercase tracking-[0.3em] text-gold transition-colors hover:bg-gold/10 ${
-          isRtl ? "flex-row-reverse" : ""
-        }`}
-      >
-        {j.backHome}
-      </Link>
+      <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
+        <button
+          type="button"
+          onClick={onReset}
+          className="inline-flex items-center justify-center border border-white/15 px-8 py-3 text-[10px] uppercase tracking-[0.3em] text-white/70 transition-colors hover:border-gold/40 hover:text-gold"
+        >
+          {locale === "ar"
+            ? "إرسال طلب جديد"
+            : "Submit another application"}
+        </button>
+
+        <Link
+          href={`/${locale}`}
+          className={`btn-luxury inline-flex items-center gap-2 border border-gold/40 px-8 py-3 text-[10px] uppercase tracking-[0.3em] text-gold transition-colors hover:bg-gold/10 ${
+            isRtl ? "flex-row-reverse" : ""
+          }`}
+        >
+          {j.backHome}
+        </Link>
+      </div>
     </div>
   );
 }
 
-export function JoinTalentForm({
-  dict,
-  locale,
-}: {
+export function JoinTalentForm(props: {
   dict: Dictionary;
   locale: Locale;
 }) {
+  const [formKey, setFormKey] = useState(0);
+
+  return (
+    <JoinTalentFormInner
+      key={formKey}
+      {...props}
+      onReset={() => setFormKey((key) => key + 1)}
+    />
+  );
+}
+
+function JoinTalentFormInner({
+  dict,
+  locale,
+  onReset,
+}: {
+  dict: Dictionary;
+  locale: Locale;
+  onReset: () => void;
+}) {
   const j = dict.join;
-
   const isRtl = locale === "ar";
-
-  const [clientError, setClientError] =
-    useState<string | null>(null);
-
-  const [isCompressing, setIsCompressing] =
-    useState(false);
+  const [clientError, setClientError] = useState<string | null>(null);
+  const [isCompressing, setIsCompressing] = useState(false);
 
   const displayFont = isRtl
     ? "var(--font-noto-arabic)"
@@ -311,63 +293,74 @@ export function JoinTalentForm({
     ? "var(--font-noto-arabic)"
     : "var(--font-dm-sans)";
 
-  const [state, formAction, isPending] =
-    useActionState(
+    const submitTalentAction = rawSubmitTalentAction as (
+      state: SubmitTalentState,
+      formData: FormData
+    ) => Promise<SubmitTalentState>;
+    
+    const [state, formAction, isPending] = useActionState(
       submitTalentAction,
-      initialSubmitTalentState,
+      initialSubmitTalentState
     );
 
-  const errors =
-    (state?.errors ?? {}) as TalentSubmissionErrors;
+  const errors = (state?.errors ?? {}) as TalentSubmissionErrors;
 
-  async function handleFormAction(
-    formData: FormData,
-  ) {
+  async function handleFormAction(formData: FormData) {
     setClientError(null);
+
+    const allFiles = [
+      formData.get("image"),
+      ...formData.getAll("gallery"),
+    ].filter(
+      (file): file is File =>
+        file instanceof File && file.size > 0
+    );
+
+    const oversizedFile = allFiles.find(
+      (file) => file.size > MAX_IMAGE_SIZE_MB * 1024 * 1024
+    );
+
+    if (oversizedFile) {
+      setClientError(
+        locale === "ar"
+          ? `حجم الصورة كبير جدًا. الحد الأقصى ${MAX_IMAGE_SIZE_MB}MB`
+          : `Image too large. Maximum size is ${MAX_IMAGE_SIZE_MB}MB`
+      );
+
+      return;
+    }
 
     setIsCompressing(true);
 
     try {
       const imageFile = formData.get("image");
 
-      if (
-        imageFile instanceof File &&
-        imageFile.size > 0
-      ) {
-        const compressedProfileImage =
-          await compressImageFile(imageFile, {
-            maxWidth: 1200,
-            quality: 0.75,
-          });
+      if (imageFile instanceof File && imageFile.size > 0) {
+        const compressedProfileImage = await compressImageFile(imageFile, {
+          maxWidth: 1200,
+          quality: 0.75,
+        });
 
-        formData.set(
-          "image",
-          compressedProfileImage,
-        );
+        formData.set("image", compressedProfileImage);
       }
 
       const galleryFiles = formData
         .getAll("gallery")
         .filter(
           (file): file is File =>
-            file instanceof File &&
-            file.size > 0,
+            file instanceof File && file.size > 0
         )
         .slice(0, MAX_GALLERY_IMAGES);
 
       formData.delete("gallery");
 
       for (const file of galleryFiles) {
-        const compressedGalleryImage =
-          await compressImageFile(file, {
-            maxWidth: 1600,
-            quality: 0.75,
-          });
+        const compressedGalleryImage = await compressImageFile(file, {
+          maxWidth: 1600,
+          quality: 0.75,
+        });
 
-        formData.append(
-          "gallery",
-          compressedGalleryImage,
-        );
+        formData.append("gallery", compressedGalleryImage);
       }
 
       startTransition(() => {
@@ -377,7 +370,7 @@ export function JoinTalentForm({
       setClientError(
         locale === "ar"
           ? "تعذر ضغط الصور. جرّب صورًا أخرى أو حجمًا أصغر."
-          : "Unable to compress images. Try different or smaller images.",
+          : "Unable to compress images. Try different or smaller images."
       );
     } finally {
       setIsCompressing(false);
@@ -392,6 +385,7 @@ export function JoinTalentForm({
         isRtl={isRtl}
         displayFont={displayFont}
         bodyFont={bodyFont}
+        onReset={onReset}
       />
     );
   }
@@ -400,11 +394,248 @@ export function JoinTalentForm({
     <form
       action={handleFormAction}
       noValidate
-      className={
-        isRtl ? "text-right" : "text-left"
-      }
+      className={isRtl ? "text-right" : "text-left"}
     >
-      {/* بقية الفورم كما هو بدون تغيير */}
+      <input type="hidden" name="locale" value={locale} />
+
+      {clientError ? (
+        <p
+          className="mb-8 border border-red-400/30 bg-red-950/20 px-4 py-3 text-sm text-red-300"
+          role="alert"
+        >
+          {clientError}
+        </p>
+      ) : null}
+
+      {state?.message && !state?.success ? (
+        <p
+          className="mb-8 border border-red-400/30 bg-red-950/20 px-4 py-3 text-sm text-red-300"
+          role="alert"
+        >
+          {state.message}
+        </p>
+      ) : null}
+
+      {Object.keys(errors ?? {}).length > 0 ? (
+        <p
+          className="mb-8 border border-gold/30 bg-gold/[0.04] px-4 py-3 text-sm text-gold"
+          role="alert"
+        >
+          {j.errorBanner}
+        </p>
+      ) : null}
+
+      <p className="mb-10 text-[10px] uppercase tracking-[0.3em] text-gray-muted">
+        <span className="text-gold">*</span> {j.requiredHint}
+      </p>
+
+      <SectionTitle title={j.sectionIdentity} isRtl={isRtl} />
+
+      <div className="mb-12 grid gap-6 md:grid-cols-2">
+        <div>
+          <FieldLabel htmlFor="name_en" required>
+            {j.nameEn}
+          </FieldLabel>
+          <FormInput
+            id="name_en"
+            name="name_en"
+            placeholder={j.placeholderNameEn}
+            required
+            error={errors.name_en}
+            dir="ltr"
+          />
+        </div>
+
+        <div>
+          <FieldLabel htmlFor="name_ar" required>
+            {j.nameAr}
+          </FieldLabel>
+          <FormInput
+            id="name_ar"
+            name="name_ar"
+            placeholder={j.placeholderNameAr}
+            required
+            error={errors.name_ar}
+            dir="rtl"
+          />
+        </div>
+
+        <div>
+          <FieldLabel htmlFor="category_en" required>
+            {j.categoryEn}
+          </FieldLabel>
+          <FormInput
+            id="category_en"
+            name="category_en"
+            placeholder={j.placeholderCategoryEn}
+            required
+            error={errors.category_en}
+            dir="ltr"
+          />
+        </div>
+
+        <div>
+          <FieldLabel htmlFor="category_ar" required>
+            {j.categoryAr}
+          </FieldLabel>
+          <FormInput
+            id="category_ar"
+            name="category_ar"
+            placeholder={j.placeholderCategoryAr}
+            required
+            error={errors.category_ar}
+            dir="rtl"
+          />
+        </div>
+      </div>
+
+      <SectionTitle title={j.sectionDetails} isRtl={isRtl} />
+
+      <div className="mb-12 grid gap-6 md:grid-cols-2">
+        <div>
+          <FieldLabel htmlFor="city_en">{j.cityEn}</FieldLabel>
+          <FormInput
+            id="city_en"
+            name="city_en"
+            placeholder={j.placeholderCityEn}
+            error={errors.city_en}
+            dir="ltr"
+          />
+        </div>
+
+        <div>
+          <FieldLabel htmlFor="city_ar">{j.cityAr}</FieldLabel>
+          <FormInput
+            id="city_ar"
+            name="city_ar"
+            placeholder={j.placeholderCityAr}
+            error={errors.city_ar}
+            dir="rtl"
+          />
+        </div>
+
+        <div>
+          <FieldLabel htmlFor="age">{j.age}</FieldLabel>
+          <FormInput
+            id="age"
+            name="age"
+            type="number"
+            min={1}
+            max={120}
+            placeholder="25"
+            error={errors.age}
+            dir="ltr"
+          />
+        </div>
+
+        <div>
+          <FieldLabel htmlFor="height">{j.height}</FieldLabel>
+          <FormInput
+            id="height"
+            name="height"
+            placeholder={j.placeholderHeight}
+            error={errors.height}
+            dir="ltr"
+          />
+        </div>
+
+        <div className="md:col-span-2">
+          <FieldLabel htmlFor="bio_en">{j.bioEn}</FieldLabel>
+          <FormTextarea
+            id="bio_en"
+            name="bio_en"
+            placeholder={j.placeholderBioEn}
+            error={errors.bio_en}
+            dir="ltr"
+          />
+        </div>
+
+        <div className="md:col-span-2">
+          <FieldLabel htmlFor="bio_ar">{j.bioAr}</FieldLabel>
+          <FormTextarea
+            id="bio_ar"
+            name="bio_ar"
+            placeholder={j.placeholderBioAr}
+            error={errors.bio_ar}
+            dir="rtl"
+          />
+        </div>
+      </div>
+
+      <SectionTitle title={j.sectionContact} isRtl={isRtl} />
+
+      <div className="mb-12 grid gap-6 md:grid-cols-2">
+        <div>
+          <FieldLabel htmlFor="whatsapp" required>
+            {j.whatsapp}
+          </FieldLabel>
+          <FormInput
+            id="whatsapp"
+            name="whatsapp"
+            type="tel"
+            placeholder={j.placeholderWhatsapp}
+            required
+            error={errors.whatsapp}
+            dir="ltr"
+          />
+        </div>
+
+        <div>
+          <FieldLabel htmlFor="instagram">{j.instagram}</FieldLabel>
+          <FormInput
+            id="instagram"
+            name="instagram"
+            type="url"
+            placeholder={j.placeholderInstagram}
+            error={errors.instagram}
+            dir="ltr"
+          />
+        </div>
+      </div>
+
+      <div className="mb-8">
+        <FieldLabel htmlFor="image">Profile Image</FieldLabel>
+        <input
+          id="image"
+          name="image"
+          type="file"
+          accept="image/*"
+          className="w-full border border-white/10 bg-black/30 px-4 py-3 text-sm text-white file:mr-4 file:border-0 file:bg-gold/10 file:px-4 file:py-2 file:text-gold"
+        />
+      </div>
+
+      <div className="mb-10">
+        <FieldLabel htmlFor="gallery">Gallery Images</FieldLabel>
+        <input
+          id="gallery"
+          name="gallery"
+          type="file"
+          accept="image/*"
+          multiple
+          className="w-full border border-white/10 bg-black/30 px-4 py-3 text-sm text-white file:mr-4 file:border-0 file:bg-gold/10 file:px-4 file:py-2 file:text-gold"
+        />
+        <p className="mt-2 text-xs text-gray-muted">
+          {locale === "ar"
+            ? `يمكن رفع حتى ${MAX_GALLERY_IMAGES} صور. سيتم ضغط الصور تلقائيًا قبل الإرسال.`
+            : `You can upload up to ${MAX_GALLERY_IMAGES} images. Images will be compressed automatically before submission.`}
+        </p>
+      </div>
+
+      <button
+        type="submit"
+        disabled={isPending || isCompressing}
+        className={`btn-luxury w-full border border-gold/40 bg-gold/[0.06] px-10 py-4 text-[10px] uppercase tracking-[0.35em] text-gold transition-all duration-300 hover:border-gold hover:bg-gold/15 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto ${
+          isRtl ? "mr-0 ml-auto block" : ""
+        }`}
+      >
+        {isCompressing
+          ? locale === "ar"
+            ? "جاري ضغط الصور..."
+            : "Compressing images..."
+          : isPending
+            ? j.submitting
+            : j.submit}
+      </button>
     </form>
   );
 }

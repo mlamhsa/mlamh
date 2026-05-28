@@ -1,0 +1,5 @@
+export const RELATED_TALENTS_LIMIT = 3;
+
+export const FEATURED_TALENTS_LIMIT = 3;
+
+export const PUBLIC_TALENTS_PAGE_SIZE = 12;

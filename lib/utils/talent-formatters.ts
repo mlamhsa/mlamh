@@ -1,0 +1,38 @@
+import type { Locale } from "@/lib/i18n";
+import type { Talent } from "@/lib/types/talent";
+
+export function getTalentName(
+  talent: Talent,
+  locale: Locale
+) {
+  return locale === "ar"
+    ? talent.name_ar || talent.name_en
+    : talent.name_en || talent.name_ar;
+}
+
+export function getTalentCategory(
+  talent: Talent,
+  locale: Locale
+) {
+  return locale === "ar"
+    ? talent.category_ar || talent.category_en
+    : talent.category_en || talent.category_ar;
+}
+
+export function getTalentCity(
+  talent: Talent,
+  locale: Locale
+) {
+  return locale === "ar"
+    ? talent.city_ar || talent.city_en
+    : talent.city_en || talent.city_ar;
+}
+
+export function getTalentBio(
+  talent: Talent,
+  locale: Locale
+) {
+  return locale === "ar"
+    ? talent.bio_ar || talent.bio_en
+    : talent.bio_en || talent.bio_ar;
+}
