@@ -17,7 +17,7 @@ import type { Dictionary, Locale } from "@/lib/i18n";
 import type { TalentSubmissionErrors } from "@/lib/validations/talent-submission";
 
 const BUCKET_NAME = "talent-images";
-const MAX_GALLERY_IMAGES = 8;
+const MAX_GALLERY_IMAGES = 1;
 const MAX_IMAGE_SIZE_MB = 15;
 
 function getExtension(type: string) {
@@ -685,7 +685,6 @@ function JoinTalentFormInner({
           name="gallery"
           type="file"
           accept="image/jpeg,image/png,image/webp,image/avif"
-          multiple
           className="w-full border border-white/10 bg-black/30 px-4 py-3 text-sm text-white file:mr-4 file:border-0 file:bg-gold/10 file:px-4 file:py-2 file:text-gold"
         />
 
