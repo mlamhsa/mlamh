@@ -10,9 +10,6 @@ import { setTalentMainImageAction } from "@/lib/actions/set-talent-main-image";
 import { normalizeGalleryImages } from "@/lib/utils/talent-gallery";
 
 const BUCKET_NAME = "talent-images";
-
-const MAX_UPLOAD_IMAGES = 8;
-
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
 type Props = {
@@ -23,21 +20,10 @@ type Props = {
 };
 
 function getExtension(type: string) {
-  if (type === "image/jpeg") {
-    return "jpg";
-  }
-
-  if (type === "image/png") {
-    return "png";
-  }
-
-  if (type === "image/webp") {
-    return "webp";
-  }
-
-  if (type === "image/avif") {
-    return "avif";
-  }
+  if (type === "image/jpeg") return "jpg";
+  if (type === "image/png") return "png";
+  if (type === "image/webp") return "webp";
+  if (type === "image/avif") return "avif";
 
   return null;
 }
@@ -52,7 +38,7 @@ export function EditTalentGalleryManager({
 
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  const [files, setFiles] = useState<File[]>([]);
+  const [file, setFile] = useState<File | null>(null);
 
   const [isUploading, setIsUploading] =
     useState(false);
@@ -72,9 +58,9 @@ export function EditTalentGalleryManager({
   async function handleUpload() {
     setErrorMessage(null);
 
-    if (files.length === 0) {
+    if (!file) {
       setErrorMessage(
-        "Please choose at least one image."
+        "Please choose one image."
       );
 
       return;
@@ -83,57 +69,46 @@ export function EditTalentGalleryManager({
     setIsUploading(true);
 
     try {
+      if (file.size > MAX_FILE_SIZE) {
+        throw new Error(
+          "Image must be 5MB or smaller."
+        );
+      }
+
+      const extension = getExtension(
+        file.type
+      );
+
+      if (!extension) {
+        throw new Error(
+          "Only JPG, PNG, WEBP, and AVIF images are allowed."
+        );
+      }
+
       const supabase =
         createBrowserSupabaseClient();
 
-      const selectedFiles = files.slice(
-        0,
-        MAX_UPLOAD_IMAGES
-      );
+      const fileName = `${Date.now()}-${crypto.randomUUID()}.${extension}`;
 
-      const uploadedUrls: string[] = [];
+      const filePath = `talents/${fileName}`;
 
-      for (const file of selectedFiles) {
-        if (file.size > MAX_FILE_SIZE) {
-          throw new Error(
-            "Each image must be 5MB or smaller."
-          );
-        }
-
-        const extension = getExtension(
-          file.type
-        );
-
-        if (!extension) {
-          throw new Error(
-            "Only JPG, PNG, WEBP, and AVIF images are allowed."
-          );
-        }
-
-        const fileName = `${Date.now()}-${crypto.randomUUID()}.${extension}`;
-
-        const filePath = `talents/${fileName}`;
-
-        const { error } =
-          await supabase.storage
-            .from(BUCKET_NAME)
-            .upload(filePath, file, {
-              upsert: false,
-              contentType: file.type,
-            });
-
-        if (error) {
-          throw new Error(error.message);
-        }
-
-        const {
-          data: { publicUrl },
-        } = supabase.storage
+      const { error } =
+        await supabase.storage
           .from(BUCKET_NAME)
-          .getPublicUrl(filePath);
+          .upload(filePath, file, {
+            upsert: false,
+            contentType: file.type,
+          });
 
-        uploadedUrls.push(publicUrl);
+      if (error) {
+        throw new Error(error.message);
       }
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage
+        .from(BUCKET_NAME)
+        .getPublicUrl(filePath);
 
       const formData = new FormData();
 
@@ -142,15 +117,16 @@ export function EditTalentGalleryManager({
         String(talentId)
       );
 
-      for (const url of uploadedUrls) {
-        formData.append("imageUrls", url);
-      }
+      formData.append(
+        "imageUrls",
+        publicUrl
+      );
 
       await addTalentGalleryImagesAction(
         formData
       );
 
-      setFiles([]);
+      setFile(null);
 
       if (inputRef.current) {
         inputRef.current.value = "";
@@ -172,19 +148,16 @@ export function EditTalentGalleryManager({
     <div className="space-y-6">
       <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
         <label className="mb-3 block text-[10px] uppercase tracking-[0.3em] text-gray-muted">
-          Add gallery images
+          Add gallery image
         </label>
 
         <input
           ref={inputRef}
           type="file"
           accept="image/jpeg,image/png,image/webp,image/avif"
-          multiple
           onChange={(event) => {
-            setFiles(
-              Array.from(
-                event.target.files ?? []
-              )
+            setFile(
+              event.target.files?.[0] ?? null
             );
           }}
           className="w-full border border-white/10 bg-black/40 px-4 py-3 text-sm text-white file:mr-4 file:border-0 file:bg-gold/10 file:px-4 file:py-2 file:text-gold"
@@ -210,7 +183,7 @@ export function EditTalentGalleryManager({
         >
           {isUploading
             ? "Uploading..."
-            : "Upload images"}
+            : "Upload image"}
         </button>
       </div>
 
