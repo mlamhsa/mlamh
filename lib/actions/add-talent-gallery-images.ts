@@ -23,14 +23,14 @@ async function requireAdminUser() {
 
   const adminClient = createAdminClient();
 
-  const { data: adminUser } = await adminClient
+  const { data: adminUser, error: adminError } = await adminClient
     .from("admin_users")
     .select("id")
     .eq("id", user.id)
     .eq("role", "admin")
     .maybeSingle();
 
-  if (!adminUser) {
+  if (adminError || !adminUser) {
     throw new Error("Forbidden");
   }
 }
@@ -48,7 +48,10 @@ export async function addTalentGalleryImagesAction(
 
   const files = formData
     .getAll("gallery")
-    .filter((file): file is File => file instanceof File && file.size > 0)
+    .filter(
+      (file): file is File =>
+        file instanceof File && file.size > 0
+    )
     .slice(0, MAX_UPLOAD_IMAGES);
 
   if (files.length === 0) {
@@ -59,19 +62,24 @@ export async function addTalentGalleryImagesAction(
 
   const { data: talent, error: fetchError } = await supabase
     .from("talents")
-    .select("gallery_images")
+    .select("gallery_images, slug")
     .eq("id", talentId)
     .maybeSingle();
 
   if (fetchError) {
-    throw new Error(`[addTalentGalleryImagesAction] ${fetchError.message}`);
+    throw new Error(
+      `[addTalentGalleryImagesAction] ${fetchError.message}`
+    );
   }
 
   if (!talent) {
     throw new Error("Talent not found");
   }
 
-  const currentGallery = normalizeGalleryImages(talent.gallery_images);
+  const currentGallery = normalizeGalleryImages(
+    talent.gallery_images
+  );
+
   const uploadedUrls = await uploadGalleryImages(files);
 
   const nextGallery = Array.from(
@@ -86,11 +94,18 @@ export async function addTalentGalleryImagesAction(
     .eq("id", talentId);
 
   if (updateError) {
-    throw new Error(`[addTalentGalleryImagesAction] ${updateError.message}`);
+    throw new Error(
+      `[addTalentGalleryImagesAction] ${updateError.message}`
+    );
   }
 
-  revalidatePath(`/admin/talents/${talentId}/edit`);
   revalidatePath("/admin");
+  revalidatePath(`/admin/talents/${talentId}/edit`);
+
+  if (talent.slug) {
+    revalidatePath(`/ar/talent/${talent.slug}`);
+    revalidatePath(`/en/talent/${talent.slug}`);
+  }
 
   redirect(`/admin/talents/${talentId}/edit?updated=1`);
 }
