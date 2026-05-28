@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { uploadGalleryImages } from "@/lib/supabase/storage";
 import { normalizeGalleryImages } from "@/lib/utils/talent-gallery";
 
 const MAX_UPLOAD_IMAGES = 8;
@@ -46,15 +45,15 @@ export async function addTalentGalleryImagesAction(
     throw new Error("Invalid talent id");
   }
 
-  const files = formData
-    .getAll("gallery")
+  const imageUrls = formData
+    .getAll("imageUrls")
     .filter(
-      (file): file is File =>
-        file instanceof File && file.size > 0
+      (value): value is string =>
+        typeof value === "string" && value.length > 0
     )
     .slice(0, MAX_UPLOAD_IMAGES);
 
-  if (files.length === 0) {
+  if (imageUrls.length === 0) {
     redirect(`/admin/talents/${talentId}/edit`);
   }
 
@@ -80,10 +79,8 @@ export async function addTalentGalleryImagesAction(
     talent.gallery_images
   );
 
-  const uploadedUrls = await uploadGalleryImages(files);
-
   const nextGallery = Array.from(
-    new Set([...currentGallery, ...uploadedUrls])
+    new Set([...currentGallery, ...imageUrls])
   );
 
   const { error: updateError } = await supabase
