@@ -1,11 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import {
-  useActionState,
-  useState,
-  startTransition,
-} from "react";
+import { useActionState, useState, startTransition } from "react";
 import type { ReactNode } from "react";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 import { submitTalentAction as rawSubmitTalentAction } from "@/lib/actions/submit-talent";
@@ -285,8 +281,34 @@ function JoinTalentFormInner({
 
   const errors = (state?.errors ?? {}) as TalentSubmissionErrors;
 
+  function mirrorLocaleFields(formData: FormData) {
+    if (isRtl) {
+      const nameAr = String(formData.get("name_ar") ?? "").trim();
+      const categoryAr = String(formData.get("category_ar") ?? "").trim();
+      const cityAr = String(formData.get("city_ar") ?? "").trim();
+      const bioAr = String(formData.get("bio_ar") ?? "").trim();
+
+      formData.set("name_en", nameAr);
+      formData.set("category_en", categoryAr);
+      formData.set("city_en", cityAr);
+      formData.set("bio_en", bioAr);
+    } else {
+      const nameEn = String(formData.get("name_en") ?? "").trim();
+      const categoryEn = String(formData.get("category_en") ?? "").trim();
+      const cityEn = String(formData.get("city_en") ?? "").trim();
+      const bioEn = String(formData.get("bio_en") ?? "").trim();
+
+      formData.set("name_ar", nameEn);
+      formData.set("category_ar", categoryEn);
+      formData.set("city_ar", cityEn);
+      formData.set("bio_ar", bioEn);
+    }
+  }
+
   async function handleFormAction(formData: FormData) {
     setClientError(null);
+
+    mirrorLocaleFields(formData);
 
     const allFiles = [
       formData.get("image"),
@@ -406,87 +428,121 @@ function JoinTalentFormInner({
       <SectionTitle title={j.sectionIdentity} isRtl={isRtl} />
 
       <div className="mb-12 grid gap-6 md:grid-cols-2">
-        <div>
-          <FieldLabel htmlFor="name_en" required>
-            {j.nameEn}
-          </FieldLabel>
-          <FormInput
-            id="name_en"
-            name="name_en"
-            placeholder={j.placeholderNameEn}
-            required
-            error={errors.name_en}
-            dir="ltr"
-          />
-        </div>
+        {isRtl ? (
+          <>
+            <div>
+              <FieldLabel htmlFor="name_ar" required>
+                {j.nameAr}
+              </FieldLabel>
+              <FormInput
+                id="name_ar"
+                name="name_ar"
+                placeholder={j.placeholderNameAr}
+                required
+                error={errors.name_ar}
+                dir="rtl"
+              />
+            </div>
 
-        <div>
-          <FieldLabel htmlFor="name_ar" required>
-            {j.nameAr}
-          </FieldLabel>
-          <FormInput
-            id="name_ar"
-            name="name_ar"
-            placeholder={j.placeholderNameAr}
-            required
-            error={errors.name_ar}
-            dir="rtl"
-          />
-        </div>
+            <div>
+              <FieldLabel htmlFor="category_ar" required>
+                {j.categoryAr}
+              </FieldLabel>
+              <FormInput
+                id="category_ar"
+                name="category_ar"
+                placeholder={j.placeholderCategoryAr}
+                required
+                error={errors.category_ar}
+                dir="rtl"
+              />
+            </div>
+          </>
+        ) : (
+          <>
+            <div>
+              <FieldLabel htmlFor="name_en" required>
+                {j.nameEn}
+              </FieldLabel>
+              <FormInput
+                id="name_en"
+                name="name_en"
+                placeholder={j.placeholderNameEn}
+                required
+                error={errors.name_en}
+                dir="ltr"
+              />
+            </div>
 
-        <div>
-          <FieldLabel htmlFor="category_en" required>
-            {j.categoryEn}
-          </FieldLabel>
-          <FormInput
-            id="category_en"
-            name="category_en"
-            placeholder={j.placeholderCategoryEn}
-            required
-            error={errors.category_en}
-            dir="ltr"
-          />
-        </div>
-
-        <div>
-          <FieldLabel htmlFor="category_ar" required>
-            {j.categoryAr}
-          </FieldLabel>
-          <FormInput
-            id="category_ar"
-            name="category_ar"
-            placeholder={j.placeholderCategoryAr}
-            required
-            error={errors.category_ar}
-            dir="rtl"
-          />
-        </div>
+            <div>
+              <FieldLabel htmlFor="category_en" required>
+                {j.categoryEn}
+              </FieldLabel>
+              <FormInput
+                id="category_en"
+                name="category_en"
+                placeholder={j.placeholderCategoryEn}
+                required
+                error={errors.category_en}
+                dir="ltr"
+              />
+            </div>
+          </>
+        )}
       </div>
 
       <SectionTitle title={j.sectionDetails} isRtl={isRtl} />
 
       <div className="mb-12 grid gap-6 md:grid-cols-2">
-        <div>
-          <FieldLabel htmlFor="city_en">{j.cityEn}</FieldLabel>
-          <FormInput
-            id="city_en"
-            name="city_en"
-            placeholder={j.placeholderCityEn}
-            error={errors.city_en}
-            dir="ltr"
-          />
-        </div>
+        {isRtl ? (
+          <>
+            <div>
+              <FieldLabel htmlFor="city_ar">{j.cityAr}</FieldLabel>
+              <FormInput
+                id="city_ar"
+                name="city_ar"
+                placeholder={j.placeholderCityAr}
+                error={errors.city_ar}
+                dir="rtl"
+              />
+            </div>
 
-        <div>
-          <FieldLabel htmlFor="city_ar">{j.cityAr}</FieldLabel>
-          <FormInput
-            id="city_ar"
-            name="city_ar"
-            placeholder={j.placeholderCityAr}
-            error={errors.city_ar}
-            dir="rtl"
-          />
-        </div>
+            <div className="md:col-span-2">
+              <FieldLabel htmlFor="bio_ar">{j.bioAr}</FieldLabel>
+              <FormTextarea
+                id="bio_ar"
+                name="bio_ar"
+                placeholder={j.placeholderBioAr}
+                error={errors.bio_ar}
+                dir="rtl"
+              />
+            </div>
+          </>
+        ) : (
+          <>
+            <div>
+              <FieldLabel htmlFor="city_en">{j.cityEn}</FieldLabel>
+              <FormInput
+                id="city_en"
+                name="city_en"
+                placeholder={j.placeholderCityEn}
+                error={errors.city_en}
+                dir="ltr"
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <FieldLabel htmlFor="bio_en">{j.bioEn}</FieldLabel>
+              <FormTextarea
+                id="bio_en"
+                name="bio_en"
+                placeholder={j.placeholderBioEn}
+                error={errors.bio_en}
+                dir="ltr"
+              />
+            </div>
+          </>
+        )}
 
         <div>
           <FieldLabel htmlFor="age">{j.age}</FieldLabel>
@@ -510,28 +566,6 @@ function JoinTalentFormInner({
             placeholder={j.placeholderHeight}
             error={errors.height}
             dir="ltr"
-          />
-        </div>
-
-        <div className="md:col-span-2">
-          <FieldLabel htmlFor="bio_en">{j.bioEn}</FieldLabel>
-          <FormTextarea
-            id="bio_en"
-            name="bio_en"
-            placeholder={j.placeholderBioEn}
-            error={errors.bio_en}
-            dir="ltr"
-          />
-        </div>
-
-        <div className="md:col-span-2">
-          <FieldLabel htmlFor="bio_ar">{j.bioAr}</FieldLabel>
-          <FormTextarea
-            id="bio_ar"
-            name="bio_ar"
-            placeholder={j.placeholderBioAr}
-            error={errors.bio_ar}
-            dir="rtl"
           />
         </div>
       </div>
