@@ -31,7 +31,6 @@ export default async function TalentListingPage({
   searchParams,
 }: PageProps) {
   const { locale: localeParam } = await params;
-
   const { q, category, page } = await searchParams;
 
   if (!isValidLocale(localeParam)) {
