@@ -1,10 +1,6 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import {
-  uploadTalentImage,
-  uploadGalleryImages,
-} from "@/lib/supabase/storage";
 import { isValidLocale, type Locale } from "@/lib/i18n";
 import {
   getValidationMessages,
@@ -25,9 +21,22 @@ export type SubmitTalentState = {
 
 const initialErrors: TalentSubmissionErrors = {};
 
+function getStringValue(formData: FormData, key: string) {
+  const value = formData.get(key);
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function getStringArray(formData: FormData, key: string) {
+  return formData
+    .getAll(key)
+    .filter((value): value is string => typeof value === "string")
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
 export async function submitTalentAction(
   _prevState: SubmitTalentState,
-  formData: FormData,
+  formData: FormData
 ): Promise<SubmitTalentState> {
   const localeParam = formData.get("locale");
 
@@ -50,7 +59,6 @@ export async function submitTalentAction(
 
   const data = parseTalentSubmissionForm(formData);
   const validationMessages = getValidationMessages(locale);
-
   const errors = validateTalentSubmission(data, validationMessages);
 
   if (hasValidationErrors(errors)) {
@@ -64,25 +72,10 @@ export async function submitTalentAction(
   try {
     const supabase = createAdminClient();
 
-    const imageFile = formData.get("image");
+    const imageUrl =
+      getStringValue(formData, "image_url") || PENDING_IMAGE_PLACEHOLDER;
 
-    let imageUrl = PENDING_IMAGE_PLACEHOLDER;
-
-    if (imageFile instanceof File && imageFile.size > 0) {
-      imageUrl = await uploadTalentImage(imageFile);
-    }
-
-    const galleryFiles = formData.getAll("gallery");
-
-    const validGalleryFiles = galleryFiles.filter(
-      (file): file is File =>
-        file instanceof File && file.size > 0,
-    );
-
-    const galleryImages =
-      validGalleryFiles.length > 0
-        ? await uploadGalleryImages(validGalleryFiles)
-        : [];
+    const galleryImages = getStringArray(formData, "gallery_images");
 
     const { error } = await supabase.from("talents").insert({
       name_en: data.name_en,

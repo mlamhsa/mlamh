@@ -1,8 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useState, startTransition } from "react";
+import {
+  useActionState,
+  useState,
+  startTransition,
+} from "react";
 import type { ReactNode } from "react";
+import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 import { submitTalentAction as rawSubmitTalentAction } from "@/lib/actions/submit-talent";
 import {
   initialSubmitTalentState,
@@ -11,8 +16,17 @@ import {
 import type { Dictionary, Locale } from "@/lib/i18n";
 import type { TalentSubmissionErrors } from "@/lib/validations/talent-submission";
 
+const BUCKET_NAME = "talent-images";
 const MAX_GALLERY_IMAGES = 8;
 const MAX_IMAGE_SIZE_MB = 15;
+
+function getExtension(type: string) {
+  if (type === "image/jpeg") return "jpg";
+  if (type === "image/png") return "png";
+  if (type === "image/webp") return "webp";
+  if (type === "image/avif") return "avif";
+  return null;
+}
 
 async function compressImageFile(
   file: File,
@@ -21,28 +35,31 @@ async function compressImageFile(
     quality: number;
   }
 ): Promise<File> {
-  if (!file.type.startsWith("image/") || file.type.includes("heic")) {
+  if (
+    !file.type.startsWith("image/") ||
+    file.type.includes("heic")
+  ) {
     return file;
   }
 
   const imageUrl = URL.createObjectURL(file);
 
   try {
-    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const img = new Image();
-
-      img.decoding = "async";
-      img.onload = () => resolve(img);
-      img.onerror = reject;
-      img.src = imageUrl;
-    });
+    const image = await new Promise<HTMLImageElement>(
+      (resolve, reject) => {
+        const img = new Image();
+        img.decoding = "async";
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = imageUrl;
+      }
+    );
 
     const scale = Math.min(1, options.maxWidth / image.width);
     const width = Math.round(image.width * scale);
     const height = Math.round(image.height * scale);
 
     const canvas = document.createElement("canvas");
-
     canvas.width = width;
     canvas.height = height;
 
@@ -71,6 +88,36 @@ async function compressImageFile(
   } finally {
     URL.revokeObjectURL(imageUrl);
   }
+}
+
+async function uploadPublicSubmissionImage(file: File) {
+  const extension = getExtension(file.type);
+
+  if (!extension) {
+    throw new Error("Only JPG, PNG, WEBP, and AVIF images are allowed.");
+  }
+
+  const supabase = createBrowserSupabaseClient();
+
+  const fileName = `${Date.now()}-${crypto.randomUUID()}.${extension}`;
+  const filePath = `submissions/${fileName}`;
+
+  const { error } = await supabase.storage
+    .from(BUCKET_NAME)
+    .upload(filePath, file, {
+      upsert: false,
+      contentType: file.type,
+    });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from(BUCKET_NAME).getPublicUrl(filePath);
+
+  return publicUrl;
 }
 
 function FieldLabel({
@@ -135,6 +182,7 @@ function FormInput({
           error ? "border-red-400/50" : "border-white/10"
         }`}
       />
+
       <FieldError message={error} />
     </div>
   );
@@ -167,6 +215,7 @@ function FormTextarea({
           error ? "border-red-400/50" : "border-white/10"
         }`}
       />
+
       <FieldError message={error} />
     </div>
   );
@@ -188,6 +237,7 @@ function SectionTitle({
       <h2 className="text-[10px] uppercase tracking-[0.4em] text-gold">
         {title}
       </h2>
+
       <span className="gold-line flex-1" />
     </div>
   );
@@ -238,9 +288,7 @@ function JoinSuccess({
           onClick={onReset}
           className="inline-flex items-center justify-center border border-white/15 px-8 py-3 text-[10px] uppercase tracking-[0.3em] text-white/70 transition-colors hover:border-gold/40 hover:text-gold"
         >
-          {locale === "ar"
-            ? "إرسال طلب جديد"
-            : "Submit another application"}
+          {locale === "ar" ? "إرسال طلب جديد" : "Submit another application"}
         </button>
 
         <Link
@@ -282,8 +330,9 @@ function JoinTalentFormInner({
 }) {
   const j = dict.join;
   const isRtl = locale === "ar";
+
   const [clientError, setClientError] = useState<string | null>(null);
-  const [isCompressing, setIsCompressing] = useState(false);
+  const [isUploadingImages, setIsUploadingImages] = useState(false);
 
   const displayFont = isRtl
     ? "var(--font-noto-arabic)"
@@ -293,15 +342,15 @@ function JoinTalentFormInner({
     ? "var(--font-noto-arabic)"
     : "var(--font-dm-sans)";
 
-    const submitTalentAction = rawSubmitTalentAction as (
-      state: SubmitTalentState,
-      formData: FormData
-    ) => Promise<SubmitTalentState>;
-    
-    const [state, formAction, isPending] = useActionState(
-      submitTalentAction,
-      initialSubmitTalentState
-    );
+  const submitTalentAction = rawSubmitTalentAction as (
+    state: SubmitTalentState,
+    formData: FormData
+  ) => Promise<SubmitTalentState>;
+
+  const [state, formAction, isPending] = useActionState(
+    submitTalentAction,
+    initialSubmitTalentState
+  );
 
   const errors = (state?.errors ?? {}) as TalentSubmissionErrors;
 
@@ -312,8 +361,7 @@ function JoinTalentFormInner({
       formData.get("image"),
       ...formData.getAll("gallery"),
     ].filter(
-      (file): file is File =>
-        file instanceof File && file.size > 0
+      (file): file is File => file instanceof File && file.size > 0
     );
 
     const oversizedFile = allFiles.find(
@@ -330,7 +378,7 @@ function JoinTalentFormInner({
       return;
     }
 
-    setIsCompressing(true);
+    setIsUploadingImages(true);
 
     try {
       const imageFile = formData.get("image");
@@ -341,18 +389,21 @@ function JoinTalentFormInner({
           quality: 0.75,
         });
 
-        formData.set("image", compressedProfileImage);
+        const imageUrl = await uploadPublicSubmissionImage(
+          compressedProfileImage
+        );
+
+        formData.set("image_url", imageUrl);
       }
 
       const galleryFiles = formData
         .getAll("gallery")
         .filter(
-          (file): file is File =>
-            file instanceof File && file.size > 0
+          (file): file is File => file instanceof File && file.size > 0
         )
         .slice(0, MAX_GALLERY_IMAGES);
 
-      formData.delete("gallery");
+      formData.delete("gallery_images");
 
       for (const file of galleryFiles) {
         const compressedGalleryImage = await compressImageFile(file, {
@@ -360,20 +411,29 @@ function JoinTalentFormInner({
           quality: 0.75,
         });
 
-        formData.append("gallery", compressedGalleryImage);
+        const imageUrl = await uploadPublicSubmissionImage(
+          compressedGalleryImage
+        );
+
+        formData.append("gallery_images", imageUrl);
       }
+
+      formData.delete("image");
+      formData.delete("gallery");
 
       startTransition(() => {
         formAction(formData);
       });
-    } catch {
+    } catch (error) {
       setClientError(
-        locale === "ar"
-          ? "تعذر ضغط الصور. جرّب صورًا أخرى أو حجمًا أصغر."
-          : "Unable to compress images. Try different or smaller images."
+        error instanceof Error
+          ? error.message
+          : locale === "ar"
+            ? "تعذر رفع الصور. جرّب صورًا أخرى أو حجمًا أصغر."
+            : "Unable to upload images. Try different or smaller images."
       );
     } finally {
-      setIsCompressing(false);
+      setIsUploadingImages(false);
     }
   }
 
@@ -436,6 +496,7 @@ function JoinTalentFormInner({
           <FieldLabel htmlFor="name_en" required>
             {j.nameEn}
           </FieldLabel>
+
           <FormInput
             id="name_en"
             name="name_en"
@@ -450,6 +511,7 @@ function JoinTalentFormInner({
           <FieldLabel htmlFor="name_ar" required>
             {j.nameAr}
           </FieldLabel>
+
           <FormInput
             id="name_ar"
             name="name_ar"
@@ -464,6 +526,7 @@ function JoinTalentFormInner({
           <FieldLabel htmlFor="category_en" required>
             {j.categoryEn}
           </FieldLabel>
+
           <FormInput
             id="category_en"
             name="category_en"
@@ -478,6 +541,7 @@ function JoinTalentFormInner({
           <FieldLabel htmlFor="category_ar" required>
             {j.categoryAr}
           </FieldLabel>
+
           <FormInput
             id="category_ar"
             name="category_ar"
@@ -494,6 +558,7 @@ function JoinTalentFormInner({
       <div className="mb-12 grid gap-6 md:grid-cols-2">
         <div>
           <FieldLabel htmlFor="city_en">{j.cityEn}</FieldLabel>
+
           <FormInput
             id="city_en"
             name="city_en"
@@ -505,6 +570,7 @@ function JoinTalentFormInner({
 
         <div>
           <FieldLabel htmlFor="city_ar">{j.cityAr}</FieldLabel>
+
           <FormInput
             id="city_ar"
             name="city_ar"
@@ -516,6 +582,7 @@ function JoinTalentFormInner({
 
         <div>
           <FieldLabel htmlFor="age">{j.age}</FieldLabel>
+
           <FormInput
             id="age"
             name="age"
@@ -530,6 +597,7 @@ function JoinTalentFormInner({
 
         <div>
           <FieldLabel htmlFor="height">{j.height}</FieldLabel>
+
           <FormInput
             id="height"
             name="height"
@@ -541,6 +609,7 @@ function JoinTalentFormInner({
 
         <div className="md:col-span-2">
           <FieldLabel htmlFor="bio_en">{j.bioEn}</FieldLabel>
+
           <FormTextarea
             id="bio_en"
             name="bio_en"
@@ -552,6 +621,7 @@ function JoinTalentFormInner({
 
         <div className="md:col-span-2">
           <FieldLabel htmlFor="bio_ar">{j.bioAr}</FieldLabel>
+
           <FormTextarea
             id="bio_ar"
             name="bio_ar"
@@ -569,6 +639,7 @@ function JoinTalentFormInner({
           <FieldLabel htmlFor="whatsapp" required>
             {j.whatsapp}
           </FieldLabel>
+
           <FormInput
             id="whatsapp"
             name="whatsapp"
@@ -582,6 +653,7 @@ function JoinTalentFormInner({
 
         <div>
           <FieldLabel htmlFor="instagram">{j.instagram}</FieldLabel>
+
           <FormInput
             id="instagram"
             name="instagram"
@@ -595,43 +667,46 @@ function JoinTalentFormInner({
 
       <div className="mb-8">
         <FieldLabel htmlFor="image">Profile Image</FieldLabel>
+
         <input
           id="image"
           name="image"
           type="file"
-          accept="image/*"
+          accept="image/jpeg,image/png,image/webp,image/avif"
           className="w-full border border-white/10 bg-black/30 px-4 py-3 text-sm text-white file:mr-4 file:border-0 file:bg-gold/10 file:px-4 file:py-2 file:text-gold"
         />
       </div>
 
       <div className="mb-10">
         <FieldLabel htmlFor="gallery">Gallery Images</FieldLabel>
+
         <input
           id="gallery"
           name="gallery"
           type="file"
-          accept="image/*"
+          accept="image/jpeg,image/png,image/webp,image/avif"
           multiple
           className="w-full border border-white/10 bg-black/30 px-4 py-3 text-sm text-white file:mr-4 file:border-0 file:bg-gold/10 file:px-4 file:py-2 file:text-gold"
         />
+
         <p className="mt-2 text-xs text-gray-muted">
           {locale === "ar"
-            ? `يمكن رفع حتى ${MAX_GALLERY_IMAGES} صور. سيتم ضغط الصور تلقائيًا قبل الإرسال.`
-            : `You can upload up to ${MAX_GALLERY_IMAGES} images. Images will be compressed automatically before submission.`}
+            ? `يمكن رفع حتى ${MAX_GALLERY_IMAGES} صور. سيتم رفع الصور قبل إرسال الطلب.`
+            : `You can upload up to ${MAX_GALLERY_IMAGES} images. Images will be uploaded before submission.`}
         </p>
       </div>
 
       <button
         type="submit"
-        disabled={isPending || isCompressing}
+        disabled={isPending || isUploadingImages}
         className={`btn-luxury w-full border border-gold/40 bg-gold/[0.06] px-10 py-4 text-[10px] uppercase tracking-[0.35em] text-gold transition-all duration-300 hover:border-gold hover:bg-gold/15 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto ${
           isRtl ? "mr-0 ml-auto block" : ""
         }`}
       >
-        {isCompressing
+        {isUploadingImages
           ? locale === "ar"
-            ? "جاري ضغط الصور..."
-            : "Compressing images..."
+            ? "جاري رفع الصور..."
+            : "Uploading images..."
           : isPending
             ? j.submitting
             : j.submit}
