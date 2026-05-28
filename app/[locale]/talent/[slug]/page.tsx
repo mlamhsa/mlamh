@@ -24,6 +24,8 @@ import {
 import { getRelatedTalents } from "@/lib/utils/talent-selectors";
 import { normalizeGalleryImages } from "@/lib/utils/talent-gallery";
 
+export const dynamic = "force-dynamic";
+
 type PageProps = {
   params: Promise<{
     locale: string;
@@ -31,8 +33,11 @@ type PageProps = {
   }>;
 };
 
-export async function generateMetadata({ params }: PageProps) {
-  const { locale: localeParam, slug } = await params;
+export async function generateMetadata({
+  params,
+}: PageProps) {
+  const { locale: localeParam, slug } =
+    await params;
 
   if (!isValidLocale(localeParam)) {
     return {};
@@ -40,7 +45,8 @@ export async function generateMetadata({ params }: PageProps) {
 
   const locale = localeParam as Locale;
 
-  const talent = await getPublishedTalentBySlug(slug);
+  const talent =
+    await getPublishedTalentBySlug(slug);
 
   if (!talent) {
     return {};
@@ -52,56 +58,105 @@ export async function generateMetadata({ params }: PageProps) {
   });
 }
 
+function normalizeSocialUrl(
+  value?: string | null
+) {
+  if (!value?.trim()) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+
+  if (
+    trimmed.startsWith("http://") ||
+    trimmed.startsWith("https://")
+  ) {
+    return trimmed;
+  }
+
+  return `https://${trimmed}`;
+}
+
 export default async function TalentProfilePage({
   params,
 }: PageProps) {
-  const { locale: localeParam, slug } = await params;
+  const { locale: localeParam, slug } =
+    await params;
 
-  if (!isValidLocale(localeParam) || !slug?.trim()) {
+  if (
+    !isValidLocale(localeParam) ||
+    !slug?.trim()
+  ) {
     notFound();
   }
 
   const locale = localeParam as Locale;
+
   const isRtl = locale === "ar";
 
-  const talent = await getPublishedTalentBySlug(slug);
+  const talent =
+    await getPublishedTalentBySlug(slug);
 
   if (!talent) {
     notFound();
   }
 
-  const allTalents = await getPublishedTalents();
+  const allTalents =
+    await getPublishedTalents();
 
-  const relatedTalents = getRelatedTalents(
-    allTalents,
-    talent
-  );
+  const relatedTalents =
+    getRelatedTalents(
+      allTalents,
+      talent
+    );
 
   const dict = getDictionary(locale);
 
-  const instagramUrl = normalizeInstagramUrl(
-    talent.instagram
-  );
+  const instagramUrl =
+    normalizeInstagramUrl(
+      talent.instagram
+    );
 
-  const whatsappUrl = buildWhatsappUrl(
-    talent.whatsapp
-  );
+  const whatsappUrl =
+    buildWhatsappUrl(
+      talent.whatsapp
+    );
 
-  const gallery = normalizeGalleryImages(
-    talent.gallery_images
-  );
+  const tiktokUrl =
+    normalizeSocialUrl(
+      talent.tiktok
+    );
 
-  const name = getTalentName(talent, locale);
+  const snapchatUrl =
+    normalizeSocialUrl(
+      talent.snapchat
+    );
+
+  const portfolioUrl =
+    normalizeSocialUrl(
+      talent.portfolio_url
+    );
+
+  const gallery =
+    normalizeGalleryImages(
+      talent.gallery_images
+    );
+
+  const name = getTalentName(
+    talent,
+    locale
+  );
 
   const secondaryName =
     locale === "ar"
       ? talent.name_en
       : talent.name_ar;
 
-  const category = getTalentCategory(
-    talent,
-    locale
-  );
+  const category =
+    getTalentCategory(
+      talent,
+      locale
+    );
 
   const city = getTalentCity(
     talent,
@@ -118,7 +173,10 @@ export default async function TalentProfilePage({
       className="min-h-screen bg-background text-white"
       dir={isRtl ? "rtl" : "ltr"}
     >
-      <Navbar dict={dict} locale={locale} />
+      <Navbar
+        dict={dict}
+        locale={locale}
+      />
 
       <section className="relative overflow-hidden pt-32 pb-24">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(201,169,98,0.08),transparent_45%)]" />
@@ -140,7 +198,10 @@ export default async function TalentProfilePage({
               <PublicTalentGallery
                 imageUrl={talent.image_url}
                 galleryImages={gallery}
-                alt={name || "Talent image"}
+                alt={
+                  name ||
+                  "Talent image"
+                }
               />
             </div>
 
@@ -170,11 +231,16 @@ export default async function TalentProfilePage({
               {secondaryName ? (
                 <p
                   className="mt-5 text-2xl text-white/50"
-                  dir={isRtl ? "ltr" : "rtl"}
+                  dir={
+                    isRtl
+                      ? "ltr"
+                      : "rtl"
+                  }
                   style={{
-                    fontFamily: isRtl
-                      ? "var(--font-cormorant)"
-                      : "var(--font-noto-arabic)",
+                    fontFamily:
+                      isRtl
+                        ? "var(--font-cormorant)"
+                        : "var(--font-noto-arabic)",
                   }}
                 >
                   {secondaryName}
@@ -183,42 +249,65 @@ export default async function TalentProfilePage({
 
               <div className="mt-10 grid gap-5 sm:grid-cols-2">
                 <InfoBox
-                  label={isRtl ? "التصنيف" : "Category"}
+                  label={
+                    isRtl
+                      ? "التصنيف"
+                      : "Category"
+                  }
                   value={category}
                 />
 
                 <InfoBox
-                  label={isRtl ? "المدينة" : "City"}
+                  label={
+                    isRtl
+                      ? "المدينة"
+                      : "City"
+                  }
                   value={city}
                 />
 
                 <InfoBox
-                  label={isRtl ? "العمر" : "Age"}
+                  label={
+                    isRtl
+                      ? "العمر"
+                      : "Age"
+                  }
                   value={
                     talent.age
-                      ? String(talent.age)
+                      ? String(
+                          talent.age
+                        )
                       : null
                   }
                 />
 
                 <InfoBox
-                  label={isRtl ? "الطول" : "Height"}
-                  value={talent.height}
+                  label={
+                    isRtl
+                      ? "الطول"
+                      : "Height"
+                  }
+                  value={
+                    talent.height
+                  }
                 />
               </div>
 
               {bio ? (
                 <div className="mt-14 max-w-3xl">
                   <h2 className="mb-5 text-[10px] uppercase tracking-[0.35em] text-gold">
-                    {isRtl ? "نبذة" : "Biography"}
+                    {isRtl
+                      ? "نبذة"
+                      : "Biography"}
                   </h2>
 
                   <p
                     className="whitespace-pre-line text-lg leading-relaxed text-white/75"
                     style={{
-                      fontFamily: isRtl
-                        ? "var(--font-noto-arabic)"
-                        : undefined,
+                      fontFamily:
+                        isRtl
+                          ? "var(--font-noto-arabic)"
+                          : undefined,
                     }}
                   >
                     {bio}
@@ -229,7 +318,9 @@ export default async function TalentProfilePage({
               <div className="mt-14 flex flex-wrap gap-4">
                 {instagramUrl ? (
                   <a
-                    href={instagramUrl}
+                    href={
+                      instagramUrl
+                    }
                     target="_blank"
                     rel="noopener noreferrer"
                     className="rounded-full border border-gold/30 bg-gold/[0.05] px-7 py-4 text-[10px] uppercase tracking-[0.35em] text-gold transition hover:bg-gold/10"
@@ -238,9 +329,48 @@ export default async function TalentProfilePage({
                   </a>
                 ) : null}
 
+                {tiktokUrl ? (
+                  <a
+                    href={tiktokUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-full border border-gold/30 bg-gold/[0.05] px-7 py-4 text-[10px] uppercase tracking-[0.35em] text-gold transition hover:bg-gold/10"
+                  >
+                    TikTok
+                  </a>
+                ) : null}
+
+                {snapchatUrl ? (
+                  <a
+                    href={
+                      snapchatUrl
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-full border border-gold/30 bg-gold/[0.05] px-7 py-4 text-[10px] uppercase tracking-[0.35em] text-gold transition hover:bg-gold/10"
+                  >
+                    Snapchat
+                  </a>
+                ) : null}
+
+                {portfolioUrl ? (
+                  <a
+                    href={
+                      portfolioUrl
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-full border border-gold/30 bg-gold/[0.05] px-7 py-4 text-[10px] uppercase tracking-[0.35em] text-gold transition hover:bg-gold/10"
+                  >
+                    Portfolio
+                  </a>
+                ) : null}
+
                 {whatsappUrl ? (
                   <a
-                    href={whatsappUrl}
+                    href={
+                      whatsappUrl
+                    }
                     target="_blank"
                     rel="noopener noreferrer"
                     className="rounded-full border border-white/10 px-7 py-4 text-[10px] uppercase tracking-[0.35em] text-white transition hover:border-white/30"
@@ -252,7 +382,8 @@ export default async function TalentProfilePage({
             </div>
           </div>
 
-          {relatedTalents.length > 0 ? (
+          {relatedTalents.length >
+          0 ? (
             <section className="mt-32">
               <div className="mb-10">
                 <p className="mb-3 text-[10px] uppercase tracking-[0.4em] text-gold">
@@ -264,9 +395,10 @@ export default async function TalentProfilePage({
                 <h2
                   className="text-4xl font-light text-white md:text-5xl"
                   style={{
-                    fontFamily: isRtl
-                      ? "var(--font-noto-arabic)"
-                      : "var(--font-cormorant)",
+                    fontFamily:
+                      isRtl
+                        ? "var(--font-noto-arabic)"
+                        : "var(--font-cormorant)",
                   }}
                 >
                   {isRtl
@@ -276,20 +408,27 @@ export default async function TalentProfilePage({
               </div>
 
               <div className="grid gap-8 md:grid-cols-3">
-                {relatedTalents.map((item) => (
-                  <PublicTalentCard
-                    key={item.id}
-                    talent={item}
-                    locale={locale}
-                  />
-                ))}
+                {relatedTalents.map(
+                  (item) => (
+                    <PublicTalentCard
+                      key={item.id}
+                      talent={item}
+                      locale={
+                        locale
+                      }
+                    />
+                  )
+                )}
               </div>
             </section>
           ) : null}
         </div>
       </section>
 
-      <Footer dict={dict} locale={locale} />
+      <Footer
+        dict={dict}
+        locale={locale}
+      />
     </main>
   );
 }
@@ -299,7 +438,10 @@ function InfoBox({
   value,
 }: {
   label: string;
-  value?: string | number | null;
+  value?:
+    | string
+    | number
+    | null;
 }) {
   return (
     <div className="rounded-3xl border border-white/[0.08] bg-black/20 p-6 backdrop-blur-sm">
