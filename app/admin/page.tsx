@@ -240,9 +240,18 @@ export default async function AdminPage({ searchParams }: PageProps) {
         </div>
 
         <div className="flex flex-col items-start gap-4 md:items-end">
-          <AdminLogoutButton />
+  <div className="flex flex-wrap gap-3">
+    <Link
+      href="/admin/requests"
+      className="rounded-full border border-white/10 px-5 py-2 text-[10px] uppercase tracking-[0.25em] text-white/60 transition hover:border-gold/40 hover:text-gold"
+    >
+      Talent Requests
+    </Link>
 
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+    <AdminLogoutButton />
+  </div>
+
+  <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <StatLink
               href={buildQueryString({ q })}
               label="All"
