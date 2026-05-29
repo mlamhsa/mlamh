@@ -6,6 +6,9 @@ export type Talent = {
   name_en: string;
   name_ar: string;
 
+  display_name_en?: string | null;
+  display_name_ar?: string | null;
+
   category_en: string;
   category_ar: string;
 
@@ -16,7 +19,12 @@ export type Talent = {
   sort_order: number | null;
   published: boolean;
   status?: string | null;
+
   availability_status?: string | null;
+
+  verified?: boolean | null;
+  verified_at?: string | null;
+
   city_en?: string | null;
   city_ar?: string | null;
   age?: number | null;

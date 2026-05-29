@@ -33,12 +33,7 @@ async function requireAdminUser() {
 
 function stringValue(formData: FormData, key: string) {
   const value = formData.get(key);
-
-  if (typeof value !== "string") {
-    return "";
-  }
-
-  return value.trim();
+  return typeof value === "string" ? value.trim() : "";
 }
 
 function nullableStringValue(formData: FormData, key: string) {
@@ -49,17 +44,11 @@ function nullableStringValue(formData: FormData, key: string) {
 function nullableNumberValue(formData: FormData, key: string) {
   const value = stringValue(formData, key);
 
-  if (!value) {
-    return null;
-  }
+  if (!value) return null;
 
   const number = Number(value);
 
-  if (!Number.isFinite(number)) {
-    return null;
-  }
-
-  return number;
+  return Number.isFinite(number) ? number : null;
 }
 
 function createSlug(value: string, id: number) {
@@ -71,6 +60,19 @@ function createSlug(value: string, id: number) {
     .replace(/^-+|-+$/g, "");
 
   return base ? `${base}-${id}` : `talent-${id}`;
+}
+
+function getAvailabilityStatus(formData: FormData) {
+  const value = stringValue(formData, "availability_status");
+
+  const allowed = [
+    "available_now",
+    "available_this_week",
+    "available_next_month",
+    "unavailable",
+  ];
+
+  return allowed.includes(value) ? value : "available_now";
 }
 
 export async function updateTalentAction(
@@ -87,27 +89,45 @@ export async function updateTalentAction(
   const nameEn = stringValue(formData, "name_en");
   const slug = createSlug(nameEn, id);
 
+  const verified = formData.get("verified") === "on";
+  const currentVerifiedAt = nullableStringValue(formData, "current_verified_at");
+
   const payload = {
     slug,
+
     name_en: nameEn,
     name_ar: stringValue(formData, "name_ar"),
+
+    display_name_en: nullableStringValue(formData, "display_name_en"),
+    display_name_ar: nullableStringValue(formData, "display_name_ar"),
+
     category_en: stringValue(formData, "category_en"),
     category_ar: stringValue(formData, "category_ar"),
+
     city_en: nullableStringValue(formData, "city_en"),
     city_ar: nullableStringValue(formData, "city_ar"),
     age: nullableNumberValue(formData, "age"),
     height: nullableStringValue(formData, "height"),
+
     bio_en: nullableStringValue(formData, "bio_en"),
     bio_ar: nullableStringValue(formData, "bio_ar"),
+
     whatsapp: nullableStringValue(formData, "whatsapp"),
     instagram: nullableStringValue(formData, "instagram"),
     tiktok: nullableStringValue(formData, "tiktok"),
     snapchat: nullableStringValue(formData, "snapchat"),
     portfolio_url: nullableStringValue(formData, "portfolio_url"),
+
     sort_order: nullableNumberValue(formData, "sort_order"),
     featured: formData.get("featured") === "on",
     published: formData.get("published") === "on",
     status: stringValue(formData, "status") || "pending",
+    availability_status: getAvailabilityStatus(formData),
+
+    verified,
+    verified_at: verified
+      ? currentVerifiedAt || new Date().toISOString()
+      : null,
   };
 
   const supabase = createAdminClient();

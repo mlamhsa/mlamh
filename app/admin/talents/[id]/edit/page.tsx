@@ -9,12 +9,8 @@ import { getTalentById } from "@/lib/supabase/talent-by-id";
 export const dynamic = "force-dynamic";
 
 type PageProps = {
-  params: Promise<{
-    id: string;
-  }>;
-  searchParams: Promise<{
-    updated?: string;
-  }>;
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ updated?: string }>;
 };
 
 async function requireAdminAccess() {
@@ -25,9 +21,7 @@ async function requireAdminAccess() {
     error,
   } = await authClient.auth.getUser();
 
-  if (error || !user) {
-    redirect("/admin-login");
-  }
+  if (error || !user) redirect("/admin-login");
 
   const adminClient = createAdminClient();
 
@@ -38,9 +32,7 @@ async function requireAdminAccess() {
     .eq("role", "admin")
     .maybeSingle();
 
-  if (adminError || !adminUser) {
-    redirect("/admin-login");
-  }
+  if (adminError || !adminUser) redirect("/admin-login");
 }
 
 function Field({
@@ -161,6 +153,11 @@ export default async function EditTalentPage({
         className="rounded-2xl border border-white/[0.08] bg-gray-elevated/30 p-6"
       >
         <input type="hidden" name="id" value={talent.id} />
+        <input
+          type="hidden"
+          name="current_verified_at"
+          value={talent.verified_at ?? ""}
+        />
 
         <section className="mb-10">
           <h2 className="mb-6 text-sm uppercase tracking-[0.3em] text-gold">
@@ -168,10 +165,47 @@ export default async function EditTalentPage({
           </h2>
 
           <div className="grid gap-6 md:grid-cols-2">
-            <Field label="Name EN" name="name_en" defaultValue={talent.name_en} dir="ltr" />
-            <Field label="Name AR" name="name_ar" defaultValue={talent.name_ar} dir="rtl" />
-            <Field label="Category EN" name="category_en" defaultValue={talent.category_en} dir="ltr" />
-            <Field label="Category AR" name="category_ar" defaultValue={talent.category_ar} dir="rtl" />
+            <Field
+              label="Name EN"
+              name="name_en"
+              defaultValue={talent.name_en}
+              dir="ltr"
+            />
+
+            <Field
+              label="Name AR"
+              name="name_ar"
+              defaultValue={talent.name_ar}
+              dir="rtl"
+            />
+
+            <Field
+              label="Display Name EN"
+              name="display_name_en"
+              defaultValue={talent.display_name_en}
+              dir="ltr"
+            />
+
+            <Field
+              label="Display Name AR"
+              name="display_name_ar"
+              defaultValue={talent.display_name_ar}
+              dir="rtl"
+            />
+
+            <Field
+              label="Category EN"
+              name="category_en"
+              defaultValue={talent.category_en}
+              dir="ltr"
+            />
+
+            <Field
+              label="Category AR"
+              name="category_ar"
+              defaultValue={talent.category_ar}
+              dir="rtl"
+            />
           </div>
         </section>
 
@@ -181,17 +215,51 @@ export default async function EditTalentPage({
           </h2>
 
           <div className="grid gap-6 md:grid-cols-2">
-            <Field label="City EN" name="city_en" defaultValue={talent.city_en} dir="ltr" />
-            <Field label="City AR" name="city_ar" defaultValue={talent.city_ar} dir="rtl" />
-            <Field label="Age" name="age" type="number" defaultValue={talent.age} dir="ltr" />
-            <Field label="Height" name="height" defaultValue={talent.height} dir="ltr" />
+            <Field
+              label="City EN"
+              name="city_en"
+              defaultValue={talent.city_en}
+              dir="ltr"
+            />
+
+            <Field
+              label="City AR"
+              name="city_ar"
+              defaultValue={talent.city_ar}
+              dir="rtl"
+            />
+
+            <Field
+              label="Age"
+              name="age"
+              type="number"
+              defaultValue={talent.age}
+              dir="ltr"
+            />
+
+            <Field
+              label="Height"
+              name="height"
+              defaultValue={talent.height}
+              dir="ltr"
+            />
 
             <div className="md:col-span-2">
-              <TextArea label="Bio EN" name="bio_en" defaultValue={talent.bio_en} dir="ltr" />
+              <TextArea
+                label="Bio EN"
+                name="bio_en"
+                defaultValue={talent.bio_en}
+                dir="ltr"
+              />
             </div>
 
             <div className="md:col-span-2">
-              <TextArea label="Bio AR" name="bio_ar" defaultValue={talent.bio_ar} dir="rtl" />
+              <TextArea
+                label="Bio AR"
+                name="bio_ar"
+                defaultValue={talent.bio_ar}
+                dir="rtl"
+              />
             </div>
           </div>
         </section>
@@ -202,10 +270,33 @@ export default async function EditTalentPage({
           </h2>
 
           <div className="grid gap-6 md:grid-cols-2">
-            <Field label="WhatsApp" name="whatsapp" defaultValue={talent.whatsapp} dir="ltr" />
-            <Field label="Instagram" name="instagram" defaultValue={talent.instagram} dir="ltr" />
-            <Field label="TikTok" name="tiktok" defaultValue={talent.tiktok} dir="ltr" />
-            <Field label="Snapchat" name="snapchat" defaultValue={talent.snapchat} dir="ltr" />
+            <Field
+              label="WhatsApp"
+              name="whatsapp"
+              defaultValue={talent.whatsapp}
+              dir="ltr"
+            />
+
+            <Field
+              label="Instagram"
+              name="instagram"
+              defaultValue={talent.instagram}
+              dir="ltr"
+            />
+
+            <Field
+              label="TikTok"
+              name="tiktok"
+              defaultValue={talent.tiktok}
+              dir="ltr"
+            />
+
+            <Field
+              label="Snapchat"
+              name="snapchat"
+              defaultValue={talent.snapchat}
+              dir="ltr"
+            />
 
             <div className="md:col-span-2">
               <Field
@@ -261,6 +352,27 @@ export default async function EditTalentPage({
               </select>
             </div>
 
+            <div>
+              <label className="mb-2 block text-[10px] uppercase tracking-[0.3em] text-gray-muted">
+                Availability
+              </label>
+
+              <select
+                name="availability_status"
+                defaultValue={talent.availability_status ?? "available_now"}
+                className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none focus:border-gold/40"
+              >
+                <option value="available_now">Available Now</option>
+                <option value="available_this_week">
+                  Available This Week
+                </option>
+                <option value="available_next_month">
+                  Available Next Month
+                </option>
+                <option value="unavailable">Unavailable</option>
+              </select>
+            </div>
+
             <label className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white/80">
               <input
                 type="checkbox"
@@ -279,6 +391,16 @@ export default async function EditTalentPage({
                 className="h-4 w-4"
               />
               Published
+            </label>
+
+            <label className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white/80">
+              <input
+                type="checkbox"
+                name="verified"
+                defaultChecked={Boolean(talent.verified)}
+                className="h-4 w-4"
+              />
+              Verified
             </label>
           </div>
         </section>

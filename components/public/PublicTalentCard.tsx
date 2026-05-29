@@ -43,24 +43,44 @@ export function PublicTalentCard({
           </div>
         )}
 
-        {talent.featured ? (
-          <div className="absolute top-4 left-4 rounded-full border border-gold/30 bg-black/40 px-3 py-1 text-[9px] uppercase tracking-[0.25em] text-gold backdrop-blur">
-            {isRtl ? "مميز" : "Featured"}
-          </div>
-        ) : null}
+        <div
+          className={`absolute top-4 flex flex-wrap gap-2 ${
+            isRtl ? "right-4" : "left-4"
+          }`}
+        >
+          {talent.featured ? (
+            <span className="rounded-full border border-gold/30 bg-black/40 px-3 py-1 text-[9px] uppercase tracking-[0.25em] text-gold backdrop-blur">
+              {isRtl ? "مميز" : "Featured"}
+            </span>
+          ) : null}
+
+          {talent.verified ? (
+            <span className="rounded-full border border-emerald-400/30 bg-black/40 px-3 py-1 text-[9px] uppercase tracking-[0.25em] text-emerald-300 backdrop-blur">
+              {isRtl ? "موثق" : "Verified"}
+            </span>
+          ) : null}
+        </div>
       </div>
 
       <div className="p-6">
-        <h2
-          className="text-3xl font-light tracking-tight text-white"
-          style={{
-            fontFamily: isRtl
-              ? "var(--font-noto-arabic)"
-              : "var(--font-cormorant)",
-          }}
-        >
-          {name || (isRtl ? "موهبة غير مسماة" : "Unnamed Talent")}
-        </h2>
+        <div className="flex items-center gap-3">
+          <h2
+            className="text-3xl font-light tracking-tight text-white"
+            style={{
+              fontFamily: isRtl
+                ? "var(--font-noto-arabic)"
+                : "var(--font-cormorant)",
+            }}
+          >
+            {name || (isRtl ? "موهبة غير مسماة" : "Unnamed Talent")}
+          </h2>
+
+          {talent.verified ? (
+            <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-[8px] uppercase tracking-[0.2em] text-emerald-300">
+              ✓
+            </span>
+          ) : null}
+        </div>
 
         <div className="mt-5 grid grid-cols-2 gap-4 border-t border-white/[0.08] pt-5">
           <div>
