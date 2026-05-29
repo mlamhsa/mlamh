@@ -5,9 +5,21 @@ export function getTalentName(
   talent: Talent,
   locale: Locale
 ) {
-  return locale === "ar"
-    ? talent.name_ar || talent.name_en
-    : talent.name_en || talent.name_ar;
+  if (locale === "ar") {
+    return (
+      talent.display_name_ar ||
+      talent.display_name_en ||
+      talent.name_ar ||
+      talent.name_en
+    );
+  }
+
+  return (
+    talent.display_name_en ||
+    talent.display_name_ar ||
+    talent.name_en ||
+    talent.name_ar
+  );
 }
 
 export function getTalentCategory(
