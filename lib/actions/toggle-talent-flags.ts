@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
+const DEFAULT_FEATURED_DAYS = 30;
+
 async function requireAdminUser() {
   const authClient = await createServerSupabaseClient();
 
@@ -18,14 +20,14 @@ async function requireAdminUser() {
 
   const adminClient = createAdminClient();
 
-  const { data: adminUser } = await adminClient
+  const { data: adminUser, error: adminError } = await adminClient
     .from("admin_users")
     .select("id")
     .eq("id", user.id)
     .eq("role", "admin")
     .maybeSingle();
 
-  if (!adminUser) {
+  if (adminError || !adminUser) {
     throw new Error("Forbidden");
   }
 }
@@ -40,27 +42,43 @@ function parseTalentId(formData: FormData) {
   return id;
 }
 
+function getFeaturedUntilDate(days = DEFAULT_FEATURED_DAYS) {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+
+  return date.toISOString();
+}
+
 export async function toggleTalentFeaturedAction(
   formData: FormData
 ): Promise<void> {
   await requireAdminUser();
 
   const id = parseTalentId(formData);
-  const nextFeatured = formData.get("featured") !== "true";
+  const currentlyFeatured = formData.get("featured") === "true";
+  const nextFeatured = !currentlyFeatured;
 
   const supabase = createAdminClient();
 
-  const { error } = await supabase
-    .from("talents")
-    .update({ featured: nextFeatured })
-    .eq("id", id);
+  const payload = nextFeatured
+    ? {
+        featured: true,
+        featured_until: getFeaturedUntilDate(),
+      }
+    : {
+        featured: false,
+        featured_until: null,
+      };
+
+  const { error } = await supabase.from("talents").update(payload).eq("id", id);
 
   if (error) {
     throw new Error(`[toggleTalentFeaturedAction] ${error.message}`);
   }
 
   revalidatePath("/admin");
-  revalidatePath("/talent");
+  revalidatePath("/ar/talent");
+  revalidatePath("/en/talent");
 }
 
 export async function toggleTalentPublishedAction(
@@ -83,5 +101,6 @@ export async function toggleTalentPublishedAction(
   }
 
   revalidatePath("/admin");
-  revalidatePath("/talent");
+  revalidatePath("/ar/talent");
+  revalidatePath("/en/talent");
 }
