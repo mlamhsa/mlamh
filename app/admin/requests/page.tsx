@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { updateTalentRequestStatusAction } from "@/lib/actions/update-talent-request-status";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getAdminTalentRequests } from "@/lib/supabase/admin-talent-requests";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export const metadata = {
   title: "MLAMH Admin — Requests",
@@ -36,17 +37,20 @@ async function requireAdminAccess() {
 }
 
 function normalizeTalent(
-  value: {
-    id: number;
-    name_en: string | null;
-    name_ar: string | null;
-    slug: string | null;
-  } | {
-    id: number;
-    name_en: string | null;
-    name_ar: string | null;
-    slug: string | null;
-  }[] | null
+  value:
+    | {
+        id: number;
+        name_en: string | null;
+        name_ar: string | null;
+        slug: string | null;
+      }
+    | {
+        id: number;
+        name_en: string | null;
+        name_ar: string | null;
+        slug: string | null;
+      }[]
+    | null
 ) {
   if (!value) return null;
   if (Array.isArray(value)) return value[0] ?? null;
@@ -61,6 +65,19 @@ function formatDate(value: string) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function getStatusClasses(status: string) {
+  switch (status) {
+    case "closed":
+      return "bg-emerald-500/10 text-emerald-400";
+
+    case "contacted":
+      return "bg-gold/10 text-gold";
+
+    default:
+      return "bg-blue-500/10 text-blue-400";
+  }
 }
 
 export default async function AdminRequestsPage() {
@@ -98,9 +115,7 @@ export default async function AdminRequestsPage() {
 
       {requests.length === 0 ? (
         <div className="rounded-2xl border border-white/[0.06] bg-gray-elevated/30 px-6 py-16 text-center">
-          <p className="text-sm text-gray-muted">
-            No talent requests yet.
-          </p>
+          <p className="text-sm text-gray-muted">No talent requests yet.</p>
         </div>
       ) : (
         <div className="grid gap-5">
@@ -114,9 +129,19 @@ export default async function AdminRequestsPage() {
               >
                 <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                   <div>
-                    <p className="text-[10px] uppercase tracking-[0.3em] text-gold">
-                      Request #{request.id} · {request.status}
-                    </p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-[10px] uppercase tracking-[0.3em] text-gold">
+                        Request #{request.id}
+                      </p>
+
+                      <span
+                        className={`rounded-full px-3 py-1 text-[10px] uppercase tracking-[0.2em] ${getStatusClasses(
+                          request.status
+                        )}`}
+                      >
+                        {request.status}
+                      </span>
+                    </div>
 
                     <h2 className="mt-2 text-2xl font-light text-white">
                       {request.full_name}
@@ -137,6 +162,7 @@ export default async function AdminRequestsPage() {
                     <dt className="text-[9px] uppercase tracking-[0.25em] text-gray-muted">
                       Talent
                     </dt>
+
                     <dd className="mt-1 text-white/80">
                       {talent
                         ? `${talent.name_en || "Unnamed"} / ${
@@ -150,6 +176,7 @@ export default async function AdminRequestsPage() {
                     <dt className="text-[9px] uppercase tracking-[0.25em] text-gray-muted">
                       Email
                     </dt>
+
                     <dd className="mt-1 text-white/80">
                       <a
                         href={`mailto:${request.email}`}
@@ -164,6 +191,7 @@ export default async function AdminRequestsPage() {
                     <dt className="text-[9px] uppercase tracking-[0.25em] text-gray-muted">
                       Phone
                     </dt>
+
                     <dd className="mt-1 text-white/80">
                       {request.phone || "—"}
                     </dd>
@@ -173,6 +201,7 @@ export default async function AdminRequestsPage() {
                     <dt className="text-[9px] uppercase tracking-[0.25em] text-gray-muted">
                       Project Type
                     </dt>
+
                     <dd className="mt-1 text-white/80">
                       {request.project_type || "—"}
                     </dd>
@@ -182,6 +211,7 @@ export default async function AdminRequestsPage() {
                     <dt className="text-[9px] uppercase tracking-[0.25em] text-gray-muted">
                       Budget
                     </dt>
+
                     <dd className="mt-1 text-white/80">
                       {request.budget || "—"}
                     </dd>
@@ -191,6 +221,7 @@ export default async function AdminRequestsPage() {
                     <dt className="text-[9px] uppercase tracking-[0.25em] text-gray-muted">
                       Project Date
                     </dt>
+
                     <dd className="mt-1 text-white/80">
                       {request.project_date || "—"}
                     </dd>
@@ -200,11 +231,50 @@ export default async function AdminRequestsPage() {
                     <dt className="text-[9px] uppercase tracking-[0.25em] text-gray-muted">
                       Details
                     </dt>
+
                     <dd className="mt-1 whitespace-pre-line text-white/80">
                       {request.project_details || "—"}
                     </dd>
                   </div>
                 </dl>
+
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <form action={updateTalentRequestStatusAction}>
+                    <input type="hidden" name="id" value={request.id} />
+                    <input type="hidden" name="status" value="new" />
+
+                    <button
+                      type="submit"
+                      className="rounded-full border border-blue-500/30 bg-blue-950/20 px-4 py-2 text-[10px] uppercase tracking-[0.2em] text-blue-400"
+                    >
+                      New
+                    </button>
+                  </form>
+
+                  <form action={updateTalentRequestStatusAction}>
+                    <input type="hidden" name="id" value={request.id} />
+                    <input type="hidden" name="status" value="contacted" />
+
+                    <button
+                      type="submit"
+                      className="rounded-full border border-gold/30 bg-gold/10 px-4 py-2 text-[10px] uppercase tracking-[0.2em] text-gold"
+                    >
+                      Contacted
+                    </button>
+                  </form>
+
+                  <form action={updateTalentRequestStatusAction}>
+                    <input type="hidden" name="id" value={request.id} />
+                    <input type="hidden" name="status" value="closed" />
+
+                    <button
+                      type="submit"
+                      className="rounded-full border border-emerald-500/30 bg-emerald-950/20 px-4 py-2 text-[10px] uppercase tracking-[0.2em] text-emerald-400"
+                    >
+                      Closed
+                    </button>
+                  </form>
+                </div>
               </article>
             );
           })}
