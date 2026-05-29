@@ -75,7 +75,7 @@ export default async function TalentProfilePage({ params }: PageProps) {
 
   const adminClient = createAdminClient();
 
-  const { data: viewCount } = await adminClient.rpc("increment_talent_view", {
+  await adminClient.rpc("increment_talent_view", {
     p_talent_id: talent.id,
   });
 
@@ -95,10 +95,6 @@ export default async function TalentProfilePage({ params }: PageProps) {
   const category = isRtl ? talent.category_ar : talent.category_en;
   const city = isRtl ? talent.city_ar : talent.city_en;
   const bio = isRtl ? talent.bio_ar : talent.bio_en;
-
-  const formattedViewCount = Number(viewCount ?? 0).toLocaleString(
-    isRtl ? "ar-SA" : "en-US"
-  );
 
   return (
     <main
@@ -146,10 +142,6 @@ export default async function TalentProfilePage({ params }: PageProps) {
               >
                 {name || (isRtl ? "موهبة غير مسماة" : "Unnamed Talent")}
               </h1>
-
-              <p className="mt-5 text-sm text-white/40">
-                {formattedViewCount} {isRtl ? "مشاهدة" : "views"}
-              </p>
 
               <div className="mt-10 grid gap-5 sm:grid-cols-2">
                 <InfoBox
