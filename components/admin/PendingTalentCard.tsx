@@ -11,6 +11,10 @@ import { TalentGallery } from "@/components/admin/TalentGallery";
 import type { AdminTalent } from "@/lib/supabase/admin-talents";
 import { calculateTalentCompletion } from "@/lib/utils/talent-completion";
 
+type AdminTalentWithFeaturedUntil = AdminTalent & {
+  featured_until?: string | null;
+};
+
 function normalizeInstagramUrl(value?: string | null) {
   if (!value) return null;
 
@@ -63,10 +67,26 @@ function getCompletionStyles(completion: number) {
   return "bg-red-500/10 text-red-400";
 }
 
+function formatFeaturedUntil(value?: string | null) {
+  if (!value) return "—";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "—";
+  }
+
+  return date.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
 export function PendingTalentCard({
   talent,
 }: {
-  talent: AdminTalent;
+  talent: AdminTalentWithFeaturedUntil;
 }) {
   const instagramUrl = normalizeInstagramUrl(talent.instagram);
   const status = getStatusStyles(talent.status);
@@ -184,6 +204,18 @@ export function PendingTalentCard({
                 >
                   {talent.featured ? "Featured" : "Standard"}
                 </span>
+              </dd>
+            </div>
+
+            <div>
+              <dt className="text-[9px] uppercase tracking-[0.25em] text-gray-muted">
+                Featured Until
+              </dt>
+
+              <dd className="mt-1 text-white/80">
+                {talent.featured
+                  ? formatFeaturedUntil(talent.featured_until)
+                  : "—"}
               </dd>
             </div>
 
