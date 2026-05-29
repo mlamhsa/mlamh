@@ -5,6 +5,7 @@ import { Navbar } from "@/components/Navbar";
 import { PublicTalentCard } from "@/components/public/PublicTalentCard";
 import { PublicTalentGallery } from "@/components/public/PublicTalentGallery";
 import { ProfileShareButton } from "@/components/public/ProfileShareButton";
+import { TalentRequestForm } from "@/components/public/TalentRequestForm";
 import { getDictionary, isValidLocale, type Locale } from "@/lib/i18n";
 import { buildTalentMetadata } from "@/lib/seo/talent-metadata";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -207,6 +208,8 @@ export default async function TalentProfilePage({ params }: PageProps) {
                   <SocialButton href={whatsappUrl}>WhatsApp</SocialButton>
                 ) : null}
               </div>
+
+              <TalentRequestForm talentId={talent.id} locale={locale} />
             </div>
           </div>
 
