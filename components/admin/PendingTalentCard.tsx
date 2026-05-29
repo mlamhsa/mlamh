@@ -13,6 +13,7 @@ import { calculateTalentCompletion } from "@/lib/utils/talent-completion";
 
 type AdminTalentWithFeaturedUntil = AdminTalent & {
   featured_until?: string | null;
+  availability_status?: string | null;
 };
 
 function normalizeInstagramUrl(value?: string | null) {
@@ -81,6 +82,25 @@ function formatFeaturedUntil(value?: string | null) {
     month: "short",
     day: "numeric",
   });
+}
+
+function getAvailabilityLabel(status?: string | null) {
+  switch (status) {
+    case "available_now":
+      return "Available Now";
+
+    case "available_this_week":
+      return "Available This Week";
+
+    case "available_next_month":
+      return "Available Next Month";
+
+    case "unavailable":
+      return "Unavailable";
+
+    default:
+      return "—";
+  }
 }
 
 export function PendingTalentCard({
@@ -216,6 +236,16 @@ export function PendingTalentCard({
                 {talent.featured
                   ? formatFeaturedUntil(talent.featured_until)
                   : "—"}
+              </dd>
+            </div>
+
+            <div>
+              <dt className="text-[9px] uppercase tracking-[0.25em] text-gray-muted">
+                Availability
+              </dt>
+
+              <dd className="mt-1 text-white/80">
+                {getAvailabilityLabel(talent.availability_status)}
               </dd>
             </div>
 

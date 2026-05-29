@@ -16,7 +16,7 @@ export type Talent = {
   sort_order: number | null;
   published: boolean;
   status?: string | null;
-
+  availability_status?: string | null;
   city_en?: string | null;
   city_ar?: string | null;
   age?: number | null;
