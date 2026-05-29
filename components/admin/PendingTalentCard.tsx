@@ -9,6 +9,7 @@ import {
 } from "@/lib/actions/toggle-talent-flags";
 import { TalentGallery } from "@/components/admin/TalentGallery";
 import type { AdminTalent } from "@/lib/supabase/admin-talents";
+import { calculateTalentCompletion } from "@/lib/utils/talent-completion";
 
 function normalizeInstagramUrl(value?: string | null) {
   if (!value) return null;
@@ -50,6 +51,18 @@ function getStatusStyles(status?: string | null) {
   }
 }
 
+function getCompletionStyles(completion: number) {
+  if (completion >= 80) {
+    return "bg-emerald-500/10 text-emerald-400";
+  }
+
+  if (completion >= 50) {
+    return "bg-gold/10 text-gold";
+  }
+
+  return "bg-red-500/10 text-red-400";
+}
+
 export function PendingTalentCard({
   talent,
 }: {
@@ -57,6 +70,7 @@ export function PendingTalentCard({
 }) {
   const instagramUrl = normalizeInstagramUrl(talent.instagram);
   const status = getStatusStyles(talent.status);
+  const completion = calculateTalentCompletion(talent);
 
   return (
     <article className="overflow-hidden rounded-2xl border border-white/[0.08] bg-gray-elevated/40">
@@ -169,6 +183,22 @@ export function PendingTalentCard({
                   }`}
                 >
                   {talent.featured ? "Featured" : "Standard"}
+                </span>
+              </dd>
+            </div>
+
+            <div>
+              <dt className="text-[9px] uppercase tracking-[0.25em] text-gray-muted">
+                Profile Completion
+              </dt>
+
+              <dd className="mt-1">
+                <span
+                  className={`rounded-full px-3 py-1 text-[10px] uppercase tracking-[0.2em] ${getCompletionStyles(
+                    completion
+                  )}`}
+                >
+                  {completion}%
                 </span>
               </dd>
             </div>
