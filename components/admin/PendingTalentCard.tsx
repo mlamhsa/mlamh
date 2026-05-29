@@ -11,7 +11,7 @@ import { TalentGallery } from "@/components/admin/TalentGallery";
 import type { AdminTalent } from "@/lib/supabase/admin-talents";
 import { calculateTalentCompletion } from "@/lib/utils/talent-completion";
 
-type AdminTalentWithFeaturedUntil = AdminTalent & {
+type AdminTalentCardData = AdminTalent & {
   featured_until?: string | null;
   availability_status?: string | null;
 };
@@ -103,10 +103,29 @@ function getAvailabilityLabel(status?: string | null) {
   }
 }
 
+function getAvailabilityStyles(status?: string | null) {
+  switch (status) {
+    case "available_now":
+      return "bg-emerald-500/10 text-emerald-400";
+
+    case "available_this_week":
+      return "bg-gold/10 text-gold";
+
+    case "available_next_month":
+      return "bg-blue-500/10 text-blue-400";
+
+    case "unavailable":
+      return "bg-red-500/10 text-red-400";
+
+    default:
+      return "bg-white/5 text-white/40";
+  }
+}
+
 export function PendingTalentCard({
   talent,
 }: {
-  talent: AdminTalentWithFeaturedUntil;
+  talent: AdminTalentCardData;
 }) {
   const instagramUrl = normalizeInstagramUrl(talent.instagram);
   const status = getStatusStyles(talent.status);
@@ -244,8 +263,14 @@ export function PendingTalentCard({
                 Availability
               </dt>
 
-              <dd className="mt-1 text-white/80">
-                {getAvailabilityLabel(talent.availability_status)}
+              <dd className="mt-1">
+                <span
+                  className={`rounded-full px-3 py-1 text-[10px] uppercase tracking-[0.2em] ${getAvailabilityStyles(
+                    talent.availability_status
+                  )}`}
+                >
+                  {getAvailabilityLabel(talent.availability_status)}
+                </span>
               </dd>
             </div>
 
