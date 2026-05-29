@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AdminLogoutButton } from "@/components/admin/AdminLogoutButton";
+import { AdminTalentAnalytics } from "@/components/admin/AdminTalentAnalytics";
 import { AdminTalentSearch } from "@/components/admin/AdminTalentSearch";
 import { PendingTalentCard } from "@/components/admin/PendingTalentCard";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getTopViewedTalents } from "@/lib/supabase/admin-talent-analytics";
 import { getAdminTalents } from "@/lib/supabase/admin-talents";
 import { getAdminTalentStats } from "@/lib/supabase/admin-talent-stats";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -101,9 +103,7 @@ function StatLink({
         {label}
       </p>
 
-      <p className="mt-2 text-3xl font-light text-white">
-        {count}
-      </p>
+      <p className="mt-2 text-3xl font-light text-white">{count}</p>
     </Link>
   );
 }
@@ -162,9 +162,7 @@ function Pagination({
   );
 }
 
-export default async function AdminPage({
-  searchParams,
-}: PageProps) {
+export default async function AdminPage({ searchParams }: PageProps) {
   await requireAdminAccess();
 
   const { status, q, page } = await searchParams;
@@ -180,9 +178,10 @@ export default async function AdminPage({
 
   let result;
   let stats;
+  let topViewedTalents;
 
   try {
-    [result, stats] = await Promise.all([
+    [result, stats, topViewedTalents] = await Promise.all([
       getAdminTalents({
         page: currentPage,
         pageSize: PAGE_SIZE,
@@ -190,6 +189,7 @@ export default async function AdminPage({
         search: q,
       }),
       getAdminTalentStats(),
+      getTopViewedTalents(5),
     ]);
   } catch (error) {
     console.error("Failed to load talents:", error);
@@ -283,6 +283,8 @@ export default async function AdminPage({
         </div>
       </header>
 
+      <AdminTalentAnalytics topViewedTalents={topViewedTalents} />
+
       <AdminTalentSearch />
 
       <section>
@@ -297,16 +299,12 @@ export default async function AdminPage({
             </p>
           </div>
 
-          <p className="text-sm text-gray-muted">
-            {total} total profiles
-          </p>
+          <p className="text-sm text-gray-muted">{total} total profiles</p>
         </div>
 
         {talents.length === 0 ? (
           <div className="rounded-2xl border border-white/[0.06] bg-gray-elevated/30 px-6 py-16 text-center">
-            <p className="text-sm text-gray-muted">
-              No talents found.
-            </p>
+            <p className="text-sm text-gray-muted">No talents found.</p>
           </div>
         ) : (
           <>
