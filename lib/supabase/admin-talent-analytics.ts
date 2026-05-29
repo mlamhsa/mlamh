@@ -9,16 +9,32 @@ export type TopViewedTalent = {
   views: number;
 };
 
+type TalentSummary = {
+  id: number;
+  slug: string | null;
+  name_en: string | null;
+  name_ar: string | null;
+  image_url: string | null;
+};
+
 type TalentViewRow = {
   views: number | null;
-  talents: {
-    id: number;
-    slug: string | null;
-    name_en: string | null;
-    name_ar: string | null;
-    image_url: string | null;
-  } | null;
+  talents: TalentSummary | TalentSummary[] | null;
 };
+
+function normalizeTalentRelation(
+  value: TalentSummary | TalentSummary[] | null
+): TalentSummary | null {
+  if (!value) {
+    return null;
+  }
+
+  if (Array.isArray(value)) {
+    return value[0] ?? null;
+  }
+
+  return value;
+}
 
 export async function getTopViewedTalents(
   limit = 5
@@ -46,16 +62,24 @@ export async function getTopViewedTalents(
     throw new Error(`[getTopViewedTalents] ${error.message}`);
   }
 
-  const rows = (data ?? []) as TalentViewRow[];
+  const rows = (data ?? []) as unknown as TalentViewRow[];
 
   return rows
-    .filter((row) => row.talents)
-    .map((row) => ({
-      id: row.talents!.id,
-      slug: row.talents!.slug,
-      name_en: row.talents!.name_en,
-      name_ar: row.talents!.name_ar,
-      image_url: row.talents!.image_url,
-      views: row.views ?? 0,
-    }));
+    .map((row) => {
+      const talent = normalizeTalentRelation(row.talents);
+
+      if (!talent) {
+        return null;
+      }
+
+      return {
+        id: talent.id,
+        slug: talent.slug,
+        name_en: talent.name_en,
+        name_ar: talent.name_ar,
+        image_url: talent.image_url,
+        views: row.views ?? 0,
+      };
+    })
+    .filter((talent): talent is TopViewedTalent => talent !== null);
 }
