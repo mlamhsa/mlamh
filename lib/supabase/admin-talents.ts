@@ -1,6 +1,16 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Talent } from "@/lib/types/talent";
 
+export type AdminTalent = Talent & {
+  views: number;
+};
+
+type TalentWithViewsRow = Talent & {
+  talent_views?: {
+    views: number | null;
+  } | null;
+};
+
 type GetAdminTalentsOptions = {
   page?: number;
   pageSize?: number;
@@ -9,7 +19,7 @@ type GetAdminTalentsOptions = {
 };
 
 type GetAdminTalentsResult = {
-  talents: Talent[];
+  talents: AdminTalent[];
   total: number;
   totalPages: number;
   currentPage: number;
@@ -32,7 +42,15 @@ export async function getAdminTalents({
 
   let query = supabase
     .from("talents")
-    .select("*", { count: "exact" });
+    .select(
+      `
+      *,
+      talent_views (
+        views
+      )
+      `,
+      { count: "exact" }
+    );
 
   if (
     status &&
@@ -44,14 +62,16 @@ export async function getAdminTalents({
   if (search?.trim()) {
     const value = search.trim();
 
-    query = query.or(`
+    query = query.or(
+      `
       name_en.ilike.%${value}%,
       name_ar.ilike.%${value}%,
       category_en.ilike.%${value}%,
       category_ar.ilike.%${value}%,
       city_en.ilike.%${value}%,
       city_ar.ilike.%${value}%
-    `);
+      `
+    );
   }
 
   const { data, error, count } = await query
@@ -62,10 +82,17 @@ export async function getAdminTalents({
     throw new Error(`[getAdminTalents] ${error.message}`);
   }
 
+  const rows = (data ?? []) as TalentWithViewsRow[];
+
+  const talents: AdminTalent[] = rows.map((talent) => ({
+    ...talent,
+    views: talent.talent_views?.views ?? 0,
+  }));
+
   const total = count ?? 0;
 
   return {
-    talents: (data ?? []) as Talent[],
+    talents,
     total,
     totalPages: Math.max(1, Math.ceil(total / safePageSize)),
     currentPage: safePage,

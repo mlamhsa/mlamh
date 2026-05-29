@@ -8,7 +8,7 @@ import {
   toggleTalentPublishedAction,
 } from "@/lib/actions/toggle-talent-flags";
 import { TalentGallery } from "@/components/admin/TalentGallery";
-import type { Talent } from "@/lib/types/talent";
+import type { AdminTalent } from "@/lib/supabase/admin-talents";
 
 function normalizeInstagramUrl(value?: string | null) {
   if (!value) return null;
@@ -50,9 +50,12 @@ function getStatusStyles(status?: string | null) {
   }
 }
 
-export function PendingTalentCard({ talent }: { talent: Talent }) {
+export function PendingTalentCard({
+  talent,
+}: {
+  talent: AdminTalent;
+}) {
   const instagramUrl = normalizeInstagramUrl(talent.instagram);
-
   const status = getStatusStyles(talent.status);
 
   return (
@@ -167,6 +170,16 @@ export function PendingTalentCard({ talent }: { talent: Talent }) {
                 >
                   {talent.featured ? "Featured" : "Standard"}
                 </span>
+              </dd>
+            </div>
+
+            <div>
+              <dt className="text-[9px] uppercase tracking-[0.25em] text-gray-muted">
+                Views
+              </dt>
+
+              <dd className="mt-1 text-white/80">
+                👁 {talent.views.toLocaleString()}
               </dd>
             </div>
 
