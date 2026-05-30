@@ -24,6 +24,9 @@ export function Navbar({
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
+  const talentLoginLabel =
+    locale === "ar" ? "دخول الموهبة" : "Talent Login";
+
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
     onScroll();
@@ -54,6 +57,7 @@ export function Navbar({
           >
             MLAMH
           </span>
+
           <span className="mt-1 text-[9px] uppercase tracking-[0.45em] text-gray-muted">
             {nav.tagline}
           </span>
@@ -78,12 +82,21 @@ export function Navbar({
             label={nav.switchTo}
             targetLocale={targetLocale}
           />
+
           <a
             href="#agencies"
             className="text-[11px] uppercase tracking-[0.2em] text-white/60 transition-colors hover:text-white"
           >
             {nav.forClients}
           </a>
+
+          <Link
+            href="/talent-login"
+            className="text-[11px] uppercase tracking-[0.2em] text-white/60 transition-colors hover:text-gold"
+          >
+            {talentLoginLabel}
+          </Link>
+
           <Link
             href={`/${locale}/join`}
             className="btn-luxury border border-gold/40 px-6 py-2.5 text-[10px] uppercase tracking-[0.3em] text-gold transition-colors hover:border-gold hover:bg-gold/10"
@@ -98,6 +111,7 @@ export function Navbar({
             label={nav.switchTo}
             targetLocale={targetLocale}
           />
+
           <button
             type="button"
             aria-label={menuOpen ? nav.closeMenu : nav.openMenu}
@@ -110,11 +124,13 @@ export function Navbar({
                 menuOpen ? "translate-y-[7px] rotate-45" : ""
               }`}
             />
+
             <span
               className={`block h-px w-6 bg-white transition-all duration-300 ${
                 menuOpen ? "opacity-0" : ""
               }`}
             />
+
             <span
               className={`block h-px w-6 bg-white transition-all duration-300 ${
                 menuOpen ? "-translate-y-[7px] -rotate-45" : ""
@@ -146,7 +162,17 @@ export function Navbar({
               {nav[link.key]}
             </a>
           ))}
+
           <div className="gold-line my-4 w-24" />
+
+          <Link
+            href="/talent-login"
+            onClick={() => setMenuOpen(false)}
+            className="inline-flex w-fit text-[10px] uppercase tracking-[0.3em] text-white/60 transition hover:text-gold"
+          >
+            {talentLoginLabel}
+          </Link>
+
           <Link
             href={`/${locale}/join`}
             onClick={() => setMenuOpen(false)}
@@ -155,6 +181,7 @@ export function Navbar({
             {nav.joinPlatform}
           </Link>
         </div>
+
         <p
           className="pb-12 text-center text-sm text-gray-muted"
           style={{

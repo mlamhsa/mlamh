@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { signOutTalentAction } from "@/lib/actions/talent-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { calculateProfileCompletion } from "@/lib/utils/profile-completion";
 
 export const metadata = {
   title: "Talent Dashboard — MLAMH",
@@ -15,16 +16,12 @@ function getAvailabilityLabel(status?: string | null) {
   switch (status) {
     case "available_now":
       return "Available Now";
-
     case "available_this_week":
       return "Available This Week";
-
     case "available_next_month":
       return "Available Next Month";
-
     case "unavailable":
       return "Unavailable";
-
     default:
       return "Not set";
   }
@@ -66,14 +63,18 @@ export default async function TalentDashboardPage() {
       slug,
       name_en,
       name_ar,
-      display_name_en,
-      display_name_ar,
       image_url,
       gallery_images,
       category_en,
       category_ar,
       city_en,
       city_ar,
+      bio_en,
+      bio_ar,
+      instagram,
+      tiktok,
+      snapchat,
+      portfolio_url,
       availability_status,
       verified,
       featured,
@@ -84,20 +85,9 @@ export default async function TalentDashboardPage() {
     .eq("user_id", user.id)
     .maybeSingle();
 
-  const { data: views } = talent
-    ? await adminClient
-        .from("talent_views")
-        .select("views")
-        .eq("talent_id", talent.id)
-        .maybeSingle()
-    : { data: null };
-
-  const { count: requestsCount } = talent
-    ? await adminClient
-        .from("talent_requests")
-        .select("id", { count: "exact", head: true })
-        .eq("talent_id", talent.id)
-    : { count: 0 };
+  const profileCompletion = talent
+    ? calculateProfileCompletion(talent)
+    : 0;
 
   const publicProfileHref = talent?.slug
     ? `/ar/talent/${talent.slug}`
@@ -148,8 +138,6 @@ export default async function TalentDashboardPage() {
 
             <p className="mt-4 max-w-2xl text-sm leading-7 text-gray-muted">
               Your account is ready, but no talent profile is linked to it yet.
-              If your profile already exists on MLAMH, request ownership. If not,
-              create a new profile for admin review.
             </p>
 
             <div className="mt-8 flex flex-wrap gap-3">
@@ -170,7 +158,7 @@ export default async function TalentDashboardPage() {
           </section>
         ) : (
           <>
-            <section className="grid gap-5 md:grid-cols-4">
+            <section className="grid gap-5 md:grid-cols-5">
               <DashboardCard
                 label="Profile Status"
                 value={talent.status || "pending"}
@@ -182,13 +170,13 @@ export default async function TalentDashboardPage() {
               />
 
               <DashboardCard
-                label="Profile Views"
-                value={String(views?.views ?? 0)}
+                label="Requests"
+                value="—"
               />
 
               <DashboardCard
-                label="Requests"
-                value={String(requestsCount ?? 0)}
+                label="Completion"
+                value={`${profileCompletion}%`}
               />
             </section>
 
@@ -201,7 +189,7 @@ export default async function TalentDashboardPage() {
 
                   <div className="mt-3 flex flex-wrap items-center gap-3">
                     <h2 className="text-3xl font-light text-white">
-                      {talent.display_name_en || talent.name_en || "Unnamed"}
+                      {talent.name_en || "Unnamed"}
                     </h2>
 
                     {talent.verified ? (
@@ -228,10 +216,17 @@ export default async function TalentDashboardPage() {
 
                 <div className="flex flex-wrap gap-3">
                   <Link
-                    href={`/admin/talents/${talent.id}/edit`}
+                    href="/talent-dashboard/profile"
                     className="rounded-full border border-white/10 px-5 py-3 text-[10px] uppercase tracking-[0.3em] text-white/60 transition hover:border-gold/40 hover:text-gold"
                   >
                     Edit Profile
+                  </Link>
+
+                  <Link
+                    href="/talent-dashboard/gallery"
+                    className="rounded-full border border-white/10 px-5 py-3 text-[10px] uppercase tracking-[0.3em] text-white/60 transition hover:border-gold/40 hover:text-gold"
+                  >
+                    Manage Gallery
                   </Link>
 
                   {publicProfileHref ? (

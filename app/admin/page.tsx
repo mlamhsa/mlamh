@@ -62,17 +62,9 @@ function buildQueryString({
 }) {
   const params = new URLSearchParams();
 
-  if (status) {
-    params.set("status", status);
-  }
-
-  if (q) {
-    params.set("q", q);
-  }
-
-  if (page && page > 1) {
-    params.set("page", String(page));
-  }
+  if (status) params.set("status", status);
+  if (q) params.set("q", q);
+  if (page && page > 1) params.set("page", String(page));
 
   const query = params.toString();
 
@@ -119,9 +111,7 @@ function Pagination({
   status?: string;
   q?: string;
 }) {
-  if (totalPages <= 1) {
-    return null;
-  }
+  if (totalPages <= 1) return null;
 
   return (
     <div className="mt-10 flex items-center justify-center gap-3">
@@ -210,13 +200,7 @@ export default async function AdminPage({ searchParams }: PageProps) {
   }
 
   const { talents, total, totalPages } = result;
-
-  const {
-    total: totalTalents,
-    pending,
-    approved,
-    rejected,
-  } = stats;
+  const { total: totalTalents, pending, approved, rejected } = stats;
 
   return (
     <main className="mx-auto min-h-screen max-w-6xl px-6 py-10 text-white">
@@ -240,18 +224,25 @@ export default async function AdminPage({ searchParams }: PageProps) {
         </div>
 
         <div className="flex flex-col items-start gap-4 md:items-end">
-  <div className="flex flex-wrap gap-3">
-    <Link
-      href="/admin/requests"
-      className="rounded-full border border-white/10 px-5 py-2 text-[10px] uppercase tracking-[0.25em] text-white/60 transition hover:border-gold/40 hover:text-gold"
-    >
-      Talent Requests
-    </Link>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href="/admin/requests"
+              className="rounded-full border border-white/10 px-5 py-2 text-[10px] uppercase tracking-[0.25em] text-white/60 transition hover:border-gold/40 hover:text-gold"
+            >
+              Talent Requests
+            </Link>
 
-    <AdminLogoutButton />
-  </div>
+            <Link
+              href="/admin/claim-requests"
+              className="rounded-full border border-white/10 px-5 py-2 text-[10px] uppercase tracking-[0.25em] text-white/60 transition hover:border-gold/40 hover:text-gold"
+            >
+              Claim Requests
+            </Link>
 
-  <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <AdminLogoutButton />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <StatLink
               href={buildQueryString({ q })}
               label="All"
@@ -260,30 +251,21 @@ export default async function AdminPage({ searchParams }: PageProps) {
             />
 
             <StatLink
-              href={buildQueryString({
-                status: "pending",
-                q,
-              })}
+              href={buildQueryString({ status: "pending", q })}
               label="Pending"
               count={pending}
               active={activeStatus === "pending"}
             />
 
             <StatLink
-              href={buildQueryString({
-                status: "approved",
-                q,
-              })}
+              href={buildQueryString({ status: "approved", q })}
               label="Approved"
               count={approved}
               active={activeStatus === "approved"}
             />
 
             <StatLink
-              href={buildQueryString({
-                status: "rejected",
-                q,
-              })}
+              href={buildQueryString({ status: "rejected", q })}
               label="Rejected"
               count={rejected}
               active={activeStatus === "rejected"}
@@ -299,9 +281,7 @@ export default async function AdminPage({ searchParams }: PageProps) {
       <section>
         <div className="mb-6 flex items-center justify-between gap-4">
           <div>
-            <h2 className="text-lg font-medium text-white">
-              Talent Profiles
-            </h2>
+            <h2 className="text-lg font-medium text-white">Talent Profiles</h2>
 
             <p className="mt-1 text-sm text-gray-muted">
               Showing paginated admin results.
