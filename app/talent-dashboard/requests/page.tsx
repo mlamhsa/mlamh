@@ -1,215 +1,500 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import ContactRequestButton from "@/components/talent/ContactRequestButton";
 
-export const metadata = {
-  title: "My Requests — MLAMH",
-  robots: { index: false, follow: false },
+type PageProps = {
+  params: Promise<{ locale: string }>;
 };
 
-export const dynamic = "force-dynamic";
+type PublisherContact = {
+  id?: number;
+  company_name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  website?: string | null;
+  instagram?: string | null;
+};
 
-function formatDate(value: string) {
-  return new Date(value).toLocaleString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
+type Application = {
+  id: number;
+  status: string;
+  opportunity_id: number;
+  opportunity_title: string;
+  opportunity_slug?: string | null;
+  opportunity_city_ar?: string | null;
+  opportunity_city_en?: string | null;
+  opportunity_type?: string | null;
+  opportunity_budget?: string | number | null;
+  created_at: string;
+  publisher?: PublisherContact | null;
+};
 
-function getStatusClass(status?: string | null) {
-  switch (status) {
-    case "closed":
-      return "bg-emerald-500/10 text-emerald-400";
-    case "contacted":
-      return "bg-gold/10 text-gold";
-    default:
-      return "bg-blue-500/10 text-blue-400";
-  }
-}
+type Notification = {
+  id: number;
+  message: string;
+  created_at: string;
+};
 
-export default async function TalentRequestsPage() {
-  const authClient = await createServerSupabaseClient();
+export default async function TalentApplicationsPage({ params }: PageProps) {
+  const locale = "ar";
+const isRtl = true;
+
+  const supabase = await createServerSupabaseClient();
 
   const {
     data: { user },
-    error,
-  } = await authClient.auth.getUser();
+  } = await supabase.auth.getUser();
 
-  if (error || !user) {
-    redirect("/talent-login");
+  if (!user) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-black text-white">
+        <p>{isRtl ? "يرجى تسجيل الدخول أولاً" : "Please login first"}</p>
+      </main>
+    );
   }
 
-  const adminClient = createAdminClient();
+  const { data: talent } = await supabase
+  .from("talents")
+  .select("id")
+  .eq("user_id", user.id)
+  .maybeSingle();
 
-  const { data: talent } = await adminClient
-    .from("talents")
-    .select("id, name_en")
-    .eq("user_id", user.id)
-    .maybeSingle();
+const talentId = talent?.id;
 
-  if (!talent) {
-    redirect("/talent-dashboard");
-  }
+console.log("USER ID:", user.id);
+console.log("TALENT:", talent);
+console.log("TALENT ID USED:", talentId);
 
-  const { data: requests, error: requestsError } = await adminClient
-    .from("talent_requests")
-    .select(
-      `
-      id,
-      full_name,
-      company,
-      email,
-      phone,
-      project_type,
-      project_details,
-      budget,
-      project_date,
-      status,
-      created_at
-      `
-    )
-    .eq("talent_id", talent.id)
-    .order("created_at", { ascending: false });
-
-  if (requestsError) {
-    throw new Error(`[TalentRequestsPage] ${requestsError.message}`);
-  }
-
+if (!talentId) {
   return (
-    <main className="min-h-screen bg-background px-6 py-10 text-white">
-      <div className="mx-auto max-w-6xl">
-        <header className="mb-10 flex flex-col gap-6 border-b border-white/[0.08] pb-8 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className="text-[10px] uppercase tracking-[0.4em] text-gold">
-              MLAMH TALENT
-            </p>
-
-            <h1
-              className="mt-3 text-4xl font-light tracking-tight text-white md:text-6xl"
-              style={{ fontFamily: "var(--font-cormorant)" }}
-            >
-              My Requests
-            </h1>
-
-            <p className="mt-3 text-sm text-gray-muted">
-              Review incoming requests from companies, agencies, and production
-              teams.
-            </p>
-          </div>
-
-          <Link
-            href="/talent-dashboard"
-            className="rounded-full border border-white/10 px-5 py-3 text-[10px] uppercase tracking-[0.3em] text-white/60 transition hover:border-gold/40 hover:text-gold"
-          >
-            Back to Dashboard
-          </Link>
-        </header>
-
-        {!requests || requests.length === 0 ? (
-          <div className="rounded-3xl border border-white/[0.08] bg-gray-elevated/30 px-6 py-16 text-center">
-            <p className="text-sm text-gray-muted">
-              No requests have been received yet.
-            </p>
-          </div>
-        ) : (
-          <section className="grid gap-5">
-            {requests.map((request) => (
-              <article
-                key={request.id}
-                className="rounded-3xl border border-white/[0.08] bg-gray-elevated/30 p-6"
-              >
-                <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-[10px] uppercase tracking-[0.3em] text-gold">
-                        Request #{request.id}
-                      </p>
-
-                      <span
-                        className={`rounded-full px-3 py-1 text-[10px] uppercase tracking-[0.2em] ${getStatusClass(
-                          request.status
-                        )}`}
-                      >
-                        {request.status || "new"}
-                      </span>
-                    </div>
-
-                    <h2 className="mt-2 text-2xl font-light text-white">
-                      {request.company || request.full_name}
-                    </h2>
-
-                    <p className="mt-1 text-sm text-white/50">
-                      {request.project_type || "Project request"}
-                    </p>
-                  </div>
-
-                  <p className="text-sm text-gray-muted">
-                    {formatDate(request.created_at)}
-                  </p>
-                </div>
-
-                <dl className="grid gap-4 text-sm md:grid-cols-2">
-                  <div>
-                    <dt className="text-[9px] uppercase tracking-[0.25em] text-gray-muted">
-                      Contact Person
-                    </dt>
-                    <dd className="mt-1 text-white/80">
-                      {request.full_name || "—"}
-                    </dd>
-                  </div>
-
-                  <div>
-                    <dt className="text-[9px] uppercase tracking-[0.25em] text-gray-muted">
-                      Email
-                    </dt>
-                    <dd className="mt-1 text-white/80">
-                      {request.email || "—"}
-                    </dd>
-                  </div>
-
-                  <div>
-                    <dt className="text-[9px] uppercase tracking-[0.25em] text-gray-muted">
-                      Phone
-                    </dt>
-                    <dd className="mt-1 text-white/80">
-                      {request.phone || "—"}
-                    </dd>
-                  </div>
-
-                  <div>
-                    <dt className="text-[9px] uppercase tracking-[0.25em] text-gray-muted">
-                      Budget
-                    </dt>
-                    <dd className="mt-1 text-white/80">
-                      {request.budget || "—"}
-                    </dd>
-                  </div>
-
-                  <div>
-                    <dt className="text-[9px] uppercase tracking-[0.25em] text-gray-muted">
-                      Project Date
-                    </dt>
-                    <dd className="mt-1 text-white/80">
-                      {request.project_date || "—"}
-                    </dd>
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <dt className="text-[9px] uppercase tracking-[0.25em] text-gray-muted">
-                      Details
-                    </dt>
-                    <dd className="mt-1 whitespace-pre-line text-white/80">
-                      {request.project_details || "—"}
-                    </dd>
-                  </div>
-                </dl>
-              </article>
-            ))}
-          </section>
-        )}
+    <main className="min-h-screen bg-black px-6 py-10 text-white">
+      <div className="mx-auto max-w-6xl rounded-2xl border border-white/10 p-10 text-center text-white/50">
+        لم يتم العثور على ملف الموهبة المرتبط بحسابك.
       </div>
     </main>
   );
+}
+
+  const { data: applications } = await supabase
+    .from("opportunity_applications")
+    .select(`
+      id,
+      status,
+      opportunity_id,
+      created_at,
+      opportunities (
+        id,
+        title,
+        slug,
+        publisher_id,
+        city_ar,
+        city_en,
+        opportunity_type,
+        budget
+      )
+    `)
+    .eq("talent_id", talentId)
+    .order("created_at", { ascending: false });
+
+    console.log("APPLICATIONS:", applications);
+
+  const publisherIds =
+    applications
+      ?.map((app: any) => {
+        const opportunity = Array.isArray(app.opportunities)
+          ? app.opportunities[0]
+          : app.opportunities;
+
+        return opportunity?.publisher_id;
+      })
+      .filter(Boolean) ?? [];
+
+  const uniquePublisherIds = Array.from(new Set(publisherIds));
+
+  const { data: publishers } =
+    uniquePublisherIds.length > 0
+      ? await supabase
+          .from("publishers")
+          .select(`
+            id,
+            company_name,
+            email,
+            phone,
+            website,
+            instagram
+          `)
+          .in("id", uniquePublisherIds)
+      : { data: [] };
+
+  const publisherMap = new Map(
+    publishers?.map((publisher: any) => [publisher.id, publisher]) ?? []
+  );
+
+  const allApplications: Application[] =
+    applications?.map((app: any) => {
+      const opportunity = Array.isArray(app.opportunities)
+        ? app.opportunities[0]
+        : app.opportunities;
+
+      const publisher = opportunity?.publisher_id
+        ? publisherMap.get(opportunity.publisher_id)
+        : null;
+
+      return {
+        id: app.id,
+        status: app.status,
+        opportunity_id: app.opportunity_id,
+        opportunity_title: opportunity?.title ?? "Untitled",
+        opportunity_slug: opportunity?.slug ?? null,
+        opportunity_city_ar: opportunity?.city_ar ?? null,
+        opportunity_city_en: opportunity?.city_en ?? null,
+        opportunity_type: opportunity?.opportunity_type ?? null,
+        opportunity_budget: opportunity?.budget ?? null,
+        created_at: app.created_at,
+        publisher: app.status === "accepted" ? publisher ?? null : null,
+      };
+    }) ?? [];
+
+  const { data: notifications } = await supabase
+    .from("notifications")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  const allNotifications: Notification[] = notifications ?? [];
+
+  const totalApplications = allApplications.length;
+  const acceptedCount = allApplications.filter(
+    (app) => app.status === "accepted"
+  ).length;
+  const rejectedCount = allApplications.filter(
+    (app) => app.status === "rejected"
+  ).length;
+  const pendingCount = allApplications.filter(
+    (app) => app.status === "pending"
+  ).length;
+
+  return (
+    <main className="min-h-screen bg-black px-6 py-10 text-white">
+      <div className="mx-auto max-w-6xl space-y-8">
+        <header className="border-b border-white/10 pb-8">
+          <p className="text-xs uppercase tracking-[0.35em] text-gold">
+            MLAMH Talent
+          </p>
+
+          <h1 className="mt-3 text-5xl font-light">
+            {isRtl ? "طلبات الفرص" : "My Applications"}
+          </h1>
+
+          <p className="mt-3 text-sm text-white/45">
+            {isRtl
+              ? "تابع الفرص التي تقدمت عليها وحالة كل طلب."
+              : "Track the opportunities you have applied for."}
+          </p>
+
+          <Link
+            href={`/${locale}/talent-dashboard`}
+            className="mt-6 inline-flex rounded-full border border-white/10 px-5 py-3 text-xs uppercase tracking-[0.22em] text-white/60 transition hover:border-gold hover:text-gold"
+          >
+            {isRtl ? "العودة للوحة التحكم" : "Back to Dashboard"}
+          </Link>
+        </header>
+
+        <section className="grid gap-4 md:grid-cols-4">
+          <StatCard
+            label={isRtl ? "كل الطلبات" : "All Applications"}
+            value={totalApplications}
+          />
+          <StatCard label={isRtl ? "قيد المراجعة" : "Pending"} value={pendingCount} />
+          <StatCard label={isRtl ? "مقبول" : "Accepted"} value={acceptedCount} />
+          <StatCard label={isRtl ? "مرفوض" : "Rejected"} value={rejectedCount} />
+        </section>
+
+        <section>
+          <h2 className="mb-4 text-2xl font-light">
+            {isRtl ? "الإشعارات" : "Notifications"}
+          </h2>
+
+          {allNotifications.length > 0 ? (
+            <div className="space-y-2">
+              {allNotifications.map((n) => (
+                <div
+                  key={n.id}
+                  className="rounded-xl border border-white/10 bg-white/[0.025] p-4 text-white/70"
+                >
+                  <p className="text-sm">{n.message}</p>
+                  <p className="mt-2 text-xs text-white/40">
+                    {new Date(n.created_at).toLocaleString(
+                      isRtl ? "ar-SA" : "en-US"
+                    )}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-white/40">
+              {isRtl ? "لا توجد إشعارات." : "No notifications."}
+            </p>
+          )}
+        </section>
+
+        <section>
+          {allApplications.length > 0 ? (
+            <div className="space-y-5">
+              {allApplications.map((app) => {
+                const city = isRtl
+                  ? app.opportunity_city_ar || app.opportunity_city_en || "-"
+                  : app.opportunity_city_en || app.opportunity_city_ar || "-";
+
+                return (
+                  <article
+                    key={app.id}
+                    className="rounded-2xl border border-white/10 bg-white/[0.025] p-6"
+                  >
+                    <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-3">
+                          <p className="text-xs uppercase tracking-[0.25em] text-white/35">
+                            {isRtl ? "تم التقديم" : "Applied"}
+                          </p>
+
+                          <span
+                            className={`inline-flex w-fit rounded-full border px-3 py-1 text-xs uppercase tracking-[0.18em] ${statusClass(
+                              app.status
+                            )}`}
+                          >
+                            {statusLabel(app.status, isRtl)}
+                          </span>
+
+                          <span className="text-xs uppercase tracking-[0.2em] text-gold">
+                            Application #{app.id}
+                          </span>
+                        </div>
+
+                        <p className="mt-3 text-sm text-white/45">
+                          {new Date(app.created_at).toLocaleDateString(
+                            isRtl ? "ar-SA" : "en-US"
+                          )}
+                        </p>
+                      </div>
+
+                      <div className={isRtl ? "text-right" : "text-left"}>
+                        <h3 className="text-2xl font-light">
+                          {app.opportunity_title}
+                        </h3>
+
+                        {app.publisher?.company_name ? (
+                          <p className="mt-2 text-sm text-white/45">
+                            {app.publisher.company_name}
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <div className="mt-6 grid gap-4 rounded-2xl border border-white/10 bg-black/20 p-5 md:grid-cols-4">
+                      <InfoItem
+                        label={isRtl ? "الحالة" : "Status"}
+                        value={statusLabel(app.status, isRtl)}
+                      />
+                      <InfoItem
+                        label={isRtl ? "الميزانية" : "Budget"}
+                        value={app.opportunity_budget ?? "-"}
+                      />
+                      <InfoItem label={isRtl ? "المدينة" : "City"} value={city} />
+                      <InfoItem
+                        label={isRtl ? "النوع" : "Type"}
+                        value={app.opportunity_type ?? "-"}
+                      />
+                    </div>
+
+                    {app.status === "accepted" && app.publisher ? (
+                      <div className="mt-5">
+                        <ContactRequestButton
+                          applicationId={app.id}
+                          opportunityId={app.opportunity_id}
+                          publisherId={app.publisher.id ?? 0}
+                          talentId={Number(talentId)}
+                          locale={locale}
+                        />
+
+                        <PublisherContactBox
+                          publisher={app.publisher}
+                          isRtl={isRtl}
+                        />
+                      </div>
+                    ) : null}
+
+                    <div
+                      className={`mt-6 flex ${
+                        isRtl ? "justify-start" : "justify-end"
+                      }`}
+                    >
+                      <Link
+                        href={`/${locale}/opportunities/${
+                          app.opportunity_slug ?? app.opportunity_id
+                        }`}
+                        className="rounded-full border border-gold/50 px-6 py-3 text-xs uppercase tracking-[0.22em] text-gold transition hover:bg-gold hover:text-black"
+                      >
+                        {isRtl ? "عرض الفرصة" : "View Opportunity"}
+                      </Link>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-10 text-center text-white/50">
+              {isRtl
+                ? "لم تقدّم أي طلبات بعد."
+                : "You have not applied for any opportunities yet."}
+            </div>
+          )}
+        </section>
+      </div>
+    </main>
+  );
+}
+
+function PublisherContactBox({
+  publisher,
+  isRtl,
+}: {
+  publisher?: PublisherContact | null;
+  isRtl: boolean;
+}) {
+  const email = publisher?.email;
+  const phone = publisher?.phone;
+  const website = publisher?.website;
+  const instagram = publisher?.instagram;
+
+  return (
+    <div className="mt-5 rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.06] p-5">
+      <p className="text-xs uppercase tracking-[0.25em] text-emerald-300">
+        {isRtl ? "بيانات التواصل مع الناشر" : "Publisher Contact"}
+      </p>
+
+      <h3 className="mt-3 text-xl font-light text-white">
+        {publisher?.company_name || (isRtl ? "الناشر" : "Publisher")}
+      </h3>
+
+      <p className="mt-2 text-sm leading-7 text-white/55">
+        {isRtl
+          ? "تم قبولك لهذه الفرصة. يمكنك الآن إرسال طلب تواصل للناشر أو التواصل عبر البيانات المتاحة."
+          : "You have been accepted for this opportunity. You can now request contact with the publisher or use the available details."}
+      </p>
+
+      <div className="mt-4 grid gap-3 text-sm text-white/70 md:grid-cols-2">
+        {email ? (
+          <a
+            href={`mailto:${email}`}
+            className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 transition hover:border-emerald-300/40 hover:text-white"
+          >
+            {isRtl ? "البريد: " : "Email: "}
+            {email}
+          </a>
+        ) : null}
+
+        {phone ? (
+          <a
+            href={`tel:${phone}`}
+            className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 transition hover:border-emerald-300/40 hover:text-white"
+          >
+            {isRtl ? "الجوال: " : "Phone: "}
+            {phone}
+          </a>
+        ) : null}
+
+        {website ? (
+          <a
+            href={website}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 transition hover:border-emerald-300/40 hover:text-white"
+          >
+            Website
+          </a>
+        ) : null}
+
+        {instagram ? (
+          <a
+            href={instagram}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 transition hover:border-emerald-300/40 hover:text-white"
+          >
+            Instagram
+          </a>
+        ) : null}
+      </div>
+
+      {!email && !phone && !website && !instagram ? (
+        <p className="mt-4 rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/45">
+          {isRtl
+            ? "تم قبولك، لكن الناشر لم يضف بيانات تواصل بعد."
+            : "You have been accepted, but the publisher has not added contact details yet."}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function StatCard({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.025] p-6">
+      <p className="text-xs uppercase tracking-[0.22em] text-white/40">
+        {label}
+      </p>
+      <p className="mt-3 text-4xl font-light text-white">{value}</p>
+    </div>
+  );
+}
+
+function InfoItem({
+  label,
+  value,
+}: {
+  label: string;
+  value?: string | number | null;
+}) {
+  return (
+    <div>
+      <p className="text-xs uppercase tracking-[0.22em] text-white/35">
+        {label}
+      </p>
+      <p className="mt-2 text-white">{value || "-"}</p>
+    </div>
+  );
+}
+
+function statusLabel(status?: string | null, isRtl = false) {
+  switch (status) {
+    case "reviewing":
+      return isRtl ? "قيد المراجعة" : "Reviewing";
+    case "shortlisted":
+      return isRtl ? "مختصر" : "Shortlisted";
+    case "accepted":
+      return isRtl ? "مقبول" : "Accepted";
+    case "rejected":
+      return isRtl ? "مرفوض" : "Rejected";
+    case "pending":
+    default:
+      return isRtl ? "قيد المراجعة" : "Pending";
+  }
+}
+
+function statusClass(status?: string | null) {
+  switch (status) {
+    case "reviewing":
+      return "border-blue-400/30 bg-blue-400/10 text-blue-300";
+    case "shortlisted":
+      return "border-gold/30 bg-gold/10 text-gold";
+    case "accepted":
+      return "border-emerald-400/30 bg-emerald-400/10 text-emerald-300";
+    case "rejected":
+      return "border-red-400/30 bg-red-400/10 text-red-300";
+    case "pending":
+    default:
+      return "border-yellow-400/30 bg-yellow-400/10 text-yellow-300";
+  }
 }

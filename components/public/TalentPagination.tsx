@@ -5,11 +5,13 @@ function buildTalentQueryString({
   locale,
   q,
   category,
+  city,
   page,
 }: {
   locale: Locale;
   q?: string;
   category?: string;
+  city?: string;
   page?: number;
 }) {
   const params = new URLSearchParams();
@@ -20,6 +22,10 @@ function buildTalentQueryString({
 
   if (category?.trim()) {
     params.set("category", category.trim());
+  }
+
+  if (city?.trim()) {
+    params.set("city", city.trim());
   }
 
   if (page && page > 1) {
@@ -37,6 +43,7 @@ type TalentPaginationProps = {
   totalPages: number;
   q?: string;
   category?: string;
+  city?: string;
 };
 
 export function TalentPagination({
@@ -45,10 +52,14 @@ export function TalentPagination({
   totalPages,
   q,
   category,
+  city,
 }: TalentPaginationProps) {
   if (totalPages <= 1) {
     return null;
   }
+
+  const previousPage = Math.max(1, currentPage - 1);
+  const nextPage = Math.min(totalPages, currentPage + 1);
 
   return (
     <div className="mt-12 flex items-center justify-center gap-3">
@@ -57,7 +68,8 @@ export function TalentPagination({
           locale,
           q,
           category,
-          page: Math.max(1, currentPage - 1),
+          city,
+          page: previousPage,
         })}
         className={`rounded-full border px-5 py-2 text-sm transition ${
           currentPage === 1
@@ -77,7 +89,8 @@ export function TalentPagination({
           locale,
           q,
           category,
-          page: Math.min(totalPages, currentPage + 1),
+          city,
+          page: nextPage,
         })}
         className={`rounded-full border px-5 py-2 text-sm transition ${
           currentPage >= totalPages

@@ -64,6 +64,51 @@ function normalizeSocialUrl(value?: string | null) {
   return `https://${trimmed}`;
 }
 
+function calculateAge(dateOfBirth?: string | null) {
+  if (!dateOfBirth) {
+    return null;
+  }
+
+  const birthDate = new Date(dateOfBirth);
+  const today = new Date();
+
+  if (Number.isNaN(birthDate.getTime())) {
+    return null;
+  }
+
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+
+  if (
+    monthDiff < 0 ||
+    (monthDiff === 0 && today.getDate() < birthDate.getDate())
+  ) {
+    age -= 1;
+  }
+
+  return age;
+}
+
+function formatGender(value: string | null | undefined, isRtl: boolean) {
+  if (value === "male") {
+    return isRtl ? "ذكر" : "Male";
+  }
+
+  if (value === "female") {
+    return isRtl ? "أنثى" : "Female";
+  }
+
+  return null;
+}
+
+function formatTag(value: string) {
+  return value
+    .split("_")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
 export default async function TalentProfilePage({ params }: PageProps) {
   const { locale: localeParam, slug } = await params;
 
@@ -102,6 +147,9 @@ export default async function TalentProfilePage({ params }: PageProps) {
   const category = getTalentCategory(talent, locale);
   const city = getTalentCity(talent, locale);
   const bio = getTalentBio(talent, locale);
+
+  const age = calculateAge(talent.date_of_birth);
+  const gender = formatGender(talent.gender, isRtl);
 
   const availabilityMap: Record<string, string> = {
     available_now: isRtl ? "متاح حاليًا" : "Available Now",
@@ -185,10 +233,14 @@ export default async function TalentProfilePage({ params }: PageProps) {
 
                 <InfoBox label={isRtl ? "المدينة" : "City"} value={city} />
 
+                <InfoBox label={isRtl ? "الجنس" : "Gender"} value={gender} />
+
                 <InfoBox
-                  label={isRtl ? "العمر" : "Age"}
-                  value={talent.age ?? null}
+                  label={isRtl ? "الجنسية" : "Nationality"}
+                  value={talent.nationality}
                 />
+
+                <InfoBox label={isRtl ? "العمر" : "Age"} value={age} />
 
                 <InfoBox
                   label={isRtl ? "الطول" : "Height"}
@@ -219,6 +271,21 @@ export default async function TalentProfilePage({ params }: PageProps) {
                   </p>
                 </div>
               ) : null}
+
+              <TagSection
+                title={isRtl ? "اللغات" : "Languages"}
+                values={talent.languages}
+              />
+
+              <TagSection
+                title={isRtl ? "اللهجات" : "Dialects"}
+                values={talent.dialects}
+              />
+
+              <TagSection
+                title={isRtl ? "المهارات" : "Skills"}
+                values={talent.skills}
+              />
 
               <div className="mt-14 flex flex-wrap gap-4">
                 <ProfileShareButton
@@ -303,6 +370,43 @@ function InfoBox({
       </p>
 
       <p className="mt-3 text-xl font-light text-white">{value || "—"}</p>
+    </div>
+  );
+}
+
+function TagSection({
+  title,
+  values,
+}: {
+  title: string;
+  values?: string[] | string | null;
+}) {
+  const normalizedValues = Array.isArray(values)
+    ? values
+    : typeof values === "string"
+      ? [values]
+      : [];
+
+  if (normalizedValues.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="mt-12">
+      <h2 className="mb-5 text-[10px] uppercase tracking-[0.35em] text-gold">
+        {title}
+      </h2>
+
+      <div className="flex flex-wrap gap-3">
+        {normalizedValues.map((item) => (
+          <span
+            key={item}
+            className="rounded-full border border-gold/20 bg-gold/[0.05] px-4 py-2 text-sm text-gold"
+          >
+            {formatTag(item)}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }

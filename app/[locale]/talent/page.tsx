@@ -17,6 +17,7 @@ type PageProps = {
   searchParams: Promise<{
     q?: string;
     category?: string;
+    city?: string;
     page?: string;
   }>;
 };
@@ -31,7 +32,7 @@ export default async function TalentListingPage({
   searchParams,
 }: PageProps) {
   const { locale: localeParam } = await params;
-  const { q, category, page } = await searchParams;
+  const { q, category, city, page } = await searchParams;
 
   if (!isValidLocale(localeParam)) {
     notFound();
@@ -48,14 +49,13 @@ export default async function TalentListingPage({
     pageSize: PUBLIC_TALENTS_PAGE_SIZE,
     search: q,
     category,
+    city,
   });
 
-  const hasFilters = Boolean(q?.trim() || category?.trim());
+  const hasFilters = Boolean(q?.trim() || category?.trim() || city?.trim());
 
   const featuredIds = new Set(
-    talents
-      .filter((talent) => talent.featured)
-      .map((talent) => talent.id)
+    talents.filter((talent) => talent.featured).map((talent) => talent.id)
   );
 
   const regularTalents = hasFilters
@@ -96,7 +96,12 @@ export default async function TalentListingPage({
             </p>
           </header>
 
-          <TalentFilters locale={locale} q={q} category={category} />
+          <TalentFilters
+            locale={locale}
+            q={q}
+            category={category}
+            city={city}
+          />
 
           {!hasFilters ? (
             <FeaturedTalentGrid talents={talents} locale={locale} />
@@ -145,6 +150,7 @@ export default async function TalentListingPage({
                 totalPages={totalPages}
                 q={q}
                 category={category}
+                city={city}
               />
             </>
           )}

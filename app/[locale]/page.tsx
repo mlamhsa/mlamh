@@ -1,6 +1,8 @@
 import { Agencies } from "@/components/Agencies";
+import { Categories } from "@/components/Categories";
 import { Footer } from "@/components/Footer";
 import { Hero } from "@/components/Hero";
+import { HowItWorks } from "@/components/HowItWorks";
 import { ModelsShowcase } from "@/components/ModelsShowcase";
 import { Navbar } from "@/components/Navbar";
 import { Statistics } from "@/components/Statistics";
@@ -24,11 +26,38 @@ export default async function HomePage({
   return (
     <main className="relative z-[2] bg-background">
       <Navbar dict={dict} locale={locale} />
+
       <Hero dict={dict} locale={locale} />
-      <ModelsShowcase dict={dict} locale={locale} />
-      <Agencies dict={dict} locale={locale} />
-      <Statistics dict={dict} locale={locale} />
-      <Footer dict={dict} locale={locale} />
+
+      <HowItWorks
+        dict={dict}
+        locale={locale}
+      />
+
+      <Categories
+        dict={dict}
+        locale={locale}
+      />
+
+      <ModelsShowcase
+        dict={dict}
+        locale={locale}
+      />
+
+      <Statistics
+        dict={dict}
+        locale={locale}
+      />
+
+      <Agencies
+        dict={dict}
+        locale={locale}
+      />
+
+      <Footer
+        dict={dict}
+        locale={locale}
+      />
     </main>
   );
 }

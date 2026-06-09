@@ -1,39 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 const ALLOWED_STATUSES = new Set(["new", "contacted", "closed"]);
 
-async function requireAdminUser() {
-  const authClient = await createServerSupabaseClient();
-
-  const {
-    data: { user },
-    error,
-  } = await authClient.auth.getUser();
-
-  if (error || !user) {
-    throw new Error("Unauthorized");
-  }
-
-  const adminClient = createAdminClient();
-
-  const { data: adminUser, error: adminError } = await adminClient
-    .from("admin_users")
-    .select("id")
-    .eq("id", user.id)
-    .eq("role", "admin")
-    .maybeSingle();
-
-  if (adminError || !adminUser) {
-    throw new Error("Forbidden");
-  }
-}
-
 function parseRequestId(formData: FormData) {
-  const id = Number(formData.get("id"));
+  const id = Number(formData.get("request_id"));
 
   if (!Number.isFinite(id) || id <= 0) {
     throw new Error("Invalid request id");
@@ -52,24 +27,52 @@ function parseStatus(formData: FormData) {
   return status;
 }
 
-export async function updateTalentRequestStatusAction(
-  formData: FormData
-): Promise<void> {
-  await requireAdminUser();
+async function getOwnTalentId() {
+  const authClient = await createServerSupabaseClient();
 
-  const id = parseRequestId(formData);
+  const {
+    data: { user },
+    error,
+  } = await authClient.auth.getUser();
+
+  if (error || !user) {
+    redirect("/talent-login");
+  }
+
+  const supabase = createAdminClient();
+
+  const { data: talent, error: talentError } = await supabase
+    .from("talents")
+    .select("id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (talentError || !talent) {
+    throw new Error("No linked talent profile found.");
+  }
+
+  return talent.id;
+}
+
+export async function updateTalentRequestStatusAction(formData: FormData) {
+  const requestId = parseRequestId(formData);
   const status = parseStatus(formData);
+  const talentId = await getOwnTalentId();
 
   const supabase = createAdminClient();
 
   const { error } = await supabase
     .from("talent_requests")
     .update({ status })
-    .eq("id", id);
+    .eq("id", requestId)
+    .eq("talent_id", talentId);
 
   if (error) {
     throw new Error(`[updateTalentRequestStatusAction] ${error.message}`);
   }
 
-  revalidatePath("/admin/requests");
+  revalidatePath("/talent-dashboard");
+  revalidatePath("/ar/talent-dashboard/requests");
+
+  redirect("/ar/talent-dashboard/requests?updated=1");
 }

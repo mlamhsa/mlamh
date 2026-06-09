@@ -1,128 +1,154 @@
-import { agencies } from "@/lib/data";
+import Link from "next/link";
 import type { Dictionary, Locale } from "@/lib/i18n";
+import { talentPath } from "@/lib/utils/routes";
 
 export function Agencies({
-  dict,
   locale,
 }: {
   dict: Dictionary;
   locale: Locale;
 }) {
-  const { agencies: a } = dict;
   const isRtl = locale === "ar";
-  const doubled = [...agencies, ...agencies];
+
   const bodyFont = isRtl
     ? "var(--font-noto-arabic)"
     : "var(--font-dm-sans)";
 
+  const displayFont = isRtl
+    ? "var(--font-noto-arabic)"
+    : "var(--font-cormorant)";
+
+  const features = isRtl
+    ? [
+        {
+          title: "اكتشاف أسرع",
+          body: "استعرض مواهب منشورة ومنظمة حسب التخصص، المدينة، والحضور البصري.",
+        },
+        {
+          title: "ملفات احترافية",
+          body: "صور، معرض أعمال، بيانات أساسية، وروابط تواصل في صفحة واحدة واضحة.",
+        },
+        {
+          title: "طلبات مباشرة",
+          body: "أرسل طلب كاست للموهبة المناسبة واحتفظ بتفاصيل المشروع داخل النظام.",
+        },
+      ]
+    : [
+        {
+          title: "Faster Discovery",
+          body: "Browse published talent profiles by category, city, and visual presence.",
+        },
+        {
+          title: "Professional Profiles",
+          body: "Photos, gallery, key details, and contact links in one clear profile.",
+        },
+        {
+          title: "Direct Requests",
+          body: "Send casting requests to the right talent and keep project details organized.",
+        },
+      ];
+
+  const industries = isRtl
+    ? ["وكالات إعلان", "شركات إنتاج", "مديرو كاست", "علامات تجارية"]
+    : ["Ad Agencies", "Production Companies", "Casting Directors", "Brands"];
+
   return (
-    <section id="agencies" className="relative overflow-hidden py-28 lg:py-36">
-      <div className="absolute inset-0 bg-gray-deep" aria-hidden />
+    <section
+      id="agencies"
+      className="relative overflow-hidden border-y border-white/[0.06] bg-gray-deep px-6 py-24 text-white lg:py-32"
+    >
       <div
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(201,169,98,0.06)_0%,transparent_70%)]"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(201,169,98,0.08)_0%,transparent_60%)]"
         aria-hidden
       />
 
-      <div className="relative mx-auto max-w-7xl px-6 lg:px-10">
-        <div className="mb-20 text-center">
-          <p className="mb-4 text-[10px] uppercase tracking-[0.4em] text-gold">
-            {a.sectionLabel}
-          </p>
-          <h2
-            className="text-5xl font-light text-white md:text-6xl lg:text-7xl"
-            style={{ fontFamily: "var(--font-cormorant)" }}
-          >
-            {a.title}
-            <span className="italic"> {a.titleItalic}</span>
-          </h2>
-          <p
-            className="mx-auto mt-6 max-w-xl text-sm leading-relaxed text-gray-muted"
-            style={{ fontFamily: bodyFont }}
-          >
-            {a.description}
-          </p>
-        </div>
+      <div className="relative mx-auto max-w-7xl">
+        <div className="grid gap-12 lg:grid-cols-[0.95fr_1.05fr] lg:items-end">
+          <div className={isRtl ? "text-right" : "text-left"}>
+            <p className="mb-4 text-[10px] uppercase tracking-[0.4em] text-gold">
+              {isRtl
+                ? "للوكالات وشركات الإنتاج"
+                : "For Agencies & Production Companies"}
+            </p>
 
-        <div className="relative mb-16 overflow-hidden">
-          <div
-            className={`pointer-events-none absolute top-0 bottom-0 z-10 w-24 bg-gradient-to-r from-gray-deep to-transparent ${
-              isRtl ? "right-0" : "left-0"
-            }`}
-          />
-          <div
-            className={`pointer-events-none absolute top-0 bottom-0 z-10 w-24 bg-gradient-to-l from-gray-deep to-transparent ${
-              isRtl ? "left-0" : "right-0"
-            }`}
-          />
-          <div className="flex w-max animate-marquee">
-            {doubled.map((agency, i) => (
-              <div
-                key={`${agency.name}-${i}`}
-                className="mx-6 flex min-w-[220px] flex-col items-center border border-white/[0.06] bg-black/40 px-10 py-8 backdrop-blur-sm transition-colors duration-500 hover:border-gold/30"
+            <h2
+              className="max-w-4xl text-4xl font-light leading-tight tracking-tight md:text-6xl"
+              style={{ fontFamily: displayFont }}
+            >
+              {isRtl
+                ? "ابحث عن المواهب المناسبة لمشروعك القادم خلال دقائق."
+                : "Find the right talent for your next project in minutes."}
+            </h2>
+
+            <p
+              className="mt-6 max-w-2xl text-sm leading-7 text-gray-muted md:text-base"
+              style={{ fontFamily: bodyFont }}
+            >
+              {isRtl
+                ? "مَلامِح تساعد الجهات الإبداعية على اكتشاف المواهب السعودية، مراجعة ملفاتهم، وإرسال طلبات كاست مباشرة دون فوضى الرسائل المتفرقة."
+                : "MLAMH helps creative teams discover Saudi talent, review profiles, and send direct casting requests without scattered messages."}
+            </p>
+
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <Link
+                href={talentPath(locale)}
+                className="inline-flex items-center justify-center rounded-full border border-gold/40 bg-gold/[0.08] px-6 py-3 text-[10px] uppercase tracking-[0.3em] text-gold transition hover:bg-gold hover:text-black"
               >
-                <span
-                  className="text-center text-xl font-light tracking-wide text-white/90"
-                  style={{ fontFamily: "var(--font-cormorant)" }}
-                >
-                  {agency.name}
-                </span>
-                <span className="mt-2 text-[9px] uppercase tracking-[0.35em] text-gold/70">
-                  {agency.region}
-                </span>
-              </div>
+                {isRtl ? "استكشف المواهب" : "Browse Talents"}
+              </Link>
+
+              <a
+                href="#contact"
+                className="inline-flex items-center justify-center rounded-full border border-white/10 px-6 py-3 text-[10px] uppercase tracking-[0.3em] text-white/60 transition hover:border-gold/40 hover:text-gold"
+              >
+                {isRtl ? "تواصل معنا" : "Contact Us"}
+              </a>
+            </div>
+          </div>
+
+          <div className="grid gap-4">
+            {features.map((feature, index) => (
+              <article
+                key={feature.title}
+                className="rounded-[28px] border border-white/[0.08] bg-black/30 p-6 transition hover:border-gold/25"
+              >
+                <div className="flex items-start gap-5">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-gold/30 text-[10px] uppercase tracking-[0.2em] text-gold">
+                    {String(index + 1).padStart(2, "0")}
+                  </div>
+
+                  <div className={isRtl ? "text-right" : "text-left"}>
+                    <h3
+                      className="text-2xl font-light text-white"
+                      style={{ fontFamily: displayFont }}
+                    >
+                      {feature.title}
+                    </h3>
+
+                    <p
+                      className="mt-3 text-sm leading-7 text-white/55"
+                      style={{ fontFamily: bodyFont }}
+                    >
+                      {feature.body}
+                    </p>
+                  </div>
+                </div>
+              </article>
             ))}
           </div>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2">
-          <div
-            className={`border border-white/[0.06] p-8 lg:p-10 ${
-              isRtl ? "text-right" : "text-left"
-            }`}
-          >
-            <h3
-              className="mb-4 text-3xl font-light text-white"
-              style={{ fontFamily: "var(--font-cormorant)" }}
+        <div className="mt-14 grid gap-4 border-t border-white/[0.08] pt-8 md:grid-cols-4">
+          {industries.map((industry) => (
+            <div
+              key={industry}
+              className="rounded-2xl border border-white/[0.06] bg-white/[0.025] px-5 py-5 text-center"
             >
-              {a.cardDirectorsTitle}
-            </h3>
-            <p
-              className="text-sm leading-relaxed text-gray-muted"
-              style={{ fontFamily: bodyFont }}
-            >
-              {a.cardDirectorsBody}
-            </p>
-            <a
-              href="#contact"
-              className="btn-luxury mt-8 inline-block text-[10px] uppercase tracking-[0.3em] text-gold transition-colors hover:text-gold-soft"
-            >
-              {a.cardDirectorsCta}
-            </a>
-          </div>
-          <div
-            className={`border border-gold/20 bg-gold/[0.03] p-8 lg:p-10 ${
-              isRtl ? "text-right" : "text-left"
-            }`}
-          >
-            <h3
-              className="mb-4 text-3xl font-light text-white"
-              style={{ fontFamily: bodyFont }}
-            >
-              {a.cardPartnersTitle}
-            </h3>
-            <p
-              className="text-sm leading-relaxed text-white/60"
-              style={{ fontFamily: bodyFont }}
-            >
-              {a.cardPartnersBody}
-            </p>
-            <a
-              href="#contact"
-              className="btn-luxury mt-8 inline-block text-[10px] uppercase tracking-[0.3em] text-gold transition-colors hover:text-gold-soft"
-            >
-              {a.cardPartnersCta}
-            </a>
-          </div>
+              <p className="text-[10px] uppercase tracking-[0.25em] text-white/50">
+                {industry}
+              </p>
+            </div>
+          ))}
         </div>
       </div>
     </section>

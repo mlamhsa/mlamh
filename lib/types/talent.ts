@@ -1,4 +1,3 @@
-/** Row shape for the public.talents table in Supabase */
 export type Talent = {
   id: number;
   slug?: string | null;
@@ -11,6 +10,7 @@ export type Talent = {
 
   category_en: string;
   category_ar: string;
+  category_slug?: string | null;
 
   image_url: string;
   gallery_images?: string[] | string | null;
@@ -27,8 +27,20 @@ export type Talent = {
 
   city_en?: string | null;
   city_ar?: string | null;
+  city_slug?: string | null;
+
   age?: number | null;
   height?: string | null;
+
+  gender?: string | null;
+  date_of_birth?: string | null;
+
+  nationality?: string | null;
+  nationality_slug?: string | null;
+
+  languages?: string[] | null;
+  dialects?: string[] | null;
+  skills?: string[] | null;
 
   bio_en?: string | null;
   bio_ar?: string | null;

@@ -7,23 +7,24 @@ export async function createServerSupabaseClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  if (!url) {
-    throw new Error("NEXT_PUBLIC_SUPABASE_URL is not configured.");
-  }
-
-  if (!anonKey) {
-    throw new Error("NEXT_PUBLIC_SUPABASE_ANON_KEY is not configured.");
-  }
+  if (!url) throw new Error("NEXT_PUBLIC_SUPABASE_URL is not configured.");
+  if (!anonKey) throw new Error("NEXT_PUBLIC_SUPABASE_ANON_KEY is not configured.");
 
   return createServerClient(url, anonKey, {
     cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value;
+      getAll() {
+        return cookieStore.getAll();
       },
 
-      set() {},
-
-      remove() {},
+      setAll(cookiesToSet) {
+        try {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            cookieStore.set(name, value, options);
+          });
+        } catch {
+          // Works in Server Actions. Ignored in read-only Server Components.
+        }
+      },
     },
   });
 }

@@ -7,6 +7,7 @@ type GetPublicTalentsOptions = {
   pageSize?: number;
   search?: string;
   category?: string;
+  city?: string;
 };
 
 type GetPublicTalentsResult = {
@@ -17,10 +18,71 @@ type GetPublicTalentsResult = {
   pageSize: number;
 };
 
+const CATEGORY_ALIASES: Record<string, string[]> = {
+  actor: ["actor", "actors", "acting", "ممثل", "ممثلون", "تمثيل"],
+  model: ["model", "models", "modeling", "مودل", "مودلز", "عارض", "عارضة"],
+  content_creator: [
+    "content_creator",
+    "creator",
+    "creators",
+    "content creator",
+    "content creators",
+    "صانع محتوى",
+    "صناع محتوى",
+    "محتوى",
+  ],
+  presenter: [
+    "presenter",
+    "presenters",
+    "host",
+    "hosts",
+    "tv host",
+    "مقدم",
+    "مقدمة",
+    "مقدمو برامج",
+    "تقديم",
+    "إعلام",
+  ],
+  voice_actor: [
+    "voice_actor",
+    "voice",
+    "voice over",
+    "voiceover",
+    "voice artist",
+    "voice artists",
+    "تعليق صوتي",
+    "معلق صوتي",
+    "معلقون صوتيون",
+  ],
+  singer: ["singer", "singers", "مغني", "مغنون", "غناء"],
+  dancer: ["dancer", "dancers", "راقص", "راقصون", "رقص"],
+  athlete: ["athlete", "athletes", "رياضي", "رياضيون"],
+  extra: ["extra", "extras", "background", "كومبارس"],
+  influencer: ["influencer", "influencers", "مؤثر", "مؤثرون"],
+};
+
 function normalizeSearchValue(value?: string) {
   const trimmed = value?.trim();
 
   return trimmed ? trimmed : undefined;
+}
+
+function getCategorySearchTerms(category?: string) {
+  const normalizedCategory = normalizeSearchValue(category);
+
+  if (!normalizedCategory) return [];
+
+  const normalizedKey = normalizedCategory.toLowerCase();
+
+  return CATEGORY_ALIASES[normalizedKey] ?? [normalizedCategory];
+}
+
+function buildIlikeOrFilter(columns: string[], terms: string[]) {
+  return terms
+    .flatMap((term) =>
+      columns.map((column) => `${column}.ilike.%${term.replace(/[%]/g, "")}%`)
+    )
+    .join(",");
 }
 
 export async function getPublicTalents({
@@ -28,12 +90,15 @@ export async function getPublicTalents({
   pageSize = 12,
   search,
   category,
+  city,
 }: GetPublicTalentsOptions = {}): Promise<GetPublicTalentsResult> {
   const safePage = Math.max(1, page);
   const safePageSize = Math.min(Math.max(pageSize, 1), 48);
 
   const normalizedSearch = normalizeSearchValue(search);
   const normalizedCategory = normalizeSearchValue(category);
+  const normalizedCity = normalizeSearchValue(city);
+  const categoryTerms = getCategorySearchTerms(normalizedCategory);
 
   const cacheKey = [
     "public-talents",
@@ -41,6 +106,7 @@ export async function getPublicTalents({
     safePageSize,
     normalizedSearch ?? "all",
     normalizedCategory ?? "all",
+    normalizedCity ?? "all",
   ].join(":");
 
   return getCachedValue(cacheKey, async () => {
@@ -57,23 +123,43 @@ export async function getPublicTalents({
 
     if (normalizedSearch) {
       query = query.or(
-        [
-          `name_en.ilike.%${normalizedSearch}%`,
-          `name_ar.ilike.%${normalizedSearch}%`,
-          `category_en.ilike.%${normalizedSearch}%`,
-          `category_ar.ilike.%${normalizedSearch}%`,
-          `city_en.ilike.%${normalizedSearch}%`,
-          `city_ar.ilike.%${normalizedSearch}%`,
-        ].join(",")
+        buildIlikeOrFilter(
+          [
+            "name_en",
+            "name_ar",
+            "display_name_en",
+            "display_name_ar",
+            "category_slug",
+            "category_en",
+            "category_ar",
+            "city_slug",
+            "city_en",
+            "city_ar",
+          ],
+          [normalizedSearch]
+        )
       );
     }
 
-    if (normalizedCategory) {
+    if (normalizedCategory && categoryTerms.length > 0) {
       query = query.or(
         [
-          `category_en.ilike.%${normalizedCategory}%`,
-          `category_ar.ilike.%${normalizedCategory}%`,
-        ].join(",")
+          `category_slug.eq.${normalizedCategory}`,
+          buildIlikeOrFilter(["category_en", "category_ar"], categoryTerms),
+        ]
+          .filter(Boolean)
+          .join(",")
+      );
+    }
+
+    if (normalizedCity) {
+      query = query.or(
+        [
+          `city_slug.eq.${normalizedCity}`,
+          buildIlikeOrFilter(["city_en", "city_ar"], [normalizedCity]),
+        ]
+          .filter(Boolean)
+          .join(",")
       );
     }
 
@@ -147,24 +233,21 @@ export async function getPublishedTalentBySlug(
 ): Promise<Talent | null> {
   const normalizedSlug = slug.trim().toLowerCase();
 
-  return getCachedValue(
-    `published-talent:slug:${normalizedSlug}`,
-    async () => {
-      const supabase = createAdminClient();
+  return getCachedValue(`published-talent:slug:${normalizedSlug}`, async () => {
+    const supabase = createAdminClient();
 
-      const { data, error } = await supabase
-        .from("talents")
-        .select("*")
-        .eq("slug", normalizedSlug)
-        .eq("published", true)
-        .eq("status", "approved")
-        .maybeSingle();
+    const { data, error } = await supabase
+      .from("talents")
+      .select("*")
+      .eq("slug", normalizedSlug)
+      .eq("published", true)
+      .eq("status", "approved")
+      .maybeSingle();
 
-      if (error) {
-        throw new Error(`[getPublishedTalentBySlug] ${error.message}`);
-      }
-
-      return data as Talent | null;
+    if (error) {
+      throw new Error(`[getPublishedTalentBySlug] ${error.message}`);
     }
-  );
+
+    return data as Talent | null;
+  });
 }

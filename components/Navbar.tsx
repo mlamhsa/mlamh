@@ -7,6 +7,7 @@ import type { Dictionary, Locale } from "@/lib/i18n";
 
 const navHrefs = [
   { key: "talents" as const, href: "#talents" },
+  { key: "opportunities" as const, href: "/opportunities" },
   { key: "agencies" as const, href: "#agencies" },
   { key: "about" as const, href: "#about" },
   { key: "contact" as const, href: "#contact" },
@@ -26,6 +27,25 @@ export function Navbar({
 
   const talentLoginLabel =
     locale === "ar" ? "دخول الموهبة" : "Talent Login";
+
+  const opportunitiesLabel =
+    locale === "ar" ? "الفرص" : "Opportunities";
+
+  function getNavLabel(key: string) {
+    if (key === "opportunities") {
+      return opportunitiesLabel;
+    }
+
+    return nav[key as keyof typeof nav];
+  }
+
+  function getNavHref(key: string, href: string) {
+    if (key === "opportunities") {
+      return `/${locale}/opportunities`;
+    }
+
+    return href;
+  }
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
@@ -65,13 +85,22 @@ export function Navbar({
 
         <ul className="hidden items-center gap-10 md:flex">
           {navHrefs.map((link) => (
-            <li key={link.href}>
-              <a
-                href={link.href}
-                className="text-[11px] uppercase tracking-[0.25em] text-white/70 transition-colors duration-300 hover:text-gold"
-              >
-                {nav[link.key]}
-              </a>
+            <li key={link.key}>
+              {link.key === "opportunities" ? (
+                <Link
+                  href={getNavHref(link.key, link.href)}
+                  className="text-[11px] uppercase tracking-[0.25em] text-white/70 transition-colors duration-300 hover:text-gold"
+                >
+                  {getNavLabel(link.key)}
+                </Link>
+              ) : (
+                <a
+                  href={link.href}
+                  className="text-[11px] uppercase tracking-[0.25em] text-white/70 transition-colors duration-300 hover:text-gold"
+                >
+                  {getNavLabel(link.key)}
+                </a>
+              )}
             </li>
           ))}
         </ul>
@@ -91,7 +120,7 @@ export function Navbar({
           </a>
 
           <Link
-            href="/talent-login"
+            href={`/${locale}/talent-login`}
             className="text-[11px] uppercase tracking-[0.2em] text-white/60 transition-colors hover:text-gold"
           >
             {talentLoginLabel}
@@ -148,25 +177,46 @@ export function Navbar({
         }`}
       >
         <div className="flex flex-1 flex-col justify-center gap-8 px-10 pt-20">
-          {navHrefs.map((link, i) => (
-            <a
-              key={link.href}
-              href={link.href}
-              onClick={() => setMenuOpen(false)}
-              className="text-4xl font-light tracking-wide text-white transition-colors hover:text-gold"
-              style={{
-                fontFamily: "var(--font-cormorant)",
-                animationDelay: `${i * 80}ms`,
-              }}
-            >
-              {nav[link.key]}
-            </a>
-          ))}
+          {navHrefs.map((link, i) =>
+            link.key === "opportunities" ? (
+              <Link
+                key={link.key}
+                href={getNavHref(link.key, link.href)}
+                onClick={() => setMenuOpen(false)}
+                className="text-4xl font-light tracking-wide text-white transition-colors hover:text-gold"
+                style={{
+                  fontFamily:
+                    locale === "ar"
+                      ? "var(--font-noto-arabic)"
+                      : "var(--font-cormorant)",
+                  animationDelay: `${i * 80}ms`,
+                }}
+              >
+                {getNavLabel(link.key)}
+              </Link>
+            ) : (
+              <a
+                key={link.href}
+                href={link.href}
+                onClick={() => setMenuOpen(false)}
+                className="text-4xl font-light tracking-wide text-white transition-colors hover:text-gold"
+                style={{
+                  fontFamily:
+                    locale === "ar"
+                      ? "var(--font-noto-arabic)"
+                      : "var(--font-cormorant)",
+                  animationDelay: `${i * 80}ms`,
+                }}
+              >
+                {getNavLabel(link.key)}
+              </a>
+            )
+          )}
 
           <div className="gold-line my-4 w-24" />
 
           <Link
-            href="/talent-login"
+            href={`/${locale}/talent-login`}
             onClick={() => setMenuOpen(false)}
             className="inline-flex w-fit text-[10px] uppercase tracking-[0.3em] text-white/60 transition hover:text-gold"
           >

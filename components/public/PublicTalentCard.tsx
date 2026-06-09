@@ -25,7 +25,7 @@ export function PublicTalentCard({
   return (
     <Link
       href={talentPath(locale, talent.slug ?? talent.id)}
-      className="group overflow-hidden rounded-[28px] border border-white/[0.08] bg-gray-elevated/20 transition-all duration-500 hover:-translate-y-1 hover:border-gold/20"
+      className="group block overflow-hidden rounded-[30px] border border-white/[0.08] bg-gray-elevated/20 transition-all duration-500 hover:-translate-y-1 hover:border-gold/25 hover:bg-gray-elevated/30"
     >
       <div className="relative aspect-[3/4] overflow-hidden bg-black">
         {talent.image_url ? (
@@ -33,9 +33,9 @@ export function PublicTalentCard({
             src={talent.image_url}
             alt={name || "Talent image"}
             fill
-            priority={talent.featured}
+            priority={Boolean(talent.featured)}
             sizes="(max-width: 768px) 100vw, 33vw"
-            className="object-cover transition-transform duration-700 group-hover:scale-[1.03]"
+            className="object-cover object-center transition-transform duration-700 group-hover:scale-[1.035]"
           />
         ) : (
           <div className="flex h-full items-center justify-center text-sm uppercase tracking-[0.3em] text-white/30">
@@ -43,27 +43,35 @@ export function PublicTalentCard({
           </div>
         )}
 
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20" />
+
         <div
           className={`absolute top-4 flex flex-wrap gap-2 ${
             isRtl ? "right-4" : "left-4"
           }`}
         >
           {talent.featured ? (
-            <span className="rounded-full border border-gold/30 bg-black/40 px-3 py-1 text-[9px] uppercase tracking-[0.25em] text-gold backdrop-blur">
-              {isRtl ? "مميز" : "Featured"}
+            <span className="rounded-full border border-gold/35 bg-black/55 px-3 py-1 text-[9px] uppercase tracking-[0.25em] text-gold backdrop-blur">
+              {isRtl ? "موهبة مميزة" : "Featured"}
             </span>
           ) : null}
 
           {talent.verified ? (
-            <span className="rounded-full border border-emerald-400/30 bg-black/40 px-3 py-1 text-[9px] uppercase tracking-[0.25em] text-emerald-300 backdrop-blur">
+            <span className="rounded-full border border-emerald-400/30 bg-black/55 px-3 py-1 text-[9px] uppercase tracking-[0.25em] text-emerald-300 backdrop-blur">
               {isRtl ? "موثق" : "Verified"}
             </span>
           ) : null}
         </div>
-      </div>
 
-      <div className="p-6">
-        <div className="flex items-center gap-3">
+        <div
+          className={`absolute bottom-5 left-5 right-5 ${
+            isRtl ? "text-right" : "text-left"
+          }`}
+        >
+          <p className="mb-2 text-[10px] uppercase tracking-[0.25em] text-gold">
+            {[category, city].filter(Boolean).join(" • ")}
+          </p>
+
           <h2
             className="text-3xl font-light tracking-tight text-white"
             style={{
@@ -74,32 +82,54 @@ export function PublicTalentCard({
           >
             {name || (isRtl ? "موهبة غير مسماة" : "Unnamed Talent")}
           </h2>
+        </div>
+      </div>
 
-          {talent.verified ? (
-            <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-[8px] uppercase tracking-[0.2em] text-emerald-300">
-              ✓
-            </span>
-          ) : null}
+      <div className="p-6">
+        <div className="grid grid-cols-2 gap-4 border-b border-white/[0.08] pb-5">
+          <InfoBlock
+            label={isRtl ? "التصنيف" : "Category"}
+            value={category}
+          />
+
+          <InfoBlock
+            label={isRtl ? "المدينة" : "City"}
+            value={city}
+          />
         </div>
 
-        <div className="mt-5 grid grid-cols-2 gap-4 border-t border-white/[0.08] pt-5">
-          <div>
-            <p className="text-[9px] uppercase tracking-[0.25em] text-gray-muted">
-              {isRtl ? "التصنيف" : "Category"}
-            </p>
+        <div className="mt-5 flex items-center justify-between">
+          <span className="text-[10px] uppercase tracking-[0.28em] text-white/45 transition group-hover:text-gold">
+            {isRtl ? "عرض الملف" : "View Profile"}
+          </span>
 
-            <p className="mt-2 text-sm text-white/80">{category || "—"}</p>
-          </div>
-
-          <div>
-            <p className="text-[9px] uppercase tracking-[0.25em] text-gray-muted">
-              {isRtl ? "المدينة" : "City"}
-            </p>
-
-            <p className="mt-2 text-sm text-white/80">{city || "—"}</p>
-          </div>
+          <span
+            className={`text-white/30 transition group-hover:text-gold ${
+              isRtl ? "group-hover:-translate-x-1" : "group-hover:translate-x-1"
+            }`}
+          >
+            {isRtl ? "←" : "→"}
+          </span>
         </div>
       </div>
     </Link>
+  );
+}
+
+function InfoBlock({
+  label,
+  value,
+}: {
+  label: string;
+  value?: string | null;
+}) {
+  return (
+    <div>
+      <p className="text-[9px] uppercase tracking-[0.25em] text-gray-muted">
+        {label}
+      </p>
+
+      <p className="mt-2 text-sm text-white/80">{value || "—"}</p>
+    </div>
   );
 }

@@ -47,5 +47,5 @@ export async function submitTalentClaimAction(formData: FormData) {
   }
 
   revalidatePath("/talent-dashboard/claim");
-  redirect("/talent-dashboard/claim?submitted=1");
+  redirect("/ar/talent-dashboard/claim?submitted=1");
 }
