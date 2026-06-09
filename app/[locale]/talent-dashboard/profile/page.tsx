@@ -22,7 +22,10 @@ export const dynamic = "force-dynamic";
 
 type PageProps = {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ updated?: string }>;
+  searchParams: Promise<{
+    updated?: string;
+    created?: string;
+  }>;
 };
 
 const LANGUAGE_OPTIONS = [
