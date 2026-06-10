@@ -11,7 +11,13 @@ type ProjectStatus = {
   updated_at: string;
 };
 
-function StatusBadge({ status }: { status: ProjectStatus["status"] }) {
+function StatusBadge({
+  status,
+  locale,
+}: {
+  status: ProjectStatus["status"];
+  locale: string;
+}) {
   const styles = {
     completed: "bg-green-100 text-green-700",
     in_progress: "bg-yellow-100 text-yellow-700",
@@ -19,12 +25,20 @@ function StatusBadge({ status }: { status: ProjectStatus["status"] }) {
     blocked: "bg-red-100 text-red-700",
   };
 
-  const labels = {
-    completed: "Completed",
-    in_progress: "In Progress",
-    pending: "Pending",
-    blocked: "Blocked",
-  };
+  const labels =
+    locale === "ar"
+      ? {
+          completed: "مكتمل",
+          in_progress: "قيد التنفيذ",
+          pending: "بانتظار التنفيذ",
+          blocked: "متوقف",
+        }
+      : {
+          completed: "Completed",
+          in_progress: "In Progress",
+          pending: "Pending",
+          blocked: "Blocked",
+        };
 
   return (
     <span className={`rounded-full px-3 py-1 text-xs font-medium ${styles[status]}`}>
@@ -33,8 +47,34 @@ function StatusBadge({ status }: { status: ProjectStatus["status"] }) {
   );
 }
 
-export default async function ProjectStatusPage() {
+export default async function ProjectStatusPage({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+  const isAr = locale === "ar";
+
   const supabase = await createServerSupabaseClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return (
+      <main className="p-8">
+        <h1 className="text-2xl font-bold">
+          {isAr ? "غير مصرح" : "Unauthorized"}
+        </h1>
+        <p className="mt-4 text-red-600">
+          {isAr
+            ? "يجب تسجيل الدخول للوصول إلى هذه الصفحة."
+            : "You must be signed in to access this page."}
+        </p>
+      </main>
+    );
+  }
 
   const { data, error } = await supabase
     .from("project_status")
@@ -45,34 +85,70 @@ export default async function ProjectStatusPage() {
   if (error) {
     return (
       <main className="p-8">
-        <h1 className="text-2xl font-bold">Project Status</h1>
-        <p className="mt-4 text-red-600">Failed to load project status.</p>
+        <h1 className="text-2xl font-bold">
+          {isAr ? "حالة المشروع" : "Project Status"}
+        </h1>
+        <p className="mt-4 text-red-600">
+          {isAr
+            ? "تعذر تحميل حالة المشروع."
+            : "Failed to load project status."}
+        </p>
       </main>
     );
   }
 
   const rows = (data ?? []) as ProjectStatus[];
 
+  const t = isAr
+    ? {
+        title: "حالة مشروع MLAMH",
+        desc: "لوحة متابعة مباشرة لما تم إنجازه وما تبقى في المشروع.",
+        area: "القسم",
+        feature: "الميزة",
+        current: "الحالة الحالية",
+        update: "تحديث",
+        priority: "الأولوية",
+        notes: "ملاحظات",
+        save: "حفظ",
+        completed: "مكتمل",
+        inProgress: "قيد التنفيذ",
+        pending: "بانتظار التنفيذ",
+        blocked: "متوقف",
+      }
+    : {
+        title: "MLAMH Project Status",
+        desc: "Live overview of completed, pending, and blocked project features.",
+        area: "Area",
+        feature: "Feature",
+        current: "Current",
+        update: "Update",
+        priority: "Priority",
+        notes: "Notes",
+        save: "Save",
+        completed: "Completed",
+        inProgress: "In Progress",
+        pending: "Pending",
+        blocked: "Blocked",
+      };
+
   return (
-    <main className="p-6 md:p-10">
+    <main className="p-6 md:p-10" dir={isAr ? "rtl" : "ltr"}>
       <div className="mb-8">
-        <h1 className="text-3xl font-bold">MLAMH Project Status</h1>
-        <p className="mt-2 text-muted-foreground">
-          Live project progress tracker.
-        </p>
+        <h1 className="text-3xl font-bold">{t.title}</h1>
+        <p className="mt-2 text-muted-foreground">{t.desc}</p>
       </div>
 
       <div className="overflow-x-auto rounded-2xl border bg-background">
         <table className="w-full min-w-[900px] text-sm">
-          <thead className="bg-muted/50 text-left">
+          <thead className="bg-muted/50">
             <tr>
-              <th className="p-4">Area</th>
-              <th className="p-4">Feature</th>
-              <th className="p-4">Current</th>
-              <th className="p-4">Update</th>
-              <th className="p-4">Priority</th>
-              <th className="p-4">Notes</th>
-              <th className="p-4">Save</th>
+              <th className="p-4 text-start">{t.area}</th>
+              <th className="p-4 text-start">{t.feature}</th>
+              <th className="p-4 text-start">{t.current}</th>
+              <th className="p-4 text-start">{t.update}</th>
+              <th className="p-4 text-start">{t.priority}</th>
+              <th className="p-4 text-start">{t.notes}</th>
+              <th className="p-4 text-start">{t.save}</th>
             </tr>
           </thead>
 
@@ -82,7 +158,7 @@ export default async function ProjectStatusPage() {
                 <td className="p-4 font-medium">{item.area}</td>
                 <td className="p-4">{item.feature}</td>
                 <td className="p-4">
-                  <StatusBadge status={item.status} />
+                  <StatusBadge status={item.status} locale={locale} />
                 </td>
 
                 <form action={updateProjectStatus} className="contents">
@@ -94,10 +170,10 @@ export default async function ProjectStatusPage() {
                       defaultValue={item.status}
                       className="rounded-md border bg-background px-3 py-2"
                     >
-                      <option value="completed">Completed</option>
-                      <option value="in_progress">In Progress</option>
-                      <option value="pending">Pending</option>
-                      <option value="blocked">Blocked</option>
+                      <option value="completed">{t.completed}</option>
+                      <option value="in_progress">{t.inProgress}</option>
+                      <option value="pending">{t.pending}</option>
+                      <option value="blocked">{t.blocked}</option>
                     </select>
                   </td>
 
@@ -116,7 +192,7 @@ export default async function ProjectStatusPage() {
                       type="submit"
                       className="rounded-md bg-black px-4 py-2 text-white"
                     >
-                      Save
+                      {t.save}
                     </button>
                   </td>
                 </form>
