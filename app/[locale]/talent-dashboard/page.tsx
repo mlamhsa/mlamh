@@ -207,6 +207,11 @@ export default async function TalentDashboardPage({ params }: PageProps) {
     href={`/${locale}/opportunities`}
     label={isRtl ? "الفرص" : "Opportunities"}
   />
+
+<SidebarLink
+  href={`/${locale}/talent-dashboard/notifications`}
+  label={isRtl ? "الإشعارات" : "Notifications"}
+/>
 </nav>
 
           <div className="mt-8 border-t border-white/10 pt-6">
@@ -282,7 +287,7 @@ export default async function TalentDashboardPage({ params }: PageProps) {
     </div>
 
     <Link
-      href="/talent-dashboard/profile"
+      href={`/${locale}/talent-dashboard/profile`}
       className="rounded-full border border-gold/40 bg-gold/[0.06] px-6 py-4 text-xs uppercase tracking-[0.22em] text-gold transition hover:bg-gold hover:text-black"
     >
       {isRtl ? "تعديل الملف الشخصي" : "Edit Profile"}
