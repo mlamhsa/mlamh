@@ -18,6 +18,20 @@ function isValidApplicationStatus(status: string): status is ApplicationStatus {
   return ALLOWED_APPLICATION_STATUSES.includes(status as ApplicationStatus);
 }
 
+function getNotificationMessage(status: ApplicationStatus, opportunityTitle?: string | null) {
+  const title = opportunityTitle ? `: ${opportunityTitle}` : "";
+
+  const messages: Record<ApplicationStatus, string> = {
+    pending: `Your application is pending${title}`,
+    reviewing: `Your application is under review${title}`,
+    shortlisted: `You have been shortlisted for the opportunity${title}`,
+    accepted: `Your application has been accepted${title}`,
+    rejected: `Your application has been rejected${title}`,
+  };
+
+  return messages[status];
+}
+
 export async function updateApplicationStatusAction(
   applicationId: string | number,
   status: string
@@ -101,40 +115,37 @@ export async function updateApplicationStatusAction(
 
   const { error: updateError } = await adminClient
     .from("opportunity_applications")
-    .update({ status, updated_at: new Date().toISOString() })
+    .update({
+      status,
+      updated_at: new Date().toISOString(),
+    })
     .eq("id", application.id)
     .eq("opportunity_id", application.opportunity_id);
 
   if (updateError) throw new Error(updateError.message);
 
   if (["shortlisted", "accepted", "rejected"].includes(status)) {
-    const messages: Record<ApplicationStatus, string> = {
-      pending: "Your application is pending",
-      reviewing: "Your application is under review",
-      shortlisted: "You have been shortlisted for the opportunity",
-      accepted: "Your application has been accepted",
-      rejected: "Your application has been rejected",
-    };
+    const { error: notificationError } = await adminClient
+      .from("notifications")
+      .insert({
+        user_id: talentUserId,
+        type: "application_status",
+        message: getNotificationMessage(status, opportunity.title),
+        reference_id: application.opportunity_id,
+        read: false,
+        created_at: new Date().toISOString(),
+      });
 
-    await adminClient.from("notifications").insert({
-      user_id: talentUserId,
-      message: messages[status as ApplicationStatus],
-      type: "application_status",
-      reference_id: application.opportunity_id,
-      created_at: new Date().toISOString(),
-      read: false,
-    });
+    if (notificationError) {
+      console.error("Failed to create notification:", notificationError.message);
+    }
   }
 
   revalidatePath("/ar/publisher-dashboard/applicants");
   revalidatePath("/en/publisher-dashboard/applicants");
 
-  revalidatePath(
-    `/ar/publisher-dashboard/opportunities/${application.opportunity_id}/applicants`
-  );
-  revalidatePath(
-    `/en/publisher-dashboard/opportunities/${application.opportunity_id}/applicants`
-  );
+  revalidatePath(`/ar/publisher-dashboard/opportunities/${application.opportunity_id}/applicants`);
+  revalidatePath(`/en/publisher-dashboard/opportunities/${application.opportunity_id}/applicants`);
 
   revalidatePath("/ar/publisher-dashboard/opportunities");
   revalidatePath("/en/publisher-dashboard/opportunities");
