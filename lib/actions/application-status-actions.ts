@@ -18,7 +18,10 @@ function isValidApplicationStatus(status: string): status is ApplicationStatus {
   return ALLOWED_APPLICATION_STATUSES.includes(status as ApplicationStatus);
 }
 
-function getNotificationMessage(status: ApplicationStatus, opportunityTitle?: string | null) {
+function getNotificationMessage(
+  status: ApplicationStatus,
+  opportunityTitle?: string | null
+) {
   const title = opportunityTitle ? `: ${opportunityTitle}` : "";
 
   const messages: Record<ApplicationStatus, string> = {
@@ -37,7 +40,9 @@ export async function updateApplicationStatusAction(
   status: string
 ) {
   if (!applicationId) throw new Error("Application ID is required.");
-  if (!isValidApplicationStatus(status)) throw new Error("Invalid application status.");
+  if (!isValidApplicationStatus(status)) {
+    throw new Error("Invalid application status.");
+  }
 
   const authClient = await createServerSupabaseClient();
   const adminClient = createAdminClient();
@@ -63,53 +68,41 @@ export async function updateApplicationStatusAction(
     .eq("profile_id", profile.id)
     .maybeSingle();
 
-  if (publisherError || !publisher) throw new Error("Publisher account not found.");
+  if (publisherError || !publisher) {
+    throw new Error("Publisher account not found.");
+  }
 
   const { data: application, error: applicationError } = await adminClient
     .from("opportunity_applications")
-    .select(`
-      id,
-      opportunity_id,
-      talent_id,
-      status,
-      opportunities (
-        id,
-        title,
-        publisher_id
-      ),
-      talents (
-        id,
-        profile_id,
-        profiles (
-          id,
-          user_id
-        )
-      )
-    `)
+    .select("id, opportunity_id, talent_id, status")
     .eq("id", applicationId)
     .maybeSingle();
 
-  if (applicationError || !application) throw new Error("Application not found.");
+  if (applicationError || !application) {
+    throw new Error("Application not found.");
+  }
 
-  const opportunity = Array.isArray(application.opportunities)
-    ? application.opportunities[0]
-    : application.opportunities;
+  const { data: opportunity, error: opportunityError } = await adminClient
+    .from("opportunities")
+    .select("id, title, publisher_id")
+    .eq("id", application.opportunity_id)
+    .maybeSingle();
 
-  if (!opportunity || opportunity.publisher_id !== publisher.id) {
+  if (opportunityError || !opportunity) {
+    throw new Error("Opportunity not found.");
+  }
+
+  if (opportunity.publisher_id !== publisher.id) {
     throw new Error("Access denied.");
   }
 
-  const talent = Array.isArray(application.talents)
-    ? application.talents[0]
-    : application.talents;
+  const { data: talent, error: talentError } = await adminClient
+    .from("talents")
+    .select("id, user_id")
+    .eq("id", application.talent_id)
+    .maybeSingle();
 
-  const talentProfile = Array.isArray(talent?.profiles)
-    ? talent.profiles[0]
-    : talent?.profiles;
-
-  const talentUserId = talentProfile?.user_id;
-
-  if (!talentUserId) {
+  if (talentError || !talent?.user_id) {
     throw new Error("Talent user account not found.");
   }
 
@@ -128,7 +121,7 @@ export async function updateApplicationStatusAction(
     const { error: notificationError } = await adminClient
       .from("notifications")
       .insert({
-        user_id: talentUserId,
+        user_id: talent.user_id,
         type: "application_status",
         message: getNotificationMessage(status, opportunity.title),
         reference_id: application.opportunity_id,
@@ -137,25 +130,29 @@ export async function updateApplicationStatusAction(
       });
 
     if (notificationError) {
-      console.error("Failed to create notification:", notificationError.message);
+      console.error(
+        "Failed to create notification:",
+        notificationError.message
+      );
     }
   }
 
-  revalidatePath("/ar/publisher-dashboard/applicants");
-  revalidatePath("/en/publisher-dashboard/applicants");
+  const paths = [
+    "/ar/publisher-dashboard/applicants",
+    "/en/publisher-dashboard/applicants",
+    `/ar/publisher-dashboard/opportunities/${application.opportunity_id}/applicants`,
+    `/en/publisher-dashboard/opportunities/${application.opportunity_id}/applicants`,
+    "/ar/publisher-dashboard/opportunities",
+    "/en/publisher-dashboard/opportunities",
+    "/ar/talent-dashboard",
+    "/en/talent-dashboard",
+    "/ar/talent-dashboard/applications",
+    "/en/talent-dashboard/applications",
+    "/ar/talent-dashboard/notifications",
+    "/en/talent-dashboard/notifications",
+  ];
 
-  revalidatePath(`/ar/publisher-dashboard/opportunities/${application.opportunity_id}/applicants`);
-  revalidatePath(`/en/publisher-dashboard/opportunities/${application.opportunity_id}/applicants`);
-
-  revalidatePath("/ar/publisher-dashboard/opportunities");
-  revalidatePath("/en/publisher-dashboard/opportunities");
-
-  revalidatePath("/ar/talent-dashboard");
-  revalidatePath("/en/talent-dashboard");
-
-  revalidatePath("/ar/talent-dashboard/applications");
-  revalidatePath("/en/talent-dashboard/applications");
-
-  revalidatePath("/ar/talent-dashboard/notifications");
-  revalidatePath("/en/talent-dashboard/notifications");
+  paths.forEach((path) => {
+    revalidatePath(path);
+  });
 }
