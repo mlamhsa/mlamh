@@ -92,7 +92,7 @@ export default async function OpportunityDetailPage({
             {isRtl ? "العودة للفرص" : "Back to Opportunities"}
           </Link>
 
-          <OpportunityShareButton title={opportunity.title || "فرصة من ملامح"} />
+          <OpportunityShareButton title={opportunity?.title || "فرصة من ملامح"} />
         </div>
       </main>
     );
