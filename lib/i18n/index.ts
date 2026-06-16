@@ -9,31 +9,24 @@ export type Dictionary = {
   };
 
   nav: Record<string, string>;
-
   hero: Record<string, string>;
-
   talents: Record<string, string>;
-
   talentProfile: Record<string, string>;
-
   agencies: Record<string, string>;
 
   stats: {
     sectionLabel: string;
     title: string;
     titleItalic: string;
-
     items: readonly {
       value: string;
       label: string;
     }[];
-
     quote: string;
     quoteSource: string;
   };
 
   join: Record<string, string>;
-
   footer: Record<string, string>;
 };
 
@@ -43,7 +36,13 @@ const dictionaries: Record<Locale, Dictionary> = {
 };
 
 export function getDictionary(locale: Locale): Dictionary {
-  return dictionaries[locale] ?? dictionaries[defaultLocale];
+  const dict = dictionaries[locale];
+
+  if (!dict) {
+    return dictionaries[defaultLocale];
+  }
+
+  return dict;
 }
 
 export { ar, en };

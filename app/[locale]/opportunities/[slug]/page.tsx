@@ -93,9 +93,8 @@ export default async function OpportunityDetailPage({
           </Link>
         </div>
       </main>
-    );
-  }
-
+      );
+    }
   const authClient = await createServerSupabaseClient();
   const adminClient = createAdminClient();
 

@@ -36,6 +36,7 @@ export default async function JoinPage({ params }: PageProps) {
   const locale = localeParam as Locale;
   const dict = getDictionary(locale);
   const j = dict.join;
+
   const isRtl = locale === "ar";
   const displayFont = isRtl
     ? "var(--font-noto-arabic)"
@@ -46,7 +47,7 @@ export default async function JoinPage({ params }: PageProps) {
 
   return (
     <main className="relative z-[2] bg-background">
-      <Navbar dict={dict} locale={locale} />
+      <Navbar locale={locale} />
 
       <div className="relative overflow-hidden pt-28 pb-20 md:pt-32 md:pb-28">
         <div className="pointer-events-none absolute inset-0" aria-hidden>
@@ -91,7 +92,7 @@ export default async function JoinPage({ params }: PageProps) {
         />
       </div>
 
-      <Footer dict={dict} locale={locale} />
+      <Footer locale={locale} />
     </main>
   );
 }

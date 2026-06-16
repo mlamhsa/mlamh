@@ -1,96 +1,102 @@
-import type { Dictionary, Locale } from "@/lib/i18n";
+import type { Locale } from "@/lib/i18n";
 
 export function HowItWorks({
   locale,
 }: {
-  dict: Dictionary;
   locale: Locale;
 }) {
-  const isAr = locale === "ar";
+  const isRtl = locale === "ar";
 
-  const steps = isAr
-    ? [
-        {
-          number: "01",
-          title: "أنشئ ملفك",
-          description:
-            "ابنِ ملف موهبة احترافي يعرض صورك، تخصصك، مدينتك، وروابطك المهمة.",
-        },
-        {
-          number: "02",
-          title: "احصل على الظهور",
-          description:
-            "يظهر ملفك أمام الوكالات، شركات الإنتاج، ومديري الكاست في السوق السعودي.",
-        },
-        {
-          number: "03",
-          title: "استقبل الفرص",
-          description:
-            "استقبل طلبات كاست مباشرة وتواصل مع الجهات المهتمة بموهبتك.",
-        },
-      ]
-    : [
-        {
-          number: "01",
-          title: "Create Your Profile",
-          description:
-            "Build a professional talent profile with your photos, category, city, and key links.",
-        },
-        {
-          number: "02",
-          title: "Get Discovered",
-          description:
-            "Appear in front of agencies, production companies, and casting teams in Saudi Arabia.",
-        },
-        {
-          number: "03",
-          title: "Receive Opportunities",
-          description:
-            "Receive direct casting requests and connect with teams interested in your talent.",
-        },
-      ];
+  const title =
+    locale === "ar" ? "كيف تعمل ملامح؟" : "How MALAMIH Works";
+
+  const steps =
+    locale === "ar"
+      ? [
+          {
+            title: "إنشاء ملف",
+            desc: "الموهبة تنشئ ملف احترافي يحتوي الصور والمعلومات الأساسية",
+          },
+          {
+            title: "التحليل والمطابقة",
+            desc: "النظام يربطك بالفرص المناسبة حسب الشكل والمهارات",
+          },
+          {
+            title: "اختيار من الجهات",
+            desc: "شركات الإنتاج والوكالات تختار المواهب مباشرة",
+          },
+          {
+            title: "تنفيذ المشروع",
+            desc: "تتم عملية التعاقد والتنفيذ بشكل سريع واحترافي",
+          },
+        ]
+      : [
+          {
+            title: "Create Profile",
+            desc: "Talent creates a professional profile with media and details",
+          },
+          {
+            title: "Smart Matching",
+            desc: "System matches talent with suitable casting opportunities",
+          },
+          {
+            title: "Agency Selection",
+            desc: "Agencies and production houses select directly",
+          },
+          {
+            title: "Project Execution",
+            desc: "Contracts and execution happen seamlessly inside the platform",
+          },
+        ];
 
   return (
-    <section className="border-y border-white/[0.06] bg-background px-6 py-20 text-white">
-      <div className="mx-auto max-w-7xl">
-        <div className="mb-12 max-w-3xl">
-          <p className="mb-3 text-[10px] uppercase tracking-[0.4em] text-gold">
-            {isAr ? "كيف تعمل ملامح" : "How MLAMH Works"}
-          </p>
+    <section className="relative py-28 bg-black border-t border-white/10">
 
-          <h2
-            className="text-4xl font-light tracking-tight md:text-6xl"
-            style={{ fontFamily: isAr ? "var(--font-noto-arabic)" : "var(--font-cormorant)" }}
-          >
-            {isAr
-              ? "من ملف احترافي إلى فرصة كاست"
-              : "From profile to casting opportunity"}
+      <div className="mx-auto max-w-7xl px-6">
+
+        {/* Title */}
+        <div className="text-center mb-20">
+          <h2 className="text-4xl md:text-5xl font-light text-white tracking-[-0.02em]">
+            {title}
           </h2>
         </div>
 
-        <div className="grid gap-5 md:grid-cols-3">
-          {steps.map((step) => (
-            <article
-              key={step.number}
-              className="rounded-[32px] border border-white/[0.08] bg-white/[0.025] p-7 transition hover:border-gold/25"
-            >
-              <p className="text-[10px] uppercase tracking-[0.35em] text-gold">
-                {step.number}
-              </p>
+        {/* Steps */}
+        <div className="grid md:grid-cols-4 gap-8">
 
-              <h3
-                className="mt-10 text-3xl font-light text-white"
-                style={{ fontFamily: isAr ? "var(--font-noto-arabic)" : "var(--font-cormorant)" }}
-              >
+          {steps.map((step, index) => (
+            <div
+              key={index}
+              className="relative p-6 rounded-3xl border border-white/10 bg-white/5 backdrop-blur"
+            >
+
+              {/* Step number */}
+              <div className="text-gold text-xs tracking-[0.3em] mb-4">
+                {locale === "ar"
+                  ? `٠${index + 1}`
+                  : `0${index + 1}`}
+              </div>
+
+              {/* Title */}
+              <h3 className="text-white text-lg font-medium mb-3">
                 {step.title}
               </h3>
 
-              <p className="mt-4 text-sm leading-7 text-gray-muted">
-                {step.description}
+              {/* Description */}
+              <p className="text-white/60 text-sm leading-6">
+                {step.desc}
               </p>
-            </article>
+
+              {/* connector line */}
+              {index !== steps.length - 1 && (
+                <div className="hidden md:block absolute top-1/2 right-[-20px] w-10 h-px bg-white/10" />
+              )}
+
+            </div>
           ))}
+
         </div>
+
       </div>
     </section>
   );

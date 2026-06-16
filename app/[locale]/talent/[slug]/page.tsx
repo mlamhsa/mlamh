@@ -6,7 +6,7 @@ import { PublicTalentCard } from "@/components/public/PublicTalentCard";
 import { PublicTalentGallery } from "@/components/public/PublicTalentGallery";
 import { ProfileShareButton } from "@/components/public/ProfileShareButton";
 import { TalentRequestForm } from "@/components/public/TalentRequestForm";
-import { getDictionary, isValidLocale, type Locale } from "@/lib/i18n";
+import { isValidLocale, type Locale } from "@/lib/i18n";
 import { buildTalentMetadata } from "@/lib/seo/talent-metadata";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
@@ -27,6 +27,73 @@ import {
   getTalentName,
 } from "@/lib/utils/talent-formatters";
 
+// دوال ترجمة القيم حسب اللغة
+const EYE_COLOR_LABELS: Record<string, { ar: string; en: string }> = {
+  brown: { ar: "بني", en: "Brown" },
+  black: { ar: "أسود", en: "Black" },
+  blue: { ar: "أزرق", en: "Blue" },
+  green: { ar: "أخضر", en: "Green" },
+  hazel: { ar: "عسلي", en: "Hazel" },
+  gray: { ar: "رمادي", en: "Gray" },
+};
+
+const HAIR_COLOR_LABELS: Record<string, { ar: string; en: string }> = {
+  black: { ar: "أسود", en: "Black" },
+  brown: { ar: "بني", en: "Brown" },
+  blonde: { ar: "أشقر", en: "Blonde" },
+  red: { ar: "أحمر", en: "Red" },
+  gray: { ar: "رمادي", en: "Gray" },
+  white: { ar: "أبيض", en: "White" },
+  dyed: { ar: "مصبوغ", en: "Dyed" },
+  bald: { ar: "أصلع", en: "Bald" },
+};
+
+const HAIR_TYPE_LABELS: Record<string, { ar: string; en: string }> = {
+  straight: { ar: "ناعم", en: "Straight" },
+  wavy: { ar: "مموج", en: "Wavy" },
+  curly: { ar: "مجعد", en: "Curly" },
+  coily: { ar: "ملفوف", en: "Coily" },
+  bald: { ar: "أصلع", en: "Bald" },
+  covered: { ar: "مغطى", en: "Covered" },
+};
+
+const SKIN_COLOR_LABELS: Record<string, { ar: string; en: string }> = {
+  fair: { ar: "فاتح", en: "Fair" },
+  light: { ar: "فاتح نسبياً", en: "Light" },
+  medium: { ar: "متوسط", en: "Medium" },
+  olive: { ar: "زيتوني", en: "Olive" },
+  tan: { ar: "برونزي", en: "Tan" },
+  brown: { ar: "بني", en: "Brown" },
+  dark: { ar: "غامق", en: "Dark" },
+};
+
+const CLOTHING_SIZE_LABELS: Record<string, { ar: string; en: string }> = {
+  XS: { ar: "صغير جداً", en: "XS" },
+  S: { ar: "صغير", en: "S" },
+  M: { ar: "متوسط", en: "M" },
+  L: { ar: "كبير", en: "L" },
+  XL: { ar: "كبير جداً", en: "XL" },
+  XXL: { ar: "ضخم", en: "XXL" },
+};
+
+function formatOption(
+  value: string | null | undefined,
+  labels?: Record<string, { ar: string; en: string }>,
+  isRtl?: boolean
+) {
+  if (!value) return "-";
+  if (labels && isRtl !== undefined) {
+    const item = labels[value];
+    if (!item) return value;
+    return isRtl ? item.ar : item.en;
+  }
+  return formatTag(value);
+}
+
+function formatBoolean(value: boolean | null | undefined, isRtl: boolean) {
+  if (value === null || value === undefined) return "-";
+  return value ? (isRtl ? "نعم" : "Yes") : isRtl ? "لا" : "No";
+}
 export const dynamic = "force-dynamic";
 
 type PageProps = {
@@ -109,6 +176,19 @@ function formatTag(value: string) {
     .join(" ");
 }
 
+
+function formatMeasurement(
+  value: string | number | null | undefined,
+  suffix: string
+) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  return String(value) + " " + suffix;
+}
+
+
 export default async function TalentProfilePage({ params }: PageProps) {
   const { locale: localeParam, slug } = await params;
 
@@ -133,7 +213,7 @@ export default async function TalentProfilePage({ params }: PageProps) {
 
   const allTalents = await getPublishedTalents();
   const relatedTalents = getRelatedTalents(allTalents, talent);
-  const dict = getDictionary(locale);
+
 
   const instagramUrl = normalizeInstagramUrl(talent.instagram);
   const whatsappUrl = buildWhatsappUrl(talent.whatsapp);
@@ -167,7 +247,7 @@ export default async function TalentProfilePage({ params }: PageProps) {
       className="min-h-screen bg-background text-white"
       dir={isRtl ? "rtl" : "ltr"}
     >
-      <Navbar dict={dict} locale={locale} />
+      <Navbar locale={locale} />
 
       <section className="relative overflow-hidden pt-32 pb-24">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(201,169,98,0.08),transparent_45%)]" />
@@ -243,11 +323,6 @@ export default async function TalentProfilePage({ params }: PageProps) {
                 <InfoBox label={isRtl ? "العمر" : "Age"} value={age} />
 
                 <InfoBox
-                  label={isRtl ? "الطول" : "Height"}
-                  value={talent.height}
-                />
-
-                <InfoBox
                   label={isRtl ? "الحالة" : "Availability"}
                   value={availability}
                 />
@@ -286,6 +361,122 @@ export default async function TalentProfilePage({ params }: PageProps) {
                 title={isRtl ? "المهارات" : "Skills"}
                 values={talent.skills}
               />
+
+
+              <div className="mt-14">
+                <h2 className="mb-5 text-[10px] uppercase tracking-[0.35em] text-gold">
+                  {isRtl ? "المواصفات الجسدية" : "Physical Details"}
+                </h2>
+
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <InfoBox
+                    label={isRtl ? "الطول" : "Height"}
+                    value={formatMeasurement(talent.height_cm, isRtl ? "سم" : "cm")}
+                  />
+
+                  <InfoBox
+                    label={isRtl ? "الوزن" : "Weight"}
+                    value={formatMeasurement(talent.weight_kg, isRtl ? "كجم" : "kg")}
+                  />
+
+                  <InfoBox
+                    label={isRtl ? "لون العين" : "Eye Color"}
+                    value={formatOption(talent.eye_color, EYE_COLOR_LABELS)}
+                  />
+
+                  <InfoBox
+                    label={isRtl ? "لون الشعر" : "Hair Color"}
+                    value={formatOption(talent.hair_color, HAIR_COLOR_LABELS)}
+                  />
+
+                  <InfoBox
+                    label={isRtl ? "نوع الشعر" : "Hair Type"}
+                    value={formatOption(talent.hair_type, HAIR_TYPE_LABELS)}
+                  />
+
+                  <InfoBox
+                    label={isRtl ? "لون البشرة" : "Skin Color"}
+                    value={formatOption(talent.skin_color, SKIN_COLOR_LABELS)}
+                  />
+
+                  <InfoBox
+                    label={isRtl ? "مقاس الملابس" : "Clothing Size"}
+                    value={formatOption(talent.clothing_size, CLOTHING_SIZE_LABELS)}
+                  />
+
+                  <InfoBox
+                    label={isRtl ? "مقاس الحذاء" : "Shoe Size"}
+                    value={talent.shoe_size}
+                  />
+
+                  <InfoBox
+                    label={isRtl ? "مقاس الصدر" : "Chest Size"}
+                    value={talent.chest_size}
+                  />
+
+                  <InfoBox
+                    label={isRtl ? "مقاس الخصر" : "Waist Size"}
+                    value={talent.waist_size}
+                  />
+
+                  <InfoBox
+                    label={isRtl ? "مقاس الورك" : "Hip Size"}
+                    value={talent.hip_size}
+                  />
+                </div>
+              </div>
+
+              <div className="mt-14">
+                <h2 className="mb-5 text-[10px] uppercase tracking-[0.35em] text-gold">
+                  {isRtl ? "الخبرة والتنقل" : "Experience & Mobility"}
+                </h2>
+
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <InfoBox
+                    label={isRtl ? "سنوات الخبرة" : "Experience Years"}
+                    value={talent.experience_years}
+                  />
+
+                  <InfoBox
+                    label={isRtl ? "مستعد للسفر" : "Ready to Travel"}
+                    value={formatBoolean(talent.ready_to_travel, isRtl)}
+                  />
+
+                  <InfoBox
+                    label={isRtl ? "يمتلك جواز سفر" : "Has Passport"}
+                    value={formatBoolean(talent.has_passport, isRtl)}
+                  />
+
+                  <InfoBox
+                    label={isRtl ? "يمتلك سيارة" : "Has Car"}
+                    value={formatBoolean(talent.has_car, isRtl)}
+                  />
+
+                  <InfoBox
+                    label={isRtl ? "يقبل العمل خارج المدينة" : "Work Outside City"}
+                    value={formatBoolean(talent.work_outside_city, isRtl)}
+                  />
+
+                  <InfoBox
+                    label={isRtl ? "يقبل العمل خارج الدولة" : "Work Outside Country"}
+                    value={formatBoolean(talent.work_outside_country, isRtl)}
+                  />
+                </div>
+
+                <div className="mt-6 flex flex-wrap gap-4">
+                  {talent.video_intro ? (
+                    <SocialButton href={normalizeSocialUrl(talent.video_intro) || talent.video_intro}>
+                      {isRtl ? "فيديو تعريفي" : "Video Intro"}
+                    </SocialButton>
+                  ) : null}
+
+                  {talent.showreel_url ? (
+                    <SocialButton href={normalizeSocialUrl(talent.showreel_url) || talent.showreel_url}>
+                      {isRtl ? "شو ريل" : "Showreel"}
+                    </SocialButton>
+                  ) : null}
+                </div>
+              </div>
 
               <div className="mt-14 flex flex-wrap gap-4">
                 <ProfileShareButton
@@ -351,7 +542,7 @@ export default async function TalentProfilePage({ params }: PageProps) {
         </div>
       </section>
 
-      <Footer dict={dict} locale={locale} />
+      <Footer locale={locale} />
     </main>
   );
 }
@@ -361,7 +552,7 @@ function InfoBox({
   value,
 }: {
   label: string;
-  value?: string | number | null;
+  value?: React.ReactNode;
 }) {
   return (
     <div className="rounded-3xl border border-white/[0.08] bg-black/20 p-6 backdrop-blur-sm">

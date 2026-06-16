@@ -6,8 +6,13 @@ import { HowItWorks } from "@/components/HowItWorks";
 import { ModelsShowcase } from "@/components/ModelsShowcase";
 import { Navbar } from "@/components/Navbar";
 import { Statistics } from "@/components/Statistics";
-import { getDictionary, isValidLocale, type Locale } from "@/lib/i18n";
+import { isValidLocale, type Locale } from "@/lib/i18n";
 import { notFound } from "next/navigation";
+import { ValueProps } from "@/components/ValueProps";
+import { Opportunities } from "@/components/Opportunities";
+import { FinalCTA } from "@/components/FinalCTA";
+
+import { getTalents } from "@/lib/supabase/talents";
 
 export default async function HomePage({
   params,
@@ -21,43 +26,24 @@ export default async function HomePage({
   }
 
   const locale = localeParam as Locale;
-  const dict = getDictionary(locale);
+
+  const talents = await getTalents();
 
   return (
     <main className="relative z-[2] bg-background">
-      <Navbar dict={dict} locale={locale} />
 
-      <Hero dict={dict} locale={locale} />
+      <Navbar locale={locale} />
+      <Hero locale={locale} />
+      <ValueProps locale={locale} />
+      <HowItWorks locale={locale} />
 
-      <HowItWorks
-        dict={dict}
-        locale={locale}
-      />
+      <ModelsShowcase locale={locale} talents={talents} />
+      <Opportunities locale={locale} />
+      <Agencies locale={locale} />
+      <FinalCTA locale={locale} />
 
-      <Categories
-        dict={dict}
-        locale={locale}
-      />
+      <Footer locale={locale} />
 
-      <ModelsShowcase
-        dict={dict}
-        locale={locale}
-      />
-
-      <Statistics
-        dict={dict}
-        locale={locale}
-      />
-
-      <Agencies
-        dict={dict}
-        locale={locale}
-      />
-
-      <Footer
-        dict={dict}
-        locale={locale}
-      />
     </main>
   );
 }

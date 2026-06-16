@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { Dictionary, Locale } from "@/lib/i18n";
+import { getDictionary, type Locale } from "@/lib/i18n";
 
 const navHrefs = [
   { key: "talents" as const, href: "#talents" },
@@ -10,14 +10,10 @@ const navHrefs = [
   { key: "contact" as const, href: "#contact" },
 ];
 
-export function Footer({
-  dict,
-  locale,
-}: {
-  dict: Dictionary;
-  locale: Locale;
-}) {
+export function Footer({ locale }: { locale: Locale }) {
+  const dict = getDictionary(locale);
   const { nav, footer: f } = dict;
+
   const isRtl = locale === "ar";
   const bodyFont = isRtl
     ? "var(--font-noto-arabic)"

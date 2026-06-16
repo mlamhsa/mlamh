@@ -1,7 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import type { Dictionary, Locale } from "@/lib/i18n";
-import { getTalents } from "@/lib/supabase/talents";
+import type { Locale } from "@/lib/i18n";
 import {
   getTalentCategory,
   getTalentName,
@@ -26,33 +25,38 @@ function getProfileHref(
 
 export async function ModelsShowcase({
   locale,
+  talents,
 }: {
-  dict: Dictionary;
   locale: Locale;
+  talents: any[];
 }) {
-  const talents = await getTalents();
+  if (!Array.isArray(talents) || talents.length === 0) {
+    return null;
+  }
 
-  const visibleTalents = talents.filter((talent) => Boolean(talent.image_url));
+  const visibleTalents = talents.filter((talent) => talent?.image_url);
+
+  if (visibleTalents.length === 0) {
+    return null;
+  }
+
   const featuredTalents = visibleTalents
     .filter((talent) => talent.featured)
     .slice(0, 6);
 
-  const spotlightTalent = featuredTalents[0] ?? visibleTalents[0];
+  const spotlightTalent =
+    featuredTalents?.[0] || visibleTalents?.[0] || null;
 
   const latestTalents = visibleTalents
     .filter((talent) => talent.id !== spotlightTalent?.id)
     .slice(0, 6);
-
-  if (!spotlightTalent && visibleTalents.length === 0) {
-    return null;
-  }
 
   const sectionLabel = locale === "ar" ? "مواهب ملامح" : "MLAMH Talents";
   const spotlightLabel = locale === "ar" ? "موهبة مميزة" : "Talent Spotlight";
   const featuredLabel =
     locale === "ar" ? "المواهب المميزة" : "Featured Talents";
   const latestLabel = locale === "ar" ? "أحدث المواهب" : "Latest Talents";
-  const viewProfile = locale === "ar" ? "عرض الملف" : "View Profile";
+
   const viewAll =
     locale === "ar" ? "استكشف جميع المواهب" : "View All Talents";
 
@@ -65,62 +69,53 @@ export async function ModelsShowcase({
               {sectionLabel}
             </p>
 
-            <h2
-              className="max-w-3xl text-4xl font-light tracking-tight md:text-7xl"
-              style={{ fontFamily: "var(--font-cormorant)" }}
-            >
+            <h2 className="max-w-3xl text-4xl font-light md:text-7xl">
               {locale === "ar"
-                ? "اكتشف الوجوه التي تصنع المشهد"
-                : "Discover Faces Shaping the Scene"}
+                ? "وجوه تُختار بعناية لصناعة المشهد القادم"
+                : "Carefully Selected Faces Shaping the Next Scene"}
             </h2>
           </div>
 
           <Link
             href={talentPath(locale)}
-            className="inline-flex w-fit rounded-full border border-gold/30 px-6 py-3 text-[10px] uppercase tracking-[0.3em] text-gold transition hover:bg-gold/10"
+            className="inline-flex w-fit rounded-full border border-gold/30 px-6 py-3 text-[10px] uppercase tracking-[0.3em] text-gold"
           >
             {viewAll}
           </Link>
         </div>
 
-        {spotlightTalent ? (
+        {spotlightTalent && (
           <Link
             href={getProfileHref(locale, spotlightTalent)}
-            className="group mb-20 grid overflow-hidden rounded-[36px] border border-white/[0.08] bg-neutral-950 transition hover:border-gold/25 lg:grid-cols-[0.56fr_0.44fr]"
+            className="group mb-20 grid overflow-hidden rounded-[36px] border border-white/[0.08] bg-neutral-950 lg:grid-cols-[0.56fr_0.44fr]"
           >
             <div className="relative min-h-[560px] overflow-hidden bg-neutral-900 lg:min-h-[680px]">
               <Image
                 src={spotlightTalent.image_url}
-                alt={
-                  getTalentName(spotlightTalent, locale) || "Talent spotlight"
-                }
+                alt={getTalentName(spotlightTalent, locale) || "Talent"}
                 fill
                 priority
-                sizes="(max-width: 1024px) 100vw, 56vw"
-                className="object-cover object-center transition duration-700 group-hover:scale-[1.015]"
+                className="object-cover"
               />
 
-              <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-transparent to-black/10" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
 
-              <div className="absolute left-6 top-6 rounded-full border border-gold/30 bg-black/45 px-4 py-2 text-[9px] uppercase tracking-[0.28em] text-gold backdrop-blur">
+              <div className="absolute left-6 top-6 text-[10px] uppercase text-gold">
                 {spotlightLabel}
               </div>
             </div>
 
-            <div className="flex min-h-[480px] flex-col justify-between p-8 md:p-12 lg:min-h-[680px]">
+            <div className="p-10 flex flex-col justify-between">
               <div>
-                <p className="mb-5 text-[10px] uppercase tracking-[0.4em] text-gold">
-                  {locale === "ar" ? "اختيار ملامح" : "MLAMH Selection"}
+                <p className="mb-4 text-[10px] uppercase text-gold">
+                  {locale === "ar" ? "اختيار ملامح" : "Selection"}
                 </p>
 
-                <h3
-                  className="max-w-xl text-5xl font-light tracking-tight md:text-7xl"
-                  style={{ fontFamily: "var(--font-cormorant)" }}
-                >
+                <h3 className="text-5xl font-light">
                   {getTalentName(spotlightTalent, locale)}
                 </h3>
 
-                <p className="mt-6 text-sm uppercase tracking-[0.25em] text-white/45">
+                <p className="mt-4 text-white/60">
                   {[
                     getTalentCategory(spotlightTalent, locale),
                     getTalentCity(spotlightTalent, locale),
@@ -130,39 +125,20 @@ export async function ModelsShowcase({
                 </p>
               </div>
 
-              <div>
-                <p className="max-w-md text-sm leading-7 text-white/50">
-                  {locale === "ar"
-                    ? "ملف موهبة مختار للظهور في واجهة ملامح، مصمم لإبراز الحضور، المجال، والجاهزية لفرص الكاست والإنتاج."
-                    : "A selected talent profile highlighted on MLAMH to showcase presence, category, and readiness for casting and production opportunities."}
-                </p>
-
-                <div className="mt-10 flex items-center justify-between border-t border-white/[0.08] pt-6">
-                  <span className="text-[10px] uppercase tracking-[0.3em] text-gold">
-                    {viewProfile}
-                  </span>
-
-                  <span className="text-2xl text-white/40 transition group-hover:translate-x-1 group-hover:text-gold">
-                    →
-                  </span>
-                </div>
-              </div>
+              <p className="text-white/50 text-sm mt-6">
+                {locale === "ar"
+                  ? "ملف موهبة مختار للواجهة الرئيسية."
+                  : "Highlighted talent profile on homepage."}
+              </p>
             </div>
           </Link>
-        ) : null}
+        )}
 
-        {featuredTalents.length > 0 ? (
+        {featuredTalents.length > 0 && (
           <div className="mb-20">
-            <div className="mb-8 flex items-center justify-between">
-              <h3
-                className="text-3xl font-light md:text-5xl"
-                style={{ fontFamily: "var(--font-cormorant)" }}
-              >
-                {featuredLabel}
-              </h3>
-            </div>
+            <h3 className="mb-8 text-3xl font-light">{featuredLabel}</h3>
 
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid md:grid-cols-3 gap-6">
               {featuredTalents.map((talent, index) => (
                 <TalentCard
                   key={talent.id}
@@ -173,26 +149,23 @@ export async function ModelsShowcase({
               ))}
             </div>
           </div>
-        ) : null}
+        )}
 
-        {latestTalents.length > 0 ? (
+        {latestTalents.length > 0 && (
           <div>
-            <div className="mb-8 flex items-center justify-between">
-              <h3
-                className="text-3xl font-light md:text-5xl"
-                style={{ fontFamily: "var(--font-cormorant)" }}
-              >
-                {latestLabel}
-              </h3>
-            </div>
+            <h3 className="mb-8 text-3xl font-light">{latestLabel}</h3>
 
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid md:grid-cols-3 gap-6">
               {latestTalents.map((talent) => (
-                <TalentCard key={talent.id} talent={talent} locale={locale} />
+                <TalentCard
+                  key={talent.id}
+                  talent={talent}
+                  locale={locale}
+                />
               ))}
             </div>
           </div>
-        ) : null}
+        )}
       </div>
     </section>
   );
@@ -203,7 +176,7 @@ function TalentCard({
   locale,
   priority = false,
 }: {
-  talent: Awaited<ReturnType<typeof getTalents>>[number];
+  talent: any;
   locale: Locale;
   priority?: boolean;
 }) {
@@ -214,48 +187,36 @@ function TalentCard({
   return (
     <Link
       href={getProfileHref(locale, talent)}
-      className="group block overflow-hidden rounded-[30px] border border-white/[0.08] bg-neutral-950 transition duration-500 hover:-translate-y-1 hover:border-gold/25"
+      className="group overflow-hidden rounded-2xl border border-white/10 bg-neutral-950"
     >
-      <div className="relative aspect-[3/4] overflow-hidden bg-neutral-900">
+      <div className="relative aspect-[3/4]">
         <Image
           src={talent.image_url}
-          alt={name || "Talent image"}
+          alt={name || "Talent"}
           fill
           priority={priority}
-          sizes="(max-width: 768px) 100vw, 33vw"
-          className="object-cover object-center transition duration-700 group-hover:scale-[1.035]"
+          className="object-cover"
         />
 
-        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-black/20" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
 
-        {talent.featured ? (
-          <div className="absolute left-4 top-4 rounded-full border border-gold/30 bg-black/50 px-3 py-1 text-[9px] uppercase tracking-[0.25em] text-gold backdrop-blur">
+        {talent.featured && (
+          <div className="absolute left-4 top-4 text-[9px] uppercase text-gold">
             {locale === "ar" ? "مميز" : "Featured"}
           </div>
-        ) : null}
-
-        <div className="absolute bottom-5 left-5 right-5">
-          <p className="mb-2 text-[10px] uppercase tracking-[0.25em] text-gold">
-            {[category, city].filter(Boolean).join(" • ")}
-          </p>
-
-          <h4
-            className="text-3xl font-light tracking-tight text-white"
-            style={{ fontFamily: "var(--font-cormorant)" }}
-          >
-            {name}
-          </h4>
-        </div>
+        )}
       </div>
 
-      <div className="flex items-center justify-between p-5">
-        <span className="text-[10px] uppercase tracking-[0.3em] text-white/50">
-          {locale === "ar" ? "عرض الملف" : "View Profile"}
-        </span>
+      <div className="p-5">
+        <p className="text-xs text-gold">
+          {[category, city].filter(Boolean).join(" • ")}
+        </p>
 
-        <span className="text-white/30 transition group-hover:translate-x-1 group-hover:text-gold">
-          →
-        </span>
+        <h4 className="text-xl font-light">{name}</h4>
+
+        <p className="text-white/50 text-xs mt-2">
+          {locale === "ar" ? "عرض الملف" : "View Profile"}
+        </p>
       </div>
     </Link>
   );

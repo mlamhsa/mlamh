@@ -69,7 +69,7 @@ export default async function TalentListingPage({
       className="min-h-screen bg-background text-white"
       dir={isRtl ? "rtl" : "ltr"}
     >
-      <Navbar dict={dict} locale={locale} />
+      <Navbar locale={locale} />
 
       <section className="relative overflow-hidden pt-32 pb-20">
         <div className="relative mx-auto max-w-7xl px-6">
@@ -157,7 +157,7 @@ export default async function TalentListingPage({
         </div>
       </section>
 
-      <Footer dict={dict} locale={locale} />
+      <Footer locale={locale} />
     </main>
   );
 }

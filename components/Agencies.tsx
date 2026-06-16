@@ -1,11 +1,10 @@
 import Link from "next/link";
-import type { Dictionary, Locale } from "@/lib/i18n";
+import type { Locale } from "@/lib/i18n";
 import { talentPath } from "@/lib/utils/routes";
 
 export function Agencies({
   locale,
 }: {
-  dict: Dictionary;
   locale: Locale;
 }) {
   const isRtl = locale === "ar";
@@ -57,14 +56,12 @@ export function Agencies({
       id="agencies"
       className="relative overflow-hidden border-y border-white/[0.06] bg-gray-deep px-6 py-24 text-white lg:py-32"
     >
-      <div
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(201,169,98,0.08)_0%,transparent_60%)]"
-        aria-hidden
-      />
-
       <div className="relative mx-auto max-w-7xl">
+
         <div className="grid gap-12 lg:grid-cols-[0.95fr_1.05fr] lg:items-end">
+
           <div className={isRtl ? "text-right" : "text-left"}>
+
             <p className="mb-4 text-[10px] uppercase tracking-[0.4em] text-gold">
               {isRtl
                 ? "للوكالات وشركات الإنتاج"
@@ -85,11 +82,12 @@ export function Agencies({
               style={{ fontFamily: bodyFont }}
             >
               {isRtl
-                ? "مَلامِح تساعد الجهات الإبداعية على اكتشاف المواهب السعودية، مراجعة ملفاتهم، وإرسال طلبات كاست مباشرة دون فوضى الرسائل المتفرقة."
-                : "MLAMH helps creative teams discover Saudi talent, review profiles, and send direct casting requests without scattered messages."}
+                ? "مَلامِح تساعد الجهات الإبداعية على اكتشاف المواهب، مراجعة ملفاتهم، وإرسال طلبات كاست مباشرة."
+                : "MLAMH helps creative teams discover talent, review profiles, and send direct casting requests."}
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+
               <Link
                 href={talentPath(locale)}
                 className="inline-flex items-center justify-center rounded-full border border-gold/40 bg-gold/[0.08] px-6 py-3 text-[10px] uppercase tracking-[0.3em] text-gold transition hover:bg-gold hover:text-black"
@@ -103,21 +101,27 @@ export function Agencies({
               >
                 {isRtl ? "تواصل معنا" : "Contact Us"}
               </a>
+
             </div>
+
           </div>
 
           <div className="grid gap-4">
+
             {features.map((feature, index) => (
               <article
                 key={feature.title}
                 className="rounded-[28px] border border-white/[0.08] bg-black/30 p-6 transition hover:border-gold/25"
               >
+
                 <div className="flex items-start gap-5">
+
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-gold/30 text-[10px] uppercase tracking-[0.2em] text-gold">
                     {String(index + 1).padStart(2, "0")}
                   </div>
 
                   <div className={isRtl ? "text-right" : "text-left"}>
+
                     <h3
                       className="text-2xl font-light text-white"
                       style={{ fontFamily: displayFont }}
@@ -125,20 +129,23 @@ export function Agencies({
                       {feature.title}
                     </h3>
 
-                    <p
-                      className="mt-3 text-sm leading-7 text-white/55"
-                      style={{ fontFamily: bodyFont }}
-                    >
+                    <p className="mt-3 text-sm leading-7 text-white/55">
                       {feature.body}
                     </p>
+
                   </div>
+
                 </div>
+
               </article>
             ))}
+
           </div>
+
         </div>
 
         <div className="mt-14 grid gap-4 border-t border-white/[0.08] pt-8 md:grid-cols-4">
+
           {industries.map((industry) => (
             <div
               key={industry}
@@ -149,7 +156,9 @@ export function Agencies({
               </p>
             </div>
           ))}
+
         </div>
+
       </div>
     </section>
   );

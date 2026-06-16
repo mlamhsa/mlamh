@@ -56,6 +56,54 @@ const SKILL_OPTIONS = [
   { value: "sports", label: "Sports" },
 ];
 
+const EYE_COLOR_OPTIONS = [
+  { value: "brown", label: "Brown" },
+  { value: "black", label: "Black" },
+  { value: "blue", label: "Blue" },
+  { value: "green", label: "Green" },
+  { value: "hazel", label: "Hazel" },
+  { value: "gray", label: "Gray" },
+];
+
+const HAIR_COLOR_OPTIONS = [
+  { value: "black", label: "Black" },
+  { value: "brown", label: "Brown" },
+  { value: "blonde", label: "Blonde" },
+  { value: "red", label: "Red" },
+  { value: "gray", label: "Gray" },
+  { value: "white", label: "White" },
+  { value: "dyed", label: "Dyed" },
+  { value: "bald", label: "Bald" },
+];
+
+const HAIR_TYPE_OPTIONS = [
+  { value: "straight", label: "Straight" },
+  { value: "wavy", label: "Wavy" },
+  { value: "curly", label: "Curly" },
+  { value: "coily", label: "Coily" },
+  { value: "bald", label: "Bald" },
+  { value: "covered", label: "Covered" },
+];
+
+const SKIN_COLOR_OPTIONS = [
+  { value: "fair", label: "Fair" },
+  { value: "light", label: "Light" },
+  { value: "medium", label: "Medium" },
+  { value: "olive", label: "Olive" },
+  { value: "tan", label: "Tan" },
+  { value: "brown", label: "Brown" },
+  { value: "dark", label: "Dark" },
+];
+
+const CLOTHING_SIZE_OPTIONS = [
+  { value: "XS", label: "XS" },
+  { value: "S", label: "S" },
+  { value: "M", label: "M" },
+  { value: "L", label: "L" },
+  { value: "XL", label: "XL" },
+  { value: "XXL", label: "XXL" },
+];
+
 function calculateAge(dateOfBirth?: string | null) {
   if (!dateOfBirth) return null;
 
@@ -77,6 +125,75 @@ function calculateAge(dateOfBirth?: string | null) {
   return age;
 }
 
+function calculateSmartCompletion(talent: any) {
+  const sections = [
+    {
+      weight: 25,
+      fields: [
+        "name_en",
+        "image_url",
+        "category_slug",
+        "gender",
+        "city_slug",
+      ],
+    },
+    {
+      weight: 25,
+      fields: [
+        "height_cm",
+        "weight_kg",
+        "eye_color",
+        "hair_color",
+        "hair_type",
+        "skin_color",
+        "clothing_size",
+        "shoe_size",
+      ],
+    },
+    {
+      weight: 20,
+      fields: [
+        "experience_years",
+        "ready_to_travel",
+        "has_passport",
+        "has_car",
+        "work_outside_city",
+        "work_outside_country",
+      ],
+    },
+    {
+      weight: 30,
+      fields: [
+        "video_intro",
+        "showreel_url",
+        "portfolio_url",
+      ],
+    },
+  ];
+
+  let total = 0;
+
+  for (const section of sections) {
+    let filled = 0;
+
+    for (const field of section.fields) {
+      const value = talent?.[field];
+
+      if (Array.isArray(value)) {
+        if (value.length > 0) filled++;
+      } else if (typeof value === "boolean") {
+        filled++; // boolean valid state
+      } else if (value !== null && value !== undefined && value !== "") {
+        filled++;
+      }
+    }
+
+    total += (filled / section.fields.length) * section.weight;
+  }
+
+  return Math.round(total);
+}
+
 function Field({
   label,
   name,
@@ -87,7 +204,7 @@ function Field({
 }: {
   label: string;
   name: string;
-  defaultValue?: string | null;
+  defaultValue?: string | number | null;
   dir?: "ltr" | "rtl";
   required?: boolean;
   type?: string;
@@ -225,6 +342,25 @@ export default async function TalentProfileEditorPage({
       tiktok,
       snapchat,
       portfolio_url,
+      height_cm,
+      weight_kg,
+      eye_color,
+      hair_color,
+      hair_type,
+      skin_color,
+      clothing_size,
+      shoe_size,
+      chest_size,
+      waist_size,
+      hip_size,
+      experience_years,
+      video_intro,
+      showreel_url,
+      ready_to_travel,
+      has_passport,
+      has_car,
+      work_outside_city,
+      work_outside_country,
       availability_status
       `
     )
@@ -233,6 +369,7 @@ export default async function TalentProfileEditorPage({
 
   const isCreateMode = !talent;
   const calculatedAge = calculateAge(talent?.date_of_birth);
+  const profileCompletion = calculateSmartCompletion(talent);
 
   return (
     <main className="min-h-screen bg-background px-6 py-10 text-white">
@@ -242,6 +379,22 @@ export default async function TalentProfileEditorPage({
             <p className="text-[10px] uppercase tracking-[0.4em] text-gold">
               MLAMH TALENT
             </p>
+
+            <div className="mt-6 w-full rounded-xl border border-white/10 bg-black/30 p-4">
+  <div className="flex items-center justify-between">
+    <span className="text-[10px] uppercase tracking-[0.3em] text-gray-muted">
+      Profile Completion
+    </span>
+    <span className="text-gold text-sm">{profileCompletion}%</span>
+  </div>
+
+  <div className="mt-3 h-2 w-full rounded-full bg-white/10">
+    <div
+      className="h-2 rounded-full bg-gold transition-all"
+      style={{ width: `${profileCompletion}%` }}
+    />
+  </div>
+</div>
 
             <h1
               className="mt-3 text-4xl font-light tracking-tight text-white md:text-6xl"
@@ -385,6 +538,163 @@ export default async function TalentProfileEditorPage({
                 options={SKILL_OPTIONS}
                 defaultValue={talent?.skills}
               />
+            </div>
+          </section>
+
+          <section className="mb-10">
+            <h2 className="mb-6 text-sm uppercase tracking-[0.3em] text-gold">
+              Physical Details
+            </h2>
+
+            <div className="grid gap-6 md:grid-cols-2">
+              <Field
+                label="Height CM"
+                name="height_cm"
+                type="number"
+                defaultValue={talent?.height_cm}
+              />
+
+              <Field
+                label="Weight KG"
+                name="weight_kg"
+                type="number"
+                defaultValue={talent?.weight_kg}
+              />
+
+              <SelectField
+                label="Eye Color"
+                name="eye_color"
+                defaultValue={talent?.eye_color}
+                options={EYE_COLOR_OPTIONS}
+              />
+
+              <SelectField
+                label="Hair Color"
+                name="hair_color"
+                defaultValue={talent?.hair_color}
+                options={HAIR_COLOR_OPTIONS}
+              />
+
+              <SelectField
+                label="Hair Type"
+                name="hair_type"
+                defaultValue={talent?.hair_type}
+                options={HAIR_TYPE_OPTIONS}
+              />
+
+              <SelectField
+                label="Skin Color"
+                name="skin_color"
+                defaultValue={talent?.skin_color}
+                options={SKIN_COLOR_OPTIONS}
+              />
+
+              <SelectField
+                label="Clothing Size"
+                name="clothing_size"
+                defaultValue={talent?.clothing_size}
+                options={CLOTHING_SIZE_OPTIONS}
+              />
+
+              <Field
+                label="Shoe Size"
+                name="shoe_size"
+                type="number"
+                defaultValue={talent?.shoe_size}
+              />
+
+              <Field
+                label="Chest Size"
+                name="chest_size"
+                type="number"
+                defaultValue={talent?.chest_size}
+              />
+
+              <Field
+                label="Waist Size"
+                name="waist_size"
+                type="number"
+                defaultValue={talent?.waist_size}
+              />
+
+              <Field
+                label="Hip Size"
+                name="hip_size"
+                type="number"
+                defaultValue={talent?.hip_size}
+              />
+            </div>
+          </section>
+
+          <section className="mb-10">
+            <h2 className="mb-6 text-sm uppercase tracking-[0.3em] text-gold">
+              Experience & Mobility
+            </h2>
+
+            <div className="grid gap-6 md:grid-cols-2">
+              <Field
+                label="Experience Years"
+                name="experience_years"
+                type="number"
+                defaultValue={talent?.experience_years}
+              />
+
+              <Field
+                label="Video Intro URL"
+                name="video_intro"
+                defaultValue={talent?.video_intro}
+              />
+
+              <Field
+                label="Showreel URL"
+                name="showreel_url"
+                defaultValue={talent?.showreel_url}
+              />
+
+              <label className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white/70">
+                <input
+                  type="checkbox"
+                  name="ready_to_travel"
+                  defaultChecked={Boolean(talent?.ready_to_travel)}
+                />
+                Ready to Travel
+              </label>
+
+              <label className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white/70">
+                <input
+                  type="checkbox"
+                  name="has_passport"
+                  defaultChecked={Boolean(talent?.has_passport)}
+                />
+                Has Passport
+              </label>
+
+              <label className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white/70">
+                <input
+                  type="checkbox"
+                  name="has_car"
+                  defaultChecked={Boolean(talent?.has_car)}
+                />
+                Has Car
+              </label>
+
+              <label className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white/70">
+                <input
+                  type="checkbox"
+                  name="work_outside_city"
+                  defaultChecked={Boolean(talent?.work_outside_city)}
+                />
+                Work Outside City
+              </label>
+
+              <label className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white/70">
+                <input
+                  type="checkbox"
+                  name="work_outside_country"
+                  defaultChecked={Boolean(talent?.work_outside_country)}
+                />
+                Work Outside Country
+              </label>
             </div>
           </section>
 

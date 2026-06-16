@@ -50,4 +50,35 @@ export type Talent = {
   tiktok?: string | null;
   snapchat?: string | null;
   portfolio_url?: string | null;
+
+  height_cm?: number | null;
+  weight_kg?: number | null;
+  eye_color?: string | null;
+  hair_color?: string | null;
+  hair_type?: string | null;
+  skin_color?: string | null;
+  clothing_size?: string | null;
+  shoe_size?: number | null;
+  chest_size?: number | null;
+  waist_size?: number | null;
+  hip_size?: number | null;
+
+  experience_years?: number | null;
+  video_intro?: string | null;
+  showreel_url?: string | null;
+
+  ready_to_travel?: boolean | null;
+  has_passport?: boolean | null;
+  has_car?: boolean | null;
+  work_outside_city?: boolean | null;
+  work_outside_country?: boolean | null;
+
+  // Analytics / Ranking
+  profile_completion?: number | null;
+  profile_views?: number | null;
+  applications_sent?: number | null;
+
+  // Timestamps
+  created_at?: string | null;
+  updated_at?: string | null;
 };

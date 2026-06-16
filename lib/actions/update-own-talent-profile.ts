@@ -23,7 +23,7 @@ function requiredStringValue(formData: FormData, key: string) {
   const value = stringValue(formData, key);
 
   if (!value) {
-    throw new Error(`${key} is required.`);
+    throw new Error(key + " is required.");
   }
 
   return value;
@@ -34,6 +34,18 @@ function nullableStringValue(formData: FormData, key: string) {
   return value.length > 0 ? value : null;
 }
 
+function nullableNumberValue(formData: FormData, key: string) {
+  const value = stringValue(formData, key);
+  if (!value) return null;
+  const num = Number(value);
+  return Number.isFinite(num) ? num : null;
+}
+
+function booleanValue(formData: FormData, key: string) {
+  const value = formData.get(key);
+  return value === "true" || value === "1" || value === "on";
+}
+
 function dateValue(formData: FormData, key: string) {
   const value = stringValue(formData, key);
   return value || null;
@@ -41,18 +53,10 @@ function dateValue(formData: FormData, key: string) {
 
 function stringArrayValue(formData: FormData, key: string) {
   const value = stringValue(formData, key);
-
-  if (!value) {
-    return [];
-  }
-
+  if (!value) return [];
   try {
     const parsed = JSON.parse(value);
-
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-
+    if (!Array.isArray(parsed)) return [];
     return parsed.filter(
       (item): item is string =>
         typeof item === "string" && item.trim().length > 0
@@ -69,31 +73,17 @@ function availabilityValue(formData: FormData) {
 
 function getSelectedCity(formData: FormData) {
   const citySlug = requiredStringValue(formData, "city_slug");
-
   const city = SAUDI_CITIES.find((item) => item.slug === citySlug);
-
-  if (!city) {
-    throw new Error("Invalid city selected.");
-  }
-
-  return {
-    city_slug: city.slug,
-    city_ar: city.ar,
-    city_en: city.en,
-  };
+  if (!city) throw new Error("Invalid city selected.");
+  return { city_slug: city.slug, city_ar: city.ar, city_en: city.en };
 }
 
 function getSelectedCategory(formData: FormData) {
   const categorySlug = requiredStringValue(formData, "category_slug");
-
   const category = TALENT_CATEGORIES.find(
     (item) => item.slug === categorySlug
   );
-
-  if (!category) {
-    throw new Error("Invalid category selected.");
-  }
-
+  if (!category) throw new Error("Invalid category selected.");
   return {
     category_slug: category.slug,
     category_ar: category.ar,
@@ -109,11 +99,10 @@ function createSlug(value: string, id: number) {
   const base = value
     .toLowerCase()
     .trim()
-    .replace(/['’]/g, "")
+    .replace(/[\`'’]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
-
-  return base ? `${base}-${id}` : `talent-${id}`;
+  return base ? base + "-" + id : "talent-" + id;
 }
 
 async function getCurrentUser() {
@@ -141,63 +130,67 @@ export async function createOwnTalentProfileAction(formData: FormData) {
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (existingTalent) {
-    redirect("/ar/talent-dashboard/profile");
-  }
+  if (existingTalent) redirect("/ar/talent-dashboard/profile");
 
   const nameEn = requiredStringValue(formData, "name_en");
   const nameAr = requiredStringValue(formData, "name_ar");
   const imageUrl = requiredStringValue(formData, "image_url");
   const galleryImages = stringArrayValue(formData, "gallery_images");
-
   const selectedCategory = getSelectedCategory(formData);
   const selectedCity = getSelectedCity(formData);
-
-  const nationalitySlug = nullableStringValue(
-    formData,
-    "nationality_slug"
-  );
+  const nationalitySlug = nullableStringValue(formData, "nationality_slug");
 
   const payload = {
     user_id: user.id,
-
     name_en: nameEn,
     name_ar: nameAr,
-
     display_name_en: createDisplayName(nameEn),
     display_name_ar: createDisplayName(nameAr),
-
     category_slug: selectedCategory.category_slug,
     category_en: selectedCategory.category_en,
     category_ar: selectedCategory.category_ar,
-
     city_slug: selectedCity.city_slug,
     city_en: selectedCity.city_en,
     city_ar: selectedCity.city_ar,
-
     gender: nullableStringValue(formData, "gender"),
     date_of_birth: dateValue(formData, "date_of_birth"),
-
     nationality_slug: nationalitySlug,
     nationality: nationalitySlug,
-
     languages: stringArrayValue(formData, "languages"),
     dialects: stringArrayValue(formData, "dialects"),
     skills: stringArrayValue(formData, "skills"),
-
     bio_en: nullableStringValue(formData, "bio_en"),
     bio_ar: nullableStringValue(formData, "bio_ar"),
-
     instagram: nullableStringValue(formData, "instagram"),
     tiktok: nullableStringValue(formData, "tiktok"),
     snapchat: nullableStringValue(formData, "snapchat"),
     portfolio_url: nullableStringValue(formData, "portfolio_url"),
-
     availability_status: availabilityValue(formData),
+
+    height_cm: nullableNumberValue(formData, "height_cm"),
+    weight_kg: nullableNumberValue(formData, "weight_kg"),
+    eye_color: nullableStringValue(formData, "eye_color"),
+    hair_color: nullableStringValue(formData, "hair_color"),
+    hair_type: nullableStringValue(formData, "hair_type"),
+    skin_color: nullableStringValue(formData, "skin_color"),
+    clothing_size: nullableStringValue(formData, "clothing_size"),
+    shoe_size: nullableNumberValue(formData, "shoe_size"),
+    chest_size: nullableNumberValue(formData, "chest_size"),
+    waist_size: nullableNumberValue(formData, "waist_size"),
+    hip_size: nullableNumberValue(formData, "hip_size"),
+
+    experience_years: nullableNumberValue(formData, "experience_years"),
+    video_intro: nullableStringValue(formData, "video_intro"),
+    showreel_url: nullableStringValue(formData, "showreel_url"),
+
+    ready_to_travel: booleanValue(formData, "ready_to_travel"),
+    has_passport: booleanValue(formData, "has_passport"),
+    has_car: booleanValue(formData, "has_car"),
+    work_outside_city: booleanValue(formData, "work_outside_city"),
+    work_outside_country: booleanValue(formData, "work_outside_country"),
 
     image_url: imageUrl,
     gallery_images: galleryImages,
-
     featured: false,
     verified: false,
     published: false,
@@ -211,19 +204,16 @@ export async function createOwnTalentProfileAction(formData: FormData) {
     .select("id, slug, category_slug, city_slug")
     .maybeSingle();
 
-  if (insertError || !createdTalent) {
+  if (insertError || !createdTalent)
     throw new Error(
-      `[createOwnTalentProfileAction] ${
-        insertError?.message || "Failed to create talent profile."
-      }`
+      "[createOwnTalentProfileAction] " +
+        (insertError?.message || "Failed to create talent profile.")
     );
-  }
 
-  if (!createdTalent.category_slug || !createdTalent.city_slug) {
+  if (!createdTalent.category_slug || !createdTalent.city_slug)
     throw new Error(
       "[createOwnTalentProfileAction] Talent profile was created, but category_slug or city_slug was not saved."
     );
-  }
 
   const slug = createSlug(nameEn, createdTalent.id);
 
@@ -233,9 +223,8 @@ export async function createOwnTalentProfileAction(formData: FormData) {
     .eq("id", createdTalent.id)
     .eq("user_id", user.id);
 
-  if (slugError) {
-    throw new Error(`[createOwnTalentProfileAction] ${slugError.message}`);
-  }
+  if (slugError)
+    throw new Error("[createOwnTalentProfileAction] " + slugError.message);
 
   revalidatePath("/talent-dashboard");
   revalidatePath("/talent-dashboard/profile");
@@ -253,18 +242,12 @@ export async function updateOwnTalentProfileAction(formData: FormData) {
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (talentError || !talent) {
-    throw new Error("No linked talent profile found.");
-  }
+  if (talentError || !talent) throw new Error("No linked talent profile found.");
 
   const selectedCategory = getSelectedCategory(formData);
   const selectedCity = getSelectedCity(formData);
   const galleryImages = stringArrayValue(formData, "gallery_images");
-
-  const nationalitySlug = nullableStringValue(
-    formData,
-    "nationality_slug"
-  );
+  const nationalitySlug = nullableStringValue(formData, "nationality_slug");
 
   const payload = {
     category_slug: selectedCategory.category_slug,
@@ -295,6 +278,28 @@ export async function updateOwnTalentProfileAction(formData: FormData) {
 
     availability_status: availabilityValue(formData),
 
+    height_cm: nullableNumberValue(formData, "height_cm"),
+    weight_kg: nullableNumberValue(formData, "weight_kg"),
+    eye_color: nullableStringValue(formData, "eye_color"),
+    hair_color: nullableStringValue(formData, "hair_color"),
+    hair_type: nullableStringValue(formData, "hair_type"),
+    skin_color: nullableStringValue(formData, "skin_color"),
+    clothing_size: nullableStringValue(formData, "clothing_size"),
+    shoe_size: nullableNumberValue(formData, "shoe_size"),
+    chest_size: nullableNumberValue(formData, "chest_size"),
+    waist_size: nullableNumberValue(formData, "waist_size"),
+    hip_size: nullableNumberValue(formData, "hip_size"),
+
+    experience_years: nullableNumberValue(formData, "experience_years"),
+    video_intro: nullableStringValue(formData, "video_intro"),
+    showreel_url: nullableStringValue(formData, "showreel_url"),
+
+    ready_to_travel: booleanValue(formData, "ready_to_travel"),
+    has_passport: booleanValue(formData, "has_passport"),
+    has_car: booleanValue(formData, "has_car"),
+    work_outside_city: booleanValue(formData, "work_outside_city"),
+    work_outside_country: booleanValue(formData, "work_outside_country"),
+
     image_url: requiredStringValue(formData, "image_url"),
     gallery_images: galleryImages,
   };
@@ -307,26 +312,23 @@ export async function updateOwnTalentProfileAction(formData: FormData) {
     .select("id, category_slug, city_slug")
     .maybeSingle();
 
-  if (updateError || !updatedTalent) {
+  if (updateError || !updatedTalent)
     throw new Error(
-      `[updateOwnTalentProfileAction] ${
-        updateError?.message || "Failed to update talent profile."
-      }`
+      "[updateOwnTalentProfileAction] " +
+        (updateError?.message || "Failed to update talent profile.")
     );
-  }
 
-  if (!updatedTalent.category_slug || !updatedTalent.city_slug) {
+  if (!updatedTalent.category_slug || !updatedTalent.city_slug)
     throw new Error(
       "[updateOwnTalentProfileAction] Talent profile was updated, but category_slug or city_slug was not saved."
     );
-  }
 
   revalidatePath("/talent-dashboard");
   revalidatePath("/talent-dashboard/profile");
 
   if (talent.slug) {
-    revalidatePath(`/ar/talent/${talent.slug}`);
-    revalidatePath(`/en/talent/${talent.slug}`);
+    revalidatePath("/ar/talent/" + talent.slug);
+    revalidatePath("/en/talent/" + talent.slug);
   }
 
   redirect("/ar/talent-dashboard/profile?updated=1");

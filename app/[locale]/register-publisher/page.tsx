@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { Footer } from "@/components/Footer";
 import { Navbar } from "@/components/Navbar";
 import { createPublisherProfileAction } from "@/lib/actions/create-publisher-profile";
-import { getDictionary, isValidLocale, type Locale } from "@/lib/i18n";
+import { isValidLocale, type Locale } from "@/lib/i18n";
 
 type PageProps = {
   params: Promise<{ locale: string }>;
@@ -32,12 +32,11 @@ export default async function RegisterPublisherPage({ params }: PageProps) {
   if (!isValidLocale(localeParam)) notFound();
 
   const locale = localeParam as Locale;
-  const dict = getDictionary(locale);
   const isRtl = locale === "ar";
 
   return (
     <main className="relative z-[2] bg-background">
-      <Navbar dict={dict} locale={locale} />
+      <Navbar locale={locale} />
 
       <section className="min-h-screen px-6 pt-32 pb-20 text-white">
         <div className="mx-auto max-w-3xl">
@@ -68,7 +67,6 @@ export default async function RegisterPublisherPage({ params }: PageProps) {
             action={createPublisherProfileAction}
             className={isRtl ? "text-right" : "text-left"}
           >
-            {/* Email + Password */}
             <div className="mb-10 rounded-3xl border border-white/[0.08] bg-gray-elevated/30 p-6 md:p-8">
               <div className="grid gap-6 md:grid-cols-2">
                 <Field
@@ -90,7 +88,6 @@ export default async function RegisterPublisherPage({ params }: PageProps) {
               </div>
             </div>
 
-            {/* Publisher Data */}
             <div className="mb-10 rounded-3xl border border-white/[0.08] bg-gray-elevated/30 p-6 md:p-8">
               <div className="grid gap-6 md:grid-cols-2">
                 <Field
@@ -100,6 +97,7 @@ export default async function RegisterPublisherPage({ params }: PageProps) {
                   dir={isRtl ? "rtl" : "ltr"}
                   placeholder={isRtl ? "مثال: سارة أحمد" : "e.g. Sarah Ahmed"}
                 />
+
                 <Field
                   label={isRtl ? "رقم التواصل" : "Phone"}
                   name="phone"
@@ -108,25 +106,30 @@ export default async function RegisterPublisherPage({ params }: PageProps) {
                   dir="ltr"
                   placeholder="+9665xxxxxxxx"
                 />
+
                 <Field
                   label={isRtl ? "اسم الجهة / النشاط" : "Business / Display Name"}
                   name="company_name"
                   dir={isRtl ? "rtl" : "ltr"}
                   placeholder={isRtl ? "مثال: صالون سارة" : "e.g. Sarah Salon"}
                 />
+
                 <Field
                   label={isRtl ? "المدينة" : "City"}
                   name="city"
                   dir={isRtl ? "rtl" : "ltr"}
                   placeholder={isRtl ? "الرياض" : "Riyadh"}
                 />
+
                 <div className="md:col-span-2">
                   <label
                     htmlFor="publisher_type"
                     className="mb-2 block text-[9px] uppercase tracking-[0.35em] text-gray-muted"
                   >
-                    {isRtl ? "نوع الناشر" : "Publisher Type"} <span className="text-gold">*</span>
+                    {isRtl ? "نوع الناشر" : "Publisher Type"}{" "}
+                    <span className="text-gold">*</span>
                   </label>
+
                   <select
                     id="publisher_type"
                     name="publisher_type"
@@ -142,25 +145,50 @@ export default async function RegisterPublisherPage({ params }: PageProps) {
                       </option>
                     ))}
                   </select>
+
                   <p className="mt-2 text-xs text-gray-muted">
-                    {isRtl ? "إذا اخترت أخرى، اكتب نوع الجهة في الحقل التالي."
-                    : "If you choose Other, describe your publisher type below."}
+                    {isRtl
+                      ? "إذا اخترت أخرى، اكتب نوع الجهة في الحقل التالي."
+                      : "If you choose Other, describe your publisher type below."}
                   </p>
                 </div>
+
                 <div className="md:col-span-2">
                   <Field
                     label={isRtl ? "إذا اخترت أخرى، من أنت؟" : "If Other, who are you?"}
                     name="publisher_type_other"
                     dir={isRtl ? "rtl" : "ltr"}
-                    placeholder={isRtl ? "مثال: خبيرة تجميل مستقلة" : "e.g. Freelance makeup artist"}
+                    placeholder={
+                      isRtl
+                        ? "مثال: خبيرة تجميل مستقلة"
+                        : "e.g. Freelance makeup artist"
+                    }
                   />
                 </div>
-                <Field label="Instagram" name="instagram" type="url" dir="ltr" placeholder="https://instagram.com/username" />
-                <Field label={isRtl ? "الموقع الإلكتروني" : "Website"} name="website" type="url" dir="ltr" placeholder="https://example.com" />
+
+                <Field
+                  label="Instagram"
+                  name="instagram"
+                  type="url"
+                  dir="ltr"
+                  placeholder="https://instagram.com/username"
+                />
+
+                <Field
+                  label={isRtl ? "الموقع الإلكتروني" : "Website"}
+                  name="website"
+                  type="url"
+                  dir="ltr"
+                  placeholder="https://example.com"
+                />
               </div>
             </div>
 
-            <div className={`flex flex-col gap-4 sm:flex-row ${isRtl ? "sm:flex-row-reverse" : ""}`}>
+            <div
+              className={`flex flex-col gap-4 sm:flex-row ${
+                isRtl ? "sm:flex-row-reverse" : ""
+              }`}
+            >
               <button
                 type="submit"
                 className="btn-luxury border border-gold/40 bg-gold/[0.06] px-8 py-4 text-[10px] uppercase tracking-[0.35em] text-gold transition hover:border-gold hover:bg-gold/15"
@@ -179,7 +207,7 @@ export default async function RegisterPublisherPage({ params }: PageProps) {
         </div>
       </section>
 
-      <Footer dict={dict} locale={locale} />
+      <Footer locale={locale} />
     </main>
   );
 }
@@ -187,7 +215,10 @@ export default async function RegisterPublisherPage({ params }: PageProps) {
 function Field({ label, name, type = "text", placeholder, required, dir }: any) {
   return (
     <div>
-      <label htmlFor={name} className="mb-2 block text-[9px] uppercase tracking-[0.35em] text-gray-muted">
+      <label
+        htmlFor={name}
+        className="mb-2 block text-[9px] uppercase tracking-[0.35em] text-gray-muted"
+      >
         {label} {required ? <span className="text-gold">*</span> : null}
       </label>
       <input

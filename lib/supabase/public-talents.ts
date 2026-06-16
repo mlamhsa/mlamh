@@ -1,3 +1,6 @@
+// public-talents.ts (نسخة معدلة مع الحقول الجديدة)
+// النسخة الأصلية احتفظ بها باسم public-talents.original.ts
+
 import { getCachedValue } from "@/lib/cache/public-talents";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Talent } from "@/lib/types/talent";
@@ -31,29 +34,8 @@ const CATEGORY_ALIASES: Record<string, string[]> = {
     "صناع محتوى",
     "محتوى",
   ],
-  presenter: [
-    "presenter",
-    "presenters",
-    "host",
-    "hosts",
-    "tv host",
-    "مقدم",
-    "مقدمة",
-    "مقدمو برامج",
-    "تقديم",
-    "إعلام",
-  ],
-  voice_actor: [
-    "voice_actor",
-    "voice",
-    "voice over",
-    "voiceover",
-    "voice artist",
-    "voice artists",
-    "تعليق صوتي",
-    "معلق صوتي",
-    "معلقون صوتيون",
-  ],
+  presenter: ["presenter", "presenters", "host", "hosts", "tv host", "مقدم", "مقدمة", "مقدمو برامج", "تقديم", "إعلام"],
+  voice_actor: ["voice_actor", "voice", "voice over", "voiceover", "voice artist", "voice artists", "تعليق صوتي", "معلق صوتي", "معلقون صوتيون"],
   singer: ["singer", "singers", "مغني", "مغنون", "غناء"],
   dancer: ["dancer", "dancers", "راقص", "راقصون", "رقص"],
   athlete: ["athlete", "athletes", "رياضي", "رياضيون"],
@@ -63,17 +45,13 @@ const CATEGORY_ALIASES: Record<string, string[]> = {
 
 function normalizeSearchValue(value?: string) {
   const trimmed = value?.trim();
-
   return trimmed ? trimmed : undefined;
 }
 
 function getCategorySearchTerms(category?: string) {
   const normalizedCategory = normalizeSearchValue(category);
-
   if (!normalizedCategory) return [];
-
   const normalizedKey = normalizedCategory.toLowerCase();
-
   return CATEGORY_ALIASES[normalizedKey] ?? [normalizedCategory];
 }
 
@@ -101,7 +79,7 @@ export async function getPublicTalents({
   const categoryTerms = getCategorySearchTerms(normalizedCategory);
 
   const cacheKey = [
-    "public-talents",
+    "public-talents-v2",
     safePage,
     safePageSize,
     normalizedSearch ?? "all",
@@ -111,7 +89,6 @@ export async function getPublicTalents({
 
   return getCachedValue(cacheKey, async () => {
     const supabase = createAdminClient();
-
     const from = (safePage - 1) * safePageSize;
     const to = from + safePageSize - 1;
 
@@ -169,9 +146,7 @@ export async function getPublicTalents({
       .order("id", { ascending: false })
       .range(from, to);
 
-    if (error) {
-      throw new Error(`[getPublicTalents] ${error.message}`);
-    }
+    if (error) throw new Error(`[getPublicTalents] ${error.message}`);
 
     const total = count ?? 0;
 
@@ -185,33 +160,11 @@ export async function getPublicTalents({
   });
 }
 
-export async function getPublishedTalents(): Promise<Talent[]> {
-  return getCachedValue("published-talents:all", async () => {
-    const supabase = createAdminClient();
-
-    const { data, error } = await supabase
-      .from("talents")
-      .select("*")
-      .eq("published", true)
-      .eq("status", "approved")
-      .order("featured", { ascending: false })
-      .order("sort_order", { ascending: true })
-      .order("id", { ascending: false });
-
-    if (error) {
-      throw new Error(`[getPublishedTalents] ${error.message}`);
-    }
-
-    return (data ?? []) as Talent[];
-  });
-}
-
 export async function getPublishedTalentById(
   id: number
 ): Promise<Talent | null> {
-  return getCachedValue(`published-talent:id:${id}`, async () => {
+  return getCachedValue(`published-talent:v2:id:${id}`, async () => {
     const supabase = createAdminClient();
-
     const { data, error } = await supabase
       .from("talents")
       .select("*")
@@ -220,9 +173,7 @@ export async function getPublishedTalentById(
       .eq("status", "approved")
       .maybeSingle();
 
-    if (error) {
-      throw new Error(`[getPublishedTalentById] ${error.message}`);
-    }
+    if (error) throw new Error(`[getPublishedTalentById] ${error.message}`);
 
     return data as Talent | null;
   });
@@ -233,9 +184,8 @@ export async function getPublishedTalentBySlug(
 ): Promise<Talent | null> {
   const normalizedSlug = slug.trim().toLowerCase();
 
-  return getCachedValue(`published-talent:slug:${normalizedSlug}`, async () => {
+  return getCachedValue(`published-talent:v2:slug:${normalizedSlug}`, async () => {
     const supabase = createAdminClient();
-
     const { data, error } = await supabase
       .from("talents")
       .select("*")
@@ -244,10 +194,26 @@ export async function getPublishedTalentBySlug(
       .eq("status", "approved")
       .maybeSingle();
 
-    if (error) {
-      throw new Error(`[getPublishedTalentBySlug] ${error.message}`);
-    }
+    if (error) throw new Error(`[getPublishedTalentBySlug] ${error.message}`);
 
     return data as Talent | null;
+  });
+}
+
+export async function getPublishedTalents(): Promise<Talent[]> {
+  return getCachedValue("published-talents:v2:all", async () => {
+    const supabase = createAdminClient();
+    const { data, error } = await supabase
+      .from("talents")
+      .select("*")
+      .eq("published", true)
+      .eq("status", "approved")
+      .order("featured", { ascending: false })
+      .order("sort_order", { ascending: true })
+      .order("id", { ascending: false });
+
+    if (error) throw new Error(`[getPublishedTalents] ${error.message}`);
+
+    return (data ?? []) as Talent[];
   });
 }
