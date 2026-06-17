@@ -29,7 +29,7 @@ export function Hero({
   const ctaPost = locale === "ar" ? "نشر فرصة" : "Post Opportunity";
 
   return (
-    <section className="relative min-h-screen flex items-center bg-black overflow-hidden">
+    <section className="relative min-h-screen flex items-center bg-black overflow-hidden pt-28 lg:pt-0">
       <div className="absolute inset-0">
         <div className="absolute top-1/2 left-1/2 w-[700px] h-[700px] -translate-x-1/2 -translate-y-1/2 bg-gold/10 blur-[160px]" />
       </div>

@@ -52,6 +52,10 @@ export function Navbar({ locale }: { locale: Locale }) {
     return href;
   }
 
+  function closeMenu() {
+    setMenuOpen(false);
+  }
+
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
     onScroll();
@@ -79,14 +83,18 @@ export function Navbar({ locale }: { locale: Locale }) {
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
-        scrolled
-          ? "border-b border-white/[0.06] bg-black/80 backdrop-blur-xl"
+      className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-500 ${
+        scrolled || menuOpen
+          ? "border-b border-white/[0.06] bg-black/90 backdrop-blur-xl"
           : "bg-transparent"
       }`}
     >
       <nav className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6 lg:px-10">
-        <Link href={`/${locale}`} className="group flex flex-col leading-none">
+        <Link
+          href={`/${locale}`}
+          onClick={closeMenu}
+          className="group flex flex-col leading-none"
+        >
           <span className="text-2xl font-light tracking-[0.35em] text-white transition-colors group-hover:text-gold md:text-3xl">
             MLAMH
           </span>
@@ -96,7 +104,7 @@ export function Navbar({ locale }: { locale: Locale }) {
           </span>
         </Link>
 
-        <ul className="hidden items-center gap-10 md:flex">
+        <ul className="hidden items-center gap-10 lg:flex">
           {navHrefs.map((link) => (
             <li key={link.key}>
               {link.key === "opportunities" ? (
@@ -118,7 +126,7 @@ export function Navbar({ locale }: { locale: Locale }) {
           ))}
         </ul>
 
-        <div className="hidden items-center gap-6 md:flex">
+        <div className="hidden items-center gap-6 lg:flex">
           <LanguageSwitcher
             locale={locale}
             label={nav.switchTo}
@@ -163,7 +171,7 @@ export function Navbar({ locale }: { locale: Locale }) {
           </Link>
         </div>
 
-        <div className="flex items-center gap-4 md:hidden">
+        <div className="flex items-center gap-4 lg:hidden">
           <LanguageSwitcher
             locale={locale}
             label={nav.switchTo}
@@ -175,7 +183,7 @@ export function Navbar({ locale }: { locale: Locale }) {
             aria-label={menuOpen ? nav.closeMenu : nav.openMenu}
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen((o) => !o)}
-            className="relative z-50 flex h-10 w-10 flex-col items-center justify-center gap-1.5"
+            className="relative z-[110] flex h-10 w-10 flex-col items-center justify-center gap-1.5"
           >
             <span
               className={`block h-px w-6 bg-white transition-all duration-300 ${
@@ -197,6 +205,50 @@ export function Navbar({ locale }: { locale: Locale }) {
           </button>
         </div>
       </nav>
+
+      {menuOpen && (
+        <div className="fixed inset-x-0 top-20 z-[90] border-t border-white/10 bg-black/95 px-6 pb-8 pt-6 backdrop-blur-xl lg:hidden">
+          <div className="flex flex-col gap-5 text-right">
+            {navHrefs.map((link) =>
+              link.key === "opportunities" ? (
+                <Link
+                  key={link.key}
+                  href={getNavHref(link.key, link.href)}
+                  onClick={closeMenu}
+                  className="border-b border-white/10 pb-4 text-base text-white/80 transition-colors hover:text-gold"
+                >
+                  {getNavLabel(link.key)}
+                </Link>
+              ) : (
+                <a
+                  key={link.key}
+                  href={link.href}
+                  onClick={closeMenu}
+                  className="border-b border-white/10 pb-4 text-base text-white/80 transition-colors hover:text-gold"
+                >
+                  {getNavLabel(link.key)}
+                </a>
+              )
+            )}
+
+            <Link
+              href={`/${locale}/talent-login`}
+              onClick={closeMenu}
+              className="border-b border-white/10 pb-4 text-base text-white/80 transition-colors hover:text-gold"
+            >
+              {talentLoginLabel}
+            </Link>
+
+            <Link
+              href={`/${locale}/join`}
+              onClick={closeMenu}
+              className="mt-2 rounded-xl border border-gold/40 px-5 py-4 text-center text-sm text-gold transition-colors hover:border-gold hover:bg-gold/10"
+            >
+              {nav.joinAsTalent}
+            </Link>
+          </div>
+        </div>
+      )}
     </header>
   );
 }
