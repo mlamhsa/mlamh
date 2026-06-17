@@ -51,19 +51,11 @@ export async function ModelsShowcase({
   const sectionLabel = locale === "ar" ? "مواهب ملامح" : "MLAMH Talents";
 
   const featuredLabel =
-    locale === "ar" ? "اختيارات ملامح" : "MLAMH Picks";
-
-  const featuredDescription =
-    locale === "ar"
-      ? "مواهب مختارة بعناية لملفات مكتملة وجاهزة للفرص."
-      : "Curated talent profiles selected for complete, opportunity-ready presentation.";
+  locale === "ar"
+    ? "اختيارات مميزة"
+    : "Featured Picks";
 
   const latestLabel = locale === "ar" ? "أحدث المواهب" : "Latest Talents";
-
-  const latestDescription =
-    locale === "ar"
-      ? "آخر الملفات التي انضمت إلى المنصة وتم تحديثها مؤخراً."
-      : "Recently added and updated talent profiles on the platform.";
 
   const viewAll =
     locale === "ar" ? "استكشف جميع المواهب" : "View All Talents";
@@ -95,7 +87,6 @@ export async function ModelsShowcase({
         {featuredTalents.length > 0 && (
           <TalentSection
             title={featuredLabel}
-            description={featuredDescription}
             talents={featuredTalents}
             locale={locale}
             priority
@@ -105,7 +96,6 @@ export async function ModelsShowcase({
         {latestTalents.length > 0 && (
           <TalentSection
             title={latestLabel}
-            description={latestDescription}
             talents={latestTalents}
             locale={locale}
           />
@@ -117,26 +107,19 @@ export async function ModelsShowcase({
 
 function TalentSection({
   title,
-  description,
   talents,
   locale,
   priority = false,
 }: {
   title: string;
-  description: string;
   talents: any[];
   locale: Locale;
   priority?: boolean;
 }) {
   return (
     <div className="mb-20 last:mb-0">
-      <div className="mb-8 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-        <div>
-          <h3 className="text-3xl font-light md:text-4xl">{title}</h3>
-          <p className="mt-3 max-w-2xl text-sm leading-7 text-white/50">
-            {description}
-          </p>
-        </div>
+      <div className="mb-8">
+        <h3 className="text-3xl font-light md:text-4xl">{title}</h3>
       </div>
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-5 lg:gap-5">
