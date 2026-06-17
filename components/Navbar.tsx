@@ -7,6 +7,7 @@ import { getDictionary, type Locale } from "@/lib/i18n";
 
 import { useNotifications } from "@/hooks/useNotifications";
 import { createClient } from "@supabase/supabase-js";
+import Image from "next/image";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -30,11 +31,19 @@ export function Navbar({ locale }: { locale: Locale }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [userId, setUserId] = useState<string>("");
 
-  const talentLoginLabel =
-    locale === "ar" ? "دخول الموهبة" : "Talent Login";
+  const talentJoinLabel =
+    locale === "ar" ? "انضم كموهبة" : "Join as Talent";
+
+  const publisherJoinLabel =
+    locale === "ar" ? "للشركات والوكالات" : "For Companies & Agencies";
 
   const opportunitiesLabel =
     locale === "ar" ? "الفرص" : "Opportunities";
+
+    const logoSrc =
+  locale === "ar"
+    ? "/logo.ar.png"
+    : "/logo.en.png";
 
   function getNavLabel(key: string) {
     if (key === "opportunities") {
@@ -95,9 +104,15 @@ export function Navbar({ locale }: { locale: Locale }) {
           onClick={closeMenu}
           className="group flex flex-col leading-none"
         >
-          <span className="text-2xl font-light tracking-[0.35em] text-white transition-colors group-hover:text-gold md:text-3xl">
-            MLAMH
-          </span>
+          <Image
+  key={logoSrc}
+  src={logoSrc}
+  alt="MLAMH"
+  width={140}
+  height={40}
+  priority
+  className="transition-all duration-300"
+/>
 
           <span className="mt-1 text-[9px] uppercase tracking-[0.45em] text-gray-muted">
             {nav.tagline}
@@ -158,16 +173,16 @@ export function Navbar({ locale }: { locale: Locale }) {
 
           <Link
             href={`/${locale}/talent-login`}
-            className="text-[11px] uppercase tracking-[0.2em] text-white/60 transition-colors hover:text-gold"
+            className="btn-luxury border border-gold/40 px-6 py-2.5 text-[10px] uppercase tracking-[0.3em] text-gold transition-colors hover:border-gold hover:bg-gold/10"
           >
-            {talentLoginLabel}
+            {talentJoinLabel}
           </Link>
 
           <Link
-            href={`/${locale}/join`}
-            className="btn-luxury border border-gold/40 px-6 py-2.5 text-[10px] uppercase tracking-[0.3em] text-gold transition-colors hover:border-gold hover:bg-gold/10"
+            href={`/${locale}/publisher-login`}
+            className="text-[11px] uppercase tracking-[0.2em] text-white/60 transition-colors hover:text-gold"
           >
-            {nav.joinAsTalent}
+            {publisherJoinLabel}
           </Link>
         </div>
 
@@ -234,17 +249,17 @@ export function Navbar({ locale }: { locale: Locale }) {
             <Link
               href={`/${locale}/talent-login`}
               onClick={closeMenu}
-              className="border-b border-white/10 pb-4 text-base text-white/80 transition-colors hover:text-gold"
+              className="mt-2 rounded-xl border border-gold/40 px-5 py-4 text-center text-sm text-gold transition-colors hover:border-gold hover:bg-gold/10"
             >
-              {talentLoginLabel}
+              {talentJoinLabel}
             </Link>
 
             <Link
-              href={`/${locale}/join`}
+              href={`/${locale}/publisher-login`}
               onClick={closeMenu}
-              className="mt-2 rounded-xl border border-gold/40 px-5 py-4 text-center text-sm text-gold transition-colors hover:border-gold hover:bg-gold/10"
+              className="rounded-xl border border-white/20 px-5 py-4 text-center text-sm text-white transition-colors hover:border-gold hover:text-gold"
             >
-              {nav.joinAsTalent}
+              {publisherJoinLabel}
             </Link>
           </div>
         </div>

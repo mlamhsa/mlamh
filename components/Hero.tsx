@@ -1,7 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { Locale } from "@/lib/i18n";
-import { talentPath } from "@/lib/utils/routes";
 
 export function Hero({
   locale,
@@ -26,7 +25,8 @@ export function Hero({
 
   const ctaExplore = locale === "ar" ? "استكشف المواهب" : "Explore Talents";
   const ctaJoin = locale === "ar" ? "انضم كموهبة" : "Join as Talent";
-  const ctaPost = locale === "ar" ? "نشر فرصة" : "Post Opportunity";
+  const ctaPost =
+    locale === "ar" ? "ابدأ نشر فرصتك الآن" : "Start Posting Your Opportunity";
 
   return (
     <section className="relative min-h-screen flex items-center bg-black overflow-hidden pt-28 lg:pt-0">
@@ -49,7 +49,7 @@ export function Hero({
 
           <div className="mt-10 space-y-3">
             <Link
-              href={talentPath(locale)}
+              href={`/${locale}#talents`}
               className="block w-full lg:w-fit bg-white text-black px-6 py-4 rounded-xl hover:bg-gold transition"
             >
               {ctaExplore}
@@ -62,12 +62,12 @@ export function Hero({
               {ctaJoin}
             </Link>
 
-            <a
-              href="#opportunities"
+            <Link
+              href={`/${locale}/publisher-login`}
               className="block w-full lg:w-fit border border-white/20 text-white px-6 py-4 rounded-xl hover:border-gold hover:text-gold transition"
             >
               {ctaPost}
-            </a>
+            </Link>
           </div>
         </div>
 
