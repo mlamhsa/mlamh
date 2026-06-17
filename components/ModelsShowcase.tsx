@@ -42,26 +42,34 @@ export async function ModelsShowcase({
 
   const featuredTalents = visibleTalents
     .filter((talent) => talent.featured)
-    .slice(0, 6);
-
-  const spotlightTalent =
-    featuredTalents?.[0] || visibleTalents?.[0] || null;
+    .slice(0, 10);
 
   const latestTalents = visibleTalents
-    .filter((talent) => talent.id !== spotlightTalent?.id)
-    .slice(0, 6);
+    .filter((talent) => !talent.featured)
+    .slice(0, 10);
 
   const sectionLabel = locale === "ar" ? "مواهب ملامح" : "MLAMH Talents";
-  const spotlightLabel = locale === "ar" ? "موهبة مميزة" : "Talent Spotlight";
+
   const featuredLabel =
-    locale === "ar" ? "المواهب المميزة" : "Featured Talents";
+    locale === "ar" ? "اختيارات ملامح" : "MLAMH Picks";
+
+  const featuredDescription =
+    locale === "ar"
+      ? "مواهب مختارة بعناية لملفات مكتملة وجاهزة للفرص."
+      : "Curated talent profiles selected for complete, opportunity-ready presentation.";
+
   const latestLabel = locale === "ar" ? "أحدث المواهب" : "Latest Talents";
+
+  const latestDescription =
+    locale === "ar"
+      ? "آخر الملفات التي انضمت إلى المنصة وتم تحديثها مؤخراً."
+      : "Recently added and updated talent profiles on the platform.";
 
   const viewAll =
     locale === "ar" ? "استكشف جميع المواهب" : "View All Talents";
 
   return (
-    <section className="bg-black px-6 py-24 text-white">
+    <section id="talents" className="bg-black px-6 py-24 text-white">
       <div className="mx-auto max-w-7xl">
         <div className="mb-14 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
           <div>
@@ -78,96 +86,70 @@ export async function ModelsShowcase({
 
           <Link
             href={talentPath(locale)}
-            className="inline-flex w-fit rounded-full border border-gold/30 px-6 py-3 text-[10px] uppercase tracking-[0.3em] text-gold"
+            className="inline-flex w-fit rounded-full border border-gold/30 px-6 py-3 text-[10px] uppercase tracking-[0.3em] text-gold transition-colors hover:border-gold hover:bg-gold/10"
           >
             {viewAll}
           </Link>
         </div>
 
-        {spotlightTalent && (
-          <Link
-            href={getProfileHref(locale, spotlightTalent)}
-            className="group mb-20 grid overflow-hidden rounded-[36px] border border-white/[0.08] bg-neutral-950 lg:grid-cols-[0.56fr_0.44fr]"
-          >
-            <div className="relative min-h-[560px] overflow-hidden bg-neutral-900 lg:min-h-[680px]">
-              <Image
-                src={spotlightTalent.image_url}
-                alt={getTalentName(spotlightTalent, locale) || "Talent"}
-                fill
-                priority
-                className="object-cover"
-              />
-
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
-
-              <div className="absolute left-6 top-6 text-[10px] uppercase text-gold">
-                {spotlightLabel}
-              </div>
-            </div>
-
-            <div className="p-10 flex flex-col justify-between">
-              <div>
-                <p className="mb-4 text-[10px] uppercase text-gold">
-                  {locale === "ar" ? "اختيار ملامح" : "Selection"}
-                </p>
-
-                <h3 className="text-5xl font-light">
-                  {getTalentName(spotlightTalent, locale)}
-                </h3>
-
-                <p className="mt-4 text-white/60">
-                  {[
-                    getTalentCategory(spotlightTalent, locale),
-                    getTalentCity(spotlightTalent, locale),
-                  ]
-                    .filter(Boolean)
-                    .join(" • ")}
-                </p>
-              </div>
-
-              <p className="text-white/50 text-sm mt-6">
-                {locale === "ar"
-                  ? "ملف موهبة مختار للواجهة الرئيسية."
-                  : "Highlighted talent profile on homepage."}
-              </p>
-            </div>
-          </Link>
-        )}
-
         {featuredTalents.length > 0 && (
-          <div className="mb-20">
-            <h3 className="mb-8 text-3xl font-light">{featuredLabel}</h3>
-
-            <div className="grid md:grid-cols-3 gap-6">
-              {featuredTalents.map((talent, index) => (
-                <TalentCard
-                  key={talent.id}
-                  talent={talent}
-                  locale={locale}
-                  priority={index < 2}
-                />
-              ))}
-            </div>
-          </div>
+          <TalentSection
+            title={featuredLabel}
+            description={featuredDescription}
+            talents={featuredTalents}
+            locale={locale}
+            priority
+          />
         )}
 
         {latestTalents.length > 0 && (
-          <div>
-            <h3 className="mb-8 text-3xl font-light">{latestLabel}</h3>
-
-            <div className="grid md:grid-cols-3 gap-6">
-              {latestTalents.map((talent) => (
-                <TalentCard
-                  key={talent.id}
-                  talent={talent}
-                  locale={locale}
-                />
-              ))}
-            </div>
-          </div>
+          <TalentSection
+            title={latestLabel}
+            description={latestDescription}
+            talents={latestTalents}
+            locale={locale}
+          />
         )}
       </div>
     </section>
+  );
+}
+
+function TalentSection({
+  title,
+  description,
+  talents,
+  locale,
+  priority = false,
+}: {
+  title: string;
+  description: string;
+  talents: any[];
+  locale: Locale;
+  priority?: boolean;
+}) {
+  return (
+    <div className="mb-20 last:mb-0">
+      <div className="mb-8 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div>
+          <h3 className="text-3xl font-light md:text-4xl">{title}</h3>
+          <p className="mt-3 max-w-2xl text-sm leading-7 text-white/50">
+            {description}
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-5 lg:gap-5">
+        {talents.map((talent, index) => (
+          <TalentCard
+            key={talent.id}
+            talent={talent}
+            locale={locale}
+            priority={priority && index < 5}
+          />
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -187,34 +169,37 @@ function TalentCard({
   return (
     <Link
       href={getProfileHref(locale, talent)}
-      className="group overflow-hidden rounded-2xl border border-white/10 bg-neutral-950"
+      className="group overflow-hidden rounded-2xl border border-white/10 bg-neutral-950 transition duration-300 hover:-translate-y-1 hover:border-gold/40"
     >
-      <div className="relative aspect-[3/4]">
+      <div className="relative aspect-[3/4] overflow-hidden bg-neutral-900">
         <Image
           src={talent.image_url}
           alt={name || "Talent"}
           fill
           priority={priority}
-          className="object-cover"
+          sizes="(max-width: 768px) 50vw, (max-width: 1024px) 25vw, 20vw"
+          className="object-cover transition duration-500 group-hover:scale-105"
         />
 
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
 
         {talent.featured && (
-          <div className="absolute left-4 top-4 text-[9px] uppercase text-gold">
+          <div className="absolute left-3 top-3 rounded-full border border-gold/30 bg-black/60 px-3 py-1 text-[9px] uppercase tracking-[0.2em] text-gold backdrop-blur">
             {locale === "ar" ? "مميز" : "Featured"}
           </div>
         )}
       </div>
 
-      <div className="p-5">
-        <p className="text-xs text-gold">
+      <div className="p-4">
+        <p className="truncate text-[11px] text-gold">
           {[category, city].filter(Boolean).join(" • ")}
         </p>
 
-        <h4 className="text-xl font-light">{name}</h4>
+        <h4 className="mt-1 truncate text-base font-medium text-white">
+          {name}
+        </h4>
 
-        <p className="text-white/50 text-xs mt-2">
+        <p className="mt-3 text-[11px] text-white/45">
           {locale === "ar" ? "عرض الملف" : "View Profile"}
         </p>
       </div>
