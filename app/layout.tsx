@@ -32,7 +32,7 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://mlamh.live"),
   title: "MALAMIH — Casting & Talents",
   description:
-    "منصة سعودية لاكتشاف الوجوه والمواهب المناسبة للإعلانات، الإنتاج، والمحتوى.",
+    "منصة سعودية تربط المواهب والوجوه بالفرص والشركات والوكالات.",
   icons: {
     icon: "/favicon.ico",
     shortcut: "/favicon.ico",
@@ -41,7 +41,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "MALAMIH — Casting & Talents",
     description:
-      "منصة سعودية لاكتشاف الوجوه والمواهب المناسبة للإعلانات، الإنتاج، والمحتوى.",
+      "منصة سعودية تربط المواهب والوجوه بالفرص والشركات والوكالات.",
     url: "https://mlamh.live",
     siteName: "MALAMIH",
     images: [
@@ -59,7 +59,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "MALAMIH — Casting & Talents",
     description:
-      "منصة سعودية لاكتشاف الوجوه والمواهب المناسبة للإعلانات، الإنتاج، والمحتوى.",
+      "منصة سعودية تربط المواهب والوجوه بالفرص والشركات والوكالات.",
     images: ["/og-image.png"],
   },
 };
