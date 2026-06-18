@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -14,6 +15,12 @@ function getText(isRtl: boolean) {
     subtitle: isRtl
       ? "سجّل الدخول بحساب الناشر لإدارة الفرص والمتقدمين وملف الشركة."
       : "Sign in with your publisher account to manage opportunities, applicants, and company profile.",
+    createTitle: isRtl ? "إنشاء حساب ناشر" : "Create Publisher Account",
+    createSubtitle: isRtl
+      ? "أنشئ حساب شركة أو وكالة لنشر الفرص واستقبال المتقدمين داخل ملامح."
+      : "Create a company or agency account to post opportunities and receive applicants on MLAMH.",
+    createButton: isRtl ? "إنشاء حساب ناشر" : "Create Account",
+    loginTitle: isRtl ? "تسجيل الدخول" : "Sign In",
     email: isRtl ? "البريد الإلكتروني" : "Email",
     password: isRtl ? "كلمة المرور" : "Password",
     signIn: isRtl ? "تسجيل الدخول" : "Sign In",
@@ -98,7 +105,9 @@ async function forgotPasswordAction(formData: FormData) {
   const authClient = await createServerSupabaseClient();
 
   await authClient.auth.resetPasswordForEmail(email, {
-    redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"}/${locale}/publisher-login`,
+    redirectTo: `${
+      process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"
+    }/${locale}/publisher-login`,
   });
 
   redirect(`/${locale}/publisher-login?success=reset_sent`);
@@ -117,94 +126,125 @@ export default async function PublisherLoginPage({
     query.error === "missing"
       ? text.missing
       : query.error === "invalid"
-        ? text.invalid
-        : query.error === "no_profile"
-          ? text.noProfile
-          : query.error === "not_publisher"
-            ? text.notPublisher
-            : query.error === "reset_missing"
-              ? text.resetMissing
-              : "";
+      ? text.invalid
+      : query.error === "no_profile"
+      ? text.noProfile
+      : query.error === "not_publisher"
+      ? text.notPublisher
+      : query.error === "reset_missing"
+      ? text.resetMissing
+      : "";
 
   const successMessage = query.success === "reset_sent" ? text.resetSent : "";
 
   return (
     <main
       dir={isRtl ? "rtl" : "ltr"}
-      className={`flex min-h-screen items-center justify-center bg-black px-6 text-white ${
+      className={`flex min-h-screen items-center justify-center bg-black px-6 py-28 text-white ${
         isRtl ? "text-right" : "text-left"
       }`}
     >
-      <div className="w-full max-w-md">
-        <div className="mb-8">
+      <div className="w-full max-w-6xl">
+        <div className="mx-auto mb-12 max-w-3xl text-center">
           <p className="text-xs uppercase tracking-[0.35em] text-gold">
             {text.eyebrow}
           </p>
 
-          <h1 className="mt-4 text-4xl font-light">{text.title}</h1>
+          <h1 className="mt-4 text-4xl font-light md:text-6xl">
+            {text.title}
+          </h1>
 
           <p className="mt-4 text-sm leading-7 text-white/45">
             {text.subtitle}
           </p>
         </div>
 
-        <form
-          action={publisherLoginAction}
-          className="space-y-5 rounded-[2rem] border border-white/10 bg-white/[0.025] p-6 md:p-8"
+        {/* GRID */}
+        <div
+          className="grid gap-8 lg:grid-cols-2"
+          style={{
+            direction: isRtl ? "rtl" : "ltr",
+          }}
         >
-          <input type="hidden" name="locale" value={locale} />
+          {/* إنشاء حساب */}
+          <section className="flex min-h-[360px] flex-col justify-between rounded-[2rem] border border-white/10 bg-white/[0.025] p-6 md:p-8">
+            <div>
+              <h2 className="text-3xl font-light">{text.createTitle}</h2>
 
-          {errorMessage ? (
-            <div className="rounded-xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm text-red-300">
-              {errorMessage}
+              <p className="mt-4 text-sm leading-7 text-white/45">
+                {text.createSubtitle}
+              </p>
             </div>
-          ) : null}
 
-          {successMessage ? (
-            <div className="rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-300">
-              {successMessage}
+            <Link
+              href={`/${locale}/register-publisher`}
+              className="mt-8 inline-flex w-full items-center justify-center rounded-xl border border-gold/40 px-6 py-4 text-xs uppercase tracking-[0.22em] text-gold transition hover:border-gold hover:bg-gold/10"
+            >
+              {text.createButton}
+            </Link>
+          </section>
+
+          {/* تسجيل الدخول */}
+          <form
+            action={publisherLoginAction}
+            className="space-y-5 rounded-[2rem] border border-white/10 bg-white/[0.025] p-6 md:p-8"
+          >
+            <input type="hidden" name="locale" value={locale} />
+
+            <h2 className="text-3xl font-light">{text.loginTitle}</h2>
+
+            {errorMessage ? (
+              <div className="rounded-xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm text-red-300">
+                {errorMessage}
+              </div>
+            ) : null}
+
+            {successMessage ? (
+              <div className="rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-300">
+                {successMessage}
+              </div>
+            ) : null}
+
+            <div>
+              <label className="mb-2 block text-sm text-white/50">
+                {text.email}
+              </label>
+              <input
+                type="email"
+                name="email"
+                required
+                className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-4 text-white outline-none transition placeholder:text-white/25 focus:border-gold/50"
+                placeholder="example@email.com"
+              />
             </div>
-          ) : null}
 
-          <div>
-            <label className="mb-2 block text-sm text-white/50">
-              {text.email}
-            </label>
-            <input
-              type="email"
-              name="email"
-              required
-              className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-4 text-white outline-none transition placeholder:text-white/25 focus:border-gold/50"
-              placeholder="example@email.com"
-            />
-          </div>
+            <div>
+              <label className="mb-2 block text-sm text-white/50">
+                {text.password}
+              </label>
+              <input
+                type="password"
+                name="password"
+                required
+                className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-4 text-white outline-none transition placeholder:text-white/25 focus:border-gold/50"
+              />
+            </div>
 
-          <div>
-            <label className="mb-2 block text-sm text-white/50">
-              {text.password}
-            </label>
-            <input
-              type="password"
-              name="password"
-              required
-              className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-4 text-white outline-none transition placeholder:text-white/25 focus:border-gold/50"
-            />
-          </div>
+            <button
+              type="submit"
+              className="w-full rounded-xl border border-gold bg-gold/10 px-6 py-4 text-xs uppercase tracking-[0.22em] text-gold transition hover:bg-gold hover:text-black"
+            >
+              {text.signIn}
+            </button>
 
-          <button
-            type="submit"
-            className="w-full border border-gold bg-gold/10 px-6 py-4 text-xs uppercase tracking-[0.22em] text-gold transition hover:bg-gold hover:text-black"
-          >
-            {text.signIn}
-          </button>
-
-          <button
-            formAction={forgotPasswordAction}
-            className="w-full text-center text-sm text-white/50 underline underline-offset-4 transition hover:text-gold"
-          >
-            {text.forgotPassword}
-          </button>
-        </form>
+            <button
+              formAction={forgotPasswordAction}
+              className="w-full text-center text-sm text-white/50 underline underline-offset-4 transition hover:text-gold"
+            >
+              {text.forgotPassword}
+            </button>
+          </form>
+        </div>
       </div>
     </main>
   );
