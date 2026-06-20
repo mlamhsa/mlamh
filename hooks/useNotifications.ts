@@ -1,12 +1,20 @@
 import { useEffect, useState } from "react";
+import type { RealtimePostgresInsertPayload } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase/client";
 import {
   getNotificationsChannel,
   removeNotificationsChannel,
 } from "@/lib/supabase/realtime";
 
+type Notification = {
+  id: string;
+  user_id: string;
+  message: string;
+  created_at?: string;
+};
+
 export function useNotifications(userId: string) {
-  const [notifications, setNotifications] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
 
   useEffect(() => {
     if (!userId) return;
@@ -18,17 +26,14 @@ export function useNotifications(userId: string) {
         .eq("user_id", userId)
         .order("created_at", { ascending: false });
 
-      setNotifications(data || []);
+      setNotifications((data || []) as Notification[]);
     };
 
     load();
 
-    // 🔥 remove old channel completely
     removeNotificationsChannel();
 
     const channel = getNotificationsChannel(userId);
-
-    // 🔥 IMPORTANT: reset channel before reusing
     supabase.removeChannel(channel);
 
     const freshChannel = supabase.channel(`notifications-${userId}`);
@@ -41,7 +46,7 @@ export function useNotifications(userId: string) {
         table: "notifications",
         filter: `user_id=eq.${userId}`,
       },
-      (payload) => {
+      (payload: RealtimePostgresInsertPayload<Notification>) => {
         setNotifications((prev) => {
           const exists = prev.some((n) => n.id === payload.new.id);
           if (exists) return prev;
