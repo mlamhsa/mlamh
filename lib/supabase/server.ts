@@ -1,9 +1,8 @@
-// lib/supabase/server.ts
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 
-export async function createServerSupabaseClient() {
-  const cookieStore = await cookies();
+export function createServerSupabaseClient() {
+  const cookieStore = cookies();
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -23,7 +22,7 @@ export async function createServerSupabaseClient() {
             cookieStore.set(name, value, options);
           });
         } catch {
-          // Works in Server Actions. Ignored in read-only Server Components.
+          // Server Components read-only mode safe fallback
         }
       },
     },

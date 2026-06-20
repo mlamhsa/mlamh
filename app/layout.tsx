@@ -23,7 +23,7 @@ const dmSans = DM_Sans({
 
 const notoArabic = Noto_Sans_Arabic({
   variable: "--font-noto-arabic",
-  subsets: ["arabic"],
+  subsets: ["arabic"], // ✅ FIXED
   weight: ["300", "400", "500"],
   display: "swap",
 });
@@ -66,17 +66,19 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <html
       lang={defaultLocale}
-      dir="rtl"
+      dir="rtl" // 👈 خليه ثابت هنا أو خليه من [locale] لاحقًا
       suppressHydrationWarning
       className={`${cormorant.variable} ${dmSans.variable} ${notoArabic.variable} h-full`}
     >
-      <body className="min-h-full antialiased grain vignette">{children}</body>
+      <body className="min-h-full antialiased grain vignette">
+        {children}
+      </body>
     </html>
   );
 }

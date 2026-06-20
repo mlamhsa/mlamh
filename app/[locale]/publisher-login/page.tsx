@@ -5,44 +5,65 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 type PageProps = {
   params: Promise<{ locale: string }>;
-  searchParams?: Promise<{ error?: string; success?: string }>;
+  searchParams?: Promise<{ error?: string; success?: string; mode?: string }>;
 };
+
+/* =========================
+   TEXTS (IMPROVED UX COPY)
+========================= */
 
 function getText(isRtl: boolean) {
   return {
-    eyebrow: isRtl ? "دخول الناشر" : "Publisher Login",
-    title: isRtl ? "لوحة تحكم الناشر" : "Publisher Dashboard",
+    eyebrow: isRtl ? "تسجيل الدخول" : "Access Portal",
+
+    title: isRtl
+      ? "إدارة الفرص والمواهب"
+      : "Manage Opportunities & Talent",
+
     subtitle: isRtl
-      ? "سجّل الدخول بحساب الناشر لإدارة الفرص والمتقدمين وملف الشركة."
-      : "Sign in with your publisher account to manage opportunities, applicants, and company profile.",
+      ? "سجّل الدخول أو أنشئ حسابًا لبدء إدارة المواهب والفرص داخل المنصة."
+      : "Sign in or create an account to manage talents and opportunities.",
+
     createTitle: isRtl ? "إنشاء حساب ناشر" : "Create Publisher Account",
     createSubtitle: isRtl
-      ? "أنشئ حساب شركة أو وكالة لنشر الفرص واستقبال المتقدمين داخل ملامح."
-      : "Create a company or agency account to post opportunities and receive applicants on MLAMH.",
-    createButton: isRtl ? "إنشاء حساب ناشر" : "Create Account",
+      ? "أنشئ حساب شركة أو وكالة لنشر الفرص واستقبال المواهب."
+      : "Create a company or agency account to post opportunities and receive talent.",
+
+    createButton: isRtl ? "إنشاء حساب" : "Create Account",
+
     loginTitle: isRtl ? "تسجيل الدخول" : "Sign In",
+
     email: isRtl ? "البريد الإلكتروني" : "Email",
     password: isRtl ? "كلمة المرور" : "Password",
-    signIn: isRtl ? "تسجيل الدخول" : "Sign In",
+
+    signIn: isRtl ? "دخول" : "Sign In",
+
+    switchToLogin: isRtl ? "تسجيل الدخول" : "Login",
+    switchToRegister: isRtl ? "إنشاء حساب" : "Register",
+
     forgotPassword: isRtl ? "نسيت كلمة المرور؟" : "Forgot Password?",
-    invalid: isRtl ? "بيانات الدخول غير صحيحة." : "Invalid login credentials.",
-    missing: isRtl
-      ? "يرجى إدخال البريد الإلكتروني وكلمة المرور."
-      : "Please enter email and password.",
+
+    invalid: isRtl ? "بيانات غير صحيحة" : "Invalid credentials",
+    missing: isRtl ? "الرجاء إدخال البيانات" : "Please fill all fields",
     noProfile: isRtl
-      ? "لم يتم العثور على ملف حساب مرتبط بهذا المستخدم."
-      : "No profile was found for this user.",
+      ? "لا يوجد ملف مرتبط"
+      : "No profile found",
     notPublisher: isRtl
-      ? "هذا الحساب ليس حساب ناشر."
-      : "This account is not a publisher account.",
+      ? "الحساب ليس ناشر"
+      : "Not a publisher account",
+
     resetMissing: isRtl
-      ? "يرجى إدخال البريد الإلكتروني أولاً."
-      : "Please enter your email first.",
+      ? "أدخل البريد أولاً"
+      : "Enter email first",
     resetSent: isRtl
-      ? "تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك."
-      : "Password reset link has been sent to your email.",
+      ? "تم إرسال رابط إعادة التعيين"
+      : "Reset link sent",
   };
 }
+
+/* =========================
+   SERVER ACTIONS (UNCHANGED)
+========================= */
 
 async function publisherLoginAction(formData: FormData) {
   "use server";
@@ -113,14 +134,23 @@ async function forgotPasswordAction(formData: FormData) {
   redirect(`/${locale}/publisher-login?success=reset_sent`);
 }
 
+/* =========================
+   PAGE
+========================= */
+
 export default async function PublisherLoginPage({
   params,
   searchParams,
 }: PageProps) {
   const { locale } = await params;
-  const query = searchParams ? await searchParams : {};
+  const query = (await searchParams) ?? {};
+
   const isRtl = locale === "ar";
   const text = getText(isRtl);
+
+  const mode = (query.mode as string) ?? "login";
+  const isLogin = mode !== "register";
+  const isRegister = mode === "register";
 
   const errorMessage =
     query.error === "missing"
@@ -135,16 +165,17 @@ export default async function PublisherLoginPage({
       ? text.resetMissing
       : "";
 
-  const successMessage = query.success === "reset_sent" ? text.resetSent : "";
+  const successMessage =
+    query.success === "reset_sent" ? text.resetSent : "";
 
   return (
     <main
       dir={isRtl ? "rtl" : "ltr"}
-      className={`flex min-h-screen items-center justify-center bg-black px-6 py-28 text-white ${
-        isRtl ? "text-right" : "text-left"
-      }`}
+      className="flex min-h-screen items-center justify-center bg-black px-6 py-28 text-white"
     >
       <div className="w-full max-w-6xl">
+
+        {/* HEADER */}
         <div className="mx-auto mb-12 max-w-3xl text-center">
           <p className="text-xs uppercase tracking-[0.35em] text-gold">
             {text.eyebrow}
@@ -154,96 +185,99 @@ export default async function PublisherLoginPage({
             {text.title}
           </h1>
 
-          <p className="mt-4 text-sm leading-7 text-white/45">
+          <p className="mt-4 text-sm text-white/50">
             {text.subtitle}
           </p>
         </div>
 
-        {/* GRID */}
-        <div
-          className="grid gap-8 lg:grid-cols-2"
-          style={{
-            direction: isRtl ? "rtl" : "ltr",
-          }}
-        >
-          {/* إنشاء حساب */}
-          <section className="flex min-h-[360px] flex-col justify-between rounded-[2rem] border border-white/10 bg-white/[0.025] p-6 md:p-8">
-            <div>
-              <h2 className="text-3xl font-light">{text.createTitle}</h2>
+        {/* SWITCH */}
+        <div className="mx-auto mb-8 flex max-w-md gap-2 rounded-xl border border-white/10 p-1">
+          <Link
+            href={`/${locale}/publisher-login?mode=login`}
+            className={`flex-1 rounded-lg py-2 text-center text-sm ${
+              isLogin ? "bg-gold text-black" : "text-white/60"
+            }`}
+          >
+            {text.switchToLogin}
+          </Link>
 
-              <p className="mt-4 text-sm leading-7 text-white/45">
+          <Link
+            href={`/${locale}/publisher-login?mode=register`}
+            className={`flex-1 rounded-lg py-2 text-center text-sm ${
+              isRegister ? "bg-gold text-black" : "text-white/60"
+            }`}
+          >
+            {text.switchToRegister}
+          </Link>
+        </div>
+
+        {/* CONTENT */}
+        <div className="mx-auto max-w-md">
+
+          {/* LOGIN */}
+          {isLogin && (
+            <form
+              action={publisherLoginAction}
+              className="space-y-5 rounded-[2rem] border border-white/10 bg-white/[0.025] p-6 md:p-8"
+            >
+              <input type="hidden" name="locale" value={locale} />
+
+              <h2 className="text-2xl font-light">
+                {text.loginTitle}
+              </h2>
+
+              {errorMessage && (
+                <div className="rounded-xl bg-red-500/10 p-3 text-sm text-red-300">
+                  {errorMessage}
+                </div>
+              )}
+
+              {successMessage && (
+                <div className="rounded-xl bg-green-500/10 p-3 text-sm text-green-300">
+                  {successMessage}
+                </div>
+              )}
+
+              <input
+                name="email"
+                type="email"
+                placeholder={text.email}
+                className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-4"
+              />
+
+              <input
+                name="password"
+                type="password"
+                placeholder={text.password}
+                className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-4"
+              />
+
+              <button className="w-full rounded-xl border border-gold bg-gold/10 py-4 text-gold">
+                {text.signIn}
+              </button>
+            </form>
+          )}
+
+          {/* REGISTER */}
+          {isRegister && (
+            <div className="space-y-5 rounded-[2rem] border border-white/10 bg-white/[0.025] p-6 md:p-8">
+              <h2 className="text-2xl font-light">
+                {text.createTitle}
+              </h2>
+
+              <p className="text-sm text-white/50">
                 {text.createSubtitle}
               </p>
+
+              <Link
+                href={`/${locale}/register-publisher`}
+                className="block w-full rounded-xl border border-gold py-4 text-center text-gold"
+              >
+                {text.createButton}
+              </Link>
             </div>
+          )}
 
-            <Link
-              href={`/${locale}/register-publisher`}
-              className="mt-8 inline-flex w-full items-center justify-center rounded-xl border border-gold/40 px-6 py-4 text-xs uppercase tracking-[0.22em] text-gold transition hover:border-gold hover:bg-gold/10"
-            >
-              {text.createButton}
-            </Link>
-          </section>
-
-          {/* تسجيل الدخول */}
-          <form
-            action={publisherLoginAction}
-            className="space-y-5 rounded-[2rem] border border-white/10 bg-white/[0.025] p-6 md:p-8"
-          >
-            <input type="hidden" name="locale" value={locale} />
-
-            <h2 className="text-3xl font-light">{text.loginTitle}</h2>
-
-            {errorMessage ? (
-              <div className="rounded-xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm text-red-300">
-                {errorMessage}
-              </div>
-            ) : null}
-
-            {successMessage ? (
-              <div className="rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-300">
-                {successMessage}
-              </div>
-            ) : null}
-
-            <div>
-              <label className="mb-2 block text-sm text-white/50">
-                {text.email}
-              </label>
-              <input
-                type="email"
-                name="email"
-                required
-                className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-4 text-white outline-none transition placeholder:text-white/25 focus:border-gold/50"
-                placeholder="example@email.com"
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm text-white/50">
-                {text.password}
-              </label>
-              <input
-                type="password"
-                name="password"
-                required
-                className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-4 text-white outline-none transition placeholder:text-white/25 focus:border-gold/50"
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="w-full rounded-xl border border-gold bg-gold/10 px-6 py-4 text-xs uppercase tracking-[0.22em] text-gold transition hover:bg-gold hover:text-black"
-            >
-              {text.signIn}
-            </button>
-
-            <button
-              formAction={forgotPasswordAction}
-              className="w-full text-center text-sm text-white/50 underline underline-offset-4 transition hover:text-gold"
-            >
-              {text.forgotPassword}
-            </button>
-          </form>
         </div>
       </div>
     </main>
