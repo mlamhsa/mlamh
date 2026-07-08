@@ -1,9 +1,22 @@
 import Link from "next/link";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { ApplicationService } from "@/lib/services/applications/ApplicationService";
 import {
-  approveApplicationAction,
-  rejectApplicationAction,
-} from "./actions";
+  acceptApplicationAction,
+  rejectAdminApplicationAction,
+  shortlistApplicationAction,
+} from "@/lib/actions/admin-application-actions";
+import {
+  AdminActionButton,
+  AdminBadge,
+  AdminCard,
+  AdminEmptyState,
+  AdminGrid,
+  AdminInfoGrid,
+  AdminInfoItem,
+  AdminPageContainer,
+  AdminPageHeader,
+  AdminStatCard,
+} from "@/components/admin/ui";
 
 export const metadata = {
   title: "Opportunity Applications — MLAMH Admin",
@@ -12,46 +25,11 @@ export const metadata = {
 
 export const dynamic = "force-dynamic";
 
-type ApplicationRecord = {
-  id: number;
-  status: string | null;
-  created_at: string | null;
-  opportunities:
-    | {
-        id: number;
-        title: string;
-        slug: string;
-        city_ar: string | null;
-        opportunity_type: string | null;
-      }
-    | {
-        id: number;
-        title: string;
-        slug: string;
-        city_ar: string | null;
-        opportunity_type: string | null;
-      }[]
-    | null;
-  talents:
-    | {
-        id: number;
-        name_en: string | null;
-        name_ar: string | null;
-        slug: string | null;
-        image_url: string | null;
-        city_ar: string | null;
-        gender: string | null;
-      }
-    | {
-        id: number;
-        name_en: string | null;
-        name_ar: string | null;
-        slug: string | null;
-        image_url: string | null;
-        city_ar: string | null;
-        gender: string | null;
-      }[]
-    | null;
+type PageProps = {
+  searchParams: Promise<{
+    status?: string;
+    q?: string;
+  }>;
 };
 
 function formatDate(value?: string | null) {
@@ -66,6 +44,8 @@ function formatDate(value?: string | null) {
 
 function getStatusClass(status?: string | null) {
   switch (status) {
+    case "shortlisted":
+      return "border-blue-500/20 bg-blue-500/10 text-blue-300";
     case "accepted":
       return "border-emerald-500/20 bg-emerald-500/10 text-emerald-300";
     case "rejected":
@@ -77,6 +57,8 @@ function getStatusClass(status?: string | null) {
 
 function getStatusLabel(status?: string | null) {
   switch (status) {
+    case "shortlisted":
+      return "Shortlisted";
     case "accepted":
       return "Accepted";
     case "rejected":
@@ -86,80 +68,87 @@ function getStatusLabel(status?: string | null) {
   }
 }
 
-export default async function AdminOpportunityApplicationsPage() {
-  const adminClient = createAdminClient();
+function buildHref(status?: string, q?: string) {
+  const params = new URLSearchParams();
 
-  const { data, error } = await adminClient
-    .from("opportunity_applications")
-    .select(
-      `
-      id,
-      status,
-      created_at,
-      opportunities (
-        id,
-        title,
-        slug,
-        city_ar,
-        opportunity_type
-      ),
-      talents (
-        id,
-        name_en,
-        name_ar,
-        slug,
-        image_url,
-        city_ar,
-        gender
-      )
-      `
-    )
-    .order("created_at", { ascending: false });
+  if (status) params.set("status", status);
+  if (q) params.set("q", q);
 
-  if (error) {
-    throw new Error(`[AdminOpportunityApplicationsPage] ${error.message}`);
-  }
+  const query = params.toString();
+  return query ? `/admin/opportunity-applications?${query}` : "/admin/opportunity-applications";
+}
 
-  const applications = (data ?? []) as unknown as ApplicationRecord[];
+export default async function AdminOpportunityApplicationsPage({
+  searchParams,
+}: PageProps) {
+  const { status, q } = await searchParams;
+
+  const applications = await ApplicationService.getAdminApplications({
+    status,
+    search: q,
+  });
+  
+  const stats = {
+    total: applications.length,
+    pending: applications.filter((item: any) => (item.status || "pending") === "pending").length,
+    shortlisted: applications.filter((item: any) => item.status === "shortlisted").length,
+    accepted: applications.filter((item: any) => item.status === "accepted").length,
+    rejected: applications.filter((item: any) => item.status === "rejected").length,
+  };
 
   return (
-    <main className="min-h-screen bg-background px-6 py-10 text-white">
-      <div className="mx-auto max-w-7xl">
-        <header className="mb-10 flex flex-col gap-6 border-b border-white/[0.08] pb-8 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className="text-[10px] uppercase tracking-[0.4em] text-gold">
-              MLAMH ADMIN
-            </p>
+    <AdminPageContainer>
+        <AdminPageHeader
+  title="Opportunity Applications"
+  description="Review, shortlist, accept, and reject talent applications."
+/>
 
-            <h1
-              className="mt-3 text-4xl font-light tracking-tight text-white md:text-6xl"
-              style={{ fontFamily: "var(--font-cormorant)" }}
+<AdminGrid className="mb-8 md:grid-cols-5">
+        <AdminStatCard label="Total" value={stats.total} active={!status} href="/admin/opportunity-applications" />
+        <AdminStatCard label="Pending" value={stats.pending} active={status === "pending"} href={buildHref("pending", q)} />
+        <AdminStatCard label="Shortlisted" value={stats.shortlisted} active={status === "shortlisted"} href={buildHref("shortlisted", q)} />
+        <AdminStatCard label="Accepted" value={stats.accepted} active={status === "accepted"} href={buildHref("accepted", q)} />
+        <AdminStatCard label="Rejected" value={stats.rejected} active={status === "rejected"} href={buildHref("rejected", q)} />
+        </AdminGrid>
+
+        <form
+          method="GET"
+          className="mb-8 rounded-3xl border border-white/[0.08] bg-gray-elevated/30 p-5"
+        >
+          <div className="grid gap-4 md:grid-cols-[1fr_auto_auto]">
+            <input
+              name="q"
+              defaultValue={q}
+              placeholder="Search talent, opportunity, or city..."
+              className="rounded-2xl border border-white/10 bg-black/40 px-5 py-4 text-sm text-white outline-none placeholder:text-white/30"
+            />
+
+            <select
+              name="status"
+              defaultValue={status ?? ""}
+              className="rounded-2xl border border-white/10 bg-black/40 px-5 py-4 text-sm text-white outline-none"
             >
-              Opportunity Applications
-            </h1>
+              <option value="">All Statuses</option>
+              <option value="pending">Pending</option>
+              <option value="shortlisted">Shortlisted</option>
+              <option value="accepted">Accepted</option>
+              <option value="rejected">Rejected</option>
+            </select>
 
-            <p className="mt-3 text-sm text-gray-muted">
-              Review talents who applied to published opportunities.
-            </p>
+            <button
+              type="submit"
+              className="rounded-2xl border border-gold/40 px-8 py-4 text-sm text-gold transition hover:bg-gold hover:text-black"
+            >
+              Search
+            </button>
           </div>
-
-          <Link
-            href="/admin"
-            className="rounded-full border border-white/10 px-5 py-3 text-[10px] uppercase tracking-[0.3em] text-white/60 transition hover:border-gold/40 hover:text-gold"
-          >
-            Back to Admin
-          </Link>
-        </header>
+        </form>
 
         {applications.length === 0 ? (
-          <div className="rounded-3xl border border-white/[0.08] bg-gray-elevated/30 px-6 py-16 text-center">
-            <p className="text-sm text-gray-muted">
-              No opportunity applications yet.
-            </p>
-          </div>
+          <AdminEmptyState message="No opportunity applications found." />
         ) : (
-          <section className="grid gap-5">
-            {applications.map((application) => {
+          <AdminGrid>
+            {applications.map((application: any) => {
               const opportunity = Array.isArray(application.opportunities)
                 ? application.opportunities[0]
                 : application.opportunities;
@@ -168,13 +157,10 @@ export default async function AdminOpportunityApplicationsPage() {
                 ? application.talents[0]
                 : application.talents;
 
-              const status = application.status || "pending";
+              const currentStatus = application.status || "pending";
 
               return (
-                <article
-                  key={application.id}
-                  className="rounded-3xl border border-white/[0.08] bg-gray-elevated/30 p-6 transition hover:border-white/15"
-                >
+                <AdminCard key={application.id}>
                   <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
                     <div className="flex gap-5">
                       {talent?.image_url ? (
@@ -194,13 +180,17 @@ export default async function AdminOpportunityApplicationsPage() {
                             Application #{application.id}
                           </p>
 
-                          <span
-                            className={`rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.2em] ${getStatusClass(
-                              status
-                            )}`}
-                          >
-                            {getStatusLabel(status)}
-                          </span>
+                          <AdminBadge
+  variant={
+    currentStatus === "accepted"
+      ? "success"
+      : currentStatus === "rejected"
+      ? "danger"
+      : "gold"
+  }
+>
+  {getStatusLabel(currentStatus)}
+</AdminBadge>
                         </div>
 
                         <h2 className="text-2xl font-light text-white">
@@ -224,17 +214,40 @@ export default async function AdminOpportunityApplicationsPage() {
                     </div>
                   </div>
 
-                  <div className="mt-6 grid gap-4 rounded-2xl border border-white/[0.06] bg-black/10 p-5 text-sm md:grid-cols-4">
-                    <InfoBlock label="Opportunity" value={opportunity?.title} />
-                    <InfoBlock label="Type" value={opportunity?.opportunity_type} />
-                    <InfoBlock label="City" value={opportunity?.city_ar} />
-                    <InfoBlock label="Status" value={getStatusLabel(status)} />
-                  </div>
+                  <AdminInfoGrid>
+  <AdminInfoItem
+    label="Opportunity"
+    value={opportunity?.title}
+  />
+
+  <AdminInfoItem
+    label="Type"
+    value={opportunity?.opportunity_type}
+  />
+
+  <AdminInfoItem
+    label="City"
+    value={opportunity?.city_ar}
+  />
+
+  <AdminInfoItem
+    label="Status"
+    value={getStatusLabel(currentStatus)}
+  />
+</AdminInfoGrid>
 
                   <div className="mt-6 flex flex-wrap gap-3">
+                    <Link
+                      href={`/admin/opportunity-applications/${application.id}`}
+                      className="rounded-full border border-white/10 px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-white/60 transition hover:border-gold/40 hover:text-gold"
+                    >
+                      Open Application
+                    </Link>
+
                     {opportunity?.slug ? (
                       <Link
                         href={`/ar/opportunities/${opportunity.slug}`}
+                        target="_blank"
                         className="rounded-full border border-gold/30 bg-gold/[0.04] px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-gold transition hover:bg-gold/10"
                       >
                         View Opportunity
@@ -244,37 +257,40 @@ export default async function AdminOpportunityApplicationsPage() {
                     {talent?.slug ? (
                       <Link
                         href={`/ar/talent/${talent.slug}`}
+                        target="_blank"
                         className="rounded-full border border-white/10 px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-white/60 transition hover:border-gold/40 hover:text-gold"
                       >
                         View Talent
                       </Link>
                     ) : null}
 
-                    {status !== "accepted" ? (
-                      <form action={approveApplicationAction}>
-                        <input
-                          type="hidden"
-                          name="application_id"
-                          value={application.id}
-                        />
-
+                    {currentStatus !== "shortlisted" ? (
+                      <form action={shortlistApplicationAction}>
+                        <input type="hidden" name="application_id" value={application.id} />
                         <button
                           type="submit"
-                          className="rounded-full border border-emerald-500/30 bg-emerald-500/[0.06] px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-emerald-300 transition hover:bg-emerald-500/10"
+                          className="rounded-full border border-blue-500/30 bg-blue-500/[0.06] px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-blue-300 transition hover:bg-blue-500/10"
                         >
-                          Approve
+                          Shortlist
                         </button>
                       </form>
                     ) : null}
 
-                    {status !== "rejected" ? (
-                      <form action={rejectApplicationAction}>
-                        <input
-                          type="hidden"
-                          name="application_id"
-                          value={application.id}
-                        />
+                    {currentStatus !== "accepted" ? (
+                      <form action={acceptApplicationAction}>
+                        <input type="hidden" name="application_id" value={application.id} />
+                        <button
+                          type="submit"
+                          className="rounded-full border border-emerald-500/30 bg-emerald-500/[0.06] px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-emerald-300 transition hover:bg-emerald-500/10"
+                        >
+                          Accept
+                        </button>
+                      </form>
+                    ) : null}
 
+                    {currentStatus !== "rejected" ? (
+                      <form action={rejectAdminApplicationAction}>
+                        <input type="hidden" name="application_id" value={application.id} />
                         <button
                           type="submit"
                           className="rounded-full border border-red-500/30 bg-red-500/[0.06] px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-red-300 transition hover:bg-red-500/10"
@@ -284,30 +300,11 @@ export default async function AdminOpportunityApplicationsPage() {
                       </form>
                     ) : null}
                   </div>
-                </article>
+                  </AdminCard>
               );
             })}
-          </section>
+          </AdminGrid>
         )}
-      </div>
-    </main>
-  );
-}
-
-function InfoBlock({
-  label,
-  value,
-}: {
-  label: string;
-  value?: string | null;
-}) {
-  return (
-    <div>
-      <p className="text-[9px] uppercase tracking-[0.25em] text-gray-muted">
-        {label}
-      </p>
-
-      <p className="mt-1 text-white/80">{value || "—"}</p>
-    </div>
+      </AdminPageContainer>
   );
 }

@@ -1,4 +1,4 @@
-import { createAdminClient } from "@/lib/supabase/admin";
+import { BaseRepository } from "@/lib/repositories/base/BaseRepository";
 
 export type AdminTalentRequest = {
   id: number;
@@ -29,29 +29,27 @@ export type AdminTalentRequest = {
     | null;
 };
 
-export async function getAdminTalentRequests(): Promise<
-  AdminTalentRequest[]
-> {
-  const supabase = createAdminClient();
-
-  const { data, error } = await supabase
-    .from("talent_requests")
-    .select(
-      `
-      *,
-      talents (
-        id,
-        name_en,
-        name_ar,
-        slug
+export class TalentRequestRepository extends BaseRepository {
+  static async getAll(): Promise<AdminTalentRequest[]> {
+    const { data, error } = await this.client()
+      .from("talent_requests")
+      .select(
+        `
+        *,
+        talents (
+          id,
+          name_en,
+          name_ar,
+          slug
+        )
+        `
       )
-      `
-    )
-    .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false });
 
-  if (error) {
-    throw new Error(`[getAdminTalentRequests] ${error.message}`);
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return (data ?? []) as unknown as AdminTalentRequest[];
   }
-
-  return (data ?? []) as unknown as AdminTalentRequest[];
 }

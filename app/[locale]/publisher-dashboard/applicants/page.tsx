@@ -2,7 +2,8 @@ import Link from "next/link";
 import PublisherShell from "@/components/publisher/PublisherShell";
 import { updateApplicationStatusAction } from "@/lib/actions/application-status-actions";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import Image from "next/image";
+import { requirePublisher } from "@/lib/auth/require-publisher";
 
 type PageProps = {
   params: Promise<{ locale: string }>;
@@ -68,13 +69,12 @@ function ApplicationStatusForm({
     <form
       action={async () => {
         "use server";
-
         await updateApplicationStatusAction(applicationId, status);
       }}
     >
       <button
         type="submit"
-        className={`w-full border px-3 py-2 text-xs uppercase tracking-[0.18em] transition ${className}`}
+        className={`w-full rounded-xl border px-3 py-2 text-xs uppercase tracking-[0.18em] transition ${className}`}
       >
         {label}
       </button>
@@ -86,64 +86,22 @@ export default async function PublisherApplicantsPage({ params }: PageProps) {
   const { locale } = await params;
   const isRtl = locale === "ar";
 
-  const authClient = await createServerSupabaseClient();
+  const { publisher } = await requirePublisher(locale);
   const adminClient = createAdminClient();
 
-  const {
-    data: { user },
-  } = await authClient.auth.getUser();
-
-  if (!user) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-black text-white">
-        <p>{isRtl ? "يرجى تسجيل الدخول أولاً" : "Please login first"}</p>
-      </main>
-    );
-  }
-
-  const { data: profile } = await adminClient
-    .from("profiles")
-    .select("id")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (!profile) {
-    return (
-      <main className="min-h-screen bg-black p-10 text-white">
-        <h1>
-          {isRtl ? "لم يتم العثور على الملف الشخصي" : "Profile not found"}
-        </h1>
-      </main>
-    );
-  }
-
-  const { data: publisher } = await adminClient
-    .from("publishers")
-    .select("id")
-    .eq("profile_id", profile.id)
-    .maybeSingle();
-
-  if (!publisher) {
-    return (
-      <main className="min-h-screen bg-black p-10 text-white">
-        <h1>
-          {isRtl
-            ? "لم يتم العثور على حساب الناشر"
-            : "Publisher account not found"}
-        </h1>
-      </main>
-    );
-  }
-
-  const { data: opportunities } = await adminClient
+  const { data: opportunities, error: opportunitiesError } = await adminClient
     .from("opportunities")
     .select("id, title")
     .eq("publisher_id", publisher.id)
     .order("created_at", { ascending: false });
 
+  if (opportunitiesError) {
+    console.error("Publisher applicants opportunities error:", opportunitiesError);
+  }
+
   const opportunityIds = (opportunities ?? []).map((item) => item.id);
 
-  const { data: applications } =
+  const { data: applications, error: applicationsError } =
     opportunityIds.length > 0
       ? await adminClient
           .from("opportunity_applications")
@@ -171,7 +129,11 @@ export default async function PublisherApplicantsPage({ params }: PageProps) {
           )
           .in("opportunity_id", opportunityIds)
           .order("created_at", { ascending: false })
-      : { data: [] };
+      : { data: [], error: null };
+
+  if (applicationsError) {
+    console.error("Publisher applicants applications error:", applicationsError);
+  }
 
   const allApplications = applications ?? [];
 
@@ -189,30 +151,30 @@ export default async function PublisherApplicantsPage({ params }: PageProps) {
   return (
     <PublisherShell locale={locale} isRtl={isRtl}>
       <div className="space-y-8">
-        <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
-          <div>
-            <p className="text-xs uppercase tracking-[0.35em] text-gold">
-              {isRtl ? "نظام المتقدمين" : "Applicant Pipeline"}
-            </p>
+        <header className="rounded-[2.5rem] border border-white/10 bg-gradient-to-br from-white/[0.08] via-white/[0.03] to-gold/[0.06] p-8 md:p-10">
+          <p className="text-xs uppercase tracking-[0.35em] text-gold">
+            {isRtl ? "نظام المتقدمين" : "Applicant Pipeline"}
+          </p>
 
-            <h1 className="mt-3 text-4xl font-light text-white">
-              {isRtl ? "إدارة المتقدمين" : "Manage Applicants"}
-            </h1>
+          <h1 className="mt-4 text-4xl font-light leading-tight text-white md:text-6xl">
+            {isRtl ? "إدارة المتقدمين" : "Manage Applicants"}
+          </h1>
 
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-white/45">
-              {isRtl
-                ? "راجع المتقدمين على فرصك، غيّر حالاتهم، وأنشئ قائمة مختصرة للمرشحين المناسبين."
-                : "Review applicants, update their status, and build a shortlist for each opportunity."}
-            </p>
+          <p className="mt-4 max-w-2xl text-sm leading-7 text-white/50">
+            {isRtl
+              ? "راجع المتقدمين، غيّر حالاتهم، وأنشئ قائمة مختصرة للمرشحين المناسبين."
+              : "Review applicants, update their status, and build a shortlist for each opportunity."}
+          </p>
+
+          <div className="mt-8">
+            <Link
+              href={`/${locale}/publisher-dashboard/opportunities`}
+              className="inline-flex rounded-full border border-gold/40 bg-gold/10 px-6 py-4 text-xs uppercase tracking-[0.22em] text-gold transition hover:bg-gold hover:text-black"
+            >
+              {isRtl ? "إدارة الفرص" : "Manage Opportunities"}
+            </Link>
           </div>
-
-          <Link
-            href={`/${locale}/publisher-dashboard/opportunities`}
-            className="inline-flex border border-gold/40 px-5 py-3 text-xs uppercase tracking-[0.2em] text-gold transition hover:bg-gold hover:text-black"
-          >
-            {isRtl ? "إدارة الفرص" : "Manage Opportunities"}
-          </Link>
-        </div>
+        </header>
 
         <section className="grid gap-4 md:grid-cols-4">
           <StatCard
@@ -243,7 +205,7 @@ export default async function PublisherApplicantsPage({ params }: PageProps) {
             return (
               <div
                 key={stage.key}
-                className="rounded-[2rem] border border-white/10 bg-white/[0.025] p-4"
+                className="rounded-[2rem] border border-white/10 bg-white/[0.035] p-4"
               >
                 <div className="mb-4 flex items-center justify-between">
                   <h2 className="text-sm font-light text-white">
@@ -273,11 +235,13 @@ export default async function PublisherApplicantsPage({ params }: PageProps) {
                         >
                           <div className="flex items-center gap-3">
                             {talent?.image_url ? (
-                              <img
-                                src={talent.image_url}
-                                alt={getTalentName(talent, locale)}
-                                className="h-12 w-12 rounded-full object-cover"
-                              />
+                              <Image
+                              src={talent.image_url}
+                              alt={getTalentName(talent, locale)}
+                              width={48}
+                              height={48}
+                              className="h-12 w-12 rounded-full object-cover"
+                            />
                             ) : (
                               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-sm text-gold">
                                 {getTalentName(talent, locale).slice(0, 1)}
@@ -288,6 +252,7 @@ export default async function PublisherApplicantsPage({ params }: PageProps) {
                               <h3 className="truncate text-sm text-white">
                                 {getTalentName(talent, locale)}
                               </h3>
+
                               <p className="mt-1 truncate text-xs text-white/40">
                                 {getTalentCity(talent, locale)}
                               </p>
@@ -312,7 +277,7 @@ export default async function PublisherApplicantsPage({ params }: PageProps) {
                             {talent?.slug || talent?.id ? (
                               <Link
                                 href={`/${locale}/talent/${talent.slug ?? talent.id}`}
-                                className="border border-white/10 px-3 py-2 text-center text-xs uppercase tracking-[0.18em] text-white/55 transition hover:border-gold/50 hover:text-gold"
+                                className="rounded-xl border border-white/10 px-3 py-2 text-center text-xs uppercase tracking-[0.18em] text-white/55 transition hover:border-gold/50 hover:text-gold"
                               >
                                 {isRtl ? "عرض الملف" : "View Profile"}
                               </Link>
@@ -321,7 +286,7 @@ export default async function PublisherApplicantsPage({ params }: PageProps) {
                             {opportunity?.id ? (
                               <Link
                                 href={`/${locale}/publisher-dashboard/opportunities/${opportunity.id}/applicants`}
-                                className="border border-gold/30 px-3 py-2 text-center text-xs uppercase tracking-[0.18em] text-gold transition hover:bg-gold hover:text-black"
+                                className="rounded-xl border border-gold/30 px-3 py-2 text-center text-xs uppercase tracking-[0.18em] text-gold transition hover:bg-gold hover:text-black"
                               >
                                 {isRtl ? "فتح طلبات الفرصة" : "Open Opportunity"}
                               </Link>
@@ -395,12 +360,13 @@ function StatCard({
       className={`rounded-[1.75rem] border p-5 ${
         highlighted
           ? "border-gold/20 bg-gold/[0.04]"
-          : "border-white/10 bg-white/[0.025]"
+          : "border-white/10 bg-white/[0.035]"
       }`}
     >
       <p className="text-xs uppercase tracking-[0.25em] text-white/40">
         {label}
       </p>
+
       <p className="mt-3 text-4xl font-light text-white">{value}</p>
     </div>
   );

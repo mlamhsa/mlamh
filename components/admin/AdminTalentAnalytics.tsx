@@ -1,6 +1,13 @@
 import Image from "next/image";
 import Link from "next/link";
-import type { TopViewedTalent } from "@/lib/supabase/admin-talent-analytics";
+type TopViewedTalent = {
+  id: number | string;
+  name_ar?: string | null;
+  name_en?: string | null;
+  slug?: string | null;
+  image_url?: string | null;
+  profile_views?: number | null;
+};
 
 export function AdminTalentAnalytics({
   topViewedTalents,
@@ -70,7 +77,7 @@ export function AdminTalentAnalytics({
               </p>
 
               <p className="mt-1 text-xl font-light text-gold">
-                {talent.views.toLocaleString()}
+              {(talent.profile_views ?? 0).toLocaleString()}
               </p>
             </div>
           </Link>

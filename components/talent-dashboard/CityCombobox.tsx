@@ -62,8 +62,8 @@ export function CityCombobox({
       <input type="hidden" name="city_slug" value={selectedSlug} />
 
       <label className="mb-2 block text-[10px] uppercase tracking-[0.3em] text-gray-muted">
-        City
-      </label>
+  المدينة
+</label>
 
       <button
         type="button"

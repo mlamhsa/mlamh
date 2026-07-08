@@ -65,8 +65,6 @@ const talentIds =
   talents
     ?.map((talent: any) => talent.id)
     .filter((id: unknown) => typeof id === "number") ?? [];
-    console.log("USER ID:", user.id);
-console.log("TALENT IDS:", talentIds);
 
   if (talentIds.length === 0) {
     return (

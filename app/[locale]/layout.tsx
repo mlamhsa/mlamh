@@ -1,6 +1,6 @@
 import { Navbar } from "@/components/Navbar";
-import { isValidLocale, type Locale } from "@/lib/i18n";
-import { notFound } from "next/navigation";
+
+type Locale = "ar" | "en";
 
 export default async function LocaleLayout({
   children,
@@ -9,16 +9,15 @@ export default async function LocaleLayout({
   children: React.ReactNode;
   params: Promise<{ locale: string }>;
 }) {
-  const { locale } = await params;
+  const { locale: rawLocale } = await params;
 
-  if (!isValidLocale(locale)) {
-    notFound();
-  }
+  const locale: Locale = rawLocale === "en" ? "en" : "ar";
+  const isRtl = locale === "ar";
 
   return (
-    <>
-      <Navbar locale={locale as Locale} />
-      <main className="pt-20">{children}</main>
-    </>
+    <div dir={isRtl ? "rtl" : "ltr"}>
+      <Navbar locale={locale} />
+      {children}
+    </div>
   );
 }

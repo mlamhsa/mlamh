@@ -18,21 +18,37 @@ function loginPath(locale?: string, error?: string) {
   const safe = safeLocale(locale);
 
   return error
-    ? `/${safe}/talent-login?error=${encodeURIComponent(error)}`
-    : `/${safe}/talent-login`;
+  ? `/${safe}/login?error=${encodeURIComponent(error)}`
+  : `/${safe}/login`;
 }
 
 async function ensureTalentUser(userId: string, email?: string | null) {
   const adminClient = createAdminClient();
 
-  const { error } = await adminClient.from("talent_users").upsert({
+  const { error: talentUserError } = await adminClient.from("talent_users").upsert({
     id: userId,
     email: email ?? null,
     role: "talent",
   });
 
-  if (error) {
-    throw new Error(`[ensureTalentUser] ${error.message}`);
+  if (talentUserError) {
+    throw new Error(`[ensureTalentUser:talent_users] ${talentUserError.message}`);
+  }
+
+  const { error: profileError } = await adminClient.from("profiles").upsert(
+    {
+      user_id: userId,
+      account_type: "talent",
+      display_name: email ?? "Talent",
+      status: "active",
+    },
+    {
+      onConflict: "user_id",
+    }
+  );
+
+  if (profileError) {
+    throw new Error(`[ensureTalentUser:profiles] ${profileError.message}`);
   }
 }
 
@@ -105,5 +121,5 @@ export async function signOutTalentAction(
 
   await supabase.auth.signOut();
 
-  redirect("/ar/talent-login");
+  redirect("/ar/login");
 }

@@ -1,6 +1,5 @@
 import { Agencies } from "@/components/Agencies";
 import { Footer } from "@/components/Footer";
-import { Hero } from "@/components/Hero";
 import { HowItWorks } from "@/components/HowItWorks";
 import { ModelsShowcase } from "@/components/ModelsShowcase";
 import { Navbar } from "@/components/Navbar";
@@ -10,6 +9,7 @@ import { ValueProps } from "@/components/ValueProps";
 import { Opportunities } from "@/components/Opportunities";
 import { FinalCTA } from "@/components/FinalCTA";
 import { getTalents } from "@/lib/supabase/talents";
+import { Hero } from "@/components/Hero";
 
 export default async function HomePage({
   params,

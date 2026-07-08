@@ -1,264 +1,182 @@
-import Link from "next/link";
+import {
+  BriefcaseBusiness,
+  CheckCircle2,
+  Clock3,
+  Plus,
+  UsersRound,
+} from "lucide-react";
 import PublisherShell from "@/components/publisher/PublisherShell";
 import {
-  archiveOpportunityAction,
-  closeOpportunityAction,
-  restoreOpportunityAction,
-} from "@/lib/actions/opportunity-status-actions";
+  Button,
+  Card,
+  EmptyState,
+  SectionHeader,
+  StatCard,
+} from "@/components/ui";
 import { requirePublisher } from "@/lib/auth/require-publisher";
 import { createAdminClient } from "@/lib/supabase/admin";
-
-type PageProps = {
-  params: Promise<{ locale: string }>;
-};
+import { getOpportunityStatusLabel } from "@/lib/utils/opportunity-status";
 
 type Opportunity = {
   id: number;
   title: string;
-  status: string;
-  city_ar?: string | null;
-  city_en?: string | null;
-  opportunity_type?: string | null;
-  created_at?: string | null;
+  status: string | null;
+  created_at: string | null;
 };
 
-function statusLabel(status: string, isRtl: boolean) {
-  switch (status) {
-    case "draft":
-      return isRtl ? "مسودة" : "Draft";
-    case "open":
-      return isRtl ? "مفتوحة" : "Open";
-    case "published":
-      return isRtl ? "منشورة" : "Published";
-    case "closed":
-      return isRtl ? "مغلقة" : "Closed";
-    case "archived":
-      return isRtl ? "مؤرشفة" : "Archived";
-    default:
-      return "-";
-  }
-}
-
-function statusClass(status: string) {
-  switch (status) {
-    case "draft":
-      return "border-white/15 bg-white/5 text-white/50";
-    case "open":
-      return "border-emerald-400/30 bg-emerald-400/10 text-emerald-300";
-    case "published":
-      return "border-blue-400/30 bg-blue-400/10 text-blue-300";
-    case "closed":
-      return "border-yellow-400/30 bg-yellow-400/10 text-yellow-300";
-    case "archived":
-      return "border-red-400/30 bg-red-400/10 text-red-300";
-    default:
-      return "border-white/15 bg-white/5 text-white/50";
-  }
-}
-
-function formatDate(value?: string | null, locale = "en") {
-  if (!value) return "-";
-
-  return new Intl.DateTimeFormat(locale === "ar" ? "ar-SA" : "en", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  }).format(new Date(value));
-}
-
-function getCity(opportunity: Opportunity, locale: string) {
-  return locale === "ar"
-    ? opportunity.city_ar ?? opportunity.city_en ?? "-"
-    : opportunity.city_en ?? opportunity.city_ar ?? "-";
-}
-
-function formatType(value?: string | null) {
-  if (!value) return "-";
-  return value.replaceAll("_", " ");
-}
-
-export default async function PublisherDashboardPage({ params }: PageProps) {
+export default async function PublisherDashboardPage({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
   const { locale } = await params;
   const isRtl = locale === "ar";
+  const statusLocale = isRtl ? "ar" : "en";
 
   const { publisher } = await requirePublisher(locale);
   const adminClient = createAdminClient();
 
-  const { data: opportunities } = await adminClient
+  const { data: allData, error: allError } = await adminClient
     .from("opportunities")
-    .select("id, title, status, city_ar, city_en, opportunity_type, created_at")
+    .select("id, status")
+    .eq("publisher_id", publisher.id);
+
+  if (allError) console.error("Publisher all opportunities error:", allError);
+
+  const { data: latestData, error: latestError } = await adminClient
+    .from("opportunities")
+    .select("id, title, status, created_at")
     .eq("publisher_id", publisher.id)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(5);
 
-  const allOpportunities: Opportunity[] = opportunities ?? [];
+  if (latestError) console.error("Publisher latest opportunities error:", latestError);
 
-  const total = allOpportunities.length;
-  const openCount = allOpportunities.filter((o) => o.status === "open").length;
-  const closedCount = allOpportunities.filter((o) => o.status === "closed").length;
-  const publishedCount = allOpportunities.filter(
-    (o) => o.status === "published"
+  const allOpportunities = allData ?? [];
+  const opportunities: Opportunity[] = latestData ?? [];
+
+  const reviewCount = allOpportunities.filter(
+    (item) => item.status === "pending_review"
   ).length;
 
-  const latestOpportunities = allOpportunities.slice(0, 6);
+  const publishedCount = allOpportunities.filter(
+    (item) => item.status === "published" || item.status === "open"
+  ).length;
+
+  const publisherName =
+    publisher.company_name || publisher.contact_name || "MLAMH Publisher";
 
   return (
     <PublisherShell locale={locale} isRtl={isRtl}>
-      <div className="mx-auto w-full max-w-6xl space-y-8">
-        <header className="flex flex-col justify-between gap-5 border-b border-white/10 pb-8 md:flex-row md:items-end">
-          <div>
-            <p className="text-xs uppercase tracking-[0.35em] text-gold">
-              {isRtl ? "لوحة الناشر" : "Publisher Dashboard"}
-            </p>
+      <div className="space-y-8">
+        <Card className="overflow-hidden bg-gradient-to-br from-white/[0.08] via-white/[0.03] to-gold/[0.06] p-8 md:p-10">
+          <SectionHeader
+            eyebrow={isRtl ? "مساحة الشركة" : "Company Workspace"}
+            title={isRtl ? `مرحباً، ${publisherName}` : `Welcome, ${publisherName}`}
+            description={
+              isRtl
+                ? "أدر فرصك، المتقدمين، وتدفق اختيار المواهب من مكان واحد."
+                : "Manage opportunities, applicants, and talent selection in one place."
+            }
+            action={
+              <div className="flex flex-wrap gap-3">
+                <Button href={`/${locale}/opportunities/new`} variant="gold" size="lg">
+                  <Plus size={16} />
+                  {isRtl ? "إنشاء فرصة" : "Create Opportunity"}
+                </Button>
 
-            <h1 className="mt-3 text-4xl font-light text-white">
-              {isRtl ? "نظرة عامة" : "Overview"}
-            </h1>
+                <Button
+                  href={`/${locale}/publisher-dashboard/applicants`}
+                  variant="outline"
+                  size="lg"
+                >
+                  <UsersRound size={16} />
+                  {isRtl ? "المتقدمون" : "Applicants"}
+                </Button>
+              </div>
+            }
+          />
+        </Card>
 
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-white/45">
-              {isRtl
-                ? "إدارة مختصرة للفرص، الحالات، والمتقدمين من مساحة واحدة."
-                : "A focused workspace for opportunities, statuses, and applicants."}
-            </p>
-          </div>
-
-          <Link
-            href={`/${locale}/opportunities/new`}
-            className="inline-flex justify-center border border-gold bg-gold/10 px-6 py-4 text-xs uppercase tracking-[0.22em] text-gold transition hover:bg-gold hover:text-black"
-          >
-            {isRtl ? "إنشاء فرصة" : "Create Opportunity"}
-          </Link>
-        </header>
-
-        <section className="grid gap-4 md:grid-cols-4">
-          <StatCard label={isRtl ? "إجمالي الفرص" : "Total"} value={total} />
-          <StatCard label={isRtl ? "مفتوحة" : "Open"} value={openCount} />
-          <StatCard label={isRtl ? "مغلقة" : "Closed"} value={closedCount} />
+        <section className="grid gap-4 md:grid-cols-3">
           <StatCard
+            icon={<BriefcaseBusiness size={18} />}
+            label={isRtl ? "الفرص" : "Opportunities"}
+            value={allOpportunities.length}
+          />
+
+          <StatCard
+            icon={<Clock3 size={18} />}
+            label={isRtl ? "قيد المراجعة" : "In Review"}
+            value={reviewCount}
+          />
+
+          <StatCard
+            icon={<CheckCircle2 size={18} />}
             label={isRtl ? "منشورة" : "Published"}
             value={publishedCount}
           />
         </section>
 
-        <section className="rounded-[2rem] border border-white/10 bg-white/[0.025] p-5 md:p-6">
-          <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-center">
-            <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-gold">
-                {isRtl ? "آخر الفرص" : "Latest Opportunities"}
-              </p>
-              <h2 className="mt-3 text-2xl font-light text-white">
-                {isRtl ? "إدارة سريعة" : "Quick Management"}
-              </h2>
-            </div>
-
-            <Link
-              href={`/${locale}/publisher-dashboard/opportunities`}
-              className="text-sm text-gold underline underline-offset-4"
-            >
-              {isRtl ? "عرض كل الفرص" : "View all opportunities"}
-            </Link>
+        <Card className="p-8">
+          <div className="mb-8">
+            <SectionHeader
+              eyebrow={isRtl ? "آخر الفرص" : "Latest Opportunities"}
+              title={isRtl ? "إدارة الفرص" : "Opportunity Management"}
+              action={
+                <Button
+                  href={`/${locale}/publisher-dashboard/opportunities`}
+                  variant="ghost"
+                >
+                  {isRtl ? "عرض الكل" : "View All"}
+                </Button>
+              }
+            />
           </div>
 
-          {latestOpportunities.length > 0 ? (
-            <div className="overflow-hidden rounded-[1.5rem] border border-white/10">
-              <div className="hidden grid-cols-[1.5fr_0.8fr_0.7fr_1.2fr] border-b border-white/10 bg-white/[0.03] px-5 py-4 text-xs uppercase tracking-[0.22em] text-white/35 lg:grid">
-                <div>{isRtl ? "الفرصة" : "Opportunity"}</div>
-                <div>{isRtl ? "المدينة" : "City"}</div>
-                <div>{isRtl ? "الحالة" : "Status"}</div>
-                <div>{isRtl ? "الإجراءات" : "Actions"}</div>
-              </div>
+          {opportunities.length > 0 ? (
+            <div className="divide-y divide-white/10 overflow-hidden rounded-[1.5rem] border border-white/10">
+              {opportunities.map((item) => (
+                <article
+                  key={item.id}
+                  className="flex flex-col gap-4 bg-black/20 p-5 md:flex-row md:items-center md:justify-between"
+                >
+                  <div>
+                    <h3 className="text-xl font-light text-white">
+                      {item.title}
+                    </h3>
 
-              <div className="divide-y divide-white/10">
-                {latestOpportunities.map((opportunity) => (
-                  <article
-                    key={opportunity.id}
-                    className="grid gap-5 bg-black/20 p-5 transition hover:bg-white/[0.03] lg:grid-cols-[1.5fr_0.8fr_0.7fr_1.2fr] lg:items-center"
+                    <p className="mt-2 text-xs uppercase tracking-[0.18em] text-white/35">
+                      {getOpportunityStatusLabel(item.status ?? "", statusLocale)}
+                    </p>
+                  </div>
+
+                  <Button
+                    href={`/${locale}/publisher-dashboard/opportunities/${item.id}`}
+                    variant="outline"
                   >
-                    <div>
-                      <h3 className="text-xl font-light text-white">
-                        {opportunity.title}
-                      </h3>
-
-                      <p className="mt-2 text-xs uppercase tracking-[0.18em] text-white/30">
-                        {formatType(opportunity.opportunity_type)} ·{" "}
-                        {formatDate(opportunity.created_at, locale)}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-sm text-white/55">
-                        {getCity(opportunity, locale)}
-                      </p>
-                    </div>
-
-                    <div>
-                      <span
-                        className={`inline-flex rounded-full border px-3 py-1 text-[11px] uppercase tracking-[0.18em] ${statusClass(
-                          opportunity.status
-                        )}`}
-                      >
-                        {statusLabel(opportunity.status, isRtl)}
-                      </span>
-                    </div>
-
-                    <div className="flex flex-wrap gap-2">
-                      <Link
-                        href={`/${locale}/publisher-dashboard/opportunities/${opportunity.id}/edit`}
-                        className="border border-blue-400/40 px-3 py-2 text-xs uppercase tracking-[0.18em] text-blue-300 transition hover:bg-blue-400 hover:text-black"
-                      >
-                        {isRtl ? "تعديل" : "Edit"}
-                      </Link>
-
-                      <Link
-                        href={`/${locale}/publisher-dashboard/opportunities/${opportunity.id}/applicants`}
-                        className="border border-gold/40 px-3 py-2 text-xs uppercase tracking-[0.18em] text-gold transition hover:bg-gold hover:text-black"
-                      >
-                        {isRtl ? "المتقدمون" : "Applicants"}
-                      </Link>
-
-                      {opportunity.status === "open" && (
-                        <form action={closeOpportunityAction.bind(null, opportunity.id)}>
-                          <button className="border border-yellow-400/40 px-3 py-2 text-xs uppercase tracking-[0.18em] text-yellow-300 transition hover:bg-yellow-400 hover:text-black">
-                            {isRtl ? "إغلاق" : "Close"}
-                          </button>
-                        </form>
-                      )}
-
-                      {opportunity.status !== "archived" ? (
-                        <form action={archiveOpportunityAction.bind(null, opportunity.id)}>
-                          <button className="border border-red-400/40 px-3 py-2 text-xs uppercase tracking-[0.18em] text-red-300 transition hover:bg-red-400 hover:text-black">
-                            {isRtl ? "أرشفة" : "Archive"}
-                          </button>
-                        </form>
-                      ) : (
-                        <form action={restoreOpportunityAction.bind(null, opportunity.id)}>
-                          <button className="border border-emerald-400/40 px-3 py-2 text-xs uppercase tracking-[0.18em] text-emerald-300 transition hover:bg-emerald-400 hover:text-black">
-                            {isRtl ? "استعادة" : "Restore"}
-                          </button>
-                        </form>
-                      )}
-                    </div>
-                  </article>
-                ))}
-              </div>
+                    {isRtl ? "عرض" : "View"}
+                  </Button>
+                </article>
+              ))}
             </div>
           ) : (
-            <div className="rounded-[1.5rem] border border-white/10 bg-black/20 p-10 text-center text-white/50">
-              {isRtl ? "لا توجد فرص حتى الآن." : "No opportunities yet."}
-            </div>
+            <EmptyState
+              title={isRtl ? "ابدأ بنشر أول فرصة" : "Create your first opportunity"}
+              description={
+                isRtl
+                  ? "ستظهر فرصك هنا بعد إنشائها."
+                  : "Your opportunities will appear here after creation."
+              }
+              action={
+                <Button href={`/${locale}/opportunities/new`} variant="gold">
+                  {isRtl ? "إنشاء فرصة" : "Create Opportunity"}
+                </Button>
+              }
+            />
           )}
-        </section>
+        </Card>
       </div>
     </PublisherShell>
-  );
-}
-
-function StatCard({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.025] p-5">
-      <p className="text-xs uppercase tracking-[0.25em] text-white/40">
-        {label}
-      </p>
-      <p className="mt-3 text-4xl font-light text-white">{value}</p>
-    </div>
   );
 }

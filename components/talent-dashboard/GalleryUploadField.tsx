@@ -43,7 +43,7 @@ export function GalleryUploadField({
     const remainingSlots = maxImages - images.length;
 
     if (remainingSlots <= 0) {
-      setError(`Maximum ${maxImages} images allowed.`);
+      setError(`الحد الأقصى ${maxImages} صور.`);
       return;
     }
 
@@ -57,11 +57,11 @@ export function GalleryUploadField({
 
       for (const file of filesToUpload) {
         if (!file.type.startsWith("image/")) {
-          throw new Error("Please upload image files only.");
+          throw new Error("يرجى رفع ملفات صور فقط.");
         }
 
         if (file.size > maxSize) {
-          throw new Error("Each image must be less than 5MB.");
+          throw new Error("يجب ألا يتجاوز حجم كل صورة 5 ميجابايت.");
         }
 
         const extension = file.name.split(".").pop() || "jpg";
@@ -90,7 +90,7 @@ export function GalleryUploadField({
       setError(
         uploadError instanceof Error
           ? uploadError.message
-          : "Failed to upload gallery images."
+          : "فشل رفع صور المعرض."
       );
     } finally {
       setUploading(false);
@@ -129,7 +129,7 @@ export function GalleryUploadField({
                   }
                   className="w-full border-t border-white/10 px-3 py-2 text-[10px] uppercase tracking-[0.25em] text-white/50 transition hover:text-white"
                 >
-                  Remove
+                  إزالة
                 </button>
               </div>
             ))}
@@ -142,7 +142,7 @@ export function GalleryUploadField({
           onClick={() => inputRef.current?.click()}
           className="rounded-full border border-gold/40 px-5 py-3 text-[10px] uppercase tracking-[0.3em] text-gold transition hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {uploading ? "Uploading..." : "Upload Gallery Images"}
+          {uploading ? "جاري الرفع..." : "رفع صور المعرض"}
         </button>
 
         <input
@@ -166,7 +166,7 @@ export function GalleryUploadField({
           <p className="mt-3 text-sm text-red-400">{error}</p>
         ) : (
           <p className="mt-3 text-xs leading-6 text-gray-muted">
-            Up to {maxImages} images. JPG, PNG, or WebP. Maximum 5MB each.
+            حتى {maxImages} صور. الصيغ المدعومة: JPG و PNG و WebP. الحد الأقصى 5 ميجابايت لكل صورة.
           </p>
         )}
       </div>

@@ -25,14 +25,14 @@ export function ImageUploadField({
     setError("");
 
     if (!file.type.startsWith("image/")) {
-      setError("Please upload an image file.");
+      setError("يرجى رفع ملف صورة.");
       return;
     }
 
     const maxSize = 5 * 1024 * 1024;
 
     if (file.size > maxSize) {
-      setError("Image size must be less than 5MB.");
+      setError("يجب ألا يتجاوز حجم الصورة 5 ميجابايت.");
       return;
     }
 
@@ -62,7 +62,7 @@ export function ImageUploadField({
       setError(
         uploadError instanceof Error
           ? uploadError.message
-          : "Failed to upload image."
+          : "فشل رفع الصورة."
       );
     } finally {
       setUploading(false);
@@ -97,10 +97,10 @@ export function ImageUploadField({
             className="rounded-full border border-gold/40 px-5 py-3 text-[10px] uppercase tracking-[0.3em] text-gold transition hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {uploading
-              ? "Uploading..."
+              ? "جاري الرفع..."
               : imageUrl
-                ? "Change Image"
-                : "Upload Image"}
+                ? "تغيير الصورة"
+                : "رفع الصورة"}
           </button>
 
           {imageUrl ? (
@@ -112,11 +112,11 @@ export function ImageUploadField({
                   return;
                 }
 
-                setError("This image is required.");
+                setError("الصورة مطلوبة.");
               }}
               className="rounded-full border border-white/10 px-5 py-3 text-[10px] uppercase tracking-[0.3em] text-white/50 transition hover:border-white/30 hover:text-white"
             >
-              Remove
+              إزالة
             </button>
           ) : null}
         </div>
@@ -141,7 +141,7 @@ export function ImageUploadField({
           <p className="mt-3 text-sm text-red-400">{error}</p>
         ) : (
           <p className="mt-3 text-xs leading-6 text-gray-muted">
-            JPG, PNG, or WebP. Maximum size 5MB.
+            الصيغ المدعومة: JPG و PNG و WebP. الحد الأقصى للحجم 5 ميجابايت.
           </p>
         )}
       </div>

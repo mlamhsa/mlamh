@@ -18,7 +18,7 @@ async function signOutAction(formData: FormData) {
 
   await supabase.auth.signOut();
 
-  redirect(`/${locale}/publisher-login`);
+  redirect(`/${locale}/login`);
 }
 
 export default async function PublisherSettingsPage({ params }: PageProps) {

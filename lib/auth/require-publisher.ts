@@ -10,38 +10,36 @@ export async function requirePublisher(locale: string) {
 
   const {
     data: { user },
+    error: userError,
   } = await authClient.auth.getUser();
 
-  console.log("AUTH USER:", user?.email);
-  console.log("AUTH USER ID:", user?.id);
-
-  if (!user) {
-    redirect(`/${locale}/publisher-login`);
+  if (userError || !user) {
+    redirect(`/${locale}/login`);
   }
 
-  const { data: profile } = await adminClient
+  const { data: profile, error: profileError } = await adminClient
     .from("profiles")
     .select("id, account_type")
     .eq("user_id", user.id)
     .maybeSingle();
 
-  console.log("PROFILE:", profile);
-
-  if (!profile) {
-    redirect(`/${locale}/publisher-login`);
+  if (profileError || !profile) {
+    redirect(`/${locale}/login`);
   }
 
-  // إذا كان الحساب موهبة نحوله مباشرة للوحة الموهبة
   if (profile.account_type === "talent") {
     redirect(`/${locale}/talent-dashboard`);
   }
 
-  // إذا لم يكن ناشراً
-  if (profile.account_type !== "publisher") {
-    redirect(`/${locale}/publisher-login`);
+  if (profile.account_type === "admin") {
+    redirect("/admin");
   }
 
-  const { data: publisher } = await adminClient
+  if (profile.account_type !== "publisher") {
+    redirect(`/${locale}/login`);
+  }
+
+  const { data: publisher, error: publisherError } = await adminClient
     .from("publishers")
     .select(`
       id,
@@ -66,10 +64,12 @@ export async function requirePublisher(locale: string) {
     .eq("profile_id", profile.id)
     .maybeSingle();
 
-  console.log("PUBLISHER:", publisher);
+  if (publisherError) {
+    redirect(`/${locale}/login`);
+  }
 
   if (!publisher) {
-    redirect(`/${locale}/publisher-login`);
+    redirect(`/${locale}/register-publisher`);
   }
 
   return {

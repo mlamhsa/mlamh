@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { StatCard } from "@/components/ui";
 import PublisherShell from "@/components/publisher/PublisherShell";
 import {
   archiveOpportunityAction,
@@ -7,45 +8,15 @@ import {
 } from "@/lib/actions/opportunity-status-actions";
 import { requirePublisher } from "@/lib/auth/require-publisher";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  getOpportunityStatusClass,
+  getOpportunityStatusLabel,
+} from "@/lib/utils/opportunity-status";
 
 type PageProps = {
   params: Promise<{ locale: string }>;
   searchParams?: Promise<{ status?: string }>;
 };
-
-function statusLabel(status?: string | null, isRtl = false) {
-  switch (status) {
-    case "draft":
-      return isRtl ? "مسودة" : "Draft";
-    case "open":
-      return isRtl ? "مفتوحة" : "Open";
-    case "published":
-      return isRtl ? "منشورة" : "Published";
-    case "closed":
-      return isRtl ? "مغلقة" : "Closed";
-    case "archived":
-      return isRtl ? "مؤرشفة" : "Archived";
-    default:
-      return "-";
-  }
-}
-
-function statusClass(status?: string | null) {
-  switch (status) {
-    case "draft":
-      return "border-white/15 bg-white/5 text-white/50";
-    case "open":
-      return "border-emerald-400/30 bg-emerald-400/10 text-emerald-300";
-    case "published":
-      return "border-blue-400/30 bg-blue-400/10 text-blue-300";
-    case "closed":
-      return "border-yellow-400/30 bg-yellow-400/10 text-yellow-300";
-    case "archived":
-      return "border-red-400/30 bg-red-400/10 text-red-300";
-    default:
-      return "border-white/15 bg-white/5 text-white/60";
-  }
-}
 
 function formatDate(value?: string | null, locale = "en") {
   if (!value) return "-";
@@ -72,19 +43,25 @@ export default async function PublisherOpportunitiesPage({
 }: PageProps) {
   const { locale } = await params;
   const isRtl = locale === "ar";
+  const statusLocale = isRtl ? "ar" : "en";
+
   const filters = searchParams ? await searchParams : {};
   const selectedStatus = filters.status ?? "all";
 
   const { publisher } = await requirePublisher(locale);
   const adminClient = createAdminClient();
 
-  const { data: opportunities } = await adminClient
+  const { data: opportunities, error: opportunitiesError } = await adminClient
     .from("opportunities")
     .select(
       "id, title, slug, city_ar, city_en, opportunity_type, status, created_at"
     )
     .eq("publisher_id", publisher.id)
     .order("created_at", { ascending: false });
+
+  if (opportunitiesError) {
+    console.error("Publisher opportunities error:", opportunitiesError);
+  }
 
   const allOpportunities = opportunities ?? [];
   const opportunityIds = allOpportunities.map((item) => item.id);
@@ -106,21 +83,32 @@ export default async function PublisherOpportunitiesPage({
     );
   }
 
-  const openCount = allOpportunities.filter(
-    (item) => item.status === "open"
+  const publishedCount = allOpportunities.filter(
+    (item) => item.status === "published" || item.status === "open"
   ).length;
+
+  const reviewCount = allOpportunities.filter(
+    (item) => item.status === "pending_review"
+  ).length;
+
   const closedCount = allOpportunities.filter(
     (item) => item.status === "closed"
   ).length;
+
   const archivedCount = allOpportunities.filter(
     (item) => item.status === "archived"
   ).length;
-  const applicantsTotal = (applications ?? []).length;
+
+  const applicantsTotal = applications?.length ?? 0;
 
   const filteredOpportunities =
     selectedStatus === "all"
       ? allOpportunities
-      : allOpportunities.filter((item) => item.status === selectedStatus);
+      : selectedStatus === "published"
+        ? allOpportunities.filter(
+            (item) => item.status === "published" || item.status === "open"
+          )
+        : allOpportunities.filter((item) => item.status === selectedStatus);
 
   const tabs = [
     [
@@ -129,7 +117,18 @@ export default async function PublisherOpportunitiesPage({
         ? `الكل (${allOpportunities.length})`
         : `All (${allOpportunities.length})`,
     ],
-    ["open", isRtl ? `مفتوحة (${openCount})` : `Open (${openCount})`],
+    [
+      "pending_review",
+      isRtl
+        ? `قيد المراجعة (${reviewCount})`
+        : `In Review (${reviewCount})`,
+    ],
+    [
+      "published",
+      isRtl
+        ? `منشورة (${publishedCount})`
+        : `Published (${publishedCount})`,
+    ],
     ["closed", isRtl ? `مغلقة (${closedCount})` : `Closed (${closedCount})`],
     [
       "archived",
@@ -159,7 +158,7 @@ export default async function PublisherOpportunitiesPage({
 
           <Link
             href={`/${locale}/opportunities/new`}
-            className="inline-flex border border-gold bg-gold/10 px-6 py-4 text-xs uppercase tracking-[0.22em] text-gold transition hover:bg-gold hover:text-black"
+            className="inline-flex rounded-full border border-gold bg-gold/10 px-6 py-4 text-xs uppercase tracking-[0.22em] text-gold transition hover:bg-gold hover:text-black"
           >
             {isRtl ? "إنشاء فرصة" : "Create Opportunity"}
           </Link>
@@ -170,8 +169,17 @@ export default async function PublisherOpportunitiesPage({
             label={isRtl ? "إجمالي الفرص" : "Total"}
             value={allOpportunities.length}
           />
-          <StatCard label={isRtl ? "مفتوحة" : "Open"} value={openCount} />
-          <StatCard label={isRtl ? "مغلقة" : "Closed"} value={closedCount} />
+
+          <StatCard
+            label={isRtl ? "قيد المراجعة" : "In Review"}
+            value={reviewCount}
+          />
+
+          <StatCard
+            label={isRtl ? "منشورة" : "Published"}
+            value={publishedCount}
+          />
+
           <StatCard
             label={isRtl ? "المتقدمون" : "Applicants"}
             value={applicantsTotal}
@@ -190,7 +198,7 @@ export default async function PublisherOpportunitiesPage({
                       ? `/${locale}/publisher-dashboard/opportunities`
                       : `/${locale}/publisher-dashboard/opportunities?status=${value}`
                   }
-                  className={`border px-5 py-3 text-xs uppercase tracking-[0.22em] transition ${
+                  className={`rounded-full border px-5 py-3 text-xs uppercase tracking-[0.22em] transition ${
                     selectedStatus === value
                       ? "border-gold bg-gold/10 text-gold"
                       : "border-white/10 text-white/50 hover:border-gold/40 hover:text-gold"
@@ -253,6 +261,7 @@ export default async function PublisherOpportunitiesPage({
                         <p className="text-3xl font-light text-white">
                           {applicantsCount}
                         </p>
+
                         <p className="mt-1 text-xs text-white/35">
                           {isRtl ? "متقدم" : "applicants"}
                         </p>
@@ -260,37 +269,41 @@ export default async function PublisherOpportunitiesPage({
 
                       <div>
                         <span
-                          className={`inline-flex rounded-full border px-3 py-1 text-[11px] uppercase tracking-[0.18em] ${statusClass(
+                          className={`inline-flex rounded-full border px-3 py-1 text-[11px] uppercase tracking-[0.18em] ${getOpportunityStatusClass(
                             opportunity.status
                           )}`}
                         >
-                          {statusLabel(opportunity.status, isRtl)}
+                          {getOpportunityStatusLabel(
+                            opportunity.status,
+                            statusLocale
+                          )}
                         </span>
                       </div>
 
                       <div className="flex flex-wrap gap-2">
                         <Link
-                          href={`/${locale}/publisher-dashboard/opportunities/${opportunity.id}/applicants`}
-                          className="border border-gold/40 px-3 py-2 text-xs uppercase tracking-[0.18em] text-gold transition hover:bg-gold hover:text-black"
+                          href={`/${locale}/publisher-dashboard/opportunities/${opportunity.id}`}
+                          className="rounded-full border border-white/15 px-3 py-2 text-xs uppercase tracking-[0.18em] text-white/60 transition hover:border-white/40 hover:text-white"
                         >
-                          {isRtl ? "المتقدمون" : "Applicants"}
+                          {isRtl ? "عرض" : "View"}
                         </Link>
 
                         <Link
                           href={`/${locale}/publisher-dashboard/opportunities/${opportunity.id}/edit`}
-                          className="border border-blue-400/40 px-3 py-2 text-xs uppercase tracking-[0.18em] text-blue-300 transition hover:bg-blue-400 hover:text-black"
+                          className="rounded-full border border-blue-400/40 px-3 py-2 text-xs uppercase tracking-[0.18em] text-blue-300 transition hover:bg-blue-400 hover:text-black"
                         >
                           {isRtl ? "تعديل" : "Edit"}
                         </Link>
 
-                        {opportunity.status === "open" && (
+                        {(opportunity.status === "open" ||
+                          opportunity.status === "published") && (
                           <form
                             action={closeOpportunityAction.bind(
                               null,
                               opportunity.id
                             )}
                           >
-                            <button className="border border-yellow-400/40 px-3 py-2 text-xs uppercase tracking-[0.18em] text-yellow-300 transition hover:bg-yellow-400 hover:text-black">
+                            <button className="rounded-full border border-yellow-400/40 px-3 py-2 text-xs uppercase tracking-[0.18em] text-yellow-300 transition hover:bg-yellow-400 hover:text-black">
                               {isRtl ? "إغلاق" : "Close"}
                             </button>
                           </form>
@@ -303,7 +316,7 @@ export default async function PublisherOpportunitiesPage({
                               opportunity.id
                             )}
                           >
-                            <button className="border border-red-400/40 px-3 py-2 text-xs uppercase tracking-[0.18em] text-red-300 transition hover:bg-red-400 hover:text-black">
+                            <button className="rounded-full border border-red-400/40 px-3 py-2 text-xs uppercase tracking-[0.18em] text-red-300 transition hover:bg-red-400 hover:text-black">
                               {isRtl ? "أرشفة" : "Archive"}
                             </button>
                           </form>
@@ -314,7 +327,7 @@ export default async function PublisherOpportunitiesPage({
                               opportunity.id
                             )}
                           >
-                            <button className="border border-emerald-400/40 px-3 py-2 text-xs uppercase tracking-[0.18em] text-emerald-300 transition hover:bg-emerald-400 hover:text-black">
+                            <button className="rounded-full border border-emerald-400/40 px-3 py-2 text-xs uppercase tracking-[0.18em] text-emerald-300 transition hover:bg-emerald-400 hover:text-black">
                               {isRtl ? "استعادة" : "Restore"}
                             </button>
                           </form>
@@ -326,39 +339,23 @@ export default async function PublisherOpportunitiesPage({
               </div>
             </div>
           ) : (
-            <div className="rounded-[1.5rem] border border-white/10 bg-black/20 p-8 text-white/45">
-              {isRtl
-                ? "لا توجد فرص مطابقة للحالة المحددة."
-                : "No opportunities match the selected status."}
+            <div className="rounded-[1.5rem] border border-white/10 bg-black/20 p-10 text-center">
+              <p className="text-white/45">
+                {isRtl
+                  ? "لا توجد فرص مطابقة للحالة المحددة."
+                  : "No opportunities match the selected status."}
+              </p>
+
+              <Link
+                href={`/${locale}/opportunities/new`}
+                className="mt-6 inline-flex rounded-full border border-gold bg-gold/10 px-6 py-3 text-xs uppercase tracking-[0.2em] text-gold transition hover:bg-gold hover:text-black"
+              >
+                {isRtl ? "إنشاء فرصة" : "Create Opportunity"}
+              </Link>
             </div>
           )}
         </section>
       </div>
     </PublisherShell>
-  );
-}
-
-function StatCard({
-  label,
-  value,
-  highlighted = false,
-}: {
-  label: string;
-  value: number;
-  highlighted?: boolean;
-}) {
-  return (
-    <div
-      className={`rounded-[1.75rem] border p-5 ${
-        highlighted
-          ? "border-gold/20 bg-gold/[0.04]"
-          : "border-white/10 bg-white/[0.025]"
-      }`}
-    >
-      <p className="text-xs uppercase tracking-[0.25em] text-white/40">
-        {label}
-      </p>
-      <p className="mt-3 text-4xl font-light text-white">{value}</p>
-    </div>
   );
 }

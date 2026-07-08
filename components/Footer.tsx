@@ -1,151 +1,143 @@
-"use client";
-
 import Link from "next/link";
-import { getDictionary, type Locale } from "@/lib/i18n";
+import {
+  ArrowUpRight,
+  Mail,
+  MapPin,
+  Phone,
+} from "lucide-react";
 
-const navHrefs = [
-  { key: "talents" as const, href: "#talents" },
-  { key: "agencies" as const, href: "#agencies" },
-  { key: "about" as const, href: "#about" },
-  { key: "contact" as const, href: "#contact" },
-];
+import { getDictionary, type Locale } from "@/lib/i18n";
 
 export function Footer({ locale }: { locale: Locale }) {
   const dict = getDictionary(locale);
-  const { nav, footer: f } = dict;
-
+  const { footer: f } = dict;
   const isRtl = locale === "ar";
-  const bodyFont = isRtl
-    ? "var(--font-noto-arabic)"
-    : "var(--font-dm-sans)";
+
+  const links = [
+    { label: isRtl ? "المواهب" : "Talents", href: `/${locale}/talent` },
+    { label: isRtl ? "الفرص" : "Opportunities", href: `/${locale}/opportunities` },
+    { label: isRtl ? "الشركات" : "Companies", href: `/${locale}/publishers` },
+    { label: isRtl ? "انضم الآن" : "Join", href: `/${locale}/join` },
+  ];
+
+  const legal = [
+    { label: f.privacy, href: `/${locale}/privacy` },
+    { label: f.terms, href: `/${locale}/terms` },
+  ];
 
   return (
     <footer
       id="contact"
-      className="relative border-t border-white/[0.06] bg-gray-deep pt-20 pb-10"
+      dir={isRtl ? "rtl" : "ltr"}
+      className="border-t border-white/10 bg-black py-16 text-white"
     >
-      <div className="mx-auto max-w-7xl px-6 lg:px-10">
-        <div className="grid gap-16 lg:grid-cols-12">
-          <div className={`lg:col-span-5 ${isRtl ? "text-right" : "text-left"}`}>
-            <Link href={`/${locale}`} className="inline-block">
-              <span
-                className="text-4xl font-light tracking-[0.3em] text-white"
-                style={{ fontFamily: "var(--font-cormorant)" }}
-              >
-                MLAMH
-              </span>
+      <div className="mx-auto max-w-7xl px-6">
+        <div className="grid gap-12 lg:grid-cols-[1.25fr_0.75fr_0.75fr_1fr]">
+          <div>
+            <Link href={`/${locale}`} className="text-4xl font-light tracking-[0.28em]">
+              MLAMH
             </Link>
-            <p
-              className="mt-4 max-w-sm text-sm leading-relaxed text-gray-muted"
-              style={{ fontFamily: bodyFont }}
-            >
+
+            <p className="mt-5 max-w-sm text-sm leading-7 text-white/45">
               {f.description}
             </p>
-            <p
-              className="mt-4 text-sm text-white/40"
-              style={{ fontFamily: bodyFont }}
-            >
+
+            <p className="mt-4 text-sm text-gold/80">
               {f.tagline}
             </p>
           </div>
 
-          <div className="grid gap-10 sm:grid-cols-2 lg:col-span-4">
-            <div className={isRtl ? "text-right" : "text-left"}>
-              <p className="mb-4 text-[10px] uppercase tracking-[0.35em] text-gold">
-                {f.navigate}
-              </p>
-              <ul className="space-y-3">
-                {navHrefs.map((link) => (
-                  <li key={link.href}>
-                    <a
-                      href={link.href}
-                      className="text-sm text-white/60 transition-colors hover:text-gold"
-                    >
-                      {nav[link.key]}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className={isRtl ? "text-right" : "text-left"}>
-              <p className="mb-4 text-[10px] uppercase tracking-[0.35em] text-gold">
-                {f.contact}
-              </p>
-              <ul
-                className="space-y-3 text-sm text-white/60"
-                style={{ fontFamily: bodyFont }}
-              >
-                <li>
-                  <a
-                    href="mailto:hello@mlamh.com"
-                    className="transition-colors hover:text-gold"
+          <div>
+            <p className="mb-5 text-xs uppercase tracking-[0.3em] text-gold">
+              {f.navigate}
+            </p>
+
+            <ul className="space-y-3">
+              {links.map((item) => (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    className="inline-flex items-center gap-2 text-sm text-white/55 transition hover:text-gold"
                   >
-                    hello@mlamh.com
-                  </a>
+                    {item.label}
+                    <ArrowUpRight size={13} />
+                  </Link>
                 </li>
-                <li>{f.location}</li>
-                <li>{f.phone}</li>
-              </ul>
-            </div>
+              ))}
+            </ul>
           </div>
 
-          <div className={`lg:col-span-3 ${isRtl ? "text-right" : "text-left"}`}>
-            <p className="mb-4 text-[10px] uppercase tracking-[0.35em] text-gold">
-              {f.newsletter}
+          <div>
+            <p className="mb-5 text-xs uppercase tracking-[0.3em] text-gold">
+              {isRtl ? "قانوني" : "Legal"}
             </p>
-            <p
-              className="mb-4 text-sm text-gray-muted"
-              style={{ fontFamily: bodyFont }}
-            >
-              {f.newsletterBody}
+
+            <ul className="space-y-3">
+              {legal.map((item) => (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    className="text-sm text-white/55 transition hover:text-gold"
+                  >
+                    {item.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div>
+            <p className="mb-5 text-xs uppercase tracking-[0.3em] text-gold">
+              {f.contact}
             </p>
-            <form
-              className={`flex border border-white/10 ${isRtl ? "flex-row-reverse" : ""}`}
-              onSubmit={(e) => e.preventDefault()}
-            >
-              <input
-                type="email"
-                placeholder={f.emailPlaceholder}
-                aria-label={f.emailAria}
-                dir={isRtl ? "rtl" : "ltr"}
-                className="flex-1 bg-transparent px-4 py-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-gold/40"
-              />
-              <button
-                type="submit"
-                className={`btn-luxury px-5 text-gold transition-colors hover:bg-gold/10 ${
-                  isRtl
-                    ? "border-r border-white/10"
-                    : "border-l border-white/10"
-                }`}
-                aria-label={f.subscribeAria}
+
+            <ul className="space-y-4 text-sm text-white/55">
+              <li className="flex items-center gap-3">
+                <Mail size={16} className="text-gold" />
+                <a href="mailto:hello@mlamh.com" className="hover:text-gold">
+                  hello@mlamh.com
+                </a>
+              </li>
+
+              <li className="flex items-center gap-3">
+                <Phone size={16} className="text-gold" />
+                <span>{f.phone}</span>
+              </li>
+
+              <li className="flex items-center gap-3">
+                <MapPin size={16} className="text-gold" />
+                <span>{f.location}</span>
+              </li>
+            </ul>
+
+            <div className="mt-6 flex gap-3">
+              <a
+                href="#"
+                className="rounded-full border border-white/10 p-3 text-white/50 transition hover:border-gold/40 hover:text-gold"
+                aria-label="Instagram"
               >
-                {isRtl ? "←" : "→"}
-              </button>
-            </form>
+                <span className="text-xs">IG</span>
+              </a>
+
+              <a
+                href="#"
+                className="rounded-full border border-white/10 p-3 text-white/50 transition hover:border-gold/40 hover:text-gold"
+                aria-label="LinkedIn"
+              >
+                <span className="text-xs">IN</span>
+              </a>
+            </div>
           </div>
         </div>
 
-        <div className="gold-line my-16" />
+        <div className="my-12 h-px bg-gradient-to-r from-transparent via-gold/30 to-transparent" />
 
-        <div
-          className={`flex flex-col items-center justify-between gap-4 text-[10px] uppercase tracking-[0.25em] text-gray-muted sm:flex-row ${
-            isRtl ? "sm:flex-row-reverse" : ""
-          }`}
-        >
+        <div className="flex flex-col items-center justify-between gap-4 text-center text-[10px] uppercase tracking-[0.25em] text-white/35 md:flex-row">
           <p>
             © {new Date().getFullYear()} MLAMH. {f.rights}
           </p>
-          <div className="flex gap-8">
-            <a href="#" className="transition-colors hover:text-gold">
-              {f.privacy}
-            </a>
-            <a href="#" className="transition-colors hover:text-gold">
-              {f.terms}
-            </a>
-            <a href="#" className="transition-colors hover:text-gold">
-              {f.instagram}
-            </a>
-          </div>
+
+          <p>{isRtl ? "صُنع في المملكة العربية السعودية" : "Made in Saudi Arabia"}</p>
         </div>
       </div>
     </footer>

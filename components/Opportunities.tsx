@@ -1,5 +1,11 @@
-import type { Locale } from "@/lib/i18n";
 import Link from "next/link";
+import type { Locale } from "@/lib/i18n";
+import {
+  ArrowUpRight,
+  Building2,
+  MapPin,
+  BriefcaseBusiness,
+} from "lucide-react";
 
 export function Opportunities({
   locale,
@@ -38,58 +44,103 @@ export function Opportunities({
   ];
 
   return (
-    <section className="relative py-28 bg-black border-t border-white/10">
+    <section className="relative overflow-hidden border-t border-white/10 bg-black py-28">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute left-1/2 top-0 h-[500px] w-[500px] -translate-x-1/2 rounded-full bg-gold/[0.06] blur-[150px]" />
+      </div>
 
-      <div className="mx-auto max-w-7xl px-6">
-
+      <div className="relative mx-auto max-w-7xl px-6">
         {/* Header */}
-        <div className="text-center max-w-2xl mx-auto mb-16">
-          <h2 className="text-4xl md:text-5xl text-white font-light">
-            {title}
-          </h2>
+        <div className="mb-16 flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
+          <div className="max-w-3xl">
+            <p className="mb-4 text-[10px] uppercase tracking-[0.4em] text-gold">
+              {locale === "ar"
+                ? "فرص ملامح"
+                : "MLAMH Opportunities"}
+            </p>
 
-          <p className="mt-4 text-white/60 text-lg">
-            {subtitle}
-          </p>
+            <h2 className="text-4xl font-light text-white md:text-6xl">
+              {title}
+            </h2>
+
+            <p className="mt-6 text-lg leading-8 text-white/60">
+              {subtitle}
+            </p>
+          </div>
+
+          <Link
+            href={`/${locale}/opportunities`}
+            className="inline-flex w-fit items-center gap-3 rounded-full border border-gold/30 bg-gold/[0.06] px-6 py-3 text-[10px] uppercase tracking-[0.28em] text-gold transition hover:bg-gold hover:text-black"
+          >
+            {locale === "ar"
+              ? "عرض جميع الفرص"
+              : "View All Opportunities"}
+
+              <ArrowUpRight size={14} />
+          </Link>
         </div>
 
         {/* Grid */}
-        <div className="grid md:grid-cols-3 gap-8">
-
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
           {data.map((item, i) => (
             <div
               key={i}
-              className="group rounded-3xl border border-white/10 bg-white/5 p-6 hover:border-gold/30 transition"
+              className="group relative overflow-hidden rounded-[30px] border border-white/10 bg-gradient-to-b from-white/[0.05] to-white/[0.02] p-7 transition-all duration-500 hover:-translate-y-1 hover:border-gold/40 hover:shadow-[0_0_50px_rgba(201,164,93,0.10)]"
             >
+              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-gold/50 to-transparent opacity-0 transition group-hover:opacity-100" />
 
               {/* Tag */}
-              <div className="text-gold text-[10px] uppercase tracking-[0.3em] mb-4">
-                {item.type}
-              </div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-gold/30 bg-gold/10 px-3 py-1 text-[10px] uppercase tracking-[0.22em] text-gold">
+    <BriefcaseBusiness size={12} />
+    {item.type}
+</div>
 
               {/* Title */}
-              <h3 className="text-white text-xl font-light">
+              <h3 className="mt-6 text-2xl font-light text-white transition group-hover:text-gold">
                 {item.title}
               </h3>
 
-              {/* Company */}
-              <p className="text-white/60 mt-2 text-sm">
-                {item.company}
-              </p>
+              {/* Details */}
+              <div className="mt-6 space-y-3 border-t border-white/10 pt-5">
+                <div className="flex items-center justify-between text-sm">
+                <span className="flex items-center gap-2 text-white/40">
+    <Building2 size={14}/>
+    {locale==="ar" ? "الجهة" : "Company"}
+</span>
 
-              {/* Location */}
-              <p className="text-white/40 mt-1 text-sm">
-                {item.location}
-              </p>
+                  <span className="text-white/80">
+                    {item.company}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between text-sm">
+                <span className="flex items-center gap-2 text-white/40">
+    <MapPin size={14}/>
+    {locale==="ar" ? "المدينة" : "City"}
+</span>
+
+                  <span className="text-white/80">
+                    {item.location}
+                  </span>
+                </div>
+              </div>
 
               {/* CTA */}
               <Link
-                href={`/${locale}/apply`}
-                className="inline-block mt-6 text-sm text-gold hover:underline"
+                href={`/${locale}/opportunities`}
+                className="mt-8 flex items-center justify-between border-t border-white/10 pt-5"
               >
-                {locale === "ar" ? "تقديم على الفرصة" : "Apply Now"}
-              </Link>
+                <span className="text-sm text-white/45 transition group-hover:text-white">
+                  {locale === "ar"
+                    ? "عرض تفاصيل الفرصة"
+                    : "View Opportunity"}
+                </span>
 
+                <ArrowUpRight
+    size={18}
+    className="text-gold transition group-hover:translate-x-1 group-hover:-translate-y-1"
+/>
+              </Link>
             </div>
           ))}
         </div>

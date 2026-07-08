@@ -1,14 +1,16 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { AdminLogoutButton } from "@/components/admin/AdminLogoutButton";
 import { AdminTalentAnalytics } from "@/components/admin/AdminTalentAnalytics";
 import { AdminTalentSearch } from "@/components/admin/AdminTalentSearch";
 import { PendingTalentCard } from "@/components/admin/PendingTalentCard";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { getTopViewedTalents } from "@/lib/supabase/admin-talent-analytics";
-import { getAdminTalents } from "@/lib/supabase/admin-talents";
-import { getAdminTalentStats } from "@/lib/supabase/admin-talent-stats";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { requireAdminAccess } from "@/lib/auth/require-admin";
+import { TalentService } from "@/lib/services/talents/TalentService";
+import {
+  AdminEmptyState,
+  AdminGrid,
+  AdminPageContainer,
+  AdminPageHeader,
+  AdminStatCard,
+} from "@/components/admin/ui";
 
 export const metadata = {
   title: "MLAMH Admin — Talents",
@@ -24,32 +26,6 @@ type PageProps = {
     page?: string;
   }>;
 };
-
-async function requireAdminAccess() {
-  const authClient = await createServerSupabaseClient();
-
-  const {
-    data: { user },
-    error,
-  } = await authClient.auth.getUser();
-
-  if (error || !user) {
-    redirect("/admin-login");
-  }
-
-  const adminClient = createAdminClient();
-
-  const { data: adminUser, error: adminError } = await adminClient
-    .from("admin_users")
-    .select("id")
-    .eq("id", user.id)
-    .eq("role", "admin")
-    .maybeSingle();
-
-  if (adminError || !adminUser) {
-    redirect("/admin-login");
-  }
-}
 
 function buildQueryString({
   status,
@@ -69,35 +45,6 @@ function buildQueryString({
   const query = params.toString();
 
   return query ? `/admin?${query}` : "/admin";
-}
-
-function StatLink({
-  href,
-  label,
-  count,
-  active,
-}: {
-  href: string;
-  label: string;
-  count: number;
-  active: boolean;
-}) {
-  return (
-    <Link
-      href={href}
-      className={`rounded-2xl border px-5 py-4 transition ${
-        active
-          ? "border-gold/40 bg-gold/[0.06]"
-          : "border-white/[0.08] bg-gray-elevated/30 hover:border-gold/20"
-      }`}
-    >
-      <p className="text-xs uppercase tracking-[0.2em] text-gray-muted">
-        {label}
-      </p>
-
-      <p className="mt-2 text-3xl font-light text-white">{count}</p>
-    </Link>
-  );
 }
 
 function Pagination({
@@ -172,20 +119,20 @@ export default async function AdminPage({ searchParams }: PageProps) {
 
   try {
     [result, stats, topViewedTalents] = await Promise.all([
-      getAdminTalents({
+      TalentService.getAdminTalents({
         page: currentPage,
         pageSize: PAGE_SIZE,
         status: activeStatus,
         search: q,
       }),
-      getAdminTalentStats(),
-      getTopViewedTalents(5),
+      TalentService.getAdminStats(),
+      TalentService.getTopViewed(5),
     ]);
   } catch (error) {
     console.error("Failed to load talents:", error);
 
     return (
-      <main className="mx-auto flex min-h-screen max-w-5xl items-center justify-center px-6 py-12 text-white">
+      <main className="mx-auto flex min-h-[60vh] max-w-5xl items-center justify-center px-6 py-12 text-white">
         <div className="w-full max-w-md rounded-2xl border border-red-500/20 bg-red-500/5 p-6">
           <h1 className="text-lg font-medium text-red-400">
             Failed to load dashboard
@@ -203,98 +150,65 @@ export default async function AdminPage({ searchParams }: PageProps) {
   const { total: totalTalents, pending, approved, rejected } = stats;
 
   return (
-    <main className="mx-auto min-h-screen max-w-6xl px-6 py-10 text-white">
-      <header className="mb-10 flex flex-col gap-6 border-b border-white/[0.08] pb-8 md:flex-row md:items-end md:justify-between">
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.4em] text-gold">
-            MLAMH ADMIN
-          </p>
-
-          <h1
-            className="mt-3 text-3xl font-light tracking-tight text-white md:text-5xl"
-            style={{ fontFamily: "var(--font-cormorant)" }}
-          >
-            Talent Management Dashboard
-          </h1>
-
-          <p className="mt-3 max-w-xl text-sm text-gray-muted">
-            Review, approve, reject, and edit all talent profiles from one
-            secure admin workspace.
-          </p>
-        </div>
-
-        <div className="flex flex-col items-start gap-4 md:items-end">
-          <div className="flex flex-wrap gap-3">
-            <Link
-              href="/admin/requests"
-              className="rounded-full border border-white/10 px-5 py-2 text-[10px] uppercase tracking-[0.25em] text-white/60 transition hover:border-gold/40 hover:text-gold"
-            >
-              Talent Requests
-            </Link>
-
-            <Link
-              href="/admin/claim-requests"
-              className="rounded-full border border-white/10 px-5 py-2 text-[10px] uppercase tracking-[0.25em] text-white/60 transition hover:border-gold/40 hover:text-gold"
-            >
-              Claim Requests
-            </Link>
-
-            <AdminLogoutButton />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <StatLink
-              href={buildQueryString({ q })}
-              label="All"
-              count={totalTalents}
-              active={!activeStatus}
-            />
-
-            <StatLink
-              href={buildQueryString({ status: "pending", q })}
-              label="Pending"
-              count={pending}
-              active={activeStatus === "pending"}
-            />
-
-            <StatLink
-              href={buildQueryString({ status: "approved", q })}
-              label="Approved"
-              count={approved}
-              active={activeStatus === "approved"}
-            />
-
-            <StatLink
-              href={buildQueryString({ status: "rejected", q })}
-              label="Rejected"
-              count={rejected}
-              active={activeStatus === "rejected"}
-            />
-          </div>
-        </div>
-      </header>
-
+    <AdminPageContainer>
+      <AdminPageHeader
+        title="Talent Management"
+        description="Review, approve, reject, and edit talent profiles."
+      />
+  
+      <AdminGrid className="mb-8 sm:grid-cols-2 xl:grid-cols-4">
+        <AdminStatCard
+          href={buildQueryString({ q })}
+          label="All"
+          value={totalTalents}
+          active={!activeStatus}
+        />
+  
+        <AdminStatCard
+          href={buildQueryString({ status: "pending", q })}
+          label="Pending"
+          value={pending}
+          active={activeStatus === "pending"}
+        />
+  
+        <AdminStatCard
+          href={buildQueryString({ status: "approved", q })}
+          label="Approved"
+          value={approved}
+          active={activeStatus === "approved"}
+        />
+  
+        <AdminStatCard
+          href={buildQueryString({ status: "rejected", q })}
+          label="Rejected"
+          value={rejected}
+          active={activeStatus === "rejected"}
+        />
+      </AdminGrid>
+  
       <AdminTalentAnalytics topViewedTalents={topViewedTalents} />
-
+  
       <AdminTalentSearch />
-
-      <section>
+  
+      <section className="mt-10">
         <div className="mb-6 flex items-center justify-between gap-4">
           <div>
-            <h2 className="text-lg font-medium text-white">Talent Profiles</h2>
-
+            <h2 className="text-lg font-medium text-white">
+              Talent Profiles
+            </h2>
+  
             <p className="mt-1 text-sm text-gray-muted">
               Showing paginated admin results.
             </p>
           </div>
-
-          <p className="text-sm text-gray-muted">{total} total profiles</p>
+  
+          <p className="text-sm text-gray-muted">
+            {total} total profiles
+          </p>
         </div>
-
+  
         {talents.length === 0 ? (
-          <div className="rounded-2xl border border-white/[0.06] bg-gray-elevated/30 px-6 py-16 text-center">
-            <p className="text-sm text-gray-muted">No talents found.</p>
-          </div>
+          <AdminEmptyState message="No talents found." />
         ) : (
           <>
             <ul className="flex flex-col gap-6">
@@ -304,7 +218,7 @@ export default async function AdminPage({ searchParams }: PageProps) {
                 </li>
               ))}
             </ul>
-
+  
             <Pagination
               currentPage={currentPage}
               totalPages={totalPages}
@@ -314,6 +228,6 @@ export default async function AdminPage({ searchParams }: PageProps) {
           </>
         )}
       </section>
-    </main>
+    </AdminPageContainer>
   );
 }

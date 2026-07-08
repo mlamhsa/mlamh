@@ -8,6 +8,7 @@ const en = {
   nav: {
     tagline: "Casting & Talent",
     talents: "Talents",
+    opportunities: "Opportunities",
     agencies: "Agencies",
     about: "About MALAMIH",
     contact: "Contact",

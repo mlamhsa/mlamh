@@ -1,65 +1,42 @@
 import { useEffect, useState } from "react";
-import type { RealtimePostgresInsertPayload } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase/client";
-import {
-  getNotificationsChannel,
-  removeNotificationsChannel,
-} from "@/lib/supabase/realtime";
-
-type Notification = {
-  id: string;
-  user_id: string;
-  message: string;
-  created_at?: string;
-};
 
 export function useNotifications(userId: string) {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<any[]>([]);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId) {
+      setNotifications([]);
+      return;
+    }
 
-    const load = async () => {
-      const { data } = await supabase
+    let active = true;
+
+    async function fetchNotifications() {
+      const { data, error } = await supabase
         .from("notifications")
         .select("*")
         .eq("user_id", userId)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(20);
 
-      setNotifications((data || []) as Notification[]);
-    };
+      if (!active) return;
 
-    load();
-
-    removeNotificationsChannel();
-
-    const channel = getNotificationsChannel(userId);
-    supabase.removeChannel(channel);
-
-    const freshChannel = supabase.channel(`notifications-${userId}`);
-
-    freshChannel.on(
-      "postgres_changes",
-      {
-        event: "INSERT",
-        schema: "public",
-        table: "notifications",
-        filter: `user_id=eq.${userId}`,
-      },
-      (payload: RealtimePostgresInsertPayload<Notification>) => {
-        setNotifications((prev) => {
-          const exists = prev.some((n) => n.id === payload.new.id);
-          if (exists) return prev;
-
-          return [payload.new, ...prev];
-        });
+      if (error) {
+        setNotifications([]);
+        return;
       }
-    );
 
-    freshChannel.subscribe();
+      setNotifications(data ?? []);
+    }
+
+    fetchNotifications();
+
+    const interval = window.setInterval(fetchNotifications, 30000);
 
     return () => {
-      removeNotificationsChannel();
+      active = false;
+      window.clearInterval(interval);
     };
   }, [userId]);
 

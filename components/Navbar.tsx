@@ -1,211 +1,233 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useState } from "react";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
-import { getDictionary, type Locale } from "@/lib/i18n";
-
-import { useNotifications } from "@/hooks/useNotifications";
 import Image from "next/image";
-
+import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
+import { useEffect, useRef, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import {
+  Bell,
+  ChevronDown,
+  Globe2,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  Search,
+  Settings,
+  User,
+  X,
+} from "lucide-react";
 
-const navHrefs = [
-  { key: "talents" as const, href: "#talents" },
-  { key: "opportunities" as const, href: "/opportunities" },
-  { key: "agencies" as const, href: "#agencies" },
-  { key: "about" as const, href: "#about" },
-  { key: "contact" as const, href: "#contact" },
+import { getDictionary, type Locale } from "@/lib/i18n";
+import { useNotifications } from "@/hooks/useNotifications";
+import { createClient } from "@supabase/supabase-js";
+
+const navItems = [
+  { key: "talents", ar: "المواهب", en: "Talents", href: "/talent" },
+  { key: "opportunities", ar: "الفرص", en: "Opportunities", href: "/opportunities" },
+  { key: "companies", ar: "الشركات", en: "Companies", href: "/publishers" },
+  { key: "about", ar: "عن ملامح", en: "About", href: "#about" },
+  { key: "contact", ar: "تواصل", en: "Contact", href: "#contact" },
 ];
 
 export function Navbar({ locale }: { locale: Locale }) {
-  const dict = getDictionary(locale);
-  const { nav } = dict;
+  const params = useParams();
+  const router = useRouter();
 
-  const targetLocale = locale === "ar" ? "en" : "ar";
+  const routeLocale = (params?.locale as Locale) || locale;
+  const isAr = routeLocale === "ar";
+
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [userId, setUserId] = useState<string>("");
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [userId, setUserId] = useState("");
 
-  const talentJoinLabel =
-    locale === "ar" ? "انضم كموهبة" : "Join as Talent";
+  const profileRef = useRef<HTMLDivElement>(null);
+  const notificationsRef = useRef<HTMLDivElement>(null);
 
-  const publisherJoinLabel =
-    locale === "ar" ? "للشركات والوكالات" : "For Companies & Agencies";
+  const { notifications } = useNotifications(userId);
+  const isLoggedIn = Boolean(userId);
 
-  const opportunitiesLabel =
-    locale === "ar" ? "الفرص" : "Opportunities";
+  const logoSrc = isAr ? "/logo.ar.png" : "/logo.en.png";
+  const targetLocale = isAr ? "en" : "ar";
 
-  const logoSrc =
-    locale === "ar"
-      ? "/logo.ar.png"
-      : "/logo.en.png";
-
-  // ✅ FIX: منع خلط اللغات أو fallback غير صحيح
-  function getNavLabel(key: string) {
-    const value = nav?.[key as keyof typeof nav];
-  
-    if (typeof value !== "string") return "";
-  
-    return value;
-  }
-
-  function getNavHref(key: string, href: string) {
-    if (key === "opportunities") {
-      return `/${locale}/opportunities`;
-    }
-    return href;
-  }
-
-  function closeMenu() {
-    setMenuOpen(false);
-  }
-
+  // ================= USER =================
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 40);
+    const loadUser = async () => {
+      const { data } = await supabase.auth.getUser();
+      setUserId(data.user?.id ?? "");
+    };
+
+    loadUser();
+
+    const { data } = supabase.auth.onAuthStateChange(() => {
+      loadUser();
+    });
+
+    return () => {
+      data.subscription.unsubscribe();
+    };
+  }, []);
+
+  // ================= SCROLL =================
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 32);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  // ================= OUTSIDE CLICK =================
   useEffect(() => {
-    document.body.style.overflow = menuOpen ? "hidden" : "";
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [menuOpen]);
+    const handleOutside = (event: MouseEvent) => {
+      if (
+        profileRef.current &&
+        !profileRef.current.contains(event.target as Node)
+      ) {
+        setProfileOpen(false);
+      }
 
-  useEffect(() => {
-    const getUser = async () => {
-      const { data } = await supabase.auth.getUser();
-      setUserId(data.user?.id || "");
+      if (
+        notificationsRef.current &&
+        !notificationsRef.current.contains(event.target as Node)
+      ) {
+        setNotificationsOpen(false);
+      }
     };
-    getUser();
+
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
   }, []);
 
-  const { notifications } = useNotifications(userId);
+  // ================= LOGOUT =================
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    setUserId("");
+    setProfileOpen(false);
+    router.replace(`/${routeLocale}`);
+  }
+
+  function localizedHref(href: string) {
+    if (href.startsWith("#")) return href;
+    return `/${routeLocale}${href}`;
+  }
 
   return (
     <header
-  className={`fixed top-0 left-0 right-0 z-[100] border-b border-white/[0.06] bg-black/90 backdrop-blur-xl transition-all duration-500 ${
-    scrolled || menuOpen ? "shadow-[0_10px_40px_rgba(0,0,0,0.35)]" : ""
-  }`}
->
-      <nav className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6 lg:px-10">
-
+      dir={isAr ? "rtl" : "ltr"}
+      className={`fixed inset-x-0 top-0 z-[100] border-b transition-all duration-500 ${
+        scrolled || menuOpen
+          ? "border-white/10 bg-black/90 backdrop-blur-2xl"
+          : "border-white/[0.06] bg-black/70 backdrop-blur-xl"
+      }`}
+    >
+      <nav className="mx-auto flex h-20 max-w-7xl items-center justify-between px-5 lg:h-24 lg:px-8">
+        
         {/* LOGO */}
-        <Link
-          href={`/${locale}`}
-          onClick={closeMenu}
-          className="group flex flex-col leading-none"
-        >
-          <div className="w-[140px] h-[40px] relative">
-            <Image
-              src={logoSrc}
-              alt="MLAMH"
-              fill
-              className="object-contain"
-              priority
-            />
-          </div>
-
-          <span className="mt-1 text-[9px] uppercase tracking-[0.45em] text-gray-muted">
-            {nav.tagline}
-          </span>
+        <Link href={`/${routeLocale}`}>
+          <Image
+            src={logoSrc}
+            alt="MLAMH"
+            width={180}
+            height={60}
+            className="object-contain"
+          />
         </Link>
 
-        {/* NAV LINKS */}
-        <ul className="hidden items-center gap-10 lg:flex">
-          {navHrefs.map((link) => (
-            <li key={link.key}>
-              {link.key === "opportunities" ? (
-                <Link
-                  href={getNavHref(link.key, link.href)}
-                  className="text-[11px] uppercase tracking-[0.25em] text-white/70 hover:text-gold"
-                >
-                  {getNavLabel(link.key)}
-                </Link>
-              ) : (
-                <a
-                  href={link.href}
-                  className="text-[11px] uppercase tracking-[0.25em] text-white/70 hover:text-gold"
-                >
-                  {getNavLabel(link.key)}
-                </a>
-              )}
-            </li>
+        {/* NAV */}
+        <div className="hidden items-center gap-8 lg:flex">
+          {navItems.map((item) => (
+            <Link
+              key={item.key}
+              href={localizedHref(item.href)}
+              className="text-[11px] uppercase tracking-[0.24em] text-white/60 hover:text-gold"
+            >
+              {isAr ? item.ar : item.en}
+            </Link>
           ))}
-        </ul>
+        </div>
 
         {/* RIGHT */}
-        <div className="hidden items-center gap-6 lg:flex">
-          <LanguageSwitcher
-            locale={locale}
-            label={nav.switchTo}
-            targetLocale={targetLocale}
-          />
+        <div className="hidden items-center gap-3 lg:flex">
 
-          <div className="relative">
-            <span className="text-xl cursor-pointer">🔔</span>
-
-            {notifications.length > 0 && (
-              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] px-1.5 rounded-full">
-                {notifications.length}
-              </span>
-            )}
-          </div>
-
+          {/* LANGUAGE */}
           <Link
-            href={`/${locale}/talent-login`}
-            className="btn-luxury border border-gold/40 px-6 py-2.5 text-[10px] uppercase text-gold"
+            href={`/${targetLocale}`}
+            className="rounded-full border border-white/10 px-4 py-3 text-[11px] text-white/60 hover:text-gold"
           >
-            {talentJoinLabel}
+            <Globe2 size={15} />
           </Link>
 
-          <Link
-            href={`/${locale}/publisher-login`}
-            className="text-[11px] uppercase text-white/60 hover:text-gold"
-          >
-            {publisherJoinLabel}
-          </Link>
-        </div>
-
-        {/* MOBILE */}
-        <div className="flex items-center gap-4 lg:hidden">
-          <LanguageSwitcher
-            locale={locale}
-            label={nav.switchTo}
-            targetLocale={targetLocale}
-          />
-
-          <button
-            onClick={() => setMenuOpen(!menuOpen)}
-            className="flex h-10 w-10 flex-col justify-center gap-1.5"
-          >
-            <span className={`h-px w-6 bg-white ${menuOpen ? "rotate-45 translate-y-1.5" : ""}`} />
-            <span className={`h-px w-6 bg-white ${menuOpen ? "opacity-0" : ""}`} />
-            <span className={`h-px w-6 bg-white ${menuOpen ? "-rotate-45 -translate-y-1.5" : ""}`} />
+          {/* SEARCH */}
+          <button className="h-11 w-11 rounded-full border border-white/10">
+            <Search size={16} />
           </button>
-        </div>
-      </nav>
 
-      {/* MOBILE MENU */}
-      {menuOpen && (
-        <div className="fixed inset-x-0 top-20 z-[90] bg-black/95 px-6 py-6">
-          <div className="flex flex-col gap-5 text-right">
-            {navHrefs.map((link) => (
-              <a
-                key={link.key}
-                href={link.href}
-                onClick={closeMenu}
-                className="border-b border-white/10 pb-3 text-white/80 hover:text-gold"
-              >
-                {getNavLabel(link.key)}
-              </a>
-            ))}
-          </div>
+          {/* AUTH */}
+          {isLoggedIn ? (
+            <>
+              {/* NOTIFICATIONS */}
+              <div ref={notificationsRef}>
+                <button
+                  onClick={() => setNotificationsOpen((v) => !v)}
+                  className="relative h-11 w-11 rounded-full border border-white/10"
+                >
+                  <Bell size={16} />
+                  {notifications.length > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-gold text-black text-[10px] px-1 rounded-full">
+                      {notifications.length}
+                    </span>
+                  )}
+                </button>
+              </div>
+
+              {/* PROFILE */}
+              <div ref={profileRef}>
+                <button
+                  onClick={() => setProfileOpen((v) => !v)}
+                  className="flex items-center gap-2 rounded-full border border-gold/30 px-4 py-2 text-gold"
+                >
+                  <User size={14} />
+                  {isAr ? "حسابي" : "Account"}
+                </button>
+
+                {profileOpen && (
+                  <div className="absolute mt-3 w-56 rounded-xl border border-white/10 bg-black p-2">
+                    <Link href={`/${routeLocale}/dashboard-router`}>
+                      {isAr ? "لوحة التحكم" : "Dashboard"}
+                    </Link>
+
+                    <button
+                      onClick={handleLogout}
+                      className="text-red-400"
+                    >
+                      {isAr ? "تسجيل الخروج" : "Logout"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <Link href={`/${routeLocale}/login`}>
+                {isAr ? "دخول" : "Login"}
+              </Link>
+              <Link href={`/${routeLocale}/join`}>
+                {isAr ? "ابدأ" : "Join"}
+              </Link>
+            </>
+          )}
         </div>
-      )}
+
+        {/* MOBILE MENU */}
+        <button
+          className="lg:hidden"
+          onClick={() => setMenuOpen((v) => !v)}
+        >
+          {menuOpen ? <X /> : <Menu />}
+        </button>
+      </nav>
     </header>
   );
 }

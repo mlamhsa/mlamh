@@ -25,7 +25,7 @@ async function applyToOpportunity(formData: FormData) {
   } = await authClient.auth.getUser();
 
   if (!user) {
-    redirect(`/${locale}/talent-login`);
+    redirect(`/${locale}/login`);
   }
 
   const { data: talent } = await adminClient

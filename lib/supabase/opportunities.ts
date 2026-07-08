@@ -7,8 +7,8 @@ export async function getPublishedOpportunities(): Promise<Opportunity[]> {
   const { data, error } = await supabase
     .from("opportunities")
     .select("*")
-    .eq("published", true)
-    .eq("status", "open")
+    .or("published.eq.true,status.eq.open,status.eq.published")
+    .neq("status", "archived")
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -28,7 +28,8 @@ export async function getOpportunityBySlug(
     .from("opportunities")
     .select("*")
     .eq("slug", slug)
-    .eq("published", true)
+    .or("published.eq.true,status.eq.open,status.eq.published")
+    .neq("status", "archived")
     .maybeSingle();
 
   if (error) {

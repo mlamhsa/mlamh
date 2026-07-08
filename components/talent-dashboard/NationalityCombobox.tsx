@@ -62,9 +62,9 @@ export function NationalityCombobox({
         value={selectedSlug}
       />
 
-      <label className="mb-2 block text-[10px] uppercase tracking-[0.3em] text-gray-muted">
-        Nationality
-      </label>
+<label className="mb-2 block text-[10px] uppercase tracking-[0.3em] text-gray-muted">
+  الجنسية
+</label>
 
       <button
         type="button"

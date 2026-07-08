@@ -73,6 +73,7 @@ export default function RootLayout({
     <html
       lang={defaultLocale}
       dir="rtl" // 👈 خليه ثابت هنا أو خليه من [locale] لاحقًا
+      data-scroll-behavior="smooth"
       suppressHydrationWarning
       className={`${cormorant.variable} ${dmSans.variable} ${notoArabic.variable} h-full`}
     >

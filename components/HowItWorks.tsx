@@ -1,103 +1,141 @@
+import { BriefcaseBusiness, CheckCircle2, ImagePlus, UserRound } from "lucide-react";
 import type { Locale } from "@/lib/i18n";
 
-export function HowItWorks({
-  locale,
-}: {
-  locale: Locale;
-}) {
-  const isRtl = locale === "ar";
+export function HowItWorks({ locale }: { locale: Locale }) {
+  const isAr = locale === "ar";
 
-  const title =
-    locale === "ar" ? "كيف تعمل ملامح؟" : "How MALAMIH Works";
+  const talentSteps = [
+    {
+      icon: UserRound,
+      title: isAr ? "أنشئ ملفك" : "Create your profile",
+      desc: isAr
+        ? "أضف معلوماتك، مهاراتك، ومجالك الإبداعي."
+        : "Add your details, skills, and creative field.",
+    },
+    {
+      icon: ImagePlus,
+      title: isAr ? "اعرض أعمالك" : "Show your portfolio",
+      desc: isAr
+        ? "ارفع صورك وروابط أعمالك لتظهر بشكل احترافي."
+        : "Upload visuals and work links to present yourself professionally.",
+    },
+    {
+      icon: CheckCircle2,
+      title: isAr ? "ابدأ التقديم" : "Get discovered",
+      desc: isAr
+        ? "استعرض الفرص وتابع طلباتك من مكان واحد."
+        : "Discover opportunities and track applications in one place.",
+    },
+  ];
 
-  const steps =
-    locale === "ar"
-      ? [
-          {
-            title: "إنشاء ملف",
-            desc: "الموهبة تنشئ ملف احترافي يحتوي الصور والمعلومات الأساسية",
-          },
-          {
-            title: "التحليل والمطابقة",
-            desc: "النظام يربطك بالفرص المناسبة حسب الشكل والمهارات",
-          },
-          {
-            title: "اختيار من الجهات",
-            desc: "شركات الإنتاج والوكالات تختار المواهب مباشرة",
-          },
-          {
-            title: "تنفيذ المشروع",
-            desc: "تتم عملية التعاقد والتنفيذ بشكل سريع واحترافي",
-          },
-        ]
-      : [
-          {
-            title: "Create Profile",
-            desc: "Talent creates a professional profile with media and details",
-          },
-          {
-            title: "Smart Matching",
-            desc: "System matches talent with suitable casting opportunities",
-          },
-          {
-            title: "Agency Selection",
-            desc: "Agencies and production houses select directly",
-          },
-          {
-            title: "Project Execution",
-            desc: "Contracts and execution happen seamlessly inside the platform",
-          },
-        ];
+  const companySteps = [
+    {
+      icon: BriefcaseBusiness,
+      title: isAr ? "أنشئ فرصة" : "Create opportunity",
+      desc: isAr
+        ? "انشر احتياجك وحدد نوع الموهبة المطلوبة."
+        : "Post your needs and define the talent you’re looking for.",
+    },
+    {
+      icon: UserRound,
+      title: isAr ? "استقبل المتقدمين" : "Receive applicants",
+      desc: isAr
+        ? "راجع الملفات، الصور، والمعلومات بسرعة ووضوح."
+        : "Review profiles, portfolios, and details with clarity.",
+    },
+    {
+      icon: CheckCircle2,
+      title: isAr ? "اختر الموهبة" : "Choose talent",
+      desc: isAr
+        ? "اتخذ قرارك بثقة وابدأ مشروعك القادم."
+        : "Make confident decisions and move your project forward.",
+    },
+  ];
 
   return (
-    <section className="relative py-28 bg-black border-t border-white/10">
+    <section className="relative overflow-hidden border-t border-white/10 bg-black py-28">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom,rgba(200,169,106,0.08),transparent_45%)]" />
 
-      <div className="mx-auto max-w-7xl px-6">
+      <div className="relative mx-auto max-w-7xl px-6">
+        <div className="mx-auto max-w-3xl text-center">
+          <p className="text-xs uppercase tracking-[0.35em] text-gold">
+            {isAr ? "كيف تعمل ملامح" : "How MLAMH works"}
+          </p>
 
-        {/* Title */}
-        <div className="text-center mb-20">
-          <h2 className="text-4xl md:text-5xl font-light text-white tracking-[-0.02em]">
-            {title}
+          <h2 className="mt-5 text-4xl font-light tracking-tight text-white md:text-6xl">
+            {isAr
+              ? "رحلة واضحة للطرفين."
+              : "A clear path for both sides."}
           </h2>
+
+          <p className="mt-6 text-base leading-8 text-white/50">
+            {isAr
+              ? "سواء كنت موهبة تبحث عن فرصة، أو شركة تبحث عن الشخص المناسب، التجربة مصممة لتكون بسيطة واحترافية."
+              : "Whether you are a talent looking for opportunities or a company searching for the right person, the experience is simple and professional."}
+          </p>
         </div>
 
-        {/* Steps */}
-        <div className="grid md:grid-cols-4 gap-8">
+        <div className="mt-16 grid gap-6 lg:grid-cols-2">
+          <JourneyCard
+            title={isAr ? "للمواهب" : "For Talents"}
+            steps={talentSteps}
+          />
 
-          {steps.map((step, index) => (
-            <div
-              key={index}
-              className="relative p-6 rounded-3xl border border-white/10 bg-white/5 backdrop-blur"
-            >
-
-              {/* Step number */}
-              <div className="text-gold text-xs tracking-[0.3em] mb-4">
-                {locale === "ar"
-                  ? `٠${index + 1}`
-                  : `0${index + 1}`}
-              </div>
-
-              {/* Title */}
-              <h3 className="text-white text-lg font-medium mb-3">
-                {step.title}
-              </h3>
-
-              {/* Description */}
-              <p className="text-white/60 text-sm leading-6">
-                {step.desc}
-              </p>
-
-              {/* connector line */}
-              {index !== steps.length - 1 && (
-                <div className="hidden md:block absolute top-1/2 right-[-20px] w-10 h-px bg-white/10" />
-              )}
-
-            </div>
-          ))}
-
+          <JourneyCard
+            title={isAr ? "للشركات" : "For Companies"}
+            steps={companySteps}
+          />
         </div>
-
       </div>
     </section>
+  );
+}
+
+function JourneyCard({
+  title,
+  steps,
+}: {
+  title: string;
+  steps: {
+    icon: any;
+    title: string;
+    desc: string;
+  }[];
+}) {
+  return (
+    <article className="rounded-[2rem] border border-white/10 bg-white/[0.035] p-6 md:p-8">
+      <h3 className="text-2xl font-light text-white">{title}</h3>
+
+      <div className="mt-8 grid gap-4">
+        {steps.map((step, index) => {
+          const Icon = step.icon;
+
+          return (
+            <div
+              key={step.title}
+              className="grid gap-4 rounded-[1.5rem] border border-white/10 bg-black/25 p-5 md:grid-cols-[auto_1fr]"
+            >
+              <div className="flex h-12 w-12 items-center justify-center rounded-full border border-gold/20 bg-gold/[0.06] text-gold">
+                <Icon size={19} />
+              </div>
+
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.25em] text-gold">
+                  0{index + 1}
+                </p>
+
+                <h4 className="mt-2 text-xl font-light text-white">
+                  {step.title}
+                </h4>
+
+                <p className="mt-2 text-sm leading-7 text-white/45">
+                  {step.desc}
+                </p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </article>
   );
 }

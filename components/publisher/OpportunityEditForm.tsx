@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { updateOpportunityAction } from "@/lib/actions/update-opportunity";
 
 const saudiCities = [
   { value: "riyadh", ar: "الرياض", en: "Riyadh" },
@@ -150,17 +151,7 @@ export default function OpportunityEditForm({
     };
 
     try {
-      const res = await fetch("/api/update-opportunity", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data?.error || "Failed to update opportunity");
-      }
+      await updateOpportunityAction(payload);
 
       setSuccess(isRtl ? "تم حفظ التعديلات بنجاح." : "Changes saved successfully.");
       router.refresh();

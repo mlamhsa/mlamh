@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useEffect, useMemo, useState } from "react";
 import {
   DndContext,
   closestCenter,
@@ -18,7 +19,6 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useEffect, useMemo, useState } from "react";
 
 type ServerAction = (formData: FormData) => void | Promise<void>;
 
@@ -30,6 +30,10 @@ type GallerySortableListProps = {
   setMainAction: ServerAction;
   removeAction: ServerAction;
 };
+
+function uniqueImages(images: string[]) {
+  return Array.from(new Set(images.filter(Boolean)));
+}
 
 function areArraysEqual(a: string[], b: string[]) {
   if (a.length !== b.length) return false;
@@ -125,6 +129,15 @@ function SortableImageCard({
 
           <button
             type="submit"
+            onClick={(event) => {
+              const confirmed = window.confirm(
+                "Are you sure you want to remove this image?"
+              );
+
+              if (!confirmed) {
+                event.preventDefault();
+              }
+            }}
             className="rounded-full border border-red-500/30 px-4 py-2 text-[10px] uppercase tracking-[0.2em] text-red-400 transition hover:bg-red-950/30"
           >
             Remove
@@ -143,20 +156,22 @@ export function GallerySortableList({
   setMainAction,
   removeAction,
 }: GallerySortableListProps) {
+  const normalizedImages = useMemo(() => uniqueImages(images), [images]);
+
   const [mounted, setMounted] = useState(false);
-  const [orderedImages, setOrderedImages] = useState<string[]>(images);
+  const [orderedImages, setOrderedImages] = useState<string[]>(normalizedImages);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
   useEffect(() => {
-    setOrderedImages(images);
-  }, [images]);
+    setOrderedImages(normalizedImages);
+  }, [normalizedImages]);
 
   const hasUnsavedChanges = useMemo(
-    () => !areArraysEqual(images, orderedImages),
-    [images, orderedImages]
+    () => !areArraysEqual(normalizedImages, orderedImages),
+    [normalizedImages, orderedImages]
   );
 
   const sensors = useSensors(
@@ -185,9 +200,7 @@ export function GallerySortableList({
     });
   }
 
-  if (!mounted) {
-    return null;
-  }
+  if (!mounted) return null;
 
   const orderedImagesValue = JSON.stringify(orderedImages);
 
@@ -227,7 +240,7 @@ export function GallerySortableList({
           </div>
         </div>
 
-        {hasUnsavedChanges ? (
+        {hasUnsavedChanges && orderedImages.length > 0 ? (
           <form action={reorderAction} className="mt-5">
             <input
               type="hidden"

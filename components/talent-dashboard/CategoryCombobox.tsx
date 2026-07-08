@@ -68,7 +68,7 @@ export function CategoryCombobox({
 />
 
       <label className="mb-2 block text-[10px] uppercase tracking-[0.3em] text-gray-muted">
-        Category
+        التخصص
       </label>
 
       <button

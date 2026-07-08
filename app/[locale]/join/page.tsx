@@ -1,13 +1,40 @@
+import Link from "next/link";
 import { Footer } from "@/components/Footer";
-import { JoinTalentForm } from "@/components/JoinTalentForm";
 import { Navbar } from "@/components/Navbar";
 import { getDictionary, isValidLocale, type Locale } from "@/lib/i18n";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 type PageProps = {
   params: Promise<{ locale: string }>;
+  searchParams?: Promise<{ error?: string }>;
 };
+
+async function quickJoinAction(formData: FormData) {
+  "use server";
+
+  const locale = String(formData.get("locale") ?? "ar");
+  const email = String(formData.get("email") ?? "").trim();
+  const password = String(formData.get("password") ?? "");
+
+  if (!email || !password) {
+    redirect(`/${locale}/join?error=missing`);
+  }
+
+  const authClient = await createServerSupabaseClient();
+
+  const { error } = await authClient.auth.signUp({
+    email,
+    password,
+  });
+
+  if (error) {
+    redirect(`/${locale}/join?error=signup`);
+  }
+
+  redirect(`/${locale}/join/account-type`);
+}
 
 export async function generateMetadata({
   params,
@@ -26,71 +53,104 @@ export async function generateMetadata({
   };
 }
 
-export default async function JoinPage({ params }: PageProps) {
+export default async function JoinPage({ params, searchParams }: PageProps) {
   const { locale: localeParam } = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : {};
 
   if (!isValidLocale(localeParam)) {
     notFound();
   }
 
   const locale = localeParam as Locale;
-  const dict = getDictionary(locale);
-  const j = dict.join;
-
   const isRtl = locale === "ar";
-  const displayFont = isRtl
-    ? "var(--font-noto-arabic)"
-    : "var(--font-cormorant)";
-  const bodyFont = isRtl
-    ? "var(--font-noto-arabic)"
-    : "var(--font-dm-sans)";
+
+  const authClient = await createServerSupabaseClient();
+  const {
+    data: { user },
+  } = await authClient.auth.getUser();
+
+  if (user) {
+    redirect(`/${locale}/join/account-type`);
+  }
+
+  const hasError = Boolean(resolvedSearchParams.error);
 
   return (
-    <main className="relative z-[2] bg-background">
+    <main className="relative z-[2] bg-black">
       <Navbar locale={locale} />
 
-      <div className="relative overflow-hidden pt-28 pb-20 md:pt-32 md:pb-28">
-        <div className="pointer-events-none absolute inset-0" aria-hidden>
-          <div className="absolute top-0 left-1/2 h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-gold/[0.04] blur-[100px]" />
-        </div>
+      <section
+        dir={isRtl ? "rtl" : "ltr"}
+        className="relative flex min-h-screen items-center justify-center overflow-hidden px-6 py-32 text-white"
+      >
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(200,169,106,0.16),transparent_45%)]" />
 
-        <div className="relative mx-auto max-w-3xl px-6 lg:max-w-4xl lg:px-10">
-          <header
-            className={`mb-14 md:mb-16 ${isRtl ? "text-right" : "text-left"}`}
-          >
-            <div
-              className={`mb-6 flex items-center gap-4 ${
-                isRtl ? "flex-row-reverse" : ""
-              }`}
-            >
-              <span className="gold-line max-w-[80px] flex-1" />
-              <p className="text-[10px] uppercase tracking-[0.4em] text-gold">
-                {j.eyebrow}
-              </p>
-            </div>
-            <h1
-              className="text-[clamp(2.5rem,8vw,4.5rem)] leading-[0.95] font-light text-white"
-              style={{ fontFamily: displayFont }}
-            >
-              {j.title}
-              <span className="italic text-white/85"> {j.titleItalic}</span>
-            </h1>
-            <p
-              className="mt-6 max-w-2xl text-sm leading-relaxed text-gray-muted md:text-base"
-              style={{ fontFamily: bodyFont }}
-            >
-              {j.description}
+        <div className="relative w-full max-w-md rounded-[2rem] border border-white/10 bg-white/[0.035] p-7 shadow-2xl backdrop-blur-xl">
+          <div className="mb-8 text-center">
+            <p className="text-xs uppercase tracking-[0.35em] text-gold">
+              {isRtl ? "انضم إلى ملامح" : "Join MLAMH"}
             </p>
-          </header>
 
-          <JoinTalentForm dict={dict} locale={locale} />
+            <h1 className="mt-4 text-4xl font-light">
+              {isRtl ? "ابدأ بحسابك أولاً" : "Start with your account"}
+            </h1>
+
+            <p className="mt-3 text-sm leading-7 text-white/45">
+              {isRtl
+                ? "أنشئ حسابك خلال ثوانٍ، ثم اختر هل أنت موهبة أو ناشر."
+                : "Create your account in seconds, then choose whether you are talent or publisher."}
+            </p>
+          </div>
+
+          {hasError ? (
+            <div className="mb-5 rounded-2xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-center text-sm text-red-300">
+              {isRtl
+                ? "تعذر إنشاء الحساب. تأكد من البيانات وحاول مرة أخرى."
+                : "Could not create account. Please check your details and try again."}
+            </div>
+          ) : null}
+
+          <form action={quickJoinAction} className="space-y-4">
+            <input type="hidden" name="locale" value={locale} />
+
+            <input
+              name="email"
+              type="email"
+              required
+              autoComplete="email"
+              placeholder={isRtl ? "البريد الإلكتروني" : "Email"}
+              className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-4 text-white outline-none placeholder:text-white/25 focus:border-gold/50"
+            />
+
+            <input
+              name="password"
+              type="password"
+              required
+              minLength={6}
+              autoComplete="new-password"
+              placeholder={isRtl ? "كلمة المرور" : "Password"}
+              className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-4 text-white outline-none placeholder:text-white/25 focus:border-gold/50"
+            />
+
+            <button
+              type="submit"
+              className="w-full rounded-2xl bg-gold py-4 text-sm font-medium text-black transition hover:bg-[#e0bd73]"
+            >
+              {isRtl ? "ابدأ الآن" : "Get Started"}
+            </button>
+          </form>
+
+          <div className="mt-8 border-t border-white/10 pt-6 text-center text-sm text-white/45">
+            {isRtl ? "لديك حساب؟" : "Already have an account?"}{" "}
+            <Link
+              href={`/${locale}/login`}
+              className="text-gold transition hover:text-gold-soft"
+            >
+              {isRtl ? "تسجيل الدخول" : "Sign in"}
+            </Link>
+          </div>
         </div>
-
-        <div
-          className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-gold/30 to-transparent"
-          aria-hidden
-        />
-      </div>
+      </section>
 
       <Footer locale={locale} />
     </main>

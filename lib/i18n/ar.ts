@@ -8,6 +8,7 @@ const ar = {
   nav: {
     tagline: "الكاست والمواهب",
     talents: "المواهب",
+    opportunities: "الفرص",
     agencies: "الوكالات",
     about: "عن مَلامِح",
     contact: "تواصل",

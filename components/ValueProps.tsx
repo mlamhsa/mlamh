@@ -1,99 +1,91 @@
+import {
+  BadgeCheck,
+  Building2,
+  ClipboardCheck,
+  Sparkles,
+} from "lucide-react";
 import type { Locale } from "@/lib/i18n";
 
-export function ValueProps({
-  locale,
-}: {
-  locale: Locale;
-}) {
-  const title =
-    locale === "ar"
-      ? "منصة تربط الطرفين بشكل مباشر"
-      : "A Platform Connecting Both Sides";
+export function ValueProps({ locale }: { locale: Locale }) {
+  const isAr = locale === "ar";
 
-  const subtitle =
-    locale === "ar"
-      ? "نحوّل عملية اختيار المواهب إلى نظام سريع، دقيق، وقابل للتوسع"
-      : "We turn casting into a fast, precise and scalable system";
-
-  const talentTitle = locale === "ar" ? "للمواهب" : "For Talent";
-  const agencyTitle = locale === "ar" ? "للجهات" : "For Agencies";
-
-  const talents =
-    locale === "ar"
-      ? [
-          "ملف احترافي يعرضك بشكل صحيح",
-          "فرص حقيقية بدون وسطاء",
-          "زيادة فرص الظهور",
-          "متابعة الطلبات بسهولة",
-        ]
-      : [
-          "Professional profile presentation",
-          "Direct access to opportunities",
-          "Higher visibility",
-          "Track applications easily",
-        ];
-
-  const agencies =
-    locale === "ar"
-      ? [
-          "الوصول إلى قاعدة مواهب جاهزة",
-          "تقليل وقت الاختيار",
-          "فلترة دقيقة وسريعة",
-          "إدارة الكاست بسهولة",
-        ]
-      : [
-          "Access ready talent database",
-          "Reduce casting time",
-          "Advanced filtering system",
-          "Easy casting management",
-        ];
+  const items = [
+    {
+      icon: BadgeCheck,
+      title: isAr ? "مواهب موثوقة" : "Verified Talent",
+      text: isAr
+        ? "ملفات احترافية، معرض أعمال، وحالة اعتماد واضحة."
+        : "Professional profiles, portfolios, and clear verification status.",
+    },
+    {
+      icon: Building2,
+      title: isAr ? "شركات وفرص حقيقية" : "Trusted Companies",
+      text: isAr
+        ? "فرص من جهات وشركات تبحث عن مواهب مناسبة بجدية."
+        : "Opportunities from companies actively looking for the right talent.",
+    },
+    {
+      icon: ClipboardCheck,
+      title: isAr ? "تقديم أسهل" : "Simpler Applications",
+      text: isAr
+        ? "تابع طلباتك، حالتك، والتنبيهات من مكان واحد."
+        : "Track applications, status updates, and notifications in one place.",
+    },
+    {
+      icon: Sparkles,
+      title: isAr ? "تجربة راقية" : "Premium Experience",
+      text: isAr
+        ? "واجهة مصممة لتجعل الاكتشاف والتواصل أكثر وضوحًا وثقة."
+        : "A refined experience built for clear discovery and trusted connection.",
+    },
+  ];
 
   return (
-    <section className="relative py-28 bg-black border-t border-white/10">
-      <div className="mx-auto max-w-7xl px-6">
+    <section className="relative overflow-hidden border-t border-white/10 bg-black py-28">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(200,169,106,0.10),transparent_45%)]" />
 
-        <div className="text-center max-w-3xl mx-auto">
-          <h2 className="text-white text-4xl md:text-5xl font-light tracking-[-0.02em]">
-            {title}
+      <div className="relative mx-auto max-w-7xl px-6">
+        <div className="mx-auto max-w-3xl text-center">
+          <p className="text-xs uppercase tracking-[0.35em] text-gold">
+            {isAr ? "لماذا ملامح" : "Why MLAMH"}
+          </p>
+
+          <h2 className="mt-5 text-4xl font-light tracking-tight text-white md:text-6xl">
+            {isAr
+              ? "منصة مصممة لاكتشاف المواهب بثقة."
+              : "Built for trusted creative discovery."}
           </h2>
 
-          <p className="mt-4 text-white/60 text-lg">
-            {subtitle}
+          <p className="mt-6 text-base leading-8 text-white/50">
+            {isAr
+              ? "نحوّل رحلة البحث، التقديم، وإدارة الفرص إلى تجربة واضحة واحترافية للطرفين."
+              : "We simplify discovery, applications, and opportunity management for both talents and companies."}
           </p>
         </div>
 
-        <div className="mt-16 grid md:grid-cols-2 gap-8">
+        <div className="mt-16 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+          {items.map((item) => {
+            const Icon = item.icon;
 
-          <div className="p-8 rounded-3xl border border-white/10 bg-white/5 backdrop-blur">
-            <h3 className="text-gold text-sm uppercase tracking-[0.3em] mb-6">
-              {talentTitle}
-            </h3>
+            return (
+              <article
+                key={item.title}
+                className="group rounded-[2rem] border border-white/10 bg-white/[0.035] p-6 transition hover:border-gold/30 hover:bg-gold/[0.05]"
+              >
+                <div className="mb-6 inline-flex rounded-full border border-gold/20 bg-gold/[0.06] p-3 text-gold">
+                  <Icon size={20} />
+                </div>
 
-            <ul className="space-y-4">
-              {talents.map((item, i) => (
-                <li key={i} className="text-white/80 flex gap-3">
-                  <span className="text-gold">•</span>
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </div>
+                <h3 className="text-2xl font-light text-white">
+                  {item.title}
+                </h3>
 
-          <div className="p-8 rounded-3xl border border-white/10 bg-white/5 backdrop-blur">
-            <h3 className="text-gold text-sm uppercase tracking-[0.3em] mb-6">
-              {agencyTitle}
-            </h3>
-
-            <ul className="space-y-4">
-              {agencies.map((item, i) => (
-                <li key={i} className="text-white/80 flex gap-3">
-                  <span className="text-gold">•</span>
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </div>
-
+                <p className="mt-4 text-sm leading-7 text-white/45">
+                  {item.text}
+                </p>
+              </article>
+            );
+          })}
         </div>
       </div>
     </section>

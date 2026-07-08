@@ -14,37 +14,57 @@ export default async function EditOpportunityPage({ params }: PageProps) {
   const { locale, id } = await params;
   const isRtl = locale === "ar";
 
-  // تحقق من أن المستخدم ناشر
   const { publisher } = await requirePublisher(locale);
   const adminClient = createAdminClient();
 
-  // جلب الفرصة الخاصة بالناشر فقط
-  const { data: opportunity } = await adminClient
+  const opportunityId = Number(id);
+
+  if (!Number.isFinite(opportunityId)) {
+    return (
+      <PublisherShell locale={locale} isRtl={isRtl}>
+        <div className="rounded-[2rem] border border-red-400/20 bg-red-400/[0.04] p-8 text-red-200">
+          {isRtl ? "رابط الفرصة غير صحيح." : "Invalid opportunity link."}
+        </div>
+      </PublisherShell>
+    );
+  }
+
+  const { data: opportunity, error } = await adminClient
     .from("opportunities")
     .select("*")
-    .eq("id", Number(id))
+    .eq("id", opportunityId)
     .eq("publisher_id", publisher.id)
     .maybeSingle();
 
+  if (error) {
+    console.error("Edit opportunity error:", error);
+  }
+
   if (!opportunity) {
     return (
-      <main className="min-h-screen bg-black p-10 text-white">
-        <h1>{isRtl ? "الفرصة غير موجودة" : "Opportunity not found"}</h1>
-      </main>
+      <PublisherShell locale={locale} isRtl={isRtl}>
+        <div className="rounded-[2rem] border border-white/10 bg-white/[0.035] p-8">
+          <p className="text-xs uppercase tracking-[0.35em] text-gold">
+            {isRtl ? "غير موجود" : "Not Found"}
+          </p>
+
+          <h1 className="mt-3 text-4xl font-light text-white">
+            {isRtl ? "الفرصة غير موجودة" : "Opportunity not found"}
+          </h1>
+        </div>
+      </PublisherShell>
     );
   }
 
   return (
     <PublisherShell locale={locale} isRtl={isRtl}>
-      <div className="rounded-[2rem] border border-white/10 bg-white/[0.025] p-8">
+      <div className="rounded-[2rem] border border-white/10 bg-white/[0.035] p-8">
         <p className="text-xs uppercase tracking-[0.35em] text-gold">
           {isRtl ? "تعديل الفرصة" : "Edit Opportunity"}
         </p>
 
         <h1 className="mt-3 text-4xl font-light text-white">
-          {isRtl
-            ? `تعديل الفرصة رقم ${opportunity.id}`
-            : `Edit Opportunity #${opportunity.id}`}
+          {opportunity.title}
         </h1>
 
         <p className="mt-4 text-sm text-white/45">
@@ -53,7 +73,7 @@ export default async function EditOpportunityPage({ params }: PageProps) {
             : "Edit the opportunity details and save changes."}
         </p>
 
-        <div className="mt-6">
+        <div className="mt-8">
           <OpportunityEditForm
             locale={locale}
             isRtl={isRtl}

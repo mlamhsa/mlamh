@@ -66,8 +66,8 @@ export async function createPublisherProfileAction(formData: FormData) {
   if (existingProfile) {
     redirect(
       existingProfile.account_type === "publisher"
-        ? "/publisher-dashboard"
-        : "/talent-dashboard"
+        ? "/ar/publisher-dashboard"
+        : "/ar/talent-dashboard"
     );
   }
 
@@ -99,5 +99,5 @@ export async function createPublisherProfileAction(formData: FormData) {
 
   if (publisherError) throw new Error(`[createPublisherProfileAction.publisher] ${publisherError.message}`);
 
-  redirect("/publisher-dashboard");
+  redirect("/ar/publisher-dashboard");
 }
