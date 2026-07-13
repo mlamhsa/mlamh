@@ -3,53 +3,21 @@
 import Link from "next/link";
 import { useActionState, useState, startTransition } from "react";
 import type { ReactNode } from "react";
-import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
+
 import { submitTalentAction as rawSubmitTalentAction } from "@/lib/actions/submit-talent";
+
 import {
   initialSubmitTalentState,
   type SubmitTalentState,
 } from "@/lib/actions/submit-talent-state";
+
 import type { Dictionary, Locale } from "@/lib/i18n";
 import type { TalentSubmissionErrors } from "@/lib/validations/talent-submission";
 
-const BUCKET_NAME = "talent-images";
-const MAX_GALLERY_IMAGES = 1;
+import { TALENT_CATEGORIES } from "@/lib/data/talent-categories";
+import { SAUDI_CITIES } from "@/lib/data/saudi-cities";
+
 const MAX_IMAGE_SIZE_MB = 15;
-
-function getExtension(type: string) {
-  if (type === "image/jpeg") return "jpg";
-  if (type === "image/png") return "png";
-  if (type === "image/webp") return "webp";
-  if (type === "image/avif") return "avif";
-  return null;
-}
-
-async function uploadPublicSubmissionImage(file: File) {
-  const extension = getExtension(file.type);
-
-  if (!extension) {
-    throw new Error("Only JPG, PNG, WEBP, and AVIF images are allowed.");
-  }
-
-  const supabase = createBrowserSupabaseClient();
-  const fileName = `${Date.now()}-${crypto.randomUUID()}.${extension}`;
-  const filePath = `submissions/${fileName}`;
-
-  const { error } = await supabase.storage
-    .from(BUCKET_NAME)
-    .upload(filePath, file, {
-      upsert: false,
-      contentType: file.type,
-    });
-
-  if (error) throw new Error(error.message);
-
-  const {
-    data: { publicUrl },
-  } = supabase.storage.from(BUCKET_NAME).getPublicUrl(filePath);
-
-  return publicUrl;
-}
 
 function FieldLabel({
   htmlFor,
@@ -66,14 +34,24 @@ function FieldLabel({
       className="mb-2 block text-[9px] uppercase tracking-[0.35em] text-gray-muted"
     >
       {children}
-      {required ? <span className="text-gold"> *</span> : null}
+
+      {required ? (
+        <span className="text-gold"> *</span>
+      ) : null}
     </label>
   );
 }
 
 function FieldError({ message }: { message?: string }) {
-  if (!message) return null;
-  return <p className="mt-1.5 text-xs text-red-400/90">{message}</p>;
+  if (!message) {
+    return null;
+  }
+
+  return (
+    <p className="mt-1.5 text-xs text-red-400/90">
+      {message}
+    </p>
+  );
 }
 
 function FormInput({
@@ -109,9 +87,66 @@ function FormInput({
         min={min}
         max={max}
         className={`w-full border bg-black/30 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition-colors duration-300 focus:border-gold/50 ${
-          error ? "border-red-400/50" : "border-white/10"
+          error
+            ? "border-red-400/50"
+            : "border-white/10"
         }`}
       />
+
+      <FieldError message={error} />
+    </div>
+  );
+}
+
+function FormSelect({
+  id,
+  name,
+  placeholder,
+  required,
+  error,
+  dir,
+  options,
+}: {
+  id: string;
+  name: string;
+  placeholder: string;
+  required?: boolean;
+  error?: string;
+  dir?: "ltr" | "rtl";
+  options: Array<{
+    value: string;
+    label: string;
+  }>;
+}) {
+  return (
+    <div>
+      <select
+        id={id}
+        name={name}
+        required={required}
+        defaultValue=""
+        dir={dir}
+        className={`w-full border bg-black/30 px-4 py-3 text-sm text-white outline-none transition-colors duration-300 focus:border-gold/50 ${
+          error
+            ? "border-red-400/50"
+            : "border-white/10"
+        }`}
+      >
+        <option value="" disabled>
+          {placeholder}
+        </option>
+
+        {options.map((option) => (
+          <option
+            key={option.value}
+            value={option.value}
+            className="bg-black text-white"
+          >
+            {option.label}
+          </option>
+        ))}
+      </select>
+
       <FieldError message={error} />
     </div>
   );
@@ -141,9 +176,12 @@ function FormTextarea({
         placeholder={placeholder}
         dir={dir}
         className={`w-full resize-y border bg-black/30 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition-colors duration-300 focus:border-gold/50 ${
-          error ? "border-red-400/50" : "border-white/10"
+          error
+            ? "border-red-400/50"
+            : "border-white/10"
         }`}
       />
+
       <FieldError message={error} />
     </div>
   );
@@ -165,66 +203,69 @@ function SectionTitle({
       <h2 className="text-[10px] uppercase tracking-[0.4em] text-gold">
         {title}
       </h2>
+
       <span className="gold-line flex-1" />
     </div>
   );
 }
 
 function JoinSuccess({
-  dict,
   locale,
   isRtl,
   displayFont,
   bodyFont,
-  onReset,
 }: {
-  dict: Dictionary;
   locale: Locale;
   isRtl: boolean;
   displayFont: string;
   bodyFont: string;
-  onReset: () => void;
 }) {
-  const j = dict.join;
-
   return (
     <div
-      className={`opacity-0-start animate-fade-up border border-gold/25 bg-gold/[0.04] px-8 py-14 text-center md:px-12 md:py-16 ${
+      className={`opacity-0-start animate-fade-up border border-gold/25 bg-gold/[0.04] px-8 py-14 md:px-12 md:py-16 ${
         isRtl ? "text-right" : "text-left"
       }`}
     >
       <div className="gold-line mx-auto mb-8 max-w-xs" />
 
       <h2
-        className="mb-4 text-3xl font-light text-white md:text-4xl"
+        className="mb-4 text-center text-3xl font-light text-white md:text-4xl"
         style={{ fontFamily: displayFont }}
       >
-        {j.successTitle}
+        {locale === "ar"
+          ? "تم استلام طلبك بنجاح"
+          : "Your application has been received"}
       </h2>
 
       <p
-        className="mx-auto max-w-lg text-sm leading-relaxed text-white/65 md:text-base"
+        className="mx-auto max-w-2xl text-center text-sm leading-relaxed text-white/65 md:text-base"
         style={{ fontFamily: bodyFont }}
       >
-        {j.successMessage}
+        {locale === "ar"
+          ? "حسابك الآن بانتظار المراجعة والاعتماد. يمكنك الدخول إلى لوحة التحكم لمتابعة حالة الحساب، أو إكمال بيانات ملفك لرفع نسبة اكتماله قبل الموافقة."
+          : "Your account is now pending review and approval. You can visit your dashboard to follow its status or complete your profile before approval."}
       </p>
 
-      <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
-        <button
-          type="button"
-          onClick={onReset}
-          className="inline-flex items-center justify-center border border-white/15 px-8 py-3 text-[10px] uppercase tracking-[0.3em] text-white/70 transition-colors hover:border-gold/40 hover:text-gold"
-        >
-          {locale === "ar" ? "إرسال طلب جديد" : "Submit another application"}
-        </button>
-
+      <div className="mt-10 grid gap-3 sm:grid-cols-3">
         <Link
           href={`/${locale}`}
-          className={`btn-luxury inline-flex items-center gap-2 border border-gold/40 px-8 py-3 text-[10px] uppercase tracking-[0.3em] text-gold transition-colors hover:bg-gold/10 ${
-            isRtl ? "flex-row-reverse" : ""
-          }`}
+          className="inline-flex min-h-12 items-center justify-center border border-white/15 px-6 py-3 text-center text-[10px] uppercase tracking-[0.24em] text-white/70 transition-colors hover:border-gold/40 hover:text-gold"
         >
-          {j.backHome}
+          {locale === "ar" ? "العودة للرئيسية" : "Back Home"}
+        </Link>
+
+        <Link
+          href={`/${locale}/talent-dashboard`}
+          className="inline-flex min-h-12 items-center justify-center border border-gold/40 bg-gold/[0.06] px-6 py-3 text-center text-[10px] uppercase tracking-[0.24em] text-gold transition-colors hover:border-gold hover:bg-gold/15"
+        >
+          {locale === "ar" ? "لوحة التحكم" : "Dashboard"}
+        </Link>
+
+        <Link
+          href={`/${locale}/talent-dashboard/profile`}
+          className="btn-luxury inline-flex min-h-12 items-center justify-center border border-gold/40 px-6 py-3 text-center text-[10px] uppercase tracking-[0.24em] text-gold transition-colors hover:bg-gold/10"
+        >
+          {locale === "ar" ? "إكمال الملف" : "Complete Profile"}
         </Link>
       </div>
     </div>
@@ -235,31 +276,21 @@ export function JoinTalentForm(props: {
   dict: Dictionary;
   locale: Locale;
 }) {
-  const [formKey, setFormKey] = useState(0);
-
-  return (
-    <JoinTalentFormInner
-      key={formKey}
-      {...props}
-      onReset={() => setFormKey((key) => key + 1)}
-    />
-  );
+  return <JoinTalentFormInner {...props} />;
 }
 
 function JoinTalentFormInner({
   dict,
   locale,
-  onReset,
 }: {
   dict: Dictionary;
   locale: Locale;
-  onReset: () => void;
 }) {
   const j = dict.join;
   const isRtl = locale === "ar";
 
-  const [clientError, setClientError] = useState<string | null>(null);
-  const [isUploadingImages, setIsUploadingImages] = useState(false);
+  const [clientError, setClientError] =
+    useState<string | null>(null);
 
   const displayFont = isRtl
     ? "var(--font-noto-arabic)"
@@ -269,44 +300,138 @@ function JoinTalentFormInner({
     ? "var(--font-noto-arabic)"
     : "var(--font-dm-sans)";
 
-  const submitTalentAction = rawSubmitTalentAction as (
-    state: SubmitTalentState,
-    formData: FormData
-  ) => Promise<SubmitTalentState>;
+  const submitTalentAction =
+    rawSubmitTalentAction as (
+      state: SubmitTalentState,
+      formData: FormData
+    ) => Promise<SubmitTalentState>;
 
-  const [state, formAction, isPending] = useActionState(
-    submitTalentAction,
-    initialSubmitTalentState
+  const [state, formAction, isPending] =
+    useActionState(
+      submitTalentAction,
+      initialSubmitTalentState
+    );
+
+  const errors = (state?.errors ??
+    {}) as TalentSubmissionErrors;
+
+  const categoryOptions =
+    TALENT_CATEGORIES.map((category) => ({
+      value: category.slug,
+      label: isRtl
+        ? category.ar
+        : category.en,
+    }));
+
+  const cityOptions = SAUDI_CITIES.map(
+    (city) => ({
+      value: city.slug,
+      label: isRtl ? city.ar : city.en,
+    })
   );
 
-  const errors = (state?.errors ?? {}) as TalentSubmissionErrors;
+  function prepareSelectionFields(
+    formData: FormData
+  ) {
+    const categorySlug = String(
+      formData.get("category_slug") ?? ""
+    ).trim();
 
-  function mirrorLocaleFields(formData: FormData) {
+    const citySlug = String(
+      formData.get("city_slug") ?? ""
+    ).trim();
+
+    const selectedCategory =
+      TALENT_CATEGORIES.find(
+        (category) =>
+          category.slug === categorySlug
+      );
+
+    if (!selectedCategory) {
+      setClientError(
+        isRtl
+          ? "يرجى اختيار فئة صحيحة."
+          : "Please select a valid category."
+      );
+
+      return false;
+    }
+
+    const selectedCity = SAUDI_CITIES.find(
+      (city) => city.slug === citySlug
+    );
+
+    if (!selectedCity) {
+      setClientError(
+        isRtl
+          ? "يرجى اختيار مدينة صحيحة."
+          : "Please select a valid city."
+      );
+
+      return false;
+    }
+
+    formData.set(
+      "category_slug",
+      selectedCategory.slug
+    );
+
+    formData.set(
+      "category_ar",
+      selectedCategory.ar
+    );
+
+    formData.set(
+      "category_en",
+      selectedCategory.en
+    );
+
+    formData.set("city_slug", selectedCity.slug);
+    formData.set("city_ar", selectedCity.ar);
+    formData.set("city_en", selectedCity.en);
+
+    return true;
+  }
+
+  function mirrorLocaleFields(
+    formData: FormData
+  ) {
     if (isRtl) {
-      const nameAr = String(formData.get("name_ar") ?? "").trim();
-      const categoryAr = String(formData.get("category_ar") ?? "").trim();
-      const cityAr = String(formData.get("city_ar") ?? "").trim();
-      const bioAr = String(formData.get("bio_ar") ?? "").trim();
+      const nameAr = String(
+        formData.get("name_ar") ?? ""
+      ).trim();
+
+      const bioAr = String(
+        formData.get("bio_ar") ?? ""
+      ).trim();
 
       formData.set("name_en", nameAr);
-      formData.set("category_en", categoryAr);
-      formData.set("city_en", cityAr);
       formData.set("bio_en", bioAr);
     } else {
-      const nameEn = String(formData.get("name_en") ?? "").trim();
-      const categoryEn = String(formData.get("category_en") ?? "").trim();
-      const cityEn = String(formData.get("city_en") ?? "").trim();
-      const bioEn = String(formData.get("bio_en") ?? "").trim();
+      const nameEn = String(
+        formData.get("name_en") ?? ""
+      ).trim();
+
+      const bioEn = String(
+        formData.get("bio_en") ?? ""
+      ).trim();
 
       formData.set("name_ar", nameEn);
-      formData.set("category_ar", categoryEn);
-      formData.set("city_ar", cityEn);
       formData.set("bio_ar", bioEn);
     }
   }
 
-  async function handleFormAction(formData: FormData) {
+  async function handleFormAction(
+    formData: FormData
+  ) {
     setClientError(null);
+
+    const selectionsReady =
+      prepareSelectionFields(formData);
+
+    if (!selectionsReady) {
+      return;
+    }
 
     mirrorLocaleFields(formData);
 
@@ -314,11 +439,15 @@ function JoinTalentFormInner({
       formData.get("image"),
       ...formData.getAll("gallery"),
     ].filter(
-      (file): file is File => file instanceof File && file.size > 0
+      (file): file is File =>
+        file instanceof File &&
+        file.size > 0
     );
 
     const oversizedFile = allFiles.find(
-      (file) => file.size > MAX_IMAGE_SIZE_MB * 1024 * 1024
+      (file) =>
+        file.size >
+        MAX_IMAGE_SIZE_MB * 1024 * 1024
     );
 
     if (oversizedFile) {
@@ -327,61 +456,22 @@ function JoinTalentFormInner({
           ? `حجم الصورة كبير جدًا. الحد الأقصى ${MAX_IMAGE_SIZE_MB}MB`
           : `Image too large. Maximum size is ${MAX_IMAGE_SIZE_MB}MB`
       );
+
       return;
     }
 
-    setIsUploadingImages(true);
-
-    try {
-      const imageFile = formData.get("image");
-
-      if (imageFile instanceof File && imageFile.size > 0) {
-        const imageUrl = await uploadPublicSubmissionImage(imageFile);
-        formData.set("image_url", imageUrl);
-      }
-
-      const galleryFiles = formData
-        .getAll("gallery")
-        .filter(
-          (file): file is File => file instanceof File && file.size > 0
-        )
-        .slice(0, MAX_GALLERY_IMAGES);
-
-      formData.delete("gallery_images");
-
-      for (const file of galleryFiles) {
-        const imageUrl = await uploadPublicSubmissionImage(file);
-        formData.append("gallery_images", imageUrl);
-      }
-
-      formData.delete("image");
-      formData.delete("gallery");
-
-      startTransition(() => {
-        formAction(formData);
-      });
-    } catch (error) {
-      setClientError(
-        error instanceof Error
-          ? error.message
-          : locale === "ar"
-            ? "تعذر رفع الصور. جرّب صورًا أخرى أو حجمًا أصغر."
-            : "Unable to upload images. Try different or smaller images."
-      );
-    } finally {
-      setIsUploadingImages(false);
-    }
+    startTransition(() => {
+      formAction(formData);
+    });
   }
 
   if (state?.success) {
     return (
       <JoinSuccess
-        dict={dict}
         locale={locale}
         isRtl={isRtl}
         displayFont={displayFont}
         bodyFont={bodyFont}
-        onReset={onReset}
       />
     );
   }
@@ -390,9 +480,15 @@ function JoinTalentFormInner({
     <form
       action={handleFormAction}
       noValidate
-      className={isRtl ? "text-right" : "text-left"}
+      className={
+        isRtl ? "text-right" : "text-left"
+      }
     >
-      <input type="hidden" name="locale" value={locale} />
+      <input
+        type="hidden"
+        name="locale"
+        value={locale}
+      />
 
       {clientError ? (
         <p
@@ -403,7 +499,8 @@ function JoinTalentFormInner({
         </p>
       ) : null}
 
-      {state?.message && !state?.success ? (
+      {state?.message &&
+      !state?.success ? (
         <p
           className="mb-8 border border-red-400/30 bg-red-950/20 px-4 py-3 text-sm text-red-300"
           role="alert"
@@ -412,7 +509,8 @@ function JoinTalentFormInner({
         </p>
       ) : null}
 
-      {Object.keys(errors ?? {}).length > 0 ? (
+      {Object.keys(errors ?? {}).length >
+      0 ? (
         <p
           className="mb-8 border border-gold/30 bg-gold/[0.04] px-4 py-3 text-sm text-gold"
           role="alert"
@@ -422,122 +520,56 @@ function JoinTalentFormInner({
       ) : null}
 
       <p className="mb-10 text-[10px] uppercase tracking-[0.3em] text-gray-muted">
-        <span className="text-gold">*</span> {j.requiredHint}
+        <span className="text-gold">*</span>{" "}
+        {j.requiredHint}
       </p>
 
-      <SectionTitle title={j.sectionIdentity} isRtl={isRtl} />
+      <SectionTitle
+        title={j.sectionIdentity}
+        isRtl={isRtl}
+      />
 
       <div className="mb-12 grid gap-6 md:grid-cols-2">
         {isRtl ? (
           <>
             <div>
-              <FieldLabel htmlFor="name_ar" required>
+              <FieldLabel
+                htmlFor="name_ar"
+                required
+              >
                 {j.nameAr}
               </FieldLabel>
+
               <FormInput
                 id="name_ar"
                 name="name_ar"
-                placeholder={j.placeholderNameAr}
+                placeholder={
+                  j.placeholderNameAr
+                }
                 required
                 error={errors.name_ar}
                 dir="rtl"
               />
             </div>
-
-            <div>
-              <FieldLabel htmlFor="category_ar" required>
-                {j.categoryAr}
-              </FieldLabel>
-              <FormInput
-                id="category_ar"
-                name="category_ar"
-                placeholder={j.placeholderCategoryAr}
-                required
-                error={errors.category_ar}
-                dir="rtl"
-              />
-            </div>
           </>
         ) : (
           <>
             <div>
-              <FieldLabel htmlFor="name_en" required>
+              <FieldLabel
+                htmlFor="name_en"
+                required
+              >
                 {j.nameEn}
               </FieldLabel>
+
               <FormInput
                 id="name_en"
                 name="name_en"
-                placeholder={j.placeholderNameEn}
+                placeholder={
+                  j.placeholderNameEn
+                }
                 required
                 error={errors.name_en}
-                dir="ltr"
-              />
-            </div>
-
-            <div>
-              <FieldLabel htmlFor="category_en" required>
-                {j.categoryEn}
-              </FieldLabel>
-              <FormInput
-                id="category_en"
-                name="category_en"
-                placeholder={j.placeholderCategoryEn}
-                required
-                error={errors.category_en}
-                dir="ltr"
-              />
-            </div>
-          </>
-        )}
-      </div>
-
-      <SectionTitle title={j.sectionDetails} isRtl={isRtl} />
-
-      <div className="mb-12 grid gap-6 md:grid-cols-2">
-        {isRtl ? (
-          <>
-            <div>
-              <FieldLabel htmlFor="city_ar">{j.cityAr}</FieldLabel>
-              <FormInput
-                id="city_ar"
-                name="city_ar"
-                placeholder={j.placeholderCityAr}
-                error={errors.city_ar}
-                dir="rtl"
-              />
-            </div>
-
-            <div className="md:col-span-2">
-              <FieldLabel htmlFor="bio_ar">{j.bioAr}</FieldLabel>
-              <FormTextarea
-                id="bio_ar"
-                name="bio_ar"
-                placeholder={j.placeholderBioAr}
-                error={errors.bio_ar}
-                dir="rtl"
-              />
-            </div>
-          </>
-        ) : (
-          <>
-            <div>
-              <FieldLabel htmlFor="city_en">{j.cityEn}</FieldLabel>
-              <FormInput
-                id="city_en"
-                name="city_en"
-                placeholder={j.placeholderCityEn}
-                error={errors.city_en}
-                dir="ltr"
-              />
-            </div>
-
-            <div className="md:col-span-2">
-              <FieldLabel htmlFor="bio_en">{j.bioEn}</FieldLabel>
-              <FormTextarea
-                id="bio_en"
-                name="bio_en"
-                placeholder={j.placeholderBioEn}
-                error={errors.bio_en}
                 dir="ltr"
               />
             </div>
@@ -545,7 +577,103 @@ function JoinTalentFormInner({
         )}
 
         <div>
-          <FieldLabel htmlFor="age">{j.age}</FieldLabel>
+          <FieldLabel
+            htmlFor="category_slug"
+            required
+          >
+            {isRtl
+              ? j.categoryAr
+              : j.categoryEn}
+          </FieldLabel>
+
+          <FormSelect
+            id="category_slug"
+            name="category_slug"
+            placeholder={
+              isRtl
+                ? "اختر الفئة"
+                : "Select category"
+            }
+            required
+            error={
+              isRtl
+                ? errors.category_ar
+                : errors.category_en
+            }
+            dir={isRtl ? "rtl" : "ltr"}
+            options={categoryOptions}
+          />
+        </div>
+      </div>
+
+      <SectionTitle
+        title={j.sectionDetails}
+        isRtl={isRtl}
+      />
+
+      <div className="mb-12 grid gap-6 md:grid-cols-2">
+        <div>
+          <FieldLabel
+            htmlFor="city_slug"
+            required
+          >
+            {isRtl ? j.cityAr : j.cityEn}
+          </FieldLabel>
+
+          <FormSelect
+            id="city_slug"
+            name="city_slug"
+            placeholder={
+              isRtl
+                ? "اختر المدينة"
+                : "Select city"
+            }
+            required
+            error={
+              isRtl
+                ? errors.city_ar
+                : errors.city_en
+            }
+            dir={isRtl ? "rtl" : "ltr"}
+            options={cityOptions}
+          />
+        </div>
+
+        {isRtl ? (
+          <div className="md:col-span-2">
+            <FieldLabel htmlFor="bio_ar">
+              {j.bioAr}
+            </FieldLabel>
+
+            <FormTextarea
+              id="bio_ar"
+              name="bio_ar"
+              placeholder={j.placeholderBioAr}
+              error={errors.bio_ar}
+              dir="rtl"
+            />
+          </div>
+        ) : (
+          <div className="md:col-span-2">
+            <FieldLabel htmlFor="bio_en">
+              {j.bioEn}
+            </FieldLabel>
+
+            <FormTextarea
+              id="bio_en"
+              name="bio_en"
+              placeholder={j.placeholderBioEn}
+              error={errors.bio_en}
+              dir="ltr"
+            />
+          </div>
+        )}
+
+        <div>
+          <FieldLabel htmlFor="age">
+            {j.age}
+          </FieldLabel>
+
           <FormInput
             id="age"
             name="age"
@@ -559,7 +687,10 @@ function JoinTalentFormInner({
         </div>
 
         <div>
-          <FieldLabel htmlFor="height">{j.height}</FieldLabel>
+          <FieldLabel htmlFor="height">
+            {j.height}
+          </FieldLabel>
+
           <FormInput
             id="height"
             name="height"
@@ -570,18 +701,27 @@ function JoinTalentFormInner({
         </div>
       </div>
 
-      <SectionTitle title={j.sectionContact} isRtl={isRtl} />
+      <SectionTitle
+        title={j.sectionContact}
+        isRtl={isRtl}
+      />
 
       <div className="mb-12 grid gap-6 md:grid-cols-2">
         <div>
-          <FieldLabel htmlFor="whatsapp" required>
+          <FieldLabel
+            htmlFor="whatsapp"
+            required
+          >
             {j.whatsapp}
           </FieldLabel>
+
           <FormInput
             id="whatsapp"
             name="whatsapp"
             type="tel"
-            placeholder={j.placeholderWhatsapp}
+            placeholder={
+              j.placeholderWhatsapp
+            }
             required
             error={errors.whatsapp}
             dir="ltr"
@@ -589,19 +729,27 @@ function JoinTalentFormInner({
         </div>
 
         <div>
-          <FieldLabel htmlFor="instagram">{j.instagram}</FieldLabel>
+          <FieldLabel htmlFor="instagram">
+            {j.instagram}
+          </FieldLabel>
+
           <FormInput
             id="instagram"
             name="instagram"
             type="url"
-            placeholder={j.placeholderInstagram}
+            placeholder={
+              j.placeholderInstagram
+            }
             error={errors.instagram}
             dir="ltr"
           />
         </div>
 
         <div>
-          <FieldLabel htmlFor="tiktok">TikTok</FieldLabel>
+          <FieldLabel htmlFor="tiktok">
+            TikTok
+          </FieldLabel>
+
           <FormInput
             id="tiktok"
             name="tiktok"
@@ -613,7 +761,10 @@ function JoinTalentFormInner({
         </div>
 
         <div>
-          <FieldLabel htmlFor="snapchat">Snapchat</FieldLabel>
+          <FieldLabel htmlFor="snapchat">
+            Snapchat
+          </FieldLabel>
+
           <FormInput
             id="snapchat"
             name="snapchat"
@@ -625,7 +776,10 @@ function JoinTalentFormInner({
         </div>
 
         <div className="md:col-span-2">
-          <FieldLabel htmlFor="portfolio_url">Portfolio URL</FieldLabel>
+          <FieldLabel htmlFor="portfolio_url">
+            Portfolio URL
+          </FieldLabel>
+
           <FormInput
             id="portfolio_url"
             name="portfolio_url"
@@ -638,7 +792,10 @@ function JoinTalentFormInner({
       </div>
 
       <div className="mb-8">
-        <FieldLabel htmlFor="image">Profile Image</FieldLabel>
+        <FieldLabel htmlFor="image">
+          Profile Image
+        </FieldLabel>
+
         <input
           id="image"
           name="image"
@@ -649,7 +806,10 @@ function JoinTalentFormInner({
       </div>
 
       <div className="mb-10">
-        <FieldLabel htmlFor="gallery">Gallery Image</FieldLabel>
+        <FieldLabel htmlFor="gallery">
+          Gallery Image
+        </FieldLabel>
+
         <input
           id="gallery"
           name="gallery"
@@ -657,6 +817,7 @@ function JoinTalentFormInner({
           accept="image/jpeg,image/png,image/webp,image/avif"
           className="w-full border border-white/10 bg-black/30 px-4 py-3 text-sm text-white file:mr-4 file:border-0 file:bg-gold/10 file:px-4 file:py-2 file:text-gold"
         />
+
         <p className="mt-2 text-xs text-gray-muted">
           {locale === "ar"
             ? "يمكن رفع صورة واحدة للمعرض حاليًا."
@@ -666,18 +827,14 @@ function JoinTalentFormInner({
 
       <button
         type="submit"
-        disabled={isPending || isUploadingImages}
+        disabled={isPending}
         className={`btn-luxury w-full border border-gold/40 bg-gold/[0.06] px-10 py-4 text-[10px] uppercase tracking-[0.35em] text-gold transition-all duration-300 hover:border-gold hover:bg-gold/15 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto ${
-          isRtl ? "mr-0 ml-auto block" : ""
+          isRtl
+            ? "mr-0 ml-auto block"
+            : ""
         }`}
       >
-        {isUploadingImages
-          ? locale === "ar"
-            ? "جاري رفع الصور..."
-            : "Uploading images..."
-          : isPending
-            ? j.submitting
-            : j.submit}
+        {isPending ? j.submitting : j.submit}
       </button>
     </form>
   );

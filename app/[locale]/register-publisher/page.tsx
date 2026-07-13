@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Footer } from "@/components/Footer";
 import { Navbar } from "@/components/Navbar";
 import { createPublisherProfileAction } from "@/lib/actions/create-publisher-profile";
 import { isValidLocale, type Locale } from "@/lib/i18n";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 type PageProps = {
   params: Promise<{ locale: string }>;
@@ -19,20 +20,45 @@ const publisherTypes = [
   { value: "salon", ar: "صالون", en: "Salon" },
   { value: "store", ar: "متجر", en: "Store" },
   { value: "agency", ar: "وكالة", en: "Agency" },
-  { value: "production_company", ar: "شركة إنتاج", en: "Production Company" },
+  {
+    value: "production_company",
+    ar: "شركة إنتاج",
+    en: "Production Company",
+  },
   { value: "brand", ar: "براند", en: "Brand" },
-  { value: "photographer", ar: "مصور", en: "Photographer" },
+  {
+    value: "photographer",
+    ar: "مصور",
+    en: "Photographer",
+  },
   { value: "marketer", ar: "مسوق", en: "Marketer" },
   { value: "other", ar: "أخرى", en: "Other" },
 ];
 
-export default async function RegisterPublisherPage({ params }: PageProps) {
+export default async function RegisterPublisherPage({
+  params,
+}: PageProps) {
   const { locale: localeParam } = await params;
 
-  if (!isValidLocale(localeParam)) notFound();
+  if (!isValidLocale(localeParam)) {
+    notFound();
+  }
 
   const locale = localeParam as Locale;
   const isRtl = locale === "ar";
+
+  /*
+   * المستخدم يجب أن يكون مسجلًا مسبقًا قبل استكمال ملف الناشر.
+   */
+  const authClient = await createServerSupabaseClient();
+
+  const {
+    data: { user },
+  } = await authClient.auth.getUser();
+
+  if (!user) {
+    redirect(`/${locale}/join`);
+  }
 
   return (
     <main className="relative z-[2] bg-background">
@@ -40,7 +66,13 @@ export default async function RegisterPublisherPage({ params }: PageProps) {
 
       <section className="min-h-screen px-6 pt-32 pb-20 text-white">
         <div className="mx-auto max-w-3xl">
-          <header className={isRtl ? "mb-12 text-right" : "mb-12 text-left"}>
+          <header
+            className={
+              isRtl
+                ? "mb-12 text-right"
+                : "mb-12 text-left"
+            }
+          >
             <p className="mb-4 text-[10px] uppercase tracking-[0.4em] text-gold">
               MLAMH PUBLISHER
             </p>
@@ -53,7 +85,9 @@ export default async function RegisterPublisherPage({ params }: PageProps) {
                   : "var(--font-cormorant)",
               }}
             >
-              {isRtl ? "أنشئ حساب ناشر فرص" : "Create Publisher Account"}
+              {isRtl
+                ? "أنشئ حساب ناشر فرص"
+                : "Create Publisher Account"}
             </h1>
 
             <p className="mt-5 max-w-2xl text-sm leading-7 text-gray-muted">
@@ -65,41 +99,38 @@ export default async function RegisterPublisherPage({ params }: PageProps) {
 
           <form
             action={createPublisherProfileAction}
-            className={isRtl ? "text-right" : "text-left"}
+            className={
+              isRtl ? "text-right" : "text-left"
+            }
           >
-            <div className="mb-10 rounded-3xl border border-white/[0.08] bg-gray-elevated/30 p-6 md:p-8">
-              <div className="grid gap-6 md:grid-cols-2">
-                <Field
-                  label={isRtl ? "البريد الإلكتروني" : "Email"}
-                  name="email"
-                  type="email"
-                  required
-                  dir="ltr"
-                  placeholder="publisher@example.com"
-                />
-                <Field
-                  label={isRtl ? "كلمة المرور" : "Password"}
-                  name="password"
-                  type="password"
-                  required
-                  dir="ltr"
-                  placeholder="••••••••"
-                />
-              </div>
-            </div>
+            <input
+              type="hidden"
+              name="locale"
+              value={locale}
+            />
 
             <div className="mb-10 rounded-3xl border border-white/[0.08] bg-gray-elevated/30 p-6 md:p-8">
               <div className="grid gap-6 md:grid-cols-2">
                 <Field
-                  label={isRtl ? "اسم المسؤول" : "Contact Name"}
+                  label={
+                    isRtl
+                      ? "اسم المسؤول"
+                      : "Contact Name"
+                  }
                   name="contact_name"
                   required
                   dir={isRtl ? "rtl" : "ltr"}
-                  placeholder={isRtl ? "مثال: سارة أحمد" : "e.g. Sarah Ahmed"}
+                  placeholder={
+                    isRtl
+                      ? "مثال: سارة أحمد"
+                      : "e.g. Sarah Ahmed"
+                  }
                 />
 
                 <Field
-                  label={isRtl ? "رقم التواصل" : "Phone"}
+                  label={
+                    isRtl ? "رقم التواصل" : "Phone"
+                  }
                   name="phone"
                   type="tel"
                   required
@@ -108,17 +139,27 @@ export default async function RegisterPublisherPage({ params }: PageProps) {
                 />
 
                 <Field
-                  label={isRtl ? "اسم الجهة / النشاط" : "Business / Display Name"}
+                  label={
+                    isRtl
+                      ? "اسم الجهة / النشاط"
+                      : "Business / Display Name"
+                  }
                   name="company_name"
                   dir={isRtl ? "rtl" : "ltr"}
-                  placeholder={isRtl ? "مثال: صالون سارة" : "e.g. Sarah Salon"}
+                  placeholder={
+                    isRtl
+                      ? "مثال: صالون سارة"
+                      : "e.g. Sarah Salon"
+                  }
                 />
 
                 <Field
                   label={isRtl ? "المدينة" : "City"}
                   name="city"
                   dir={isRtl ? "rtl" : "ltr"}
-                  placeholder={isRtl ? "الرياض" : "Riyadh"}
+                  placeholder={
+                    isRtl ? "الرياض" : "Riyadh"
+                  }
                 />
 
                 <div className="md:col-span-2">
@@ -126,7 +167,9 @@ export default async function RegisterPublisherPage({ params }: PageProps) {
                     htmlFor="publisher_type"
                     className="mb-2 block text-[9px] uppercase tracking-[0.35em] text-gray-muted"
                   >
-                    {isRtl ? "نوع الناشر" : "Publisher Type"}{" "}
+                    {isRtl
+                      ? "نوع الناشر"
+                      : "Publisher Type"}{" "}
                     <span className="text-gold">*</span>
                   </label>
 
@@ -137,10 +180,16 @@ export default async function RegisterPublisherPage({ params }: PageProps) {
                     defaultValue=""
                   >
                     <option value="" disabled hidden>
-                      {isRtl ? "اختر النوع" : "Select type"}
+                      {isRtl
+                        ? "اختر النوع"
+                        : "Select type"}
                     </option>
+
                     {publisherTypes.map((type) => (
-                      <option key={type.value} value={type.value}>
+                      <option
+                        key={type.value}
+                        value={type.value}
+                      >
                         {isRtl ? type.ar : type.en}
                       </option>
                     ))}
@@ -155,7 +204,11 @@ export default async function RegisterPublisherPage({ params }: PageProps) {
 
                 <div className="md:col-span-2">
                   <Field
-                    label={isRtl ? "إذا اخترت أخرى، من أنت؟" : "If Other, who are you?"}
+                    label={
+                      isRtl
+                        ? "إذا اخترت أخرى، من أنت؟"
+                        : "If Other, who are you?"
+                    }
                     name="publisher_type_other"
                     dir={isRtl ? "rtl" : "ltr"}
                     placeholder={
@@ -175,7 +228,11 @@ export default async function RegisterPublisherPage({ params }: PageProps) {
                 />
 
                 <Field
-                  label={isRtl ? "الموقع الإلكتروني" : "Website"}
+                  label={
+                    isRtl
+                      ? "الموقع الإلكتروني"
+                      : "Website"
+                  }
                   name="website"
                   type="url"
                   dir="ltr"
@@ -193,7 +250,9 @@ export default async function RegisterPublisherPage({ params }: PageProps) {
                 type="submit"
                 className="btn-luxury border border-gold/40 bg-gold/[0.06] px-8 py-4 text-[10px] uppercase tracking-[0.35em] text-gold transition hover:border-gold hover:bg-gold/15"
               >
-                {isRtl ? "إنشاء الحساب" : "Create Account"}
+                {isRtl
+                  ? "إنشاء الحساب"
+                  : "Create Account"}
               </button>
 
               <Link
@@ -212,15 +271,26 @@ export default async function RegisterPublisherPage({ params }: PageProps) {
   );
 }
 
-function Field({ label, name, type = "text", placeholder, required, dir }: any) {
+function Field({
+  label,
+  name,
+  type = "text",
+  placeholder,
+  required,
+  dir,
+}: any) {
   return (
     <div>
       <label
         htmlFor={name}
         className="mb-2 block text-[9px] uppercase tracking-[0.35em] text-gray-muted"
       >
-        {label} {required ? <span className="text-gold">*</span> : null}
+        {label}{" "}
+        {required ? (
+          <span className="text-gold">*</span>
+        ) : null}
       </label>
+
       <input
         id={name}
         name={name}

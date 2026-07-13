@@ -1,5 +1,3 @@
-// /app/[locale]/opportunities/[slug]/page.tsx
-
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -56,6 +54,16 @@ async function applyToOpportunity(formData: FormData) {
   redirect(`/${locale}/talent-dashboard/requests`);
 }
 
+function formatBudget(value: unknown, isRtl: boolean) {
+  const budget = Number(value);
+
+  if (!budget) return isRtl ? "حسب الاتفاق" : "By agreement";
+
+  return `${new Intl.NumberFormat(isRtl ? "ar-SA" : "en-US").format(budget)} ${
+    isRtl ? "ريال" : "SAR"
+  }`;
+}
+
 export default async function OpportunityDetailPage({
   params,
 }: OpportunityPageProps) {
@@ -72,19 +80,22 @@ export default async function OpportunityDetailPage({
 
   if (!opportunity) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-black px-6 text-white">
+      <main className="flex min-h-screen items-center justify-center bg-black px-5 text-white">
         <div className="max-w-xl text-center">
           <p className="text-xs uppercase tracking-[0.35em] text-[#c8a45d]">
             MLAMH
           </p>
-          <h1 className="mt-5 text-4xl font-light">
+
+          <h1 className="mt-5 text-3xl font-light md:text-4xl">
             {isRtl ? "لم يتم العثور على الفرصة" : "Opportunity Not Found"}
           </h1>
+
           <p className="mt-4 text-sm leading-7 text-white/45">
             {isRtl
               ? "الفرصة التي تحاول الوصول إليها غير موجودة أو لم تعد متاحة."
               : "The opportunity you are looking for does not exist or is no longer available."}
           </p>
+
           <Link
             href={`/${locale}/opportunities`}
             className="mt-8 inline-flex rounded-full border border-[#c8a45d] px-7 py-4 text-sm text-[#c8a45d] transition hover:bg-[#c8a45d] hover:text-black"
@@ -93,8 +104,9 @@ export default async function OpportunityDetailPage({
           </Link>
         </div>
       </main>
-      );
-    }
+    );
+  }
+
   const authClient = await createServerSupabaseClient();
   const adminClient = createAdminClient();
 
@@ -119,48 +131,43 @@ export default async function OpportunityDetailPage({
         .maybeSingle()
     : { data: null };
 
-  const canApply = !!user && !!talent && !existingApplication;
+  const isOpen =
+    opportunity.status === "open" || opportunity.status === "published";
+
+  const canApply = !!user && !!talent && !existingApplication && isOpen;
+
   const city = isRtl
     ? opportunity.city_ar || opportunity.city_en || "-"
     : opportunity.city_en || opportunity.city_ar || "-";
 
-  const isOpen = opportunity.status === "open";
+  const budget = formatBudget(opportunity.budget, isRtl);
 
   return (
     <main
       dir={isRtl ? "rtl" : "ltr"}
-      className="min-h-screen bg-black text-white"
+      className="min-h-screen bg-black pb-28 text-white md:pb-0"
     >
-      <div className="mx-auto max-w-7xl px-6 py-10 md:py-16">
-        <div className="mb-10 flex items-center justify-between gap-4">
+      <div className="mx-auto max-w-7xl px-4 pt-24 md:px-6 md:pt-32">
+        <div className="mb-5 flex items-center justify-between gap-3">
           <Link
             href={`/${locale}/opportunities`}
-            className="rounded-full border border-white/10 px-5 py-3 text-sm text-white/60 transition hover:border-[#c8a45d]/60 hover:text-[#c8a45d]"
+            className="rounded-full border border-white/10 px-4 py-3 text-xs text-white/60 transition hover:border-[#c8a45d]/60 hover:text-[#c8a45d] md:px-5 md:text-sm"
           >
-            {isRtl ? "العودة للفرص" : "Back to Opportunities"}
+            {isRtl ? "العودة للفرص" : "Back"}
           </Link>
 
           <OpportunityShareButton title={opportunity.title || "فرصة من ملامح"} />
-          
-          {talent && (
-            <Link
-              href={`/${locale}/talent-dashboard`}
-              className="rounded-full border border-[#c8a45d]/40 px-5 py-3 text-sm text-[#c8a45d] transition hover:bg-[#c8a45d] hover:text-black"
-            >
-              {isRtl ? "لوحة الموهبة" : "Talent Dashboard"}
-            </Link>
-          )}
         </div>
 
-        <section className="overflow-hidden rounded-[2.5rem] border border-white/10 bg-white/[0.025]">
-          <div className="border-b border-white/10 bg-gradient-to-b from-white/[0.06] to-transparent p-8 md:p-12">
-            <div className="mb-6 flex flex-wrap items-center gap-3">
-              <span className="rounded-full border border-[#c8a45d]/40 bg-[#c8a45d]/10 px-4 py-2 text-xs uppercase tracking-[0.22em] text-[#c8a45d]">
+        <section className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.025] md:rounded-[2.5rem]">
+          <div className="border-b border-white/10 bg-gradient-to-b from-white/[0.06] to-transparent p-5 md:p-12">
+            <div className="mb-5 flex flex-wrap items-center gap-2">
+              <span className="rounded-full border border-[#c8a45d]/40 bg-[#c8a45d]/10 px-3 py-2 text-[10px] uppercase tracking-[0.18em] text-[#c8a45d] md:px-4 md:text-xs">
                 {opportunity.opportunity_type || "-"}
               </span>
 
               <span
-                className={`rounded-full border px-4 py-2 text-xs uppercase tracking-[0.22em] ${
+                className={`rounded-full border px-3 py-2 text-[10px] uppercase tracking-[0.18em] md:px-4 md:text-xs ${
                   isOpen
                     ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
                     : "border-red-400/30 bg-red-400/10 text-red-300"
@@ -168,45 +175,33 @@ export default async function OpportunityDetailPage({
               >
                 {isOpen
                   ? isRtl
-                    ? "مفتوحة"
-                    : "Open"
+                    ? "منشورة"
+                    : "Published"
                   : isRtl
                     ? "مغلقة"
                     : "Closed"}
               </span>
             </div>
 
-            <h1 className="max-w-4xl text-4xl font-light leading-tight md:text-6xl">
+            <h1 className="text-4xl font-light leading-tight md:max-w-4xl md:text-6xl">
               {opportunity.title || "-"}
             </h1>
 
-            <p className="mt-6 max-w-3xl text-sm leading-8 text-white/50 md:text-base">
+            <p className="mt-5 text-sm leading-8 text-white/50 md:max-w-3xl md:text-base">
               {opportunity.description || "-"}
             </p>
           </div>
 
-          <div className="grid gap-8 p-6 md:p-8 lg:grid-cols-[1.2fr_0.8fr]">
-            <div className="space-y-6">
-              <section className="rounded-[2rem] border border-white/10 bg-black/30 p-6 md:p-8">
-                <p className="text-xs uppercase tracking-[0.32em] text-[#c8a45d]">
+          <div className="grid gap-5 p-4 md:p-8 lg:grid-cols-[1.2fr_0.8fr]">
+            <div className="space-y-5">
+              <section className="rounded-[1.75rem] border border-white/10 bg-black/30 p-5 md:rounded-[2rem] md:p-8">
+                <p className="text-[10px] uppercase tracking-[0.28em] text-[#c8a45d] md:text-xs">
                   {isRtl ? "تفاصيل الفرصة" : "Opportunity Details"}
                 </p>
 
-                <div className="mt-6 grid gap-4 md:grid-cols-2">
-                  <InfoCard
-                    label={isRtl ? "المدينة" : "City"}
-                    value={city}
-                  />
-                  <InfoCard
-                    label={isRtl ? "الميزانية" : "Budget"}
-                    value={
-                      opportunity.budget
-                        ? `${opportunity.budget} ${isRtl ? "ريال" : "SAR"}`
-                        : isRtl
-                          ? "حسب الاتفاق"
-                          : "By agreement"
-                    }
-                  />
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                  <InfoCard label={isRtl ? "المدينة" : "City"} value={city} />
+                  <InfoCard label={isRtl ? "الميزانية" : "Budget"} value={budget} />
                   <InfoCard
                     label={isRtl ? "العمر المطلوب" : "Required Age"}
                     value={
@@ -224,8 +219,8 @@ export default async function OpportunityDetailPage({
                 </div>
               </section>
 
-              <section className="rounded-[2rem] border border-white/10 bg-black/30 p-6 md:p-8">
-                <p className="text-xs uppercase tracking-[0.32em] text-[#c8a45d]">
+              <section className="rounded-[1.75rem] border border-white/10 bg-black/30 p-5 md:rounded-[2rem] md:p-8">
+                <p className="text-[10px] uppercase tracking-[0.28em] text-[#c8a45d] md:text-xs">
                   {isRtl ? "وصف الفرصة" : "Description"}
                 </p>
 
@@ -235,9 +230,9 @@ export default async function OpportunityDetailPage({
               </section>
             </div>
 
-            <aside className="space-y-6">
-              <section className="rounded-[2rem] border border-[#c8a45d]/20 bg-[#c8a45d]/[0.04] p-6 md:p-8">
-                <p className="text-xs uppercase tracking-[0.32em] text-[#c8a45d]">
+            <aside className="space-y-5">
+              <section className="rounded-[1.75rem] border border-[#c8a45d]/20 bg-[#c8a45d]/[0.04] p-5 md:rounded-[2rem] md:p-8">
+                <p className="text-[10px] uppercase tracking-[0.28em] text-[#c8a45d] md:text-xs">
                   {isRtl ? "التقديم" : "Application"}
                 </p>
 
@@ -251,50 +246,20 @@ export default async function OpportunityDetailPage({
                     : "Only registered talent accounts can apply to this opportunity."}
                 </p>
 
-                <div className="mt-7">
-                  {!isOpen ? (
-                    <div className="rounded-2xl border border-red-400/20 bg-red-400/10 p-4 text-sm text-red-200">
-                      {isRtl
-                        ? "هذه الفرصة مغلقة حالياً."
-                        : "This opportunity is currently closed."}
-                    </div>
-                  ) : existingApplication ? (
-                    <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4 text-sm text-emerald-200">
-                      {isRtl
-                        ? "لقد قدمت على هذه الفرصة مسبقاً."
-                        : "You have already applied to this opportunity."}
-                    </div>
-                  ) : canApply ? (
-                    <form action={applyToOpportunity}>
-                      <input type="hidden" name="locale" value={locale} />
-                      <input
-                        type="hidden"
-                        name="opportunityId"
-                        value={opportunity.id}
-                      />
-
-                      <button
-                        type="submit"
-                        className="w-full rounded-full bg-[#c8a45d] px-8 py-4 text-sm font-medium text-black transition hover:bg-[#e0bd73]"
-                      >
-                        {isRtl ? "التقديم على الفرصة" : "Apply for Opportunity"}
-                      </button>
-                    </form>
-                  ) : (
-                    <Link
-                      href={`/${locale}/talent-login`}
-                      className="block w-full rounded-full border border-[#c8a45d] px-8 py-4 text-center text-sm font-medium text-[#c8a45d] transition hover:bg-[#c8a45d] hover:text-black"
-                    >
-                      {isRtl
-                        ? "سجّل الدخول كموهبة للتقديم"
-                        : "Login as Talent to Apply"}
-                    </Link>
-                  )}
+                <div className="mt-6 hidden md:block">
+                  <ApplyArea
+                    locale={locale}
+                    isRtl={isRtl}
+                    isOpen={isOpen}
+                    canApply={canApply}
+                    existingApplication={existingApplication}
+                    opportunityId={opportunity.id}
+                  />
                 </div>
               </section>
 
-              <section className="rounded-[2rem] border border-white/10 bg-black/30 p-6 md:p-8">
-                <p className="text-xs uppercase tracking-[0.32em] text-[#c8a45d]">
+              <section className="rounded-[1.75rem] border border-white/10 bg-black/30 p-5 md:rounded-[2rem] md:p-8">
+                <p className="text-[10px] uppercase tracking-[0.28em] text-[#c8a45d] md:text-xs">
                   {isRtl ? "جهة العرض" : "Publisher"}
                 </p>
 
@@ -321,17 +286,92 @@ export default async function OpportunityDetailPage({
           </div>
         </section>
       </div>
+
+      <div className="fixed inset-x-0 bottom-0 z-[80] border-t border-white/10 bg-black/95 p-4 backdrop-blur-xl md:hidden">
+        <ApplyArea
+          locale={locale}
+          isRtl={isRtl}
+          isOpen={isOpen}
+          canApply={canApply}
+          existingApplication={existingApplication}
+          opportunityId={opportunity.id}
+          compact
+        />
+      </div>
     </main>
+  );
+}
+
+function ApplyArea({
+  locale,
+  isRtl,
+  isOpen,
+  canApply,
+  existingApplication,
+  opportunityId,
+  compact = false,
+}: {
+  locale: string;
+  isRtl: boolean;
+  isOpen: boolean;
+  canApply: boolean;
+  existingApplication: any;
+  opportunityId: number;
+  compact?: boolean;
+}) {
+  if (!isOpen) {
+    return (
+      <div className="rounded-2xl border border-red-400/20 bg-red-400/10 p-4 text-center text-sm text-red-200">
+        {isRtl ? "هذه الفرصة مغلقة حالياً." : "This opportunity is currently closed."}
+      </div>
+    );
+  }
+
+  if (existingApplication) {
+    return (
+      <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4 text-center text-sm text-emerald-200">
+        {isRtl
+          ? "لقد قدمت على هذه الفرصة مسبقاً."
+          : "You have already applied to this opportunity."}
+      </div>
+    );
+  }
+
+  if (canApply) {
+    return (
+      <form action={applyToOpportunity}>
+        <input type="hidden" name="locale" value={locale} />
+        <input type="hidden" name="opportunityId" value={opportunityId} />
+
+        <button
+          type="submit"
+          className={`w-full rounded-2xl bg-[#c8a45d] px-6 text-sm font-medium text-black transition hover:bg-[#e0bd73] ${
+            compact ? "py-4" : "py-4"
+          }`}
+        >
+          {isRtl ? "التقديم على الفرصة" : "Apply for Opportunity"}
+        </button>
+      </form>
+    );
+  }
+
+  return (
+    <Link
+      href={`/${locale}/talent-login`}
+      className="block w-full rounded-2xl border border-[#c8a45d] px-6 py-4 text-center text-sm font-medium text-[#c8a45d] transition hover:bg-[#c8a45d] hover:text-black"
+    >
+      {isRtl ? "سجّل الدخول كموهبة للتقديم" : "Login as Talent to Apply"}
+    </Link>
   );
 }
 
 function InfoCard({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-5">
-      <p className="text-xs uppercase tracking-[0.22em] text-white/35">
+    <div className="rounded-[1.25rem] border border-white/10 bg-white/[0.03] p-4 md:rounded-[1.5rem] md:p-5">
+      <p className="text-[10px] uppercase tracking-[0.2em] text-white/35 md:text-xs">
         {label}
       </p>
-      <p className="mt-3 text-lg font-light text-white">{value}</p>
+      <p className="mt-3 break-words text-lg font-light text-white">{value}</p>
     </div>
   );
 }
@@ -340,7 +380,7 @@ function InfoLine({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-3 last:border-b-0 last:pb-0">
       <span className="text-white/35">{label}</span>
-      <span className="text-white/70">{value}</span>
+      <span className="break-words text-white/70">{value}</span>
     </div>
   );
 }

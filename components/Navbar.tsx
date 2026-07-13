@@ -122,14 +122,14 @@ export function Navbar({ locale }: { locale: Locale }) {
     >
       <nav className="mx-auto flex h-20 max-w-7xl items-center justify-between px-5 lg:h-24 lg:px-8">
         <Link href={`/${routeLocale}`} onClick={closeMobileMenu}>
-          <Image
-            src={logoSrc}
-            alt="MLAMH"
-            width={180}
-            height={60}
-            priority
-            className="object-contain"
-          />
+        <Image
+  src={logoSrc}
+  alt="MLAMH"
+  width={180}
+  height={60}
+  priority
+  className="h-auto w-[150px] object-contain md:w-[180px]"
+/>
         </Link>
 
         <div className="hidden items-center gap-8 lg:flex">

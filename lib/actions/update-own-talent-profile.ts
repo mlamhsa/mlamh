@@ -35,11 +35,50 @@ async function getCurrentUser() {
   return user;
 }
 
+/**
+ * تحميل ملف الموهبة الحالية من السيرفر.
+ *
+ * نستخدم Admin Client هنا لتجنب مشكلة RLS التي كانت تجعل
+ * Browser Client يعيد null رغم وجود السجل في قاعدة البيانات.
+ */
+export async function getOwnTalentProfileAction() {
+  const user = await getCurrentUser();
+  const adminClient = createAdminClient();
+
+  console.log("CURRENT AUTH USER:", {
+    id: user.id,
+    email: user.email,
+  });
+
+  const { data: talent, error } = await adminClient
+    .from("talents")
+    .select("*")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  console.log("LINKED TALENT:", talent);
+
+  if (error) {
+    throw new Error(
+      "[getOwnTalentProfileAction] " + error.message
+    );
+  }
+
+  return talent;
+}
+
 function buildTalentSharedPayload(formData: FormData) {
   const selectedCategory = getSelectedCategory(formData);
   const selectedCity = getSelectedCity(formData);
-  const galleryImages = stringArrayValue(formData, "gallery_images");
-  const nationalitySlug = nullableStringValue(formData, "nationality_slug");
+  const galleryImages = stringArrayValue(
+    formData,
+    "gallery_images"
+  );
+
+  const nationalitySlug = nullableStringValue(
+    formData,
+    "nationality_slug"
+  );
 
   return {
     category_slug: selectedCategory.category_slug,
@@ -66,7 +105,10 @@ function buildTalentSharedPayload(formData: FormData) {
     instagram: nullableStringValue(formData, "instagram"),
     tiktok: nullableStringValue(formData, "tiktok"),
     snapchat: nullableStringValue(formData, "snapchat"),
-    portfolio_url: nullableStringValue(formData, "portfolio_url"),
+    portfolio_url: nullableStringValue(
+      formData,
+      "portfolio_url"
+    ),
 
     availability_status: availabilityValue(formData),
 
@@ -76,36 +118,62 @@ function buildTalentSharedPayload(formData: FormData) {
     hair_color: nullableStringValue(formData, "hair_color"),
     hair_type: nullableStringValue(formData, "hair_type"),
     skin_color: nullableStringValue(formData, "skin_color"),
-    clothing_size: nullableStringValue(formData, "clothing_size"),
+    clothing_size: nullableStringValue(
+      formData,
+      "clothing_size"
+    ),
     shoe_size: nullableNumberValue(formData, "shoe_size"),
     chest_size: nullableNumberValue(formData, "chest_size"),
     waist_size: nullableNumberValue(formData, "waist_size"),
     hip_size: nullableNumberValue(formData, "hip_size"),
 
-    experience_years: nullableNumberValue(formData, "experience_years"),
+    experience_years: nullableNumberValue(
+      formData,
+      "experience_years"
+    ),
+
     video_intro: nullableStringValue(formData, "video_intro"),
     showreel_url: nullableStringValue(formData, "showreel_url"),
 
-    ready_to_travel: booleanValue(formData, "ready_to_travel"),
+    ready_to_travel: booleanValue(
+      formData,
+      "ready_to_travel"
+    ),
     has_passport: booleanValue(formData, "has_passport"),
     has_car: booleanValue(formData, "has_car"),
-    work_outside_city: booleanValue(formData, "work_outside_city"),
-    work_outside_country: booleanValue(formData, "work_outside_country"),
+    work_outside_city: booleanValue(
+      formData,
+      "work_outside_city"
+    ),
+    work_outside_country: booleanValue(
+      formData,
+      "work_outside_country"
+    ),
 
     image_url: requiredStringValue(formData, "image_url"),
     gallery_images: galleryImages,
   };
 }
 
-export async function createOwnTalentProfileAction(formData: FormData) {
+export async function createOwnTalentProfileAction(
+  formData: FormData
+) {
   const user = await getCurrentUser();
   const adminClient = createAdminClient();
 
-  const { data: existingTalent } = await adminClient
-    .from("talents")
-    .select("id")
-    .eq("user_id", user.id)
-    .maybeSingle();
+  const { data: existingTalent, error: existingTalentError } =
+    await adminClient
+      .from("talents")
+      .select("id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+  if (existingTalentError) {
+    throw new Error(
+      "[createOwnTalentProfileAction] " +
+        existingTalentError.message
+    );
+  }
 
   if (existingTalent) {
     redirect("/ar/talent-dashboard/profile");
@@ -121,6 +189,7 @@ export async function createOwnTalentProfileAction(formData: FormData) {
 
     name_en: nameEn,
     name_ar: nameAr,
+
     display_name_en: createDisplayName(nameEn),
     display_name_ar: createDisplayName(nameAr),
 
@@ -133,20 +202,25 @@ export async function createOwnTalentProfileAction(formData: FormData) {
     sort_order: null,
   };
 
-  const { data: createdTalent, error: insertError } = await adminClient
-    .from("talents")
-    .insert(payload)
-    .select("id, slug, category_slug, city_slug")
-    .maybeSingle();
+  const { data: createdTalent, error: insertError } =
+    await adminClient
+      .from("talents")
+      .insert(payload)
+      .select("id, slug, category_slug, city_slug")
+      .maybeSingle();
 
   if (insertError || !createdTalent) {
     throw new Error(
       "[createOwnTalentProfileAction] " +
-        (insertError?.message || "Failed to create talent profile.")
+        (insertError?.message ||
+          "Failed to create talent profile.")
     );
   }
 
-  if (!createdTalent.category_slug || !createdTalent.city_slug) {
+  if (
+    !createdTalent.category_slug ||
+    !createdTalent.city_slug
+  ) {
     throw new Error(
       "[createOwnTalentProfileAction] Talent profile was created, but category_slug or city_slug was not saved."
     );
@@ -161,49 +235,68 @@ export async function createOwnTalentProfileAction(formData: FormData) {
     .eq("user_id", user.id);
 
   if (slugError) {
-    throw new Error("[createOwnTalentProfileAction] " + slugError.message);
+    throw new Error(
+      "[createOwnTalentProfileAction] " + slugError.message
+    );
   }
 
   revalidatePath("/talent-dashboard");
   revalidatePath("/talent-dashboard/profile");
   revalidatePath("/ar/talent-dashboard");
   revalidatePath("/ar/talent-dashboard/profile");
+  revalidatePath("/en/talent-dashboard");
+  revalidatePath("/en/talent-dashboard/profile");
 
   redirect("/ar/talent-dashboard/profile?created=1");
 }
 
-export async function updateOwnTalentProfileAction(formData: FormData) {
+export async function updateOwnTalentProfileAction(
+  formData: FormData
+) {
   const user = await getCurrentUser();
   const adminClient = createAdminClient();
 
-  const { data: talent, error: talentError } = await adminClient
-    .from("talents")
-    .select("id, slug")
-    .eq("user_id", user.id)
-    .maybeSingle();
+  const { data: talent, error: talentError } =
+    await adminClient
+      .from("talents")
+      .select("id, slug")
+      .eq("user_id", user.id)
+      .maybeSingle();
 
-  if (talentError || !talent) {
+  if (talentError) {
+    throw new Error(
+      "[updateOwnTalentProfileAction] " +
+        talentError.message
+    );
+  }
+
+  if (!talent) {
     throw new Error("No linked talent profile found.");
   }
 
   const payload = buildTalentSharedPayload(formData);
 
-  const { data: updatedTalent, error: updateError } = await adminClient
-    .from("talents")
-    .update(payload)
-    .eq("id", talent.id)
-    .eq("user_id", user.id)
-    .select("id, category_slug, city_slug")
-    .maybeSingle();
+  const { data: updatedTalent, error: updateError } =
+    await adminClient
+      .from("talents")
+      .update(payload)
+      .eq("id", talent.id)
+      .eq("user_id", user.id)
+      .select("id, category_slug, city_slug")
+      .maybeSingle();
 
   if (updateError || !updatedTalent) {
     throw new Error(
       "[updateOwnTalentProfileAction] " +
-        (updateError?.message || "Failed to update talent profile.")
+        (updateError?.message ||
+          "Failed to update talent profile.")
     );
   }
 
-  if (!updatedTalent.category_slug || !updatedTalent.city_slug) {
+  if (
+    !updatedTalent.category_slug ||
+    !updatedTalent.city_slug
+  ) {
     throw new Error(
       "[updateOwnTalentProfileAction] Talent profile was updated, but category_slug or city_slug was not saved."
     );
@@ -221,5 +314,11 @@ export async function updateOwnTalentProfileAction(formData: FormData) {
     revalidatePath(`/en/talent/${talent.slug}`);
   }
 
-  redirect("/ar/talent-dashboard/profile?updated=1");
+  /*
+   * لا نستخدم redirect هنا لأن هذه الدالة تعمل مع AutoSave.
+   * redirect كان سيعيد تحميل الصفحة عند كل عملية حفظ تلقائي.
+   */
+  return {
+    success: true,
+  };
 }

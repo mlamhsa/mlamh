@@ -1,4 +1,13 @@
-type FieldValue = string | number | string[] | null | undefined;
+"use client";
+
+import { useRef } from "react";
+
+type FieldValue =
+  | string
+  | number
+  | string[]
+  | null
+  | undefined;
 
 type BaseFieldProps = {
   label: string;
@@ -16,7 +25,10 @@ type Option = {
   label: string;
 };
 
-function resolveValue(value: FieldValue, defaultValue: FieldValue) {
+function resolveValue(
+  value: FieldValue,
+  defaultValue: FieldValue
+) {
   return value ?? defaultValue ?? "";
 }
 
@@ -37,9 +49,42 @@ export function TextField({
   type = "text",
 }: BaseFieldProps & {
   dir?: "ltr" | "rtl";
-  type?: "text" | "number" | "email" | "url" | "tel" | "password";
+  type?:
+    | "text"
+    | "number"
+    | "email"
+    | "url"
+    | "tel"
+    | "password"
+    | "date";
 }) {
-  const inputValue = resolveValue(value, defaultValue);
+  const inputValue = resolveValue(
+    value,
+    defaultValue
+  );
+
+  const isDateField = type === "date";
+  const inputRef =
+    useRef<HTMLInputElement>(null);
+
+  function openDatePicker() {
+    const input = inputRef.current;
+
+    if (!input) return;
+
+    try {
+      if (
+        typeof input.showPicker === "function"
+      ) {
+        input.showPicker();
+      } else {
+        input.focus();
+        input.click();
+      }
+    } catch {
+      input.focus();
+    }
+  }
 
   return (
     <div className={className}>
@@ -47,16 +92,75 @@ export function TextField({
         {label}
       </label>
 
-      <input
-        name={name}
-        type={type}
-        value={inputValue as string | number}
-        required={required}
-        placeholder={placeholder}
-        dir={dir}
-        onChange={(e) => onChange?.(e.target.value)}
-        className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition placeholder:text-white/25 focus:border-gold/40"
-      />
+      <div className="relative">
+        <input
+          ref={inputRef}
+          name={name}
+          type={type}
+          value={
+            inputValue as string | number
+          }
+          required={required}
+          placeholder={placeholder}
+          dir={dir}
+          onChange={(event) =>
+            onChange?.(event.target.value)
+          }
+          className={`w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition placeholder:text-white/25 focus:border-gold/40 ${
+            isDateField
+              ? dir === "rtl"
+                ? "pl-14"
+                : "pr-14"
+              : ""
+          }`}
+        />
+
+        {isDateField ? (
+          <button
+            type="button"
+            onClick={openDatePicker}
+            aria-label={
+              dir === "rtl"
+                ? "فتح التقويم"
+                : "Open calendar"
+            }
+            className={`absolute top-1/2 z-20 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg border border-gold/30 bg-gold/[0.08] text-gold transition hover:border-gold/60 hover:bg-gold/15 focus:outline-none focus:ring-2 focus:ring-gold/30 ${
+              dir === "rtl"
+                ? "left-3"
+                : "right-3"
+            }`}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.7"
+              className="h-4 w-4"
+              aria-hidden="true"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M7 3v3M17 3v3M4 9h16"
+              />
+
+              <rect
+                x="4"
+                y="5"
+                width="16"
+                height="16"
+                rx="2"
+              />
+
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M8 13h2M14 13h2M8 17h2M14 17h2"
+              />
+            </svg>
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -78,7 +182,10 @@ export function SelectField({
 }: BaseFieldProps & {
   options: Option[];
 }) {
-  const selectValue = resolveValue(value, defaultValue);
+  const selectValue = resolveValue(
+    value,
+    defaultValue
+  );
 
   return (
     <div className={className}>
@@ -90,13 +197,20 @@ export function SelectField({
         name={name}
         value={selectValue as string}
         required={required}
-        onChange={(e) => onChange?.(e.target.value)}
+        onChange={(event) =>
+          onChange?.(event.target.value)
+        }
         className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-gold/40"
       >
-        <option value="">{placeholder}</option>
+        <option value="">
+          {placeholder}
+        </option>
 
         {options.map((option) => (
-          <option key={option.value} value={option.value}>
+          <option
+            key={option.value}
+            value={option.value}
+          >
             {option.label}
           </option>
         ))}
@@ -121,7 +235,11 @@ export function MultiSelectField({
 }: BaseFieldProps & {
   options: Option[];
 }) {
-  const selectedValue = (value ?? defaultValue ?? []) as string[];
+  const selectedValue = (
+    value ??
+    defaultValue ??
+    []
+  ) as string[];
 
   return (
     <div className={className}>
@@ -134,21 +252,29 @@ export function MultiSelectField({
         multiple
         value={selectedValue}
         required={required}
-        onChange={(e) => {
-          const values = Array.from(e.target.selectedOptions, (option) => option.value);
+        onChange={(event) => {
+          const values = Array.from(
+            event.target.selectedOptions,
+            (option) => option.value
+          );
+
           onChange?.(values);
         }}
         className="min-h-32 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-gold/40"
       >
         {options.map((option) => (
-          <option key={option.value} value={option.value}>
+          <option
+            key={option.value}
+            value={option.value}
+          >
             {option.label}
           </option>
         ))}
       </select>
 
       <p className="mt-2 text-[11px] text-white/30">
-        Hold Ctrl / Cmd to select multiple options.
+        Hold Ctrl / Cmd to select multiple
+        options.
       </p>
     </div>
   );
@@ -171,7 +297,10 @@ export function ComboBoxField({
 }: BaseFieldProps & {
   options: Option[];
 }) {
-  const inputValue = resolveValue(value, defaultValue);
+  const inputValue = resolveValue(
+    value,
+    defaultValue
+  );
 
   return (
     <div className={className}>
@@ -185,13 +314,18 @@ export function ComboBoxField({
         value={inputValue as string}
         required={required}
         placeholder={placeholder}
-        onChange={(e) => onChange?.(e.target.value)}
+        onChange={(event) =>
+          onChange?.(event.target.value)
+        }
         className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition placeholder:text-white/25 focus:border-gold/40"
       />
 
       <datalist id={`${name}-list`}>
         {options.map((option) => (
-          <option key={option.value} value={option.value}>
+          <option
+            key={option.value}
+            value={option.value}
+          >
             {option.label}
           </option>
         ))}
@@ -217,7 +351,10 @@ export function TextAreaField({
 }: BaseFieldProps & {
   dir?: "ltr" | "rtl";
 }) {
-  const textareaValue = resolveValue(value, defaultValue);
+  const textareaValue = resolveValue(
+    value,
+    defaultValue
+  );
 
   return (
     <div className={className}>
@@ -232,7 +369,9 @@ export function TextAreaField({
         placeholder={placeholder}
         dir={dir}
         rows={5}
-        onChange={(e) => onChange?.(e.target.value)}
+        onChange={(event) =>
+          onChange?.(event.target.value)
+        }
         className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition placeholder:text-white/25 focus:border-gold/40"
       />
     </div>
