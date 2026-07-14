@@ -1,6 +1,7 @@
 // app/[locale]/opportunities/page.tsx
 
 import Link from "next/link";
+
 import { getPublishedOpportunities } from "@/lib/supabase/opportunities";
 
 type OpportunitiesPageProps = {
@@ -12,6 +13,100 @@ type OpportunitiesPageProps = {
     sort?: string;
   }>;
 };
+
+function OpportunityIcon({
+  name,
+  className = "h-4 w-4",
+}: {
+  name:
+    | "arrow"
+    | "briefcase"
+    | "calendar"
+    | "city"
+    | "filter"
+    | "search"
+    | "wallet"
+    | "clock"
+    | "sparkles";
+  className?: string;
+}) {
+  if (name === "briefcase") {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className={className} aria-hidden="true">
+        <rect x="4" y="7" width="16" height="12" rx="2.5" />
+        <path d="M9 7V5h6v2M4 11h16" strokeLinecap="round" />
+      </svg>
+    );
+  }
+
+  if (name === "calendar") {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className={className} aria-hidden="true">
+        <rect x="4" y="5.5" width="16" height="14" rx="2.5" />
+        <path d="M8 4v3M16 4v3M4 9.5h16" strokeLinecap="round" />
+      </svg>
+    );
+  }
+
+  if (name === "city") {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className={className} aria-hidden="true">
+        <path d="M12 21s6-5.2 6-11a6 6 0 1 0-12 0c0 5.8 6 11 6 11Z" />
+        <circle cx="12" cy="10" r="2" />
+      </svg>
+    );
+  }
+
+  if (name === "filter") {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className={className} aria-hidden="true">
+        <path d="M4 6h16M7 12h10M10 18h4" strokeLinecap="round" />
+      </svg>
+    );
+  }
+
+  if (name === "search") {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className={className} aria-hidden="true">
+        <circle cx="10.5" cy="10.5" r="5.5" />
+        <path d="m15 15 4 4" strokeLinecap="round" />
+      </svg>
+    );
+  }
+
+  if (name === "wallet") {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className={className} aria-hidden="true">
+        <rect x="4" y="6" width="16" height="13" rx="2.5" />
+        <path d="M15 10h5v5h-5a2.5 2.5 0 0 1 0-5Z" />
+      </svg>
+    );
+  }
+
+  if (name === "clock") {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className={className} aria-hidden="true">
+        <circle cx="12" cy="12" r="8.5" />
+        <path d="M12 7.5V12l3 2" strokeLinecap="round" />
+      </svg>
+    );
+  }
+
+  if (name === "sparkles") {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className={className} aria-hidden="true">
+        <path d="m12 3 1.2 3.8L17 8l-3.8 1.2L12 13l-1.2-3.8L7 8l3.8-1.2L12 3Z" />
+        <path d="m18 13 .8 2.2L21 16l-2.2.8L18 19l-.8-2.2L15 16l2.2-.8L18 13Z" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className={className} aria-hidden="true">
+      <path d="M5 12h14M14 7l5 5-5 5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 
 function getRelativeDate(date: string, locale: "ar" | "en") {
   const now = new Date();
@@ -69,6 +164,39 @@ function formatBudget(value: unknown, isRtl: boolean) {
   }`;
 }
 
+function getOpportunityTypeLabel(value: unknown, isRtl: boolean) {
+  const type = String(value ?? "");
+
+  const labels: Record<string, { ar: string; en: string }> = {
+    actor: { ar: "ممثل", en: "Actor" },
+    actress: { ar: "ممثلة", en: "Actress" },
+    model: { ar: "عارض أزياء", en: "Model" },
+    presenter: { ar: "مقدم", en: "Presenter" },
+    voice_actor: { ar: "ممثل صوتي", en: "Voice Actor" },
+    singer: { ar: "مغنٍ", en: "Singer" },
+    dancer: { ar: "راقص", en: "Dancer" },
+    athlete: { ar: "رياضي", en: "Athlete" },
+    extra: { ar: "كومبارس", en: "Extra" },
+    influencer: { ar: "صانع محتوى", en: "Influencer" },
+    content_creator: { ar: "صانع محتوى", en: "Content Creator" },
+    makeup_artist: { ar: "خبير تجميل", en: "Makeup Artist" },
+    photographer: { ar: "مصور", en: "Photographer" },
+  };
+
+  if (labels[type]) {
+    return isRtl ? labels[type].ar : labels[type].en;
+  }
+
+  return type ? type.replaceAll("_", " ") : isRtl ? "فرصة" : "Opportunity";
+}
+
+function getSortLabel(value: string, isRtl: boolean) {
+  if (value === "oldest") return isRtl ? "الأقدم" : "Oldest";
+  if (value === "budget_high") return isRtl ? "أعلى ميزانية" : "Highest budget";
+  if (value === "budget_low") return isRtl ? "أقل ميزانية" : "Lowest budget";
+  return isRtl ? "الأحدث أولًا" : "Newest first";
+}
+
 export default async function OpportunitiesPage({
   params,
   searchParams,
@@ -104,14 +232,20 @@ export default async function OpportunitiesPage({
     .filter((item: any) => {
       const title = String(item.title ?? "").toLowerCase();
       const description = String(item.description ?? "").toLowerCase();
+      const company = String(
+        item.company_name || item.publisher_name || item.company || ""
+      ).toLowerCase();
       const city = isRtl
         ? item.city_ar || item.city_en
         : item.city_en || item.city_ar;
 
+      const normalizedSearch = search.toLowerCase();
+
       const matchesSearch =
         !search ||
-        title.includes(search.toLowerCase()) ||
-        description.includes(search.toLowerCase());
+        title.includes(normalizedSearch) ||
+        description.includes(normalizedSearch) ||
+        company.includes(normalizedSearch);
 
       const matchesCity = !selectedCity || city === selectedCity;
       const matchesType = !selectedType || item.opportunity_type === selectedType;
@@ -120,7 +254,10 @@ export default async function OpportunitiesPage({
     })
     .sort((a: any, b: any) => {
       if (selectedSort === "oldest") {
-        return new Date(a.created_at ?? 0).getTime() - new Date(b.created_at ?? 0).getTime();
+        return (
+          new Date(a.created_at ?? 0).getTime() -
+          new Date(b.created_at ?? 0).getTime()
+        );
       }
 
       if (selectedSort === "budget_high") {
@@ -131,111 +268,134 @@ export default async function OpportunitiesPage({
         return Number(a.budget ?? 0) - Number(b.budget ?? 0);
       }
 
-      return new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime();
+      return (
+        new Date(b.created_at ?? 0).getTime() -
+        new Date(a.created_at ?? 0).getTime()
+      );
     });
 
-  const latestUpdate = filteredOpportunities[0]?.created_at
-    ? getRelativeDate(filteredOpportunities[0].created_at, locale)
-    : "-";
+  const latestUpdate = opportunities[0]?.created_at
+    ? getRelativeDate(opportunities[0].created_at, locale)
+    : "—";
+
+  const newCount = opportunities.filter((item: any) =>
+    isNewOpportunity(item.created_at)
+  ).length;
 
   return (
-    <main dir={isRtl ? "rtl" : "ltr"} className="min-h-screen bg-black text-white">
-      <div className="mx-auto max-w-7xl px-6 py-24">
-        <div className={isRtl ? "mb-8 flex justify-start" : "mb-8 flex justify-end"}>
-          <Link
-            href={`/${locale}`}
-            className="rounded-full border border-zinc-800 px-5 py-3 text-sm text-white transition hover:border-[#c8a45d] hover:text-[#c8a45d]"
-          >
-            {isRtl ? "العودة للرئيسية" : "Back to Home"}
-          </Link>
-        </div>
+    <main
+      dir={isRtl ? "rtl" : "ltr"}
+      className="min-h-screen bg-background px-4 pb-24 pt-36 text-white sm:px-6 sm:pt-40 lg:pt-32"
+    >
+      <div className="mx-auto max-w-7xl">
+        <header className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-[radial-gradient(circle_at_top_right,rgba(201,169,98,0.13),transparent_38%),linear-gradient(135deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))] p-6 sm:p-8 lg:p-10">
+          <div className="pointer-events-none absolute inset-x-10 bottom-0 h-px bg-gradient-to-r from-transparent via-gold/40 to-transparent" />
 
-        <section className="mb-12 rounded-[2.5rem] border border-white/10 bg-white/[0.03] px-6 py-12 text-center md:px-10 md:py-16">
-          <p className="mb-4 text-[10px] uppercase tracking-[0.45em] text-[#c8a45d]">
-            {isRtl ? "فرص ملامح" : "MLAMH Opportunities"}
-          </p>
+          <div className="relative flex flex-col gap-7 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+            <Link
+  href={`/${locale}/talent-dashboard`}
+  className="inline-flex items-center gap-2 text-xs text-white/45 transition hover:text-gold"
+>
+  <span className={isRtl ? "rotate-180" : ""}>
+    <OpportunityIcon name="arrow" />
+  </span>
+  {isRtl ? "العودة إلى لوحة التحكم" : "Back to Dashboard"}
+</Link>
 
-          <h1 className="text-4xl font-light tracking-[0.18em] md:text-6xl">
-            {isRtl ? "الفرص المتاحة" : "Opportunities"}
-          </h1>
+              <p className="mt-8 text-[10px] uppercase tracking-[0.36em] text-gold">
+                {isRtl ? "فرص ملامح" : "MLAMH Opportunities"}
+              </p>
 
-          <p className="mx-auto mt-6 max-w-3xl text-sm leading-7 text-zinc-500 md:text-base">
-            {isRtl
-              ? "استكشف فرص الكاست والإعلانات وصناعة المحتوى المنشورة من الوكالات والشركات والعلامات التجارية."
-              : "Explore casting, advertising and content creation opportunities published by agencies, companies and brands."}
-          </p>
+              <h1 className="mt-3 text-4xl font-light leading-tight sm:text-5xl lg:text-6xl">
+                {isRtl ? "استعراض الفرص" : "Browse Opportunities"}
+              </h1>
 
-          <div className="mx-auto mt-8 grid max-w-3xl gap-3 sm:grid-cols-3">
-            <div className="rounded-2xl border border-white/10 bg-black/35 p-4">
-              <p className="text-2xl font-light text-white">{filteredOpportunities.length}</p>
-              <p className="mt-1 text-xs text-zinc-500">
-                {isRtl ? "فرصة منشورة" : "Published opportunities"}
+              <p className="mt-4 max-w-3xl text-sm leading-7 text-white/50 sm:text-base">
+                {isRtl
+                  ? "اكتشف فرص الكاست والإعلانات وصناعة المحتوى المنشورة من الوكالات والشركات والعلامات التجارية."
+                  : "Discover casting, advertising, and content creation opportunities from agencies, companies, and brands."}
               </p>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-black/35 p-4">
-              <p className="text-sm text-[#c8a45d]">{latestUpdate}</p>
-              <p className="mt-1 text-xs text-zinc-500">
-                {isRtl ? "آخر تحديث" : "Latest update"}
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-black/35 p-4">
-              <p className="text-sm text-[#c8a45d]">
-                {selectedSort === "oldest"
-                  ? isRtl
-                    ? "الأقدم"
-                    : "Oldest"
-                  : selectedSort === "budget_high"
-                    ? isRtl
-                      ? "أعلى ميزانية"
-                      : "Highest budget"
-                    : selectedSort === "budget_low"
-                      ? isRtl
-                        ? "أقل ميزانية"
-                        : "Lowest budget"
-                      : isRtl
-                        ? "الأحدث أولاً"
-                        : "Newest first"}
-              </p>
-              <p className="mt-1 text-xs text-zinc-500">
-                {isRtl ? "الترتيب الحالي" : "Current sort"}
-              </p>
-            </div>
+            <Link
+              href={`/${locale}/talent-dashboard/applications`}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-gold/40 bg-gold px-6 py-3.5 text-sm text-black transition hover:bg-gold-soft sm:w-auto"
+            >
+              <OpportunityIcon name="briefcase" />
+              {isRtl ? "عرض طلباتي" : "My Applications"}
+            </Link>
           </div>
+        </header>
+
+        <section className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <StatCard
+            label={isRtl ? "الفرص المنشورة" : "Published"}
+            value={opportunities.length}
+            icon="briefcase"
+            highlighted
+          />
+          <StatCard
+            label={isRtl ? "فرص جديدة" : "New"}
+            value={newCount}
+            icon="sparkles"
+          />
+          <StatCard
+            label={isRtl ? "المدن" : "Cities"}
+            value={cities.length}
+            icon="city"
+          />
+          <StatCard
+            label={isRtl ? "التصنيفات" : "Categories"}
+            value={types.length}
+            icon="filter"
+          />
         </section>
 
-        <form
-          method="GET"
-          className="mb-10 rounded-[2rem] border border-zinc-800 bg-black/40 p-6 md:p-8"
-        >
-          <div className="mb-6">
-            <p className="mb-3 text-xs tracking-[0.35em] text-[#c8a45d]">
-              {isRtl ? "بحث الفرص" : "Search Opportunities"}
-            </p>
-            <h2 className="text-2xl font-light">
-              {isRtl ? "اعثر على الفرصة المناسبة" : "Find the right opportunity"}
-            </h2>
+        <section className="mt-6 rounded-[2rem] border border-white/10 bg-white/[0.02] p-4 sm:p-6">
+          <div className="flex flex-col gap-2 border-b border-white/10 pb-5 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.3em] text-gold">
+                {isRtl ? "بحث الفرص" : "Opportunity Search"}
+              </p>
+              <h2 className="mt-2 text-2xl font-light sm:text-3xl">
+                {isRtl ? "اعثر على الفرصة المناسبة" : "Find the Right Opportunity"}
+              </h2>
+            </div>
+
+            <div className="text-xs text-white/35">
+              {isRtl ? `آخر تحديث ${latestUpdate}` : `Latest update ${latestUpdate}`}
+            </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-[1fr_1fr_1fr_1fr_auto_auto]">
-            <input
-              name="search"
-              defaultValue={search}
-              type="text"
-              placeholder={isRtl ? "ابحث باسم الفرصة..." : "Search opportunity..."}
-              className="rounded-2xl border border-zinc-800 bg-black px-5 py-4 text-sm text-white outline-none placeholder:text-zinc-600"
-            />
+          <form method="GET" className="mt-5 grid gap-3 lg:grid-cols-[1.3fr_1fr_1fr_1fr_auto_auto]">
+            <label className="relative">
+              <OpportunityIcon
+                name="search"
+                className={`pointer-events-none absolute top-1/2 h-4 w-4 -translate-y-1/2 text-white/30 ${
+                  isRtl ? "right-4" : "left-4"
+                }`}
+              />
+              <input
+                name="search"
+                defaultValue={search}
+                type="text"
+                placeholder={isRtl ? "ابحث باسم الفرصة أو الشركة..." : "Search by opportunity or company..."}
+                className={`w-full rounded-2xl border border-white/10 bg-black/30 py-4 text-sm text-white outline-none transition placeholder:text-white/25 focus:border-gold/40 ${
+                  isRtl ? "pr-11 pl-4" : "pl-11 pr-4"
+                }`}
+              />
+            </label>
 
             <select
               name="type"
               defaultValue={selectedType}
-              className="rounded-2xl border border-zinc-800 bg-black px-5 py-4 text-sm text-white outline-none"
+              className="rounded-2xl border border-white/10 bg-black/30 px-4 py-4 text-sm text-white outline-none transition focus:border-gold/40"
             >
               <option value="">{isRtl ? "كل أنواع الفرص" : "All Types"}</option>
               {types.map((type) => (
                 <option key={String(type)} value={String(type)}>
-                  {String(type).replaceAll("_", " ")}
+                  {getOpportunityTypeLabel(type, isRtl)}
                 </option>
               ))}
             </select>
@@ -243,7 +403,7 @@ export default async function OpportunitiesPage({
             <select
               name="city"
               defaultValue={selectedCity}
-              className="rounded-2xl border border-zinc-800 bg-black px-5 py-4 text-sm text-white outline-none"
+              className="rounded-2xl border border-white/10 bg-black/30 px-4 py-4 text-sm text-white outline-none transition focus:border-gold/40"
             >
               <option value="">{isRtl ? "كل المدن" : "All Cities"}</option>
               {cities.map((city) => (
@@ -255,141 +415,220 @@ export default async function OpportunitiesPage({
 
             <select
               name="sort"
-              defaultValue={selectedSort || "newest"}
-              className="rounded-2xl border border-zinc-800 bg-black px-5 py-4 text-sm text-white outline-none"
+              defaultValue={selectedSort}
+              className="rounded-2xl border border-white/10 bg-black/30 px-4 py-4 text-sm text-white outline-none transition focus:border-gold/40"
             >
               <option value="newest">{isRtl ? "الأحدث" : "Newest"}</option>
               <option value="oldest">{isRtl ? "الأقدم" : "Oldest"}</option>
-              <option value="budget_high">{isRtl ? "أعلى ميزانية" : "Highest Budget"}</option>
-              <option value="budget_low">{isRtl ? "أقل ميزانية" : "Lowest Budget"}</option>
+              <option value="budget_high">
+                {isRtl ? "أعلى ميزانية" : "Highest Budget"}
+              </option>
+              <option value="budget_low">
+                {isRtl ? "أقل ميزانية" : "Lowest Budget"}
+              </option>
             </select>
 
             <button
               type="submit"
-              className="rounded-2xl border border-[#c8a45d] px-8 py-4 text-sm text-[#c8a45d] transition hover:bg-[#c8a45d] hover:text-black"
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-gold/40 bg-gold px-6 text-sm text-black transition hover:bg-gold-soft"
             >
+              <OpportunityIcon name="search" />
               {isRtl ? "بحث" : "Search"}
             </button>
 
             <Link
               href={`/${locale}/opportunities`}
-              className="flex items-center justify-center rounded-2xl border border-zinc-700 px-8 py-4 text-sm text-zinc-400 transition hover:border-zinc-500 hover:text-white"
+              className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-white/10 px-6 text-sm text-white/55 transition hover:border-gold/30 hover:text-gold"
             >
               {isRtl ? "مسح" : "Clear"}
             </Link>
-          </div>
-        </form>
+          </form>
+        </section>
 
-        <div className="mb-6 flex flex-col gap-2 text-sm text-zinc-500 md:flex-row md:items-center md:justify-between">
+        <div className="mt-6 flex flex-col gap-2 text-xs text-white/35 sm:flex-row sm:items-center sm:justify-between">
           <p>
             {isRtl
               ? `عرض ${filteredOpportunities.length} فرصة`
               : `Showing ${filteredOpportunities.length} opportunities`}
           </p>
-
           <p>
-            {isRtl ? "تظهر أحدث الفرص أولاً" : "Newest opportunities appear first"}
+            {isRtl
+              ? `الترتيب: ${getSortLabel(selectedSort, true)}`
+              : `Sort: ${getSortLabel(selectedSort, false)}`}
           </p>
         </div>
 
         {filteredOpportunities.length === 0 ? (
-          <div className="rounded-3xl border border-zinc-800 p-10 text-center text-zinc-400">
-            {isRtl ? "لا توجد فرص مطابقة" : "No matching opportunities"}
-          </div>
+          <section className="mt-6 rounded-[2rem] border border-dashed border-white/10 bg-white/[0.02] px-5 py-14 text-center sm:px-8 sm:py-20">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-gold/20 bg-gold/[0.05] text-gold">
+              <OpportunityIcon name="search" className="h-6 w-6" />
+            </div>
+
+            <h2 className="mt-5 text-2xl font-light">
+              {isRtl ? "لا توجد فرص مطابقة" : "No matching opportunities"}
+            </h2>
+
+            <p className="mx-auto mt-3 max-w-md text-sm leading-7 text-white/45">
+              {isRtl
+                ? "جرّب تغيير كلمات البحث أو إزالة بعض الفلاتر للوصول إلى نتائج أكثر."
+                : "Try changing your search terms or clearing some filters."}
+            </p>
+
+            <Link
+              href={`/${locale}/opportunities`}
+              className="mt-6 inline-flex items-center justify-center rounded-full border border-gold/40 bg-gold px-6 py-3 text-sm text-black transition hover:bg-gold-soft"
+            >
+              {isRtl ? "إزالة الفلاتر" : "Clear Filters"}
+            </Link>
+          </section>
         ) : (
-          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+          <section className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
             {filteredOpportunities.map((item: any) => {
               const slug = item.slug || String(item.id);
               const city = isRtl
-                ? item.city_ar || item.city_en || "-"
-                : item.city_en || item.city_ar || "-";
+                ? item.city_ar || item.city_en || "—"
+                : item.city_en || item.city_ar || "—";
               const createdDate = item.created_at
                 ? getRelativeDate(item.created_at, locale)
-                : "-";
+                : "—";
               const isNew = isNewOpportunity(item.created_at);
               const budget = formatBudget(item.budget, isRtl);
-              const statusLabel =
-                item.status === "open"
-                  ? isRtl
-                    ? "مفتوحة"
-                    : "Open"
-                  : item.status || "-";
+              const typeLabel = getOpportunityTypeLabel(
+                item.opportunity_type,
+                isRtl
+              );
+              const companyName =
+                item.company_name || item.publisher_name || item.company || null;
+              const imageUrl = item.cover_image || item.image_url || null;
 
               return (
                 <Link
                   key={item.id}
                   href={`/${locale}/opportunities/${slug}`}
-                  className="group relative flex min-h-[380px] flex-col overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-b from-white/[0.055] to-white/[0.018] p-6 transition-all duration-500 hover:-translate-y-1 hover:border-[#c8a45d]/70 hover:shadow-[0_24px_70px_rgba(200,164,93,0.12)] md:p-7"
+                  className="group overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/[0.025] transition duration-500 hover:-translate-y-1 hover:border-gold/35 hover:shadow-[0_24px_70px_rgba(201,169,98,0.1)]"
                 >
-                  <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#c8a45d]/70 to-transparent opacity-0 transition group-hover:opacity-100" />
+                  {imageUrl ? (
+                    <div
+                      className="relative h-48 bg-cover bg-center"
+                      style={{ backgroundImage: `url("${imageUrl}")` }}
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/15 to-black/20" />
+                      <div className="absolute inset-x-4 top-4 flex items-start justify-between gap-3">
+                        <span className="rounded-full border border-white/15 bg-black/55 px-3 py-1 text-[10px] text-white/70 backdrop-blur">
+                          {typeLabel}
+                        </span>
+                        {isNew ? (
+                          <span className="rounded-full border border-emerald-300/25 bg-emerald-300/[0.1] px-3 py-1 text-[10px] text-emerald-200 backdrop-blur">
+                            {isRtl ? "جديدة" : "New"}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  ) : null}
 
-                  <div className="mb-6 flex items-center justify-between gap-4 text-xs text-zinc-500">
-                    <span className="inline-flex items-center gap-2">
-                      <span aria-hidden>📍</span>
-                      {city}
-                    </span>
+                  <div className="flex min-h-[360px] flex-col p-5 sm:p-6">
+                    {!imageUrl ? (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-full border border-gold/25 bg-gold/[0.07] px-3 py-1 text-[10px] text-gold">
+                          {typeLabel}
+                        </span>
+                        {isNew ? (
+                          <span className="rounded-full border border-emerald-300/25 bg-emerald-300/[0.07] px-3 py-1 text-[10px] text-emerald-200">
+                            {isRtl ? "جديدة" : "New"}
+                          </span>
+                        ) : null}
+                      </div>
+                    ) : null}
 
-                    <span className="inline-flex items-center gap-2">
-                      <span aria-hidden>🕒</span>
-                      {createdDate}
-                    </span>
-                  </div>
-
-                  <div className="mb-4 flex flex-wrap items-center gap-2">
-                    <span className="rounded-full border border-[#c8a45d]/35 bg-[#c8a45d]/10 px-3 py-1 text-[11px] text-[#c8a45d]">
-                      {item.opportunity_type || "-"}
-                    </span>
-
-                    {isNew && (
-                      <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-[11px] text-emerald-300">
-                        {isRtl ? "جديدة" : "New"}
+                    <div className="mt-4 flex items-center justify-between gap-4 text-xs text-white/35">
+                      <span className="inline-flex min-w-0 items-center gap-2">
+                        <OpportunityIcon name="city" />
+                        <span className="truncate">{city}</span>
                       </span>
-                    )}
-                  </div>
+                      <span className="inline-flex shrink-0 items-center gap-2">
+                        <OpportunityIcon name="clock" />
+                        {createdDate}
+                      </span>
+                    </div>
 
-                  <h2 className="text-2xl font-light leading-snug text-white transition group-hover:text-[#c8a45d]">
-                    {item.title || "-"}
-                  </h2>
+                    <h2 className="mt-5 text-2xl font-light leading-snug text-white transition group-hover:text-gold">
+                      {item.title || (isRtl ? "فرصة بدون عنوان" : "Untitled Opportunity")}
+                    </h2>
 
-                  {(item.company_name || item.publisher_name || item.company) && (
-                    <p className="mt-3 text-sm text-zinc-400">
-                      {item.company_name || item.publisher_name || item.company}
+                    {companyName ? (
+                      <p className="mt-2 text-sm text-white/45">{companyName}</p>
+                    ) : null}
+
+                    <p className="mt-4 line-clamp-3 text-sm leading-7 text-white/40">
+                      {item.description ||
+                        (isRtl
+                          ? "لا يوجد وصف متاح لهذه الفرصة."
+                          : "No description is available for this opportunity.")}
                     </p>
-                  )}
 
-                  <p className="mt-4 line-clamp-3 text-sm leading-7 text-zinc-500">
-                    {item.description || "-"}
-                  </p>
+                    <div className="mt-6 grid grid-cols-2 gap-3 border-t border-white/10 pt-5">
+                      <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                        <p className="inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.15em] text-white/30">
+                          <OpportunityIcon name="wallet" />
+                          {isRtl ? "الميزانية" : "Budget"}
+                        </p>
+                        <p className="mt-2 text-sm text-white">{budget}</p>
+                      </div>
 
-                  <div className="mt-7 grid grid-cols-2 gap-3 border-t border-white/10 pt-5 text-sm">
-                    <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
-                      <p className="text-xs text-zinc-500">
-                        {isRtl ? "الحالة" : "Status"}
-                      </p>
-                      <p className="mt-2 text-[#c8a45d]">
-                        <span className="text-emerald-400">●</span> {statusLabel}
-                      </p>
+                      <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                        <p className="inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.15em] text-white/30">
+                          <OpportunityIcon name="calendar" />
+                          {isRtl ? "تاريخ النشر" : "Published"}
+                        </p>
+                        <p className="mt-2 text-sm text-white">{createdDate}</p>
+                      </div>
                     </div>
 
-                    <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
-                      <p className="text-xs text-zinc-500">
-                        {isRtl ? "الميزانية" : "Budget"}
-                      </p>
-                      <p className="mt-2 text-white">{budget}</p>
-                    </div>
-                  </div>
-
-                  <div className="mt-auto pt-7">
-                    <div className="flex items-center justify-center rounded-2xl border border-[#c8a45d]/40 py-3 text-sm text-[#c8a45d] transition group-hover:bg-[#c8a45d] group-hover:text-black">
-                      {isRtl ? "عرض التفاصيل" : "View Details"}
+                    <div className="mt-auto pt-6">
+                      <div className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-gold/35 text-sm text-gold transition group-hover:bg-gold group-hover:text-black">
+                        {isRtl ? "عرض التفاصيل" : "View Details"}
+                        <span className={isRtl ? "rotate-180" : ""}>
+                          <OpportunityIcon name="arrow" />
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </Link>
               );
             })}
-          </div>
+          </section>
         )}
       </div>
     </main>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  icon,
+  highlighted = false,
+}: {
+  label: string;
+  value: number;
+  icon: "briefcase" | "sparkles" | "city" | "filter";
+  highlighted?: boolean;
+}) {
+  return (
+    <article
+      className={`rounded-[1.5rem] border p-4 transition hover:-translate-y-0.5 hover:border-gold/25 sm:p-5 ${
+        highlighted
+          ? "border-gold/25 bg-gold/[0.06]"
+          : "border-white/10 bg-white/[0.025]"
+      }`}
+    >
+      <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-gold/20 bg-gold/[0.05] text-gold">
+        <OpportunityIcon name={icon} />
+      </div>
+      <p className="mt-5 text-[10px] uppercase tracking-[0.18em] text-white/40">
+        {label}
+      </p>
+      <p className="mt-2 text-3xl font-light sm:text-4xl">{value}</p>
+    </article>
   );
 }

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -19,7 +20,10 @@ function normalizeGallery(value: unknown): string[] {
   if (typeof value === "string") {
     try {
       const parsed = JSON.parse(value);
-      if (Array.isArray(parsed)) return normalizeGallery(parsed);
+
+      if (Array.isArray(parsed)) {
+        return normalizeGallery(parsed);
+      }
     } catch {
       return value.trim() ? [value.trim()] : [];
     }
@@ -31,6 +35,11 @@ function normalizeGallery(value: unknown): string[] {
 function getString(formData: FormData, key: string) {
   const value = formData.get(key);
   return typeof value === "string" ? value.trim() : "";
+}
+
+function getLocale(formData: FormData) {
+  const locale = getString(formData, "locale");
+  return locale === "en" ? "en" : "ar";
 }
 
 function getImageExtension(file: File) {
@@ -80,7 +89,8 @@ function getStorageObjectFromPublicUrl(imageUrl: string, talentId: string) {
     if (!allowedBuckets.includes(bucket)) return null;
 
     const belongsToTalent =
-      path.startsWith(`${talentId}/`) || path.startsWith(`talents/${talentId}/`);
+      path.startsWith(`${talentId}/`) ||
+      path.startsWith(`talents/${talentId}/`);
 
     if (!belongsToTalent) return null;
 
@@ -90,7 +100,7 @@ function getStorageObjectFromPublicUrl(imageUrl: string, talentId: string) {
   }
 }
 
-async function getOwnTalent() {
+async function getOwnTalent(locale: string) {
   const authClient = await createServerSupabaseClient();
 
   const {
@@ -98,7 +108,9 @@ async function getOwnTalent() {
     error,
   } = await authClient.auth.getUser();
 
-  if (error || !user) redirect("/talent-login");
+  if (error || !user) {
+    redirect(`/${locale}/talent-login`);
+  }
 
   const supabase = createAdminClient();
 
@@ -108,14 +120,35 @@ async function getOwnTalent() {
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (talentError || !talent) {
-    throw new Error("No linked talent profile found.");
+  if (talentError) {
+    throw new Error(`[getOwnTalent] ${talentError.message}`);
+  }
+
+  if (!talent) {
+    redirect(`/${locale}/talent-dashboard/profile`);
   }
 
   return { supabase, talent };
 }
 
+function revalidateGalleryPages(locale: string, talentSlug?: string | null) {
+  revalidatePath(`/${locale}/talent-dashboard`);
+  revalidatePath(`/${locale}/talent-dashboard/gallery`);
+
+  if (talentSlug) {
+    const encodedTalentSlug = encodeURIComponent(talentSlug);
+
+    revalidatePath(`/ar/talent/${encodedTalentSlug}`);
+    revalidatePath(`/en/talent/${encodedTalentSlug}`);
+  }
+}
+
+function redirectToGallery(locale: string) {
+  redirect(`/${locale}/talent-dashboard/gallery?updated=1`);
+}
+
 export async function addOwnGalleryImageAction(formData: FormData) {
+  const locale = getLocale(formData);
   const file = formData.get("image_file");
 
   if (!(file instanceof File) || file.size === 0) {
@@ -136,7 +169,7 @@ export async function addOwnGalleryImageAction(formData: FormData) {
     throw new Error("Only JPG, PNG, and WEBP images are supported.");
   }
 
-  const { supabase, talent } = await getOwnTalent();
+  const { supabase, talent } = await getOwnTalent(locale);
   const gallery = normalizeGallery(talent.gallery_images);
 
   const filePath = `${talent.id}/${Date.now()}-${crypto.randomUUID()}.${extension}`;
@@ -150,7 +183,9 @@ export async function addOwnGalleryImageAction(formData: FormData) {
     });
 
   if (uploadError) {
-    throw new Error(`[addOwnGalleryImageAction:upload] ${uploadError.message}`);
+    throw new Error(
+      `[addOwnGalleryImageAction:upload] ${uploadError.message}`
+    );
   }
 
   const {
@@ -163,7 +198,7 @@ export async function addOwnGalleryImageAction(formData: FormData) {
 
   const nextGallery = Array.from(new Set([...gallery, publicUrl]));
 
-  const { error } = await supabase
+  const { error: updateError } = await supabase
     .from("talents")
     .update({
       gallery_images: nextGallery,
@@ -171,39 +206,47 @@ export async function addOwnGalleryImageAction(formData: FormData) {
     })
     .eq("id", talent.id);
 
-  if (error) throw new Error(`[addOwnGalleryImageAction] ${error.message}`);
+  if (updateError) {
+    await supabase.storage.from(GALLERY_BUCKET).remove([filePath]);
 
-  revalidatePath("/talent-dashboard");
-  revalidatePath("/talent-dashboard/gallery");
-
-  if (talent.slug) {
-    revalidatePath(`/ar/talent/${talent.slug}`);
-    revalidatePath(`/en/talent/${talent.slug}`);
+    throw new Error(
+      `[addOwnGalleryImageAction:update] ${updateError.message}`
+    );
   }
 
-  redirect("/ar/talent-dashboard/gallery?updated=1");
+  revalidateGalleryPages(locale, talent.slug);
+  redirectToGallery(locale);
 }
 
 export async function removeOwnGalleryImageAction(formData: FormData) {
+  const locale = getLocale(formData);
   const imageUrl = getString(formData, "image_url");
 
-  if (!imageUrl) throw new Error("Image URL is required.");
+  if (!imageUrl) {
+    throw new Error("Image URL is required.");
+  }
 
-  const { supabase, talent } = await getOwnTalent();
+  const { supabase, talent } = await getOwnTalent(locale);
   const gallery = normalizeGallery(talent.gallery_images);
 
   const nextGallery = gallery.filter((item) => item !== imageUrl);
 
-  const { error } = await supabase
+  const { error: updateError } = await supabase
     .from("talents")
     .update({
       gallery_images: nextGallery,
       image_url:
-        talent.image_url === imageUrl ? nextGallery[0] ?? null : talent.image_url,
+        talent.image_url === imageUrl
+          ? nextGallery[0] ?? null
+          : talent.image_url,
     })
     .eq("id", talent.id);
 
-  if (error) throw new Error(`[removeOwnGalleryImageAction] ${error.message}`);
+  if (updateError) {
+    throw new Error(
+      `[removeOwnGalleryImageAction:update] ${updateError.message}`
+    );
+  }
 
   const storageObject = getStorageObjectFromPublicUrl(imageUrl, talent.id);
 
@@ -213,49 +256,51 @@ export async function removeOwnGalleryImageAction(formData: FormData) {
       .remove([storageObject.path]);
 
     if (removeStorageError) {
-      throw new Error(
-        `[removeOwnGalleryImageAction:storage] ${removeStorageError.message}`
+      console.error(
+        "[removeOwnGalleryImageAction:storage]",
+        removeStorageError.message
       );
     }
   }
 
-  revalidatePath("/talent-dashboard");
-  revalidatePath("/talent-dashboard/gallery");
-
-  if (talent.slug) {
-    revalidatePath(`/ar/talent/${talent.slug}`);
-    revalidatePath(`/en/talent/${talent.slug}`);
-  }
-
-  redirect("/talent-dashboard/gallery?updated=1");
+  revalidateGalleryPages(locale, talent.slug);
+  redirectToGallery(locale);
 }
 
 export async function setOwnMainImageAction(formData: FormData) {
+  const locale = getLocale(formData);
   const imageUrl = getString(formData, "image_url");
 
-  if (!imageUrl) throw new Error("Image URL is required.");
+  if (!imageUrl) {
+    throw new Error("Image URL is required.");
+  }
 
-  const { supabase, talent } = await getOwnTalent();
+  const { supabase, talent } = await getOwnTalent(locale);
+
+  const gallery = normalizeGallery(talent.gallery_images);
+  const allowedImages = new Set(
+    [talent.image_url, ...gallery].filter(Boolean) as string[]
+  );
+
+  if (!allowedImages.has(imageUrl)) {
+    throw new Error("The selected image does not belong to this gallery.");
+  }
 
   const { error } = await supabase
     .from("talents")
     .update({ image_url: imageUrl })
     .eq("id", talent.id);
 
-  if (error) throw new Error(`[setOwnMainImageAction] ${error.message}`);
-
-  revalidatePath("/talent-dashboard");
-  revalidatePath("/talent-dashboard/gallery");
-
-  if (talent.slug) {
-    revalidatePath(`/ar/talent/${talent.slug}`);
-    revalidatePath(`/en/talent/${talent.slug}`);
+  if (error) {
+    throw new Error(`[setOwnMainImageAction] ${error.message}`);
   }
 
-  redirect("/talent-dashboard/gallery?updated=1");
+  revalidateGalleryPages(locale, talent.slug);
+  redirectToGallery(locale);
 }
 
 export async function reorderOwnGalleryImagesAction(formData: FormData) {
+  const locale = getLocale(formData);
   const orderedImagesRaw = getString(formData, "ordered_images");
 
   if (!orderedImagesRaw) {
@@ -266,6 +311,7 @@ export async function reorderOwnGalleryImagesAction(formData: FormData) {
 
   try {
     const parsed = JSON.parse(orderedImagesRaw);
+
     if (!Array.isArray(parsed)) {
       throw new Error("Invalid ordered images payload.");
     }
@@ -278,7 +324,7 @@ export async function reorderOwnGalleryImagesAction(formData: FormData) {
     throw new Error("Invalid ordered images payload.");
   }
 
-  const { supabase, talent } = await getOwnTalent();
+  const { supabase, talent } = await getOwnTalent(locale);
   const gallery = normalizeGallery(talent.gallery_images);
 
   const allowedImages = new Set(
@@ -297,11 +343,13 @@ export async function reorderOwnGalleryImagesAction(formData: FormData) {
     new Set([...safeOrderedImages, ...missingImages])
   );
 
+  const nextMainImage = safeOrderedImages[0] ?? talent.image_url ?? null;
+
   const { error } = await supabase
     .from("talents")
     .update({
       gallery_images: nextGallery,
-      image_url: safeOrderedImages[0] ?? talent.image_url,
+      image_url: nextMainImage,
     })
     .eq("id", talent.id);
 
@@ -309,13 +357,6 @@ export async function reorderOwnGalleryImagesAction(formData: FormData) {
     throw new Error(`[reorderOwnGalleryImagesAction] ${error.message}`);
   }
 
-  revalidatePath("/talent-dashboard");
-  revalidatePath("/talent-dashboard/gallery");
-
-  if (talent.slug) {
-    revalidatePath(`/ar/talent/${talent.slug}`);
-    revalidatePath(`/en/talent/${talent.slug}`);
-  }
-
-  redirect("/talent-dashboard/gallery?updated=1");
+  revalidateGalleryPages(locale, talent.slug);
+  redirectToGallery(locale);
 }

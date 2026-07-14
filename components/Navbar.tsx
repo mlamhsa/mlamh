@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import { useEffect, useRef, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Bell, Globe2, Menu, Search, User, X } from "lucide-react";
 
 import type { Locale } from "@/lib/i18n";
@@ -20,6 +20,8 @@ const navItems = [
 
 export function Navbar({ locale }: { locale: Locale }) {
   const params = useParams();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const router = useRouter();
 
   const routeLocale = (params?.locale as Locale) || locale;
@@ -39,6 +41,15 @@ export function Navbar({ locale }: { locale: Locale }) {
 
   const logoSrc = isAr ? "/logo.ar.png" : "/logo.en.png";
   const targetLocale = isAr ? "en" : "ar";
+
+  const localizedPathname = /^\/(ar|en)(?=\/|$)/.test(pathname)
+    ? pathname.replace(/^\/(ar|en)(?=\/|$)/, `/${targetLocale}`)
+    : `/${targetLocale}${pathname.startsWith("/") ? pathname : `/${pathname}`}`;
+
+  const queryString = searchParams.toString();
+  const languageHref = queryString
+    ? `${localizedPathname}?${queryString}`
+    : localizedPathname;
 
   useEffect(() => {
     const loadUser = async () => {
@@ -146,7 +157,7 @@ export function Navbar({ locale }: { locale: Locale }) {
 
         <div className="hidden items-center gap-3 lg:flex">
           <Link
-            href={`/${targetLocale}`}
+            href={languageHref}
             className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 text-white/60 transition hover:border-gold/40 hover:text-gold"
             aria-label={isAr ? "تغيير اللغة" : "Change language"}
           >
@@ -328,7 +339,7 @@ export function Navbar({ locale }: { locale: Locale }) {
             )}
 
             <Link
-              href={`/${targetLocale}`}
+              href={languageHref}
               onClick={closeMobileMenu}
               className="rounded-2xl border border-white/10 px-5 py-4 text-center text-base text-white/70"
             >
