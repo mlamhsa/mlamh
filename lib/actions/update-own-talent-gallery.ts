@@ -8,6 +8,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 const GALLERY_BUCKET = "talent-gallery";
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
+const MAX_GALLERY_IMAGES = 20;
 
 function normalizeGallery(value: unknown): string[] {
   if (Array.isArray(value)) {
@@ -57,6 +58,30 @@ function getImageExtension(file: File) {
   if (file.type === "image/webp") return "webp";
 
   return null;
+}
+
+function validateImageFile(file: File) {
+  if (file.size === 0) {
+    throw new Error(`The selected file "${file.name}" is empty.`);
+  }
+
+  if (!file.type.startsWith("image/")) {
+    throw new Error(`The file "${file.name}" is not an image.`);
+  }
+
+  if (file.size > MAX_IMAGE_SIZE) {
+    throw new Error(`The image "${file.name}" must be 10MB or less.`);
+  }
+
+  const extension = getImageExtension(file);
+
+  if (!extension) {
+    throw new Error(
+      `The image "${file.name}" must be JPG, JPEG, PNG, or WEBP.`
+    );
+  }
+
+  return extension;
 }
 
 function getStorageObjectFromPublicUrl(imageUrl: string, talentId: string) {
@@ -149,69 +174,107 @@ function redirectToGallery(locale: string) {
 
 export async function addOwnGalleryImageAction(formData: FormData) {
   const locale = getLocale(formData);
-  const file = formData.get("image_file");
 
-  if (!(file instanceof File) || file.size === 0) {
-    throw new Error("Image file is required.");
-  }
+  const files = formData
+    .getAll("image_file")
+    .filter((value): value is File => value instanceof File && value.size > 0);
 
-  if (!file.type.startsWith("image/")) {
-    throw new Error("Only image files are allowed.");
-  }
-
-  if (file.size > MAX_IMAGE_SIZE) {
-    throw new Error("Image size must be 10MB or less.");
-  }
-
-  const extension = getImageExtension(file);
-
-  if (!extension) {
-    throw new Error("Only JPG, PNG, and WEBP images are supported.");
+  if (files.length === 0) {
+    throw new Error("At least one image file is required.");
   }
 
   const { supabase, talent } = await getOwnTalent(locale);
   const gallery = normalizeGallery(talent.gallery_images);
 
-  const filePath = `${talent.id}/${Date.now()}-${crypto.randomUUID()}.${extension}`;
+  const currentImages = Array.from(
+    new Set([talent.image_url, ...gallery].filter(Boolean) as string[])
+  );
 
-  const { error: uploadError } = await supabase.storage
-    .from(GALLERY_BUCKET)
-    .upload(filePath, file, {
-      contentType: file.type,
-      cacheControl: "3600",
-      upsert: false,
-    });
+  const remainingSlots = MAX_GALLERY_IMAGES - currentImages.length;
 
-  if (uploadError) {
+  if (remainingSlots <= 0) {
+    throw new Error("The gallery has reached the maximum of 20 images.");
+  }
+
+  if (files.length > remainingSlots) {
     throw new Error(
-      `[addOwnGalleryImageAction:upload] ${uploadError.message}`
+      `You can upload only ${remainingSlots} more ${
+        remainingSlots === 1 ? "image" : "images"
+      }.`
     );
   }
 
-  const {
-    data: { publicUrl },
-  } = supabase.storage.from(GALLERY_BUCKET).getPublicUrl(filePath);
+  const validatedFiles = files.map((file) => ({
+    file,
+    extension: validateImageFile(file),
+  }));
 
-  if (!publicUrl) {
-    throw new Error("Failed to generate public image URL.");
-  }
+  const uploadedObjects: Array<{ path: string; publicUrl: string }> = [];
 
-  const nextGallery = Array.from(new Set([...gallery, publicUrl]));
+  try {
+    for (const { file, extension } of validatedFiles) {
+      const filePath = `${talent.id}/${Date.now()}-${crypto.randomUUID()}.${extension}`;
 
-  const { error: updateError } = await supabase
-    .from("talents")
-    .update({
-      gallery_images: nextGallery,
-      image_url: talent.image_url || publicUrl,
-    })
-    .eq("id", talent.id);
+      const { error: uploadError } = await supabase.storage
+        .from(GALLERY_BUCKET)
+        .upload(filePath, file, {
+          contentType: file.type,
+          cacheControl: "3600",
+          upsert: false,
+        });
 
-  if (updateError) {
-    await supabase.storage.from(GALLERY_BUCKET).remove([filePath]);
+      if (uploadError) {
+        throw new Error(
+          `[addOwnGalleryImageAction:upload:${file.name}] ${uploadError.message}`
+        );
+      }
 
-    throw new Error(
-      `[addOwnGalleryImageAction:update] ${updateError.message}`
-    );
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from(GALLERY_BUCKET).getPublicUrl(filePath);
+
+      if (!publicUrl) {
+        throw new Error(
+          `[addOwnGalleryImageAction:public-url:${file.name}] Failed to generate public URL.`
+        );
+      }
+
+      uploadedObjects.push({ path: filePath, publicUrl });
+    }
+
+    const uploadedUrls = uploadedObjects.map((item) => item.publicUrl);
+    const nextGallery = Array.from(new Set([...gallery, ...uploadedUrls]));
+
+    const { error: updateError } = await supabase
+      .from("talents")
+      .update({
+        gallery_images: nextGallery,
+        image_url: talent.image_url || uploadedUrls[0] || null,
+      })
+      .eq("id", talent.id);
+
+    if (updateError) {
+      throw new Error(
+        `[addOwnGalleryImageAction:update] ${updateError.message}`
+      );
+    }
+  } catch (error) {
+    if (uploadedObjects.length > 0) {
+      const uploadedPaths = uploadedObjects.map((item) => item.path);
+
+      const { error: cleanupError } = await supabase.storage
+        .from(GALLERY_BUCKET)
+        .remove(uploadedPaths);
+
+      if (cleanupError) {
+        console.error(
+          "[addOwnGalleryImageAction:cleanup]",
+          cleanupError.message
+        );
+      }
+    }
+
+    throw error;
   }
 
   revalidateGalleryPages(locale, talent.slug);

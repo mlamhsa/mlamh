@@ -232,31 +232,12 @@ export default async function TalentGalleryPage({
             </div>
 
             {canUploadMore ? (
-              <form
-                action={addOwnGalleryImageAction}
-                className="mt-5 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]"
-              >
-                <input type="hidden" name="locale" value={locale} />
-                <label className="group flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-white/15 bg-black/25 px-4 py-5 text-center transition hover:border-gold/35 hover:bg-gold/[0.03]">
-                  <GalleryIcon name="upload" className="h-6 w-6 text-gold" />
-                  <span className="mt-3 text-sm text-white/70">
-                    {isArabic ? "اسحب الصورة هنا أو اضغط للاختيار" : "Drop an image here or click to choose"}
-                  </span>
-                  <span className="mt-1 text-xs text-white/30">
-                    {isArabic ? "يفضل JPG أو PNG بجودة عالية" : "High-quality JPG or PNG recommended"}
-                  </span>
-
-                  <input
-                    type="file"
-                    name="image_file"
-                    accept="image/*"
-                    required
-                    className="sr-only"
-                  />
-                </label>
-
-                <GalleryUploadButton isArabic={isArabic} />
-              </form>
+              <GalleryUploadButton
+              isArabic={isArabic}
+              locale={locale}
+              currentImageCount={allImages.length}
+              action={addOwnGalleryImageAction}
+            />
             ) : (
               <div className="mt-5 rounded-2xl border border-amber-300/20 bg-amber-300/[0.06] px-4 py-4 text-sm text-amber-100">
                 {isArabic

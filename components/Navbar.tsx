@@ -134,12 +134,11 @@ export function Navbar({ locale }: { locale: Locale }) {
       <nav className="mx-auto flex h-20 max-w-7xl items-center justify-between px-5 lg:h-24 lg:px-8">
         <Link href={`/${routeLocale}`} onClick={closeMobileMenu}>
         <Image
-  src={logoSrc}
+  src={isAr ? "/logo.ar.png" : "/logo.en.png"}
   alt="MLAMH"
-  width={180}
-  height={60}
-  priority
-  className="h-auto w-[150px] object-contain md:w-[180px]"
+  width={220}
+  height={90}
+  className="h-auto w-40 sm:w-52"
 />
         </Link>
 

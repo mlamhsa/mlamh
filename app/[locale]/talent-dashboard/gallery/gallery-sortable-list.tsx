@@ -7,6 +7,7 @@ import {
   DndContext,
   KeyboardSensor,
   PointerSensor,
+  TouchSensor,
   closestCenter,
   useSensor,
   useSensors,
@@ -46,7 +47,15 @@ function GalleryActionIcon({
   name,
   className = "h-4 w-4",
 }: {
-  name: "drag" | "star" | "trash" | "save" | "image" | "check";
+  name:
+    | "drag"
+    | "star"
+    | "trash"
+    | "save"
+    | "image"
+    | "check"
+    | "up"
+    | "down";
   className?: string;
 }) {
   if (name === "drag") {
@@ -91,6 +100,22 @@ function GalleryActionIcon({
     );
   }
 
+  if (name === "up") {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className={className} aria-hidden="true">
+        <path d="m7 14 5-5 5 5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+
+  if (name === "down") {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className={className} aria-hidden="true">
+        <path d="m7 10 5 5 5-5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className={className} aria-hidden="true">
       <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" />
@@ -107,6 +132,10 @@ function SortableImageCard({
   talentName,
   isArabic,
   locale,
+  isFirst,
+  isLast,
+  moveUp,
+  moveDown,
   setMainAction,
   removeAction,
 }: {
@@ -116,6 +145,10 @@ function SortableImageCard({
   talentName: string | null;
   isArabic: boolean;
   locale: string;
+  isFirst: boolean;
+  isLast: boolean;
+  moveUp: () => void;
+  moveDown: () => void;
   setMainAction: ServerAction;
   removeAction: ServerAction;
 }) {
@@ -169,7 +202,7 @@ function SortableImageCard({
           type="button"
           {...attributes}
           {...listeners}
-          className="absolute bottom-4 left-1/2 inline-flex min-h-10 -translate-x-1/2 cursor-grab items-center justify-center gap-2 rounded-full border border-white/15 bg-black/60 px-3 text-xs text-white/75 backdrop-blur-md transition hover:border-gold/35 hover:text-gold active:cursor-grabbing"
+          className="absolute bottom-4 left-1/2 inline-flex min-h-12 min-w-[150px] -translate-x-1/2 touch-none cursor-grab items-center justify-center gap-2 rounded-full border border-white/15 bg-black/70 px-5 text-sm text-white/80 backdrop-blur-md transition hover:border-gold/35 hover:text-gold active:cursor-grabbing"
           aria-label={isArabic ? "سحب لإعادة الترتيب" : "Drag to reorder"}
         >
           <GalleryActionIcon name="drag" />
@@ -221,6 +254,27 @@ function SortableImageCard({
             {isArabic ? "حذف" : "Remove"}
           </button>
         </form>
+        <div className="col-span-2 grid grid-cols-2 gap-3 sm:hidden">
+          <button
+            type="button"
+            onClick={moveUp}
+            disabled={isFirst}
+            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-white/10 px-3 text-xs text-white/65 transition hover:border-gold/30 hover:text-gold disabled:cursor-not-allowed disabled:opacity-30"
+          >
+            <GalleryActionIcon name="up" />
+            {isArabic ? "للأعلى" : "Move Up"}
+          </button>
+
+          <button
+            type="button"
+            onClick={moveDown}
+            disabled={isLast}
+            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-white/10 px-3 text-xs text-white/65 transition hover:border-gold/30 hover:text-gold disabled:cursor-not-allowed disabled:opacity-30"
+          >
+            <GalleryActionIcon name="down" />
+            {isArabic ? "للأسفل" : "Move Down"}
+          </button>
+        </div>
       </div>
     </article>
   );
@@ -257,7 +311,13 @@ export function GallerySortableList({
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8,
+        distance: 10,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 180,
+        tolerance: 8,
       },
     }),
     useSensor(KeyboardSensor, {
@@ -277,6 +337,23 @@ export function GallerySortableList({
       if (oldIndex === -1 || newIndex === -1) return items;
 
       return arrayMove(items, oldIndex, newIndex);
+    });
+  }
+
+  function moveImage(index: number, direction: "up" | "down") {
+    setOrderedImages((items) => {
+      const targetIndex = direction === "up" ? index - 1 : index + 1;
+
+      if (
+        index < 0 ||
+        index >= items.length ||
+        targetIndex < 0 ||
+        targetIndex >= items.length
+      ) {
+        return items;
+      }
+
+      return arrayMove(items, index, targetIndex);
     });
   }
 
@@ -369,6 +446,10 @@ export function GallerySortableList({
                 isMain={imageUrl === mainImageUrl}
                 talentName={talentName}
                 isArabic={isArabic}
+                isFirst={index === 0}
+                isLast={index === orderedImages.length - 1}
+                moveUp={() => moveImage(index, "up")}
+                moveDown={() => moveImage(index, "down")}
                 setMainAction={setMainAction}
                 removeAction={removeAction}
               />
