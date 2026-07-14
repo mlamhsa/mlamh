@@ -33,11 +33,7 @@ export const metadata: Metadata = {
   title: "MALAMIH — Casting & Talents",
   description:
     "منصة سعودية تربط المواهب والوجوه بالفرص والشركات والوكالات.",
-  icons: {
-    icon: "/favicon.ico",
-    shortcut: "/favicon.ico",
-    apple: "/apple-touch-icon.png",
-  },
+  
   openGraph: {
     title: "MALAMIH — Casting & Talents",
     description:
