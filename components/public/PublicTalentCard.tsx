@@ -27,7 +27,7 @@ export function PublicTalentCard({
       href={talentPath(locale, talent.slug ?? talent.id)}
       className="group block overflow-hidden rounded-[30px] border border-white/[0.08] bg-gray-elevated/20 transition-all duration-500 hover:-translate-y-1 hover:border-gold/25 hover:bg-gray-elevated/30"
     >
-      <div className="relative aspect-[3/4] overflow-hidden bg-black">
+      <div className="relative aspect-[4/5] overflow-hidden bg-black">
         {talent.image_url ? (
           <Image
             src={talent.image_url}
@@ -73,7 +73,7 @@ export function PublicTalentCard({
           </p>
 
           <h2
-            className="text-3xl font-light tracking-tight text-white"
+            className="text-2xl font-light tracking-tight text-white"
             style={{
               fontFamily: isRtl
                 ? "var(--font-noto-arabic)"
@@ -85,7 +85,7 @@ export function PublicTalentCard({
         </div>
       </div>
 
-      <div className="p-6">
+      <div className="p-4 sm:p-5">
         <div className="grid grid-cols-2 gap-4 border-b border-white/[0.08] pb-5">
           <InfoBlock
             label={isRtl ? "التصنيف" : "Category"}

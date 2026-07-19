@@ -1,44 +1,29 @@
 import {
   BadgeCheck,
-  Building2,
   ClipboardCheck,
+  Building2,
+  Globe,
+  Shield,
   Sparkles,
+  Zap,
 } from "lucide-react";
+
 import type { Locale } from "@/lib/i18n";
+import type {
+  HomepageValuePropIcon,
+  PublicHomepageValueProp,
+} from "@/lib/types/value-props";
 
-export function ValueProps({ locale }: { locale: Locale }) {
+type ValuePropsProps = {
+  locale: Locale;
+  data: PublicHomepageValueProp[];
+};
+
+export function ValueProps({
+  locale,
+  data,
+}: ValuePropsProps) {
   const isAr = locale === "ar";
-
-  const items = [
-    {
-      icon: BadgeCheck,
-      title: isAr ? "مواهب موثوقة" : "Verified Talent",
-      text: isAr
-        ? "ملفات احترافية، معرض أعمال، وحالة اعتماد واضحة."
-        : "Professional profiles, portfolios, and clear verification status.",
-    },
-    {
-      icon: Building2,
-      title: isAr ? "شركات وفرص حقيقية" : "Trusted Companies",
-      text: isAr
-        ? "فرص من جهات وشركات تبحث عن مواهب مناسبة بجدية."
-        : "Opportunities from companies actively looking for the right talent.",
-    },
-    {
-      icon: ClipboardCheck,
-      title: isAr ? "تقديم أسهل" : "Simpler Applications",
-      text: isAr
-        ? "تابع طلباتك، حالتك، والتنبيهات من مكان واحد."
-        : "Track applications, status updates, and notifications in one place.",
-    },
-    {
-      icon: Sparkles,
-      title: isAr ? "تجربة راقية" : "Premium Experience",
-      text: isAr
-        ? "واجهة مصممة لتجعل الاكتشاف والتواصل أكثر وضوحًا وثقة."
-        : "A refined experience built for clear discovery and trusted connection.",
-    },
-  ];
 
   return (
     <section className="relative overflow-hidden border-t border-white/10 bg-black py-28">
@@ -64,12 +49,12 @@ export function ValueProps({ locale }: { locale: Locale }) {
         </div>
 
         <div className="mt-16 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-          {items.map((item) => {
-            const Icon = item.icon;
+          {data.map((item) => {
+            const Icon = getIcon(item.iconKey);
 
             return (
               <article
-                key={item.title}
+                key={item.id}
                 className="group rounded-[2rem] border border-white/10 bg-white/[0.035] p-6 transition hover:border-gold/30 hover:bg-gold/[0.05]"
               >
                 <div className="mb-6 inline-flex rounded-full border border-gold/20 bg-gold/[0.06] p-3 text-gold">
@@ -81,7 +66,7 @@ export function ValueProps({ locale }: { locale: Locale }) {
                 </h3>
 
                 <p className="mt-4 text-sm leading-7 text-white/45">
-                  {item.text}
+                  {item.description}
                 </p>
               </article>
             );
@@ -90,4 +75,33 @@ export function ValueProps({ locale }: { locale: Locale }) {
       </div>
     </section>
   );
+}
+
+function getIcon(icon: HomepageValuePropIcon) {
+  switch (icon) {
+    case "shield":
+      return Shield;
+
+    case "globe":
+      return Globe;
+
+    case "zap":
+      return Zap;
+
+    // دعم أي بيانات قديمة إن وُجدت
+    case "building":
+      return Building2 as never;
+
+    case "clipboard":
+      return ClipboardCheck as never;
+
+    case "badge":
+      return BadgeCheck as never;
+
+    case "sparkles":
+      return Sparkles as never;
+
+    default:
+      return Sparkles;
+  }
 }

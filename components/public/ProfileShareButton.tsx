@@ -2,46 +2,65 @@
 
 import { useState } from "react";
 
+type ProfileShareButtonProps = {
+  locale: "ar" | "en";
+  title: string;
+  url?: string;
+  className?: string;
+};
+
 export function ProfileShareButton({
   locale,
   title,
-}: {
-  locale: "ar" | "en";
-  title: string;
-}) {
+  url,
+  className = "",
+}: ProfileShareButtonProps) {
   const [copied, setCopied] = useState(false);
 
   async function handleShare() {
-    const url = window.location.href;
+    const shareUrl = url
+      ? new URL(url, window.location.origin).toString()
+      : window.location.href;
 
     if (navigator.share) {
-      await navigator.share({
-        title,
-        url,
-      });
+      try {
+        await navigator.share({
+          title,
+          url: shareUrl,
+        });
+      } catch {
+        // المستخدم أغلق نافذة المشاركة.
+      }
 
       return;
     }
 
-    await navigator.clipboard.writeText(url);
+    try {
+      await navigator.clipboard.writeText(shareUrl);
 
-    setCopied(true);
+      setCopied(true);
 
-    window.setTimeout(() => {
-      setCopied(false);
-    }, 1800);
+      window.setTimeout(() => {
+        setCopied(false);
+      }, 1800);
+    } catch {
+      window.prompt(
+        locale === "ar" ? "انسخ الرابط التالي:" : "Copy this link:",
+        shareUrl
+      );
+    }
   }
 
   return (
     <button
       type="button"
       onClick={handleShare}
-      className="rounded-full border border-white/10 px-7 py-4 text-[10px] uppercase tracking-[0.35em] text-white transition hover:border-gold/40 hover:text-gold"
+      className={`rounded-full border border-white/10 px-7 py-4 text-[10px] uppercase tracking-[0.35em] text-white transition hover:border-gold/40 hover:text-gold ${className}`}
     >
       {copied
         ? locale === "ar"
-          ? "تم النسخ"
-          : "Copied"
+          ? "✓ تم النسخ"
+          : "✓ Copied"
         : locale === "ar"
           ? "مشاركة الملف"
           : "Share Profile"}

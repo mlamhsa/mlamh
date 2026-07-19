@@ -34,8 +34,29 @@ const CATEGORY_ALIASES: Record<string, string[]> = {
     "صناع محتوى",
     "محتوى",
   ],
-  presenter: ["presenter", "presenters", "host", "hosts", "tv host", "مقدم", "مقدمة", "مقدمو برامج", "تقديم", "إعلام"],
-  voice_actor: ["voice_actor", "voice", "voice over", "voiceover", "voice artist", "voice artists", "تعليق صوتي", "معلق صوتي", "معلقون صوتيون"],
+  presenter: [
+    "presenter",
+    "presenters",
+    "host",
+    "hosts",
+    "tv host",
+    "مقدم",
+    "مقدمة",
+    "مقدمو برامج",
+    "تقديم",
+    "إعلام",
+  ],
+  voice_actor: [
+    "voice_actor",
+    "voice",
+    "voice over",
+    "voiceover",
+    "voice artist",
+    "voice artists",
+    "تعليق صوتي",
+    "معلق صوتي",
+    "معلقون صوتيون",
+  ],
   singer: ["singer", "singers", "مغني", "مغنون", "غناء"],
   dancer: ["dancer", "dancers", "راقص", "راقصون", "رقص"],
   athlete: ["athlete", "athletes", "رياضي", "رياضيون"],
@@ -48,9 +69,25 @@ function normalizeSearchValue(value?: string) {
   return trimmed ? trimmed : undefined;
 }
 
+function normalizeSlug(value: string) {
+  let normalized = value.trim();
+
+  try {
+    normalized = decodeURIComponent(normalized);
+  } catch {
+    // Next.js may already provide a decoded slug.
+  }
+
+  return normalized.trim();
+}
+
 function getCategorySearchTerms(category?: string) {
   const normalizedCategory = normalizeSearchValue(category);
-  if (!normalizedCategory) return [];
+
+  if (!normalizedCategory) {
+    return [];
+  }
+
   const normalizedKey = normalizedCategory.toLowerCase();
   return CATEGORY_ALIASES[normalizedKey] ?? [normalizedCategory];
 }
@@ -58,7 +95,9 @@ function getCategorySearchTerms(category?: string) {
 function buildIlikeOrFilter(columns: string[], terms: string[]) {
   return terms
     .flatMap((term) =>
-      columns.map((column) => `${column}.ilike.%${term.replace(/[%]/g, "")}%`)
+      columns.map(
+        (column) => `${column}.ilike.%${term.replace(/[%]/g, "")}%`
+      )
     )
     .join(",");
 }
@@ -146,7 +185,9 @@ export async function getPublicTalents({
       .order("id", { ascending: false })
       .range(from, to);
 
-    if (error) throw new Error(`[getPublicTalents] ${error.message}`);
+    if (error) {
+      throw new Error(`[getPublicTalents] ${error.message}`);
+    }
 
     const total = count ?? 0;
 
@@ -165,6 +206,7 @@ export async function getPublishedTalentById(
 ): Promise<Talent | null> {
   return getCachedValue(`published-talent:v2:id:${id}`, async () => {
     const supabase = createAdminClient();
+
     const { data, error } = await supabase
       .from("talents")
       .select("*")
@@ -173,7 +215,9 @@ export async function getPublishedTalentById(
       .eq("status", "approved")
       .maybeSingle();
 
-    if (error) throw new Error(`[getPublishedTalentById] ${error.message}`);
+    if (error) {
+      throw new Error(`[getPublishedTalentById] ${error.message}`);
+    }
 
     return data as Talent | null;
   });
@@ -182,27 +226,37 @@ export async function getPublishedTalentById(
 export async function getPublishedTalentBySlug(
   slug: string
 ): Promise<Talent | null> {
-  const normalizedSlug = slug.trim().toLowerCase();
+  const normalizedSlug = normalizeSlug(slug);
+  const supabase = createAdminClient();
 
-  return getCachedValue(`published-talent:v2:slug:${normalizedSlug}`, async () => {
-    const supabase = createAdminClient();
-    const { data, error } = await supabase
-      .from("talents")
-      .select("*")
-      .eq("slug", normalizedSlug)
-      .eq("published", true)
-      .eq("status", "approved")
-      .maybeSingle();
+  const { data, error } = await supabase
+    .from("talents")
+    .select("*")
+    .eq("slug", normalizedSlug)
+    .eq("published", true)
+    .eq("status", "approved")
+    .maybeSingle();
 
-    if (error) throw new Error(`[getPublishedTalentBySlug] ${error.message}`);
+  if (error) {
+    throw new Error(`[getPublishedTalentBySlug] ${error.message}`);
+  }
 
-    return data as Talent | null;
+  console.log("[getPublishedTalentBySlug]", {
+    receivedSlug: slug,
+    normalizedSlug,
+    found: Boolean(data),
+    databaseSlug: data?.slug ?? null,
+    published: data?.published ?? null,
+    status: data?.status ?? null,
   });
+
+  return data as Talent | null;
 }
 
 export async function getPublishedTalents(): Promise<Talent[]> {
   return getCachedValue("published-talents:v2:all", async () => {
     const supabase = createAdminClient();
+
     const { data, error } = await supabase
       .from("talents")
       .select("*")
@@ -212,7 +266,9 @@ export async function getPublishedTalents(): Promise<Talent[]> {
       .order("sort_order", { ascending: true })
       .order("id", { ascending: false });
 
-    if (error) throw new Error(`[getPublishedTalents] ${error.message}`);
+    if (error) {
+      throw new Error(`[getPublishedTalents] ${error.message}`);
+    }
 
     return (data ?? []) as Talent[];
   });

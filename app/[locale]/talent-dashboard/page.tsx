@@ -1,14 +1,14 @@
 import Link from "next/link";
-
 import TalentSidebar from "@/components/talent/TalentSidebar";
 import TalentHeader from "@/components/talent/TalentHeader";
 import TalentProfileCard from "@/components/talent/TalentProfileCard";
 import TalentApplications from "@/components/talent/TalentApplications";
-import ApplicationCard from "@/components/talent/ApplicationCard";
-import StatCard from "@/components/talent/StatCard";
-
+import DashboardApplicationStats from "@/components/talent/dashboard/DashboardApplicationStats";
+import DashboardQuickActions from "@/components/talent/dashboard/DashboardQuickActions";
+import DashboardProfileReadiness from "@/components/talent/dashboard/DashboardProfileReadiness";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import DashboardMessagesCard from "@/components/talent/dashboard/DashboardMessagesCard";
 import { TalentProfileService } from "@/lib/services/talent/TalentProfileService";
 
 type PageProps = {
@@ -190,6 +190,77 @@ export default async function TalentDashboardPage({
     );
   }
 
+  const {
+    data: talentConversations,
+    error: talentConversationsError,
+  } = await adminClient
+    .from("conversations")
+    .select("id, updated_at, status")
+    .eq("talent_id", talent.id)
+    .order("updated_at", { ascending: false });
+
+  if (talentConversationsError) {
+    console.error("Talent dashboard conversations error:", {
+      message: talentConversationsError.message,
+      details: talentConversationsError.details,
+      hint: talentConversationsError.hint,
+      code: talentConversationsError.code,
+    });
+  }
+
+  const conversations = talentConversations ?? [];
+  const conversationIds = conversations.map(
+    (conversation) => conversation.id
+  );
+
+  const {
+    data: unreadMessages,
+    error: unreadMessagesError,
+  } =
+    conversationIds.length > 0
+      ? await adminClient
+          .from("messages")
+          .select("id, conversation_id")
+          .in("conversation_id", conversationIds)
+          .neq("sender_user_id", user.id)
+          .is("read_at", null)
+      : {
+          data: [],
+          error: null,
+        };
+
+  if (unreadMessagesError) {
+    console.error("Talent dashboard unread messages error:", {
+      message: unreadMessagesError.message,
+      details: unreadMessagesError.details,
+      hint: unreadMessagesError.hint,
+      code: unreadMessagesError.code,
+    });
+  }
+
+  const unreadMessagesCount = unreadMessages?.length ?? 0;
+  const totalConversations = conversations.length;
+
+  const {
+    data: unreadNotifications,
+    error: unreadNotificationsError,
+  } = await adminClient
+    .from("notifications")
+    .select("id")
+    .eq("recipient_type", "talent")
+    .eq("recipient_id", String(talent.id))
+    .eq("is_read", false);
+
+  if (unreadNotificationsError) {
+    console.error(
+      "Talent dashboard notifications error:",
+      unreadNotificationsError
+    );
+  }
+
+  const unreadNotificationsCount =
+    unreadNotifications?.length ?? 0;
+
   const { data: applications, error: applicationsError } =
     await adminClient
       .from("opportunity_applications")
@@ -245,10 +316,6 @@ export default async function TalentDashboardPage({
       ? talent.city_ar ?? talent.city_en ?? "-"
       : talent.city_en ?? talent.city_ar ?? "-";
 
-  /*
-   * مصدر واحد لحساب اكتمال الملف.
-   * نفس TalentProfileService يمكن استخدامه في جميع صفحات المشروع.
-   */
   const profileCompletion =
     TalentProfileService.calculateCompletion(talent);
 
@@ -352,6 +419,12 @@ export default async function TalentDashboardPage({
         : `${reviewingCount} application(s) are currently under review.`
       : null,
 
+    unreadMessagesCount > 0
+      ? isRtl
+        ? `لديك ${unreadMessagesCount} رسالة غير مقروءة.`
+        : `You have ${unreadMessagesCount} unread message(s).`
+      : null,
+
     incompleteItems > 0
       ? isRtl
         ? `أكمل ${incompleteItems} قسم لتحسين ظهور ملفك.`
@@ -368,7 +441,7 @@ export default async function TalentDashboardPage({
         <TalentSidebar
           locale={locale}
           totalApplications={totalApplications}
-          notificationCount={notificationItems.length}
+          notificationCount={unreadNotificationsCount}
         />
 
         <div className="min-w-0 space-y-6">
@@ -380,64 +453,14 @@ export default async function TalentDashboardPage({
             reviewingCount={reviewingCount}
           />
 
-          <section className="overflow-hidden rounded-[1.75rem] border border-gold/20 bg-[radial-gradient(circle_at_top_right,rgba(197,160,89,0.16),transparent_38%),linear-gradient(135deg,rgba(255,255,255,0.055),rgba(255,255,255,0.018))] p-5 sm:p-7">
-            <div className="flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded-full border border-gold/25 bg-gold/[0.08] px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-gold">
-                    {profileStatus}
-                  </span>
-
-                  <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-white/55">
-                    {availabilityStatus}
-                  </span>
-                </div>
-
-                <h1 className="mt-5 text-3xl font-light leading-tight text-white sm:text-4xl">
-                  {isRtl
-                    ? `مرحباً، ${talentName}`
-                    : `Welcome, ${talentName}`}
-                </h1>
-
-                <p className="mt-3 max-w-2xl text-sm leading-7 text-white/50">
-                  {talent.status === "pending"
-                    ? isRtl
-                      ? "ملفك قيد المراجعة حالياً. أكمل البيانات الناقصة لزيادة جاهزية ملفك قبل الاعتماد."
-                      : "Your profile is currently under review. Complete the missing details to improve its readiness before approval."
-                    : isRtl
-                      ? "تابع ملفك وطلباتك والفرص المناسبة لك من مكان واحد."
-                      : "Manage your profile, applications, and matching opportunities from one place."}
-                </p>
-              </div>
-
-              <div className="w-full shrink-0 rounded-2xl border border-white/10 bg-black/25 p-4 xl:w-[320px]">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-[10px] uppercase tracking-[0.22em] text-white/35">
-                      {isRtl ? "اكتمال الملف" : "Profile Completion"}
-                    </p>
-                    <p className="mt-1 text-3xl font-light text-gold">
-                      {profileCompletion}%
-                    </p>
-                  </div>
-
-                  <Link
-                    href={`/${locale}/talent-dashboard/profile`}
-                    className="rounded-full border border-gold/35 bg-gold/[0.08] px-4 py-2 text-[10px] uppercase tracking-[0.2em] text-gold transition hover:bg-gold hover:text-black"
-                  >
-                    {isRtl ? "إكمال الملف" : "Complete Profile"}
-                  </Link>
-                </div>
-
-                <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10">
-                  <div
-                    className="h-full rounded-full bg-gold transition-all duration-500"
-                    style={{ width: `${profileCompletion}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-          </section>
+          <DashboardQuickActions
+            locale={locale}
+            isRtl={isRtl}
+            unreadMessagesCount={unreadMessagesCount}
+            unreadNotificationsCount={unreadNotificationsCount}
+            totalApplications={totalApplications}
+            profileCompletion={profileCompletion}
+          />
 
           <TalentProfileCard
             locale={locale}
@@ -449,151 +472,21 @@ export default async function TalentDashboardPage({
             availabilityStatus={availabilityStatus}
           />
 
-          <section className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-            <StatCard
-              label={isRtl ? "حالة الملف" : "Profile Status"}
-              value={profileStatus}
-            />
-
-            <StatCard
-              label={isRtl ? "الجاهزية" : "Availability"}
-              value={availabilityStatus}
-            />
-
-            <StatCard
-              label={isRtl ? "الطلبات" : "Applications"}
-              value={totalApplications}
-              highlighted
-            />
-
-            <StatCard
-              label={isRtl ? "المدينة" : "City"}
-              value={talentCity}
-            />
-          </section>
-
           <section className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
-            <section className="rounded-[1.75rem] border border-white/10 bg-white/[0.025] p-5 sm:p-6">
-              <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-[10px] uppercase tracking-[0.28em] text-gold">
-                    {isRtl
-                      ? "تقديمات الفرص"
-                      : "Opportunity Applications"}
-                  </p>
+            <DashboardApplicationStats
+              locale={locale}
+              isRtl={isRtl}
+              totalApplications={totalApplications}
+              counts={counts}
+            />
 
-                  <h2 className="mt-3 text-2xl font-light sm:text-3xl">
-                    {isRtl
-                      ? "تابع تقديماتك"
-                      : "Track your applications"}
-                  </h2>
-
-                  <p className="mt-3 max-w-2xl text-sm leading-7 text-white/45">
-                    {isRtl
-                      ? "تابع حالة الفرص التي قدمت عليها من المراجعة إلى القبول أو الرفض."
-                      : "Track opportunities you applied to from review to acceptance or rejection."}
-                  </p>
-                </div>
-
-                <Link
-                  href={`/${locale}/talent-dashboard/requests`}
-                  className="shrink-0 rounded-full border border-gold/40 bg-gold/[0.06] px-5 py-3 text-center text-[10px] uppercase tracking-[0.2em] text-gold transition hover:bg-gold hover:text-black"
-                >
-                  {isRtl ? "عرض الطلبات" : "View Applications"}
-                </Link>
-              </div>
-
-              <div className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
-                <ApplicationCard
-                  label={isRtl ? "الإجمالي" : "Total"}
-                  value={totalApplications}
-                />
-
-                <ApplicationCard
-                  label={isRtl ? "جديد" : "Pending"}
-                  value={counts.pending ?? 0}
-                />
-
-                <ApplicationCard
-                  label={isRtl ? "قيد المراجعة" : "Reviewing"}
-                  value={counts.reviewing ?? 0}
-                />
-
-                <ApplicationCard
-                  label={isRtl ? "مختصر" : "Shortlisted"}
-                  value={counts.shortlisted ?? 0}
-                />
-
-                <ApplicationCard
-                  label={isRtl ? "مقبول" : "Accepted"}
-                  value={counts.accepted ?? 0}
-                  highlighted
-                />
-
-                <ApplicationCard
-                  label={isRtl ? "مرفوض" : "Rejected"}
-                  value={counts.rejected ?? 0}
-                />
-              </div>
-            </section>
-
-            <section className="rounded-[1.75rem] border border-white/10 bg-white/[0.025] p-5 sm:p-6">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-[10px] uppercase tracking-[0.28em] text-gold">
-                    {isRtl ? "جاهزية الملف" : "Profile Readiness"}
-                  </p>
-
-                  <h2 className="mt-3 text-2xl font-light">
-                    {isRtl
-                      ? "ما الذي ينقص ملفك؟"
-                      : "What is still missing?"}
-                  </h2>
-                </div>
-
-                <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-xs text-white/45">
-                  {incompleteItems}
-                </span>
-              </div>
-
-              <div className="mt-6 space-y-3">
-                {completionChecklist.map((item) => (
-                  <div
-                    key={item.label}
-                    className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-black/20 px-4 py-3"
-                  >
-                    <span className="text-sm leading-6 text-white/60">
-                      {item.label}
-                    </span>
-
-                    <span
-                      className={`shrink-0 rounded-full px-3 py-1 text-[11px] ${
-                        item.done
-                          ? "bg-emerald-400/10 text-emerald-300"
-                          : "bg-gold/10 text-gold"
-                      }`}
-                    >
-                      {item.done
-                        ? isRtl
-                          ? "مكتمل"
-                          : "Done"
-                        : isRtl
-                          ? "ناقص"
-                          : "Missing"}
-                    </span>
-                  </div>
-                ))}
-              </div>
-
-              {incompleteItems > 0 ? (
-                <Link
-                  href={`/${locale}/talent-dashboard/profile`}
-                  className="mt-5 inline-flex w-full items-center justify-center rounded-full border border-gold/35 bg-gold/[0.06] px-5 py-3 text-[10px] uppercase tracking-[0.2em] text-gold transition hover:bg-gold hover:text-black"
-                >
-                  {isRtl ? "إكمال البيانات الناقصة" : "Complete Missing Details"}
-                </Link>
-              ) : null}
-            </section>
+<DashboardProfileReadiness
+  locale={locale}
+  isRtl={isRtl}
+  incompleteItems={incompleteItems}
+  profileCompletion={profileCompletion}
+  completionChecklist={completionChecklist}
+/>
           </section>
 
           <TalentApplications
@@ -602,6 +495,13 @@ export default async function TalentDashboardPage({
             recentApplications={recentApplications}
             notificationItems={notificationItems}
           />
+
+<DashboardMessagesCard
+  locale={locale}
+  isRtl={isRtl}
+  unreadMessagesCount={unreadMessagesCount}
+  totalConversations={totalConversations}
+/>
         </div>
       </div>
     </main>

@@ -138,6 +138,7 @@ export function Navbar({ locale }: { locale: Locale }) {
   alt="MLAMH"
   width={220}
   height={90}
+  priority
   className="h-auto w-40 sm:w-52"
 />
         </Link>

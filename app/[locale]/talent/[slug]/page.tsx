@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+
 import { Footer } from "@/components/Footer";
 import { Navbar } from "@/components/Navbar";
 import { PublicTalentCard } from "@/components/public/PublicTalentCard";
 import { PublicTalentGallery } from "@/components/public/PublicTalentGallery";
 import { ProfileShareButton } from "@/components/public/ProfileShareButton";
 import { TalentRequestForm } from "@/components/public/TalentRequestForm";
+
 import { isValidLocale, type Locale } from "@/lib/i18n";
 import { buildTalentMetadata } from "@/lib/seo/talent-metadata";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -13,21 +15,22 @@ import {
   getPublishedTalentBySlug,
   getPublishedTalents,
 } from "@/lib/supabase/public-talents";
-import { talentPath } from "@/lib/utils/routes";
-import {
-  buildWhatsappUrl,
-  normalizeInstagramUrl,
-} from "@/lib/utils/social-links";
-import { getRelatedTalents } from "@/lib/utils/talent-selectors";
-import { normalizeGalleryImages } from "@/lib/utils/talent-gallery";
 import {
   getTalentBio,
   getTalentCategory,
   getTalentCity,
   getTalentName,
 } from "@/lib/utils/talent-formatters";
+import { normalizeGalleryImages } from "@/lib/utils/talent-gallery";
+import { talentPath } from "@/lib/utils/routes";
+import { normalizeInstagramUrl } from "@/lib/utils/social-links";
+import { getRelatedTalents } from "@/lib/utils/talent-selectors";
+import {
+  hasDisplayValue,
+  translateTalentValue,
+  translateTalentValues,
+} from "@/lib/utils/talent-translations";
 
-// دوال ترجمة القيم حسب اللغة
 const EYE_COLOR_LABELS: Record<string, { ar: string; en: string }> = {
   brown: { ar: "بني", en: "Brown" },
   black: { ar: "أسود", en: "Black" },
@@ -59,7 +62,7 @@ const HAIR_TYPE_LABELS: Record<string, { ar: string; en: string }> = {
 
 const SKIN_COLOR_LABELS: Record<string, { ar: string; en: string }> = {
   fair: { ar: "فاتح", en: "Fair" },
-  light: { ar: "فاتح نسبياً", en: "Light" },
+  light: { ar: "فاتح نسبيًا", en: "Light" },
   medium: { ar: "متوسط", en: "Medium" },
   olive: { ar: "زيتوني", en: "Olive" },
   tan: { ar: "برونزي", en: "Tan" },
@@ -68,32 +71,43 @@ const SKIN_COLOR_LABELS: Record<string, { ar: string; en: string }> = {
 };
 
 const CLOTHING_SIZE_LABELS: Record<string, { ar: string; en: string }> = {
-  XS: { ar: "صغير جداً", en: "XS" },
+  XS: { ar: "صغير جدًا", en: "XS" },
   S: { ar: "صغير", en: "S" },
   M: { ar: "متوسط", en: "M" },
   L: { ar: "كبير", en: "L" },
-  XL: { ar: "كبير جداً", en: "XL" },
-  XXL: { ar: "ضخم", en: "XXL" },
+  XL: { ar: "كبير جدًا", en: "XL" },
+  XXL: { ar: "كبير جدًا جدًا", en: "XXL" },
 };
 
 function formatOption(
   value: string | null | undefined,
   labels?: Record<string, { ar: string; en: string }>,
-  isRtl?: boolean
+  isRtl?: boolean,
 ) {
-  if (!value) return "-";
+  if (!value?.trim()) return null;
+
+  const normalizedValue = value.trim();
+  const normalizedKey = normalizedValue.toLowerCase();
+
   if (labels && isRtl !== undefined) {
-    const item = labels[value];
-    if (!item) return value;
+    const item =
+      labels[normalizedValue] ??
+      labels[normalizedKey] ??
+      labels[normalizedValue.toUpperCase()];
+
+    if (!item) return formatTag(normalizedValue);
+
     return isRtl ? item.ar : item.en;
   }
-  return formatTag(value);
+
+  return formatTag(normalizedValue);
 }
 
 function formatBoolean(value: boolean | null | undefined, isRtl: boolean) {
-  if (value === null || value === undefined) return "-";
+  if (value === null || value === undefined) return null;
   return value ? (isRtl ? "نعم" : "Yes") : isRtl ? "لا" : "No";
 }
+
 export const dynamic = "force-dynamic";
 
 type PageProps = {
@@ -117,18 +131,92 @@ export async function generateMetadata({ params }: PageProps) {
   return buildTalentMetadata({ talent, locale });
 }
 
-function normalizeSocialUrl(value?: string | null) {
+function sanitizeExternalUrl(value?: string | null) {
   if (!value?.trim()) {
     return null;
   }
 
   const trimmed = value.trim();
+  const lowered = trimmed.toLowerCase();
 
-  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-    return trimmed;
+  if (
+    ["/", "#", "null", "undefined", "n/a", "na"].includes(lowered) ||
+    lowered.includes("localhost") ||
+    lowered.includes("127.0.0.1")
+  ) {
+    return null;
   }
 
-  return `https://${trimmed}`;
+  const candidate =
+    trimmed.startsWith("http://") || trimmed.startsWith("https://")
+      ? trimmed
+      : trimmed.includes(".")
+        ? `https://${trimmed}`
+        : null;
+
+  if (!candidate) {
+    return null;
+  }
+
+  try {
+    const url = new URL(candidate);
+
+    if (
+      !["http:", "https:"].includes(url.protocol) ||
+      url.hostname === "localhost" ||
+      url.hostname === "127.0.0.1"
+    ) {
+      return null;
+    }
+
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+function normalizePlatformUrl(
+  value: string | null | undefined,
+  platform: "tiktok" | "snapchat",
+) {
+  if (!value?.trim()) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  const lowered = trimmed.toLowerCase();
+
+  if (
+    ["/", "#", "null", "undefined", "n/a", "na"].includes(lowered) ||
+    lowered.includes("localhost") ||
+    lowered.includes("127.0.0.1")
+  ) {
+    return null;
+  }
+
+  const directUrl = sanitizeExternalUrl(trimmed);
+
+  if (directUrl) {
+    return directUrl;
+  }
+
+  const username = trimmed
+    .replace(/^@/, "")
+    .replace(/^\/+|\/+$/g, "")
+    .trim();
+
+  if (
+    !username ||
+    username.includes(" ") ||
+    username.includes(":") ||
+    username.includes("\\")
+  ) {
+    return null;
+  }
+
+  return platform === "tiktok"
+    ? `https://www.tiktok.com/@${encodeURIComponent(username)}`
+    : `https://www.snapchat.com/add/${encodeURIComponent(username)}`;
 }
 
 function calculateAge(dateOfBirth?: string | null) {
@@ -176,18 +264,16 @@ function formatTag(value: string) {
     .join(" ");
 }
 
-
 function formatMeasurement(
   value: string | number | null | undefined,
-  suffix: string
+  suffix: string,
 ) {
   if (value === null || value === undefined || value === "") {
     return null;
   }
 
-  return String(value) + " " + suffix;
+  return `${value} ${suffix}`;
 }
-
 
 export default async function TalentProfilePage({ params }: PageProps) {
   const { locale: localeParam, slug } = await params;
@@ -212,14 +298,14 @@ export default async function TalentProfilePage({ params }: PageProps) {
   });
 
   const allTalents = await getPublishedTalents();
-  const relatedTalents = getRelatedTalents(allTalents, talent);
+  const relatedTalents = getRelatedTalents(allTalents, talent).slice(0, 3);
 
-
-  const instagramUrl = normalizeInstagramUrl(talent.instagram);
-  const whatsappUrl = buildWhatsappUrl(talent.whatsapp);
-  const tiktokUrl = normalizeSocialUrl(talent.tiktok);
-  const snapchatUrl = normalizeSocialUrl(talent.snapchat);
-  const portfolioUrl = normalizeSocialUrl(talent.portfolio_url);
+  const instagramUrl = sanitizeExternalUrl(
+    normalizeInstagramUrl(talent.instagram),
+  );
+  const tiktokUrl = normalizePlatformUrl(talent.tiktok, "tiktok");
+  const snapchatUrl = normalizePlatformUrl(talent.snapchat, "snapchat");
+  const portfolioUrl = sanitizeExternalUrl(talent.portfolio_url);
 
   const gallery = normalizeGalleryImages(talent.gallery_images);
 
@@ -230,6 +316,15 @@ export default async function TalentProfilePage({ params }: PageProps) {
 
   const age = calculateAge(talent.date_of_birth);
   const gender = formatGender(talent.gender, isRtl);
+  const nationality = translateTalentValue(
+    locale,
+    "nationality",
+    talent.nationality,
+  );
+
+  const languages = translateTalentValues(locale, "language", talent.languages);
+  const dialects = translateTalentValues(locale, "dialect", talent.dialects);
+  const skills = translateTalentValues(locale, "skill", talent.skills);
 
   const availabilityMap: Record<string, string> = {
     available_now: isRtl ? "متاح حاليًا" : "Available Now",
@@ -239,56 +334,183 @@ export default async function TalentProfilePage({ params }: PageProps) {
   };
 
   const availability = talent.availability_status
-    ? availabilityMap[talent.availability_status] || "—"
-    : "—";
+    ? availabilityMap[talent.availability_status] || null
+    : null;
+
+  const appearanceItems = [
+    {
+      label: isRtl ? "لون العين" : "Eye Color",
+      value: formatOption(talent.eye_color, EYE_COLOR_LABELS, isRtl),
+    },
+    {
+      label: isRtl ? "لون الشعر" : "Hair Color",
+      value: formatOption(talent.hair_color, HAIR_COLOR_LABELS, isRtl),
+    },
+    {
+      label: isRtl ? "نوع الشعر" : "Hair Type",
+      value: formatOption(talent.hair_type, HAIR_TYPE_LABELS, isRtl),
+    },
+    {
+      label: isRtl ? "لون البشرة" : "Skin Color",
+      value: formatOption(talent.skin_color, SKIN_COLOR_LABELS, isRtl),
+    },
+  ].filter((item) => hasDisplayValue(item.value));
+
+  const measurementItems = [
+    {
+      label: isRtl ? "الطول" : "Height",
+      value: formatMeasurement(talent.height_cm, isRtl ? "سم" : "cm"),
+    },
+    {
+      label: isRtl ? "الوزن" : "Weight",
+      value: formatMeasurement(talent.weight_kg, isRtl ? "كجم" : "kg"),
+    },
+    {
+      label: isRtl ? "مقاس الملابس" : "Clothing Size",
+      value: formatOption(talent.clothing_size, CLOTHING_SIZE_LABELS, isRtl),
+    },
+    {
+      label: isRtl ? "مقاس الحذاء" : "Shoe Size",
+      value: talent.shoe_size,
+    },
+    {
+      label: isRtl ? "مقاس الصدر" : "Chest Size",
+      value: talent.chest_size,
+    },
+    {
+      label: isRtl ? "مقاس الخصر" : "Waist Size",
+      value: talent.waist_size,
+    },
+    {
+      label: isRtl ? "مقاس الورك" : "Hip Size",
+      value: talent.hip_size,
+    },
+  ].filter((item) => hasDisplayValue(item.value));
+
+  const experienceItems = [
+    {
+      label: isRtl ? "سنوات الخبرة" : "Experience Years",
+      value: talent.experience_years,
+    },
+    {
+      label: isRtl ? "مستعد للسفر" : "Ready to Travel",
+      value: formatBoolean(talent.ready_to_travel, isRtl),
+    },
+    {
+      label: isRtl ? "يمتلك جواز سفر" : "Has Passport",
+      value: formatBoolean(talent.has_passport, isRtl),
+    },
+    {
+      label: isRtl ? "يمتلك سيارة" : "Has Car",
+      value: formatBoolean(talent.has_car, isRtl),
+    },
+    {
+      label: isRtl ? "العمل خارج المدينة" : "Work Outside City",
+      value: formatBoolean(talent.work_outside_city, isRtl),
+    },
+    {
+      label: isRtl ? "العمل خارج الدولة" : "Work Outside Country",
+      value: formatBoolean(talent.work_outside_country, isRtl),
+    },
+  ].filter((item) => hasDisplayValue(item.value));
+
+  const socialLinks = Array.from(
+    new Map(
+      [
+        instagramUrl
+          ? {
+              href: instagramUrl,
+              label: isRtl ? "إنستغرام" : "Instagram",
+            }
+          : null,
+        tiktokUrl
+          ? {
+              href: tiktokUrl,
+              label: isRtl ? "تيك توك" : "TikTok",
+            }
+          : null,
+        snapchatUrl
+          ? {
+              href: snapchatUrl,
+              label: isRtl ? "سناب شات" : "Snapchat",
+            }
+          : null,
+        portfolioUrl
+          ? {
+              href: portfolioUrl,
+              label: isRtl ? "معرض الأعمال" : "Portfolio",
+            }
+          : null,
+      ]
+        .filter(
+          (
+            item,
+          ): item is {
+            href: string;
+            label: string;
+          } => Boolean(item?.href),
+        )
+        .filter(
+          (item) =>
+            !item.href.includes("localhost") &&
+            !item.href.includes("127.0.0.1"),
+        )
+        .map((item) => [item.href, item]),
+    ).values(),
+  );
 
   return (
     <main
-      className="min-h-screen bg-background text-white"
+      className="min-h-screen overflow-x-hidden bg-background pb-20 text-white lg:pb-0"
       dir={isRtl ? "rtl" : "ltr"}
     >
       <Navbar locale={locale} />
 
-      <section className="relative overflow-hidden pt-32 pb-24">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(201,169,98,0.08),transparent_45%)]" />
+      <section className="relative overflow-hidden pb-20 pt-24 sm:pb-24 sm:pt-32">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(201,169,98,0.1),transparent_42%)]" />
 
-        <div className="relative mx-auto max-w-7xl px-6">
-          <div className="mb-10">
-            <Link
-              href={talentPath(locale)}
-              className="text-[10px] uppercase tracking-[0.35em] text-gold transition hover:text-gold-soft"
-            >
-              {isRtl ? "← العودة للمواهب" : "← Back to talents"}
-            </Link>
-          </div>
+        <div className="relative mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+          <Link
+            href={talentPath(locale)}
+            className="inline-flex items-center rounded-full border border-white/10 bg-black/20 px-4 py-2 text-[10px] uppercase tracking-[0.24em] text-gold transition hover:border-gold/35 hover:bg-gold/[0.06]"
+          >
+            {isRtl ? "العودة للمواهب" : "Back to talents"}
+          </Link>
 
-          <div className="grid gap-14 lg:grid-cols-[460px_minmax(0,1fr)]">
-            <div>
-              <PublicTalentGallery
-                imageUrl={talent.image_url}
-                galleryImages={gallery}
-                alt={name || "Talent image"}
-              />
-            </div>
-
-            <div>
-              <div className="mb-6 flex flex-wrap items-center gap-3">
-                {talent.featured ? (
-                  <div className="inline-flex items-center rounded-full border border-gold/30 bg-gold/[0.06] px-5 py-2 text-[10px] uppercase tracking-[0.35em] text-gold">
-                    {isRtl ? "موهبة مميزة" : "Featured Talent"}
-                  </div>
-                ) : null}
-
-                {talent.verified ? (
-                  <div className="inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/10 px-5 py-2 text-[10px] uppercase tracking-[0.35em] text-emerald-300">
-                    ✓ {isRtl ? "موثق" : "Verified"}
-                  </div>
-                ) : null}
+          <div className="mt-6 overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.025] shadow-2xl shadow-black/20 sm:mt-8 sm:rounded-[2.5rem]">
+            <div className="grid lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+              <div className="border-b border-white/10 p-3 sm:p-5 lg:border-b-0 lg:border-e">
+                <div className="lg:sticky lg:top-28">
+                  <PublicTalentGallery
+                    imageUrl={talent.image_url}
+                    galleryImages={gallery}
+                    alt={name || "Talent image"}
+                    locale={locale}
+                  />
+                </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-4">
+              <div className="p-5 sm:p-8 lg:p-10 xl:p-12">
+                <div className="flex flex-wrap items-center gap-2">
+                  {talent.verified ? (
+                    <StatusPill tone="success">
+                      ✓ {isRtl ? "موثق" : "Verified"}
+                    </StatusPill>
+                  ) : null}
+
+                  {talent.featured ? (
+                    <StatusPill tone="gold">
+                      {isRtl ? "موهبة مميزة" : "Featured Talent"}
+                    </StatusPill>
+                  ) : null}
+
+                  {availability ? (
+                    <StatusPill tone="neutral">{availability}</StatusPill>
+                  ) : null}
+                </div>
+
                 <h1
-                  className="text-[clamp(3rem,8vw,6.5rem)] leading-[0.92] font-light tracking-tight text-white"
+                  className="mt-6 break-words text-[clamp(2.75rem,8vw,6rem)] font-light leading-[1.05] tracking-tight text-white"
                   style={{
                     fontFamily: isRtl
                       ? "var(--font-noto-arabic)"
@@ -298,303 +520,372 @@ export default async function TalentProfilePage({ params }: PageProps) {
                   {name || (isRtl ? "موهبة غير مسماة" : "Unnamed Talent")}
                 </h1>
 
-                {talent.verified ? (
-                  <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs uppercase tracking-[0.2em] text-emerald-300">
-                    ✓
-                  </span>
-                ) : null}
+                <p className="mt-4 text-sm leading-7 text-white/50 sm:text-base">
+                  {[category, city].filter(Boolean).join(" • ")}
+                </p>
+
+                <div className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  <MiniFact
+                    label={isRtl ? "التصنيف" : "Category"}
+                    value={category}
+                  />
+                  <MiniFact label={isRtl ? "المدينة" : "City"} value={city} />
+                  <MiniFact
+                    label={isRtl ? "الحالة" : "Availability"}
+                    value={availability}
+                  />
+                </div>
+
+                <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                  <a
+                    href="#request-talent"
+                    className="inline-flex min-h-12 flex-1 items-center justify-center rounded-full bg-gold px-6 text-xs font-medium text-black transition hover:bg-gold-soft sm:flex-none"
+                  >
+                    {isRtl ? "طلب الموهبة" : "Request Talent"}
+                  </a>
+
+                  <ProfileShareButton
+                    locale={locale}
+                    title={name || "MLAMH Talent"}
+                  />
+                </div>
               </div>
+            </div>
+          </div>
 
-              <div className="mt-10 grid gap-5 sm:grid-cols-2">
-                <InfoBox
-                  label={isRtl ? "التصنيف" : "Category"}
-                  value={category}
-                />
-
-                <InfoBox label={isRtl ? "المدينة" : "City"} value={city} />
-
-                <InfoBox label={isRtl ? "الجنس" : "Gender"} value={gender} />
-
-                <InfoBox
-                  label={isRtl ? "الجنسية" : "Nationality"}
-                  value={talent.nationality}
-                />
-
-                <InfoBox label={isRtl ? "العمر" : "Age"} value={age} />
-
-                <InfoBox
-                  label={isRtl ? "الحالة" : "Availability"}
-                  value={availability}
-                />
-              </div>
-
+          <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)] lg:items-start">
+            <div className="space-y-6">
               {bio ? (
-                <div className="mt-14 max-w-3xl">
-                  <h2 className="mb-5 text-[10px] uppercase tracking-[0.35em] text-gold">
-                    {isRtl ? "نبذة" : "Biography"}
-                  </h2>
-
+                <ContentCard
+                  eyebrow={isRtl ? "عن الموهبة" : "About the talent"}
+                  title={isRtl ? "نبذة" : "Biography"}
+                >
                   <p
-                    className="whitespace-pre-line text-lg leading-relaxed text-white/75"
+                    className="whitespace-pre-line text-sm leading-8 text-white/65 sm:text-base"
                     style={{
-                      fontFamily: isRtl
-                        ? "var(--font-noto-arabic)"
-                        : undefined,
+                      fontFamily: isRtl ? "var(--font-noto-arabic)" : undefined,
                     }}
                   >
                     {bio}
                   </p>
-                </div>
+                </ContentCard>
               ) : null}
 
-              <TagSection
-                title={isRtl ? "اللغات" : "Languages"}
-                values={talent.languages}
+              <DetailsCard
+                eyebrow={isRtl ? "معلومات أساسية" : "Basic Information"}
+                title={isRtl ? "عن الموهبة" : "Talent Overview"}
+                items={[
+                  {
+                    label: isRtl ? "الجنسية" : "Nationality",
+                    value: nationality,
+                  },
+                  { label: isRtl ? "العمر" : "Age", value: age },
+                  { label: isRtl ? "الجنس" : "Gender", value: gender },
+                ].filter((item) => hasDisplayValue(item.value))}
               />
 
-              <TagSection
-                title={isRtl ? "اللهجات" : "Dialects"}
-                values={talent.dialects}
-              />
+              {languages.length > 0 ||
+              dialects.length > 0 ||
+              skills.length > 0 ? (
+                <ContentCard
+                  eyebrow={isRtl ? "القدرات" : "Capabilities"}
+                  title={isRtl ? "اللغات والمهارات" : "Languages & Skills"}
+                >
+                  <div className="space-y-6">
+                    <TagGroup
+                      title={isRtl ? "اللغات" : "Languages"}
+                      values={languages}
+                    />
+                    <TagGroup
+                      title={isRtl ? "اللهجات" : "Dialects"}
+                      values={dialects}
+                    />
+                    <TagGroup
+                      title={isRtl ? "المهارات" : "Skills"}
+                      values={skills}
+                    />
+                  </div>
+                </ContentCard>
+              ) : null}
 
-              <TagSection
-                title={isRtl ? "المهارات" : "Skills"}
-                values={talent.skills}
-              />
-
-
-              <div className="mt-14">
-                <h2 className="mb-5 text-[10px] uppercase tracking-[0.35em] text-gold">
-                  {isRtl ? "المواصفات الجسدية" : "Physical Details"}
-                </h2>
-
-                <div className="grid gap-5 sm:grid-cols-2">
-                  <InfoBox
-                    label={isRtl ? "الطول" : "Height"}
-                    value={formatMeasurement(talent.height_cm, isRtl ? "سم" : "cm")}
-                  />
-
-                  <InfoBox
-                    label={isRtl ? "الوزن" : "Weight"}
-                    value={formatMeasurement(talent.weight_kg, isRtl ? "كجم" : "kg")}
-                  />
-
-                  <InfoBox
-                    label={isRtl ? "لون العين" : "Eye Color"}
-                    value={formatOption(talent.eye_color, EYE_COLOR_LABELS)}
-                  />
-
-                  <InfoBox
-                    label={isRtl ? "لون الشعر" : "Hair Color"}
-                    value={formatOption(talent.hair_color, HAIR_COLOR_LABELS)}
-                  />
-
-                  <InfoBox
-                    label={isRtl ? "نوع الشعر" : "Hair Type"}
-                    value={formatOption(talent.hair_type, HAIR_TYPE_LABELS)}
-                  />
-
-                  <InfoBox
-                    label={isRtl ? "لون البشرة" : "Skin Color"}
-                    value={formatOption(talent.skin_color, SKIN_COLOR_LABELS)}
-                  />
-
-                  <InfoBox
-                    label={isRtl ? "مقاس الملابس" : "Clothing Size"}
-                    value={formatOption(talent.clothing_size, CLOTHING_SIZE_LABELS)}
-                  />
-
-                  <InfoBox
-                    label={isRtl ? "مقاس الحذاء" : "Shoe Size"}
-                    value={talent.shoe_size}
-                  />
-
-                  <InfoBox
-                    label={isRtl ? "مقاس الصدر" : "Chest Size"}
-                    value={talent.chest_size}
-                  />
-
-                  <InfoBox
-                    label={isRtl ? "مقاس الخصر" : "Waist Size"}
-                    value={talent.waist_size}
-                  />
-
-                  <InfoBox
-                    label={isRtl ? "مقاس الورك" : "Hip Size"}
-                    value={talent.hip_size}
-                  />
-                </div>
-              </div>
-
-              <div className="mt-14">
-                <h2 className="mb-5 text-[10px] uppercase tracking-[0.35em] text-gold">
-                  {isRtl ? "الخبرة والتنقل" : "Experience & Mobility"}
-                </h2>
-
-                <div className="grid gap-5 sm:grid-cols-2">
-                  <InfoBox
-                    label={isRtl ? "سنوات الخبرة" : "Experience Years"}
-                    value={talent.experience_years}
-                  />
-
-                  <InfoBox
-                    label={isRtl ? "مستعد للسفر" : "Ready to Travel"}
-                    value={formatBoolean(talent.ready_to_travel, isRtl)}
-                  />
-
-                  <InfoBox
-                    label={isRtl ? "يمتلك جواز سفر" : "Has Passport"}
-                    value={formatBoolean(talent.has_passport, isRtl)}
-                  />
-
-                  <InfoBox
-                    label={isRtl ? "يمتلك سيارة" : "Has Car"}
-                    value={formatBoolean(talent.has_car, isRtl)}
-                  />
-
-                  <InfoBox
-                    label={isRtl ? "يقبل العمل خارج المدينة" : "Work Outside City"}
-                    value={formatBoolean(talent.work_outside_city, isRtl)}
-                  />
-
-                  <InfoBox
-                    label={isRtl ? "يقبل العمل خارج الدولة" : "Work Outside Country"}
-                    value={formatBoolean(talent.work_outside_country, isRtl)}
-                  />
-                </div>
-
-                <div className="mt-6 flex flex-wrap gap-4">
-                  {talent.video_intro ? (
-                    <SocialButton href={normalizeSocialUrl(talent.video_intro) || talent.video_intro}>
-                      {isRtl ? "فيديو تعريفي" : "Video Intro"}
-                    </SocialButton>
-                  ) : null}
-
-                  {talent.showreel_url ? (
-                    <SocialButton href={normalizeSocialUrl(talent.showreel_url) || talent.showreel_url}>
-                      {isRtl ? "شو ريل" : "Showreel"}
-                    </SocialButton>
-                  ) : null}
-                </div>
-              </div>
-
-              <div className="mt-14 flex flex-wrap gap-4">
-                <ProfileShareButton
-                  locale={locale}
-                  title={name || "MLAMH Talent"}
+              {appearanceItems.length > 0 ? (
+                <DetailsCard
+                  eyebrow={isRtl ? "تفاصيل الموهبة" : "Talent Details"}
+                  title={isRtl ? "المظهر" : "Appearance"}
+                  items={appearanceItems}
                 />
+              ) : null}
 
-                {instagramUrl ? (
-                  <SocialButton href={instagramUrl}>Instagram</SocialButton>
-                ) : null}
+              {experienceItems.length > 0 ? (
+                <DetailsCard
+                  eyebrow={isRtl ? "الجاهزية للعمل" : "Work Readiness"}
+                  title={isRtl ? "الخبرة والتنقل" : "Experience & Mobility"}
+                  items={experienceItems}
+                />
+              ) : null}
 
-                {tiktokUrl ? (
-                  <SocialButton href={tiktokUrl}>TikTok</SocialButton>
-                ) : null}
+              {measurementItems.length > 0 ? (
+                <DetailsCard
+                  eyebrow={isRtl ? "تفاصيل الموهبة" : "Talent Details"}
+                  title={isRtl ? "المقاسات" : "Measurements"}
+                  items={measurementItems}
+                />
+              ) : null}
 
-                {snapchatUrl ? (
-                  <SocialButton href={snapchatUrl}>Snapchat</SocialButton>
-                ) : null}
+              {talent.video_intro || talent.showreel_url ? (
+                <ContentCard
+                  eyebrow={isRtl ? "المحتوى المرئي" : "Media"}
+                  title={isRtl ? "الفيديو" : "Video"}
+                >
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {sanitizeExternalUrl(talent.video_intro) ? (
+                      <ActionLink
+                        href={sanitizeExternalUrl(talent.video_intro)!}
+                      >
+                        {isRtl
+                          ? "مشاهدة الفيديو التعريفي"
+                          : "Watch Video Intro"}
+                      </ActionLink>
+                    ) : null}
 
-                {portfolioUrl ? (
-                  <SocialButton href={portfolioUrl}>Portfolio</SocialButton>
-                ) : null}
+                    {sanitizeExternalUrl(talent.showreel_url) ? (
+                      <ActionLink
+                        href={sanitizeExternalUrl(talent.showreel_url)!}
+                      >
+                        {isRtl ? "مشاهدة عرض الأعمال" : "Watch Showreel"}
+                      </ActionLink>
+                    ) : null}
+                  </div>
+                </ContentCard>
+              ) : null}
 
-                {whatsappUrl ? (
-                  <SocialButton href={whatsappUrl}>WhatsApp</SocialButton>
-                ) : null}
+{socialLinks.length > 0 ? (
+  <ContentCard
+    eyebrow={isRtl ? "روابط الموهبة" : "Talent Links"}
+    title={isRtl ? "التواصل والمتابعة" : "Connect & Follow"}
+  >
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      {socialLinks.map((item, index) => (
+        <ActionLink
+          key={`${item.label}-${item.href}-${index}`}
+          href={item.href}
+        >
+          {item.label}
+        </ActionLink>
+      ))}
+    </div>
+  </ContentCard>
+) : null}
+            </div>
+
+            <div
+              id="request-talent"
+              className="scroll-mt-28 lg:sticky lg:top-28"
+            >
+              <div className="overflow-hidden rounded-[2rem] border border-gold/20 bg-[linear-gradient(145deg,rgba(201,169,98,0.09),rgba(255,255,255,0.02))] p-4 shadow-2xl shadow-black/20 sm:p-6">
+                <div className="mb-5 px-1">
+                  <p className="text-[10px] uppercase tracking-[0.28em] text-gold">
+                    {isRtl ? "ابدأ مشروعك" : "Start your project"}
+                  </p>
+                  <h2 className="mt-3 text-2xl font-light text-white sm:text-3xl">
+                    {isRtl ? "طلب هذه الموهبة" : "Request this talent"}
+                  </h2>
+                  <p className="mt-3 text-sm leading-7 text-white/45">
+                    {isRtl
+                      ? "أرسل تفاصيل مشروعك، وسيتم التواصل معك لمتابعة الطلب."
+                      : "Share your project details and the team will follow up with you."}
+                  </p>
+                  <p className="mt-3 rounded-2xl border border-white/[0.08] bg-black/20 px-4 py-3 text-xs leading-6 text-white/40">
+                    {isRtl
+                      ? "يتم التواصل الأولي وإدارة الطلب عبر ملامح لحماية خصوصية الطرفين وتنظيم التعاون."
+                      : "Initial contact and request management take place through MLAMH to protect both parties and organize the collaboration."}
+                  </p>
+                </div>
+
+                <TalentRequestForm
+                  talentId={talent.id}
+                  locale={locale}
+                  embedded
+                />
               </div>
-
-              <TalentRequestForm talentId={talent.id} locale={locale} />
             </div>
           </div>
 
           {relatedTalents.length > 0 ? (
-            <section className="mt-32">
-              <div className="mb-10">
-                <p className="mb-3 text-[10px] uppercase tracking-[0.4em] text-gold">
-                  {isRtl ? "قد يعجبك أيضًا" : "You May Also Like"}
-                </p>
+  <section className="mx-auto mt-16 max-w-6xl sm:mt-20">
+    <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <p className="text-[10px] uppercase tracking-[0.32em] text-gold">
+          {isRtl ? "قد يعجبك أيضًا" : "You May Also Like"}
+        </p>
 
-                <h2
-                  className="text-4xl font-light text-white md:text-5xl"
-                  style={{
-                    fontFamily: isRtl
-                      ? "var(--font-noto-arabic)"
-                      : "var(--font-cormorant)",
-                  }}
-                >
-                  {isRtl ? "مواهب مشابهة" : "Related Talents"}
-                </h2>
-              </div>
+        <h2
+          className="mt-3 text-3xl font-light text-white sm:text-4xl"
+          style={{
+            fontFamily: isRtl
+              ? "var(--font-noto-arabic)"
+              : "var(--font-cormorant)",
+          }}
+        >
+          {isRtl ? "مواهب مشابهة" : "Related Talents"}
+        </h2>
+      </div>
 
-              <div className="grid gap-8 md:grid-cols-3">
-                {relatedTalents.map((item) => (
-                  <PublicTalentCard
-                    key={item.id}
-                    talent={item}
-                    locale={locale}
-                  />
-                ))}
-              </div>
-            </section>
-          ) : null}
+      <Link
+        href={talentPath(locale)}
+        className="text-xs text-gold transition hover:text-gold-soft"
+      >
+        {isRtl ? "عرض جميع المواهب" : "View all talents"}
+      </Link>
+    </div>
+
+    <div className="grid justify-items-center gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      {relatedTalents.map((item) => (
+        <div
+          key={item.id}
+          className="w-full max-w-[340px]"
+        >
+          <PublicTalentCard
+            talent={item}
+            locale={locale}
+          />
+        </div>
+      ))}
+    </div>
+  </section>
+) : null}
         </div>
       </section>
 
       <Footer locale={locale} />
+
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-black/90 p-3 backdrop-blur-xl lg:hidden">
+        <div className="mx-auto flex max-w-lg items-stretch gap-3">
+          <a
+            href="#request-talent"
+            className="inline-flex min-h-12 flex-1 items-center justify-center rounded-full bg-gold px-5 text-xs font-medium text-black"
+          >
+            {isRtl ? "طلب الموهبة" : "Request Talent"}
+          </a>
+
+          <div className="flex flex-1 [&>button]:min-h-12 [&>button]:w-full [&>button]:justify-center [&>button]:px-4">
+            <ProfileShareButton
+              locale={locale}
+              title={name || "MLAMH Talent"}
+            />
+          </div>
+        </div>
+      </div>
     </main>
   );
 }
 
-function InfoBox({
+function StatusPill({
+  children,
+  tone,
+}: {
+  children: React.ReactNode;
+  tone: "success" | "gold" | "neutral";
+}) {
+  const styles = {
+    success: "border-emerald-400/25 bg-emerald-400/10 text-emerald-300",
+    gold: "border-gold/30 bg-gold/[0.08] text-gold",
+    neutral: "border-white/10 bg-white/[0.04] text-white/55",
+  };
+
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border px-3 py-1.5 text-[10px] uppercase tracking-[0.16em] ${styles[tone]}`}
+    >
+      {children}
+    </span>
+  );
+}
+
+function MiniFact({
   label,
   value,
 }: {
   label: string;
   value?: React.ReactNode;
 }) {
-  return (
-    <div className="rounded-3xl border border-white/[0.08] bg-black/20 p-6 backdrop-blur-sm">
-      <p className="text-[10px] uppercase tracking-[0.35em] text-gray-muted">
-        {label}
-      </p>
-
-      <p className="mt-3 text-xl font-light text-white">{value || "—"}</p>
-    </div>
-  );
-}
-
-function TagSection({
-  title,
-  values,
-}: {
-  title: string;
-  values?: string[] | string | null;
-}) {
-  const normalizedValues = Array.isArray(values)
-    ? values
-    : typeof values === "string"
-      ? [values]
-      : [];
-
-  if (normalizedValues.length === 0) {
+  if (!hasDisplayValue(value)) {
     return null;
   }
 
   return (
-    <div className="mt-12">
-      <h2 className="mb-5 text-[10px] uppercase tracking-[0.35em] text-gold">
+    <div className="min-w-0 rounded-2xl border border-white/[0.08] bg-black/20 px-4 py-4">
+      <p className="truncate text-[9px] uppercase tracking-[0.2em] text-white/35">
+        {label}
+      </p>
+      <p className="mt-2 break-words text-sm font-medium text-white sm:text-base">
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function ContentCard({
+  eyebrow,
+  title,
+  children,
+}: {
+  eyebrow: string;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-[1.75rem] border border-white/[0.08] bg-white/[0.025] p-5 sm:p-7">
+      <p className="text-[10px] uppercase tracking-[0.28em] text-gold">
+        {eyebrow}
+      </p>
+      <h2 className="mt-2 text-2xl font-light text-white sm:text-3xl">
         {title}
       </h2>
+      <div className="mt-6">{children}</div>
+    </section>
+  );
+}
 
-      <div className="flex flex-wrap gap-3">
-        {normalizedValues.map((item) => (
+function DetailsCard({
+  eyebrow,
+  title,
+  items,
+}: {
+  eyebrow: string;
+  title: string;
+  items: Array<{ label: string; value: React.ReactNode }>;
+}) {
+  return (
+    <ContentCard eyebrow={eyebrow} title={title}>
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+        {items.map((item) => (
+          <MiniFact
+            key={`${item.label}-${String(item.value)}`}
+            label={item.label}
+            value={item.value}
+          />
+        ))}
+      </div>
+    </ContentCard>
+  );
+}
+
+function TagGroup({ title, values }: { title: string; values: string[] }) {
+  if (values.length === 0) {
+    return null;
+  }
+
+  return (
+    <div>
+      <p className="mb-3 text-xs text-white/45">{title}</p>
+      <div className="flex flex-wrap gap-2">
+        {values.map((item) => (
           <span
             key={item}
-            className="rounded-full border border-gold/20 bg-gold/[0.05] px-4 py-2 text-sm text-gold"
+            className="rounded-full border border-gold/20 bg-gold/[0.06] px-3.5 py-2 text-xs text-gold sm:text-sm"
           >
-            {formatTag(item)}
+            {item}
           </span>
         ))}
       </div>
@@ -602,7 +893,7 @@ function TagSection({
   );
 }
 
-function SocialButton({
+function ActionLink({
   href,
   children,
 }: {
@@ -614,7 +905,7 @@ function SocialButton({
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="rounded-full border border-gold/30 bg-gold/[0.05] px-7 py-4 text-[10px] uppercase tracking-[0.35em] text-gold transition hover:bg-gold/10"
+      className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-white/10 bg-black/20 px-4 text-center text-xs text-white/70 transition hover:border-gold/35 hover:bg-gold/[0.06] hover:text-gold"
     >
       {children}
     </a>

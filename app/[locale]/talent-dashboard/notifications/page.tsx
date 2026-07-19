@@ -24,13 +24,25 @@ type ApplicationNotification = {
     | null;
 };
 
+type DatabaseNotification = {
+  id: number | string;
+  event_id: number | string | null;
+  recipient_type: string | null;
+  recipient_id: string | null;
+  title: string | null;
+  body: string | null;
+  is_read: boolean | null;
+  created_at: string | null;
+};
+
 type DisplayNotification = {
   id: string;
+  title: string;
   message: string;
   read: boolean;
   created_at: string | null;
   reference_id: number | string | null;
-  category: "application" | "system";
+  category: "application" | "message" | "system";
   status: string | null;
 };
 
@@ -43,6 +55,7 @@ function NotificationIcon({
     | "all"
     | "unread"
     | "application"
+    | "message"
     | "check"
     | "close"
     | "clock"
@@ -113,6 +126,26 @@ function NotificationIcon({
       >
         <rect x="5" y="6" width="14" height="14" rx="2" />
         <path d="M9 6V4h6v2M8.5 11h7M8.5 15h5" strokeLinecap="round" />
+      </svg>
+    );
+  }
+
+
+  if (name === "message") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        className={className}
+        aria-hidden="true"
+      >
+        <path
+          d="M5 6.5A2.5 2.5 0 0 1 7.5 4h9A2.5 2.5 0 0 1 19 6.5v7a2.5 2.5 0 0 1-2.5 2.5H11l-4.5 3v-3A2.5 2.5 0 0 1 4 13.5v-7Z"
+          strokeLinejoin="round"
+        />
+        <path d="M8 8.5h8M8 12h5" strokeLinecap="round" />
       </svg>
     );
   }
@@ -232,13 +265,27 @@ function getApplicationMessage(
     : `Your application for "${title}" was received.`;
 }
 
-function getStatusIcon(status: string | null) {
+function getStatusIcon(
+  status: string | null,
+  category: DisplayNotification["category"],
+) {
+  if (category === "message") return "message";
   if (status === "accepted" || status === "shortlisted") return "check";
   if (status === "rejected") return "close";
   return "clock";
 }
 
-function getStatusClasses(status: string | null) {
+function getStatusClasses(
+  status: string | null,
+  category: DisplayNotification["category"],
+) {
+  if (category === "message") {
+    return {
+      icon: "border-gold/30 bg-gold/[0.1] text-gold",
+      badge: "border-gold/25 bg-gold/[0.08] text-gold",
+    };
+  }
+
   if (status === "accepted") {
     return {
       icon: "border-emerald-300/25 bg-emerald-300/[0.08] text-emerald-200",
@@ -273,12 +320,39 @@ function getStatusClasses(status: string | null) {
   };
 }
 
-function getStatusLabel(status: string | null, isArabic: boolean) {
+function getStatusLabel(
+  status: string | null,
+  category: DisplayNotification["category"],
+  isArabic: boolean,
+) {
+  if (category === "message") return isArabic ? "رسالة" : "Message";
   if (status === "accepted") return isArabic ? "مقبول" : "Accepted";
   if (status === "shortlisted") return isArabic ? "القائمة المختصرة" : "Shortlisted";
   if (status === "rejected") return isArabic ? "مرفوض" : "Rejected";
   if (status === "reviewing") return isArabic ? "قيد المراجعة" : "Reviewing";
   return isArabic ? "تحديث" : "Update";
+}
+
+function getNotificationHref(
+  notification: DisplayNotification,
+  locale: string,
+) {
+  if (notification.category === "message" && notification.reference_id) {
+    return `/${locale}/talent-dashboard/messages/${notification.reference_id}`;
+  }
+
+  return `/${locale}/talent-dashboard/requests`;
+}
+
+function getNotificationActionLabel(
+  notification: DisplayNotification,
+  isArabic: boolean,
+) {
+  if (notification.category === "message") {
+    return isArabic ? "فتح المحادثة" : "Open Conversation";
+  }
+
+  return isArabic ? "عرض الطلبات" : "View Applications";
 }
 
 export default async function TalentNotificationsPage({ params }: PageProps) {
@@ -310,42 +384,68 @@ export default async function TalentNotificationsPage({ params }: PageProps) {
     );
   }
 
-  /*
-   * جدول notifications الحالي لا يحتوي user_id أو message في هذه النسخة
-   * من قاعدة البيانات، لذلك نعتمد مؤقتًا على تحديثات طلبات الفرص نفسها
-   * كمصدر موثوق للإشعارات إلى أن يتم توحيد مخطط جدول notifications.
-   */
-  const unreadCount = 0;
-
-  const { data: applications, error: applicationsError } = talent
-    ? await adminClient
-        .from("opportunity_applications")
-        .select(
-          `
-          id,
-          status,
-          created_at,
-          opportunities (
-            title,
-            opportunity_type
+  const [
+    applicationsResult,
+    databaseNotificationsResult,
+  ] = await Promise.all([
+    talent
+      ? adminClient
+          .from("opportunity_applications")
+          .select(
+            `
+            id,
+            status,
+            created_at,
+            opportunities (
+              title,
+              opportunity_type
+            )
+          `,
           )
-        `
-        )
-        .eq("talent_id", talent.id)
-        .order("created_at", { ascending: false })
-        .limit(15)
-    : { data: [], error: null };
+          .eq("talent_id", talent.id)
+          .order("created_at", { ascending: false })
+          .limit(15)
+      : Promise.resolve({ data: [], error: null }),
 
-  if (applicationsError) {
+    talent
+      ? adminClient
+          .from("notifications")
+          .select(
+            `
+            id,
+            event_id,
+            recipient_type,
+            recipient_id,
+            title,
+            body,
+            is_read,
+            created_at
+          `,
+          )
+          .eq("recipient_type", "talent")
+          .eq("recipient_id", String(talent.id))
+          .order("created_at", { ascending: false })
+          .limit(30)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+
+  if (applicationsResult.error) {
     throw new Error(
-      `[TalentNotificationsPage applications] ${applicationsError.message}`
+      `[TalentNotificationsPage applications] ${applicationsResult.error.message}`,
     );
   }
 
-  const notifications: DisplayNotification[] = (
-    (applications ?? []) as ApplicationNotification[]
+  if (databaseNotificationsResult.error) {
+    throw new Error(
+      `[TalentNotificationsPage notifications] ${databaseNotificationsResult.error.message}`,
+    );
+  }
+
+  const applicationNotifications: DisplayNotification[] = (
+    (applicationsResult.data ?? []) as ApplicationNotification[]
   ).map((application) => ({
     id: `application-${application.id}`,
+    title: isArabic ? "تحديث الطلب" : "Application Update",
     message: getApplicationMessage(application, isArabic),
     read: true,
     created_at: application.created_at,
@@ -354,9 +454,62 @@ export default async function TalentNotificationsPage({ params }: PageProps) {
     status: application.status,
   }));
 
-  const applicationCount = notifications.filter(
-    (notification) => notification.category === "application"
+  const databaseNotifications: DisplayNotification[] = (
+    (databaseNotificationsResult.data ?? []) as DatabaseNotification[]
+  ).map((notification) => {
+    const isMessageNotification =
+      notification.title?.trim().toLowerCase() === "new message";
+
+    return {
+      id: `database-${notification.id}`,
+      title: isMessageNotification
+        ? isArabic
+          ? "رسالة جديدة"
+          : "New Message"
+        : notification.title || (isArabic ? "تنبيه" : "Notification"),
+      message:
+        notification.body ||
+        (isMessageNotification
+          ? isArabic
+            ? "لديك رسالة جديدة."
+            : "You have a new message."
+          : isArabic
+            ? "لديك تنبيه جديد."
+            : "You have a new notification."),
+      read: notification.is_read ?? false,
+      created_at: notification.created_at,
+      reference_id: notification.event_id,
+      category: isMessageNotification ? "message" : "system",
+      status: null,
+    };
+  });
+
+  const notifications = [
+    ...applicationNotifications,
+    ...databaseNotifications,
+  ].sort((first, second) => {
+    const firstTime = first.created_at
+      ? new Date(first.created_at).getTime()
+      : 0;
+    const secondTime = second.created_at
+      ? new Date(second.created_at).getTime()
+      : 0;
+
+    return secondTime - firstTime;
+  });
+
+  const unreadCount = notifications.filter(
+    (notification) => !notification.read,
   ).length;
+
+  const applicationCount = notifications.filter(
+    (notification) => notification.category === "application",
+  ).length;
+
+  const messageCount = notifications.filter(
+    (notification) => notification.category === "message",
+  ).length;
+
 
 
   return (
@@ -399,16 +552,16 @@ export default async function TalentNotificationsPage({ params }: PageProps) {
             </div>
 
             <Link
-              href={`/${locale}/talent-dashboard/requests`}
+              href={`/${locale}/talent-dashboard/messages`}
               className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-gold/40 bg-gold px-6 py-3.5 text-sm text-black transition hover:bg-gold-soft sm:w-auto"
             >
-              <NotificationIcon name="application" className="h-4 w-4" />
-              {isArabic ? "عرض طلباتي" : "View Applications"}
+              <NotificationIcon name="message" className="h-4 w-4" />
+              {isArabic ? "فتح الرسائل" : "Open Messages"}
             </Link>
           </div>
         </header>
 
-        <section className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <section className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
           <StatCard
             label={isArabic ? "كل الإشعارات" : "All Notifications"}
             value={notifications.length}
@@ -426,7 +579,12 @@ export default async function TalentNotificationsPage({ params }: PageProps) {
             label={isArabic ? "تحديثات الطلبات" : "Application Updates"}
             value={applicationCount}
             icon="application"
-            className="col-span-2 sm:col-span-1"
+          />
+
+          <StatCard
+            label={isArabic ? "إشعارات الرسائل" : "Message Alerts"}
+            value={messageCount}
+            icon="message"
           />
         </section>
 
@@ -478,8 +636,14 @@ export default async function TalentNotificationsPage({ params }: PageProps) {
           ) : (
             <div className="space-y-3">
               {notifications.map((notification) => {
-                const classes = getStatusClasses(notification.status);
-                const iconName = getStatusIcon(notification.status);
+                const classes = getStatusClasses(
+                  notification.status,
+                  notification.category,
+                );
+                const iconName = getStatusIcon(
+                  notification.status,
+                  notification.category,
+                );
 
                 return (
                   <article
@@ -508,7 +672,8 @@ export default async function TalentNotificationsPage({ params }: PageProps) {
                             >
                               {getStatusLabel(
                                 notification.status,
-                                isArabic
+                                notification.category,
+                                isArabic,
                               )}
                             </span>
 
@@ -519,7 +684,11 @@ export default async function TalentNotificationsPage({ params }: PageProps) {
                             ) : null}
                           </div>
 
-                          <p className="mt-3 text-base font-light leading-7 text-white sm:text-lg">
+                          <p className="mt-3 text-xs uppercase tracking-[0.16em] text-white/35">
+                            {notification.title}
+                          </p>
+
+                          <p className="mt-2 text-base font-light leading-7 text-white sm:text-lg">
                             {notification.message}
                           </p>
 
@@ -533,10 +702,10 @@ export default async function TalentNotificationsPage({ params }: PageProps) {
                       </div>
 
                       <Link
-                        href={`/${locale}/talent-dashboard/requests`}
+                        href={getNotificationHref(notification, locale)}
                         className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full border border-white/10 px-4 text-xs text-white/60 transition hover:border-gold/40 hover:text-gold"
                       >
-                        {isArabic ? "عرض الطلبات" : "View Applications"}
+                        {getNotificationActionLabel(notification, isArabic)}
                         <NotificationIcon name="arrow" className="h-4 w-4" />
                       </Link>
                     </div>
@@ -560,7 +729,7 @@ function StatCard({
 }: {
   label: string;
   value: number;
-  icon: "all" | "unread" | "application";
+  icon: "all" | "unread" | "application" | "message";
   highlighted?: boolean;
   className?: string;
 }) {

@@ -21,6 +21,17 @@ export const adminNavigation = [
     label: "Applications",
     href: "/admin/opportunity-applications",
   },
+
+  {
+    label: "Homepage Management",
+    href: "/admin/site-management/homepage",
+  },
+
+  {
+    label: "Footer Management",
+    href: "/admin/footer",
+  },
+
   {
     label: "Talent Requests",
     href: "/admin/requests",
