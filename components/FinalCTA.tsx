@@ -7,7 +7,10 @@ export function FinalCTA({ locale }: { locale: Locale }) {
   const isAr = locale === "ar";
 
   return (
-    <section className="relative overflow-hidden border-t border-white/10 bg-black py-32">
+    <section
+  dir={isAr ? "rtl" : "ltr"}
+  className="relative overflow-hidden border-t border-white/10 bg-black py-32"
+>
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(200,169,106,0.14),transparent_55%)]" />
 
       <div className="relative mx-auto max-w-6xl px-6">
@@ -15,7 +18,7 @@ export function FinalCTA({ locale }: { locale: Locale }) {
 
           <div className="mx-auto max-w-3xl text-center">
 
-            <div className="inline-flex items-center gap-2 rounded-full border border-gold/20 bg-gold/[0.06] px-5 py-2 text-xs uppercase tracking-[0.28em] text-gold">
+            <div className="arabic-safe inline-flex items-center gap-2 rounded-full border border-gold/20 bg-gold/[0.06] px-5 py-2 text-xs uppercase tracking-[0.28em] text-gold">
               <Sparkles size={14} />
               MLAMH
             </div>

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useState } from "react";
 import { useCallback } from "react";
 import {
   Bell,
@@ -25,21 +26,34 @@ export default function TalentSidebar({
   notificationCount: number;
 }) {
   const pathname = usePathname();
-  const router = useRouter();
-  const isAr = locale === "ar";
+const router = useRouter();
+const isAr = locale === "ar";
+const [loggingOut, setLoggingOut] = useState(false);
 
-  const isActive = (href: string) => pathname === href;
+const isActive = (href: string) => pathname === href;
 
-  const handleLogout = useCallback(async () => {
-    await supabase.auth.signOut();
-    router.replace(`/${locale}/login`);
-  }, [locale, router]);
+const handleLogout = useCallback(async () => {
+  if (loggingOut) return;
+
+  setLoggingOut(true);
+
+  const { error } = await supabase.auth.signOut();
+
+  if (error) {
+    console.error("[TalentSidebar.logout]", error);
+    setLoggingOut(false);
+    return;
+  }
+
+  router.replace(`/${locale}/login`);
+  router.refresh();
+}, [locale, loggingOut, router]);
 
   return (
     <aside className="rounded-[2rem] border border-white/10 bg-white/[0.035] p-5 lg:sticky lg:top-6 lg:h-[calc(100vh-3rem)]">
       <div className="border-b border-white/10 pb-6">
         <p className="text-3xl font-light text-gold">ملامح</p>
-        <p className="mt-2 text-xs uppercase tracking-[0.3em] text-white/35">
+        <p className="arabic-safe mt-2 text-xs uppercase tracking-[0.3em] text-white/35">
           {isAr ? "مساحة الموهبة" : "Talent Workspace"}
         </p>
       </div>
@@ -97,20 +111,29 @@ export default function TalentSidebar({
       </nav>
 
       <div className="mt-8 space-y-3 border-t border-white/10 pt-6">
-        <Link
-          href={`/${locale === "ar" ? "en" : "ar"}/talent-dashboard`}
-          className="block rounded-2xl border border-white/10 px-4 py-3 text-center text-xs uppercase tracking-[0.22em] text-white/50 transition hover:border-gold/40 hover:text-gold"
-        >
+      <Link
+  href={`/${locale === "ar" ? "en" : "ar"}/talent-dashboard`}
+  aria-label={isAr ? "Switch to English" : "التبديل إلى العربية"}
+  className="block rounded-2xl border border-white/10 px-4 py-3 text-center text-xs uppercase tracking-[0.22em] text-white/50 transition hover:border-gold/40 hover:text-gold"
+>
           {isAr ? "English" : "العربية"}
         </Link>
 
         <button
-          type="button"
-          onClick={handleLogout}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-red-400/20 bg-red-400/[0.04] px-4 py-3 text-sm text-red-200 transition hover:bg-red-400/10"
-        >
-          <LogOut size={16} />
-          {isAr ? "تسجيل الخروج" : "Sign Out"}
+  type="button"
+  onClick={handleLogout}
+  disabled={loggingOut}
+  aria-label={isAr ? "تسجيل الخروج" : "Sign out"}
+  className="flex w-full items-center justify-center gap-2 rounded-2xl border border-red-400/20 bg-red-400/[0.04] px-4 py-3 text-sm text-red-200 transition hover:bg-red-400/10 disabled:cursor-not-allowed disabled:opacity-50"
+>
+<LogOut size={16} />
+{loggingOut
+  ? isAr
+    ? "جارٍ تسجيل الخروج..."
+    : "Signing out..."
+  : isAr
+    ? "تسجيل الخروج"
+    : "Sign Out"}
         </button>
       </div>
     </aside>

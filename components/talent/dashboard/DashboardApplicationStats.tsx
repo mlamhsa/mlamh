@@ -16,7 +16,7 @@ export default function DashboardApplicationStats({
   return (
     <section className="rounded-[1.75rem] border border-white/10 bg-white/[0.025] p-5 sm:p-6">
       <div>
-        <p className="text-[10px] uppercase tracking-[0.28em] text-gold">
+      <p className="arabic-safe text-[10px] uppercase tracking-[0.28em] text-gold">
           {isRtl ? "تقديمات الفرص" : "Opportunity Applications"}
         </p>
 

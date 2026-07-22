@@ -1,4 +1,5 @@
 import { revalidatePath } from "next/cache";
+
 import {
   AdminActionButton,
   AdminBadge,
@@ -17,11 +18,22 @@ export const metadata = {
   robots: { index: false, follow: false },
 };
 
+function parsePublisherId(formData: FormData): number {
+  const id = Number(formData.get("id"));
+
+  if (!Number.isInteger(id) || id <= 0) {
+    throw new Error("Invalid publisher id.");
+  }
+
+  return id;
+}
+
 async function approvePublisherAction(formData: FormData) {
   "use server";
 
-  const id = Number(formData.get("id"));
-  if (!id) return;
+  await requireAdminAccess();
+
+  const id = parsePublisherId(formData);
 
   await PublisherService.approve(id);
 
@@ -31,8 +43,9 @@ async function approvePublisherAction(formData: FormData) {
 async function unverifyPublisherAction(formData: FormData) {
   "use server";
 
-  const id = Number(formData.get("id"));
-  if (!id) return;
+  await requireAdminAccess();
+
+  const id = parsePublisherId(formData);
 
   await PublisherService.markPending(id);
 
@@ -54,8 +67,13 @@ export default async function AdminPublishersPage() {
 
   const publishers = await PublisherService.getAll();
 
-  const approved = publishers.filter((item) => item.verified).length;
-  const pending = publishers.filter((item) => !item.verified).length;
+  const approved = publishers.filter(
+    (publisher) => publisher.verified,
+  ).length;
+
+  const pending = publishers.filter(
+    (publisher) => !publisher.verified,
+  ).length;
 
   return (
     <main className="mx-auto max-w-7xl px-6 py-10 text-white">
@@ -65,9 +83,20 @@ export default async function AdminPublishersPage() {
       />
 
       <section className="mb-8 grid gap-4 md:grid-cols-3">
-        <AdminStatCard label="Total Publishers" value={publishers.length} />
-        <AdminStatCard label="Pending Review" value={pending} />
-        <AdminStatCard label="Approved" value={approved} />
+        <AdminStatCard
+          label="Total Publishers"
+          value={publishers.length}
+        />
+
+        <AdminStatCard
+          label="Pending Review"
+          value={pending}
+        />
+
+        <AdminStatCard
+          label="Approved"
+          value={approved}
+        />
       </section>
 
       {publishers.length === 0 ? (
@@ -79,8 +108,16 @@ export default async function AdminPublishersPage() {
               <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
                 <div>
                   <div className="mb-3 flex flex-wrap items-center gap-3">
-                    <AdminBadge variant={publisher.verified ? "success" : "gold"}>
-                      {publisher.verified ? "Approved" : "Pending"}
+                    <AdminBadge
+                      variant={
+                        publisher.verified
+                          ? "success"
+                          : "gold"
+                      }
+                    >
+                      {publisher.verified
+                        ? "Approved"
+                        : "Pending"}
                     </AdminBadge>
 
                     <span className="text-[10px] uppercase tracking-[0.25em] text-white/35">
@@ -95,11 +132,13 @@ export default async function AdminPublishersPage() {
                   </h2>
 
                   <p className="mt-2 text-sm text-white/50">
-                    {publisher.publisher_type || "—"} · {publisher.city || "—"}
+                    {publisher.publisher_type || "—"} ·{" "}
+                    {publisher.city || "—"}
                   </p>
 
                   <p className="mt-2 text-sm text-gray-muted">
-                    Contact: {publisher.contact_name || "—"}
+                    Contact:{" "}
+                    {publisher.contact_name || "—"}
                   </p>
                 </div>
 
@@ -115,30 +154,59 @@ export default async function AdminPublishersPage() {
               </div>
 
               <AdminInfoGrid>
-                <AdminInfoItem label="Website" value={publisher.website} />
-                <AdminInfoItem label="Instagram" value={publisher.instagram} />
+                <AdminInfoItem
+                  label="Website"
+                  value={publisher.website}
+                />
+
+                <AdminInfoItem
+                  label="Instagram"
+                  value={publisher.instagram}
+                />
+
                 <AdminInfoItem
                   label="Profile ID"
                   value={String(publisher.profile_id)}
                 />
+
                 <AdminInfoItem
                   label="Verification"
-                  value={publisher.verified ? "Approved" : "Pending"}
+                  value={
+                    publisher.verified
+                      ? "Approved"
+                      : "Pending"
+                  }
                 />
               </AdminInfoGrid>
 
               <div className="mt-6 flex flex-wrap gap-3">
                 {!publisher.verified ? (
                   <form action={approvePublisherAction}>
-                    <input type="hidden" name="id" value={publisher.id} />
-                    <AdminActionButton type="submit" variant="success">
+                    <input
+                      type="hidden"
+                      name="id"
+                      value={publisher.id}
+                    />
+
+                    <AdminActionButton
+                      type="submit"
+                      variant="success"
+                    >
                       Approve
                     </AdminActionButton>
                   </form>
                 ) : (
                   <form action={unverifyPublisherAction}>
-                    <input type="hidden" name="id" value={publisher.id} />
-                    <AdminActionButton type="submit" variant="warning">
+                    <input
+                      type="hidden"
+                      name="id"
+                      value={publisher.id}
+                    />
+
+                    <AdminActionButton
+                      type="submit"
+                      variant="warning"
+                    >
                       Mark Pending
                     </AdminActionButton>
                   </form>

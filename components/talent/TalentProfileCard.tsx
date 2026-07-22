@@ -23,7 +23,16 @@ import { updateOwnTalentMainImageAction } from "@/lib/actions/update-own-talent-
 
 type TalentProfileCardProps = {
   locale: string;
-  talent: any;
+  talent: {
+    image_url?: string | null;
+    category_ar?: string | null;
+    category_en?: string | null;
+    status?: string | null;
+    published?: boolean | null;
+    slug?: string | null;
+    verified?: boolean | null;
+    featured?: boolean | null;
+  };
   talentName: string;
   talentCity?: string | null;
   profileStatus: string;
@@ -132,7 +141,7 @@ export default function TalentProfileCard({
           <div className="grid w-full gap-3 sm:grid-cols-3 xl:w-auto">
             <Link
               href={`/${locale}/talent-dashboard/profile`}
-              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-gold/40 bg-gold/[0.06] px-5 text-[10px] uppercase tracking-[0.18em] text-gold transition hover:bg-gold hover:text-black"
+              className="arabic-safe inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-gold/40 bg-gold/[0.06] px-5 text-[10px] uppercase tracking-[0.18em] text-gold transition hover:bg-gold hover:text-black"
             >
               <Edit3 size={15} />
 
@@ -145,7 +154,7 @@ export default function TalentProfileCard({
                   href={publicProfileUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.025] px-5 text-[10px] uppercase tracking-[0.18em] text-white transition hover:border-gold/40 hover:text-gold"
+                  className="arabic-safe inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.025] px-5 text-[10px] uppercase tracking-[0.18em] text-white transition hover:border-gold/40 hover:text-gold"
                 >
                   <Eye size={15} />
 
@@ -184,17 +193,26 @@ export default function TalentProfileCard({
             </span>
           </div>
 
-          <div className="h-3 overflow-hidden rounded-full bg-white/10">
-            <div
-              className="h-full rounded-full bg-gold transition-all duration-500"
-              style={{
-                width: `${Math.min(
-                  Math.max(profileCompletion, 0),
-                  100
-                )}%`,
-              }}
-            />
-          </div>
+          <div
+  role="progressbar"
+  aria-label={
+    isRtl ? "نسبة اكتمال الملف" : "Profile completion percentage"
+  }
+  aria-valuemin={0}
+  aria-valuemax={100}
+  aria-valuenow={Math.min(Math.max(profileCompletion, 0), 100)}
+  className="h-3 overflow-hidden rounded-full bg-white/10"
+>
+  <div
+    className="h-full rounded-full bg-gold transition-all duration-500"
+    style={{
+      width: `${Math.min(
+        Math.max(profileCompletion, 0),
+        100
+      )}%`,
+    }}
+  />
+</div>
 
           <p className="mt-3 text-xs leading-6 text-white/40">
             {profileCompletion >= 100
@@ -324,9 +342,10 @@ function ProfileImagePicker({
 
       {!pending ? (
         <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          className="absolute bottom-0 end-0 flex h-9 w-9 items-center justify-center rounded-full border border-gold/40 bg-black text-gold shadow-lg transition hover:bg-gold hover:text-black"
+        type="button"
+        disabled={pending}
+        onClick={() => inputRef.current?.click()}
+          className="absolute bottom-0 end-0 flex h-9 w-9 items-center justify-center rounded-full border border-gold/40 bg-black text-gold shadow-lg transition hover:bg-gold hover:text-black disabled:cursor-not-allowed disabled:opacity-60"
           aria-label={
             isRtl
               ? "رفع صورة شخصية جديدة"

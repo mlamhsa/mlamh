@@ -1,10 +1,23 @@
-import { BriefcaseBusiness, CheckCircle2, ImagePlus, UserRound } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import {
+  BriefcaseBusiness,
+  CheckCircle2,
+  ImagePlus,
+  UserRound,
+} from "lucide-react";
+
 import type { Locale } from "@/lib/i18n";
+
+type JourneyStep = {
+  icon: LucideIcon;
+  title: string;
+  desc: string;
+};
 
 export function HowItWorks({ locale }: { locale: Locale }) {
   const isAr = locale === "ar";
 
-  const talentSteps = [
+  const talentSteps: JourneyStep[] = [
     {
       icon: UserRound,
       title: isAr ? "أنشئ ملفك" : "Create your profile",
@@ -28,7 +41,7 @@ export function HowItWorks({ locale }: { locale: Locale }) {
     },
   ];
 
-  const companySteps = [
+  const companySteps: JourneyStep[] = [
     {
       icon: BriefcaseBusiness,
       title: isAr ? "أنشئ فرصة" : "Create opportunity",
@@ -53,12 +66,15 @@ export function HowItWorks({ locale }: { locale: Locale }) {
   ];
 
   return (
-    <section className="relative overflow-hidden border-t border-white/10 bg-black py-28">
+    <section
+      dir={isAr ? "rtl" : "ltr"}
+      className="relative overflow-hidden border-t border-white/10 bg-black py-28"
+    >
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom,rgba(200,169,106,0.08),transparent_45%)]" />
 
       <div className="relative mx-auto max-w-7xl px-6">
         <div className="mx-auto max-w-3xl text-center">
-          <p className="text-xs uppercase tracking-[0.35em] text-gold">
+          <p className="arabic-safe text-xs uppercase tracking-[0.35em] text-gold">
             {isAr ? "كيف تعمل ملامح" : "How MLAMH works"}
           </p>
 
@@ -96,11 +112,7 @@ function JourneyCard({
   steps,
 }: {
   title: string;
-  steps: {
-    icon: any;
-    title: string;
-    desc: string;
-  }[];
+  steps: JourneyStep[];
 }) {
   return (
     <article className="rounded-[2rem] border border-white/10 bg-white/[0.035] p-6 md:p-8">

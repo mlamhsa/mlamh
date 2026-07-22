@@ -67,7 +67,7 @@ export default function DashboardQuickActions({
   return (
     <section aria-labelledby="quick-actions-title">
       <div className="mb-4">
-        <p className="text-[10px] uppercase tracking-[0.28em] text-gold">
+      <p className="arabic-safe text-[10px] uppercase tracking-[0.28em] text-gold">
           {isRtl ? "وصول سريع" : "Quick Access"}
         </p>
 
@@ -95,16 +95,27 @@ export default function DashboardQuickActions({
               </span>
 
               {action.count > 0 ? (
-                <span className="min-w-6 rounded-full bg-gold px-2 py-1 text-center text-[10px] font-medium text-black">
-                  {action.count > 99 ? "99+" : action.count}
-                </span>
+  <span
+    aria-label={
+      isRtl
+        ? `${action.count} عناصر جديدة`
+        : `${action.count} new items`
+    }
+    className="min-w-6 rounded-full bg-gold px-2 py-1 text-center text-[10px] font-medium text-black"
+  >
+    {action.count > 99 ? "99+" : action.count}
+  </span>
               ) : (
                 <span
-                  aria-hidden="true"
-                  className="text-sm text-white/20 transition group-hover:translate-x-0.5 group-hover:text-white/50"
-                >
-                  →
-                </span>
+  aria-hidden="true"
+  className={`text-sm text-white/20 transition group-hover:text-white/50 ${
+    isRtl
+      ? "group-hover:-translate-x-0.5"
+      : "group-hover:translate-x-0.5"
+  }`}
+>
+  {isRtl ? "←" : "→"}
+</span>
               )}
             </div>
 

@@ -1,10 +1,30 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import {
+  createEvent,
+  EVENT_TARGETS,
+  EVENT_TYPES,
+} from "@/lib/events";
 
-const allowedStatuses = ["draft", "open", "published", "closed", "archived"];
+const publisherStatuses = [
+  "draft",
+  "pending_review",
+  "closed",
+  "archived",
+] as const;
+
+const publiclyVisibleStatuses = ["open", "published"] as const;
+
+const allowedGenders = ["any", "male", "female"] as const;
+
+type PublisherStatus = (typeof publisherStatuses)[number];
+type PublicStatus = (typeof publiclyVisibleStatuses)[number];
+type OpportunityStatus = PublisherStatus | PublicStatus;
+type AllowedGender = (typeof allowedGenders)[number];
 
 type UpdateOpportunityPayload = {
   id: number;
@@ -34,7 +54,39 @@ function createSlug(value: string) {
     .replace(/_+/g, "_");
 }
 
-export async function updateOpportunityAction(payload: UpdateOpportunityPayload) {
+function isOpportunityStatus(
+  value: string,
+): value is OpportunityStatus {
+  return (
+    publisherStatuses.includes(value as PublisherStatus) ||
+    publiclyVisibleStatuses.includes(value as PublicStatus)
+  );
+}
+
+function isValidAge(value: number | null) {
+  return (
+    value === null ||
+    (Number.isInteger(value) && value >= 1 && value <= 100)
+  );
+}
+
+function normalizeBudget(value: unknown) {
+  const cleaned = cleanText(value).replace(/,/g, "");
+
+  if (!cleaned) {
+    return null;
+  }
+
+  if (!/^\d+$/.test(cleaned)) {
+    throw new Error("Budget must contain numbers only.");
+  }
+
+  return cleaned;
+}
+
+export async function updateOpportunityAction(
+  payload: UpdateOpportunityPayload,
+) {
   const authClient = await createServerSupabaseClient();
   const adminClient = createAdminClient();
 
@@ -50,7 +102,7 @@ export async function updateOpportunityAction(payload: UpdateOpportunityPayload)
   const locale = payload.locale === "en" ? "en" : "ar";
   const opportunityId = Number(payload.id);
 
-  if (!Number.isFinite(opportunityId)) {
+  if (!Number.isInteger(opportunityId) || opportunityId <= 0) {
     throw new Error("Opportunity ID is required.");
   }
 
@@ -60,58 +112,178 @@ export async function updateOpportunityAction(payload: UpdateOpportunityPayload)
   const cityEn = cleanText(payload.city_en);
   const gender = cleanText(payload.required_gender);
   const opportunityType = cleanText(payload.opportunity_type);
-  const status = cleanText(payload.status) || "draft";
+  const requestedStatus = cleanText(payload.status) || "draft";
   const minAge = payload.min_age ?? null;
   const maxAge = payload.max_age ?? null;
-  const budget = cleanText(payload.budget);
+  const budget = normalizeBudget(payload.budget);
 
-  if (!title) throw new Error("Title is required.");
-  if (!description) throw new Error("Description is required.");
-  if (!cityAr || !cityEn) throw new Error("City is required.");
-  if (!opportunityType) throw new Error("Opportunity type is required.");
+  if (title.length < 3 || title.length > 120) {
+    throw new Error(
+      "Title must contain between 3 and 120 characters.",
+    );
+  }
 
-  if (!allowedStatuses.includes(status)) {
+  if (
+    description.length < 20 ||
+    description.length > 3000
+  ) {
+    throw new Error(
+      "Description must contain between 20 and 3000 characters.",
+    );
+  }
+
+  if (!cityAr || !cityEn) {
+    throw new Error("City is required.");
+  }
+
+  if (!opportunityType) {
+    throw new Error("Opportunity type is required.");
+  }
+
+  if (opportunityType.length > 80) {
+    throw new Error("Opportunity type is too long.");
+  }
+
+  if (
+    gender &&
+    !allowedGenders.includes(gender as AllowedGender)
+  ) {
+    throw new Error("Invalid required gender.");
+  }
+
+  if (!isOpportunityStatus(requestedStatus)) {
     throw new Error("Invalid opportunity status.");
   }
 
-  if (minAge !== null && maxAge !== null && minAge > maxAge) {
-    throw new Error("Minimum age cannot be greater than maximum age.");
+  if (!isValidAge(minAge) || !isValidAge(maxAge)) {
+    throw new Error(
+      "Age must be a whole number between 1 and 100.",
+    );
   }
 
-  const { data: profile, error: profileError } = await adminClient
-    .from("profiles")
-    .select("id")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (profileError || !profile) {
-    throw new Error("Profile not found.");
+  if (
+    minAge !== null &&
+    maxAge !== null &&
+    minAge > maxAge
+  ) {
+    throw new Error(
+      "Minimum age cannot be greater than maximum age.",
+    );
   }
 
-  const { data: publisher, error: publisherError } = await adminClient
-    .from("publishers")
-    .select("id")
-    .eq("profile_id", profile.id)
-    .maybeSingle();
+  const { data: profile, error: profileError } =
+    await adminClient
+      .from("profiles")
+      .select("id, account_type")
+      .eq("user_id", user.id)
+      .maybeSingle();
 
-  if (publisherError || !publisher) {
+  if (profileError) {
+    console.error(
+      "Update opportunity profile lookup error:",
+      profileError,
+    );
+
+    throw new Error("Unable to verify your profile.");
+  }
+
+  if (!profile || profile.account_type !== "publisher") {
+    throw new Error("Publisher access required.");
+  }
+
+  const { data: publisher, error: publisherError } =
+    await adminClient
+      .from("publishers")
+      .select("id")
+      .eq("profile_id", profile.id)
+      .maybeSingle();
+
+  if (publisherError) {
+    console.error(
+      "Update opportunity publisher lookup error:",
+      publisherError,
+    );
+
+    throw new Error(
+      "Unable to verify your publisher account.",
+    );
+  }
+
+  if (!publisher) {
     throw new Error("Publisher account not found.");
   }
 
-  const { data: opportunity, error: opportunityError } = await adminClient
-    .from("opportunities")
-    .select("id, publisher_id")
-    .eq("id", opportunityId)
-    .eq("publisher_id", publisher.id)
-    .maybeSingle();
+  const { data: opportunity, error: opportunityError } =
+    await adminClient
+      .from("opportunities")
+      .select("id, publisher_id, status")
+      .eq("id", opportunityId)
+      .eq("publisher_id", publisher.id)
+      .maybeSingle();
 
-  if (opportunityError || !opportunity) {
-    throw new Error("Opportunity not found or access denied.");
+  if (opportunityError) {
+    console.error(
+      "Update opportunity lookup error:",
+      opportunityError,
+    );
+
+    throw new Error("Unable to load the opportunity.");
   }
+
+  if (!opportunity) {
+    throw new Error(
+      "Opportunity not found or access denied.",
+    );
+  }
+
+  const currentStatus = cleanText(opportunity.status);
+
+  if (!isOpportunityStatus(currentStatus)) {
+    throw new Error(
+      "The current opportunity status is invalid.",
+    );
+  }
+
+  const allowedNextStatuses: OpportunityStatus[] =
+    currentStatus === "open" ||
+    currentStatus === "published"
+      ? [currentStatus, "closed", "archived"]
+      : [
+          "draft",
+          "pending_review",
+          "closed",
+          "archived",
+        ];
+
+  if (!allowedNextStatuses.includes(requestedStatus)) {
+    throw new Error(
+      "Invalid opportunity status transition.",
+    );
+  }
+
+  /*
+   * عند تعديل فرصة منشورة مع إبقائها في حالتها الحالية،
+   * تعاد إلى مراجعة الإدارة حتى لا تتغير بعد الاعتماد مباشرة.
+   */
+  const requiresNewReview =
+    (currentStatus === "open" ||
+      currentStatus === "published") &&
+    requestedStatus === currentStatus;
+
+  const finalStatus: OpportunityStatus =
+    requiresNewReview
+      ? "pending_review"
+      : requestedStatus;
 
   const citySlug = createSlug(cityEn || cityAr);
 
-  const { data: updatedOpportunity, error: updateError } = await adminClient
+  const isPubliclyVisible =
+    finalStatus === "published" || finalStatus === "open";
+
+  const {
+    data: updatedOpportunity,
+    error: updateError,
+  } = await adminClient
     .from("opportunities")
     .update({
       title,
@@ -119,13 +291,13 @@ export async function updateOpportunityAction(payload: UpdateOpportunityPayload)
       city_slug: citySlug,
       city_ar: cityAr,
       city_en: cityEn,
-      required_gender: gender || null,
+      required_gender: gender || "any",
       opportunity_type: opportunityType,
       min_age: minAge,
       max_age: maxAge,
-      budget: budget || null,
-      status,
-      published: status === "published" || status === "open",
+      budget,
+      status: finalStatus,
+      published: isPubliclyVisible,
       updated_at: new Date().toISOString(),
     })
     .eq("id", opportunity.id)
@@ -134,17 +306,60 @@ export async function updateOpportunityAction(payload: UpdateOpportunityPayload)
     .single();
 
   if (updateError) {
-    throw new Error(updateError.message);
+    console.error(
+      "Update opportunity error:",
+      updateError,
+    );
+
+    throw new Error("Unable to update the opportunity.");
+  }
+
+  if (requiresNewReview) {
+    try {
+      await createEvent({
+        type: EVENT_TYPES.opportunity_pending_review,
+        target: EVENT_TARGETS.ADMIN,
+        targetId: "admin",
+        actorId: publisher.id,
+        metadata: {
+          opportunityId: opportunity.id,
+          publisherId: publisher.id,
+          title,
+          city_ar: cityAr,
+          city_en: cityEn,
+          opportunityType,
+          reason: "updated_after_publication",
+        },
+      });
+    } catch (eventError) {
+      console.error(
+        "Failed to create opportunity review event:",
+        eventError,
+      );
+    }
   }
 
   revalidatePath(`/${locale}/publisher-dashboard`);
-  revalidatePath(`/${locale}/publisher-dashboard/opportunities`);
-  revalidatePath(`/${locale}/publisher-dashboard/opportunities/${opportunity.id}`);
-  revalidatePath(`/${locale}/publisher-dashboard/opportunities/${opportunity.id}/edit`);
+
+  revalidatePath(
+    `/${locale}/publisher-dashboard/opportunities`,
+  );
+
+  revalidatePath(
+    `/${locale}/publisher-dashboard/opportunities/${opportunity.id}`,
+  );
+
+  revalidatePath(
+    `/${locale}/publisher-dashboard/opportunities/${opportunity.id}/edit`,
+  );
+
   revalidatePath(`/${locale}/opportunities`);
+  revalidatePath("/admin/opportunities");
 
   return {
     success: true,
     opportunity: updatedOpportunity,
+    status: finalStatus,
+    requiresReview: requiresNewReview,
   };
 }

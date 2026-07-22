@@ -2,6 +2,7 @@
 
 import { use, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { Eye, EyeOff, Lock, Mail, Sparkles } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 
@@ -39,7 +40,9 @@ export default function LoginPage({
     join: isRtl ? "ليس لديك حساب؟" : "Don’t have an account?",
     create: isRtl ? "انضم إلى ملامح" : "Join MLAMH",
     socialSoon: isRtl ? "تسجيل Google قريباً" : "Google sign-in coming soon",
-    error: isRtl ? "تعذر تسجيل الدخول." : "Login failed.",
+    error: isRtl
+  ? "البريد الإلكتروني أو كلمة المرور غير صحيحة."
+  : "The email or password is incorrect.",
   };
 
   useEffect(() => {
@@ -68,17 +71,37 @@ export default function LoginPage({
     });
 
     if (error || !data.user) {
-      setErrorMessage(error?.message || text.error);
+      console.error("[LoginPage.signIn]", error);
+    
+      setErrorMessage(text.error);
       setLoading(false);
       return;
     }
 
-    const { data: profile } = await supabase
+    const {
+      data: profile,
+      error: profileError,
+    } = await supabase
       .from("profiles")
       .select("account_type")
       .eq("user_id", data.user.id)
       .maybeSingle();
-
+    
+      if (profileError) {
+        console.error("[LoginPage.profileFetch]", {
+          message: profileError.message,
+          details: profileError.details,
+          hint: profileError.hint,
+          code: profileError.code,
+          fullError: profileError,
+        });
+      
+        await supabase.auth.signOut();
+      
+        setErrorMessage(text.error);
+        setLoading(false);
+        return;
+      }
     if (profile?.account_type === "talent") {
       router.replace(`/${locale}/talent-dashboard`);
       router.refresh();
@@ -114,7 +137,7 @@ export default function LoginPage({
             <Sparkles size={20} />
           </div>
 
-          <p className="text-xs uppercase tracking-[0.35em] text-gold">
+          <p className="arabic-safe text-xs uppercase tracking-[0.35em] text-gold">
             {text.eyebrow}
           </p>
 
@@ -141,6 +164,9 @@ export default function LoginPage({
 
             <input
               value={email}
+              name="email"
+aria-label={text.email}
+disabled={loading}
               onChange={(e) => setEmail(e.target.value)}
               type="email"
               autoComplete="email"
@@ -161,6 +187,9 @@ export default function LoginPage({
 
             <input
               value={password}
+              name="password"
+aria-label={text.password}
+disabled={loading}
               onChange={(e) => setPassword(e.target.value)}
               type={showPassword ? "text" : "password"}
               autoComplete="current-password"
@@ -171,12 +200,23 @@ export default function LoginPage({
               placeholder={text.password}
             />
 
-            <button
-              type="button"
-              onClick={() => setShowPassword((value) => !value)}
-              className="absolute top-1/2 -translate-y-1/2 text-white/35 transition hover:text-gold"
-              style={isRtl ? { left: 16 } : { right: 16 }}
-            >
+<button
+  type="button"
+  disabled={loading}
+  aria-label={
+    showPassword
+      ? isRtl
+        ? "إخفاء كلمة المرور"
+        : "Hide password"
+      : isRtl
+        ? "إظهار كلمة المرور"
+        : "Show password"
+  }
+  aria-pressed={showPassword}
+  onClick={() => setShowPassword((value) => !value)}
+  className="absolute top-1/2 -translate-y-1/2 text-white/35 transition hover:text-gold"
+  style={isRtl ? { left: 16 } : { right: 16 }}
+>
               {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
           </div>
@@ -185,6 +225,7 @@ export default function LoginPage({
             <label className="flex cursor-pointer items-center gap-2 text-white/45">
               <input
                 type="checkbox"
+                disabled={loading}
                 checked={rememberEmail}
                 onChange={(e) => setRememberEmail(e.target.checked)}
                 className="accent-gold"
@@ -192,9 +233,13 @@ export default function LoginPage({
               {text.remember}
             </label>
 
-            <button type="button" className="text-white/40 transition hover:text-gold">
-              {text.forgot}
-            </button>
+            <button
+  type="button"
+  disabled
+  className="cursor-not-allowed text-white/25"
+>
+  {text.forgot}
+</button>
           </div>
 
           <button
@@ -216,13 +261,12 @@ export default function LoginPage({
 
         <div className="mt-8 border-t border-white/10 pt-6 text-center text-sm text-white/45">
           {text.join}{" "}
-          <button
-            type="button"
-            onClick={() => router.push(`/${locale}/join`)}
-            className="text-gold transition hover:text-gold-soft"
-          >
-            {text.create}
-          </button>
+          <Link
+  href={`/${locale}/join`}
+  className="text-gold transition hover:text-gold-soft"
+>
+  {text.create}
+</Link>
         </div>
       </div>
     </main>

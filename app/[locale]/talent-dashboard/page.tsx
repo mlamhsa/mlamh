@@ -7,7 +7,7 @@ import DashboardApplicationStats from "@/components/talent/dashboard/DashboardAp
 import DashboardQuickActions from "@/components/talent/dashboard/DashboardQuickActions";
 import DashboardProfileReadiness from "@/components/talent/dashboard/DashboardProfileReadiness";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { requireTalent } from "@/lib/auth/require-talent";
 import DashboardMessagesCard from "@/components/talent/dashboard/DashboardMessagesCard";
 import { TalentProfileService } from "@/lib/services/talent/TalentProfileService";
 
@@ -85,92 +85,15 @@ export default async function TalentDashboardPage({
 }: PageProps) {
   const { locale } = await params;
   const isRtl = locale === "ar";
-
-  const authClient = await createServerSupabaseClient();
   const adminClient = createAdminClient();
 
-  const {
-    data: { user },
-  } = await authClient.auth.getUser();
-
-  if (!user) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-black text-white">
-        <p>
-          {isRtl
-            ? "يرجى تسجيل الدخول أولاً"
-            : "Please login first"}
-        </p>
-      </main>
-    );
-  }
-
-  const { data: talent, error: talentError } = await adminClient
-    .from("talents")
-    .select(`
-      id,
-      slug,
-      user_id,
-
-      name_ar,
-      name_en,
-      image_url,
-
-      city_ar,
-      city_en,
-      city_slug,
-
-      category_ar,
-      category_en,
-      category_slug,
-
-      gender,
-      status,
-      availability_status,
-
-      published,
-      verified,
-      featured,
-
-      bio_ar,
-      bio_en,
-
-      instagram,
-      tiktok,
-      snapchat,
-      portfolio_url,
-
-      height_cm,
-      weight_kg,
-      eye_color,
-      hair_color,
-      hair_type,
-      skin_color,
-      clothing_size,
-      shoe_size,
-
-      experience_years,
-      ready_to_travel,
-      has_passport,
-      has_car,
-      work_outside_city,
-      work_outside_country,
-
-      video_intro,
-      showreel_url
-    `)
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (talentError) {
-    console.error("Talent dashboard profile error:", talentError);
-  }
+  const { user, talent } = await requireTalent(locale);
 
   if (!talent) {
     return (
       <main className="min-h-screen bg-black text-white">
         <div className="mx-auto flex min-h-screen max-w-4xl flex-col items-center justify-center px-6 text-center">
-          <p className="text-xs uppercase tracking-[0.35em] text-gold">
+        <p className="arabic-safe text-xs uppercase tracking-[0.35em] text-gold">
             {isRtl ? "لوحة الموهبة" : "Talent Dashboard"}
           </p>
 
@@ -295,7 +218,7 @@ export default async function TalentDashboardPage({
   const counts = APPLICATION_STATUSES.reduce<Record<string, number>>(
     (accumulator, status) => {
       accumulator[status] = allApplications.filter(
-        (application: any) =>
+        (application: { status: string | null }) =>
           normalizeStatus(application.status) === status
       ).length;
 

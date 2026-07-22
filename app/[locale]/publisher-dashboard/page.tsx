@@ -18,6 +18,10 @@ import {
 import { requirePublisher } from "@/lib/auth/require-publisher";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOpportunityStatusLabel } from "@/lib/utils/opportunity-status";
+import {
+  cityLabels,
+  publisherTypeLabels,
+} from "@/lib/constants/publisher";
 
 type Opportunity = {
   id: number;
@@ -32,7 +36,8 @@ export default async function PublisherDashboardPage({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
-  const isRtl = locale === "ar";
+  const safeLocale = locale === "en" ? "en" : "ar";
+  const isRtl = safeLocale === "ar";
   const statusLocale = isRtl ? "ar" : "en";
 
   const { publisher } = await requirePublisher(locale);
@@ -77,23 +82,6 @@ export default async function PublisherDashboardPage({
   const isVerified = publisher.verified === true;
   const isSuspended = publisher.status === "suspended";
   const canCreateOpportunity = isVerified && !isSuspended;
-  const publisherTypeLabels: Record<string, { ar: string; en: string }> = {
-    agency: { ar: "وكالة", en: "Agency" },
-    salon: { ar: "صالون", en: "Salon" },
-    production_company: { ar: "شركة إنتاج", en: "Production Company" },
-    casting_agency: { ar: "وكالة كاستنج", en: "Casting Agency" },
-    media_company: { ar: "شركة إعلامية", en: "Media Company" },
-    brand: { ar: "علامة تجارية", en: "Brand" },
-  };
-  
-  const cityLabels: Record<string, { ar: string; en: string }> = {
-    riyadh: { ar: "الرياض", en: "Riyadh" },
-    jeddah: { ar: "جدة", en: "Jeddah" },
-    makkah: { ar: "مكة", en: "Makkah" },
-    madinah: { ar: "المدينة المنورة", en: "Madinah" },
-    dammam: { ar: "الدمام", en: "Dammam" },
-    khobar: { ar: "الخبر", en: "Khobar" },
-  };
   
   const publisherTypeValue = String(
     publisher.publisher_type ?? "",
@@ -142,6 +130,10 @@ export default async function PublisherDashboardPage({
     }
 
     const parsedDate = new Date(value);
+
+if (Number.isNaN(parsedDate.getTime())) {
+  return null;
+}
 
     if (Number.isNaN(parsedDate.getTime())) {
       return null;
@@ -230,6 +222,7 @@ export default async function PublisherDashboardPage({
           )}
 
           <div
+          aria-live="polite"
             className={`mt-4 inline-flex max-w-md flex-col rounded-2xl border px-5 py-4 ${accountStatus.color}`}
           >
             <div className="flex items-center gap-2">
@@ -277,7 +270,7 @@ export default async function PublisherDashboardPage({
                   href={`/${locale}/publisher-dashboard/opportunities`}
                   variant="ghost"
                 >
-                  {isRtl ? "عرض جميع الفرص ←" : "View All Opportunities →"}
+                    {isRtl ? "عرض جميع الفرص" : "View All Opportunities"}
                 </Button>
               }
             />
@@ -299,7 +292,7 @@ export default async function PublisherDashboardPage({
                       </h3>
 
                       <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-white/35">
-                        <span className="uppercase tracking-[0.18em]">
+                      <span className="arabic-safe uppercase tracking-[0.18em]">
                           {getOpportunityStatusLabel(
                             item.status ?? "",
                             statusLocale,

@@ -45,7 +45,7 @@ export function Hero({
       <div className="mx-auto grid min-h-[calc(94vh-8rem)] max-w-7xl items-center gap-12 lg:grid-cols-[1.05fr_0.95fr]">
         <div className={isAr ? "text-right" : "text-left"}>
           {data.eyebrow ? (
-            <p className="mb-6 inline-flex rounded-full border border-gold/20 bg-gold/[0.06] px-5 py-2 text-[11px] uppercase tracking-[0.28em] text-gold">
+            <p className="arabic-safe mb-6 inline-flex rounded-full border border-gold/20 bg-gold/[0.06] px-5 py-2 text-[11px] uppercase tracking-[0.28em] text-gold">
               {data.eyebrow}
             </p>
           ) : null}
@@ -70,9 +70,10 @@ export function Hero({
             {data.primaryCtaLabel ? (
               <Link
                 href={data.primaryCtaHref}
-                className="inline-flex items-center justify-center gap-3 rounded-full bg-gold px-8 py-4 text-xs font-medium uppercase tracking-[0.24em] text-black transition hover:bg-[#e0bd73]"
+                className="arabic-safe inline-flex items-center justify-center gap-3 rounded-full bg-gold px-8 py-4 text-xs font-medium uppercase tracking-[0.24em] text-black transition hover:bg-[#e0bd73]"
               >
                 {data.primaryCtaLabel}
+
                 <ArrowUpRight size={16} />
               </Link>
             ) : null}
@@ -80,7 +81,7 @@ export function Hero({
             {data.secondaryCtaLabel ? (
               <Link
                 href={data.secondaryCtaHref}
-                className="inline-flex items-center justify-center rounded-full border border-white/15 px-8 py-4 text-xs uppercase tracking-[0.24em] text-white/70 transition hover:border-gold/40 hover:text-gold"
+                className="arabic-safe inline-flex items-center justify-center rounded-full border border-white/15 px-8 py-4 text-xs uppercase tracking-[0.24em] text-white/70 transition hover:border-gold/40 hover:text-gold"
               >
                 {data.secondaryCtaLabel}
               </Link>
@@ -172,7 +173,7 @@ function HeroStat({
         {value}
       </p>
 
-      <p className="mt-1 text-[10px] uppercase tracking-[0.22em] text-white/35">
+      <p className="arabic-safe mt-1 text-[10px] uppercase tracking-[0.22em] text-white/35">
         {label}
       </p>
     </div>

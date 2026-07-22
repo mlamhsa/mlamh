@@ -9,7 +9,6 @@ import {
 
 import { FooterCMS } from "@/lib/cms/FooterCMS";
 import { getDictionary, type Locale } from "@/lib/i18n";
-
 import type { PublicFooterLink } from "@/lib/types/footer";
 
 export async function Footer({
@@ -69,7 +68,7 @@ export async function Footer({
           </div>
 
           <div>
-            <p className="mb-5 text-xs uppercase tracking-[0.3em] text-gold">
+            <p className="arabic-safe mb-5 text-xs uppercase tracking-[0.3em] text-gold">
               {dictionaryFooter.navigate}
             </p>
 
@@ -85,7 +84,7 @@ export async function Footer({
           </div>
 
           <div>
-            <p className="mb-5 text-xs uppercase tracking-[0.3em] text-gold">
+            <p className="arabic-safe mb-5 text-xs uppercase tracking-[0.3em] text-gold">
               {isRtl ? "قانوني" : "Legal"}
             </p>
 
@@ -102,14 +101,17 @@ export async function Footer({
           <div>
             {footer.showContactInfo ? (
               <>
-                <p className="mb-5 text-xs uppercase tracking-[0.3em] text-gold">
+                <p className="arabic-safe mb-5 text-xs uppercase tracking-[0.3em] text-gold">
                   {dictionaryFooter.contact}
                 </p>
 
                 <ul className="space-y-4 text-sm text-white/55">
                   {footer.email ? (
                     <li className="flex items-center gap-3">
-                      <Mail size={16} className="shrink-0 text-gold" />
+                      <Mail
+                        size={16}
+                        className="shrink-0 text-gold"
+                      />
 
                       <a
                         href={`mailto:${footer.email}`}
@@ -122,7 +124,10 @@ export async function Footer({
 
                   {footer.phone ? (
                     <li className="flex items-center gap-3">
-                      <Phone size={16} className="shrink-0 text-gold" />
+                      <Phone
+                        size={16}
+                        className="shrink-0 text-gold"
+                      />
 
                       <a
                         href={`tel:${footer.phone}`}
@@ -135,7 +140,11 @@ export async function Footer({
 
                   {footer.address ? (
                     <li className="flex items-center gap-3">
-                      <MapPin size={16} className="shrink-0 text-gold" />
+                      <MapPin
+                        size={16}
+                        className="shrink-0 text-gold"
+                      />
+
                       <span>{footer.address}</span>
                     </li>
                   ) : null}
@@ -173,7 +182,7 @@ export async function Footer({
 
         <div className="my-12 h-px bg-gradient-to-r from-transparent via-gold/30 to-transparent" />
 
-        <div className="flex flex-col items-center justify-between gap-4 text-center text-[10px] uppercase tracking-[0.25em] text-white/35 md:flex-row">
+        <div className="arabic-safe flex flex-col items-center justify-between gap-4 text-center text-[10px] uppercase tracking-[0.25em] text-white/35 md:flex-row">
           <p>
             © {new Date().getFullYear()} MLAMH
             {footer.copyright ? ` — ${footer.copyright}` : ""}

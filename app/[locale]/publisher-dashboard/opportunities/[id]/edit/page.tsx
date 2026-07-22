@@ -1,19 +1,19 @@
 import Link from "next/link";
 
-import PublisherShell from "@/components/publisher/PublisherShell";
 import OpportunityEditForm from "@/components/publisher/OpportunityEditForm";
+import PublisherShell from "@/components/publisher/PublisherShell";
 import { requirePublisher } from "@/lib/auth/require-publisher";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 type PageProps = {
-  params: Promise<{
+  params: {
     locale: string;
     id: string;
-  }>;
+  };
 };
 
 export default async function EditOpportunityPage({ params }: PageProps) {
-  const { locale, id } = await params;
+  const { locale, id } = params;
   const isRtl = locale === "ar";
 
   const { publisher } = await requirePublisher(locale);
@@ -25,7 +25,7 @@ export default async function EditOpportunityPage({ params }: PageProps) {
     return (
       <PublisherShell locale={locale} isRtl={isRtl}>
         <div className="rounded-[2rem] border border-red-400/20 bg-red-400/[0.04] p-8 text-red-200">
-          <p className="text-xs uppercase tracking-[0.35em] text-red-300/70">
+          <p className="arabic-safe text-xs uppercase tracking-[0.35em] text-red-300/70">
             {isRtl ? "رابط غير صالح" : "Invalid Link"}
           </p>
 
@@ -35,7 +35,7 @@ export default async function EditOpportunityPage({ params }: PageProps) {
 
           <Link
             href={`/${locale}/publisher-dashboard/opportunities`}
-            className="mt-6 inline-flex rounded-full border border-red-300/30 px-5 py-3 text-xs uppercase tracking-[0.18em] text-red-200 transition hover:bg-red-300 hover:text-black"
+            className="arabic-safe mt-6 inline-flex rounded-full border border-red-300/30 px-5 py-3 text-xs uppercase tracking-[0.18em] text-red-200 transition hover:bg-red-300 hover:text-black"
           >
             {isRtl ? "العودة إلى الفرص" : "Back to Opportunities"}
           </Link>
@@ -59,7 +59,7 @@ export default async function EditOpportunityPage({ params }: PageProps) {
     return (
       <PublisherShell locale={locale} isRtl={isRtl}>
         <div className="rounded-[2rem] border border-white/10 bg-white/[0.035] p-8">
-          <p className="text-xs uppercase tracking-[0.35em] text-gold">
+          <p className="arabic-safe text-xs uppercase tracking-[0.35em] text-gold">
             {isRtl ? "غير موجود" : "Not Found"}
           </p>
 
@@ -75,7 +75,7 @@ export default async function EditOpportunityPage({ params }: PageProps) {
 
           <Link
             href={`/${locale}/publisher-dashboard/opportunities`}
-            className="mt-6 inline-flex rounded-full border border-gold/40 px-5 py-3 text-xs uppercase tracking-[0.18em] text-gold transition hover:bg-gold hover:text-black"
+            className="arabic-safe mt-6 inline-flex rounded-full border border-gold/40 px-5 py-3 text-xs uppercase tracking-[0.18em] text-gold transition hover:bg-gold hover:text-black"
           >
             {isRtl ? "العودة إلى الفرص" : "Back to Opportunities"}
           </Link>
@@ -95,7 +95,7 @@ export default async function EditOpportunityPage({ params }: PageProps) {
             {isRtl ? "← العودة إلى تفاصيل الفرصة" : "← Back to Opportunity"}
           </Link>
 
-          <p className="mt-7 text-xs uppercase tracking-[0.35em] text-gold">
+          <p className="arabic-safe mt-7 text-xs uppercase tracking-[0.35em] text-gold">
             {isRtl ? "تعديل الفرصة" : "Edit Opportunity"}
           </p>
 

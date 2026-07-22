@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+
 import { requirePublisher } from "@/lib/auth/require-publisher";
 import { createEvent, EVENT_TARGETS, EVENT_TYPES } from "@/lib/events";
 import { OpportunityService } from "@/lib/services/opportunities/OpportunityService";
@@ -12,17 +13,12 @@ import {
   numberOrNull,
 } from "@/lib/services/localization";
 
-export async function createOpportunityAction({
-  locale = "ar",
-  title,
-  description,
-  city,
-  required_gender,
-  min_age,
-  max_age,
-  budget,
-  opportunity_type,
-}: {
+const allowedGenders = ["any", "male", "female"] as const;
+
+type AllowedGender = (typeof allowedGenders)[number];
+type SupportedLocale = "ar" | "en";
+
+type CreateOpportunityPayload = {
   locale?: string;
   title: string;
   description: string;
@@ -32,34 +28,169 @@ export async function createOpportunityAction({
   max_age?: string | number | null;
   budget?: string | number | null;
   opportunity_type?: string | null;
-}) {
-  const safeLocale = locale === "en" ? "en" : "ar";
+};
+
+function getLocalizedMessage(
+  locale: SupportedLocale,
+  messages: {
+    ar: string;
+    en: string;
+  },
+) {
+  return messages[locale];
+}
+
+function isValidAge(value: number | null) {
+  return (
+    value === null ||
+    (Number.isInteger(value) && value >= 1 && value <= 100)
+  );
+}
+
+function normalizeBudget(
+  value: unknown,
+  locale: SupportedLocale,
+) {
+  const cleaned = cleanText(value).replace(/,/g, "");
+
+  if (!cleaned) {
+    return null;
+  }
+
+  if (!/^\d+$/.test(cleaned)) {
+    throw new Error(
+      getLocalizedMessage(locale, {
+        ar: "يجب أن تحتوي الميزانية على أرقام فقط.",
+        en: "Budget must contain numbers only.",
+      }),
+    );
+  }
+
+  return cleaned;
+}
+
+export async function createOpportunityAction(
+  payload: CreateOpportunityPayload,
+) {
+  const {
+    locale = "ar",
+    title,
+    description,
+    city,
+    required_gender,
+    min_age,
+    max_age,
+    budget,
+    opportunity_type,
+  } = payload;
+
+  const safeLocale: SupportedLocale =
+    locale === "en" ? "en" : "ar";
 
   const { publisher } = await requirePublisher(safeLocale);
 
   const cleanTitle = cleanText(title);
   const cleanDescription = cleanText(description);
   const cleanGender = cleanText(required_gender);
-  const cleanBudget = cleanText(budget);
+  const cleanOpportunityType = cleanText(opportunity_type);
 
-  const localizedCity = localizeOpportunityCity(cleanText(city));
-  const localizedType = localizeOpportunityType(
-    cleanText(opportunity_type) || "model"
+  const minAge = numberOrNull(min_age);
+  const maxAge = numberOrNull(max_age);
+  const normalizedBudget = normalizeBudget(
+    budget,
+    safeLocale,
   );
 
-  if (!cleanTitle) {
-    throw new Error("Opportunity title is required.");
+  if (cleanTitle.length < 3 || cleanTitle.length > 120) {
+    throw new Error(
+      getLocalizedMessage(safeLocale, {
+        ar: "يجب أن يتراوح عنوان الفرصة بين 3 و120 حرفًا.",
+        en: "Opportunity title must contain between 3 and 120 characters.",
+      }),
+    );
   }
 
-  if (!cleanDescription) {
-    throw new Error("Opportunity description is required.");
+  if (
+    cleanDescription.length < 20 ||
+    cleanDescription.length > 3000
+  ) {
+    throw new Error(
+      getLocalizedMessage(safeLocale, {
+        ar: "يجب أن يتراوح وصف الفرصة بين 20 و3000 حرف.",
+        en: "Opportunity description must contain between 20 and 3000 characters.",
+      }),
+    );
   }
+
+  if (
+    cleanGender &&
+    !allowedGenders.includes(cleanGender as AllowedGender)
+  ) {
+    throw new Error(
+      getLocalizedMessage(safeLocale, {
+        ar: "قيمة الجنس المطلوب غير صالحة.",
+        en: "Invalid required gender.",
+      }),
+    );
+  }
+
+  if (!isValidAge(minAge) || !isValidAge(maxAge)) {
+    throw new Error(
+      getLocalizedMessage(safeLocale, {
+        ar: "يجب أن يكون العمر رقمًا صحيحًا بين 1 و100.",
+        en: "Age must be a whole number between 1 and 100.",
+      }),
+    );
+  }
+
+  if (
+    minAge !== null &&
+    maxAge !== null &&
+    minAge > maxAge
+  ) {
+    throw new Error(
+      getLocalizedMessage(safeLocale, {
+        ar: "لا يمكن أن يكون الحد الأدنى للعمر أكبر من الحد الأقصى.",
+        en: "Minimum age cannot be greater than maximum age.",
+      }),
+    );
+  }
+
+  if (!cleanOpportunityType) {
+    throw new Error(
+      getLocalizedMessage(safeLocale, {
+        ar: "نوع الفرصة مطلوب.",
+        en: "Opportunity type is required.",
+      }),
+    );
+  }
+
+  const localizedType =
+    localizeOpportunityType(cleanOpportunityType);
+
+  if (!localizedType.value) {
+    throw new Error(
+      getLocalizedMessage(safeLocale, {
+        ar: "نوع الفرصة غير صالح.",
+        en: "Invalid opportunity type.",
+      }),
+    );
+  }
+
+  const localizedCity = localizeOpportunityCity(
+    cleanText(city),
+  );
 
   if (!localizedCity.city_ar || !localizedCity.city_en) {
-    throw new Error("Opportunity city is required.");
+    throw new Error(
+      getLocalizedMessage(safeLocale, {
+        ar: "مدينة الفرصة مطلوبة.",
+        en: "Opportunity city is required.",
+      }),
+    );
   }
 
-  await OpportunityService.create({
+  const opportunity = await OpportunityService.create({
     publisher_id: publisher.id,
 
     title: cleanTitle,
@@ -71,36 +202,50 @@ export async function createOpportunityAction({
     city_ar: localizedCity.city_ar,
     city_en: localizedCity.city_en,
 
-    required_gender: cleanGender || null,
-    min_age: numberOrNull(min_age),
-    max_age: numberOrNull(max_age),
-    budget: cleanBudget || null,
+    required_gender: cleanGender || "any",
+
+    min_age: minAge,
+    max_age: maxAge,
+    budget: normalizedBudget,
 
     company_name:
-      publisher.company_name ?? publisher.contact_name ?? "Unknown",
+      publisher.company_name ??
+      publisher.contact_name ??
+      "Unknown",
   });
 
-  await createEvent({
-    type: EVENT_TYPES.opportunity_pending_review,
-    target: EVENT_TARGETS.ADMIN,
-    targetId: "admin",
-    actorId: publisher.id,
-    metadata: {
-      publisherId: publisher.id,
-      title: cleanTitle,
-      city_ar: localizedCity.city_ar,
-      city_en: localizedCity.city_en,
-      opportunityType: localizedType.value,
-    },
-  });
+  try {
+    await createEvent({
+      type: EVENT_TYPES.opportunity_pending_review,
+      target: EVENT_TARGETS.ADMIN,
+      targetId: "admin",
+      actorId: publisher.id,
+      metadata: {
+        opportunityId: opportunity.id,
+        publisherId: publisher.id,
+        title: cleanTitle,
+        city_ar: localizedCity.city_ar,
+        city_en: localizedCity.city_en,
+        opportunityType: localizedType.value,
+      },
+    });
+  } catch (eventError) {
+    console.error(
+      "Failed to create opportunity review event:",
+      eventError,
+    );
+  }
 
   revalidatePath(`/${safeLocale}/publisher-dashboard`);
-  revalidatePath(`/${safeLocale}/publisher-dashboard/opportunities`);
+  revalidatePath(
+    `/${safeLocale}/publisher-dashboard/opportunities`,
+  );
   revalidatePath(`/${safeLocale}/opportunities`);
   revalidatePath("/admin/opportunities");
 
   return {
     success: true,
+    opportunityId: opportunity.id,
     status: "pending_review",
     message:
       safeLocale === "ar"

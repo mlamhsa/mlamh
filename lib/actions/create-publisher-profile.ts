@@ -85,8 +85,30 @@ export async function createPublisherProfileAction(
     );
   }
 
-  const companyName = stringValue(formData, "company_name");
-  const phone = stringValue(formData, "phone");
+  const companyName = stringValue(
+    formData,
+    "company_name"
+  );
+
+  const phone = requiredStringValue(
+    formData,
+    "phone"
+  );
+
+  const city = stringValue(
+    formData,
+    "city"
+  );
+
+  const website = stringValue(
+    formData,
+    "website"
+  );
+
+  const instagram = stringValue(
+    formData,
+    "instagram"
+  );
 
   const displayName = companyName || contactName;
 
@@ -158,7 +180,7 @@ export async function createPublisherProfileAction(
         .update({
           account_type: "publisher",
           display_name: displayName,
-          phone: phone || null,
+          phone,
         })
         .eq("id", profileId)
         .eq("user_id", userId);
@@ -179,7 +201,7 @@ export async function createPublisherProfileAction(
           user_id: userId,
           account_type: "publisher",
           display_name: displayName,
-          phone: phone || null,
+          phone,
         })
         .select("id")
         .single();
@@ -211,10 +233,9 @@ export async function createPublisherProfileAction(
           : null,
       company_name: companyName || null,
       contact_name: contactName,
-      city: stringValue(formData, "city") || null,
-      website: stringValue(formData, "website") || null,
-      instagram:
-        stringValue(formData, "instagram") || null,
+      city: city || null,
+      website: website || null,
+      instagram: instagram || null,
     });
 
   if (publisherError) {

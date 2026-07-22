@@ -9,6 +9,42 @@ import {
   Inbox,
 } from "lucide-react";
 
+type Opportunity = {
+  title?: string | null;
+  opportunity_type?: string | null;
+};
+
+type RecentApplication = {
+  id: string;
+  status?: string | null;
+  created_at?: string | null;
+  opportunities?: Opportunity | Opportunity[] | null;
+};
+
+type TalentApplicationsProps = {
+  locale: string;
+  isRtl: boolean;
+  recentApplications: RecentApplication[];
+  notificationItems: string[];
+};
+
+type SectionHeaderProps = {
+  eyebrow: string;
+  title: string;
+  href: string;
+  action: string;
+  isRtl: boolean;
+};
+
+type EmptyStateProps = {
+  icon: React.ReactNode;
+  title: string;
+  text: string;
+  action?: string;
+  href?: string;
+  isRtl: boolean;
+};
+
 function normalizeStatus(status?: string | null) {
   if (
     status === "reviewing" ||
@@ -25,10 +61,17 @@ function normalizeStatus(status?: string | null) {
 function statusLabel(status?: string | null, isRtl = false) {
   const normalized = normalizeStatus(status);
 
-  if (normalized === "reviewing") return isRtl ? "قيد المراجعة" : "Reviewing";
-  if (normalized === "shortlisted") return isRtl ? "القائمة المختصرة" : "Shortlisted";
-  if (normalized === "accepted") return isRtl ? "مقبول" : "Accepted";
-  if (normalized === "rejected") return isRtl ? "مرفوض" : "Rejected";
+  if (normalized === "reviewing")
+    return isRtl ? "قيد المراجعة" : "Reviewing";
+
+  if (normalized === "shortlisted")
+    return isRtl ? "القائمة المختصرة" : "Shortlisted";
+
+  if (normalized === "accepted")
+    return isRtl ? "مقبول" : "Accepted";
+
+  if (normalized === "rejected")
+    return isRtl ? "مرفوض" : "Rejected";
 
   return isRtl ? "جديد" : "Pending";
 }
@@ -36,10 +79,17 @@ function statusLabel(status?: string | null, isRtl = false) {
 function statusClass(status?: string | null) {
   const normalized = normalizeStatus(status);
 
-  if (normalized === "reviewing") return "border-blue-400/30 bg-blue-400/10 text-blue-300";
-  if (normalized === "shortlisted") return "border-gold/30 bg-gold/10 text-gold";
-  if (normalized === "accepted") return "border-emerald-400/30 bg-emerald-400/10 text-emerald-300";
-  if (normalized === "rejected") return "border-red-400/30 bg-red-400/10 text-red-300";
+  if (normalized === "reviewing")
+    return "border-blue-400/30 bg-blue-400/10 text-blue-300";
+
+  if (normalized === "shortlisted")
+    return "border-gold/30 bg-gold/10 text-gold";
+
+  if (normalized === "accepted")
+    return "border-emerald-400/30 bg-emerald-400/10 text-emerald-300";
+
+  if (normalized === "rejected")
+    return "border-red-400/30 bg-red-400/10 text-red-300";
 
   return "border-yellow-400/30 bg-yellow-400/10 text-yellow-300";
 }
@@ -59,12 +109,7 @@ export default function TalentApplications({
   isRtl,
   recentApplications,
   notificationItems,
-}: {
-  locale: string;
-  isRtl: boolean;
-  recentApplications: any[];
-  notificationItems: string[];
-}) {
+}: TalentApplicationsProps) {
   return (
     <section className="mt-12 grid gap-6 lg:grid-cols-[1fr_0.85fr]">
       <section className="rounded-[2rem] border border-white/10 bg-white/[0.035] p-6">
@@ -73,11 +118,12 @@ export default function TalentApplications({
           title={isRtl ? "طلباتك الأخيرة" : "Your recent applications"}
           href={`/${locale}/talent-dashboard/requests`}
           action={isRtl ? "عرض الكل" : "View All"}
+          isRtl={isRtl}
         />
 
         {recentApplications.length > 0 ? (
           <div className="space-y-3">
-            {recentApplications.map((application: any) => {
+            {recentApplications.map((application) => {
               const opportunity = Array.isArray(application.opportunities)
                 ? application.opportunities[0]
                 : application.opportunities;
@@ -99,14 +145,17 @@ export default function TalentApplications({
 
                       <p className="mt-2 text-sm text-white/40">
                         {opportunity?.opportunity_type
-                          ? String(opportunity.opportunity_type).replaceAll("_", " ")
+                          ? String(opportunity.opportunity_type).replaceAll(
+                              "_",
+                              " "
+                            )
                           : "-"}
                       </p>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3">
                       <span
-                        className={`inline-flex rounded-full border px-3 py-1 text-[11px] uppercase tracking-[0.18em] ${statusClass(
+                        className={`arabic-safe inline-flex rounded-full border px-3 py-1 text-[11px] uppercase tracking-[0.18em] ${statusClass(
                           application.status
                         )}`}
                       >
@@ -134,6 +183,7 @@ export default function TalentApplications({
             }
             action={isRtl ? "استعراض الفرص" : "Browse Opportunities"}
             href={`/${locale}/opportunities`}
+            isRtl={isRtl}
           />
         )}
       </section>
@@ -144,11 +194,12 @@ export default function TalentApplications({
           title={isRtl ? "آخر التنبيهات" : "Latest updates"}
           href={`/${locale}/talent-dashboard/notifications`}
           action={isRtl ? "فتح" : "Open"}
+          isRtl={isRtl}
         />
 
         {notificationItems.length > 0 ? (
           <div className="space-y-3">
-            {notificationItems.slice(0, 4).map((item: string) => (
+            {notificationItems.slice(0, 4).map((item) => (
               <div
                 key={item}
                 className="rounded-2xl border border-white/10 bg-black/25 p-4 text-sm leading-7 text-white/60"
@@ -156,6 +207,7 @@ export default function TalentApplications({
                 <div className="mb-3 inline-flex rounded-full border border-gold/20 bg-gold/[0.06] p-2 text-gold">
                   <Bell size={15} />
                 </div>
+
                 <p>{item}</p>
               </div>
             ))}
@@ -169,6 +221,7 @@ export default function TalentApplications({
                 ? "سنخبرك هنا عند وجود تحديثات مهمة."
                 : "Important updates will appear here."
             }
+            isRtl={isRtl}
           />
         )}
       </section>
@@ -181,16 +234,12 @@ function SectionHeader({
   title,
   href,
   action,
-}: {
-  eyebrow: string;
-  title: string;
-  href: string;
-  action: string;
-}) {
+  isRtl,
+}: SectionHeaderProps) {
   return (
     <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-center">
       <div>
-        <p className="text-xs uppercase tracking-[0.35em] text-gold">
+        <p className="arabic-safe text-xs uppercase tracking-[0.35em] text-gold">
           {eyebrow}
         </p>
 
@@ -199,7 +248,7 @@ function SectionHeader({
 
       <Link
         href={href}
-        className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-gold transition hover:text-gold-soft"
+        className="arabic-safe inline-flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-gold transition hover:text-gold-soft"
       >
         {action}
         <ArrowUpRight size={14} />
@@ -214,13 +263,7 @@ function EmptyState({
   text,
   action,
   href,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  text: string;
-  action?: string;
-  href?: string;
-}) {
+}: EmptyStateProps) {
   return (
     <div className="rounded-[1.5rem] border border-dashed border-white/10 bg-black/20 p-8 text-center">
       <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-gold/20 bg-gold/[0.06] text-gold">
@@ -236,7 +279,7 @@ function EmptyState({
       {action && href ? (
         <Link
           href={href}
-          className="mt-6 inline-flex rounded-full border border-gold/40 bg-gold/[0.06] px-5 py-3 text-xs uppercase tracking-[0.22em] text-gold transition hover:bg-gold hover:text-black"
+          className="arabic-safe mt-6 inline-flex rounded-full border border-gold/40 bg-gold/[0.06] px-5 py-3 text-xs uppercase tracking-[0.22em] text-gold transition hover:bg-gold hover:text-black"
         >
           {action}
         </Link>

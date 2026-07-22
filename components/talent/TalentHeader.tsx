@@ -6,6 +6,13 @@ import {
   Clock3,
   UserRound,
 } from "lucide-react";
+type TalentHeaderProps = {
+  locale: string;
+  talentName: string;
+  profileCompletion: number;
+  pendingCount: number;
+  reviewingCount: number;
+};
 
 export default function TalentHeader({
   locale,
@@ -13,14 +20,14 @@ export default function TalentHeader({
   profileCompletion,
   pendingCount,
   reviewingCount,
-}: any) {
+}: TalentHeaderProps) {
   const isRtl = locale === "ar";
 
   return (
     <header className="mb-12 overflow-hidden rounded-[2.5rem] border border-white/10 bg-gradient-to-br from-white/[0.08] via-white/[0.03] to-gold/[0.06] p-7 md:p-10">
       <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-xs uppercase tracking-[0.35em] text-gold">
+          <p className="arabic-safe text-xs uppercase tracking-[0.35em] text-gold">
             {isRtl ? "مساحة الموهبة" : "Talent Workspace"}
           </p>
 
@@ -38,7 +45,7 @@ export default function TalentHeader({
         <div className="flex flex-wrap gap-3">
           <Link
             href={`/${locale}/talent-dashboard/profile`}
-            className="inline-flex items-center gap-3 rounded-full bg-gold px-6 py-4 text-xs font-medium uppercase tracking-[0.22em] text-black transition hover:bg-[#e0bd73]"
+            className="arabic-safe inline-flex items-center gap-3 rounded-full bg-gold px-6 py-4 text-xs font-medium uppercase tracking-[0.22em] text-black transition hover:bg-[#e0bd73]"
           >
             <UserRound size={16} />
             {isRtl ? "إكمال الملف" : "Complete Profile"}
@@ -46,7 +53,7 @@ export default function TalentHeader({
 
           <Link
             href={`/${locale}/opportunities`}
-            className="inline-flex items-center gap-3 rounded-full border border-white/15 px-6 py-4 text-xs uppercase tracking-[0.22em] text-white/70 transition hover:border-gold/40 hover:text-gold"
+            className="arabic-safe inline-flex items-center gap-3 rounded-full border border-white/15 px-6 py-4 text-xs uppercase tracking-[0.22em] text-white/70 transition hover:border-gold/40 hover:text-gold"
           >
             {isRtl ? "استعراض الفرص" : "Browse Opportunities"}
             <ArrowUpRight size={16} />
@@ -101,7 +108,7 @@ function HeaderMetric({
         {icon}
       </div>
 
-      <p className="text-xs uppercase tracking-[0.22em] text-white/35">
+      <p className="arabic-safe text-xs uppercase tracking-[0.22em] text-white/35">
         {label}
       </p>
 

@@ -1,4 +1,8 @@
-import { OpportunityRepository } from "@/lib/repositories/opportunities/OpportunityRepository";
+import {
+  OpportunityRepository,
+  type CreateOpportunityData,
+  type OpportunityStatus,
+} from "@/lib/repositories/opportunities/OpportunityRepository";
 
 export class OpportunityService {
   static getAll(filters?: {
@@ -8,17 +12,17 @@ export class OpportunityService {
     return OpportunityRepository.getAll(filters ?? {});
   }
 
-  static async getStatusSnapshot(id: number) {
+  static getStatusSnapshot(id: number) {
     return OpportunityRepository.getStatusSnapshot(id);
   }
 
-  static async updateStatus({
+  static updateStatus({
     id,
     status,
     published,
   }: {
     id: number;
-    status: string;
+    status: OpportunityStatus;
     published: boolean;
   }) {
     return OpportunityRepository.updateStatus({
@@ -28,8 +32,7 @@ export class OpportunityService {
     });
   }
 
-  // ✅ ADD THIS
-  static async create(data: any) {
+  static create(data: CreateOpportunityData) {
     return OpportunityRepository.create(data);
   }
 }

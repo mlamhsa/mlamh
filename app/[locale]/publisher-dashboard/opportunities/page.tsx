@@ -14,20 +14,28 @@ import {
 } from "@/lib/utils/opportunity-status";
 
 type PageProps = {
-  params: Promise<{ locale: string }>;
-  searchParams?: Promise<{ status?: string }>;
+  params: { locale: string };
+searchParams?: { status?: string };
 };
 
 function formatDate(value?: string | null, locale = "en") {
   if (!value) return "-";
 
-  return new Intl.DateTimeFormat(locale === "ar" ? "ar-SA" : "en", {
+const parsedDate = new Date(value);
+
+if (Number.isNaN(parsedDate.getTime())) {
+  return "-";
+}
+
+return new Intl.DateTimeFormat(
+  locale === "ar" ? "ar-SA" : "en",
+  {
     year: "numeric",
     month: "short",
     day: "numeric",
-  }).format(new Date(value));
+  }
+).format(parsedDate);
 }
-
 function getCity(
   opportunity: { city_ar?: string | null; city_en?: string | null },
   locale: string
@@ -41,11 +49,11 @@ export default async function PublisherOpportunitiesPage({
   params,
   searchParams,
 }: PageProps) {
-  const { locale } = await params;
-  const isRtl = locale === "ar";
-  const statusLocale = isRtl ? "ar" : "en";
+  const { locale } = params;
+const isRtl = locale === "ar";
+const statusLocale = isRtl ? "ar" : "en";
 
-  const filters = searchParams ? await searchParams : {};
+const filters = searchParams ?? {};
   const selectedStatus = filters.status ?? "all";
 
   const { publisher } = await requirePublisher(locale);
@@ -141,7 +149,7 @@ export default async function PublisherOpportunitiesPage({
       <div className="space-y-8">
         <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
           <div>
-            <p className="text-xs uppercase tracking-[0.35em] text-gold">
+          <p className="arabic-safe text-xs uppercase tracking-[0.35em] text-gold">
               {isRtl ? "مركز الفرص" : "Opportunities Center"}
             </p>
 
@@ -158,7 +166,7 @@ export default async function PublisherOpportunitiesPage({
 
           <Link
             href={`/${locale}/opportunities/new`}
-            className="inline-flex rounded-full border border-gold bg-gold/10 px-6 py-4 text-xs uppercase tracking-[0.22em] text-gold transition hover:bg-gold hover:text-black"
+            className="arabic-safe inline-flex rounded-full border border-gold bg-gold/10 px-6 py-4 text-xs uppercase tracking-[0.22em] text-gold transition hover:bg-gold hover:text-black"
           >
             {isRtl ? "إنشاء فرصة" : "Create Opportunity"}
           </Link>
@@ -218,7 +226,7 @@ export default async function PublisherOpportunitiesPage({
 
           {filteredOpportunities.length > 0 ? (
             <div className="overflow-hidden rounded-[1.5rem] border border-white/10">
-              <div className="hidden grid-cols-[1.5fr_0.8fr_0.8fr_1.4fr] border-b border-white/10 bg-white/[0.03] px-5 py-4 text-xs uppercase tracking-[0.22em] text-white/35 lg:grid">
+              <div className="arabic-safe hidden grid-cols-[1.5fr_0.8fr_0.8fr_1.4fr] border-b border-white/10 bg-white/[0.03] px-5 py-4 text-xs uppercase tracking-[0.22em] text-white/35 lg:grid">
                 <div>{isRtl ? "الفرصة" : "Opportunity"}</div>
                 <div>{isRtl ? "المتقدمون" : "Applicants"}</div>
                 <div>{isRtl ? "الحالة" : "Status"}</div>
@@ -237,12 +245,12 @@ export default async function PublisherOpportunitiesPage({
                     >
                       <div>
                         <div className="mb-2 flex flex-wrap items-center gap-2">
-                          <span className="text-[11px] uppercase tracking-[0.2em] text-white/35">
+                          <span className="arabic-safe text-[11px] uppercase tracking-[0.2em] text-white/25">
                             {getCity(opportunity, locale) ?? "-"}
                           </span>
 
                           {opportunity.opportunity_type ? (
-                            <span className="text-[11px] uppercase tracking-[0.2em] text-white/25">
+                            <span className="arabic-safe text-[11px] uppercase tracking-[0.2em] text-white/25">
                               {opportunity.opportunity_type.replaceAll("_", " ")}
                             </span>
                           ) : null}
@@ -269,7 +277,7 @@ export default async function PublisherOpportunitiesPage({
 
                       <div>
                         <span
-                          className={`inline-flex rounded-full border px-3 py-1 text-[11px] uppercase tracking-[0.18em] ${getOpportunityStatusClass(
+                          className={`arabic-safe inline-flex rounded-full border px-3 py-1 text-[11px] uppercase tracking-[0.18em] ${getOpportunityStatusClass(
                             opportunity.status
                           )}`}
                         >
@@ -283,14 +291,14 @@ export default async function PublisherOpportunitiesPage({
                       <div className="flex flex-wrap gap-2">
                         <Link
                           href={`/${locale}/publisher-dashboard/opportunities/${opportunity.id}`}
-                          className="rounded-full border border-white/15 px-3 py-2 text-xs uppercase tracking-[0.18em] text-white/60 transition hover:border-white/40 hover:text-white"
+                          className="arabic-safe rounded-full border border-white/15 px-3 py-2 text-xs uppercase tracking-[0.18em] text-white/60 transition hover:border-white/40 hover:text-white"
                         >
                           {isRtl ? "عرض" : "View"}
                         </Link>
 
                         <Link
                           href={`/${locale}/publisher-dashboard/opportunities/${opportunity.id}/edit`}
-                          className="rounded-full border border-blue-400/40 px-3 py-2 text-xs uppercase tracking-[0.18em] text-blue-300 transition hover:bg-blue-400 hover:text-black"
+                          className="arabic-safe rounded-full border border-blue-400/40 px-3 py-2 text-xs uppercase tracking-[0.18em] text-blue-300 transition hover:bg-blue-400 hover:text-black"
                         >
                           {isRtl ? "تعديل" : "Edit"}
                         </Link>
@@ -303,7 +311,7 @@ export default async function PublisherOpportunitiesPage({
                               opportunity.id
                             )}
                           >
-                            <button className="rounded-full border border-yellow-400/40 px-3 py-2 text-xs uppercase tracking-[0.18em] text-yellow-300 transition hover:bg-yellow-400 hover:text-black">
+                            <button className="arabic-safe rounded-full border border-yellow-400/40 px-3 py-2 text-xs uppercase tracking-[0.18em] text-yellow-300 transition hover:bg-yellow-400 hover:text-black">
                               {isRtl ? "إغلاق" : "Close"}
                             </button>
                           </form>
@@ -316,7 +324,7 @@ export default async function PublisherOpportunitiesPage({
                               opportunity.id
                             )}
                           >
-                            <button className="rounded-full border border-red-400/40 px-3 py-2 text-xs uppercase tracking-[0.18em] text-red-300 transition hover:bg-red-400 hover:text-black">
+                            <button className="arabic-safe rounded-full border border-red-400/40 px-3 py-2 text-xs uppercase tracking-[0.18em] text-red-300 transition hover:bg-red-400 hover:text-black">
                               {isRtl ? "أرشفة" : "Archive"}
                             </button>
                           </form>
@@ -327,7 +335,7 @@ export default async function PublisherOpportunitiesPage({
                               opportunity.id
                             )}
                           >
-                            <button className="rounded-full border border-emerald-400/40 px-3 py-2 text-xs uppercase tracking-[0.18em] text-emerald-300 transition hover:bg-emerald-400 hover:text-black">
+                            <button className="arabic-safe rounded-full border border-emerald-400/40 px-3 py-2 text-xs uppercase tracking-[0.18em] text-emerald-300 transition hover:bg-emerald-400 hover:text-black">
                               {isRtl ? "استعادة" : "Restore"}
                             </button>
                           </form>

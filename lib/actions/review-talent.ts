@@ -1,100 +1,88 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+
+import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
 
-async function requireAdminSession() {
-  const authClient = await createServerSupabaseClient();
+function parseTalentId(formData: FormData): number {
+  const id = Number(formData.get("id"));
 
-  const {
-    data: { user },
-    error,
-  } = await authClient.auth.getUser();
-
-  if (error || !user) {
-    throw new Error("Unauthorized");
-  }
-
-  const adminClient = createAdminClient();
-
-  const { data: adminUser, error: adminError } = await adminClient
-    .from("admin_users")
-    .select("id")
-    .eq("id", user.id)
-    .eq("role", "admin")
-    .maybeSingle();
-
-  if (adminError || !adminUser) {
-    throw new Error("Forbidden");
-  }
-
-  return user;
-}
-
-function parseTalentId(formData: FormData): number | null {
-  const raw = formData.get("id");
-  const id = Number(raw);
-
-  if (!Number.isFinite(id) || id <= 0) {
-    return null;
+  if (!Number.isInteger(id) || id <= 0) {
+    throw new Error("Invalid talent id.");
   }
 
   return id;
 }
 
-export async function approveTalentAction(
-  formData: FormData
-): Promise<void> {
-  await requireAdminSession();
+function revalidateTalentReviewPaths(id: number) {
+  revalidatePath("/admin");
+  revalidatePath("/admin/talents");
+  revalidatePath(`/admin/talents/${id}`);
 
-  const id = parseTalentId(formData);
+  revalidatePath("/ar/talents");
+  revalidatePath("/en/talents");
 
-  if (!id) {
-    throw new Error("Invalid talent id");
-  }
+  revalidatePath("/ar/talent-dashboard");
+  revalidatePath("/en/talent-dashboard");
+}
 
-  const supabase = createAdminClient();
+async function updateTalentReviewStatus({
+  id,
+  status,
+  published,
+}: {
+  id: number;
+  status: "approved" | "rejected";
+  published: boolean;
+}) {
+  await requireAdminAccess();
 
-  const { error } = await supabase
+  const adminClient = createAdminClient();
+
+  const { data: talent, error } = await adminClient
     .from("talents")
     .update({
-      status: "approved",
-      published: true,
+      status,
+      published,
     })
-    .eq("id", id);
+    .eq("id", id)
+    .select("id")
+    .maybeSingle();
 
   if (error) {
-    throw new Error(`[approveTalentAction] ${error.message}`);
+    throw new Error(
+      `[updateTalentReviewStatus] ${error.message}`,
+    );
   }
 
-  revalidatePath("/admin");
+  if (!talent) {
+    throw new Error("Talent not found.");
+  }
+
+  revalidateTalentReviewPaths(id);
+}
+
+export async function approveTalentAction(
+  formData: FormData,
+): Promise<void> {
+  const id = parseTalentId(formData);
+
+  await updateTalentReviewStatus({
+    id,
+    status: "approved",
+    published: true,
+  });
 }
 
 export async function rejectTalentAction(
-  formData: FormData
+  formData: FormData,
 ): Promise<void> {
-  await requireAdminSession();
-
   const id = parseTalentId(formData);
 
-  if (!id) {
-    throw new Error("Invalid talent id");
-  }
-
-  const supabase = createAdminClient();
-
-  const { error } = await supabase
-    .from("talents")
-    .update({
-      status: "rejected",
-      published: false,
-    })
-    .eq("id", id);
-
-  if (error) {
-    throw new Error(`[rejectTalentAction] ${error.message}`);
-  }
-
-  revalidatePath("/admin");
+  await updateTalentReviewStatus({
+    id,
+    status: "rejected",
+    published: false,
+  });
 }

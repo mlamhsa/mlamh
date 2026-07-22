@@ -1,7 +1,11 @@
 import { Footer } from "@/components/Footer";
 import { JoinTalentForm } from "@/components/JoinTalentForm";
 import { Navbar } from "@/components/Navbar";
-import { getDictionary, isValidLocale, type Locale } from "@/lib/i18n";
+import {
+  getDictionary,
+  isValidLocale,
+  type Locale,
+} from "@/lib/i18n";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { notFound, redirect } from "next/navigation";
 
@@ -41,17 +45,25 @@ export default async function JoinTalentPage({ params }: PageProps) {
     : "var(--font-dm-sans)";
 
   return (
-    <main className="relative z-[2] bg-background">
+    <main
+      dir={isRtl ? "rtl" : "ltr"}
+      className="relative z-[2] bg-background"
+    >
       <Navbar locale={locale} />
 
-      <div className="relative overflow-hidden pt-28 pb-20 md:pt-32 md:pb-28">
-        <div className="pointer-events-none absolute inset-0" aria-hidden>
-          <div className="absolute top-0 left-1/2 h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-gold/[0.04] blur-[100px]" />
+      <div className="relative overflow-hidden pb-20 pt-28 md:pb-28 md:pt-32">
+        <div
+          className="pointer-events-none absolute inset-0"
+          aria-hidden="true"
+        >
+          <div className="absolute left-1/2 top-0 h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-gold/[0.04] blur-[100px]" />
         </div>
 
-        <div className="relative mx-auto max-w-3xl px-6 lg:max-w-4xl lg:px-10">
+        <div className="relative mx-auto max-w-3xl px-4 sm:px-6 lg:max-w-4xl lg:px-10">
           <header
-            className={`mb-14 md:mb-16 ${isRtl ? "text-right" : "text-left"}`}
+            className={`mb-10 sm:mb-14 md:mb-16 ${
+              isRtl ? "text-right" : "text-left"
+            }`}
           >
             <div
               className={`mb-6 flex items-center gap-4 ${
@@ -59,20 +71,25 @@ export default async function JoinTalentPage({ params }: PageProps) {
               }`}
             >
               <span className="gold-line max-w-[80px] flex-1" />
-              <p className="text-[10px] uppercase tracking-[0.4em] text-gold">
-                {isRtl ? "استكمال ملف الموهبة" : "Complete Talent Profile"}
+
+              <p className="arabic-safe text-[10px] uppercase tracking-[0.4em] text-gold">
+                {isRtl
+                  ? "استكمال ملف الموهبة"
+                  : "Complete Talent Profile"}
               </p>
             </div>
 
             <h1
-              className="text-[clamp(2.5rem,8vw,4.5rem)] leading-[0.95] font-light text-white"
+              className="text-[clamp(2.5rem,8vw,4.5rem)] font-light leading-[1.05] text-white sm:leading-[0.95]"
               style={{ fontFamily: displayFont }}
             >
-              {isRtl ? "أكمل ملفك كموهبة" : "Complete Your Talent Profile"}
+              {isRtl
+                ? "أكمل ملفك كموهبة"
+                : "Complete Your Talent Profile"}
             </h1>
 
             <p
-              className="mt-6 max-w-2xl text-sm leading-relaxed text-gray-muted md:text-base"
+              className="mt-6 max-w-2xl text-sm leading-7 text-gray-muted md:text-base"
               style={{ fontFamily: bodyFont }}
             >
               {isRtl
@@ -86,7 +103,7 @@ export default async function JoinTalentPage({ params }: PageProps) {
 
         <div
           className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-gold/30 to-transparent"
-          aria-hidden
+          aria-hidden="true"
         />
       </div>
 

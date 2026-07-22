@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 
+import { getCurrentAccountType } from "@/lib/auth/get-current-account-type";
 import { getPublishedOpportunities } from "@/lib/supabase/opportunities";
 
 type OpportunitiesPageProps = {
@@ -207,7 +208,10 @@ export default async function OpportunitiesPage({
   const locale = resolvedParams?.locale === "en" ? "en" : "ar";
   const isRtl = locale === "ar";
 
-  const opportunities = await getPublishedOpportunities();
+  const [opportunities, accountType] = await Promise.all([
+    getPublishedOpportunities(),
+    getCurrentAccountType(),
+  ]);
 
   const search = resolvedSearchParams.search ?? "";
   const selectedCity = resolvedSearchParams.city ?? "";
@@ -293,17 +297,37 @@ export default async function OpportunitiesPage({
 
           <div className="relative flex flex-col gap-7 lg:flex-row lg:items-end lg:justify-between">
             <div>
-            <Link
-  href={`/${locale}/talent-dashboard`}
-  className="inline-flex items-center gap-2 text-xs text-white/45 transition hover:text-gold"
->
-  <span className={isRtl ? "rotate-180" : ""}>
-    <OpportunityIcon name="arrow" />
-  </span>
-  {isRtl ? "العودة إلى لوحة التحكم" : "Back to Dashboard"}
-</Link>
+            {accountType ? (
+  <Link
+    href={
+      accountType === "talent"
+        ? `/${locale}/talent-dashboard`
+        : accountType === "publisher"
+          ? `/${locale}/publisher-dashboard`
+          : "/admin"
+    }
+    className="inline-flex items-center gap-2 text-xs text-white/45 transition hover:text-gold"
+  >
+    <span className={isRtl ? "rotate-180" : ""}>
+      <OpportunityIcon name="arrow" />
+    </span>
 
-              <p className="mt-8 text-[10px] uppercase tracking-[0.36em] text-gold">
+    {isRtl ? "العودة إلى لوحة التحكم" : "Back to Dashboard"}
+  </Link>
+) : (
+  <Link
+    href={`/${locale}`}
+    className="inline-flex items-center gap-2 text-xs text-white/45 transition hover:text-gold"
+  >
+    <span className={isRtl ? "rotate-180" : ""}>
+      <OpportunityIcon name="arrow" />
+    </span>
+
+    {isRtl ? "العودة إلى الرئيسية" : "Back to Home"}
+  </Link>
+)}
+
+              <p className="arabic-safe mt-8 text-[10px] uppercase tracking-[0.36em] text-gold">
                 {isRtl ? "فرص ملامح" : "MLAMH Opportunities"}
               </p>
 
@@ -318,13 +342,23 @@ export default async function OpportunitiesPage({
               </p>
             </div>
 
-            <Link
-              href={`/${locale}/talent-dashboard/applications`}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-gold/40 bg-gold px-6 py-3.5 text-sm text-black transition hover:bg-gold-soft sm:w-auto"
-            >
-              <OpportunityIcon name="briefcase" />
-              {isRtl ? "عرض طلباتي" : "My Applications"}
-            </Link>
+            {accountType === "talent" ? (
+  <Link
+    href={`/${locale}/talent-dashboard/applications`}
+    className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-gold/40 bg-gold px-6 py-3.5 text-sm text-black transition hover:bg-gold-soft sm:w-auto"
+  >
+    <OpportunityIcon name="briefcase" />
+    {isRtl ? "عرض طلباتي" : "My Applications"}
+  </Link>
+) : accountType === null ? (
+  <Link
+    href={`/${locale}/join`}
+    className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-gold/40 bg-gold px-6 py-3.5 text-sm text-black transition hover:bg-gold-soft sm:w-auto"
+  >
+    <OpportunityIcon name="sparkles" />
+    {isRtl ? "انضم كموهبة" : "Join as Talent"}
+  </Link>
+) : null}
           </div>
         </header>
 
@@ -355,7 +389,7 @@ export default async function OpportunitiesPage({
         <section className="mt-6 rounded-[2rem] border border-white/10 bg-white/[0.02] p-4 sm:p-6">
           <div className="flex flex-col gap-2 border-b border-white/10 pb-5 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-[10px] uppercase tracking-[0.3em] text-gold">
+              <p className="arabic-safe text-[10px] uppercase tracking-[0.3em] text-gold">
                 {isRtl ? "بحث الفرص" : "Opportunity Search"}
               </p>
               <h2 className="mt-2 text-2xl font-light sm:text-3xl">
@@ -568,7 +602,7 @@ export default async function OpportunitiesPage({
 
                     <div className="mt-6 grid grid-cols-2 gap-3 border-t border-white/10 pt-5">
                       <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                        <p className="inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.15em] text-white/30">
+                        <p className="arabic-safe inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.15em] text-white/30">
                           <OpportunityIcon name="wallet" />
                           {isRtl ? "الميزانية" : "Budget"}
                         </p>
@@ -576,7 +610,7 @@ export default async function OpportunitiesPage({
                       </div>
 
                       <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                        <p className="inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.15em] text-white/30">
+                        <p className="arabic-safe inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.15em] text-white/30">
                           <OpportunityIcon name="calendar" />
                           {isRtl ? "تاريخ النشر" : "Published"}
                         </p>
@@ -625,7 +659,7 @@ function StatCard({
       <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-gold/20 bg-gold/[0.05] text-gold">
         <OpportunityIcon name={icon} />
       </div>
-      <p className="mt-5 text-[10px] uppercase tracking-[0.18em] text-white/40">
+      <p className="arabic-safe mt-5 text-[10px] uppercase tracking-[0.18em] text-white/40">
         {label}
       </p>
       <p className="mt-2 text-3xl font-light sm:text-4xl">{value}</p>

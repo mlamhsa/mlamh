@@ -1,4 +1,5 @@
 import Link from "next/link";
+
 import type { Locale } from "@/lib/i18n";
 import { talentPath } from "@/lib/utils/routes";
 
@@ -50,6 +51,7 @@ export function Agencies({ locale }: { locale: Locale }) {
   return (
     <section
       id="agencies"
+      dir={isRtl ? "rtl" : "ltr"}
       className="relative overflow-hidden border-y border-white/[0.06] bg-black px-6 py-24 text-white lg:py-32"
     >
       <div className="pointer-events-none absolute inset-0">
@@ -66,7 +68,7 @@ export function Agencies({ locale }: { locale: Locale }) {
             }`}
           >
             <div>
-              <p className="mb-4 text-[10px] uppercase tracking-[0.4em] text-gold">
+              <p className="arabic-safe mb-4 text-[10px] uppercase tracking-[0.4em] text-gold">
                 {isRtl
                   ? "للوكالات وشركات الإنتاج"
                   : "For Agencies & Production Companies"}
@@ -94,14 +96,14 @@ export function Agencies({ locale }: { locale: Locale }) {
             <div className="mt-10 flex flex-col gap-3 sm:flex-row">
               <Link
                 href={talentPath(locale)}
-                className="inline-flex items-center justify-center rounded-full border border-gold/40 bg-gold/[0.08] px-6 py-3 text-[10px] uppercase tracking-[0.3em] text-gold transition hover:bg-gold hover:text-black"
+                className="arabic-safe inline-flex items-center justify-center rounded-full border border-gold/40 bg-gold/[0.08] px-6 py-3 text-[10px] uppercase tracking-[0.3em] text-gold transition hover:bg-gold hover:text-black"
               >
                 {isRtl ? "استكشف المواهب" : "Browse Talents"}
               </Link>
 
               <a
                 href="#contact"
-                className="inline-flex items-center justify-center rounded-full border border-white/10 bg-black/20 px-6 py-3 text-[10px] uppercase tracking-[0.3em] text-white/60 transition hover:border-gold/40 hover:text-gold"
+                className="arabic-safe inline-flex items-center justify-center rounded-full border border-white/10 bg-black/20 px-6 py-3 text-[10px] uppercase tracking-[0.3em] text-white/60 transition hover:border-gold/40 hover:text-gold"
               >
                 {isRtl ? "تواصل معنا" : "Contact Us"}
               </a>
@@ -148,7 +150,7 @@ export function Agencies({ locale }: { locale: Locale }) {
               key={industry}
               className="group rounded-2xl border border-white/[0.06] bg-white/[0.025] px-5 py-5 text-center transition hover:-translate-y-1 hover:border-gold/30 hover:bg-white/[0.045]"
             >
-              <p className="text-[10px] uppercase tracking-[0.25em] text-white/50 transition group-hover:text-gold">
+              <p className="arabic-safe text-[10px] uppercase tracking-[0.25em] text-white/50 transition group-hover:text-gold">
                 {industry}
               </p>
             </div>

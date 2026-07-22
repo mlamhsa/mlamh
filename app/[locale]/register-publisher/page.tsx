@@ -4,12 +4,21 @@ import { Footer } from "@/components/Footer";
 import { Navbar } from "@/components/Navbar";
 import { createPublisherProfileAction } from "@/lib/actions/create-publisher-profile";
 import { isValidLocale, type Locale } from "@/lib/i18n";
+import type { HTMLInputTypeAttribute } from "react";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 type PageProps = {
   params: Promise<{ locale: string }>;
 };
 
+type FieldProps = {
+  label: string;
+  name: string;
+  type?: HTMLInputTypeAttribute;
+  placeholder?: string;
+  required?: boolean;
+  dir?: "rtl" | "ltr";
+};
 export const metadata = {
   title: "Register Publisher — MLAMH",
   robots: { index: false, follow: false },
@@ -61,7 +70,10 @@ export default async function RegisterPublisherPage({
   }
 
   return (
-    <main className="relative z-[2] bg-background">
+    <main
+  dir={isRtl ? "rtl" : "ltr"}
+  className="relative z-[2] bg-background"
+>
       <Navbar locale={locale} />
 
       <section className="min-h-screen px-6 pt-32 pb-20 text-white">
@@ -73,7 +85,7 @@ export default async function RegisterPublisherPage({
                 : "mb-12 text-left"
             }
           >
-            <p className="mb-4 text-[10px] uppercase tracking-[0.4em] text-gold">
+            <p className="arabic-safe mb-4 text-[10px] uppercase tracking-[0.4em] text-gold">
               MLAMH PUBLISHER
             </p>
 
@@ -165,7 +177,7 @@ export default async function RegisterPublisherPage({
                 <div className="md:col-span-2">
                   <label
                     htmlFor="publisher_type"
-                    className="mb-2 block text-[9px] uppercase tracking-[0.35em] text-gray-muted"
+                    className="arabic-safe mb-2 block text-[9px] uppercase tracking-[0.35em] text-gray-muted"
                   >
                     {isRtl
                       ? "نوع الناشر"
@@ -259,7 +271,9 @@ export default async function RegisterPublisherPage({
                 href={`/${locale}/join`}
                 className="inline-flex items-center justify-center border border-white/10 px-8 py-4 text-[10px] uppercase tracking-[0.3em] text-white/60 transition hover:border-gold/40 hover:text-gold"
               >
-                {isRtl ? "أنا موهبة" : "I am Talent"}
+                {isRtl
+  ? "العودة لاختيار نوع الحساب"
+  : "Back"}
               </Link>
             </div>
           </form>
@@ -278,12 +292,12 @@ function Field({
   placeholder,
   required,
   dir,
-}: any) {
+}: FieldProps) {
   return (
     <div>
       <label
         htmlFor={name}
-        className="mb-2 block text-[9px] uppercase tracking-[0.35em] text-gray-muted"
+        className="arabic-safe mb-2 block text-[9px] uppercase tracking-[0.35em] text-gray-muted"
       >
         {label}{" "}
         {required ? (

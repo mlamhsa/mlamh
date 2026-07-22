@@ -28,7 +28,7 @@ export default function DashboardProfileReadiness({
             ✓
           </div>
 
-          <p className="mt-5 text-[10px] uppercase tracking-[0.28em] text-gold">
+          <p className="arabic-safe mt-5 text-[10px] uppercase tracking-[0.28em] text-gold">
             {isRtl ? "جاهزية الملف" : "Profile Readiness"}
           </p>
 
@@ -54,7 +54,7 @@ export default function DashboardProfileReadiness({
         <>
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-[10px] uppercase tracking-[0.28em] text-gold">
+            <p className="arabic-safe text-[10px] uppercase tracking-[0.28em] text-gold">
                 {isRtl ? "جاهزية الملف" : "Profile Readiness"}
               </p>
 
@@ -70,14 +70,23 @@ export default function DashboardProfileReadiness({
             </span>
           </div>
 
-          <div className="mt-5 h-1.5 overflow-hidden rounded-full bg-white/10">
-            <div
-              className="h-full rounded-full bg-gold transition-[width] duration-500"
-              style={{
-                width: `${Math.min(Math.max(profileCompletion, 0), 100)}%`,
-              }}
-            />
-          </div>
+          <div
+  role="progressbar"
+  aria-label={
+    isRtl ? "نسبة اكتمال الملف" : "Profile completion percentage"
+  }
+  aria-valuemin={0}
+  aria-valuemax={100}
+  aria-valuenow={Math.min(Math.max(profileCompletion, 0), 100)}
+  className="mt-5 h-1.5 overflow-hidden rounded-full bg-white/10"
+>
+  <div
+    className="h-full rounded-full bg-gold transition-[width] duration-500"
+    style={{
+      width: `${Math.min(Math.max(profileCompletion, 0), 100)}%`,
+    }}
+  />
+</div>
 
           <div className="mt-3 flex items-center justify-between gap-4 text-xs">
             <span className="text-white/35">
@@ -120,7 +129,7 @@ export default function DashboardProfileReadiness({
 
           <Link
             href={`/${locale}/talent-dashboard/profile`}
-            className="mt-5 inline-flex w-full items-center justify-center rounded-full border border-gold/35 bg-gold/[0.06] px-5 py-3 text-[10px] uppercase tracking-[0.2em] text-gold outline-none transition hover:bg-gold hover:text-black focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+            className="arabic-safe mt-5 inline-flex w-full items-center justify-center rounded-full border border-gold/35 bg-gold/[0.06] px-5 py-3 text-[10px] uppercase tracking-[0.2em] text-gold outline-none transition hover:bg-gold hover:text-black focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
           >
             {isRtl
               ? "إكمال البيانات الناقصة"

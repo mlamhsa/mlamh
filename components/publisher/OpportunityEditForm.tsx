@@ -56,6 +56,21 @@ const statusLabels: Record<string, { ar: string; en: string }> = {
   rejected: { ar: "مرفوضة", en: "Rejected" },
 };
 
+type OpportunityFormData = {
+  id: number;
+  title: string | null;
+  description: string | null;
+  city: string | null;
+  city_ar: string | null;
+  city_en: string | null;
+  required_gender: string | null;
+  opportunity_type: string | null;
+  status: string | null;
+  min_age: number | null;
+  max_age: number | null;
+  budget: number | string | null;
+};
+
 function normalizeBudget(value: unknown) {
   if (value === null || value === undefined) return "";
   return String(value)
@@ -63,7 +78,7 @@ function normalizeBudget(value: unknown) {
     .replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
-function resolveCityValue(opportunity: any) {
+function resolveCityValue(opportunity: OpportunityFormData) {
   const cityAr = String(opportunity.city_ar ?? "").trim();
   const cityEn = String(opportunity.city_en ?? "").trim();
   const city = String(opportunity.city ?? "").trim();
@@ -103,19 +118,24 @@ export default function OpportunityEditForm({
 }: {
   locale: string;
   isRtl: boolean;
-  opportunity: any;
+  opportunity: OpportunityFormData;
 }) {
   const router = useRouter();
-  const initialCity = useMemo(() => resolveCityValue(opportunity), [opportunity]);
+  const initialCity = useMemo(
+    () => resolveCityValue(opportunity),
+    [opportunity],
+  );
   const originalStatus = String(opportunity.status ?? "draft");
 
-  const [title, setTitle] = useState(opportunity.title ?? "");
-  const [description, setDescription] = useState(opportunity.description ?? "");
+  const [title, setTitle] = useState(String(opportunity.title ?? ""));
+  const [description, setDescription] = useState(String(opportunity.description ?? ""));
   const [city, setCity] = useState(initialCity);
   const [gender, setGender] = useState(opportunity.required_gender ?? "any");
-  const [type, setType] = useState(
-    opportunityTypes.some((item) => item.value === opportunity.opportunity_type)
-      ? opportunity.opportunity_type
+  const [type, setType] = useState<string>(
+    opportunityTypes.some(
+      (item) => item.value === opportunity.opportunity_type,
+    )
+      ? (opportunity.opportunity_type ?? "")
       : "other",
   );
   const [typeOther, setTypeOther] = useState(
@@ -149,7 +169,8 @@ export default function OpportunityEditForm({
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  const isPublishedOrOpen = originalStatus === "published" || originalStatus === "open";
+  const isPublishedOrOpen =
+    originalStatus === "published" || originalStatus === "open";
 
   const selectClass =
     "w-full appearance-none rounded-xl border border-white/10 bg-[#080808] px-4 py-4 text-white outline-none transition focus:border-gold/60 focus:ring-1 focus:ring-gold/30 disabled:cursor-not-allowed disabled:opacity-50";
@@ -270,7 +291,10 @@ export default function OpportunityEditForm({
     }
 
     const cityPayload = getCityPayload(city);
-    const finalOpportunityType = type === "other" ? normalizedTypeOther : type;
+    const finalOpportunityType: string =
+  type === "other"
+    ? normalizedTypeOther
+    : type;
 
     const payload = {
       id: opportunity.id,
@@ -314,7 +338,7 @@ export default function OpportunityEditForm({
     >
       <div className="grid gap-4 lg:grid-cols-[220px_1fr]">
         <div className="rounded-2xl border border-white/10 bg-black/20 p-5">
-          <p className="text-xs uppercase tracking-[0.22em] text-white/40">
+          <p className="arabic-safe text-xs uppercase tracking-[0.22em] text-white/40">
             {isRtl ? "الحالة الحالية" : "Current Status"}
           </p>
           <p className="mt-3 text-lg font-light text-white">
@@ -351,7 +375,7 @@ export default function OpportunityEditForm({
 
         <div className="grid gap-5">
           <div>
-            <label htmlFor="opportunity-title" className="mb-2 block text-xs uppercase tracking-[0.22em] text-white/40">
+            <label htmlFor="opportunity-title" className="arabic-safe mb-2 block text-xs uppercase tracking-[0.22em] text-white/40">
               {isRtl ? "عنوان الفرصة" : "Opportunity Title"}
             </label>
             <input
@@ -369,7 +393,7 @@ export default function OpportunityEditForm({
           </div>
 
           <div>
-            <label htmlFor="opportunity-description" className="mb-2 block text-xs uppercase tracking-[0.22em] text-white/40">
+            <label htmlFor="opportunity-description" className="arabic-safe mb-2 block text-xs uppercase tracking-[0.22em] text-white/40">
               {isRtl ? "وصف الفرصة" : "Description"}
             </label>
             <textarea
@@ -388,7 +412,7 @@ export default function OpportunityEditForm({
 
           <div className="grid gap-5 md:grid-cols-2">
             <div>
-              <label htmlFor="opportunity-city" className="mb-2 block text-xs uppercase tracking-[0.22em] text-white/40">
+              <label htmlFor="opportunity-city" className="arabic-safe mb-2 block text-xs uppercase tracking-[0.22em] text-white/40">
                 {isRtl ? "المدينة" : "City"}
               </label>
               <select
@@ -409,7 +433,7 @@ export default function OpportunityEditForm({
             </div>
 
             <div>
-              <label htmlFor="opportunity-status" className="mb-2 block text-xs uppercase tracking-[0.22em] text-white/40">
+              <label htmlFor="opportunity-status" className="arabic-safe mb-2 block text-xs uppercase tracking-[0.22em] text-white/40">
                 {isRtl ? "حالة الفرصة" : "Opportunity Status"}
               </label>
               <select
@@ -444,7 +468,7 @@ export default function OpportunityEditForm({
         <div className="grid gap-5">
           <div className="grid gap-5 md:grid-cols-2">
             <div>
-              <label htmlFor="required-gender" className="mb-2 block text-xs uppercase tracking-[0.22em] text-white/40">
+              <label htmlFor="required-gender" className="arabic-safe mb-2 block text-xs uppercase tracking-[0.22em] text-white/40">
                 {isRtl ? "الجنس المطلوب" : "Required Gender"}
               </label>
               <select
@@ -462,7 +486,7 @@ export default function OpportunityEditForm({
             </div>
 
             <div>
-              <label htmlFor="opportunity-type" className="mb-2 block text-xs uppercase tracking-[0.22em] text-white/40">
+              <label htmlFor="opportunity-type" className="arabic-safe mb-2 block text-xs uppercase tracking-[0.22em] text-white/40">
                 {isRtl ? "نوع الفرصة" : "Opportunity Type"}
               </label>
               <select
@@ -488,7 +512,7 @@ export default function OpportunityEditForm({
 
           {type === "other" ? (
             <div>
-              <label htmlFor="custom-opportunity-type" className="mb-2 block text-xs uppercase tracking-[0.22em] text-white/40">
+              <label htmlFor="custom-opportunity-type" className="arabic-safe mb-2 block text-xs uppercase tracking-[0.22em] text-white/40">
                 {isRtl ? "نوع الفرصة المخصص" : "Custom Opportunity Type"}
               </label>
               <input
@@ -506,7 +530,7 @@ export default function OpportunityEditForm({
 
           <div className="grid gap-5 sm:grid-cols-2">
             <div>
-              <label htmlFor="minimum-age" className="mb-2 block text-xs uppercase tracking-[0.22em] text-white/40">
+              <label htmlFor="minimum-age" className="arabic-safe mb-2 block text-xs uppercase tracking-[0.22em] text-white/40">
                 {isRtl ? "الحد الأدنى للعمر" : "Minimum Age"}
               </label>
               <input
@@ -524,7 +548,7 @@ export default function OpportunityEditForm({
             </div>
 
             <div>
-              <label htmlFor="maximum-age" className="mb-2 block text-xs uppercase tracking-[0.22em] text-white/40">
+              <label htmlFor="maximum-age" className="arabic-safe mb-2 block text-xs uppercase tracking-[0.22em] text-white/40">
                 {isRtl ? "الحد الأعلى للعمر" : "Maximum Age"}
               </label>
               <input
@@ -561,6 +585,7 @@ export default function OpportunityEditForm({
           <input
             id="opportunity-budget"
             type="text"
+            aria-label={isRtl ? "الميزانية" : "Budget"}
             inputMode="numeric"
             value={budget}
             onChange={(event) => setBudget(normalizeBudget(event.target.value))}
@@ -574,13 +599,13 @@ export default function OpportunityEditForm({
       </section>
 
       {success ? (
-        <p role="status" className="rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-300">
+        <p role="status" aria-live="polite" className="rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-300">
           {success}
         </p>
       ) : null}
 
       {error ? (
-        <p role="alert" className="rounded-xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm text-red-300">
+        <p role="alert" aria-live="assertive" className="rounded-xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm text-red-300">
           {error}
         </p>
       ) : null}
@@ -589,6 +614,7 @@ export default function OpportunityEditForm({
         <button
           type="submit"
           disabled={loading}
+          aria-busy={loading}
           className="flex-1 rounded-xl border border-gold/40 bg-gold/[0.06] px-6 py-4 text-gold transition hover:bg-gold hover:text-black disabled:cursor-not-allowed disabled:opacity-50"
         >
           {loading

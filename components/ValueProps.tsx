@@ -26,12 +26,15 @@ export function ValueProps({
   const isAr = locale === "ar";
 
   return (
-    <section className="relative overflow-hidden border-t border-white/10 bg-black py-28">
+    <section
+      dir={isAr ? "rtl" : "ltr"}
+      className="relative overflow-hidden border-t border-white/10 bg-black py-28"
+    >
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(200,169,106,0.10),transparent_45%)]" />
 
       <div className="relative mx-auto max-w-7xl px-6">
         <div className="mx-auto max-w-3xl text-center">
-          <p className="text-xs uppercase tracking-[0.35em] text-gold">
+          <p className="arabic-safe text-xs uppercase tracking-[0.35em] text-gold">
             {isAr ? "لماذا ملامح" : "Why MLAMH"}
           </p>
 
@@ -88,7 +91,6 @@ function getIcon(icon: HomepageValuePropIcon) {
     case "zap":
       return Zap;
 
-    // دعم أي بيانات قديمة إن وُجدت
     case "building":
       return Building2 as never;
 

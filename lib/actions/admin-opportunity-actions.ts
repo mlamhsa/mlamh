@@ -1,17 +1,42 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { OpportunityService } from "@/lib/services/opportunities/OpportunityService";
+
+import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { createEvent, EVENT_TARGETS, EVENT_TYPES } from "@/lib/events";
+import { OpportunityService } from "@/lib/services/opportunities/OpportunityService";
+
+type OpportunityStatus =
+  | "published"
+  | "rejected"
+  | "draft"
+  | "pending_review"
+  | "needs_changes"
+  | "closed"
+  | "archived";
 
 function revalidateOpportunityPaths(id: number) {
   revalidatePath("/admin/opportunities");
   revalidatePath(`/admin/opportunities/${id}`);
+
   revalidatePath("/ar/opportunities");
   revalidatePath("/en/opportunities");
+
+  revalidatePath("/ar/publisher-dashboard");
+  revalidatePath("/en/publisher-dashboard");
+
+  revalidatePath("/ar/publisher-dashboard/opportunities");
+  revalidatePath("/en/publisher-dashboard/opportunities");
+
+  revalidatePath(
+    `/ar/publisher-dashboard/opportunities/${id}`,
+  );
+  revalidatePath(
+    `/en/publisher-dashboard/opportunities/${id}`,
+  );
 }
 
-function getEventTypeForStatus(status: string) {
+function getEventTypeForStatus(status: OpportunityStatus) {
   switch (status) {
     case "published":
       return EVENT_TYPES.opportunity_published;
@@ -33,41 +58,70 @@ async function updateOpportunityStatus({
   published,
 }: {
   id: number;
-  status: string;
+  status: OpportunityStatus;
   published: boolean;
 }) {
-  const opportunity = await OpportunityService.getStatusSnapshot(id);
+  if (!Number.isInteger(id) || id <= 0) {
+    throw new Error("Invalid opportunity ID.");
+  }
 
-await OpportunityService.updateStatus({
-  id,
-  status,
-  published,
-});
+  const adminUser = await requireAdminAccess();
 
-const eventType = getEventTypeForStatus(status);
+  const opportunity =
+    await OpportunityService.getStatusSnapshot(id);
 
-if (eventType && opportunity?.publisher_id) {
-    await createEvent({
-      type: eventType,
-      target: EVENT_TARGETS.PUBLISHER,
-      targetId: String(opportunity.publisher_id),
-      actorId: "admin",
-      metadata: {
-        opportunityId: id,
-        title: opportunity?.title ?? null,
-        previousStatus: opportunity?.status ?? null,
-        newStatus: status,
-        published,
-      },
-    });
+  if (!opportunity) {
+    throw new Error("Opportunity not found.");
+  }
+
+  await OpportunityService.updateStatus({
+    id,
+    status,
+    published,
+  });
+
+  const eventType = getEventTypeForStatus(status);
+
+  if (eventType && opportunity.publisher_id) {
+    try {
+      await createEvent({
+        type: eventType,
+        target: EVENT_TARGETS.PUBLISHER,
+        targetId: String(opportunity.publisher_id),
+        actorId: adminUser.id,
+        metadata: {
+          opportunityId: id,
+          title: opportunity.title ?? null,
+          previousStatus: opportunity.status ?? null,
+          newStatus: status,
+          published,
+        },
+      });
+    } catch (eventError) {
+      console.error(
+        "Failed to create admin opportunity event:",
+        eventError,
+      );
+    }
   }
 
   revalidateOpportunityPaths(id);
 }
 
-export async function publishOpportunityAction(formData: FormData) {
+function getOpportunityId(formData: FormData) {
   const id = Number(formData.get("id"));
-  if (!id) return;
+
+  if (!Number.isInteger(id) || id <= 0) {
+    throw new Error("Invalid opportunity ID.");
+  }
+
+  return id;
+}
+
+export async function publishOpportunityAction(
+  formData: FormData,
+) {
+  const id = getOpportunityId(formData);
 
   await updateOpportunityStatus({
     id,
@@ -76,9 +130,10 @@ export async function publishOpportunityAction(formData: FormData) {
   });
 }
 
-export async function hideOpportunityAction(formData: FormData) {
-  const id = Number(formData.get("id"));
-  if (!id) return;
+export async function hideOpportunityAction(
+  formData: FormData,
+) {
+  const id = getOpportunityId(formData);
 
   await updateOpportunityStatus({
     id,
@@ -87,9 +142,10 @@ export async function hideOpportunityAction(formData: FormData) {
   });
 }
 
-export async function rejectOpportunityAction(formData: FormData) {
-  const id = Number(formData.get("id"));
-  if (!id) return;
+export async function rejectOpportunityAction(
+  formData: FormData,
+) {
+  const id = getOpportunityId(formData);
 
   await updateOpportunityStatus({
     id,
@@ -98,9 +154,10 @@ export async function rejectOpportunityAction(formData: FormData) {
   });
 }
 
-export async function requestChangesOpportunityAction(formData: FormData) {
-  const id = Number(formData.get("id"));
-  if (!id) return;
+export async function requestChangesOpportunityAction(
+  formData: FormData,
+) {
+  const id = getOpportunityId(formData);
 
   await updateOpportunityStatus({
     id,
@@ -109,9 +166,10 @@ export async function requestChangesOpportunityAction(formData: FormData) {
   });
 }
 
-export async function archiveOpportunityAction(formData: FormData) {
-  const id = Number(formData.get("id"));
-  if (!id) return;
+export async function archiveOpportunityAction(
+  formData: FormData,
+) {
+  const id = getOpportunityId(formData);
 
   await updateOpportunityStatus({
     id,

@@ -217,28 +217,13 @@ function formatDate(value: string | null | undefined, locale: string) {
   }).format(date);
 }
 
-function getOptionalString(
-  record: Record<string, unknown>,
-  ...keys: string[]
-) {
-  for (const key of keys) {
-    const value = record[key];
-
-    if (typeof value === "string" && value.trim().length > 0) {
-      return value.trim();
-    }
-  }
-
-  return null;
-}
-
 function getOpportunityTypeLabel(value: unknown, isRtl: boolean) {
   const type = String(value ?? "");
 
   const labels: Record<string, { ar: string; en: string }> = {
     actor: { ar: "ممثل", en: "Actor" },
     actress: { ar: "ممثلة", en: "Actress" },
-    model: { ar: "عارض أزياء", en: "Model" },
+    model: { ar: "مودل", en: "Model" },
     presenter: { ar: "مقدم", en: "Presenter" },
     voice_actor: { ar: "ممثل صوتي", en: "Voice Actor" },
     singer: { ar: "مغنٍ", en: "Singer" },
@@ -293,10 +278,18 @@ export default async function OpportunityDetailPage({
 
   const opportunities = await getPublishedOpportunities();
 
-  const opportunity =
+  const opportunity = (
     opportunities.find(
       (item: any) => item.slug === slug || String(item.id) === slug
-    ) || null;
+    ) || null
+  ) as
+    | ((typeof opportunities)[number] & {
+        publisher_name?: string | null;
+        company?: string | null;
+        deadline?: string | null;
+        application_deadline?: string | null;
+      })
+    | null;
 
   if (!opportunity) {
     return (
@@ -340,13 +333,28 @@ export default async function OpportunityDetailPage({
     data: { user },
   } = await authClient.auth.getUser();
 
-  const { data: talent, error: talentError } = user
+  const { data: profile, error: profileError } = user
     ? await adminClient
-        .from("talents")
-        .select("id")
+        .from("profiles")
+        .select("account_type")
         .eq("user_id", user.id)
         .maybeSingle()
     : { data: null, error: null };
+
+  if (profileError) {
+    throw new Error(
+      `[OpportunityDetailPage profile] ${profileError.message}`
+    );
+  }
+
+  const { data: talent, error: talentError } =
+    user && profile?.account_type === "talent"
+      ? await adminClient
+          .from("talents")
+          .select("id")
+          .eq("user_id", user.id)
+          .maybeSingle()
+      : { data: null, error: null };
 
   if (talentError) {
     throw new Error(
@@ -372,7 +380,16 @@ export default async function OpportunityDetailPage({
   const isOpen =
     opportunity.status === "open" || opportunity.status === "published";
 
-  const canApply = Boolean(user && talent && !existingApplication && isOpen);
+  const canViewApplicationArea =
+    !user || profile?.account_type === "talent";
+
+  const canApply = Boolean(
+    user &&
+      profile?.account_type === "talent" &&
+      talent &&
+      !existingApplication &&
+      isOpen
+  );
 
   const city = isRtl
     ? opportunity.city_ar || opportunity.city_en || "—"
@@ -385,41 +402,14 @@ export default async function OpportunityDetailPage({
   );
   const gender = getGenderLabel(opportunity.required_gender, isRtl);
   const companyName =
-    getOptionalString(
-      opportunity as unknown as Record<string, unknown>,
-      "company_name",
-      "publisher_name",
-      "company"
-    ) || (isRtl ? "جهة غير محددة" : "Publisher not specified");
-
+    opportunity.company_name ||
+    opportunity.publisher_name ||
+    opportunity.company ||
+    (isRtl ? "جهة غير محددة" : "Publisher not specified");
   const publishedDate = formatDate(opportunity.created_at, locale);
-
-  const deadline = formatDate(
-    getOptionalString(
-      opportunity as unknown as Record<string, unknown>,
-      "deadline",
-      "application_deadline"
-    ),
-    locale
-  );
-
-  const contactName =
-    getOptionalString(
-      opportunity as unknown as Record<string, unknown>,
-      "contact_name"
-    ) || "—";
-
-  const contactPhone =
-    getOptionalString(
-      opportunity as unknown as Record<string, unknown>,
-      "contact_phone"
-    ) || "—";
-
-  const contactEmail =
-    getOptionalString(
-      opportunity as unknown as Record<string, unknown>,
-      "contact_email"
-    ) || "—";
+  const deadlineValue =
+    opportunity.deadline || opportunity.application_deadline || null;
+  const deadline = deadlineValue ? formatDate(deadlineValue, locale) : null;
 
   return (
     <main
@@ -498,16 +488,18 @@ export default async function OpportunityDetailPage({
               </p>
             </div>
 
-            <div className="w-full lg:w-[330px]">
-              <ApplyArea
-                locale={locale}
-                isRtl={isRtl}
-                isOpen={isOpen}
-                canApply={canApply}
-                existingApplication={existingApplication}
-                opportunityId={Number(opportunity.id)}
-              />
-            </div>
+            {canViewApplicationArea && (
+              <div className="w-full lg:w-[330px]">
+                <ApplyArea
+                  locale={locale}
+                  isRtl={isRtl}
+                  isOpen={isOpen}
+                  canApply={canApply}
+                  existingApplication={existingApplication}
+                  opportunityId={Number(opportunity.id)}
+                />
+              </div>
+            )}
           </div>
         </header>
 
@@ -551,11 +543,13 @@ export default async function OpportunityDetailPage({
                   label={isRtl ? "الجنس المطلوب" : "Required Gender"}
                   value={gender}
                 />
-                <InfoCard
-                  icon="calendar"
-                  label={isRtl ? "آخر موعد للتقديم" : "Application Deadline"}
-                  value={deadline}
-                />
+                {deadline && (
+                  <InfoCard
+                    icon="calendar"
+                    label={isRtl ? "آخر موعد للتقديم" : "Application Deadline"}
+                    value={deadline}
+                  />
+                )}
                 <InfoCard
                   icon="briefcase"
                   label={isRtl ? "نوع الفرصة" : "Opportunity Type"}
@@ -583,44 +577,46 @@ export default async function OpportunityDetailPage({
           </div>
 
           <aside className="space-y-5">
-            <section className="rounded-[2rem] border border-gold/20 bg-[radial-gradient(circle_at_top_right,rgba(201,169,98,0.12),transparent_45%),rgba(201,169,98,0.035)] p-5 sm:p-6">
-              <p className="text-[10px] uppercase tracking-[0.3em] text-gold">
-                {isRtl ? "حالة التقديم" : "Application Status"}
-              </p>
+            {canViewApplicationArea && (
+              <section className="rounded-[2rem] border border-gold/20 bg-[radial-gradient(circle_at_top_right,rgba(201,169,98,0.12),transparent_45%),rgba(201,169,98,0.035)] p-5 sm:p-6">
+                <p className="text-[10px] uppercase tracking-[0.3em] text-gold">
+                  {isRtl ? "حالة التقديم" : "Application Status"}
+                </p>
 
-              <div className="mt-5">
-                {existingApplication ? (
-                  <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.06] p-4">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-emerald-300/20 text-emerald-200">
-                      <OpportunityIcon name="check" />
+                <div className="mt-5">
+                  {existingApplication ? (
+                    <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.06] p-4">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-emerald-300/20 text-emerald-200">
+                        <OpportunityIcon name="check" />
+                      </div>
+                      <p className="mt-4 text-lg font-light text-emerald-100">
+                        {getApplicationStatusLabel(
+                          existingApplication.status,
+                          isRtl
+                        )}
+                      </p>
+                      <p className="mt-2 text-sm leading-7 text-white/45">
+                        {isRtl
+                          ? "يمكنك متابعة حالة هذا الطلب من صفحة طلباتي."
+                          : "You can track this application from My Applications."}
+                      </p>
+                      <Link
+                        href={`/${locale}/talent-dashboard/applications`}
+                        className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-emerald-300/20 text-xs text-emerald-200 transition hover:bg-emerald-300/[0.07]"
+                      >
+                        {isRtl ? "عرض طلباتي" : "View My Applications"}
+                      </Link>
                     </div>
-                    <p className="mt-4 text-lg font-light text-emerald-100">
-                      {getApplicationStatusLabel(
-                        existingApplication.status,
-                        isRtl
-                      )}
-                    </p>
-                    <p className="mt-2 text-sm leading-7 text-white/45">
+                  ) : (
+                    <p className="text-sm leading-7 text-white/45">
                       {isRtl
-                        ? "يمكنك متابعة حالة هذا الطلب من صفحة طلباتي."
-                        : "You can track this application from My Applications."}
+                        ? "بعد التقديم ستظهر حالة طلبك هنا وفي صفحة طلباتي."
+                        : "After applying, your status will appear here and in My Applications."}
                     </p>
-                    <Link
-                      href={`/${locale}/talent-dashboard/applications`}
-                      className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-emerald-300/20 text-xs text-emerald-200 transition hover:bg-emerald-300/[0.07]"
-                    >
-                      {isRtl ? "عرض طلباتي" : "View My Applications"}
-                    </Link>
-                  </div>
-                ) : (
-                  <p className="text-sm leading-7 text-white/45">
-                    {isRtl
-                      ? "بعد التقديم ستظهر حالة طلبك هنا وفي صفحة طلباتي."
-                      : "After applying, your status will appear here and in My Applications."}
-                  </p>
-                )}
-              </div>
-            </section>
+                  )}
+                </div>
+              </section>
+            )}
 
             <section className="rounded-[2rem] border border-white/10 bg-white/[0.025] p-5 sm:p-6">
               <p className="text-[10px] uppercase tracking-[0.3em] text-gold">
@@ -640,36 +636,48 @@ export default async function OpportunityDetailPage({
                 </div>
               </div>
 
-              <div className="mt-5 space-y-4 text-sm">
-                <InfoLine
-                  label={isRtl ? "مسؤول التواصل" : "Contact"}
-                  value={contactName}
-                />
-                <InfoLine
-                  label={isRtl ? "الهاتف" : "Phone"}
-                  value={contactPhone}
-                />
-                <InfoLine
-                  label={isRtl ? "البريد" : "Email"}
-                  value={contactEmail}
-                />
-              </div>
+              {(opportunity.contact_name ||
+                opportunity.contact_phone ||
+                opportunity.contact_email) && (
+                <div className="mt-5 space-y-4 text-sm">
+                  {opportunity.contact_name && (
+                    <InfoLine
+                      label={isRtl ? "مسؤول التواصل" : "Contact"}
+                      value={opportunity.contact_name}
+                    />
+                  )}
+                  {opportunity.contact_phone && (
+                    <InfoLine
+                      label={isRtl ? "الهاتف" : "Phone"}
+                      value={opportunity.contact_phone}
+                    />
+                  )}
+                  {opportunity.contact_email && (
+                    <InfoLine
+                      label={isRtl ? "البريد" : "Email"}
+                      value={opportunity.contact_email}
+                    />
+                  )}
+                </div>
+              )}
             </section>
           </aside>
         </div>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-[80] border-t border-white/10 bg-black/95 p-4 backdrop-blur-xl lg:hidden">
-        <ApplyArea
-          locale={locale}
-          isRtl={isRtl}
-          isOpen={isOpen}
-          canApply={canApply}
-          existingApplication={existingApplication}
-          opportunityId={Number(opportunity.id)}
-          compact
-        />
-      </div>
+      {canViewApplicationArea && (
+        <div className="fixed inset-x-0 bottom-0 z-[80] border-t border-white/10 bg-black/95 p-4 backdrop-blur-xl lg:hidden">
+          <ApplyArea
+            locale={locale}
+            isRtl={isRtl}
+            isOpen={isOpen}
+            canApply={canApply}
+            existingApplication={existingApplication}
+            opportunityId={Number(opportunity.id)}
+            compact
+          />
+        </div>
+      )}
     </main>
   );
 }

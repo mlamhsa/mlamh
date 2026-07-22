@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowUpRight, BadgeCheck } from "lucide-react";
+
 import type { Locale } from "@/lib/i18n";
 import {
   getTalentCategory,
@@ -60,7 +61,11 @@ export async function ModelsShowcase({
     locale === "ar" ? "استكشف جميع المواهب" : "View All Talents";
 
   return (
-    <section id="talents" className="relative overflow-hidden bg-black px-6 py-24 text-white md:py-28">
+    <section
+      id="talents"
+      dir={locale === "ar" ? "rtl" : "ltr"}
+      className="relative overflow-hidden bg-black px-6 py-24 text-white md:py-28"
+    >
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute left-1/2 top-10 h-[520px] w-[520px] -translate-x-1/2 rounded-full bg-gold/[0.06] blur-[140px]" />
         <div className="absolute bottom-0 right-0 h-[360px] w-[360px] rounded-full bg-white/[0.03] blur-[110px]" />
@@ -69,7 +74,7 @@ export async function ModelsShowcase({
       <div className="relative mx-auto max-w-7xl">
         <div className="mb-14 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="mb-3 text-[10px] uppercase tracking-[0.4em] text-gold">
+            <p className="arabic-safe mb-3 text-[10px] uppercase tracking-[0.4em] text-gold">
               {sectionLabel}
             </p>
 
@@ -81,12 +86,12 @@ export async function ModelsShowcase({
           </div>
 
           <Link
-  href={talentPath(locale)}
-  className="inline-flex w-fit items-center justify-center gap-3 rounded-full border border-gold/30 bg-gold/[0.06] px-6 py-3 text-[10px] uppercase tracking-[0.26em] text-gold transition hover:bg-gold hover:text-black"
->
-  {viewAll}
-  <ArrowUpRight size={14} />
-</Link>
+            href={talentPath(locale)}
+            className="arabic-safe inline-flex w-fit items-center justify-center gap-3 rounded-full border border-gold/30 bg-gold/[0.06] px-6 py-3 text-[10px] uppercase tracking-[0.26em] text-gold transition hover:bg-gold hover:text-black"
+          >
+            {viewAll}
+            <ArrowUpRight size={14} />
+          </Link>
         </div>
 
         {featuredTalents.length > 0 && (
@@ -125,10 +130,11 @@ function TalentSection({
     <div className="mb-20 last:mb-0">
       <div className="mb-8 flex items-center justify-between gap-4">
         <h3 className="text-2xl font-light md:text-4xl">{title}</h3>
+
         <div className="hidden h-px flex-1 bg-gradient-to-r from-gold/30 via-white/10 to-transparent md:block" />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 lg:gap-5">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-5 xl:grid-cols-5">
         {talents.map((talent, index) => (
           <TalentCard
             key={talent.id}
@@ -173,20 +179,18 @@ function TalentCard({
         <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
 
         {talent.featured && (
-  <div className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full border border-gold/35 bg-black/65 px-3 py-1 text-[9px] uppercase tracking-[0.18em] text-gold backdrop-blur">
-    <BadgeCheck size={12} />
-    {locale === "ar" ? "مميز" : "Featured"}
-  </div>
-)}
+          <div className="arabic-safe absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full border border-gold/35 bg-black/65 px-3 py-1 text-[9px] uppercase tracking-[0.18em] text-gold backdrop-blur">
+            <BadgeCheck size={12} />
+            {locale === "ar" ? "مميز" : "Featured"}
+          </div>
+        )}
 
         <div className="absolute bottom-0 left-0 right-0 p-4">
-          <p className="mb-1 truncate text-[10px] uppercase tracking-[0.22em] text-gold/90">
+          <p className="arabic-safe mb-1 truncate text-[10px] uppercase tracking-[0.22em] text-gold/90">
             {[category, city].filter(Boolean).join(" • ")}
           </p>
 
-          <h4 className="truncate text-lg font-light text-white">
-            {name}
-          </h4>
+          <h4 className="truncate text-lg font-light text-white">{name}</h4>
         </div>
       </div>
 

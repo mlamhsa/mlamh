@@ -210,62 +210,62 @@ function SectionTitle({
 }
 
 function JoinSuccess({
+  dict,
   locale,
   isRtl,
   displayFont,
   bodyFont,
+  onReset,
 }: {
+  dict: Dictionary;
   locale: Locale;
   isRtl: boolean;
   displayFont: string;
   bodyFont: string;
+  onReset: () => void;
 }) {
+  const j = dict.join;
+
   return (
     <div
-      className={`opacity-0-start animate-fade-up border border-gold/25 bg-gold/[0.04] px-8 py-14 md:px-12 md:py-16 ${
+      className={`opacity-0-start animate-fade-up border border-gold/25 bg-gold/[0.04] px-8 py-14 text-center md:px-12 md:py-16 ${
         isRtl ? "text-right" : "text-left"
       }`}
     >
       <div className="gold-line mx-auto mb-8 max-w-xs" />
 
       <h2
-        className="mb-4 text-center text-3xl font-light text-white md:text-4xl"
+        className="mb-4 text-3xl font-light text-white md:text-4xl"
         style={{ fontFamily: displayFont }}
       >
-        {locale === "ar"
-          ? "تم استلام طلبك بنجاح"
-          : "Your application has been received"}
+        {j.successTitle}
       </h2>
 
       <p
-        className="mx-auto max-w-2xl text-center text-sm leading-relaxed text-white/65 md:text-base"
+        className="mx-auto max-w-lg text-sm leading-relaxed text-white/65 md:text-base"
         style={{ fontFamily: bodyFont }}
       >
-        {locale === "ar"
-          ? "حسابك الآن بانتظار المراجعة والاعتماد. يمكنك الدخول إلى لوحة التحكم لمتابعة حالة الحساب، أو إكمال بيانات ملفك لرفع نسبة اكتماله قبل الموافقة."
-          : "Your account is now pending review and approval. You can visit your dashboard to follow its status or complete your profile before approval."}
+        {j.successMessage}
       </p>
 
-      <div className="mt-10 grid gap-3 sm:grid-cols-3">
+      <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
+        <button
+          type="button"
+          onClick={onReset}
+          className="inline-flex items-center justify-center border border-white/15 px-8 py-3 text-[10px] uppercase tracking-[0.3em] text-white/70 transition-colors hover:border-gold/40 hover:text-gold"
+        >
+          {locale === "ar"
+            ? "إرسال طلب جديد"
+            : "Submit another application"}
+        </button>
+
         <Link
           href={`/${locale}`}
-          className="inline-flex min-h-12 items-center justify-center border border-white/15 px-6 py-3 text-center text-[10px] uppercase tracking-[0.24em] text-white/70 transition-colors hover:border-gold/40 hover:text-gold"
+          className={`btn-luxury inline-flex items-center gap-2 border border-gold/40 px-8 py-3 text-[10px] uppercase tracking-[0.3em] text-gold transition-colors hover:bg-gold/10 ${
+            isRtl ? "flex-row-reverse" : ""
+          }`}
         >
-          {locale === "ar" ? "العودة للرئيسية" : "Back Home"}
-        </Link>
-
-        <Link
-          href={`/${locale}/talent-dashboard`}
-          className="inline-flex min-h-12 items-center justify-center border border-gold/40 bg-gold/[0.06] px-6 py-3 text-center text-[10px] uppercase tracking-[0.24em] text-gold transition-colors hover:border-gold hover:bg-gold/15"
-        >
-          {locale === "ar" ? "لوحة التحكم" : "Dashboard"}
-        </Link>
-
-        <Link
-          href={`/${locale}/talent-dashboard/profile`}
-          className="btn-luxury inline-flex min-h-12 items-center justify-center border border-gold/40 px-6 py-3 text-center text-[10px] uppercase tracking-[0.24em] text-gold transition-colors hover:bg-gold/10"
-        >
-          {locale === "ar" ? "إكمال الملف" : "Complete Profile"}
+          {j.backHome}
         </Link>
       </div>
     </div>
@@ -276,15 +276,27 @@ export function JoinTalentForm(props: {
   dict: Dictionary;
   locale: Locale;
 }) {
-  return <JoinTalentFormInner {...props} />;
+  const [formKey, setFormKey] = useState(0);
+
+  return (
+    <JoinTalentFormInner
+      key={formKey}
+      {...props}
+      onReset={() =>
+        setFormKey((key) => key + 1)
+      }
+    />
+  );
 }
 
 function JoinTalentFormInner({
   dict,
   locale,
+  onReset,
 }: {
   dict: Dictionary;
   locale: Locale;
+  onReset: () => void;
 }) {
   const j = dict.join;
   const isRtl = locale === "ar";
@@ -468,10 +480,12 @@ function JoinTalentFormInner({
   if (state?.success) {
     return (
       <JoinSuccess
+        dict={dict}
         locale={locale}
         isRtl={isRtl}
         displayFont={displayFont}
         bodyFont={bodyFont}
+        onReset={onReset}
       />
     );
   }

@@ -21,7 +21,7 @@ export default function DashboardMessagesCard({
       <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-3">
-            <p className="text-[10px] uppercase tracking-[0.28em] text-gold">
+          <p className="arabic-safe text-[10px] uppercase tracking-[0.28em] text-gold">
               {isRtl ? "الرسائل" : "Messages"}
             </p>
 
@@ -56,17 +56,21 @@ export default function DashboardMessagesCard({
             </span>
 
             <span
-              aria-hidden="true"
-              className="transition-transform duration-200 group-hover:translate-x-1"
-            >
-              →
-            </span>
+  aria-hidden="true"
+  className={`transition-transform duration-200 ${
+    isRtl
+      ? "group-hover:-translate-x-1"
+      : "group-hover:translate-x-1"
+  }`}
+>
+  {isRtl ? "←" : "→"}
+</span>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
           <div className="min-w-[105px] rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-center transition group-hover:border-white/20">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-white/35">
+          <p className="arabic-safe text-[10px] uppercase tracking-[0.2em] text-white/35">
               {isRtl ? "المحادثات" : "Conversations"}
             </p>
 
@@ -77,7 +81,7 @@ export default function DashboardMessagesCard({
 
           {unreadMessagesCount > 0 && (
             <div className="min-w-[105px] rounded-2xl border border-gold/25 bg-gold/[0.08] px-4 py-3 text-center transition group-hover:border-gold/45 group-hover:bg-gold/[0.12]">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-gold">
+              <p className="arabic-safe text-[10px] uppercase tracking-[0.2em] text-gold">
                 {isRtl ? "غير مقروء" : "Unread"}
               </p>
 

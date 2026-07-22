@@ -44,7 +44,10 @@ export function Opportunities({
   ];
 
   return (
-    <section className="relative overflow-hidden border-t border-white/10 bg-black py-28">
+    <section
+  dir={isRtl ? "rtl" : "ltr"}
+  className="relative overflow-hidden border-t border-white/10 bg-black py-28"
+>
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute left-1/2 top-0 h-[500px] w-[500px] -translate-x-1/2 rounded-full bg-gold/[0.06] blur-[150px]" />
       </div>
@@ -53,7 +56,7 @@ export function Opportunities({
         {/* Header */}
         <div className="mb-16 flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
           <div className="max-w-3xl">
-            <p className="mb-4 text-[10px] uppercase tracking-[0.4em] text-gold">
+            <p className="arabic-safe mb-4 text-[10px] uppercase tracking-[0.4em] text-gold">
               {locale === "ar"
                 ? "فرص ملامح"
                 : "MLAMH Opportunities"}
@@ -70,7 +73,7 @@ export function Opportunities({
 
           <Link
             href={`/${locale}/opportunities`}
-            className="inline-flex w-fit items-center gap-3 rounded-full border border-gold/30 bg-gold/[0.06] px-6 py-3 text-[10px] uppercase tracking-[0.28em] text-gold transition hover:bg-gold hover:text-black"
+            className="arabic-safe inline-flex w-fit items-center gap-3 rounded-full border border-gold/30 bg-gold/[0.06] px-6 py-3 text-[10px] uppercase tracking-[0.28em] text-gold transition hover:bg-gold hover:text-black"
           >
             {locale === "ar"
               ? "عرض جميع الفرص"
@@ -90,7 +93,7 @@ export function Opportunities({
               <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-gold/50 to-transparent opacity-0 transition group-hover:opacity-100" />
 
               {/* Tag */}
-              <div className="inline-flex items-center gap-2 rounded-full border border-gold/30 bg-gold/10 px-3 py-1 text-[10px] uppercase tracking-[0.22em] text-gold">
+              <div className="arabic-safe inline-flex items-center gap-2 rounded-full border border-gold/30 bg-gold/10 px-3 py-1 text-[10px] uppercase tracking-[0.22em] text-gold">
     <BriefcaseBusiness size={12} />
     {item.type}
 </div>
