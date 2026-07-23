@@ -50,20 +50,22 @@ export async function ModelsShowcase({
     .filter((talent) => !talent.featured)
     .slice(0, 10);
 
-  const sectionLabel = locale === "ar" ? "مواهب ملامح" : "MLAMH Talents";
+  const isAr = locale === "ar";
+
+  const sectionLabel = isAr ? "مواهب ملامح" : "MLAMH Talents";
 
   const featuredLabel =
-    locale === "ar" ? "اختيارات مميزة" : "Featured Picks";
+    isAr ? "اختيارات مميزة" : "Featured Picks";
 
-  const latestLabel = locale === "ar" ? "أحدث المواهب" : "Latest Talents";
+  const latestLabel = isAr ? "أحدث المواهب" : "Latest Talents";
 
   const viewAll =
-    locale === "ar" ? "استكشف جميع المواهب" : "View All Talents";
+    isAr ? "استكشف جميع المواهب" : "View All Talents";
 
   return (
     <section
       id="talents"
-      dir={locale === "ar" ? "rtl" : "ltr"}
+      dir={isAr ? "rtl" : "ltr"}
       className="relative overflow-hidden bg-black px-6 py-24 text-white md:py-28"
     >
       <div className="pointer-events-none absolute inset-0">
@@ -74,12 +76,19 @@ export async function ModelsShowcase({
       <div className="relative mx-auto max-w-7xl">
         <div className="mb-14 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="arabic-safe mb-3 text-[10px] uppercase tracking-[0.4em] text-gold">
+            <p
+              className={[
+                "mb-3 text-[10px] text-gold",
+                isAr
+                  ? "tracking-normal"
+                  : "uppercase tracking-[0.4em]",
+              ].join(" ")}
+            >
               {sectionLabel}
             </p>
 
-            <h2 className="max-w-3xl text-4xl font-light leading-tight md:text-7xl md:leading-[1.05]">
-              {locale === "ar"
+            <h2 className="max-w-3xl text-4xl font-light leading-tight tracking-normal md:text-7xl md:leading-[1.05]">
+              {isAr
                 ? "وجوه تُختار بعناية لصناعة المشهد القادم"
                 : "Carefully Selected Faces Shaping the Next Scene"}
             </h2>
@@ -87,7 +96,12 @@ export async function ModelsShowcase({
 
           <Link
             href={talentPath(locale)}
-            className="arabic-safe inline-flex w-fit items-center justify-center gap-3 rounded-full border border-gold/30 bg-gold/[0.06] px-6 py-3 text-[10px] uppercase tracking-[0.26em] text-gold transition hover:bg-gold hover:text-black"
+            className={[
+              "inline-flex w-fit items-center justify-center gap-3 rounded-full border border-gold/30 bg-gold/[0.06] px-6 py-3 text-[10px] text-gold transition hover:bg-gold hover:text-black",
+              isAr
+                ? "tracking-normal"
+                : "uppercase tracking-[0.26em]",
+            ].join(" ")}
           >
             {viewAll}
             <ArrowUpRight size={14} />
@@ -129,7 +143,9 @@ function TalentSection({
   return (
     <div className="mb-20 last:mb-0">
       <div className="mb-8 flex items-center justify-between gap-4">
-        <h3 className="text-2xl font-light md:text-4xl">{title}</h3>
+        <h3 className="text-2xl font-light tracking-normal md:text-4xl">
+          {title}
+        </h3>
 
         <div className="hidden h-px flex-1 bg-gradient-to-r from-gold/30 via-white/10 to-transparent md:block" />
       </div>
@@ -160,6 +176,7 @@ function TalentCard({
   const name = getTalentName(talent, locale);
   const category = getTalentCategory(talent, locale);
   const city = getTalentCity(talent, locale);
+  const isAr = locale === "ar";
 
   return (
     <Link
@@ -179,28 +196,44 @@ function TalentCard({
         <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
 
         {talent.featured && (
-          <div className="arabic-safe absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full border border-gold/35 bg-black/65 px-3 py-1 text-[9px] uppercase tracking-[0.18em] text-gold backdrop-blur">
+          <div
+            className={[
+              "absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full border border-gold/35 bg-black/65 px-3 py-1 text-[9px] text-gold backdrop-blur",
+              isAr
+                ? "tracking-normal"
+                : "uppercase tracking-[0.18em]",
+            ].join(" ")}
+          >
             <BadgeCheck size={12} />
-            {locale === "ar" ? "مميز" : "Featured"}
+            {isAr ? "مميز" : "Featured"}
           </div>
         )}
 
         <div className="absolute bottom-0 left-0 right-0 p-4">
-          <p className="arabic-safe mb-1 truncate text-[10px] uppercase tracking-[0.22em] text-gold/90">
+          <p
+            className={[
+              "mb-1 truncate text-[10px] text-gold/90",
+              isAr
+                ? "tracking-normal"
+                : "uppercase tracking-[0.22em]",
+            ].join(" ")}
+          >
             {[category, city].filter(Boolean).join(" • ")}
           </p>
 
-          <h4 className="truncate text-lg font-light text-white">{name}</h4>
+          <h4 className="truncate text-lg font-light tracking-normal text-white">
+            {name}
+          </h4>
         </div>
       </div>
 
       <div className="flex items-center justify-between px-3 py-3">
-        <p className="text-[11px] text-white/45">
-          {locale === "ar" ? "عرض الملف" : "View Profile"}
+        <p className="text-[11px] tracking-normal text-white/45">
+          {isAr ? "عرض الملف" : "View Profile"}
         </p>
 
         <span className="text-sm text-gold transition group-hover:translate-x-0.5">
-          {locale === "ar" ? "←" : "→"}
+          {isAr ? "←" : "→"}
         </span>
       </div>
     </Link>

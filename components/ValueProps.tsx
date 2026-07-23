@@ -34,17 +34,29 @@ export function ValueProps({
 
       <div className="relative mx-auto max-w-7xl px-6">
         <div className="mx-auto max-w-3xl text-center">
-          <p className="arabic-safe text-xs uppercase tracking-[0.35em] text-gold">
+          <p
+            className={[
+              "text-xs text-gold",
+              isAr
+                ? "tracking-normal"
+                : "uppercase tracking-[0.35em]",
+            ].join(" ")}
+          >
             {isAr ? "لماذا ملامح" : "Why MLAMH"}
           </p>
 
-          <h2 className="mt-5 text-4xl font-light tracking-tight text-white md:text-6xl">
+          <h2
+            className={[
+              "mt-5 text-4xl font-light text-white md:text-6xl",
+              isAr ? "tracking-normal" : "tracking-tight",
+            ].join(" ")}
+          >
             {isAr
               ? "منصة مصممة لاكتشاف المواهب بثقة."
               : "Built for trusted creative discovery."}
           </h2>
 
-          <p className="mt-6 text-base leading-8 text-white/50">
+          <p className="mt-6 text-base leading-8 tracking-normal text-white/50">
             {isAr
               ? "نحوّل رحلة البحث، التقديم، وإدارة الفرص إلى تجربة واضحة واحترافية للطرفين."
               : "We simplify discovery, applications, and opportunity management for both talents and companies."}
@@ -64,11 +76,11 @@ export function ValueProps({
                   <Icon size={20} />
                 </div>
 
-                <h3 className="text-2xl font-light text-white">
+                <h3 className="text-2xl font-light tracking-normal text-white">
                   {item.title}
                 </h3>
 
-                <p className="mt-4 text-sm leading-7 text-white/45">
+                <p className="mt-4 text-sm leading-7 tracking-normal text-white/45">
                   {item.description}
                 </p>
               </article>

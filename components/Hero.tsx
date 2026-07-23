@@ -45,12 +45,24 @@ export function Hero({
       <div className="mx-auto grid min-h-[calc(94vh-8rem)] max-w-7xl items-center gap-12 lg:grid-cols-[1.05fr_0.95fr]">
         <div className={isAr ? "text-right" : "text-left"}>
           {data.eyebrow ? (
-            <p className="arabic-safe mb-6 inline-flex rounded-full border border-gold/20 bg-gold/[0.06] px-5 py-2 text-[11px] uppercase tracking-[0.28em] text-gold">
+            <p
+              className={[
+                "mb-6 inline-flex rounded-full border border-gold/20 bg-gold/[0.06] px-5 py-2 text-[11px] text-gold",
+                isAr
+                  ? "tracking-normal"
+                  : "uppercase tracking-[0.28em]",
+              ].join(" ")}
+            >
               {data.eyebrow}
             </p>
           ) : null}
 
-          <h1 className="max-w-4xl text-5xl font-light leading-[1.05] tracking-tight md:text-7xl">
+          <h1
+            className={[
+              "max-w-4xl text-5xl font-light leading-[1.05] md:text-7xl",
+              isAr ? "tracking-normal" : "tracking-tight",
+            ].join(" ")}
+          >
             {data.titleLine1}
 
             {data.titleLine2 ? (
@@ -61,7 +73,7 @@ export function Hero({
           </h1>
 
           {data.description ? (
-            <p className="mt-7 max-w-2xl text-base leading-8 text-white/55 md:text-lg">
+            <p className="mt-7 max-w-2xl text-base leading-8 tracking-normal text-white/55 md:text-lg">
               {data.description}
             </p>
           ) : null}
@@ -70,7 +82,12 @@ export function Hero({
             {data.primaryCtaLabel ? (
               <Link
                 href={data.primaryCtaHref}
-                className="arabic-safe inline-flex items-center justify-center gap-3 rounded-full bg-gold px-8 py-4 text-xs font-medium uppercase tracking-[0.24em] text-black transition hover:bg-[#e0bd73]"
+                className={[
+                  "inline-flex items-center justify-center gap-3 rounded-full bg-gold px-8 py-4 text-xs font-medium text-black transition hover:bg-[#e0bd73]",
+                  isAr
+                    ? "tracking-normal"
+                    : "uppercase tracking-[0.24em]",
+                ].join(" ")}
               >
                 {data.primaryCtaLabel}
 
@@ -81,7 +98,12 @@ export function Hero({
             {data.secondaryCtaLabel ? (
               <Link
                 href={data.secondaryCtaHref}
-                className="arabic-safe inline-flex items-center justify-center rounded-full border border-white/15 px-8 py-4 text-xs uppercase tracking-[0.24em] text-white/70 transition hover:border-gold/40 hover:text-gold"
+                className={[
+                  "inline-flex items-center justify-center rounded-full border border-white/15 px-8 py-4 text-xs text-white/70 transition hover:border-gold/40 hover:text-gold",
+                  isAr
+                    ? "tracking-normal"
+                    : "uppercase tracking-[0.24em]",
+                ].join(" ")}
               >
                 {data.secondaryCtaLabel}
               </Link>
@@ -109,6 +131,7 @@ export function Hero({
                 key={`${stat.label}-${index}`}
                 value={stat.value}
                 label={stat.label}
+                isAr={isAr}
               />
             ))}
           </div>
@@ -149,11 +172,11 @@ function HeroCard({
         {icon}
       </div>
 
-      <h3 className="text-xl font-light">
+      <h3 className="text-xl font-light tracking-normal">
         {title}
       </h3>
 
-      <p className="mt-2 text-sm leading-7 text-white/45">
+      <p className="mt-2 text-sm leading-7 tracking-normal text-white/45">
         {text}
       </p>
     </div>
@@ -163,17 +186,26 @@ function HeroCard({
 function HeroStat({
   value,
   label,
+  isAr,
 }: {
   value: string;
   label: string;
+  isAr: boolean;
 }) {
   return (
     <div className="rounded-[1.25rem] border border-white/10 bg-white/[0.03] p-4 text-center">
-      <p className="text-2xl font-light text-white">
+      <p className="text-2xl font-light tracking-normal text-white">
         {value}
       </p>
 
-      <p className="arabic-safe mt-1 text-[10px] uppercase tracking-[0.22em] text-white/35">
+      <p
+        className={[
+          "mt-1 text-[10px] text-white/35",
+          isAr
+            ? "tracking-normal"
+            : "uppercase tracking-[0.22em]",
+        ].join(" ")}
+      >
         {label}
       </p>
     </div>

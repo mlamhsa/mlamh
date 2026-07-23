@@ -57,18 +57,25 @@ export async function Footer({
             </Link>
 
             {footer.description ? (
-              <p className="mt-5 max-w-sm text-sm leading-7 text-white/45">
+              <p className="mt-5 max-w-sm text-sm leading-7 tracking-normal text-white/45">
                 {footer.description}
               </p>
             ) : null}
 
-            <p className="mt-4 text-sm text-gold/80">
+            <p className="mt-4 text-sm tracking-normal text-gold/80">
               {dictionaryFooter.tagline}
             </p>
           </div>
 
           <div>
-            <p className="arabic-safe mb-5 text-xs uppercase tracking-[0.3em] text-gold">
+            <p
+              className={[
+                "mb-5 text-xs text-gold",
+                isRtl
+                  ? "tracking-normal"
+                  : "uppercase tracking-[0.3em]",
+              ].join(" ")}
+            >
               {dictionaryFooter.navigate}
             </p>
 
@@ -84,7 +91,14 @@ export async function Footer({
           </div>
 
           <div>
-            <p className="arabic-safe mb-5 text-xs uppercase tracking-[0.3em] text-gold">
+            <p
+              className={[
+                "mb-5 text-xs text-gold",
+                isRtl
+                  ? "tracking-normal"
+                  : "uppercase tracking-[0.3em]",
+              ].join(" ")}
+            >
               {isRtl ? "قانوني" : "Legal"}
             </p>
 
@@ -101,11 +115,18 @@ export async function Footer({
           <div>
             {footer.showContactInfo ? (
               <>
-                <p className="arabic-safe mb-5 text-xs uppercase tracking-[0.3em] text-gold">
+                <p
+                  className={[
+                    "mb-5 text-xs text-gold",
+                    isRtl
+                      ? "tracking-normal"
+                      : "uppercase tracking-[0.3em]",
+                  ].join(" ")}
+                >
                   {dictionaryFooter.contact}
                 </p>
 
-                <ul className="space-y-4 text-sm text-white/55">
+                <ul className="space-y-4 text-sm tracking-normal text-white/55">
                   {footer.email ? (
                     <li className="flex items-center gap-3">
                       <Mail
@@ -182,7 +203,14 @@ export async function Footer({
 
         <div className="my-12 h-px bg-gradient-to-r from-transparent via-gold/30 to-transparent" />
 
-        <div className="arabic-safe flex flex-col items-center justify-between gap-4 text-center text-[10px] uppercase tracking-[0.25em] text-white/35 md:flex-row">
+        <div
+          className={[
+            "flex flex-col items-center justify-between gap-4 text-center text-[10px] text-white/35 md:flex-row",
+            isRtl
+              ? "tracking-normal"
+              : "uppercase tracking-[0.25em]",
+          ].join(" ")}
+        >
           <p>
             © {new Date().getFullYear()} MLAMH
             {footer.copyright ? ` — ${footer.copyright}` : ""}
@@ -207,12 +235,15 @@ function FooterLinkItem({
   showArrow?: boolean;
 }) {
   const className =
-    "inline-flex items-center gap-2 text-sm text-white/55 transition hover:text-gold";
+    "inline-flex items-center gap-2 text-sm tracking-normal text-white/55 transition hover:text-gold";
 
   if (item.href.startsWith("/")) {
     return (
       <li>
-        <Link href={item.href} className={className}>
+        <Link
+          href={item.href}
+          className={className}
+        >
           {item.label}
 
           {showArrow ? <ArrowUpRight size={13} /> : null}
