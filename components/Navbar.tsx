@@ -148,7 +148,11 @@ export function Navbar({ locale }: { locale: Locale }) {
             <Link
               key={item.key}
               href={localizedHref(item.href)}
-              className="text-[11px] uppercase tracking-[0.24em] text-white/60 transition hover:text-gold"
+              className={`text-[11px] text-white/60 transition hover:text-gold ${
+                isAr
+                  ? "tracking-normal"
+                  : "uppercase tracking-[0.24em]"
+              }`}
             >
               {isAr ? item.ar : item.en}
             </Link>
@@ -192,7 +196,13 @@ export function Navbar({ locale }: { locale: Locale }) {
 
                 {notificationsOpen ? (
                   <div className="absolute mt-3 w-72 rounded-2xl border border-white/10 bg-black p-4 shadow-2xl">
-                    <p className="mb-3 text-xs uppercase tracking-[0.25em] text-gold">
+                    <p
+                      className={`mb-3 text-xs text-gold ${
+                        isAr
+                          ? "tracking-normal"
+                          : "uppercase tracking-[0.25em]"
+                      }`}
+                    >
                       {isAr ? "الإشعارات" : "Notifications"}
                     </p>
 
@@ -203,11 +213,11 @@ export function Navbar({ locale }: { locale: Locale }) {
                             key={item.id}
                             className="rounded-xl border border-white/10 bg-white/[0.03] p-3"
                           >
-                            <p className="text-sm text-white">
+                            <p className="text-sm tracking-normal text-white">
                               {item.title ?? (isAr ? "إشعار" : "Notification")}
                             </p>
                             {item.body ? (
-                              <p className="mt-1 text-xs text-white/45">
+                              <p className="mt-1 text-xs tracking-normal text-white/45">
                                 {item.body}
                               </p>
                             ) : null}
@@ -215,7 +225,7 @@ export function Navbar({ locale }: { locale: Locale }) {
                         ))}
                       </div>
                     ) : (
-                      <p className="text-sm text-white/45">
+                      <p className="text-sm tracking-normal text-white/45">
                         {isAr ? "لا توجد إشعارات" : "No notifications"}
                       </p>
                     )}
@@ -227,7 +237,7 @@ export function Navbar({ locale }: { locale: Locale }) {
                 <button
                   type="button"
                   onClick={() => setProfileOpen((value) => !value)}
-                  className="flex items-center gap-2 rounded-full border border-gold/30 px-4 py-2 text-gold transition hover:bg-gold/10"
+                  className="flex items-center gap-2 rounded-full border border-gold/30 px-4 py-2 tracking-normal text-gold transition hover:bg-gold/10"
                 >
                   <User size={14} />
                   {isAr ? "حسابي" : "Account"}
@@ -238,7 +248,7 @@ export function Navbar({ locale }: { locale: Locale }) {
                     <Link
                       href={`/${routeLocale}/dashboard-router`}
                       onClick={() => setProfileOpen(false)}
-                      className="block rounded-xl px-4 py-3 text-sm text-white/70 transition hover:bg-white/5 hover:text-gold"
+                      className="block rounded-xl px-4 py-3 text-sm tracking-normal text-white/70 transition hover:bg-white/5 hover:text-gold"
                     >
                       {isAr ? "لوحة التحكم" : "Dashboard"}
                     </Link>
@@ -246,7 +256,7 @@ export function Navbar({ locale }: { locale: Locale }) {
                     <button
                       type="button"
                       onClick={handleLogout}
-                      className="block w-full rounded-xl px-4 py-3 text-start text-sm text-red-400 transition hover:bg-red-500/10"
+                      className="block w-full rounded-xl px-4 py-3 text-start text-sm tracking-normal text-red-400 transition hover:bg-red-500/10"
                     >
                       {isAr ? "تسجيل الخروج" : "Logout"}
                     </button>
@@ -258,14 +268,14 @@ export function Navbar({ locale }: { locale: Locale }) {
             <>
               <Link
                 href={`/${routeLocale}/login`}
-                className="rounded-full border border-white/10 px-5 py-3 text-sm text-white/70 transition hover:border-gold/40 hover:text-gold"
+                className="rounded-full border border-white/10 px-5 py-3 text-sm tracking-normal text-white/70 transition hover:border-gold/40 hover:text-gold"
               >
                 {isAr ? "دخول" : "Login"}
               </Link>
 
               <Link
                 href={`/${routeLocale}/join`}
-                className="rounded-full bg-gold px-5 py-3 text-sm text-black transition hover:bg-gold-soft"
+                className="rounded-full bg-gold px-5 py-3 text-sm tracking-normal text-black transition hover:bg-gold-soft"
               >
                 {isAr ? "ابدأ" : "Join"}
               </Link>
@@ -292,7 +302,7 @@ export function Navbar({ locale }: { locale: Locale }) {
                 key={item.key}
                 href={localizedHref(item.href)}
                 onClick={closeMobileMenu}
-                className="rounded-2xl border border-white/10 bg-white/[0.035] px-5 py-4 text-lg text-white transition active:scale-[0.99] hover:border-gold/40 hover:text-gold"
+                className="rounded-2xl border border-white/10 bg-white/[0.035] px-5 py-4 text-lg tracking-normal text-white transition active:scale-[0.99] hover:border-gold/40 hover:text-gold"
               >
                 {isAr ? item.ar : item.en}
               </Link>
@@ -305,7 +315,7 @@ export function Navbar({ locale }: { locale: Locale }) {
                 <Link
                   href={`/${routeLocale}/dashboard-router`}
                   onClick={closeMobileMenu}
-                  className="rounded-2xl bg-gold px-5 py-4 text-center text-base font-medium text-black"
+                  className="rounded-2xl bg-gold px-5 py-4 text-center text-base font-medium tracking-normal text-black"
                 >
                   {isAr ? "لوحة التحكم" : "Dashboard"}
                 </Link>
@@ -313,7 +323,7 @@ export function Navbar({ locale }: { locale: Locale }) {
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="rounded-2xl border border-red-400/30 px-5 py-4 text-center text-base text-red-300"
+                  className="rounded-2xl border border-red-400/30 px-5 py-4 text-center text-base tracking-normal text-red-300"
                 >
                   {isAr ? "تسجيل الخروج" : "Logout"}
                 </button>
@@ -323,7 +333,7 @@ export function Navbar({ locale }: { locale: Locale }) {
                 <Link
                   href={`/${routeLocale}/login`}
                   onClick={closeMobileMenu}
-                  className="rounded-2xl border border-white/10 px-5 py-4 text-center text-base text-white"
+                  className="rounded-2xl border border-white/10 px-5 py-4 text-center text-base tracking-normal text-white"
                 >
                   {isAr ? "دخول" : "Login"}
                 </Link>
@@ -331,7 +341,7 @@ export function Navbar({ locale }: { locale: Locale }) {
                 <Link
                   href={`/${routeLocale}/join`}
                   onClick={closeMobileMenu}
-                  className="rounded-2xl bg-gold px-5 py-4 text-center text-base font-medium text-black"
+                  className="rounded-2xl bg-gold px-5 py-4 text-center text-base font-medium tracking-normal text-black"
                 >
                   {isAr ? "ابدأ الآن" : "Join Now"}
                 </Link>
@@ -341,7 +351,7 @@ export function Navbar({ locale }: { locale: Locale }) {
             <Link
               href={languageHref}
               onClick={closeMobileMenu}
-              className="rounded-2xl border border-white/10 px-5 py-4 text-center text-base text-white/70"
+              className="rounded-2xl border border-white/10 px-5 py-4 text-center text-base tracking-normal text-white/70"
             >
               {isAr ? "English" : "العربية"}
             </Link>
