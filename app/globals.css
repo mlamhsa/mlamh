@@ -42,6 +42,8 @@ body {
 
 html[dir="rtl"] body {
   font-family: var(--font-noto-arabic), system-ui, sans-serif;
+  letter-spacing: normal;
+  word-spacing: normal;
 }
 
 html[dir="rtl"] {
@@ -49,23 +51,40 @@ html[dir="rtl"] {
   -webkit-font-smoothing: antialiased;
 }
 
+/*
+  Prevent Tailwind tracking utilities from separating Arabic letters.
+  "normal" is used instead of "0" to preserve Arabic cursive shaping,
+  especially in mobile Safari.
+*/
+html[dir="rtl"]
+  :where(
+    p,
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6,
+    a,
+    button,
+    label,
+    li
+  ) {
+  letter-spacing: normal !important;
+  word-spacing: normal !important;
+  text-transform: none !important;
+  font-kerning: normal;
+}
+
 .arabic-safe {
   font-kerning: normal;
 }
 
-html[dir="rtl"] .arabic-safe {
-  letter-spacing: 0 !important;
-  word-spacing: normal !important;
-  text-transform: none !important;
-}
-
-html[dir="rtl"] .arabic-safe-tight {
-  letter-spacing: -0.01em !important;
-  text-transform: none !important;
-}
-
+html[dir="rtl"] .arabic-safe,
+html[dir="rtl"] .arabic-safe-tight,
 html[dir="rtl"] .arabic-safe-wide {
-  letter-spacing: 0 !important;
+  letter-spacing: normal !important;
+  word-spacing: normal !important;
   text-transform: none !important;
 }
 
