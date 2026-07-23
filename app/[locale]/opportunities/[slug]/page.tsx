@@ -439,12 +439,22 @@ export default async function OpportunityDetailPage({
           <div className="relative flex flex-col gap-7 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-4xl">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-full border border-gold/30 bg-gold/[0.08] px-3 py-1.5 text-[10px] uppercase tracking-[0.15em] text-gold">
+                <span
+                  className={`rounded-full border border-gold/30 bg-gold/[0.08] px-3 py-1.5 text-[10px] text-gold ${
+                    isRtl
+                      ? "tracking-normal"
+                      : "uppercase tracking-[0.15em]"
+                  }`}
+                >
                   {opportunityType}
                 </span>
 
                 <span
-                  className={`rounded-full border px-3 py-1.5 text-[10px] uppercase tracking-[0.15em] ${
+                  className={`rounded-full border px-3 py-1.5 text-[10px] ${
+                    isRtl
+                      ? "tracking-normal"
+                      : "uppercase tracking-[0.15em]"
+                  } ${
                     isOpen
                       ? "border-emerald-300/25 bg-emerald-300/[0.07] text-emerald-200"
                       : "border-red-300/25 bg-red-300/[0.07] text-red-200"
@@ -766,7 +776,13 @@ function InfoCard({
       <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-gold/20 bg-gold/[0.05] text-gold">
         <OpportunityIcon name={icon} />
       </div>
-      <p className="mt-4 text-[10px] uppercase tracking-[0.18em] text-white/30">
+      <p
+  className={`mt-4 text-[10px] text-white/30 ${
+    label.match(/[\u0600-\u06FF]/)
+      ? "tracking-normal"
+      : "uppercase tracking-[0.18em]"
+  }`}
+>
         {label}
       </p>
       <p className="mt-2 break-words text-base font-light text-white sm:text-lg">
