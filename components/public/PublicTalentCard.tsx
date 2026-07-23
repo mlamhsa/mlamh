@@ -51,13 +51,25 @@ export function PublicTalentCard({
           }`}
         >
           {talent.featured ? (
-            <span className="rounded-full border border-gold/35 bg-black/55 px-3 py-1 text-[9px] uppercase tracking-[0.25em] text-gold backdrop-blur">
+            <span
+              className={`rounded-full border border-gold/35 bg-black/55 px-3 py-1 text-[9px] text-gold backdrop-blur ${
+                isRtl
+                  ? "tracking-normal"
+                  : "uppercase tracking-[0.25em]"
+              }`}
+            >
               {isRtl ? "موهبة مميزة" : "Featured"}
             </span>
           ) : null}
 
           {talent.verified ? (
-            <span className="rounded-full border border-emerald-400/30 bg-black/55 px-3 py-1 text-[9px] uppercase tracking-[0.25em] text-emerald-300 backdrop-blur">
+            <span
+              className={`rounded-full border border-emerald-400/30 bg-black/55 px-3 py-1 text-[9px] text-emerald-300 backdrop-blur ${
+                isRtl
+                  ? "tracking-normal"
+                  : "uppercase tracking-[0.25em]"
+              }`}
+            >
               {isRtl ? "موثق" : "Verified"}
             </span>
           ) : null}
@@ -68,12 +80,20 @@ export function PublicTalentCard({
             isRtl ? "text-right" : "text-left"
           }`}
         >
-          <p className="mb-2 text-[10px] uppercase tracking-[0.25em] text-gold">
+          <p
+            className={`mb-2 text-[10px] text-gold ${
+              isRtl
+                ? "tracking-normal"
+                : "uppercase tracking-[0.25em]"
+            }`}
+          >
             {[category, city].filter(Boolean).join(" • ")}
           </p>
 
           <h2
-            className="text-2xl font-light tracking-tight text-white"
+            className={`text-2xl font-light text-white ${
+              isRtl ? "tracking-normal" : "tracking-tight"
+            }`}
             style={{
               fontFamily: isRtl
                 ? "var(--font-noto-arabic)"
@@ -90,22 +110,32 @@ export function PublicTalentCard({
           <InfoBlock
             label={isRtl ? "التصنيف" : "Category"}
             value={category}
+            isRtl={isRtl}
           />
 
           <InfoBlock
             label={isRtl ? "المدينة" : "City"}
             value={city}
+            isRtl={isRtl}
           />
         </div>
 
         <div className="mt-5 flex items-center justify-between">
-          <span className="text-[10px] uppercase tracking-[0.28em] text-white/45 transition group-hover:text-gold">
+          <span
+            className={`text-[10px] text-white/45 transition group-hover:text-gold ${
+              isRtl
+                ? "tracking-normal"
+                : "uppercase tracking-[0.28em]"
+            }`}
+          >
             {isRtl ? "عرض الملف" : "View Profile"}
           </span>
 
           <span
             className={`text-white/30 transition group-hover:text-gold ${
-              isRtl ? "group-hover:-translate-x-1" : "group-hover:translate-x-1"
+              isRtl
+                ? "group-hover:-translate-x-1"
+                : "group-hover:translate-x-1"
             }`}
           >
             {isRtl ? "←" : "→"}
@@ -119,17 +149,27 @@ export function PublicTalentCard({
 function InfoBlock({
   label,
   value,
+  isRtl,
 }: {
   label: string;
   value?: string | null;
+  isRtl: boolean;
 }) {
   return (
     <div>
-      <p className="text-[9px] uppercase tracking-[0.25em] text-gray-muted">
+      <p
+        className={`text-[9px] text-gray-muted ${
+          isRtl
+            ? "tracking-normal"
+            : "uppercase tracking-[0.25em]"
+        }`}
+      >
         {label}
       </p>
 
-      <p className="mt-2 text-sm text-white/80">{value || "—"}</p>
+      <p className="mt-2 text-sm tracking-normal text-white/80">
+        {value || "—"}
+      </p>
     </div>
   );
 }
