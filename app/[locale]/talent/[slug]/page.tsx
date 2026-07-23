@@ -472,7 +472,9 @@ export default async function TalentProfilePage({ params }: PageProps) {
         <div className="relative mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
           <Link
             href={talentPath(locale)}
-            className="inline-flex items-center rounded-full border border-white/10 bg-black/20 px-4 py-2 text-[10px] uppercase tracking-[0.24em] text-gold transition hover:border-gold/35 hover:bg-gold/[0.06]"
+            className={`inline-flex items-center rounded-full border border-white/10 bg-black/20 px-4 py-2 text-[10px] text-gold transition hover:border-gold/35 hover:bg-gold/[0.06] ${
+              isRtl ? "tracking-normal" : "uppercase tracking-[0.24em]"
+            }`}
           >
             {isRtl ? "العودة للمواهب" : "Back to talents"}
           </Link>
@@ -493,24 +495,28 @@ export default async function TalentProfilePage({ params }: PageProps) {
               <div className="p-5 sm:p-8 lg:p-10 xl:p-12">
                 <div className="flex flex-wrap items-center gap-2">
                   {talent.verified ? (
-                    <StatusPill tone="success">
+                    <StatusPill tone="success" isRtl={isRtl}>
                       ✓ {isRtl ? "موثق" : "Verified"}
                     </StatusPill>
                   ) : null}
 
                   {talent.featured ? (
-                    <StatusPill tone="gold">
+                    <StatusPill tone="gold" isRtl={isRtl}>
                       {isRtl ? "موهبة مميزة" : "Featured Talent"}
                     </StatusPill>
                   ) : null}
 
                   {availability ? (
-                    <StatusPill tone="neutral">{availability}</StatusPill>
+                    <StatusPill tone="neutral" isRtl={isRtl}>
+                      {availability}
+                    </StatusPill>
                   ) : null}
                 </div>
 
                 <h1
-                  className="mt-6 break-words text-[clamp(2.75rem,8vw,6rem)] font-light leading-[1.05] tracking-tight text-white"
+                  className={`mt-6 break-words text-[clamp(2.75rem,8vw,6rem)] font-light leading-[1.05] text-white ${
+                    isRtl ? "tracking-normal" : "tracking-tight"
+                  }`}
                   style={{
                     fontFamily: isRtl
                       ? "var(--font-noto-arabic)"
@@ -528,11 +534,17 @@ export default async function TalentProfilePage({ params }: PageProps) {
                   <MiniFact
                     label={isRtl ? "التصنيف" : "Category"}
                     value={category}
+                    isRtl={isRtl}
                   />
-                  <MiniFact label={isRtl ? "المدينة" : "City"} value={city} />
+                  <MiniFact
+                    label={isRtl ? "المدينة" : "City"}
+                    value={city}
+                    isRtl={isRtl}
+                  />
                   <MiniFact
                     label={isRtl ? "الحالة" : "Availability"}
                     value={availability}
+                    isRtl={isRtl}
                   />
                 </div>
 
@@ -559,6 +571,7 @@ export default async function TalentProfilePage({ params }: PageProps) {
                 <ContentCard
                   eyebrow={isRtl ? "عن الموهبة" : "About the talent"}
                   title={isRtl ? "نبذة" : "Biography"}
+                  isRtl={isRtl}
                 >
                   <p
                     className="whitespace-pre-line text-sm leading-8 text-white/65 sm:text-base"
@@ -574,6 +587,7 @@ export default async function TalentProfilePage({ params }: PageProps) {
               <DetailsCard
                 eyebrow={isRtl ? "معلومات أساسية" : "Basic Information"}
                 title={isRtl ? "عن الموهبة" : "Talent Overview"}
+                isRtl={isRtl}
                 items={[
                   {
                     label: isRtl ? "الجنسية" : "Nationality",
@@ -590,6 +604,7 @@ export default async function TalentProfilePage({ params }: PageProps) {
                 <ContentCard
                   eyebrow={isRtl ? "القدرات" : "Capabilities"}
                   title={isRtl ? "اللغات والمهارات" : "Languages & Skills"}
+                  isRtl={isRtl}
                 >
                   <div className="space-y-6">
                     <TagGroup
@@ -612,6 +627,7 @@ export default async function TalentProfilePage({ params }: PageProps) {
                 <DetailsCard
                   eyebrow={isRtl ? "تفاصيل الموهبة" : "Talent Details"}
                   title={isRtl ? "المظهر" : "Appearance"}
+                  isRtl={isRtl}
                   items={appearanceItems}
                 />
               ) : null}
@@ -620,6 +636,7 @@ export default async function TalentProfilePage({ params }: PageProps) {
                 <DetailsCard
                   eyebrow={isRtl ? "الجاهزية للعمل" : "Work Readiness"}
                   title={isRtl ? "الخبرة والتنقل" : "Experience & Mobility"}
+                  isRtl={isRtl}
                   items={experienceItems}
                 />
               ) : null}
@@ -628,6 +645,7 @@ export default async function TalentProfilePage({ params }: PageProps) {
                 <DetailsCard
                   eyebrow={isRtl ? "تفاصيل الموهبة" : "Talent Details"}
                   title={isRtl ? "المقاسات" : "Measurements"}
+                  isRtl={isRtl}
                   items={measurementItems}
                 />
               ) : null}
@@ -636,6 +654,7 @@ export default async function TalentProfilePage({ params }: PageProps) {
                 <ContentCard
                   eyebrow={isRtl ? "المحتوى المرئي" : "Media"}
                   title={isRtl ? "الفيديو" : "Video"}
+                  isRtl={isRtl}
                 >
                   <div className="grid gap-3 sm:grid-cols-2">
                     {sanitizeExternalUrl(talent.video_intro) ? (
@@ -663,6 +682,7 @@ export default async function TalentProfilePage({ params }: PageProps) {
   <ContentCard
     eyebrow={isRtl ? "روابط الموهبة" : "Talent Links"}
     title={isRtl ? "التواصل والمتابعة" : "Connect & Follow"}
+    isRtl={isRtl}
   >
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
       {socialLinks.map((item, index) => (
@@ -684,7 +704,11 @@ export default async function TalentProfilePage({ params }: PageProps) {
             >
               <div className="overflow-hidden rounded-[2rem] border border-gold/20 bg-[linear-gradient(145deg,rgba(201,169,98,0.09),rgba(255,255,255,0.02))] p-4 shadow-2xl shadow-black/20 sm:p-6">
                 <div className="mb-5 px-1">
-                  <p className="text-[10px] uppercase tracking-[0.28em] text-gold">
+                  <p
+                    className={`text-[10px] text-gold ${
+                      isRtl ? "tracking-normal" : "uppercase tracking-[0.28em]"
+                    }`}
+                  >
                     {isRtl ? "ابدأ مشروعك" : "Start your project"}
                   </p>
                   <h2 className="mt-3 text-2xl font-light text-white sm:text-3xl">
@@ -715,7 +739,11 @@ export default async function TalentProfilePage({ params }: PageProps) {
   <section className="mx-auto mt-16 max-w-6xl sm:mt-20">
     <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div>
-        <p className="text-[10px] uppercase tracking-[0.32em] text-gold">
+        <p
+          className={`text-[10px] text-gold ${
+            isRtl ? "tracking-normal" : "uppercase tracking-[0.32em]"
+          }`}
+        >
           {isRtl ? "قد يعجبك أيضًا" : "You May Also Like"}
         </p>
 
@@ -783,9 +811,11 @@ export default async function TalentProfilePage({ params }: PageProps) {
 function StatusPill({
   children,
   tone,
+  isRtl,
 }: {
   children: React.ReactNode;
   tone: "success" | "gold" | "neutral";
+  isRtl: boolean;
 }) {
   const styles = {
     success: "border-emerald-400/25 bg-emerald-400/10 text-emerald-300",
@@ -795,7 +825,9 @@ function StatusPill({
 
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-3 py-1.5 text-[10px] uppercase tracking-[0.16em] ${styles[tone]}`}
+      className={`inline-flex items-center rounded-full border px-3 py-1.5 text-[10px] ${
+        isRtl ? "tracking-normal" : "uppercase tracking-[0.16em]"
+      } ${styles[tone]}`}
     >
       {children}
     </span>
@@ -805,9 +837,11 @@ function StatusPill({
 function MiniFact({
   label,
   value,
+  isRtl,
 }: {
   label: string;
   value?: React.ReactNode;
+  isRtl: boolean;
 }) {
   if (!hasDisplayValue(value)) {
     return null;
@@ -815,7 +849,11 @@ function MiniFact({
 
   return (
     <div className="min-w-0 rounded-2xl border border-white/[0.08] bg-black/20 px-4 py-4">
-      <p className="truncate text-[9px] uppercase tracking-[0.2em] text-white/35">
+      <p
+        className={`truncate text-[9px] text-white/35 ${
+          isRtl ? "tracking-normal" : "uppercase tracking-[0.2em]"
+        }`}
+      >
         {label}
       </p>
       <p className="mt-2 break-words text-sm font-medium text-white sm:text-base">
@@ -829,14 +867,20 @@ function ContentCard({
   eyebrow,
   title,
   children,
+  isRtl,
 }: {
   eyebrow: string;
   title: string;
   children: React.ReactNode;
+  isRtl: boolean;
 }) {
   return (
     <section className="rounded-[1.75rem] border border-white/[0.08] bg-white/[0.025] p-5 sm:p-7">
-      <p className="text-[10px] uppercase tracking-[0.28em] text-gold">
+      <p
+        className={`text-[10px] text-gold ${
+          isRtl ? "tracking-normal" : "uppercase tracking-[0.28em]"
+        }`}
+      >
         {eyebrow}
       </p>
       <h2 className="mt-2 text-2xl font-light text-white sm:text-3xl">
@@ -851,19 +895,22 @@ function DetailsCard({
   eyebrow,
   title,
   items,
+  isRtl,
 }: {
   eyebrow: string;
   title: string;
   items: Array<{ label: string; value: React.ReactNode }>;
+  isRtl: boolean;
 }) {
   return (
-    <ContentCard eyebrow={eyebrow} title={title}>
+    <ContentCard eyebrow={eyebrow} title={title} isRtl={isRtl}>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
         {items.map((item) => (
           <MiniFact
             key={`${item.label}-${String(item.value)}`}
             label={item.label}
             value={item.value}
+            isRtl={isRtl}
           />
         ))}
       </div>
