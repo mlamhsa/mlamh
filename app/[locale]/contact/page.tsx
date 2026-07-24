@@ -161,7 +161,9 @@ export default async function ContactPage({
                 href={`/${locale}/opportunities`}
                 className="flex min-h-14 items-center justify-between rounded-2xl border border-white/10 bg-black/20 px-5 text-sm text-white/70 transition hover:border-gold/30 hover:text-gold"
               >
-                <span>{isRtl ? "استعراض الفرص" : "Browse Opportunities"}</span>
+                <span>
+                  {isRtl ? "استعراض الفرص" : "Browse Opportunities"}
+                </span>
                 <span aria-hidden="true">{isRtl ? "←" : "→"}</span>
               </Link>
 
