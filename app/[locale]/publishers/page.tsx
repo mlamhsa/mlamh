@@ -1,4 +1,21 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale?: string }>;
+}): Promise<Metadata> {
+  const { locale = "ar" } = await params;
+  const isArabic = locale === "ar";
+
+  return {
+    title: isArabic ? "ملامح للشركات | ملامح" : "MLAMH for Companies",
+    description: isArabic
+      ? "اكتشف المواهب المناسبة، انشر الفرص، وأدر طلبات التقديم عبر منصة ملامح."
+      : "Discover talent, publish opportunities, and manage applications through MLAMH.",
+  };
+}
 
 export default async function PublishersPage({
   params,
@@ -186,7 +203,9 @@ export default async function PublishersPage({
                 href={`/${locale}/publisher-dashboard`}
                 className="mt-5 inline-flex min-h-12 w-full items-center justify-center rounded-full border border-gold/35 text-sm text-gold transition hover:bg-gold hover:text-black"
               >
-                {isRtl ? "الانتقال إلى لوحة الشركات" : "Open Company Dashboard"}
+                {isRtl
+                  ? "الانتقال إلى لوحة الشركات"
+                  : "Open Company Dashboard"}
               </Link>
             </div>
           </div>

@@ -25,7 +25,7 @@ const navItems = [
     href: "/publishers",
   },
   { key: "about", ar: "عن ملامح", en: "About", href: "/about" },
-  { key: "contact", ar: "تواصل", en: "Contact", href: "#contact" },
+  { key: "contact", ar: "تواصل", en: "Contact", href: "/contact" },
 ];
 
 export function Navbar({ locale }: { locale: Locale }) {
