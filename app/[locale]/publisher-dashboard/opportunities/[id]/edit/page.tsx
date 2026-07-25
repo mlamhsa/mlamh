@@ -6,14 +6,14 @@ import { requirePublisher } from "@/lib/auth/require-publisher";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 type PageProps = {
-  params: {
+  params: Promise<{
     locale: string;
     id: string;
-  };
+  }>;
 };
 
 export default async function EditOpportunityPage({ params }: PageProps) {
-  const { locale, id } = params;
+  const { locale, id } = await params;
   const isRtl = locale === "ar";
 
   const { publisher } = await requirePublisher(locale);

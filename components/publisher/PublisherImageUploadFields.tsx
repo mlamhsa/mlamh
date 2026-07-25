@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function PublisherImageUploadFields({
   isRtl,
@@ -14,51 +14,87 @@ export default function PublisherImageUploadFields({
   const [profileFile, setProfileFile] = useState<File | null>(null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
 
-  const profilePreviewUrl = useMemo(() => {
-    if (!profileFile) return currentProfileImageUrl ?? null;
-    return URL.createObjectURL(profileFile);
+  const [profilePreviewUrl, setProfilePreviewUrl] = useState<string | null>(
+    currentProfileImageUrl ?? null,
+  );
+
+  const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(
+    currentCoverImageUrl ?? null,
+  );
+
+  useEffect(() => {
+    if (!profileFile) {
+      setProfilePreviewUrl(currentProfileImageUrl ?? null);
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(profileFile);
+    setProfilePreviewUrl(objectUrl);
+
+    return () => {
+      URL.revokeObjectURL(objectUrl);
+    };
   }, [profileFile, currentProfileImageUrl]);
 
-  const coverPreviewUrl = useMemo(() => {
-    if (!coverFile) return currentCoverImageUrl ?? null;
-    return URL.createObjectURL(coverFile);
+  useEffect(() => {
+    if (!coverFile) {
+      setCoverPreviewUrl(currentCoverImageUrl ?? null);
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(coverFile);
+    setCoverPreviewUrl(objectUrl);
+
+    return () => {
+      URL.revokeObjectURL(objectUrl);
+    };
   }, [coverFile, currentCoverImageUrl]);
 
   return (
-    <section className="rounded-[2rem] border border-white/10 bg-white/[0.025] p-6 md:p-8">
+    <section className="rounded-[2rem] border border-white/10 bg-white/[0.025] p-5 sm:p-6 md:p-8">
       <p className="mb-6 text-xs uppercase tracking-[0.3em] text-gold">
         {isRtl ? "هوية الناشر" : "Publisher Identity"}
       </p>
 
       <div className="grid gap-8">
         <div>
-          <label className="mb-3 block text-xs uppercase tracking-[0.25em] text-white/40">
+          <label
+            htmlFor="cover-image"
+            className="mb-3 block text-xs uppercase tracking-[0.25em] text-white/40"
+          >
             {isRtl ? "معاينة الغلاف" : "Cover Preview"}
           </label>
 
-          <div className="relative flex h-56 items-center justify-center overflow-hidden rounded-3xl border border-white/10 bg-black">
+          <div className="relative flex h-44 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-black sm:h-56 sm:rounded-3xl">
             {coverPreviewUrl ? (
               <img
                 src={coverPreviewUrl}
-                alt=""
+                alt={isRtl ? "معاينة صورة الغلاف" : "Cover image preview"}
                 className="h-full w-full object-cover"
               />
             ) : (
-              <p className="text-sm text-white/35">
+              <p className="px-4 text-center text-sm text-white/35">
                 {isRtl ? "لم يتم اختيار غلاف" : "No cover selected"}
               </p>
             )}
           </div>
 
           <input
+            id="cover-image"
             name="cover_image"
             type="file"
             accept="image/*"
-            onChange={(e) => setCoverFile(e.target.files?.[0] ?? null)}
-            className="mt-4 w-full border border-white/10 bg-black/30 px-4 py-4 text-sm text-white outline-none transition file:mr-4 file:border-0 file:bg-gold/10 file:px-4 file:py-2 file:text-gold focus:border-gold/50"
+            onChange={(event) => {
+              setCoverFile(event.target.files?.[0] ?? null);
+            }}
+            className={`mt-4 block w-full min-w-0 rounded-xl border border-white/10 bg-black/30 px-3 py-3 text-sm text-white outline-none transition focus:border-gold/50 sm:px-4 sm:py-4 ${
+              isRtl
+                ? "file:ml-3 file:mr-0"
+                : "file:mr-3"
+            } file:rounded-lg file:border-0 file:bg-gold/10 file:px-3 file:py-2 file:text-sm file:text-gold`}
           />
 
-          <p className="mt-2 text-xs text-white/35">
+          <p className="mt-2 text-xs leading-6 text-white/35">
             {isRtl
               ? "يفضل غلاف عريض مثل 1600×500."
               : "Recommended cover size: 1600×500."}
@@ -66,35 +102,49 @@ export default function PublisherImageUploadFields({
         </div>
 
         <div>
-          <label className="mb-3 block text-xs uppercase tracking-[0.25em] text-white/40">
+          <label
+            htmlFor="profile-image"
+            className="mb-3 block text-xs uppercase tracking-[0.25em] text-white/40"
+          >
             {isRtl ? "معاينة صورة البروفايل" : "Profile Image Preview"}
           </label>
 
-          <div className="flex items-center gap-5">
-            <div className="flex h-36 w-36 items-center justify-center overflow-hidden rounded-full border border-gold/30 bg-black">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+            <div className="flex h-32 w-32 shrink-0 items-center justify-center overflow-hidden rounded-full border border-gold/30 bg-black sm:h-36 sm:w-36">
               {profilePreviewUrl ? (
                 <img
                   src={profilePreviewUrl}
-                  alt=""
+                  alt={
+                    isRtl
+                      ? "معاينة صورة البروفايل"
+                      : "Profile image preview"
+                  }
                   className="h-full w-full object-cover"
                 />
               ) : (
-                <span className="text-xs text-white/35">
+                <span className="px-3 text-center text-xs text-white/35">
                   {isRtl ? "لا توجد صورة" : "No image"}
                 </span>
               )}
             </div>
 
-            <div className="flex-1">
+            <div className="min-w-0 flex-1">
               <input
+                id="profile-image"
                 name="profile_image"
                 type="file"
                 accept="image/*"
-                onChange={(e) => setProfileFile(e.target.files?.[0] ?? null)}
-                className="w-full border border-white/10 bg-black/30 px-4 py-4 text-sm text-white outline-none transition file:mr-4 file:border-0 file:bg-gold/10 file:px-4 file:py-2 file:text-gold focus:border-gold/50"
+                onChange={(event) => {
+                  setProfileFile(event.target.files?.[0] ?? null);
+                }}
+                className={`block w-full min-w-0 rounded-xl border border-white/10 bg-black/30 px-3 py-3 text-sm text-white outline-none transition focus:border-gold/50 sm:px-4 sm:py-4 ${
+                  isRtl
+                    ? "file:ml-3 file:mr-0"
+                    : "file:mr-3"
+                } file:rounded-lg file:border-0 file:bg-gold/10 file:px-3 file:py-2 file:text-sm file:text-gold`}
               />
 
-              <p className="mt-2 text-xs text-white/35">
+              <p className="mt-2 text-xs leading-6 text-white/35">
                 {isRtl
                   ? "يفضل صورة مربعة مثل 800×800."
                   : "Recommended profile size: 800×800."}

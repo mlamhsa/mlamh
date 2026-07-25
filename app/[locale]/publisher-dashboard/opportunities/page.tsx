@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { StatCard } from "@/components/ui";
+
 import PublisherShell from "@/components/publisher/PublisherShell";
+import { StatCard } from "@/components/ui";
 import {
   archiveOpportunityAction,
   closeOpportunityAction,
@@ -14,31 +15,34 @@ import {
 } from "@/lib/utils/opportunity-status";
 
 type PageProps = {
-  params: { locale: string };
-searchParams?: { status?: string };
+  params: Promise<{ locale: string }>;
+  searchParams?: Promise<{ status?: string }>;
 };
 
 function formatDate(value?: string | null, locale = "en") {
-  if (!value) return "-";
+  if (!value) {
+    return "-";
+  }
 
-const parsedDate = new Date(value);
+  const parsedDate = new Date(value);
 
-if (Number.isNaN(parsedDate.getTime())) {
-  return "-";
-}
+  if (Number.isNaN(parsedDate.getTime())) {
+    return "-";
+  }
 
-return new Intl.DateTimeFormat(
-  locale === "ar" ? "ar-SA" : "en",
-  {
+  return new Intl.DateTimeFormat(locale === "ar" ? "ar-SA" : "en", {
     year: "numeric",
     month: "short",
     day: "numeric",
-  }
-).format(parsedDate);
+  }).format(parsedDate);
 }
+
 function getCity(
-  opportunity: { city_ar?: string | null; city_en?: string | null },
-  locale: string
+  opportunity: {
+    city_ar?: string | null;
+    city_en?: string | null;
+  },
+  locale: string,
 ) {
   return locale === "ar"
     ? opportunity.city_ar ?? opportunity.city_en
@@ -49,20 +53,24 @@ export default async function PublisherOpportunitiesPage({
   params,
   searchParams,
 }: PageProps) {
-  const { locale } = params;
-const isRtl = locale === "ar";
-const statusLocale = isRtl ? "ar" : "en";
+  const { locale } = await params;
+  const filters = (await searchParams) ?? {};
 
-const filters = searchParams ?? {};
+  const isRtl = locale === "ar";
+  const statusLocale = isRtl ? "ar" : "en";
   const selectedStatus = filters.status ?? "all";
 
   const { publisher } = await requirePublisher(locale);
   const adminClient = createAdminClient();
 
+  const isVerified = publisher.verified === true;
+  const isSuspended = publisher.status === "suspended";
+  const canCreateOpportunity = isVerified && !isSuspended;
+
   const { data: opportunities, error: opportunitiesError } = await adminClient
     .from("opportunities")
     .select(
-      "id, title, slug, city_ar, city_en, opportunity_type, status, created_at"
+      "id, title, slug, city_ar, city_en, opportunity_type, status, created_at",
     )
     .eq("publisher_id", publisher.id)
     .order("created_at", { ascending: false });
@@ -87,24 +95,24 @@ const filters = searchParams ?? {};
   for (const application of applications ?? []) {
     applicationsByOpportunity.set(
       application.opportunity_id,
-      (applicationsByOpportunity.get(application.opportunity_id) ?? 0) + 1
+      (applicationsByOpportunity.get(application.opportunity_id) ?? 0) + 1,
     );
   }
 
   const publishedCount = allOpportunities.filter(
-    (item) => item.status === "published" || item.status === "open"
+    (item) => item.status === "published" || item.status === "open",
   ).length;
 
   const reviewCount = allOpportunities.filter(
-    (item) => item.status === "pending_review"
+    (item) => item.status === "pending_review",
   ).length;
 
   const closedCount = allOpportunities.filter(
-    (item) => item.status === "closed"
+    (item) => item.status === "closed",
   ).length;
 
   const archivedCount = allOpportunities.filter(
-    (item) => item.status === "archived"
+    (item) => item.status === "archived",
   ).length;
 
   const applicantsTotal = applications?.length ?? 0;
@@ -114,9 +122,12 @@ const filters = searchParams ?? {};
       ? allOpportunities
       : selectedStatus === "published"
         ? allOpportunities.filter(
-            (item) => item.status === "published" || item.status === "open"
+            (item) =>
+              item.status === "published" || item.status === "open",
           )
-        : allOpportunities.filter((item) => item.status === selectedStatus);
+        : allOpportunities.filter(
+            (item) => item.status === selectedStatus,
+          );
 
   const tabs = [
     [
@@ -137,10 +148,15 @@ const filters = searchParams ?? {};
         ? `منشورة (${publishedCount})`
         : `Published (${publishedCount})`,
     ],
-    ["closed", isRtl ? `مغلقة (${closedCount})` : `Closed (${closedCount})`],
+    [
+      "closed",
+      isRtl ? `مغلقة (${closedCount})` : `Closed (${closedCount})`,
+    ],
     [
       "archived",
-      isRtl ? `مؤرشفة (${archivedCount})` : `Archived (${archivedCount})`,
+      isRtl
+        ? `مؤرشفة (${archivedCount})`
+        : `Archived (${archivedCount})`,
     ],
   ];
 
@@ -149,7 +165,7 @@ const filters = searchParams ?? {};
       <div className="space-y-8">
         <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
           <div>
-          <p className="arabic-safe text-xs uppercase tracking-[0.35em] text-gold">
+            <p className="arabic-safe text-xs uppercase tracking-[0.35em] text-gold">
               {isRtl ? "مركز الفرص" : "Opportunities Center"}
             </p>
 
@@ -164,12 +180,21 @@ const filters = searchParams ?? {};
             </p>
           </div>
 
-          <Link
-            href={`/${locale}/opportunities/new`}
-            className="arabic-safe inline-flex rounded-full border border-gold bg-gold/10 px-6 py-4 text-xs uppercase tracking-[0.22em] text-gold transition hover:bg-gold hover:text-black"
-          >
-            {isRtl ? "إنشاء فرصة" : "Create Opportunity"}
-          </Link>
+          {canCreateOpportunity ? (
+            <Link
+              href={`/${locale}/opportunities/new`}
+              className="arabic-safe inline-flex rounded-full border border-gold bg-gold/10 px-6 py-4 text-xs uppercase tracking-[0.22em] text-gold transition hover:bg-gold hover:text-black"
+            >
+              {isRtl ? "إنشاء فرصة" : "Create Opportunity"}
+            </Link>
+          ) : !isSuspended ? (
+            <Link
+              href={`/${locale}/publisher-dashboard/profile`}
+              className="arabic-safe inline-flex rounded-full border border-gold bg-gold/10 px-6 py-4 text-xs uppercase tracking-[0.22em] text-gold transition hover:bg-gold hover:text-black"
+            >
+              {isRtl ? "مراجعة ملف الشركة" : "Review Company Profile"}
+            </Link>
+          ) : null}
         </div>
 
         <section className="grid gap-4 md:grid-cols-4">
@@ -251,7 +276,10 @@ const filters = searchParams ?? {};
 
                           {opportunity.opportunity_type ? (
                             <span className="arabic-safe text-[11px] uppercase tracking-[0.2em] text-white/25">
-                              {opportunity.opportunity_type.replaceAll("_", " ")}
+                              {opportunity.opportunity_type.replaceAll(
+                                "_",
+                                " ",
+                              )}
                             </span>
                           ) : null}
                         </div>
@@ -278,12 +306,12 @@ const filters = searchParams ?? {};
                       <div>
                         <span
                           className={`arabic-safe inline-flex rounded-full border px-3 py-1 text-[11px] uppercase tracking-[0.18em] ${getOpportunityStatusClass(
-                            opportunity.status
+                            opportunity.status,
                           )}`}
                         >
                           {getOpportunityStatusLabel(
                             opportunity.status,
-                            statusLocale
+                            statusLocale,
                           )}
                         </span>
                       </div>
@@ -308,10 +336,13 @@ const filters = searchParams ?? {};
                           <form
                             action={closeOpportunityAction.bind(
                               null,
-                              opportunity.id
+                              opportunity.id,
                             )}
                           >
-                            <button className="arabic-safe rounded-full border border-yellow-400/40 px-3 py-2 text-xs uppercase tracking-[0.18em] text-yellow-300 transition hover:bg-yellow-400 hover:text-black">
+                            <button
+                              type="submit"
+                              className="arabic-safe rounded-full border border-yellow-400/40 px-3 py-2 text-xs uppercase tracking-[0.18em] text-yellow-300 transition hover:bg-yellow-400 hover:text-black"
+                            >
                               {isRtl ? "إغلاق" : "Close"}
                             </button>
                           </form>
@@ -321,10 +352,13 @@ const filters = searchParams ?? {};
                           <form
                             action={archiveOpportunityAction.bind(
                               null,
-                              opportunity.id
+                              opportunity.id,
                             )}
                           >
-                            <button className="arabic-safe rounded-full border border-red-400/40 px-3 py-2 text-xs uppercase tracking-[0.18em] text-red-300 transition hover:bg-red-400 hover:text-black">
+                            <button
+                              type="submit"
+                              className="arabic-safe rounded-full border border-red-400/40 px-3 py-2 text-xs uppercase tracking-[0.18em] text-red-300 transition hover:bg-red-400 hover:text-black"
+                            >
                               {isRtl ? "أرشفة" : "Archive"}
                             </button>
                           </form>
@@ -332,10 +366,13 @@ const filters = searchParams ?? {};
                           <form
                             action={restoreOpportunityAction.bind(
                               null,
-                              opportunity.id
+                              opportunity.id,
                             )}
                           >
-                            <button className="arabic-safe rounded-full border border-emerald-400/40 px-3 py-2 text-xs uppercase tracking-[0.18em] text-emerald-300 transition hover:bg-emerald-400 hover:text-black">
+                            <button
+                              type="submit"
+                              className="arabic-safe rounded-full border border-emerald-400/40 px-3 py-2 text-xs uppercase tracking-[0.18em] text-emerald-300 transition hover:bg-emerald-400 hover:text-black"
+                            >
                               {isRtl ? "استعادة" : "Restore"}
                             </button>
                           </form>
@@ -354,12 +391,21 @@ const filters = searchParams ?? {};
                   : "No opportunities match the selected status."}
               </p>
 
-              <Link
-                href={`/${locale}/opportunities/new`}
-                className="mt-6 inline-flex rounded-full border border-gold bg-gold/10 px-6 py-3 text-xs uppercase tracking-[0.2em] text-gold transition hover:bg-gold hover:text-black"
-              >
-                {isRtl ? "إنشاء فرصة" : "Create Opportunity"}
-              </Link>
+              {canCreateOpportunity ? (
+                <Link
+                  href={`/${locale}/opportunities/new`}
+                  className="mt-6 inline-flex rounded-full border border-gold bg-gold/10 px-6 py-3 text-xs uppercase tracking-[0.2em] text-gold transition hover:bg-gold hover:text-black"
+                >
+                  {isRtl ? "إنشاء فرصة" : "Create Opportunity"}
+                </Link>
+              ) : !isSuspended ? (
+                <Link
+                  href={`/${locale}/publisher-dashboard/profile`}
+                  className="mt-6 inline-flex rounded-full border border-gold bg-gold/10 px-6 py-3 text-xs uppercase tracking-[0.2em] text-gold transition hover:bg-gold hover:text-black"
+                >
+                  {isRtl ? "مراجعة ملف الشركة" : "Review Company Profile"}
+                </Link>
+              ) : null}
             </div>
           )}
         </section>

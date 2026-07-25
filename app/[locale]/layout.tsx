@@ -1,4 +1,5 @@
 import { Navbar } from "@/components/Navbar";
+import { MobileAppShell } from "@/components/mobile/MobileAppShell";
 
 type Locale = "ar" | "en";
 
@@ -15,9 +16,21 @@ export default async function LocaleLayout({
   const isRtl = locale === "ar";
 
   return (
-    <div dir={isRtl ? "rtl" : "ltr"}>
-      <Navbar locale={locale} />
-      {children}
+    <div
+      dir={isRtl ? "rtl" : "ltr"}
+      className="min-h-screen bg-black"
+    >
+      {/* نسخة الديسكتوب فقط */}
+      <div className="hidden lg:block">
+        <Navbar locale={locale} />
+      </div>
+
+      {/* نسخة التطبيق على الجوال فقط */}
+      <MobileAppShell locale={locale} />
+
+      <main className="min-h-screen pb-24 pt-16 lg:pb-0 lg:pt-0">
+        {children}
+      </main>
     </div>
   );
 }

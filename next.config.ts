@@ -1,6 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  /**
+   * السماح بفتح بيئة التطوير من الجوال عبر الشبكة المحلية.
+   * هذا الإعداد خاص بالتطوير ولا يغيّر إعدادات الإنتاج.
+   */
+  allowedDevOrigins: ["192.168.100.24"],
+
   experimental: {
     serverActions: {
       bodySizeLimit: "50mb",
@@ -9,6 +15,7 @@ const nextConfig: NextConfig = {
 
   images: {
     unoptimized: true,
+
     remotePatterns: [
       {
         protocol: "https",

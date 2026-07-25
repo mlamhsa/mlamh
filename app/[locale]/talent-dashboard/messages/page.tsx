@@ -47,22 +47,12 @@ function formatConversationDate(value: string | null, locale: string) {
 
   if (Number.isNaN(date.getTime())) return "";
 
-  const now = new Date();
-  const isSameDay =
-    date.getFullYear() === now.getFullYear() &&
-    date.getMonth() === now.getMonth() &&
-    date.getDate() === now.getDate();
-
-  if (isSameDay) {
-    return new Intl.DateTimeFormat(locale === "ar" ? "ar-SA" : "en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(date);
-  }
-
-  return new Intl.DateTimeFormat(locale === "ar" ? "ar-SA" : "en-US", {
+  return new Intl.DateTimeFormat(locale === "ar" ? "ar-SA" : "en-GB", {
     day: "numeric",
     month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "UTC",
   }).format(date);
 }
 
@@ -253,10 +243,10 @@ export default async function TalentMessagesPage({
   return (
     <main
       dir={isArabic ? "rtl" : "ltr"}
-      className="min-h-screen bg-background px-4 pb-24 pt-36 text-white sm:px-6 sm:pt-40 lg:pt-32"
+      className="min-h-screen bg-background px-3 pb-24 pt-28 text-white sm:px-6 sm:pt-36 lg:pt-32"
     >
-      <div className="mx-auto max-w-6xl space-y-6">
-        <header className="rounded-[2rem] border border-white/10 bg-[radial-gradient(circle_at_top_right,rgba(201,169,98,0.12),transparent_38%),linear-gradient(135deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))] p-6 sm:p-8">
+      <div className="mx-auto max-w-6xl space-y-4 sm:space-y-6">
+        <header className="rounded-[1.5rem] border border-white/10 bg-[radial-gradient(circle_at_top_right,rgba(201,169,98,0.12),transparent_38%),linear-gradient(135deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))] p-5 sm:rounded-[2rem] sm:p-8">
           <Link
             href={`/${locale}/talent-dashboard`}
             className="text-sm text-gold underline underline-offset-4"
@@ -266,25 +256,25 @@ export default async function TalentMessagesPage({
               : "← Back to Dashboard"}
           </Link>
 
-          <div className="mt-7 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+          <div className="mt-5 flex flex-col gap-4 sm:mt-7 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-xs uppercase tracking-[0.3em] text-gold">
                 {isArabic ? "الرسائل" : "Messages"}
               </p>
 
-              <h1 className="mt-3 text-4xl font-light sm:text-5xl">
+              <h1 className="mt-2 text-3xl font-light sm:mt-3 sm:text-5xl">
                 {isArabic ? "محادثاتك" : "Your Conversations"}
               </h1>
 
-              <p className="mt-3 max-w-2xl text-sm leading-7 text-white/45">
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-white/45 sm:mt-3 sm:leading-7">
                 {isArabic
                   ? "تواصل مع الناشرين بعد قبول طلبك في الفرص."
                   : "Communicate with publishers after your application is accepted."}
               </p>
             </div>
 
-            <div className="flex gap-3">
-              <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-center">
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:gap-3">
+              <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-center sm:rounded-2xl sm:px-4 sm:py-3">
                 <p className="text-[10px] uppercase tracking-[0.2em] text-white/35">
                   {isArabic ? "المحادثات" : "Conversations"}
                 </p>
@@ -293,7 +283,7 @@ export default async function TalentMessagesPage({
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-gold/25 bg-gold/[0.08] px-4 py-3 text-center">
+              <div className="rounded-xl border border-gold/25 bg-gold/[0.08] px-3 py-2.5 text-center sm:rounded-2xl sm:px-4 sm:py-3">
                 <p className="text-[10px] uppercase tracking-[0.2em] text-gold">
                   {isArabic ? "غير مقروء" : "Unread"}
                 </p>
@@ -305,7 +295,7 @@ export default async function TalentMessagesPage({
           </div>
         </header>
 
-        <section className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.025]">
+        <section className="overflow-hidden rounded-[1.5rem] border border-white/10 bg-white/[0.025] sm:rounded-[2rem]">
           {conversations.length > 0 ? (
             <div className="divide-y divide-white/10">
               {conversations.map((conversation) => {
@@ -337,16 +327,16 @@ export default async function TalentMessagesPage({
                   <Link
                     key={conversation.id}
                     href={`/${locale}/talent-dashboard/messages/${conversation.id}`}
-                    className="group flex items-center gap-4 p-5 transition hover:bg-white/[0.035] sm:p-6"
+                    className="group flex items-center gap-3 p-4 transition hover:bg-white/[0.035] sm:gap-4 sm:p-6"
                   >
                     {publisher?.profile_image_url ? (
                       <img
                         src={publisher.profile_image_url}
                         alt={publisherName}
-                        className="h-16 w-16 shrink-0 rounded-full border border-white/10 object-cover"
+                        className="h-12 w-12 shrink-0 rounded-full border border-white/10 object-cover sm:h-16 sm:w-16"
                       />
                     ) : (
-                      <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-xl text-gold">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-base text-gold sm:h-16 sm:w-16 sm:text-xl">
                         {publisherName.slice(0, 1)}
                       </div>
                     )}
@@ -356,7 +346,7 @@ export default async function TalentMessagesPage({
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
                             <h2
-                              className={`truncate text-lg ${
+                              className={`truncate text-base sm:text-lg ${
                                 unreadCount > 0
                                   ? "font-medium text-white"
                                   : "font-light text-white/85"
@@ -383,7 +373,11 @@ export default async function TalentMessagesPage({
                         </div>
 
                         <div className="shrink-0 text-end">
-                          <time className="text-[10px] text-white/30">
+                          <time
+                            suppressHydrationWarning
+                            dateTime={lastActivity ?? undefined}
+                            className="text-[9px] text-white/30 sm:text-[10px]"
+                          >
                             {formatConversationDate(
                               lastActivity,
                               locale,
@@ -391,7 +385,7 @@ export default async function TalentMessagesPage({
                           </time>
 
                           {unreadCount > 0 ? (
-                            <span className="mt-2 flex h-6 min-w-6 items-center justify-center rounded-full bg-gold px-2 text-[10px] font-medium text-black">
+                            <span className="mt-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-gold px-1.5 text-[9px] font-medium text-black sm:mt-2 sm:h-6 sm:min-w-6 sm:px-2 sm:text-[10px]">
                               {unreadCount}
                             </span>
                           ) : null}
@@ -399,7 +393,7 @@ export default async function TalentMessagesPage({
                       </div>
 
                       <p
-                        className={`mt-3 truncate text-sm ${
+                        className={`mt-2 truncate text-xs sm:mt-3 sm:text-sm ${
                           unreadCount > 0
                             ? "text-white/70"
                             : "text-white/35"

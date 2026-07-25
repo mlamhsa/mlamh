@@ -12,20 +12,10 @@ import { useNotifications } from "@/hooks/useNotifications";
 
 const navItems = [
   { key: "talents", ar: "المواهب", en: "Talents", href: "/talent" },
-  {
-    key: "opportunities",
-    ar: "الفرص",
-    en: "Opportunities",
-    href: "/opportunities",
-  },
-  {
-    key: "companies",
-    ar: "الشركات",
-    en: "Companies",
-    href: "/publishers",
-  },
-  { key: "about", ar: "عن ملامح", en: "About", href: "/about" },
-  { key: "contact", ar: "تواصل", en: "Contact", href: "/contact" },
+  { key: "opportunities", ar: "الفرص", en: "Opportunities", href: "/opportunities" },
+  { key: "companies", ar: "الشركات", en: "Companies", href: "/publishers" },
+  { key: "about", ar: "عن ملامح", en: "About", href: "#about" },
+  { key: "contact", ar: "تواصل", en: "Contact", href: "#contact" },
 ];
 
 export function Navbar({ locale }: { locale: Locale }) {

@@ -31,9 +31,10 @@ function formatMessageTime(value: string, locale: string) {
 
   if (Number.isNaN(date.getTime())) return "";
 
-  return new Intl.DateTimeFormat(locale === "ar" ? "ar-SA" : "en-US", {
+  return new Intl.DateTimeFormat(locale === "ar" ? "ar-SA" : "en-GB", {
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "UTC",
   }).format(date);
 }
 
@@ -42,9 +43,10 @@ function formatConversationDate(value: string, locale: string) {
 
   if (Number.isNaN(date.getTime())) return "";
 
-  return new Intl.DateTimeFormat(locale === "ar" ? "ar-SA" : "en-US", {
+  return new Intl.DateTimeFormat(locale === "ar" ? "ar-SA" : "en-GB", {
     dateStyle: "medium",
     timeStyle: "short",
+    timeZone: "UTC",
   }).format(date);
 }
 
@@ -341,6 +343,7 @@ export default async function TalentConversationPage({
                               </summary>
 
                               <form
+                                suppressHydrationWarning
                                 action={reportMessageAction}
                                 className="mt-3 space-y-2"
                               >
@@ -349,6 +352,7 @@ export default async function TalentConversationPage({
                                 <input type="hidden" name="locale" value={locale} />
 
                                 <textarea
+                                  suppressHydrationWarning
                                   name="reportReason"
                                   required
                                   maxLength={500}
@@ -397,6 +401,7 @@ export default async function TalentConversationPage({
 
           {isActive ? (
             <form
+              suppressHydrationWarning
               action={sendMessageAction}
               className="border-t border-white/10 p-4 md:p-5"
             >
@@ -410,6 +415,7 @@ export default async function TalentConversationPage({
 
               <div className="flex flex-col gap-3 sm:flex-row">
                 <textarea
+                  suppressHydrationWarning
                   name="body"
                   required
                   maxLength={3000}

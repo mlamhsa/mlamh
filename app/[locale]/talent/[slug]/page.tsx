@@ -8,6 +8,7 @@ import { PublicTalentGallery } from "@/components/public/PublicTalentGallery";
 import { ProfileShareButton } from "@/components/public/ProfileShareButton";
 import { TalentRequestForm } from "@/components/public/TalentRequestForm";
 
+import { getCurrentAccountType } from "@/lib/auth/get-current-account-type";
 import { isValidLocale, type Locale } from "@/lib/i18n";
 import { buildTalentMetadata } from "@/lib/seo/talent-metadata";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -285,7 +286,10 @@ export default async function TalentProfilePage({ params }: PageProps) {
   const locale = localeParam as Locale;
   const isRtl = locale === "ar";
 
-  const talent = await getPublishedTalentBySlug(slug);
+  const [talent, accountType] = await Promise.all([
+    getPublishedTalentBySlug(slug),
+    getCurrentAccountType(),
+  ]);
 
   if (!talent) {
     notFound();
@@ -308,6 +312,10 @@ export default async function TalentProfilePage({ params }: PageProps) {
   const portfolioUrl = sanitizeExternalUrl(talent.portfolio_url);
 
   const gallery = normalizeGalleryImages(talent.gallery_images);
+
+  const canRequestTalent = accountType === "publisher";
+  const isGuest = accountType === null;
+  const isTalentAccount = accountType === "talent";
 
   const name = getTalentName(talent, locale);
   const category = getTalentCategory(talent, locale);
@@ -461,27 +469,27 @@ export default async function TalentProfilePage({ params }: PageProps) {
 
   return (
     <main
-      className="min-h-screen overflow-x-hidden bg-background pb-20 text-white lg:pb-0"
+      className="min-h-screen overflow-x-hidden bg-background pb-24 text-white lg:pb-0"
       dir={isRtl ? "rtl" : "ltr"}
     >
       <Navbar locale={locale} />
 
-      <section className="relative overflow-hidden pb-20 pt-24 sm:pb-24 sm:pt-32">
+      <section className="relative overflow-hidden pb-16 pt-16 sm:pb-20 sm:pt-24">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(201,169,98,0.1),transparent_42%)]" />
 
         <div className="relative mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
           <Link
             href={talentPath(locale)}
-            className={`inline-flex items-center rounded-full border border-white/10 bg-black/20 px-4 py-2 text-[10px] text-gold transition hover:border-gold/35 hover:bg-gold/[0.06] ${
+            className={`inline-flex items-center rounded-full border border-white/10 bg-black/20 px-4 py-2 text-[10px] text-gold transition duration-300 hover:border-gold/35 hover:bg-gold/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 ${
               isRtl ? "tracking-normal" : "uppercase tracking-[0.24em]"
             }`}
           >
             {isRtl ? "العودة للمواهب" : "Back to talents"}
           </Link>
 
-          <div className="mt-6 overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.025] shadow-2xl shadow-black/20 sm:mt-8 sm:rounded-[2.5rem]">
+          <div className="mt-5 overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/[0.025] shadow-2xl shadow-black/20 sm:mt-7 sm:rounded-[2.25rem]">
             <div className="grid lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-              <div className="border-b border-white/10 p-3 sm:p-5 lg:border-b-0 lg:border-e">
+              <div className="min-w-0 border-b border-white/10 p-3 sm:p-4 lg:border-b-0 lg:border-e">
                 <div className="lg:sticky lg:top-28">
                   <PublicTalentGallery
                     imageUrl={talent.image_url}
@@ -492,7 +500,7 @@ export default async function TalentProfilePage({ params }: PageProps) {
                 </div>
               </div>
 
-              <div className="p-5 sm:p-8 lg:p-10 xl:p-12">
+              <div className="min-w-0 p-5 sm:p-7 lg:p-8 xl:p-10">
                 <div className="flex flex-wrap items-center gap-2">
                   {talent.verified ? (
                     <StatusPill tone="success" isRtl={isRtl}>
@@ -514,7 +522,7 @@ export default async function TalentProfilePage({ params }: PageProps) {
                 </div>
 
                 <h1
-                  className={`mt-6 break-words text-[clamp(2.75rem,8vw,6rem)] font-light leading-[1.05] text-white ${
+                  className={`mt-5 break-words text-[clamp(2.5rem,8vw,5.5rem)] font-light leading-[1.06] text-white ${
                     isRtl ? "tracking-normal" : "tracking-tight"
                   }`}
                   style={{
@@ -526,11 +534,11 @@ export default async function TalentProfilePage({ params }: PageProps) {
                   {name || (isRtl ? "موهبة غير مسماة" : "Unnamed Talent")}
                 </h1>
 
-                <p className="mt-4 text-sm leading-7 text-white/50 sm:text-base">
+                <p className="mt-3 text-sm leading-7 text-white/60 sm:text-base">
                   {[category, city].filter(Boolean).join(" • ")}
                 </p>
 
-                <div className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                <div className="mt-6 grid grid-cols-1 gap-2.5 min-[420px]:grid-cols-2 sm:grid-cols-3">
                   <MiniFact
                     label={isRtl ? "التصنيف" : "Category"}
                     value={category}
@@ -548,13 +556,28 @@ export default async function TalentProfilePage({ params }: PageProps) {
                   />
                 </div>
 
-                <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                  <a
-                    href="#request-talent"
-                    className="inline-flex min-h-12 flex-1 items-center justify-center rounded-full bg-gold px-6 text-xs font-medium text-black transition hover:bg-gold-soft sm:flex-none"
-                  >
-                    {isRtl ? "طلب الموهبة" : "Request Talent"}
-                  </a>
+                <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                  {canRequestTalent ? (
+                    <a
+                      href="#request-talent"
+                      className="inline-flex min-h-12 flex-1 items-center justify-center rounded-full bg-gold px-6 text-xs font-medium text-black transition duration-300 hover:bg-gold-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:flex-none"
+                    >
+                      {isRtl ? "دعوة الموهبة" : "Invite Talent"}
+                    </a>
+                  ) : isGuest ? (
+                    <Link
+                      href={`/${locale}/login`}
+                      className="inline-flex min-h-12 flex-1 items-center justify-center rounded-full bg-gold px-6 text-xs font-medium text-black transition duration-300 hover:bg-gold-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:flex-none"
+                    >
+                      {isRtl ? "تسجيل الدخول للتواصل" : "Sign in to contact"}
+                    </Link>
+                  ) : isTalentAccount ? (
+                    <span className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] px-6 text-center text-xs leading-6 text-white/45">
+                      {isRtl
+                        ? "حسابات المواهب لا ترسل طلبات مواهب"
+                        : "Talent accounts cannot request talents"}
+                    </span>
+                  ) : null}
 
                   <ProfileShareButton
                     locale={locale}
@@ -565,8 +588,8 @@ export default async function TalentProfilePage({ params }: PageProps) {
             </div>
           </div>
 
-          <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)] lg:items-start">
-            <div className="space-y-6">
+          <div className="mt-5 grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)] lg:items-start">
+            <div className="space-y-5">
               {bio ? (
                 <ContentCard
                   eyebrow={isRtl ? "عن الموهبة" : "About the talent"}
@@ -574,7 +597,7 @@ export default async function TalentProfilePage({ params }: PageProps) {
                   isRtl={isRtl}
                 >
                   <p
-                    className="whitespace-pre-line text-sm leading-8 text-white/65 sm:text-base"
+                    className="max-w-3xl whitespace-pre-line text-sm leading-7 text-white/65 sm:text-base sm:leading-8"
                     style={{
                       fontFamily: isRtl ? "var(--font-noto-arabic)" : undefined,
                     }}
@@ -606,7 +629,7 @@ export default async function TalentProfilePage({ params }: PageProps) {
                   title={isRtl ? "اللغات والمهارات" : "Languages & Skills"}
                   isRtl={isRtl}
                 >
-                  <div className="space-y-6">
+                  <div className="space-y-5">
                     <TagGroup
                       title={isRtl ? "اللغات" : "Languages"}
                       values={languages}
@@ -678,66 +701,116 @@ export default async function TalentProfilePage({ params }: PageProps) {
                 </ContentCard>
               ) : null}
 
-{socialLinks.length > 0 ? (
-  <ContentCard
-    eyebrow={isRtl ? "روابط الموهبة" : "Talent Links"}
-    title={isRtl ? "التواصل والمتابعة" : "Connect & Follow"}
-    isRtl={isRtl}
-  >
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-      {socialLinks.map((item, index) => (
-        <ActionLink
-          key={`${item.label}-${item.href}-${index}`}
-          href={item.href}
-        >
-          {item.label}
-        </ActionLink>
-      ))}
-    </div>
-  </ContentCard>
-) : null}
+              {socialLinks.length > 0 ? (
+                <ContentCard
+                  eyebrow={isRtl ? "روابط الموهبة" : "Talent Links"}
+                  title={isRtl ? "التواصل والمتابعة" : "Connect & Follow"}
+                  isRtl={isRtl}
+                >
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                    {socialLinks.map((item, index) => (
+                      <ActionLink
+                        key={`${item.label}-${item.href}-${index}`}
+                        href={item.href}
+                      >
+                        {item.label}
+                      </ActionLink>
+                    ))}
+                  </div>
+                </ContentCard>
+              ) : null}
             </div>
 
-            <div
-              id="request-talent"
-              className="scroll-mt-28 lg:sticky lg:top-28"
-            >
-              <div className="overflow-hidden rounded-[2rem] border border-gold/20 bg-[linear-gradient(145deg,rgba(201,169,98,0.09),rgba(255,255,255,0.02))] p-4 shadow-2xl shadow-black/20 sm:p-6">
-                <div className="mb-5 px-1">
-                  <p
-                    className={`text-[10px] text-gold ${
-                      isRtl ? "tracking-normal" : "uppercase tracking-[0.28em]"
-                    }`}
-                  >
-                    {isRtl ? "ابدأ مشروعك" : "Start your project"}
+            {canRequestTalent ? (
+              <div
+                id="request-talent"
+                className="scroll-mt-28 lg:sticky lg:top-28"
+              >
+                <div className="overflow-hidden rounded-[1.75rem] border border-gold/20 bg-[linear-gradient(145deg,rgba(201,169,98,0.09),rgba(255,255,255,0.02))] p-4 shadow-2xl shadow-black/20 sm:p-5">
+                  <div className="mb-5 px-1">
+                    <p
+                      className={`text-[10px] text-gold ${
+                        isRtl
+                          ? "tracking-normal"
+                          : "uppercase tracking-[0.28em]"
+                      }`}
+                    >
+                      {isRtl ? "ابدأ مشروعك" : "Start your project"}
+                    </p>
+                    <h2 className="mt-3 text-2xl font-light text-white sm:text-3xl">
+                      {isRtl ? "دعوة هذه الموهبة" : "Invite this talent"}
+                    </h2>
+                    <p className="mt-3 text-sm leading-7 text-white/45">
+                      {isRtl
+                        ? "أرسل تفاصيل مشروعك، وسيتم التواصل معك لمتابعة الدعوة."
+                        : "Share your project details and the team will follow up on the invitation."}
+                    </p>
+                    <p className="mt-3 rounded-2xl border border-white/[0.08] bg-black/20 px-4 py-3 text-xs leading-6 text-white/40">
+                      {isRtl
+                        ? "يتم التواصل الأولي وإدارة الطلب عبر ملامح لحماية خصوصية الطرفين وتنظيم التعاون."
+                        : "Initial contact and request management take place through MLAMH to protect both parties and organize the collaboration."}
+                    </p>
+                  </div>
+
+                  <TalentRequestForm
+                    talentId={talent.id}
+                    locale={locale}
+                    embedded
+                  />
+                </div>
+              </div>
+            ) : isGuest ? (
+              <div className="lg:sticky lg:top-28">
+                <div className="rounded-[1.75rem] border border-gold/20 bg-gold/[0.05] p-5 text-center sm:p-6">
+                  <p className="text-xs text-gold">
+                    {isRtl ? "التواصل مع الموهبة" : "Contact the talent"}
                   </p>
-                  <h2 className="mt-3 text-2xl font-light text-white sm:text-3xl">
-                    {isRtl ? "طلب هذه الموهبة" : "Request this talent"}
+                  <h2 className="mt-3 text-2xl font-light">
+                    {isRtl ? "سجّل الدخول أولًا" : "Sign in first"}
                   </h2>
                   <p className="mt-3 text-sm leading-7 text-white/45">
                     {isRtl
-                      ? "أرسل تفاصيل مشروعك، وسيتم التواصل معك لمتابعة الطلب."
-                      : "Share your project details and the team will follow up with you."}
+                      ? "يجب تسجيل الدخول بحساب ناشر لإرسال دعوة لهذه الموهبة."
+                      : "Sign in with a publisher account to invite this talent."}
                   </p>
-                  <p className="mt-3 rounded-2xl border border-white/[0.08] bg-black/20 px-4 py-3 text-xs leading-6 text-white/40">
-                    {isRtl
-                      ? "يتم التواصل الأولي وإدارة الطلب عبر ملامح لحماية خصوصية الطرفين وتنظيم التعاون."
-                      : "Initial contact and request management take place through MLAMH to protect both parties and organize the collaboration."}
-                  </p>
+                  <Link
+                    href={`/${locale}/login`}
+                    className="mt-5 inline-flex min-h-12 w-full items-center justify-center rounded-2xl bg-gold px-5 text-sm font-medium text-black transition duration-300 hover:bg-gold-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/70"
+                  >
+                    {isRtl ? "تسجيل الدخول" : "Sign in"}
+                  </Link>
                 </div>
-
-                <TalentRequestForm
-                  talentId={talent.id}
-                  locale={locale}
-                  embedded
-                />
               </div>
-            </div>
+            ) : isTalentAccount ? (
+              <div className="lg:sticky lg:top-28">
+                <div className="rounded-[1.75rem] border border-white/10 bg-white/[0.025] p-5 sm:p-6">
+                  <p className="text-xs text-gold">
+                    {isRtl ? "حساب موهبة" : "Talent account"}
+                  </p>
+                  <h2 className="mt-3 text-2xl font-light">
+                    {isRtl
+                      ? "التقديم يكون على الفرص"
+                      : "Apply through opportunities"}
+                  </h2>
+                  <p className="mt-3 text-sm leading-7 text-white/45">
+                    {isRtl
+                      ? "حسابات المواهب لا تطلب مواهب أخرى. يمكنك استعراض الفرص والتقديم عليها من صفحة الفرص."
+                      : "Talent accounts cannot request other talents. Browse opportunities and apply from the opportunities page."}
+                  </p>
+                  <Link
+                    href={`/${locale}/opportunities`}
+                    className="mt-5 inline-flex min-h-12 w-full items-center justify-center rounded-2xl border border-gold/35 px-5 text-sm text-gold transition duration-300 hover:bg-gold/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+                  >
+                    {isRtl ? "استعراض الفرص" : "Browse opportunities"}
+                  </Link>
+                </div>
+              </div>
+            ) : null}
           </div>
 
           {relatedTalents.length > 0 ? (
-  <section className="mx-auto mt-16 max-w-6xl sm:mt-20">
-    <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+  <section className="mx-auto mt-12 max-w-6xl sm:mt-16">
+    <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div>
         <p
           className={`text-[10px] text-gold ${
@@ -761,17 +834,17 @@ export default async function TalentProfilePage({ params }: PageProps) {
 
       <Link
         href={talentPath(locale)}
-        className="text-xs text-gold transition hover:text-gold-soft"
+        className="rounded-sm text-xs text-gold transition duration-300 hover:text-gold-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
       >
         {isRtl ? "عرض جميع المواهب" : "View all talents"}
       </Link>
     </div>
 
-    <div className="grid justify-items-center gap-5 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid items-stretch gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {relatedTalents.map((item) => (
         <div
           key={item.id}
-          className="w-full max-w-[340px]"
+          className="h-full min-w-0 w-full"
         >
           <PublicTalentCard
             talent={item}
@@ -787,14 +860,30 @@ export default async function TalentProfilePage({ params }: PageProps) {
 
       <Footer locale={locale} />
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-black/90 p-3 backdrop-blur-xl lg:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-black/90 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl lg:hidden">
         <div className="mx-auto flex max-w-lg items-stretch gap-3">
-          <a
-            href="#request-talent"
-            className="inline-flex min-h-12 flex-1 items-center justify-center rounded-full bg-gold px-5 text-xs font-medium text-black"
-          >
-            {isRtl ? "طلب الموهبة" : "Request Talent"}
-          </a>
+          {canRequestTalent ? (
+            <a
+              href="#request-talent"
+              className="inline-flex min-h-12 flex-1 items-center justify-center rounded-full bg-gold px-5 text-xs font-medium text-black transition duration-300 hover:bg-gold-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/70"
+            >
+              {isRtl ? "دعوة الموهبة" : "Invite Talent"}
+            </a>
+          ) : isGuest ? (
+            <Link
+              href={`/${locale}/login`}
+              className="inline-flex min-h-12 flex-1 items-center justify-center rounded-full bg-gold px-5 text-center text-xs font-medium text-black transition duration-300 hover:bg-gold-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/70"
+            >
+              {isRtl ? "تسجيل الدخول" : "Sign in"}
+            </Link>
+          ) : isTalentAccount ? (
+            <Link
+              href={`/${locale}/opportunities`}
+              className="inline-flex min-h-12 flex-1 items-center justify-center rounded-full border border-gold/35 px-5 text-center text-xs font-medium text-gold transition duration-300 hover:bg-gold/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+            >
+              {isRtl ? "استعراض الفرص" : "Browse opportunities"}
+            </Link>
+          ) : null}
 
           <div className="flex flex-1 [&>button]:min-h-12 [&>button]:w-full [&>button]:justify-center [&>button]:px-4">
             <ProfileShareButton
@@ -848,7 +937,7 @@ function MiniFact({
   }
 
   return (
-    <div className="min-w-0 rounded-2xl border border-white/[0.08] bg-black/20 px-4 py-4">
+    <div className="min-w-0 rounded-2xl border border-white/[0.08] bg-black/20 px-3.5 py-3 transition-colors duration-300 hover:border-gold/20 hover:bg-white/[0.03]">
       <p
         className={`truncate text-[9px] text-white/35 ${
           isRtl ? "tracking-normal" : "uppercase tracking-[0.2em]"
@@ -856,7 +945,7 @@ function MiniFact({
       >
         {label}
       </p>
-      <p className="mt-2 break-words text-sm font-medium text-white sm:text-base">
+      <p className="mt-1.5 break-words text-sm font-medium leading-5 text-white sm:text-[15px]">
         {value}
       </p>
     </div>
@@ -875,7 +964,7 @@ function ContentCard({
   isRtl: boolean;
 }) {
   return (
-    <section className="rounded-[1.75rem] border border-white/[0.08] bg-white/[0.025] p-5 sm:p-7">
+    <section className="min-w-0 rounded-[1.75rem] border border-white/[0.08] bg-white/[0.025] p-4 transition-colors duration-300 hover:border-white/[0.12] sm:p-6">
       <p
         className={`text-[10px] text-gold ${
           isRtl ? "tracking-normal" : "uppercase tracking-[0.28em]"
@@ -883,10 +972,10 @@ function ContentCard({
       >
         {eyebrow}
       </p>
-      <h2 className="mt-2 text-2xl font-light text-white sm:text-3xl">
+      <h2 className="mt-2 text-xl font-light text-white sm:text-2xl">
         {title}
       </h2>
-      <div className="mt-6">{children}</div>
+      <div className="mt-4 border-t border-white/[0.07] pt-4 sm:mt-5 sm:pt-5">{children}</div>
     </section>
   );
 }
@@ -904,7 +993,7 @@ function DetailsCard({
 }) {
   return (
     <ContentCard eyebrow={eyebrow} title={title} isRtl={isRtl}>
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-2.5 min-[420px]:grid-cols-2 xl:grid-cols-3">
         {items.map((item) => (
           <MiniFact
             key={`${item.label}-${String(item.value)}`}
@@ -930,7 +1019,7 @@ function TagGroup({ title, values }: { title: string; values: string[] }) {
         {values.map((item) => (
           <span
             key={item}
-            className="rounded-full border border-gold/20 bg-gold/[0.06] px-3.5 py-2 text-xs text-gold sm:text-sm"
+            className="rounded-full border border-gold/20 bg-gold/[0.06] px-3 py-1.5 text-xs leading-5 text-gold sm:text-sm"
           >
             {item}
           </span>
@@ -952,7 +1041,7 @@ function ActionLink({
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-white/10 bg-black/20 px-4 text-center text-xs text-white/70 transition hover:border-gold/35 hover:bg-gold/[0.06] hover:text-gold"
+      className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-white/10 bg-black/20 px-4 text-center text-xs text-white/70 transition duration-300 hover:border-gold/35 hover:bg-gold/[0.06] hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
     >
       {children}
     </a>

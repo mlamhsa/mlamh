@@ -294,9 +294,20 @@ export default async function OpportunityDetailPage({
   if (!opportunity) {
     return (
       <main
-        dir={isRtl ? "rtl" : "ltr"}
-        className="flex min-h-screen items-center justify-center bg-background px-5 py-24 text-white"
-      >
+  dir={isRtl ? "rtl" : "ltr"}
+  className="
+    min-h-screen
+    bg-background
+    px-4
+    pb-56
+    pt-24
+    text-white
+    sm:px-6
+    sm:pt-28
+    lg:pb-24
+    lg:pt-32
+  "
+>
         <section className="w-full max-w-xl rounded-[2rem] border border-white/10 bg-white/[0.025] p-7 text-center sm:p-10">
           <p className="text-[10px] uppercase tracking-[0.35em] text-gold">
             {isRtl ? "فرص ملامح" : "MLAMH Opportunities"}
@@ -413,9 +424,20 @@ export default async function OpportunityDetailPage({
 
   return (
     <main
-      dir={isRtl ? "rtl" : "ltr"}
-      className="min-h-screen bg-background px-4 pb-32 pt-36 text-white sm:px-6 sm:pt-40 lg:pb-24 lg:pt-32"
-    >
+  dir={isRtl ? "rtl" : "ltr"}
+  className="
+    min-h-screen
+    bg-background
+    px-4
+    pb-56
+    pt-24
+    text-white
+    sm:px-6
+    sm:pt-28
+    lg:pb-24
+    lg:pt-32
+  "
+>
       <div className="mx-auto max-w-7xl">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <Link
@@ -499,17 +521,33 @@ export default async function OpportunityDetailPage({
             </div>
 
             {canViewApplicationArea && (
-              <div className="w-full lg:w-[330px]">
-                <ApplyArea
-                  locale={locale}
-                  isRtl={isRtl}
-                  isOpen={isOpen}
-                  canApply={canApply}
-                  existingApplication={existingApplication}
-                  opportunityId={Number(opportunity.id)}
-                />
-              </div>
-            )}
+  <div
+    className="
+      fixed
+      inset-x-0
+      bottom-[4.75rem]
+      z-[9000]
+      border-t
+      border-white/10
+      bg-black/95
+      p-3
+      backdrop-blur-xl
+      lg:hidden
+    "
+  >
+    <div className="mx-auto max-w-lg">
+      <ApplyArea
+        locale={locale}
+        isRtl={isRtl}
+        isOpen={isOpen}
+        canApply={canApply}
+        existingApplication={existingApplication}
+        opportunityId={Number(opportunity.id)}
+        compact
+      />
+    </div>
+  </div>
+)}
           </div>
         </header>
 
@@ -676,18 +714,33 @@ export default async function OpportunityDetailPage({
       </div>
 
       {canViewApplicationArea && (
-        <div className="fixed inset-x-0 bottom-0 z-[80] border-t border-white/10 bg-black/95 p-4 backdrop-blur-xl lg:hidden">
-          <ApplyArea
-            locale={locale}
-            isRtl={isRtl}
-            isOpen={isOpen}
-            canApply={canApply}
-            existingApplication={existingApplication}
-            opportunityId={Number(opportunity.id)}
-            compact
-          />
-        </div>
-      )}
+  <div
+    className="
+      fixed
+      inset-x-0
+      bottom-[4.75rem]
+      z-[9000]
+      border-t
+      border-white/10
+      bg-black/95
+      p-3
+      backdrop-blur-xl
+      lg:hidden
+    "
+  >
+    <div className="mx-auto max-w-lg">
+      <ApplyArea
+        locale={locale}
+        isRtl={isRtl}
+        isOpen={isOpen}
+        canApply={canApply}
+        existingApplication={existingApplication}
+        opportunityId={Number(opportunity.id)}
+        compact
+      />
+    </div>
+  </div>
+)}
     </main>
   );
 }
