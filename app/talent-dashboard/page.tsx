@@ -59,7 +59,7 @@ export default async function TalentDashboardPage({ searchParams }: PageProps) {
   } = await authClient.auth.getUser();
 
   if (error || !user) {
-    redirect("/ar/talent-login");
+    redirect("/ar/login");
   }
 
   const adminClient = createAdminClient();

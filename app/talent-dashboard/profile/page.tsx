@@ -186,7 +186,7 @@ export default async function TalentProfileEditorPage({
   } = await authClient.auth.getUser();
 
   if (error || !user) {
-    redirect("/ar/talent-login");
+    redirect("/ar/login");
   }
 
   const adminClient = createAdminClient();

@@ -10,9 +10,15 @@ export function AdminLogoutButton() {
     setIsSigningOut(true);
 
     const supabase = createBrowserSupabaseClient();
-    await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut();
 
-    window.location.href = "/admin-login";
+    if (error) {
+      console.error("Admin sign-out failed:", error);
+      setIsSigningOut(false);
+      return;
+    }
+
+    window.location.replace("/ar/login");
   }
 
   return (

@@ -1,5 +1,4 @@
 import Link from "next/link";
-import PublisherShell from "@/components/publisher/PublisherShell";
 import { updateApplicationStatusAction } from "@/lib/actions/application-status-actions";
 import { createAdminClient } from "@/lib/supabase/admin";
 import Image from "next/image";
@@ -149,7 +148,6 @@ export default async function PublisherApplicantsPage({ params }: PageProps) {
   ).length;
 
   return (
-    <PublisherShell locale={locale} isRtl={isRtl}>
       <div className="space-y-8">
         <header className="rounded-[2.5rem] border border-white/10 bg-gradient-to-br from-white/[0.08] via-white/[0.03] to-gold/[0.06] p-8 md:p-10">
           <p className="text-xs uppercase tracking-[0.35em] text-gold">
@@ -342,7 +340,6 @@ export default async function PublisherApplicantsPage({ params }: PageProps) {
           })}
         </section>
       </div>
-    </PublisherShell>
   );
 }
 

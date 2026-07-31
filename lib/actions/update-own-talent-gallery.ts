@@ -134,7 +134,7 @@ async function getOwnTalent(locale: string) {
   } = await authClient.auth.getUser();
 
   if (error || !user) {
-    redirect(`/${locale}/talent-login`);
+    redirect(`/${locale}/login`);
   }
 
   const supabase = createAdminClient();

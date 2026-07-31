@@ -1,26 +1,65 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
-type OpportunityStatus = "open" | "closed" | "archived";
-type CurrentOpportunityStatus =
+type OpportunityStatus =
   | "draft"
   | "pending_review"
   | "published"
   | "open"
   | "closed"
-  | "archived"
-  | null;
+  | "archived";
+
+type StatusAction = "close" | "archive" | "restore";
+
+const ALLOWED_TRANSITIONS: Record<
+  StatusAction,
+  {
+    from: OpportunityStatus[];
+    to: OpportunityStatus;
+  }
+> = {
+  close: {
+    from: ["open", "published"],
+    to: "closed",
+  },
+  archive: {
+    from: ["draft", "pending_review", "published", "open", "closed"],
+    to: "archived",
+  },
+  restore: {
+    from: ["archived"],
+    to: "closed",
+  },
+};
+
+function normalizeOpportunityId(
+  opportunityId: string | number,
+): string | number {
+  if (
+    (typeof opportunityId === "string" &&
+      opportunityId.trim().length === 0) ||
+    (typeof opportunityId === "number" &&
+      (!Number.isFinite(opportunityId) || opportunityId <= 0))
+  ) {
+    throw new Error("Invalid opportunity ID.");
+  }
+
+  return opportunityId;
+}
 
 async function updateOpportunityStatus(
-  opportunityId: string | number,
-  status: OpportunityStatus,
+  opportunityIdInput: string | number,
+  action: StatusAction,
 ) {
-  if (!opportunityId) {
-    throw new Error("Opportunity ID is required.");
-  }
+  const opportunityId = normalizeOpportunityId(
+    opportunityIdInput,
+  );
+
+  const transition = ALLOWED_TRANSITIONS[action];
 
   const authClient = await createServerSupabaseClient();
   const adminClient = createAdminClient();
@@ -34,106 +73,121 @@ async function updateOpportunityStatus(
     throw new Error("Unauthorized.");
   }
 
-  const { data: profile, error: profileError } = await adminClient
-    .from("profiles")
-    .select("id, account_type")
-    .eq("user_id", user.id)
-    .maybeSingle();
+  const { data: profile, error: profileError } =
+    await adminClient
+      .from("profiles")
+      .select("id, account_type")
+      .eq("user_id", user.id)
+      .maybeSingle();
 
-  if (profileError || !profile) {
-    throw new Error("Profile not found.");
-  }
-
-  if (profile.account_type !== "publisher") {
+  if (
+    profileError ||
+    !profile ||
+    profile.account_type !== "publisher"
+  ) {
     throw new Error("Publisher access required.");
   }
 
-  const { data: publisher, error: publisherError } = await adminClient
-    .from("publishers")
-    .select("id")
-    .eq("profile_id", profile.id)
-    .maybeSingle();
+  const { data: publisher, error: publisherError } =
+    await adminClient
+      .from("publishers")
+      .select("id")
+      .eq("profile_id", profile.id)
+      .maybeSingle();
 
   if (publisherError || !publisher) {
     throw new Error("Publisher account not found.");
   }
 
-  const { data: opportunity, error: opportunityError } = await adminClient
-    .from("opportunities")
-    .select("id, publisher_id, status")
-    .eq("id", opportunityId)
-    .eq("publisher_id", publisher.id)
-    .maybeSingle();
+  const { data: opportunity, error: opportunityError } =
+    await adminClient
+      .from("opportunities")
+      .select("id, status")
+      .eq("id", opportunityId)
+      .eq("publisher_id", publisher.id)
+      .maybeSingle();
 
   if (opportunityError || !opportunity) {
-    throw new Error("Opportunity not found or access denied.");
+    throw new Error(
+      "Opportunity not found or access denied.",
+    );
   }
 
   const currentStatus =
-    opportunity.status as CurrentOpportunityStatus;
+    opportunity.status as OpportunityStatus | null;
 
-  const canUpdate =
-    (status === "closed" &&
-      (currentStatus === "open" || currentStatus === "published")) ||
-    (status === "archived" && currentStatus !== "archived") ||
-    (status === "closed" && currentStatus === "archived");
-
-  if (!canUpdate) {
+  if (
+    !currentStatus ||
+    !transition.from.includes(currentStatus)
+  ) {
     throw new Error("This status change is not allowed.");
   }
 
-  const { error: updateError } = await adminClient
-    .from("opportunities")
-    .update({ status })
-    .eq("id", opportunity.id)
-    .eq("publisher_id", publisher.id);
+  const { data: updatedOpportunity, error: updateError } =
+    await adminClient
+      .from("opportunities")
+      .update({
+        status: transition.to,
+      })
+      .eq("id", opportunity.id)
+      .eq("publisher_id", publisher.id)
+      .eq("status", currentStatus)
+      .select("id")
+      .maybeSingle();
 
   if (updateError) {
     throw new Error(updateError.message);
   }
 
-  revalidatePath("/ar/publisher-dashboard");
-  revalidatePath("/en/publisher-dashboard");
+  if (!updatedOpportunity) {
+    throw new Error(
+      "Opportunity status changed before the update could complete.",
+    );
+  }
 
-  revalidatePath("/ar/publisher-dashboard/opportunities");
-  revalidatePath("/en/publisher-dashboard/opportunities");
+  const locales = ["ar", "en"] as const;
 
-  revalidatePath(
-    `/ar/publisher-dashboard/opportunities/${opportunity.id}`,
-  );
-  revalidatePath(
-    `/en/publisher-dashboard/opportunities/${opportunity.id}`,
-  );
+  for (const locale of locales) {
+    const dashboardPath =
+      `/${locale}/publisher-dashboard`;
 
-  revalidatePath(
-    `/ar/publisher-dashboard/opportunities/${opportunity.id}/edit`,
-  );
-  revalidatePath(
-    `/en/publisher-dashboard/opportunities/${opportunity.id}/edit`,
-  );
+    const opportunitiesPath =
+      `${dashboardPath}/opportunities`;
 
-  revalidatePath(
-    `/ar/publisher-dashboard/opportunities/${opportunity.id}/applicants`,
-  );
-  revalidatePath(
-    `/en/publisher-dashboard/opportunities/${opportunity.id}/applicants`,
-  );
+    const opportunityPath =
+      `${opportunitiesPath}/${opportunity.id}`;
+
+    revalidatePath(dashboardPath);
+    revalidatePath(opportunitiesPath);
+    revalidatePath(opportunityPath);
+    revalidatePath(`${opportunityPath}/edit`);
+    revalidatePath(`${opportunityPath}/applicants`);
+  }
 }
 
 export async function closeOpportunityAction(
   opportunityId: string | number,
-) {
-  await updateOpportunityStatus(opportunityId, "closed");
+): Promise<void> {
+  await updateOpportunityStatus(
+    opportunityId,
+    "close",
+  );
 }
 
 export async function archiveOpportunityAction(
   opportunityId: string | number,
-) {
-  await updateOpportunityStatus(opportunityId, "archived");
+): Promise<void> {
+  await updateOpportunityStatus(
+    opportunityId,
+    "archive",
+  );
 }
 
 export async function restoreOpportunityAction(
   opportunityId: string | number,
-) {
-  await updateOpportunityStatus(opportunityId, "closed");
+): Promise<void> {
+  await updateOpportunityStatus(
+    opportunityId,
+    "restore",
+  );
 }

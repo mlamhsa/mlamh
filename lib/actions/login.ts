@@ -24,10 +24,6 @@ export async function loginAction(formData: FormData) {
     password,
   });
 
-  console.log("LOGIN USER:", data.user?.id);
-console.log("LOGIN SESSION:", Boolean(data.session));
-console.log("LOGIN ERROR:", error?.message);
-
   if (error || !data.user) {
     redirect(`/${locale}/login?error=invalid_login`);
   }
@@ -40,7 +36,6 @@ console.log("LOGIN ERROR:", error?.message);
     .select("account_type")
     .eq("user_id", data.user.id)
     .maybeSingle();
-    console.log("LOGIN PROFILE:", profile);
     
   if (profile?.account_type === "talent") {
     redirect(`/${locale}/talent-dashboard`);

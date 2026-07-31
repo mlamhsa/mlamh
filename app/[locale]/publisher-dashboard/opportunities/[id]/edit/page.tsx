@@ -1,7 +1,6 @@
 import Link from "next/link";
 
 import OpportunityEditForm from "@/components/publisher/OpportunityEditForm";
-import PublisherShell from "@/components/publisher/PublisherShell";
 import { requirePublisher } from "@/lib/auth/require-publisher";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -23,7 +22,6 @@ export default async function EditOpportunityPage({ params }: PageProps) {
 
   if (!Number.isInteger(opportunityId) || opportunityId <= 0) {
     return (
-      <PublisherShell locale={locale} isRtl={isRtl}>
         <div className="rounded-[2rem] border border-red-400/20 bg-red-400/[0.04] p-8 text-red-200">
           <p className="arabic-safe text-xs uppercase tracking-[0.35em] text-red-300/70">
             {isRtl ? "رابط غير صالح" : "Invalid Link"}
@@ -40,7 +38,6 @@ export default async function EditOpportunityPage({ params }: PageProps) {
             {isRtl ? "العودة إلى الفرص" : "Back to Opportunities"}
           </Link>
         </div>
-      </PublisherShell>
     );
   }
 
@@ -57,7 +54,6 @@ export default async function EditOpportunityPage({ params }: PageProps) {
 
   if (!opportunity) {
     return (
-      <PublisherShell locale={locale} isRtl={isRtl}>
         <div className="rounded-[2rem] border border-white/10 bg-white/[0.035] p-8">
           <p className="arabic-safe text-xs uppercase tracking-[0.35em] text-gold">
             {isRtl ? "غير موجود" : "Not Found"}
@@ -80,12 +76,10 @@ export default async function EditOpportunityPage({ params }: PageProps) {
             {isRtl ? "العودة إلى الفرص" : "Back to Opportunities"}
           </Link>
         </div>
-      </PublisherShell>
     );
   }
 
   return (
-    <PublisherShell locale={locale} isRtl={isRtl}>
       <div className="space-y-6">
         <header className="rounded-[2rem] border border-white/10 bg-gradient-to-br from-white/[0.07] via-white/[0.03] to-gold/[0.05] p-6 sm:p-8">
           <Link
@@ -118,6 +112,5 @@ export default async function EditOpportunityPage({ params }: PageProps) {
           />
         </section>
       </div>
-    </PublisherShell>
   );
 }

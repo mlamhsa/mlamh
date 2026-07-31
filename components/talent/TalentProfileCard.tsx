@@ -141,7 +141,7 @@ export default function TalentProfileCard({
           <div className="grid w-full gap-3 sm:grid-cols-3 xl:w-auto">
             <Link
               href={`/${locale}/talent-dashboard/profile`}
-              className="arabic-safe inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-gold/40 bg-gold/[0.06] px-5 text-[10px] uppercase tracking-[0.18em] text-gold transition hover:bg-gold hover:text-black"
+              className="arabic-safe inline-flex h-10 items-center justify-center gap-2 rounded-full border border-gold/40 bg-gold/[0.06] px-4 text-[10px] uppercase tracking-[0.14em] text-gold transition hover:bg-gold hover:text-black"
             >
               <Edit3 size={15} />
 
@@ -154,7 +154,7 @@ export default function TalentProfileCard({
                   href={publicProfileUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="arabic-safe inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.025] px-5 text-[10px] uppercase tracking-[0.18em] text-white transition hover:border-gold/40 hover:text-gold"
+                  className="arabic-safe inline-flex h-10 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.025] px-4 text-[10px] uppercase tracking-[0.14em] text-white transition hover:border-gold/40 hover:text-gold"
                 >
                   <Eye size={15} />
 
@@ -165,7 +165,7 @@ export default function TalentProfileCard({
                   locale={isRtl ? "ar" : "en"}
                   title={talentName}
                   url={publicProfileUrl}
-                  className="min-h-12 w-full justify-center px-5 py-0 tracking-[0.18em]"
+                  className="h-10 w-full justify-center px-4 py-0 tracking-[0.14em]"
                 />
               </>
             ) : null}
@@ -182,7 +182,7 @@ export default function TalentProfileCard({
           </div>
         ) : null}
 
-        <div className="mt-8 rounded-[1.5rem] border border-white/10 bg-black/20 p-5">
+<div className="mt-6 rounded-2xl border border-gold/15 bg-gold/[0.04] p-4">
           <div className="mb-3 flex items-center justify-between gap-4 text-xs uppercase tracking-[0.22em] text-white/40">
             <span>
               {isRtl ? "اكتمال الملف" : "Profile completion"}
@@ -214,7 +214,7 @@ export default function TalentProfileCard({
   />
 </div>
 
-          <p className="mt-3 text-xs leading-6 text-white/40">
+<p className="mt-2 text-xs text-white/45">
             {profileCompletion >= 100
               ? isRtl
                 ? "ملفك مكتمل وجاهز للظهور أمام الشركات."

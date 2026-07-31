@@ -25,13 +25,15 @@ const IMAGE_EXTENSIONS: Record<string, string> = {
 
 const ALLOWED_PUBLISHER_TYPES = new Set([
   "individual",
+  "small_business",
+  "company",
+  "agency",
+  "brand",
+  "government_entity",
+  "nonprofit",
   "salon",
   "store",
-  "agency",
-  "production_company",
-  "brand",
-  "photographer",
-  "marketer",
+  "media_company",
   "other",
 ]);
 
@@ -133,7 +135,7 @@ async function uploadPublisherImage({
   return data.publicUrl;
 }
 
-export async function updatePublisherProfileAction(
+async function savePublisherProfile(
   formData: FormData,
 ) {
   const locale = getLocale(formData);
@@ -147,7 +149,7 @@ export async function updatePublisherProfileAction(
   } = await authClient.auth.getUser();
 
   if (userError || !user) {
-    redirect(`/${locale}/publisher-login`);
+    redirect(`/${locale}/login`);
   }
 
   const { data: profile, error: profileError } =
@@ -271,18 +273,43 @@ export async function updatePublisherProfileAction(
   }
 
   if (!updatedPublisher) {
-    throw new Error("Publisher profile could not be updated.");
+    throw new Error(
+      "Publisher profile could not be updated.",
+    );
   }
 
   revalidatePath(`/${locale}/publisher-dashboard`);
+
   revalidatePath(
     `/${locale}/publisher-dashboard/profile`,
   );
+
   revalidatePath(
     `/${locale}/publisher-dashboard/settings`,
   );
 
+  return {
+    locale,
+  };
+}
+
+export async function updatePublisherProfileAction(
+  formData: FormData,
+): Promise<void> {
+  const { locale } =
+    await savePublisherProfile(formData);
+
   redirect(
     `/${locale}/publisher-dashboard/profile?saved=1`,
   );
+}
+
+export async function autoSavePublisherProfileAction(
+  formData: FormData,
+) {
+  await savePublisherProfile(formData);
+
+  return {
+    success: true as const,
+  };
 }

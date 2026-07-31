@@ -88,7 +88,7 @@ export default async function PublisherConversationPage({
   } = await authClient.auth.getUser();
 
   if (userError || !user) {
-    redirect(`/${locale}/publisher-login`);
+    redirect(`/${locale}/login`);
   }
 
   const adminClient = createAdminClient();
@@ -106,7 +106,7 @@ export default async function PublisherConversationPage({
   }
 
   if (!profile || profile.account_type !== "publisher") {
-    redirect(`/${locale}/publisher-login`);
+    redirect(`/${locale}/login`);
   }
 
   const { data: publisher, error: publisherError } = await adminClient

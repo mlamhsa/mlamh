@@ -1,17 +1,20 @@
 import { redirect } from "next/navigation";
+
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+
+const ADMIN_LOGIN_PATH = "/ar/login";
 
 export async function requireAdminAccess() {
   const authClient = await createServerSupabaseClient();
 
   const {
     data: { user },
-    error,
+    error: userError,
   } = await authClient.auth.getUser();
 
-  if (error || !user) {
-    redirect("/admin-login");
+  if (userError || !user) {
+    redirect(ADMIN_LOGIN_PATH);
   }
 
   const adminClient = createAdminClient();
@@ -22,8 +25,12 @@ export async function requireAdminAccess() {
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (profileError || profile?.account_type !== "admin") {
-    redirect("/admin-login");
+  if (
+    profileError ||
+    !profile ||
+    profile.account_type !== "admin"
+  ) {
+    redirect(ADMIN_LOGIN_PATH);
   }
 
   return user;

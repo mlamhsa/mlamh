@@ -30,7 +30,7 @@ export default async function TalentClaimProfilePage({
   } = await authClient.auth.getUser();
 
   if (error || !user) {
-    redirect("/talent-login");
+    redirect("/ar/login");
   }
 
   const { q, submitted } = await searchParams;

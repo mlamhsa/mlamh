@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { redirect, notFound } from "next/navigation";
+import { notFound } from "next/navigation";
 import { revalidatePath } from "next/cache";
+
+import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export const metadata = {
   title: "Opportunity Details — MLAMH Admin",
@@ -12,28 +13,6 @@ export const metadata = {
 type PageProps = {
   params: Promise<{ id: string }>;
 };
-
-async function requireAdminAccess() {
-  const authClient = await createServerSupabaseClient();
-
-  const {
-    data: { user },
-    error,
-  } = await authClient.auth.getUser();
-
-  if (error || !user) redirect("/admin-login");
-
-  const adminClient = createAdminClient();
-
-  const { data: adminUser, error: adminError } = await adminClient
-    .from("admin_users")
-    .select("id")
-    .eq("id", user.id)
-    .eq("role", "admin")
-    .maybeSingle();
-
-  if (adminError || !adminUser) redirect("/admin-login");
-}
 
 async function publishOpportunityAction(formData: FormData) {
   "use server";

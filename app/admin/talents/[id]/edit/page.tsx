@@ -4,6 +4,7 @@ import { EditTalentGalleryManager } from "@/components/admin/EditTalentGalleryMa
 import { updateTalentAction } from "@/lib/actions/update-talent";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { getTalentById } from "@/lib/supabase/talent-by-id";
 
 export const dynamic = "force-dynamic";
@@ -12,28 +13,6 @@ type PageProps = {
   params: Promise<{ id: string }>;
   searchParams: Promise<{ updated?: string }>;
 };
-
-async function requireAdminAccess() {
-  const authClient = await createServerSupabaseClient();
-
-  const {
-    data: { user },
-    error,
-  } = await authClient.auth.getUser();
-
-  if (error || !user) redirect("/admin-login");
-
-  const adminClient = createAdminClient();
-
-  const { data: adminUser, error: adminError } = await adminClient
-    .from("admin_users")
-    .select("id")
-    .eq("id", user.id)
-    .eq("role", "admin")
-    .maybeSingle();
-
-  if (adminError || !adminUser) redirect("/admin-login");
-}
 
 function Field({
   label,

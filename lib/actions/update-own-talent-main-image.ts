@@ -80,7 +80,7 @@ export async function updateOwnTalentMainImageAction(
   } = await authClient.auth.getUser();
 
   if (authError || !user) {
-    redirect(`/${locale}/talent-login`);
+    redirect(`/${locale}/login`);
   }
 
   const supabase = createAdminClient();

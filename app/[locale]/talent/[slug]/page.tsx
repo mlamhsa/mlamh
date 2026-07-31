@@ -6,7 +6,7 @@ import { Navbar } from "@/components/Navbar";
 import { PublicTalentCard } from "@/components/public/PublicTalentCard";
 import { PublicTalentGallery } from "@/components/public/PublicTalentGallery";
 import { ProfileShareButton } from "@/components/public/ProfileShareButton";
-import { TalentRequestForm } from "@/components/public/TalentRequestForm";
+import { PublisherTalentInvitePanel } from "@/components/publisher/PublisherTalentInvitePanel";
 
 import { getCurrentAccountType } from "@/lib/auth/get-current-account-type";
 import { isValidLocale, type Locale } from "@/lib/i18n";
@@ -752,11 +752,10 @@ export default async function TalentProfilePage({ params }: PageProps) {
                     </p>
                   </div>
 
-                  <TalentRequestForm
-                    talentId={talent.id}
-                    locale={locale}
-                    embedded
-                  />
+                  <PublisherTalentInvitePanel
+  talentId={talent.id}
+  locale={locale}
+/>
                 </div>
               </div>
             ) : isGuest ? (
@@ -860,39 +859,6 @@ export default async function TalentProfilePage({ params }: PageProps) {
 
       <Footer locale={locale} />
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-black/90 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl lg:hidden">
-        <div className="mx-auto flex max-w-lg items-stretch gap-3">
-          {canRequestTalent ? (
-            <a
-              href="#request-talent"
-              className="inline-flex min-h-12 flex-1 items-center justify-center rounded-full bg-gold px-5 text-xs font-medium text-black transition duration-300 hover:bg-gold-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/70"
-            >
-              {isRtl ? "دعوة الموهبة" : "Invite Talent"}
-            </a>
-          ) : isGuest ? (
-            <Link
-              href={`/${locale}/login`}
-              className="inline-flex min-h-12 flex-1 items-center justify-center rounded-full bg-gold px-5 text-center text-xs font-medium text-black transition duration-300 hover:bg-gold-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/70"
-            >
-              {isRtl ? "تسجيل الدخول" : "Sign in"}
-            </Link>
-          ) : isTalentAccount ? (
-            <Link
-              href={`/${locale}/opportunities`}
-              className="inline-flex min-h-12 flex-1 items-center justify-center rounded-full border border-gold/35 px-5 text-center text-xs font-medium text-gold transition duration-300 hover:bg-gold/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
-            >
-              {isRtl ? "استعراض الفرص" : "Browse opportunities"}
-            </Link>
-          ) : null}
-
-          <div className="flex flex-1 [&>button]:min-h-12 [&>button]:w-full [&>button]:justify-center [&>button]:px-4">
-            <ProfileShareButton
-              locale={locale}
-              title={name || "MLAMH Talent"}
-            />
-          </div>
-        </div>
-      </div>
     </main>
   );
 }

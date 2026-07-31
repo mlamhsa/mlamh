@@ -61,10 +61,6 @@ const isRtl = true;
 
 const talentId = talent?.id;
 
-console.log("USER ID:", user.id);
-console.log("TALENT:", talent);
-console.log("TALENT ID USED:", talentId);
-
 if (!talentId) {
   return (
     <main className="min-h-screen bg-black px-6 py-10 text-white">
@@ -95,8 +91,6 @@ if (!talentId) {
     `)
     .eq("talent_id", talentId)
     .order("created_at", { ascending: false });
-
-    console.log("APPLICATIONS:", applications);
 
   const publisherIds =
     applications

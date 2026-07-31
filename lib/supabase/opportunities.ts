@@ -1,13 +1,29 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Opportunity } from "@/lib/types/opportunity";
 
+const PUBLISHED_STATUSES = ["published", "open"] as const;
+
+export type PublisherInviteOpportunity = {
+  id: number;
+  title: string;
+  slug: string;
+  opportunity_type: string | null;
+  city_ar: string | null;
+  city_en: string | null;
+  status: string;
+  published: boolean;
+  created_at: string;
+};
+
 export async function getPublishedOpportunities(): Promise<Opportunity[]> {
   const supabase = createAdminClient();
 
   const { data, error } = await supabase
     .from("opportunities")
     .select("*")
-    .or("published.eq.true,status.eq.open,status.eq.published")
+    .or(
+      `published.eq.true,status.eq.${PUBLISHED_STATUSES[0]},status.eq.${PUBLISHED_STATUSES[1]}`,
+    )
     .neq("status", "archived")
     .order("created_at", { ascending: false });
 
@@ -19,8 +35,47 @@ export async function getPublishedOpportunities(): Promise<Opportunity[]> {
   return (data ?? []) as Opportunity[];
 }
 
+export async function getPublishedOpportunitiesByPublisher(
+  publisherId: number,
+): Promise<PublisherInviteOpportunity[]> {
+  if (!Number.isInteger(publisherId) || publisherId <= 0) {
+    return [];
+  }
+
+  const supabase = createAdminClient();
+
+  const { data, error } = await supabase
+    .from("opportunities")
+    .select(`
+      id,
+      title,
+      slug,
+      opportunity_type,
+      city_ar,
+      city_en,
+      status,
+      published,
+      created_at
+    `)
+    .eq("publisher_id", publisherId)
+    .eq("published", true)
+    .in("status", [...PUBLISHED_STATUSES])
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error(
+      "[getPublishedOpportunitiesByPublisher]",
+      error,
+    );
+
+    return [];
+  }
+
+  return (data ?? []) as PublisherInviteOpportunity[];
+}
+
 export async function getOpportunityBySlug(
-  slug: string
+  slug: string,
 ): Promise<Opportunity | null> {
   const supabase = createAdminClient();
 
@@ -28,7 +83,9 @@ export async function getOpportunityBySlug(
     .from("opportunities")
     .select("*")
     .eq("slug", slug)
-    .or("published.eq.true,status.eq.open,status.eq.published")
+    .or(
+      `published.eq.true,status.eq.${PUBLISHED_STATUSES[0]},status.eq.${PUBLISHED_STATUSES[1]}`,
+    )
     .neq("status", "archived")
     .maybeSingle();
 

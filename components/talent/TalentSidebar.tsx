@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
@@ -8,6 +9,7 @@ import {
   BriefcaseBusiness,
   CalendarDays,
   GalleryVerticalEnd,
+  Languages,
   LayoutDashboard,
   LogOut,
   Settings,
@@ -25,7 +27,7 @@ type TalentSidebarProps = {
 type SidebarLinkProps = {
   href: string;
   label: string;
-  icon: React.ReactNode;
+  icon: ReactNode;
   badge?: number;
   active?: boolean;
 };
@@ -37,10 +39,27 @@ export default function TalentSidebar({
 }: TalentSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+
   const isAr = locale === "ar";
   const [loggingOut, setLoggingOut] = useState(false);
 
-  const isActive = (href: string) => pathname === href;
+  const dashboardHref = `/${locale}/talent-dashboard`;
+  const switchedLocale = isAr ? "en" : "ar";
+
+  /*
+   * الرئيسية تتطابق مع المسار نفسه فقط.
+   * بقية الروابط تظل نشطة داخل الصفحات الفرعية التابعة لها.
+   */
+  const isActive = useCallback(
+    (href: string, exact = false) => {
+      if (exact) {
+        return pathname === href;
+      }
+
+      return pathname === href || pathname.startsWith(`${href}/`);
+    },
+    [pathname],
+  );
 
   const handleLogout = useCallback(async () => {
     if (loggingOut) {
@@ -61,93 +80,134 @@ export default function TalentSidebar({
     router.refresh();
   }, [locale, loggingOut, router]);
 
+  const items = [
+    {
+      href: dashboardHref,
+      label: isAr ? "الرئيسية" : "Home",
+      icon: <LayoutDashboard size={18} aria-hidden="true" />,
+      exact: true,
+      badge: undefined,
+    },
+    {
+      href: `${dashboardHref}/profile`,
+      label: isAr ? "الملف الشخصي" : "Profile",
+      icon: <UserRound size={18} aria-hidden="true" />,
+      exact: false,
+      badge: undefined,
+    },
+    {
+      href: `${dashboardHref}/requests`,
+      label: isAr ? "طلباتي" : "Applications",
+      icon: <BriefcaseBusiness size={18} aria-hidden="true" />,
+      exact: false,
+      badge:
+        totalApplications > 0
+          ? totalApplications
+          : undefined,
+    },
+    {
+      href: `${dashboardHref}/gallery`,
+      label: isAr ? "معرض الأعمال" : "Portfolio",
+      icon: <GalleryVerticalEnd size={18} aria-hidden="true" />,
+      exact: false,
+      badge: undefined,
+    },
+    {
+      href: `${dashboardHref}/notifications`,
+      label: isAr ? "الإشعارات" : "Notifications",
+      icon: <Bell size={18} aria-hidden="true" />,
+      exact: false,
+      badge:
+        notificationCount > 0
+          ? notificationCount
+          : undefined,
+    },
+    {
+      href: `${dashboardHref}/settings`,
+      label: isAr ? "الإعدادات" : "Settings",
+      icon: <Settings size={18} aria-hidden="true" />,
+      exact: false,
+      badge: undefined,
+    },
+  ];
+
   return (
-    <aside className="rounded-[2rem] border border-white/10 bg-white/[0.035] p-5 lg:sticky lg:top-6 lg:h-[calc(100vh-3rem)]">
-      <div className="border-b border-white/10 pb-6">
-        <p className="text-3xl font-light text-gold">ملامح</p>
+    <aside className="w-full overflow-hidden rounded-[2rem] border border-white/10 bg-black/80 p-5 backdrop-blur-xl sm:p-6">
+      <Link
+  href={dashboardHref}
+  className="block border-b border-white/10 pb-5"
+>
+  <p className="arabic-safe text-xs uppercase tracking-[0.28em] text-white/35">
+    {isAr ? "مساحة الموهبة" : "Talent Workspace"}
+  </p>
+</Link>
 
-        <p className="arabic-safe mt-2 text-xs uppercase tracking-[0.3em] text-white/35">
-          {isAr ? "مساحة الموهبة" : "Talent Workspace"}
-        </p>
-      </div>
-
-      <nav className="mt-6 grid gap-2" aria-label={isAr ? "تنقل الموهبة" : "Talent navigation"}>
-        <SidebarLink
-          active={isActive(`/${locale}/talent-dashboard`)}
-          icon={<LayoutDashboard size={17} aria-hidden="true" />}
-          href={`/${locale}/talent-dashboard`}
-          label={isAr ? "الرئيسية" : "Home"}
-        />
-
-        <SidebarLink
-          active={isActive(`/${locale}/talent-dashboard/profile`)}
-          icon={<UserRound size={17} aria-hidden="true" />}
-          href={`/${locale}/talent-dashboard/profile`}
-          label={isAr ? "الملف الشخصي" : "Profile"}
-        />
-
-        <SidebarLink
-          active={isActive(`/${locale}/talent-dashboard/requests`)}
-          icon={<BriefcaseBusiness size={17} aria-hidden="true" />}
-          href={`/${locale}/talent-dashboard/requests`}
-          label={isAr ? "طلباتي" : "Applications"}
-          badge={totalApplications > 0 ? totalApplications : undefined}
-        />
-
-        <SidebarLink
-          active={isActive(`/${locale}/talent-dashboard/gallery`)}
-          icon={<GalleryVerticalEnd size={17} aria-hidden="true" />}
-          href={`/${locale}/talent-dashboard/gallery`}
-          label={isAr ? "معرض الأعمال" : "Portfolio"}
-        />
-
-        <SidebarLink
-          active={isActive(`/${locale}/talent-dashboard/notifications`)}
-          icon={<Bell size={17} aria-hidden="true" />}
-          href={`/${locale}/talent-dashboard/notifications`}
-          label={isAr ? "الإشعارات" : "Notifications"}
-          badge={notificationCount > 0 ? notificationCount : undefined}
-        />
-
-        <SidebarLink
-          active={isActive(`/${locale}/talent-dashboard/settings`)}
-          icon={<Settings size={17} aria-hidden="true" />}
-          href={`/${locale}/talent-dashboard/settings`}
-          label={isAr ? "الإعدادات" : "Settings"}
-        />
-
-        <SidebarLink
-          icon={<CalendarDays size={17} aria-hidden="true" />}
-          href={`/${locale}/opportunities`}
-          label={isAr ? "استعراض الفرص" : "Browse Opportunities"}
-        />
+      <nav
+  className="mt-6 flex w-full flex-col gap-2"
+  aria-label={
+    isAr ? "تنقل الموهبة" : "Talent navigation"
+  }
+>
+        {items.map((item) => (
+          <SidebarLink
+            key={item.href}
+            href={item.href}
+            label={item.label}
+            icon={item.icon}
+            badge={item.badge}
+            active={isActive(item.href, item.exact)}
+          />
+        ))}
       </nav>
 
-      <div className="mt-8 space-y-3 border-t border-white/10 pt-6">
+      <div className="mt-6 grid w-full gap-3 border-t border-white/10 pt-6">
         <Link
-          href={`/${locale === "ar" ? "en" : "ar"}/talent-dashboard`}
-          aria-label={isAr ? "Switch to English" : "التبديل إلى العربية"}
-          className="block rounded-2xl border border-white/10 px-4 py-3 text-center text-xs uppercase tracking-[0.22em] text-white/50 transition hover:border-gold/40 hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+          href={`/${locale}/opportunities`}
+          className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl border border-gold bg-gold/10 px-5 py-4 text-center text-xs uppercase tracking-[0.18em] text-gold transition hover:bg-gold hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
         >
-          {isAr ? "English" : "العربية"}
+          <CalendarDays size={17} aria-hidden="true" />
+
+          <span>
+            {isAr
+              ? "استعراض الفرص"
+              : "Browse Opportunities"}
+          </span>
+        </Link>
+
+        <Link
+          href={`/${switchedLocale}/talent-dashboard`}
+          aria-label={
+            isAr
+              ? "Switch to English"
+              : "التبديل إلى العربية"
+          }
+          className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl border border-white/10 px-5 py-4 text-center text-sm text-white/55 transition hover:border-gold/40 hover:bg-gold/5 hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+        >
+          <Languages size={17} aria-hidden="true" />
+
+          <span>{isAr ? "English" : "العربية"}</span>
         </Link>
 
         <button
           type="button"
           onClick={handleLogout}
           disabled={loggingOut}
-          aria-label={isAr ? "تسجيل الخروج" : "Sign out"}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-red-400/20 bg-red-400/[0.04] px-4 py-3 text-sm text-red-200 transition hover:bg-red-400/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300/60 disabled:cursor-not-allowed disabled:opacity-50"
+          aria-label={
+            isAr ? "تسجيل الخروج" : "Sign out"
+          }
+          className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl border border-red-500/20 bg-red-500/5 px-5 py-4 text-sm text-red-300 transition hover:bg-red-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300/60 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <LogOut size={16} aria-hidden="true" />
+          <LogOut size={17} aria-hidden="true" />
 
-          {loggingOut
-            ? isAr
-              ? "جارٍ تسجيل الخروج..."
-              : "Signing out..."
-            : isAr
-              ? "تسجيل الخروج"
-              : "Sign Out"}
+          <span>
+            {loggingOut
+              ? isAr
+                ? "جارٍ تسجيل الخروج..."
+                : "Signing out..."
+              : isAr
+                ? "تسجيل الخروج"
+                : "Sign Out"}
+          </span>
         </button>
       </div>
     </aside>
@@ -165,10 +225,10 @@ function SidebarLink({
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
-      className={`flex min-w-0 items-center gap-3 rounded-2xl border px-4 py-4 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 ${
+      className={`relative flex min-h-14 w-full min-w-0 items-center gap-3 rounded-2xl border px-4 py-3 text-start transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 ${
         active
-          ? "border-gold/40 bg-gold/[0.12] text-gold"
-          : "border-transparent text-white/55 hover:border-white/10 hover:bg-white/[0.03] hover:text-white"
+          ? "border-gold/40 bg-gold/10 text-gold"
+          : "border-white/10 text-white/60 hover:bg-white/[0.03] hover:text-white"
       }`}
     >
       <span
@@ -179,14 +239,13 @@ function SidebarLink({
         {icon}
       </span>
 
-      <span className="min-w-0 truncate">{label}</span>
+      <span className="min-w-0 flex-1 text-sm leading-5">
+  {label}
+</span>
 
-      {badge !== undefined ? (
-        <span
-          className="inline-flex min-w-5 shrink-0 items-center justify-center rounded-full bg-gold px-1.5 py-0.5 text-[10px] font-medium leading-none text-black"
-          aria-label={String(badge)}
-        >
-          {badge}
+      {badge !== undefined && badge > 0 ? (
+        <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-gold px-1.5 text-[9px] font-semibold leading-none text-black">
+          {badge > 99 ? "99+" : badge}
         </span>
       ) : null}
     </Link>

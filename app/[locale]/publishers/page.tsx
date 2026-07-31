@@ -124,7 +124,7 @@ export default async function PublishersPage({
               </Link>
 
               <Link
-                href={`/${locale}/publisher-login`}
+                href={`/${locale}/login`}
                 className="inline-flex min-h-14 items-center justify-center rounded-full border border-gold/35 px-8 text-sm text-gold transition hover:bg-gold/10"
               >
                 {isRtl ? "تسجيل دخول الشركات" : "Company Login"}

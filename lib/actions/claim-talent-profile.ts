@@ -20,7 +20,7 @@ export async function submitTalentClaimAction(formData: FormData) {
   } = await authClient.auth.getUser();
 
   if (error || !user) {
-    redirect("/talent-login");
+    redirect("/ar/login");
   }
 
   const adminClient = createAdminClient();

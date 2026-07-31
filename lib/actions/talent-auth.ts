@@ -1,60 +1,147 @@
 "use server";
 
 import { redirect } from "next/navigation";
+
+import { isValidLocale, type Locale } from "@/lib/i18n";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { isValidLocale } from "@/lib/i18n";
+
+type AccountType = "admin" | "publisher" | "talent";
 
 function getString(formData: FormData, key: string) {
   const value = formData.get(key);
+
   return typeof value === "string" ? value.trim() : "";
 }
 
-function safeLocale(locale?: string) {
+function safeLocale(locale?: string): Locale {
   return locale && isValidLocale(locale) ? locale : "ar";
 }
 
-function loginPath(locale?: string, error?: string) {
-  const safe = safeLocale(locale);
-
+function loginPath(locale: Locale, error?: string) {
   return error
-  ? `/${safe}/login?error=${encodeURIComponent(error)}`
-  : `/${safe}/login`;
+    ? `/${locale}/login?error=${encodeURIComponent(error)}`
+    : `/${locale}/login`;
 }
 
-async function ensureTalentUser(userId: string, email?: string | null) {
+function dashboardPath(locale: Locale, accountType: AccountType) {
+  if (accountType === "admin") {
+    return "/admin";
+  }
+
+  if (accountType === "publisher") {
+    return `/${locale}/publisher-dashboard`;
+  }
+
+  return `/${locale}/talent-dashboard`;
+}
+
+function normalizeAccountType(
+  value: string | null | undefined,
+): AccountType | null {
+  if (
+    value === "admin" ||
+    value === "publisher" ||
+    value === "talent"
+  ) {
+    return value;
+  }
+
+  return null;
+}
+
+async function getAccountType(
+  userId: string,
+): Promise<AccountType | null> {
   const adminClient = createAdminClient();
 
-  const { error: talentUserError } = await adminClient.from("talent_users").upsert({
-    id: userId,
-    email: email ?? null,
-    role: "talent",
-  });
+  const { data, error } = await adminClient
+    .from("profiles")
+    .select("account_type")
+    .eq("user_id", userId)
+    .maybeSingle();
 
-  if (talentUserError) {
-    throw new Error(`[ensureTalentUser:talent_users] ${talentUserError.message}`);
+  if (error) {
+    throw new Error(
+      `[getAccountType:profiles] ${error.message}`,
+    );
   }
 
-  const { error: profileError } = await adminClient.from("profiles").upsert(
-    {
-      user_id: userId,
-      account_type: "talent",
-      display_name: email ?? "Talent",
-      status: "active",
-    },
-    {
-      onConflict: "user_id",
-    }
-  );
+  return normalizeAccountType(data?.account_type);
+}
 
-  if (profileError) {
-    throw new Error(`[ensureTalentUser:profiles] ${profileError.message}`);
+async function createTalentAccount(
+  userId: string,
+  email?: string | null,
+) {
+  const adminClient = createAdminClient();
+
+  const { data: existingProfile, error: profileLookupError } =
+    await adminClient
+      .from("profiles")
+      .select("id, account_type")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+  if (profileLookupError) {
+    throw new Error(
+      `[createTalentAccount:profile_lookup] ${profileLookupError.message}`,
+    );
+  }
+
+  /*
+   * لا نسمح بتحويل حساب موجود من admin أو publisher إلى talent.
+   */
+  if (
+    existingProfile &&
+    existingProfile.account_type !== "talent"
+  ) {
+    throw new Error("ACCOUNT_TYPE_CONFLICT");
+  }
+
+  if (!existingProfile) {
+    const { error: profileInsertError } = await adminClient
+      .from("profiles")
+      .insert({
+        user_id: userId,
+        account_type: "talent",
+        display_name: email ?? "Talent",
+        status: "active",
+      });
+
+    if (profileInsertError) {
+      throw new Error(
+        `[createTalentAccount:profiles] ${profileInsertError.message}`,
+      );
+    }
+  }
+
+  const { error: talentUserError } = await adminClient
+    .from("talent_users")
+    .upsert(
+      {
+        id: userId,
+        email: email ?? null,
+        role: "talent",
+      },
+      {
+        onConflict: "id",
+      },
+    );
+
+  if (talentUserError) {
+    throw new Error(
+      `[createTalentAccount:talent_users] ${talentUserError.message}`,
+    );
   }
 }
 
+/*
+ * تستخدم فقط عند اختيار المستخدم إنشاء حساب موهبة جديد.
+ */
 export async function signUpTalentAction(
   formData: FormData,
-  locale = "ar"
+  locale = "ar",
 ): Promise<void> {
   const safe = safeLocale(locale);
 
@@ -80,14 +167,33 @@ export async function signUpTalentAction(
     redirect(loginPath(safe, "signup_failed"));
   }
 
-  await ensureTalentUser(data.user.id, data.user.email ?? email);
+  try {
+    await createTalentAccount(
+      data.user.id,
+      data.user.email ?? email,
+    );
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message === "ACCOUNT_TYPE_CONFLICT"
+    ) {
+      await supabase.auth.signOut();
+      redirect(loginPath(safe, "account_type_conflict"));
+    }
 
-  redirect("/ar/talent-dashboard/profile");
+    throw error;
+  }
+
+  redirect(`/${safe}/talent-dashboard/profile`);
 }
 
+/*
+ * صفحة الدخول موحدة لكل أنواع الحسابات.
+ * لا تنشئ سجلات ولا تغير account_type أثناء تسجيل الدخول.
+ */
 export async function signInTalentAction(
   formData: FormData,
-  locale = "ar"
+  locale = "ar",
 ): Promise<void> {
   const safe = safeLocale(locale);
 
@@ -100,26 +206,48 @@ export async function signInTalentAction(
 
   const supabase = await createServerSupabaseClient();
 
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
+  const { data, error } =
+    await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
   if (error || !data.user) {
-    redirect(loginPath(safe, error?.message || "invalid_login"));
+    redirect(
+      loginPath(
+        safe,
+        error?.message || "invalid_login",
+      ),
+    );
   }
 
-  await ensureTalentUser(data.user.id, data.user.email ?? email);
+  let accountType: AccountType | null = null;
 
-  redirect("/ar/talent-dashboard/profile");
+  try {
+    accountType = await getAccountType(data.user.id);
+  } catch {
+    await supabase.auth.signOut();
+    redirect(loginPath(safe, "profile_lookup_failed"));
+  }
+
+  if (!accountType) {
+    await supabase.auth.signOut();
+    redirect(loginPath(safe, "account_type_not_found"));
+  }
+
+  redirect(dashboardPath(safe, accountType));
 }
 
 export async function signOutTalentAction(
-  _formData: FormData
+  formData: FormData,
 ): Promise<void> {
+  const locale = safeLocale(
+    getString(formData, "locale"),
+  );
+
   const supabase = await createServerSupabaseClient();
 
   await supabase.auth.signOut();
 
-  redirect("/ar/login");
+  redirect(loginPath(locale));
 }

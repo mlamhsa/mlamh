@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import PublisherShell from "@/components/publisher/PublisherShell";
 import { requirePublisher } from "@/lib/auth/require-publisher";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -28,7 +27,6 @@ export default async function PublisherSettingsPage({ params }: PageProps) {
   const { user } = await requirePublisher(locale);
 
   return (
-    <PublisherShell locale={locale} isRtl={isRtl}>
       <div className="space-y-8">
         <div>
           <p className="text-xs uppercase tracking-[0.35em] text-gold">
@@ -136,7 +134,6 @@ export default async function PublisherSettingsPage({ params }: PageProps) {
           </div>
         </section>
       </div>
-    </PublisherShell>
   );
 }
 

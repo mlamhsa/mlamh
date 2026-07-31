@@ -37,7 +37,7 @@ async function applyToOpportunity(formData: FormData) {
   } = await authClient.auth.getUser();
 
   if (userError || !user) {
-    redirect(`/${locale}/talent-login`);
+    redirect(`/${locale}/login`);
   }
 
   const { data: talent, error: talentError } = await adminClient
@@ -52,6 +52,29 @@ async function applyToOpportunity(formData: FormData) {
 
   if (!talent) {
     redirect(`/${locale}/talent-dashboard/profile`);
+  }
+
+  const {
+    data: availableOpportunity,
+    error: opportunityError,
+  } = await adminClient
+    .from("opportunities")
+    .select("id")
+    .eq("id", opportunityId)
+    .eq("published", true)
+    .in("status", ["published", "open"])
+    .maybeSingle();
+  
+  if (opportunityError) {
+    throw new Error(
+      `[applyToOpportunity opportunity] ${opportunityError.message}`,
+    );
+  }
+  
+  if (!availableOpportunity) {
+    throw new Error(
+      "[applyToOpportunity] Opportunity is unavailable.",
+    );
   }
 
   const { data: existingApplication, error: existingApplicationError } =
@@ -76,9 +99,29 @@ async function applyToOpportunity(formData: FormData) {
         talent_id: talent.id,
         status: "pending",
       });
-
+  
     if (insertError) {
-      throw new Error(`[applyToOpportunity insert] ${insertError.message}`);
+      throw new Error(
+        `[applyToOpportunity insert] ${insertError.message}`,
+      );
+    }
+  
+    const { error: invitationUpdateError } =
+      await adminClient
+        .from("opportunity_invitations")
+        .update({
+          status: "applied",
+          applied_at: new Date().toISOString(),
+        })
+        .eq("opportunity_id", opportunityId)
+        .eq("talent_id", talent.id)
+        .in("status", ["sent", "viewed"]);
+  
+    if (invitationUpdateError) {
+      console.error(
+        "[applyToOpportunity invitation]",
+        invitationUpdateError,
+      );
     }
   }
 
@@ -373,6 +416,7 @@ export default async function OpportunityDetailPage({
     );
   }
 
+
   const { data: existingApplication, error: existingApplicationError } = talent
     ? await adminClient
         .from("opportunity_applications")
@@ -520,34 +564,6 @@ export default async function OpportunityDetailPage({
               </p>
             </div>
 
-            {canViewApplicationArea && (
-  <div
-    className="
-      fixed
-      inset-x-0
-      bottom-[4.75rem]
-      z-[9000]
-      border-t
-      border-white/10
-      bg-black/95
-      p-3
-      backdrop-blur-xl
-      lg:hidden
-    "
-  >
-    <div className="mx-auto max-w-lg">
-      <ApplyArea
-        locale={locale}
-        isRtl={isRtl}
-        isOpen={isOpen}
-        canApply={canApply}
-        existingApplication={existingApplication}
-        opportunityId={Number(opportunity.id)}
-        compact
-      />
-    </div>
-  </div>
-)}
           </div>
         </header>
 
@@ -632,37 +648,53 @@ export default async function OpportunityDetailPage({
                 </p>
 
                 <div className="mt-5">
-                  {existingApplication ? (
-                    <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.06] p-4">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-emerald-300/20 text-emerald-200">
-                        <OpportunityIcon name="check" />
-                      </div>
-                      <p className="mt-4 text-lg font-light text-emerald-100">
-                        {getApplicationStatusLabel(
-                          existingApplication.status,
-                          isRtl
-                        )}
-                      </p>
-                      <p className="mt-2 text-sm leading-7 text-white/45">
-                        {isRtl
-                          ? "يمكنك متابعة حالة هذا الطلب من صفحة طلباتي."
-                          : "You can track this application from My Applications."}
-                      </p>
-                      <Link
-                        href={`/${locale}/talent-dashboard/applications`}
-                        className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-emerald-300/20 text-xs text-emerald-200 transition hover:bg-emerald-300/[0.07]"
-                      >
-                        {isRtl ? "عرض طلباتي" : "View My Applications"}
-                      </Link>
-                    </div>
-                  ) : (
-                    <p className="text-sm leading-7 text-white/45">
-                      {isRtl
-                        ? "بعد التقديم ستظهر حالة طلبك هنا وفي صفحة طلباتي."
-                        : "After applying, your status will appear here and in My Applications."}
-                    </p>
-                  )}
-                </div>
+  {existingApplication ? (
+    <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.06] p-4">
+      <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-emerald-300/20 text-emerald-200">
+        <OpportunityIcon name="check" />
+      </div>
+
+      <p className="mt-4 text-lg font-light text-emerald-100">
+        {getApplicationStatusLabel(
+          existingApplication.status,
+          isRtl,
+        )}
+      </p>
+
+      <p className="mt-2 text-sm leading-7 text-white/45">
+        {isRtl
+          ? "يمكنك متابعة حالة هذا الطلب من صفحة طلباتي."
+          : "You can track this application from My Applications."}
+      </p>
+
+      <Link
+        href={`/${locale}/talent-dashboard/applications`}
+        className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-emerald-300/20 text-xs text-emerald-200 transition hover:bg-emerald-300/[0.07]"
+      >
+        {isRtl ? "عرض طلباتي" : "View My Applications"}
+      </Link>
+    </div>
+  ) : (
+    <div>
+      <p className="text-sm leading-7 text-white/45">
+        {isRtl
+          ? "بعد التقديم ستظهر حالة طلبك هنا وفي صفحة طلباتي."
+          : "After applying, your status will appear here and in My Applications."}
+      </p>
+
+      <div className="mt-5 hidden lg:block">
+        <ApplyArea
+          locale={locale}
+          isRtl={isRtl}
+          isOpen={isOpen}
+          canApply={canApply}
+          existingApplication={existingApplication}
+          opportunityId={Number(opportunity.id)}
+        />
+      </div>
+    </div>
+  )}
+</div>
               </section>
             )}
 
@@ -805,7 +837,7 @@ function ApplyArea({
 
   return (
     <Link
-      href={`/${locale}/talent-login`}
+    href={`/${locale}/login`}
       className={`inline-flex w-full items-center justify-center rounded-2xl border border-gold/40 px-6 text-center text-sm font-medium text-gold transition hover:bg-gold hover:text-black ${
         compact ? "min-h-12" : "min-h-14"
       }`}

@@ -24,6 +24,11 @@ type ApplicationNotification = {
     | null;
 };
 
+type NotificationEvent = {
+  event_type: string | null;
+  metadata: Record<string, unknown> | null;
+};
+
 type DatabaseNotification = {
   id: number | string;
   event_id: number | string | null;
@@ -33,6 +38,10 @@ type DatabaseNotification = {
   body: string | null;
   is_read: boolean | null;
   created_at: string | null;
+  events:
+    | NotificationEvent
+    | NotificationEvent[]
+    | null;
 };
 
 type DisplayNotification = {
@@ -42,7 +51,11 @@ type DisplayNotification = {
   read: boolean;
   created_at: string | null;
   reference_id: number | string | null;
-  category: "application" | "message" | "system";
+  category:
+    | "application"
+    | "message"
+    | "invitation"
+    | "system";
   status: string | null;
 };
 
@@ -272,6 +285,7 @@ function getStatusIcon(
   if (category === "message") return "message";
   if (status === "accepted" || status === "shortlisted") return "check";
   if (status === "rejected") return "close";
+  if (status === "invited") return "message";
   return "clock";
 }
 
@@ -280,6 +294,13 @@ function getStatusClasses(
   category: DisplayNotification["category"],
 ) {
   if (category === "message") {
+    return {
+      icon: "border-gold/30 bg-gold/[0.1] text-gold",
+      badge: "border-gold/25 bg-gold/[0.08] text-gold",
+    };
+  }
+
+  if (status === "invited") {
     return {
       icon: "border-gold/30 bg-gold/[0.1] text-gold",
       badge: "border-gold/25 bg-gold/[0.08] text-gold",
@@ -330,29 +351,63 @@ function getStatusLabel(
   if (status === "shortlisted") return isArabic ? "القائمة المختصرة" : "Shortlisted";
   if (status === "rejected") return isArabic ? "مرفوض" : "Rejected";
   if (status === "reviewing") return isArabic ? "قيد المراجعة" : "Reviewing";
+  if (status === "invited")
+    return isArabic
+      ? "دعوة"
+      : "Invitation";
   return isArabic ? "تحديث" : "Update";
+}
+
+function getNotificationEvent(
+  notification: DatabaseNotification,
+) {
+  if (Array.isArray(notification.events)) {
+    return notification.events[0] ?? null;
+  }
+
+  return notification.events;
 }
 
 function getNotificationHref(
   notification: DisplayNotification,
   locale: string,
 ) {
-  if (notification.category === "message" && notification.reference_id) {
+  if (
+    notification.category === "invitation" &&
+    notification.reference_id
+  ) {
+    return `/${locale}/talent-dashboard/notifications/${notification.reference_id}`;
+  }
+
+  if (
+    notification.category === "message" &&
+    notification.reference_id
+  ) {
     return `/${locale}/talent-dashboard/messages/${notification.reference_id}`;
   }
 
-  return `/${locale}/talent-dashboard/requests`;
+  return `/${locale}/talent-dashboard/applications`;
 }
 
 function getNotificationActionLabel(
   notification: DisplayNotification,
   isArabic: boolean,
 ) {
-  if (notification.category === "message") {
-    return isArabic ? "فتح المحادثة" : "Open Conversation";
+  if (notification.category === "invitation") {
+    return isArabic
+      ? "عرض الفرصة"
+      : "View Opportunity";
   }
 
-  return isArabic ? "عرض الطلبات" : "View Applications";
+  if (notification.category === "message") {
+    return isArabic
+      ? "فتح المحادثة"
+      : "Open Conversation";
+  }
+
+  return isArabic
+    ? "عرض الطلبات"
+    : "View Applications";
 }
 
 export default async function TalentNotificationsPage({ params }: PageProps) {
@@ -367,7 +422,7 @@ export default async function TalentNotificationsPage({ params }: PageProps) {
   } = await authClient.auth.getUser();
 
   if (userError || !user) {
-    redirect(`/${locale}/talent-login`);
+    redirect(`/${locale}/login`);
   }
 
   const adminClient = createAdminClient();
@@ -412,15 +467,19 @@ export default async function TalentNotificationsPage({ params }: PageProps) {
           .from("notifications")
           .select(
             `
-            id,
-            event_id,
-            recipient_type,
-            recipient_id,
-            title,
-            body,
-            is_read,
-            created_at
-          `,
+              id,
+              event_id,
+              recipient_type,
+              recipient_id,
+              title,
+              body,
+              is_read,
+              created_at,
+              events (
+                event_type,
+                metadata
+              )
+            `,
           )
           .eq("recipient_type", "talent")
           .eq("recipient_id", String(talent.id))
@@ -455,18 +514,31 @@ export default async function TalentNotificationsPage({ params }: PageProps) {
   }));
 
   const databaseNotifications: DisplayNotification[] = (
-    (databaseNotificationsResult.data ?? []) as DatabaseNotification[]
+    (databaseNotificationsResult.data ??
+      []) as DatabaseNotification[]
   ).map((notification) => {
+    const event = getNotificationEvent(notification);
+  
+    const eventType = event?.event_type ?? null;
+  
+    const isInvitation =
+      eventType === "opportunity_invitation";
+  
     const isMessageNotification =
-      notification.title?.trim().toLowerCase() === "new message";
-
+      eventType === "message_created" ||
+      notification.title
+        ?.trim()
+        .toLowerCase() === "new message";
+  
     return {
       id: `database-${notification.id}`,
       title: isMessageNotification
         ? isArabic
           ? "رسالة جديدة"
           : "New Message"
-        : notification.title || (isArabic ? "تنبيه" : "Notification"),
+        : notification.title ||
+          (isArabic ? "تنبيه" : "Notification"),
+  
       message:
         notification.body ||
         (isMessageNotification
@@ -476,11 +548,21 @@ export default async function TalentNotificationsPage({ params }: PageProps) {
           : isArabic
             ? "لديك تنبيه جديد."
             : "You have a new notification."),
+  
       read: notification.is_read ?? false,
       created_at: notification.created_at,
-      reference_id: notification.event_id,
-      category: isMessageNotification ? "message" : "system",
-      status: null,
+  
+      // نستخدم رقم الإشعار، وليس event_id،
+      // حتى يمر الضغط عبر Route التحقق.
+      reference_id: notification.id,
+  
+      category: isInvitation
+        ? "invitation"
+        : isMessageNotification
+          ? "message"
+          : "system",
+  
+      status: isInvitation ? "invited" : null,
     };
   });
 
@@ -507,7 +589,9 @@ export default async function TalentNotificationsPage({ params }: PageProps) {
   ).length;
 
   const messageCount = notifications.filter(
-    (notification) => notification.category === "message",
+    (notification) =>
+      notification.category === "message" ||
+      notification.category === "invitation",
   ).length;
 
 
@@ -582,7 +666,11 @@ export default async function TalentNotificationsPage({ params }: PageProps) {
           />
 
           <StatCard
-            label={isArabic ? "إشعارات الرسائل" : "Message Alerts"}
+            label={
+              isArabic
+                ? "الرسائل والدعوات"
+                : "Messages & Invitations"
+            }
             value={messageCount}
             icon="message"
           />

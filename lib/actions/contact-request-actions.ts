@@ -21,7 +21,7 @@ export async function createContactRequestAction(
   } = await authClient.auth.getUser();
 
   if (userError || !user) {
-    redirect(`/${locale}/talent-login`);
+    redirect(`/${locale}/login`);
   }
 
   // تحقق إذا تم إنشاء طلب مسبقًا

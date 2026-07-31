@@ -149,7 +149,11 @@ async function quickJoinAction(formData: FormData) {
   if (!data.user) {
     redirect(`/${locale}/join?error=signup`);
   }
-
+  
+  if (!data.session) {
+    redirect(`/${locale}/login?message=verify_email`);
+  }
+  
   redirect(`/${locale}/join/account-type`);
 }
 

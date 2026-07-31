@@ -27,13 +27,14 @@ export async function submitTalentRequestAction(
 
   const fullName = stringValue(formData, "full_name");
   const email = stringValue(formData, "email");
+  const projectDetails = stringValue(formData, "project_details");
 
-  if (!fullName || !email) {
-    return {
-      success: false,
-      message: "Name and email are required.",
-    };
-  }
+  if (!fullName || !email || !projectDetails) {
+  return {
+    success: false,
+    message: "Name, email and project details are required.",
+  };
+}
 
   const supabase = createAdminClient();
 

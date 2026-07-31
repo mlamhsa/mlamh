@@ -26,6 +26,8 @@ export function MobileAppShell({ locale }: MobileAppShellProps) {
   const {
     isLoggedIn,
     accountType,
+    userName,
+    avatarUrl,
     loading: authLoading,
   } = useCurrentUser();
 
@@ -68,19 +70,21 @@ export function MobileAppShell({ locale }: MobileAppShellProps) {
   return (
     <div className="lg:hidden">
       <MobileAppNavigation
-        locale={locale}
-        isLoggedIn={isLoggedIn}
-        accountType={accountType}
-        authLoading={authLoading}
-        menuOpen={menuOpen}
-        languageHref={languageHref}
-        onMenuToggle={() => setMenuOpen((current) => !current)}
-        onMenuClose={() => {
-          setMenuOpen(false);
-          document.body.style.overflow = "";
-        }}
-        onLogout={handleLogout}
-      />
+  locale={locale}
+  isLoggedIn={isLoggedIn}
+  accountType={accountType}
+  userName={userName}
+  avatarUrl={avatarUrl}
+  authLoading={authLoading}
+  menuOpen={menuOpen}
+  languageHref={languageHref}
+  onMenuToggle={() => setMenuOpen((current) => !current)}
+  onMenuClose={() => {
+    setMenuOpen(false);
+    document.body.style.overflow = "";
+  }}
+  onLogout={handleLogout}
+/>
     </div>
   );
 }

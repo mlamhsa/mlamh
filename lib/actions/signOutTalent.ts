@@ -10,5 +10,5 @@ export async function signOutTalent(formData: FormData) {
 
   await authClient.auth.signOut();
 
-  redirect(`/${locale}/talent-login`);
+  redirect(`/${locale}/login`);
 }

@@ -20,7 +20,7 @@ import {
   stringArrayValue,
 } from "@/lib/actions/talent-profile-utils";
 
-async function getCurrentUser() {
+async function getCurrentUser(locale: "ar" | "en") {
   const authClient = await createServerSupabaseClient();
 
   const {
@@ -29,7 +29,7 @@ async function getCurrentUser() {
   } = await authClient.auth.getUser();
 
   if (error || !user) {
-    redirect("/ar/login");
+    redirect(`/${locale}/login`);
   }
 
   return user;
@@ -41,22 +41,17 @@ async function getCurrentUser() {
  * نستخدم Admin Client هنا لتجنب مشكلة RLS التي كانت تجعل
  * Browser Client يعيد null رغم وجود السجل في قاعدة البيانات.
  */
-export async function getOwnTalentProfileAction() {
-  const user = await getCurrentUser();
+export async function getOwnTalentProfileAction(
+  locale: "ar" | "en"
+) {
+  const user = await getCurrentUser(locale);
   const adminClient = createAdminClient();
-
-  console.log("CURRENT AUTH USER:", {
-    id: user.id,
-    email: user.email,
-  });
 
   const { data: talent, error } = await adminClient
     .from("talents")
     .select("*")
     .eq("user_id", user.id)
     .maybeSingle();
-
-  console.log("LINKED TALENT:", talent);
 
   if (error) {
     throw new Error(
@@ -158,7 +153,9 @@ function buildTalentSharedPayload(formData: FormData) {
 export async function createOwnTalentProfileAction(
   formData: FormData
 ) {
-  const user = await getCurrentUser();
+const locale =
+  formData.get("locale") === "en" ? "en" : "ar";
+  const user = await getCurrentUser(locale);
   const adminClient = createAdminClient();
 
   const { data: existingTalent, error: existingTalentError } =
@@ -176,7 +173,7 @@ export async function createOwnTalentProfileAction(
   }
 
   if (existingTalent) {
-    redirect("/ar/talent-dashboard/profile");
+    redirect(`/${locale}/talent-dashboard/profile`);
   }
 
   const nameEn = requiredStringValue(formData, "name_en");
@@ -240,20 +237,20 @@ export async function createOwnTalentProfileAction(
     );
   }
 
-  revalidatePath("/talent-dashboard");
-  revalidatePath("/talent-dashboard/profile");
-  revalidatePath("/ar/talent-dashboard");
-  revalidatePath("/ar/talent-dashboard/profile");
-  revalidatePath("/en/talent-dashboard");
-  revalidatePath("/en/talent-dashboard/profile");
+  revalidatePath(`/${locale}/talent-dashboard`);
+revalidatePath(`/${locale}/talent-dashboard/profile`);
 
-  redirect("/ar/talent-dashboard/profile?created=1");
+  redirect(
+  `/${locale}/talent-dashboard/profile?created=1`
+);
 }
 
 export async function updateOwnTalentProfileAction(
   formData: FormData
 ) {
-  const user = await getCurrentUser();
+const locale =
+  formData.get("locale") === "en" ? "en" : "ar";
+  const user = await getCurrentUser(locale);
   const adminClient = createAdminClient();
 
   const { data: talent, error: talentError } =
@@ -274,8 +271,29 @@ export async function updateOwnTalentProfileAction(
     throw new Error("No linked talent profile found.");
   }
 
-  const payload = buildTalentSharedPayload(formData);
-
+  const nameEn = requiredStringValue(
+    formData,
+    "name_en",
+  );
+  
+  const nameAr = requiredStringValue(
+    formData,
+    "name_ar",
+  );
+  
+  const sharedPayload =
+    buildTalentSharedPayload(formData);
+  
+  const payload = {
+    name_en: nameEn,
+    name_ar: nameAr,
+  
+    display_name_en: createDisplayName(nameEn),
+    display_name_ar: createDisplayName(nameAr),
+  
+    ...sharedPayload,
+  };
+  
   const { data: updatedTalent, error: updateError } =
     await adminClient
       .from("talents")
@@ -302,12 +320,8 @@ export async function updateOwnTalentProfileAction(
     );
   }
 
-  revalidatePath("/talent-dashboard");
-  revalidatePath("/talent-dashboard/profile");
-  revalidatePath("/ar/talent-dashboard");
-  revalidatePath("/ar/talent-dashboard/profile");
-  revalidatePath("/en/talent-dashboard");
-  revalidatePath("/en/talent-dashboard/profile");
+  revalidatePath(`/${locale}/talent-dashboard`);
+revalidatePath(`/${locale}/talent-dashboard/profile`);
 
   if (talent.slug) {
     revalidatePath(`/ar/talent/${talent.slug}`);

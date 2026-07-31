@@ -125,7 +125,11 @@ export function TalentRequestForm({
             type="tel"
             autoComplete="tel"
             inputMode="tel"
-            placeholder={isRtl ? "05xxxxxxxx" : "Phone number"}
+            placeholder={
+              isRtl
+                ? "05xxxxxxxx (اختياري)"
+                : "Phone number (optional)"
+            }
             className={fieldClassName}
           />
         </label>
@@ -150,7 +154,11 @@ export function TalentRequestForm({
           <input
             name="budget"
             inputMode="decimal"
-            placeholder={isRtl ? "مثال: 5,000 ريال" : "Example: SAR 5,000"}
+            placeholder={
+              isRtl
+                ? "مثال: 5,000 ريال"
+                : "Example: 5,000 SAR"
+            }
             className={fieldClassName}
           />
         </label>
@@ -168,18 +176,20 @@ export function TalentRequestForm({
 
         <label className="block md:col-span-2">
           <span className="mb-2 block text-xs text-white/45">
-            {isRtl ? "تفاصيل المشروع" : "Project details"}
+          {isRtl ? "تفاصيل المشروع" : "Project details"} *
           </span>
           <textarea
-            name="project_details"
-            rows={5}
-            placeholder={
-              isRtl
-                ? "اشرح طبيعة المشروع، الموقع، المدة وأي متطلبات مهمة."
-                : "Describe the project, location, duration and key requirements."
-            }
-            className={`${fieldClassName} min-h-32 resize-y`}
-          />
+  name="project_details"
+  rows={5}
+  required
+  maxLength={2000}
+  placeholder={
+    isRtl
+      ? "اشرح طبيعة المشروع، الموقع، المدة وأي متطلبات مهمة."
+      : "Describe the project, location, duration and key requirements."
+  }
+  className={`${fieldClassName} min-h-32 resize-y`}
+/>  
         </label>
       </div>
 

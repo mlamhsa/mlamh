@@ -61,6 +61,18 @@ function availabilityLabel(status?: string | null, isRtl = false) {
     return isRtl ? "متاح حالياً" : "Available now";
   }
 
+  if (status === "available_this_week") {
+    return isRtl
+      ? "متاح هذا الأسبوع"
+      : "Available this week";
+  }
+
+  if (status === "available_next_month") {
+    return isRtl
+      ? "متاح الشهر القادم"
+      : "Available next month";
+  }
+
   if (status === "available") {
     return isRtl ? "متاح" : "Available";
   }
@@ -360,30 +372,23 @@ export default async function TalentDashboardPage({
       dir={isRtl ? "rtl" : "ltr"}
       className="min-h-screen bg-black text-white"
     >
-      <div className="mx-auto grid max-w-7xl gap-6 px-4 pb-24 pt-4 sm:px-6 lg:grid-cols-[290px_minmax(0,1fr)] lg:gap-10 lg:py-10">
-        <TalentSidebar
-          locale={locale}
-          totalApplications={totalApplications}
-          notificationCount={unreadNotificationsCount}
-        />
+      <div className="mx-auto max-w-7xl px-4 pb-24 pt-4 sm:px-6 lg:py-10">
+      <div className="flex flex-col gap-6 xl:flex-row">
+      <aside className="hidden xl:block xl:w-80 xl:flex-shrink-0">
+      <div className="sticky top-28">
+    <TalentSidebar
+      locale={locale}
+      totalApplications={totalApplications}
+      notificationCount={unreadNotificationsCount}
+    />
+  </div>
+</aside>
 
-        <div className="min-w-0 space-y-6">
-          <TalentHeader
-            locale={locale}
-            talentName={talentName}
-            profileCompletion={profileCompletion}
-            pendingCount={pendingCount}
-            reviewingCount={reviewingCount}
-          />
-
-          <DashboardQuickActions
-            locale={locale}
-            isRtl={isRtl}
-            unreadMessagesCount={unreadMessagesCount}
-            unreadNotificationsCount={unreadNotificationsCount}
-            totalApplications={totalApplications}
-            profileCompletion={profileCompletion}
-          />
+<div className="min-w-0 flex-1 space-y-6">
+<TalentHeader
+  locale={locale}
+  talentName={talentName}
+/>
 
           <TalentProfileCard
             locale={locale}
@@ -393,6 +398,13 @@ export default async function TalentDashboardPage({
             talentCity={talentCity}
             profileStatus={profileStatus}
             availabilityStatus={availabilityStatus}
+          />
+
+<TalentApplications
+            locale={locale}
+            isRtl={isRtl}
+            recentApplications={recentApplications}
+            notificationItems={notificationItems}
           />
 
           <section className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
@@ -412,21 +424,26 @@ export default async function TalentDashboardPage({
 />
           </section>
 
-          <TalentApplications
-            locale={locale}
-            isRtl={isRtl}
-            recentApplications={recentApplications}
-            notificationItems={notificationItems}
-          />
+          
 
-<DashboardMessagesCard
+          <DashboardMessagesCard
   locale={locale}
   isRtl={isRtl}
   unreadMessagesCount={unreadMessagesCount}
   totalConversations={totalConversations}
 />
-        </div>
+
+<DashboardQuickActions
+  locale={locale}
+  isRtl={isRtl}
+  unreadMessagesCount={unreadMessagesCount}
+  unreadNotificationsCount={unreadNotificationsCount}
+  totalApplications={totalApplications}
+  profileCompletion={profileCompletion}
+/>
+</div>
       </div>
-    </main>
+    </div>
+  </main>
   );
 }

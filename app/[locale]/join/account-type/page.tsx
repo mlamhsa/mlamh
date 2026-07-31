@@ -54,6 +54,18 @@ async function selectAccountTypeAction(formData: FormData) {
   }
 
   if (existingProfile) {
+    if (existingProfile.account_type === "admin") {
+      redirect("/admin");
+    }
+    
+    if (existingProfile.account_type === "publisher") {
+      redirect("/publisher-dashboard");
+    }
+    
+    if (existingProfile.account_type === "talent") {
+      redirect(`/${locale}/talent-dashboard`);
+    }
+    
     const { error: updateError } = await adminClient
       .from("profiles")
       .update({

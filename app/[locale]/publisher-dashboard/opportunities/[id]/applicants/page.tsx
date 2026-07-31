@@ -1,6 +1,5 @@
 import Link from "next/link";
 
-import PublisherShell from "@/components/publisher/PublisherShell";
 import TalentPreviewModal from "@/components/publisher/TalentPreviewModal";
 import { updateApplicationStatusAction } from "@/lib/actions/application-status-actions";
 import { requirePublisher } from "@/lib/auth/require-publisher";
@@ -130,11 +129,9 @@ export default async function ApplicantsPage({
 
   if (!Number.isInteger(opportunityId) || opportunityId <= 0) {
     return (
-      <PublisherShell locale={locale} isRtl={isRtl}>
         <div className="rounded-[2rem] border border-red-400/20 bg-red-400/[0.04] p-8 text-red-200">
           {isRtl ? "رابط الفرصة غير صحيح." : "Invalid opportunity link."}
         </div>
-      </PublisherShell>
     );
   }
 
@@ -156,7 +153,6 @@ export default async function ApplicantsPage({
 
   if (!opportunity) {
     return (
-      <PublisherShell locale={locale} isRtl={isRtl}>
         <div className="rounded-[2rem] border border-white/10 bg-white/[0.035] p-8">
           <p className="text-xs uppercase tracking-[0.35em] text-gold">
             {isRtl ? "غير موجود" : "Not Found"}
@@ -175,7 +171,6 @@ export default async function ApplicantsPage({
             {isRtl ? "العودة إلى الفرص" : "Back to Opportunities"}
           </Link>
         </div>
-      </PublisherShell>
     );
   }
 
@@ -367,7 +362,6 @@ export default async function ApplicantsPage({
   ] as const;
 
   return (
-    <PublisherShell locale={locale} isRtl={isRtl}>
       <div className="space-y-8">
         <header className="rounded-[2.25rem] border border-white/10 bg-gradient-to-br from-white/[0.07] via-white/[0.03] to-gold/[0.05] p-6 sm:p-8">
           <Link
@@ -716,7 +710,6 @@ application.conversationId ? (
           )}
         </section>
       </div>
-    </PublisherShell>
   );
 }
 

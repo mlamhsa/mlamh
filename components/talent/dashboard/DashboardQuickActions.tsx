@@ -116,7 +116,7 @@ export default function DashboardQuickActions({
         </h2>
       </div>
 
-      <div className="grid grid-cols-2 gap-2.5 xl:grid-cols-4">
+      <div className="grid gap-2.5 sm:grid-cols-2">
         {quickActions.map((action) => {
           const Icon = action.icon;
           const ArrowIcon = isRtl ? ChevronLeft : ChevronRight;
@@ -129,9 +129,9 @@ export default function DashboardQuickActions({
               key={action.href}
               href={action.href}
               aria-label={`${action.label}: ${action.description}`}
-              className="group relative flex min-h-[104px] min-w-0 flex-col justify-between overflow-hidden rounded-[1.25rem] border border-white/10 bg-white/[0.025] p-3.5 outline-none transition duration-200 hover:border-gold/25 hover:bg-white/[0.05] focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black sm:min-h-[112px] sm:p-4"
+              className="group relative flex min-w-0 items-center gap-3 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.025] px-4 py-3.5 outline-none transition duration-200 hover:border-gold/25 hover:bg-white/[0.05] focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
             >
-              <div className="flex items-start justify-between gap-2.5">
+              <div className="flex shrink-0 items-center">
                 <span
                   aria-hidden="true"
                   className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-black/25 text-white/60 transition group-hover:border-gold/25 group-hover:text-gold sm:h-10 sm:w-10"
@@ -139,38 +139,40 @@ export default function DashboardQuickActions({
                   <Icon size={17} />
                 </span>
 
-                {hasCount ? (
-                  <span
-                    aria-label={
-                      isRtl
-                        ? `${action.count} عناصر جديدة`
-                        : `${action.count} new items`
-                    }
-                    className="inline-flex min-w-5 shrink-0 items-center justify-center rounded-full bg-gold px-1.5 py-1 text-[9px] font-medium leading-none text-black sm:min-w-6 sm:px-2 sm:text-[10px]"
-                  >
-                    {(action.count ?? 0) > 99 ? "99+" : action.count}
-                  </span>
-                ) : (
-                  <ArrowIcon
-                    size={15}
-                    aria-hidden="true"
-                    className="shrink-0 text-white/20 transition group-hover:text-white/50"
-                  />
-                )}
               </div>
 
-              <div className="mt-3 min-w-0">
+              <div className="min-w-0 flex-1">
+              <div className="flex shrink-0 items-center gap-2">
+  {hasCount ? (
+    <span
+      aria-label={
+        isRtl
+          ? `${action.count} عناصر جديدة`
+          : `${action.count} new items`
+      }
+      className="inline-flex min-w-6 items-center justify-center rounded-full bg-gold px-2 py-1 text-[10px] font-medium leading-none text-black"
+    >
+      {(action.count ?? 0) > 99 ? "99+" : action.count}
+    </span>
+  ) : null}
+
+  <ArrowIcon
+    size={15}
+    aria-hidden="true"
+    className="text-white/20 transition group-hover:text-white/50"
+  />
+</div>
                 <p className="truncate text-sm font-medium text-white">
                   {action.label}
                 </p>
 
-                <p className="mt-0.5 line-clamp-2 text-[11px] leading-5 text-white/35 sm:text-xs">
+                <p className="mt-0.5 truncate text-[11px] text-white/35 sm:text-xs">
                   {action.description}
                 </p>
 
                 {isProfileAction ? (
-                  <div
-                    className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-white/10"
+  <div
+    className="mt-2 h-1 overflow-hidden rounded-full bg-white/10"
                     role="progressbar"
                     aria-label={
                       isRtl

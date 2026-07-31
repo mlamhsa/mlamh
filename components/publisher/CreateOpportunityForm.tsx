@@ -214,25 +214,37 @@ export default function CreateOpportunityForm({
             </div>
 
             <div className="grid gap-5">
-              <input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder={isRtl ? "عنوان الفرصة" : "Opportunity title"}
-                className="rounded-xl border border-white/10 bg-black/30 px-4 py-4 outline-none transition placeholder:text-white/25 focus:border-gold/50"
-                required
-              />
+            <input
+  value={title}
+  onChange={(e) => setTitle(e.target.value.slice(0, 80))}
+  maxLength={80}
+  placeholder={isRtl ? "عنوان الفرصة" : "Opportunity title"}
+  className="rounded-xl border border-white/10 bg-black/30 px-4 py-4 outline-none transition placeholder:text-white/25 focus:border-gold/50"
+  required
+/>
 
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder={
-                  isRtl
-                    ? "وصف الفرصة، المهام، مدة العمل، وأي تفاصيل مهمة"
-                    : "Opportunity description, tasks, duration, and important details"
-                }
-                className="h-36 rounded-xl border border-white/10 bg-black/30 px-4 py-4 outline-none transition placeholder:text-white/25 focus:border-gold/50"
-                required
-              />
+<p className="text-xs text-white/40 text-end">
+  {title.length}/80
+</p>
+
+<textarea
+  value={description}
+  onChange={(e) =>
+    setDescription(e.target.value.slice(0, 2000))
+  }
+  maxLength={2000}
+  placeholder={
+    isRtl
+      ? "وصف الفرصة، المهام، مدة العمل، وأي تفاصيل مهمة"
+      : "Opportunity description, tasks, duration, and important details"
+  }
+  className="h-36 rounded-xl border border-white/10 bg-black/30 px-4 py-4 outline-none transition placeholder:text-white/25 focus:border-gold/50"
+  required
+/>
+
+<p className="text-xs text-white/40 text-end">
+  {description.length}/2000
+</p>
 
               <select
                 value={city}

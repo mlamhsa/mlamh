@@ -4,34 +4,108 @@ import { useEffect, useState } from "react";
 
 import { supabase } from "@/lib/supabase/client";
 
-export type CurrentAccountType = "publisher" | "talent" | null;
+export type CurrentAccountType =
+  | "admin"
+  | "publisher"
+  | "talent"
+  | null;
 
 type CurrentUserState = {
   userId: string;
   isLoggedIn: boolean;
   accountType: CurrentAccountType;
+  userName: string;
+  avatarUrl: string | null;
   loading: boolean;
 };
 
 type ProfileAccountTypeRow = {
+  id: string;
   account_type: string | null;
+};
+
+type PublisherNavigationRow = {
+  company_name: string | null;
+  contact_name: string | null;
+  profile_image_url: string | null;
+};
+
+type TalentNavigationRow = {
+  name_ar: string | null;
+  name_en: string | null;
+  image_url: string | null;
+};
+
+type AuthUserSnapshot = {
+  id: string;
+  email?: string | null;
+  user_metadata?: Record<string, unknown> | null;
 };
 
 const initialState: CurrentUserState = {
   userId: "",
   isLoggedIn: false,
   accountType: null,
+  userName: "",
+  avatarUrl: null,
   loading: true,
 };
 
 function normalizeAccountType(
   value: string | null | undefined,
 ): CurrentAccountType {
-  if (value === "publisher" || value === "talent") {
+  if (
+    value === "admin" ||
+    value === "publisher" ||
+    value === "talent"
+  ) {
     return value;
   }
 
   return null;
+}
+
+function getMetadataString(
+  metadata: Record<string, unknown> | null | undefined,
+  keys: string[],
+) {
+  for (const key of keys) {
+    const value = metadata?.[key];
+
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+
+  return "";
+}
+
+function resolveDisplayName(user: AuthUserSnapshot) {
+  const metadataName = getMetadataString(user.user_metadata, [
+    "full_name",
+    "name",
+    "display_name",
+    "user_name",
+  ]);
+
+  if (metadataName) {
+    return metadataName;
+  }
+
+  const emailName = user.email?.split("@")[0]?.trim();
+
+  return emailName || "";
+}
+
+function resolveAvatarUrl(user: AuthUserSnapshot) {
+  return (
+    getMetadataString(user.user_metadata, [
+      "avatar_url",
+      "picture",
+      "profile_image",
+      "image_url",
+    ]) || null
+  );
 }
 
 function getReadableError(error: unknown) {
@@ -97,32 +171,44 @@ export function useCurrentUser(): CurrentUserState {
       setState(nextState);
     }
 
-    async function resolveUser(nextUserId?: string) {
+    async function resolveUser(
+      user?: AuthUserSnapshot | null,
+    ) {
       const version = ++requestVersion;
 
-      if (!nextUserId) {
+      if (!user?.id) {
         commitState(version, {
           userId: "",
           isLoggedIn: false,
           accountType: null,
+          userName: "",
+          avatarUrl: null,
           loading: false,
         });
 
         return;
       }
 
+      const userName = resolveDisplayName(user);
+      const avatarUrl = resolveAvatarUrl(user);
+
       commitState(version, {
-        userId: nextUserId,
+        userId: user.id,
         isLoggedIn: true,
         accountType: null,
+        userName,
+        avatarUrl,
         loading: true,
       });
 
       try {
-        const { data, error } = await supabase
+        const {
+          data: profile,
+          error,
+        } = await supabase
           .from("profiles")
-          .select("account_type")
-          .eq("user_id", nextUserId)
+          .select("id, account_type")
+          .eq("user_id", user.id)
           .maybeSingle<ProfileAccountTypeRow>();
 
         if (!isActive || version !== requestVersion) {
@@ -130,33 +216,113 @@ export function useCurrentUser(): CurrentUserState {
         }
 
         if (error) {
-          const readableError = getReadableError(error);
-
-          /*
-           * نستخدم console.warn بدل console.error حتى لا يعرض
-           * Next.js شاشة خطأ كاملة لمشكلة استعلام غير قاتلة.
-           */
           console.warn(
             "Unable to resolve current user profile:",
-            readableError,
+            getReadableError(error),
           );
-
+        
           commitState(version, {
-            userId: nextUserId,
+            userId: user.id,
             isLoggedIn: true,
             accountType: null,
+            userName,
+            avatarUrl,
             loading: false,
           });
-
+        
           return;
+        }
+        
+        if (!profile) {
+          console.warn(
+            "Current user profile was not found:",
+            user.id,
+          );
+        
+          commitState(version, {
+            userId: user.id,
+            isLoggedIn: true,
+            accountType: null,
+            userName,
+            avatarUrl,
+            loading: false,
+          });
+        
+          return;
+        }
+        
+        const accountType = normalizeAccountType(
+          profile.account_type,
+        );
+
+        let resolvedAvatarUrl = avatarUrl;
+        let resolvedUserName = userName;
+
+        if (accountType === "publisher") {
+          const {
+            data: publisher,
+            error: publisherError,
+          } = await supabase
+            .from("publishers")
+            .select(
+              "company_name, contact_name, profile_image_url",
+            )
+            .eq("profile_id", profile.id)
+            .maybeSingle<PublisherNavigationRow>();
+
+          if (publisherError) {
+            console.warn(
+              "Unable to load publisher profile:",
+              getReadableError(publisherError),
+            );
+          } else {
+          
+            if (publisher) {
+              resolvedAvatarUrl =
+                publisher.profile_image_url?.trim() ||
+                resolvedAvatarUrl;
+          
+              resolvedUserName =
+                publisher.company_name?.trim() ||
+                publisher.contact_name?.trim() ||
+                resolvedUserName;
+            }
+          }
+        }
+
+        if (accountType === "talent") {
+          const {
+            data: talent,
+            error: talentError,
+          } = await supabase
+            .from("talents")
+            .select("name_ar, name_en, image_url")
+            .eq("user_id", user.id)
+            .maybeSingle<TalentNavigationRow>();
+
+          if (talentError) {
+            console.warn(
+              "Unable to load talent profile:",
+              getReadableError(talentError),
+            );
+          } else if (talent) {
+            resolvedAvatarUrl =
+              talent.image_url?.trim() ||
+              resolvedAvatarUrl;
+
+            resolvedUserName =
+              talent.name_ar?.trim() ||
+              talent.name_en?.trim() ||
+              resolvedUserName;
+          }
         }
 
         commitState(version, {
-          userId: nextUserId,
+          userId: user.id,
           isLoggedIn: true,
-          accountType: normalizeAccountType(
-            data?.account_type,
-          ),
+          accountType,
+          userName: resolvedUserName,
+          avatarUrl: resolvedAvatarUrl,
           loading: false,
         });
       } catch (error) {
@@ -170,9 +336,11 @@ export function useCurrentUser(): CurrentUserState {
         );
 
         commitState(version, {
-          userId: nextUserId,
+          userId: user.id,
           isLoggedIn: true,
           accountType: null,
+          userName,
+          avatarUrl,
           loading: false,
         });
       }
@@ -200,7 +368,7 @@ export function useCurrentUser(): CurrentUserState {
           return;
         }
 
-        await resolveUser(session?.user?.id);
+        await resolveUser(session?.user ?? null);
       } catch (error) {
         if (!isActive) {
           return;
@@ -221,16 +389,12 @@ export function useCurrentUser(): CurrentUserState {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(
       (_event, session) => {
-        /*
-         * إخراج الاستعلام من callback الخاص بالمصادقة يمنع
-         * تداخل عمليات Supabase أثناء تحديث الجلسة.
-         */
         queueMicrotask(() => {
           if (!isActive) {
             return;
           }
 
-          void resolveUser(session?.user?.id);
+          void resolveUser(session?.user ?? null);
         });
       },
     );

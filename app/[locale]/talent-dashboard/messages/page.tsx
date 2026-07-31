@@ -70,7 +70,7 @@ export default async function TalentMessagesPage({
   } = await authClient.auth.getUser();
 
   if (userError || !user) {
-    redirect(`/${locale}/talent-login`);
+    redirect(`/${locale}/login`);
   }
 
   const adminClient = createAdminClient();

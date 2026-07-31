@@ -7,7 +7,6 @@ import {
   UsersRound,
 } from "lucide-react";
 
-import PublisherShell from "@/components/publisher/PublisherShell";
 import {
   Button,
   Card,
@@ -134,11 +133,6 @@ export default async function PublisherDashboardPage({
 if (Number.isNaN(parsedDate.getTime())) {
   return null;
 }
-
-    if (Number.isNaN(parsedDate.getTime())) {
-      return null;
-    }
-
     return new Intl.DateTimeFormat(isRtl ? "ar-SA" : "en-US", {
       day: "numeric",
       month: "short",
@@ -147,7 +141,6 @@ if (Number.isNaN(parsedDate.getTime())) {
   }
 
   return (
-    <PublisherShell locale={locale} isRtl={isRtl}>
       <div className="space-y-8">
         <Card className="overflow-hidden bg-gradient-to-br from-white/[0.08] via-white/[0.03] to-gold/[0.06] p-6 sm:p-8 md:p-10">
           <SectionHeader
@@ -368,6 +361,5 @@ if (Number.isNaN(parsedDate.getTime())) {
           )}
         </Card>
       </div>
-    </PublisherShell>
   );
 }

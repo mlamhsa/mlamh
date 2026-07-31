@@ -1,6 +1,5 @@
 import Link from "next/link";
 
-import PublisherShell from "@/components/publisher/PublisherShell";
 import { StatCard } from "@/components/ui";
 import {
   archiveOpportunityAction,
@@ -161,7 +160,6 @@ export default async function PublisherOpportunitiesPage({
   ];
 
   return (
-    <PublisherShell locale={locale} isRtl={isRtl}>
       <div className="space-y-8">
         <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
           <div>
@@ -410,6 +408,5 @@ export default async function PublisherOpportunitiesPage({
           )}
         </section>
       </div>
-    </PublisherShell>
   );
 }

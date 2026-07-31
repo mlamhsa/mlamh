@@ -65,7 +65,7 @@ export default async function TalentConversationPage({
   } = await authClient.auth.getUser();
 
   if (userError || !user) {
-    redirect(`/${locale}/talent-login`);
+    redirect(`/${locale}/login`);
   }
 
   if (!Number.isInteger(conversationId) || conversationId <= 0) {

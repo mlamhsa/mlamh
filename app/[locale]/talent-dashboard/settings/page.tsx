@@ -61,7 +61,7 @@ export default function SettingsPage({ params }: SettingsPageProps) {
       if (!active) return;
 
       if (error || !data.user) {
-        router.replace(`/${locale}/talent-login`);
+        router.replace(`/${locale}/login`);
         return;
       }
 
@@ -76,7 +76,7 @@ export default function SettingsPage({ params }: SettingsPageProps) {
         if (!active) return;
 
         if (!session?.user) {
-          router.replace(`/${locale}/talent-login`);
+          router.replace(`/${locale}/login`);
           return;
         }
 

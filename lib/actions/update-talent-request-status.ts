@@ -36,7 +36,7 @@ async function getOwnTalentId() {
   } = await authClient.auth.getUser();
 
   if (error || !user) {
-    redirect("/talent-login");
+    redirect("/ar/login");
   }
 
   const supabase = createAdminClient();

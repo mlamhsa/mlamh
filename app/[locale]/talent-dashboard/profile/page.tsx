@@ -20,6 +20,7 @@ import IdentityCard from "@/components/talent/profile/IdentityCard";
 import AboutCard from "@/components/talent/profile/AboutCard";
 import MeasurementsCard from "@/components/talent/profile/MeasurementsCard";
 import ExperienceCard from "@/components/talent/profile/ExperienceCard";
+import { isValidLocale, type Locale } from "@/lib/i18n";
 import ProfileCompletionCard from "@/components/talent/profile/ProfileCompletionCard";
 
 import { TalentProfileService } from "@/lib/services/talent/TalentProfileService";
@@ -36,6 +37,7 @@ import {
 
 type TalentProfileFormData = {
   name_en: string;
+  name_ar: string;
 
   category_slug: string;
   city_slug: string;
@@ -207,6 +209,7 @@ const CLOTHING_SIZE_OPTIONS: SelectOption[] = [
 
 const EMPTY_FORM_DATA: TalentProfileFormData = {
   name_en: "",
+  name_ar: "",
 
   category_slug: "",
   city_slug: "",
@@ -416,8 +419,13 @@ export default function TalentProfileEditorPage({
 }: {
   params: Promise<{ locale: string }>;
 }) {
-  const { locale } = use(params);
-  const isArabic = locale === "ar";
+  const { locale: localeParam } = use(params);
+
+const locale: Locale = isValidLocale(localeParam)
+  ? localeParam
+  : "ar";
+
+const isArabic = locale === "ar";
 
   const LANGUAGE_OPTIONS = useMemo(
     () =>
@@ -534,7 +542,7 @@ export default function TalentProfileEditorPage({
 
       try {
         const talent =
-          await getOwnTalentProfileAction();
+        await getOwnTalentProfileAction(locale);
 
         if (!active) {
           return;
@@ -566,12 +574,16 @@ export default function TalentProfileEditorPage({
         );
 
         const loadedData: TalentProfileFormData =
-          {
-            name_en: stringValue(
-              talent.name_en
-            ),
+  {
+    name_en: stringValue(
+      talent.name_en
+    ),
 
-            category_slug: categorySlug,
+    name_ar: stringValue(
+      talent.name_ar
+    ),
+
+    category_slug: categorySlug,
             city_slug: citySlug,
 
             nationality,
@@ -881,6 +893,8 @@ export default function TalentProfileEditorPage({
 
       const payload = new FormData();
 
+      payload.set("locale", locale);
+
       Object.entries(data).forEach(
         ([key, value]) => {
           if (Array.isArray(value)) {
@@ -915,7 +929,7 @@ export default function TalentProfileEditorPage({
         payload
       );
     },
-    []
+    [locale]
   );
 
   const { status } = useAutoSave(
@@ -1032,9 +1046,17 @@ export default function TalentProfileEditorPage({
                     : "All changes saved"}
             </span>
           </div>
-        </div>
+          </div>
 
-        <section className="mb-6 grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
+{status === "saved" ? (
+  <div className="mb-6 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-5 py-4 text-sm text-emerald-300">
+    {isArabic
+      ? "تم حفظ التغييرات بنجاح."
+      : "Changes saved successfully."}
+  </div>
+) : null}
+
+<section className="mb-6 grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
           <div className="rounded-[1.75rem] border border-gold/25 bg-[radial-gradient(circle_at_top_right,rgba(197,160,89,0.16),transparent_42%),linear-gradient(135deg,rgba(255,255,255,0.05),rgba(255,255,255,0.015))] p-5 sm:p-6">
             <ProfileCompletionCard
               label={isArabic ? "اكتمال الملف الشخصي" : "Profile Completion"}
@@ -1091,18 +1113,38 @@ export default function TalentProfileEditorPage({
             }
           >
             <TextField
-              label={
-                isArabic ? "الاسم" : "Name"
-              }
-              name="name_en"
-              value={formData.name_en}
-              onChange={(value) =>
-                updateField(
-                  "name_en",
-                  value
-                )
-              }
-            />
+  label={
+    isArabic
+      ? "الاسم بالإنجليزية"
+      : "English Name"
+  }
+  name="name_en"
+  value={formData.name_en}
+  dir="ltr"
+  onChange={(value) =>
+    updateField(
+      "name_en",
+      value
+    )
+  }
+/>
+
+<TextField
+  label={
+    isArabic
+      ? "الاسم بالعربية"
+      : "Arabic Name"
+  }
+  name="name_ar"
+  value={formData.name_ar}
+  dir="rtl"
+  onChange={(value) =>
+    updateField(
+      "name_ar",
+      value
+    )
+  }
+/>
 
             <SelectField
               label={isArabic ? "الفئة" : "Category"}

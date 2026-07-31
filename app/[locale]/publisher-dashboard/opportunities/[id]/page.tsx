@@ -1,6 +1,6 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 
-import PublisherShell from "@/components/publisher/PublisherShell";
 import TalentPreviewModal from "@/components/publisher/TalentPreviewModal";
 import {
   archiveOpportunityAction,
@@ -196,16 +196,8 @@ function statusClass(status: string | null) {
   }
 }
 
-function calculateApplicantScore(talent: any) {
-  let score = 0;
-
-  score += (talent?.profile_completion || 0) * 0.4;
-  score += Math.min((talent?.profile_views || 0) / 10, 20);
-  score += (talent?.experience_years || 0) * 3;
-
-  if (talent?.featured) score += 15;
-
-  return score;
+function calculateApplicantScore() {
+  return 0;
 }
 
 function countApplicationsByStatus(
@@ -225,14 +217,11 @@ export default async function OpportunityDetailsPage({ params }: PageProps) {
 
   const opportunityId = Number(id);
 
-  if (!Number.isInteger(opportunityId) || opportunityId <= 0) {
-    return (
-      <PublisherShell locale={locale} isRtl={isRtl}>
-        <div className="rounded-[2rem] border border-red-400/20 bg-red-400/[0.04] p-8 text-red-200">
-          {isRtl ? "رابط الفرصة غير صحيح." : "Invalid opportunity link."}
-        </div>
-      </PublisherShell>
-    );
+  if (
+    !Number.isInteger(opportunityId) ||
+    opportunityId <= 0
+  ) {
+    notFound();
   }
 
   const { data: opportunity, error: opportunityError } = await adminClient
@@ -247,22 +236,7 @@ export default async function OpportunityDetailsPage({ params }: PageProps) {
   }
 
   if (!opportunity) {
-    return (
-      <PublisherShell locale={locale} isRtl={isRtl}>
-        <div className="rounded-[2rem] border border-white/10 bg-white/[0.035] p-8">
-          <h1 className="text-4xl font-light text-white">
-            {isRtl ? "الفرصة غير موجودة" : "Opportunity not found"}
-          </h1>
-
-          <Link
-            href={`/${locale}/publisher-dashboard/opportunities`}
-            className="mt-6 inline-flex rounded-full border border-gold/40 px-5 py-3 text-xs uppercase tracking-[0.18em] text-gold transition hover:bg-gold hover:text-black"
-          >
-            {isRtl ? "العودة إلى الفرص" : "Back to Opportunities"}
-          </Link>
-        </div>
-      </PublisherShell>
-    );
+    notFound();
   }
 
   const { data: applicationsData, error: applicationsError } = await adminClient
@@ -324,19 +298,17 @@ export default async function OpportunityDetailsPage({ params }: PageProps) {
   const talentsById = new Map(
     (talentsData ?? []).map((talent) => [talent.id, talent]),
   );
-
+  
   const applications = (applicationsData ?? []).map((application) => ({
     ...application,
     talents: talentsById.get(application.talent_id) ?? null,
   }));
 
   const rankedApplications = applications
-    .map((application: any) => {
-      const talent = Array.isArray(application.talents)
-        ? application.talents[0]
-        : application.talents;
+  .map((application: any) => {
+    const talent = application.talents;
 
-      let score = calculateApplicantScore(talent);
+    let score = calculateApplicantScore();
 
       if (Array.isArray(talent?.skills) && Array.isArray(opportunity.skills)) {
         const opportunitySkills = opportunity.skills.map(normalizeKey);
@@ -355,7 +327,7 @@ export default async function OpportunityDetailsPage({ params }: PageProps) {
         score: Math.min(Math.max(score, 0), 100),
       };
     })
-    .sort((a: any, b: any) => b.score - a.score);
+    .sort((a, b) => b.score - a.score);
 
   const totalApplications = applications.length;
   const shortlistedCount = countApplicationsByStatus(
@@ -458,7 +430,6 @@ export default async function OpportunityDetailsPage({ params }: PageProps) {
     opportunity.status === "open" || opportunity.status === "published";
 
   return (
-    <PublisherShell locale={locale} isRtl={isRtl}>
       <div className="space-y-8">
         <header className="overflow-hidden rounded-[2.5rem] border border-white/10 bg-gradient-to-br from-white/[0.08] via-white/[0.03] to-gold/[0.06] p-6 sm:p-8 md:p-10">
           <div className="grid gap-8 xl:grid-cols-[1fr_320px] xl:items-start">
@@ -659,7 +630,7 @@ export default async function OpportunityDetailsPage({ params }: PageProps) {
 
           {rankedApplications.length > 0 ? (
             <div className="divide-y divide-white/10 overflow-hidden rounded-[1.5rem] border border-white/10">
-              {rankedApplications.map((application: any) => {
+              {rankedApplications.map((application) => {
                 const talent = application.talents;
                 const score = Number(application.score ?? 0);
                 const isHighMatch = score >= 80;
@@ -790,7 +761,6 @@ export default async function OpportunityDetailsPage({ params }: PageProps) {
           )}
         </section>
       </div>
-    </PublisherShell>
   );
 }
 

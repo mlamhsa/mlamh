@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import {
   BriefcaseBusiness,
@@ -8,11 +9,12 @@ import {
   FileText,
   Globe2,
   Info,
+  LayoutDashboard,
   LogIn,
   LogOut,
   Settings,
   ShieldCheck,
-  UserRound,
+  UserCircle,
   UsersRound,
   X,
 } from "lucide-react";
@@ -32,6 +34,8 @@ type MobileAppNavigationProps = {
   onMenuToggle: () => void;
   onMenuClose: () => void;
   onLogout: () => void | Promise<void>;
+  userName?: string | null;
+  avatarUrl?: string | null;
 };
 
 type DrawerItem = {
@@ -67,13 +71,6 @@ const mainItems: DrawerItem[] = [
 ];
 
 const supportItems: DrawerItem[] = [
-  {
-    key: "settings",
-    labelAr: "الإعدادات",
-    labelEn: "Settings",
-    href: "/settings",
-    icon: Settings,
-  },
   {
     key: "about",
     labelAr: "عن ملامح",
@@ -114,6 +111,8 @@ export function MobileAppNavigation({
   onMenuToggle,
   onMenuClose,
   onLogout,
+  userName,
+  avatarUrl,
 }: MobileAppNavigationProps) {
   const isArabic = locale === "ar";
 
@@ -126,18 +125,106 @@ export function MobileAppNavigation({
     onMenuClose();
   }
 
-  const accountLabel =
+  const accountItems: DrawerItem[] =
     accountType === "publisher"
+      ? [
+          {
+            key: "publisher-dashboard",
+            labelAr: "لوحة الناشر",
+            labelEn: "Publisher Dashboard",
+            href: "/publisher-dashboard",
+            icon: LayoutDashboard,
+          },
+          {
+            key: "publisher-profile",
+            labelAr: "الملف الشخصي",
+            labelEn: "Profile",
+            href: "/publisher-dashboard/profile",
+            icon: UserCircle,
+          },
+          {
+            key: "publisher-settings",
+            labelAr: "الإعدادات",
+            labelEn: "Settings",
+            href: "/publisher-dashboard/settings",
+            icon: Settings,
+          },
+        ]
+      : accountType === "admin"
+        ? [
+            {
+              key: "admin-dashboard",
+              labelAr: "لوحة الإدارة",
+              labelEn: "Admin Dashboard",
+              href: "/admin",
+              icon: LayoutDashboard,
+            },
+          ]
+        : [
+            {
+              key: "talent-dashboard",
+              labelAr: "لوحة الموهبة",
+              labelEn: "Talent Dashboard",
+              href: "/talent-dashboard",
+              icon: LayoutDashboard,
+            },
+            {
+              key: "talent-profile",
+              labelAr: "الملف الشخصي",
+              labelEn: "Profile",
+              href: "/talent-dashboard/profile",
+              icon: UserCircle,
+            },
+            {
+              key: "talent-settings",
+              labelAr: "الإعدادات",
+              labelEn: "Settings",
+              href: "/talent-dashboard/settings",
+              icon: Settings,
+            },
+          ];
+
+  function accountHref(path: string) {
+    return path === "/admin" ? path : localizedHref(path);
+  }
+
+  const dashboardHref =
+    accountType === "admin"
+      ? "/admin"
+      : `/${locale}/dashboard-router`;
+
+  const accountTypeLabel =
+    accountType === "admin"
       ? isArabic
-        ? "لوحة الناشر"
-        : "Publisher dashboard"
-      : accountType === "talent"
+        ? "مدير"
+        : "Admin"
+      : accountType === "publisher"
         ? isArabic
-          ? "مساحة الموهبة"
-          : "Talent workspace"
+          ? "ناشر"
+          : "Publisher"
         : isArabic
-          ? "حسابي"
-          : "Account";
+          ? "موهبة"
+          : "Talent";
+
+  const dashboardLabel =
+    accountType === "admin"
+      ? isArabic
+        ? "لوحة الإدارة"
+        : "Admin Dashboard"
+      : accountType === "publisher"
+        ? isArabic
+          ? "لوحة الناشر"
+          : "Publisher Dashboard"
+        : isArabic
+          ? "لوحة الموهبة"
+          : "Talent Dashboard";
+
+  const displayName =
+    userName?.trim() ||
+    (isArabic ? "حساب ملامح" : "MLAMH Account");
+
+  const avatarInitial =
+    displayName.trim().charAt(0).toUpperCase() || "M";
 
   return (
     <>
@@ -246,94 +333,184 @@ export function MobileAppNavigation({
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 py-5">
-          <div className="space-y-2">
-            {mainItems.map((item) => {
-              const Icon = item.icon;
+          {isLoggedIn && !authLoading ? (
+            <section>
+              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                <div className="flex items-center gap-3">
+                  <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full border border-gold/30 bg-gold/10">
+                    {avatarUrl ? (
+                      <Image
+                        src={avatarUrl}
+                        alt={displayName}
+                        fill
+                        sizes="56px"
+                        className="object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-lg font-semibold text-gold">
+                        {avatarInitial}
+                      </div>
+                    )}
+                  </div>
 
-              return (
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-white">
+                      {displayName}
+                    </p>
+                    <p className="mt-1 text-xs text-white/45">
+                      {accountTypeLabel}
+                    </p>
+                  </div>
+                </div>
+
                 <Link
-                  key={item.key}
-                  href={localizedHref(item.href)}
+                  href={dashboardHref}
                   onClick={onMenuClose}
-                  className="
-                    flex
-                    min-h-14
-                    items-center
-                    gap-4
-                    rounded-2xl
-                    border
-                    border-white/[0.08]
-                    bg-white/[0.035]
-                    px-4
-                    text-white
-                    transition
-                    active:scale-[0.99]
-                    active:bg-white/[0.07]
-                  "
+                  className="mt-4 flex min-h-11 items-center justify-center gap-2 rounded-xl bg-gold px-4 text-sm font-semibold text-black transition active:scale-[0.98]"
                 >
-                  <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/[0.06] text-gold">
-                    <Icon size={19} />
-                  </span>
-                  <span className="text-sm font-medium">
-                    {isArabic ? item.labelAr : item.labelEn}
-                  </span>
+                  <LayoutDashboard size={17} />
+                  {dashboardLabel}
                 </Link>
-              );
-            })}
-          </div>
+              </div>
+
+              {accountType !== "admin" ? (
+                <div className="mt-3 space-y-1">
+                  {accountItems
+                    .filter((item) => !item.key.includes("dashboard"))
+                    .map((item) => {
+                      const Icon = item.icon;
+
+                      return (
+                        <Link
+                          key={item.key}
+                          href={accountHref(item.href)}
+                          onClick={onMenuClose}
+                          className="
+                            flex
+                            min-h-12
+                            items-center
+                            gap-4
+                            rounded-xl
+                            px-3
+                            text-sm
+                            text-white/75
+                            transition
+                            active:bg-white/[0.06]
+                            active:text-white
+                          "
+                        >
+                          <Icon size={18} className="shrink-0 text-gold" />
+                          <span>{isArabic ? item.labelAr : item.labelEn}</span>
+                        </Link>
+                      );
+                    })}
+                </div>
+              ) : null}
+
+              <div className="my-5 h-px bg-white/10" />
+            </section>
+          ) : null}
+
+          <section>
+            <p className="mb-3 px-1 text-[11px] font-semibold text-white/35">
+              {isArabic ? "استكشف" : "EXPLORE"}
+            </p>
+
+            <div className="space-y-2">
+              {mainItems.map((item) => {
+                const Icon = item.icon;
+
+                return (
+                  <Link
+                    key={item.key}
+                    href={localizedHref(item.href)}
+                    onClick={onMenuClose}
+                    className="
+                      flex
+                      min-h-14
+                      items-center
+                      gap-4
+                      rounded-2xl
+                      border
+                      border-white/[0.08]
+                      bg-white/[0.035]
+                      px-4
+                      text-white
+                      transition
+                      active:scale-[0.99]
+                      active:bg-white/[0.07]
+                    "
+                  >
+                    <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/[0.06] text-gold">
+                      <Icon size={19} />
+                    </span>
+                    <span className="text-sm font-medium">
+                      {isArabic ? item.labelAr : item.labelEn}
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
 
           <div className="my-5 h-px bg-white/10" />
 
-          <div className="space-y-1">
-            {supportItems.map((item) => {
-              const Icon = item.icon;
+          <section>
+            <p className="mb-2 px-3 text-[11px] font-semibold text-white/35">
+              {isArabic ? "الدعم" : "SUPPORT"}
+            </p>
 
-              return (
-                <Link
-                  key={item.key}
-                  href={localizedHref(item.href)}
-                  onClick={onMenuClose}
-                  className="
-                    flex
-                    min-h-12
-                    items-center
-                    gap-4
-                    rounded-xl
-                    px-3
-                    text-sm
-                    text-white/65
-                    transition
-                    active:bg-white/[0.06]
-                    active:text-white
-                  "
-                >
-                  <Icon size={18} className="shrink-0 text-white/45" />
-                  <span>{isArabic ? item.labelAr : item.labelEn}</span>
-                </Link>
-              );
-            })}
+            <div className="space-y-1">
+              {supportItems.map((item) => {
+                const Icon = item.icon;
 
-            <Link
-              href={languageHref}
-              onClick={onMenuClose}
-              className="
-                flex
-                min-h-12
-                items-center
-                gap-4
-                rounded-xl
-                px-3
-                text-sm
-                text-white/65
-                transition
-                active:bg-white/[0.06]
-                active:text-white
-              "
-            >
-              <Globe2 size={18} className="shrink-0 text-white/45" />
-              <span>{isArabic ? "English" : "العربية"}</span>
-            </Link>
-          </div>
+                return (
+                  <Link
+                    key={item.key}
+                    href={localizedHref(item.href)}
+                    onClick={onMenuClose}
+                    className="
+                      flex
+                      min-h-12
+                      items-center
+                      gap-4
+                      rounded-xl
+                      px-3
+                      text-sm
+                      text-white/65
+                      transition
+                      active:bg-white/[0.06]
+                      active:text-white
+                    "
+                  >
+                    <Icon size={18} className="shrink-0 text-white/45" />
+                    <span>{isArabic ? item.labelAr : item.labelEn}</span>
+                  </Link>
+                );
+              })}
+
+              <Link
+                href={languageHref}
+                onClick={onMenuClose}
+                className="
+                  flex
+                  min-h-12
+                  items-center
+                  gap-4
+                  rounded-xl
+                  px-3
+                  text-sm
+                  text-white/65
+                  transition
+                  active:bg-white/[0.06]
+                  active:text-white
+                "
+              >
+                <Globe2 size={18} className="shrink-0 text-white/45" />
+                <span>{isArabic ? "English" : "العربية"}</span>
+              </Link>
+            </div>
+          </section>
         </div>
 
         <div
@@ -349,54 +526,31 @@ export function MobileAppNavigation({
           {authLoading ? (
             <div className="h-12 animate-pulse rounded-xl bg-white/[0.06]" />
           ) : isLoggedIn ? (
-            <div className="grid grid-cols-2 gap-3">
-              <Link
-                href={`/${locale}/dashboard-router`}
-                onClick={onMenuClose}
-                className="
-                  flex
-                  min-h-12
-                  items-center
-                  justify-center
-                  gap-2
-                  rounded-xl
-                  bg-gold
-                  px-3
-                  text-sm
-                  font-semibold
-                  text-black
-                  transition
-                  active:scale-[0.98]
-                "
-              >
-                <UserRound size={17} />
-                {accountLabel}
-              </Link>
-
-              <button
-                type="button"
-                onClick={handleLogoutClick}
-                className="
-                  flex
-                  min-h-12
-                  items-center
-                  justify-center
-                  gap-2
-                  rounded-xl
-                  border
-                  border-red-400/25
-                  px-3
-                  text-sm
-                  text-red-300
-                  transition
-                  active:scale-[0.98]
-                  active:bg-red-500/10
-                "
-              >
-                <LogOut size={17} />
-                {isArabic ? "خروج" : "Logout"}
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={handleLogoutClick}
+              className="
+                flex
+                min-h-12
+                w-full
+                items-center
+                justify-center
+                gap-2
+                rounded-xl
+                border
+                border-red-400/25
+                bg-red-500/[0.04]
+                px-3
+                text-sm
+                text-red-300
+                transition
+                active:scale-[0.98]
+                active:bg-red-500/10
+              "
+            >
+              <LogOut size={17} />
+              {isArabic ? "تسجيل الخروج" : "Logout"}
+            </button>
           ) : (
             <div className="grid grid-cols-2 gap-3">
               <Link
@@ -448,12 +602,14 @@ export function MobileAppNavigation({
         </div>
       </aside>
 
-      <MobileBottomNavigation
-        locale={locale}
-        isLoggedIn={isLoggedIn}
-        accountType={accountType}
-        authLoading={authLoading}
-      />
+      {!menuOpen ? (
+        <MobileBottomNavigation
+          locale={locale}
+          isLoggedIn={isLoggedIn}
+          accountType={accountType}
+          authLoading={authLoading}
+        />
+      ) : null}
     </>
   );
 }

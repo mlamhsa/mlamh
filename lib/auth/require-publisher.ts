@@ -7,41 +7,43 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export async function requirePublisher(locale: string) {
   const safeLocale = locale === "en" ? "en" : "ar";
+  const loginPath = `/${safeLocale}/login`;
 
   const authClient = await createServerSupabaseClient();
-  const adminClient = createAdminClient();
 
   const {
     data: { user },
-    error: userError,
   } = await authClient.auth.getUser();
 
-  if (userError) {
-    console.error("[requirePublisher:auth]", userError);
-  }
-
   if (!user) {
-    redirect(`/${safeLocale}/publisher-login`);
+    redirect(loginPath);
   }
 
-  const { data: profile, error: profileError } = await adminClient
-    .from("profiles")
-    .select("id, account_type")
-    .eq("user_id", user.id)
-    .maybeSingle();
+  const adminClient = createAdminClient();
+
+  const { data: profile, error: profileError } =
+    await adminClient
+      .from("profiles")
+      .select("id, account_type")
+      .eq("user_id", user.id)
+      .maybeSingle();
 
   if (profileError) {
-    console.error("[requirePublisher:profile]", profileError);
-    redirect(`/${safeLocale}/publisher-login`);
+    console.warn(
+      "[requirePublisher:profile]",
+      profileError,
+    );
+
+    redirect(loginPath);
   }
 
   if (!profile) {
-    console.error(
+    console.warn(
       "[requirePublisher:profile] Profile not found for user:",
-      user.id
+      user.id,
     );
 
-    redirect(`/${safeLocale}/publisher-login`);
+    redirect(loginPath);
   }
 
   if (profile.account_type === "talent") {
@@ -53,12 +55,12 @@ export async function requirePublisher(locale: string) {
   }
 
   if (profile.account_type !== "publisher") {
-    console.error(
+    console.warn(
       "[requirePublisher:account-type]",
-      profile.account_type
+      profile.account_type,
     );
 
-    redirect(`/${safeLocale}/publisher-login`);
+    redirect(loginPath);
   }
 
   const { data: publisher, error: publisherError } =
@@ -91,12 +93,12 @@ export async function requirePublisher(locale: string) {
       .maybeSingle();
 
   if (publisherError) {
-    console.error(
+    console.warn(
       "[requirePublisher:publisher]",
-      publisherError
+      publisherError,
     );
 
-    redirect(`/${safeLocale}/publisher-login`);
+    redirect(loginPath);
   }
 
   if (!publisher) {

@@ -241,15 +241,6 @@ export async function getPublishedTalentBySlug(
     throw new Error(`[getPublishedTalentBySlug] ${error.message}`);
   }
 
-  console.log("[getPublishedTalentBySlug]", {
-    receivedSlug: slug,
-    normalizedSlug,
-    found: Boolean(data),
-    databaseSlug: data?.slug ?? null,
-    published: data?.published ?? null,
-    status: data?.status ?? null,
-  });
-
   return data as Talent | null;
 }
 

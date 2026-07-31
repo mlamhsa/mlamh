@@ -27,7 +27,7 @@ export default async function TalentGalleryPage({ searchParams }: PageProps) {
 
   const authClient = await createServerSupabaseClient();
   const { data: { user }, error } = await authClient.auth.getUser();
-  if (error || !user) redirect("/talent-login");
+  if (error || !user) redirect("/ar/login");
 
   const adminClient = createAdminClient();
   const { data: talent } = await adminClient
