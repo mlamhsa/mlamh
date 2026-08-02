@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { redirect } from "next/navigation";
 
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -330,11 +331,15 @@ export default async function TalentMessagesPage({
                     className="group flex items-center gap-3 p-4 transition hover:bg-white/[0.035] sm:gap-4 sm:p-6"
                   >
                     {publisher?.profile_image_url ? (
-                      <img
+                      <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full border border-white/10 sm:h-16 sm:w-16">
+                      <Image
                         src={publisher.profile_image_url}
                         alt={publisherName}
-                        className="h-12 w-12 shrink-0 rounded-full border border-white/10 object-cover sm:h-16 sm:w-16"
+                        fill
+                        sizes="64px"
+                        className="object-cover"
                       />
+                    </div>
                     ) : (
                       <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-base text-gold sm:h-16 sm:w-16 sm:text-xl">
                         {publisherName.slice(0, 1)}

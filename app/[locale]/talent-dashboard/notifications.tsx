@@ -4,6 +4,12 @@ type PageProps = {
   params: Promise<{ locale: string }>;
 };
 
+type NotificationRecord = {
+  id: string | number;
+  message: string | null;
+  created_at: string;
+};
+
 export default async function TalentNotifications({ params }: PageProps) {
   const { locale } = await params;
   const isRtl = locale === "ar";
@@ -36,14 +42,14 @@ export default async function TalentNotifications({ params }: PageProps) {
 
       {notifications && notifications.length > 0 ? (
         <div className="space-y-2">
-          {notifications.map((n: any) => (
+          {(notifications as NotificationRecord[]).map((notification) => (
             <div
-              key={n.id}
+              key={notification.id}
               className="rounded-xl border border-white/10 bg-white/[0.025] p-4 text-white/70"
             >
-              <p className="text-sm">{n.message}</p>
+              <p className="text-sm">{notification.message}</p>
               <p className="text-xs text-white/40">
-                {new Date(n.created_at).toLocaleString(isRtl ? "ar-SA" : "en-US")}
+                {new Date(notification.created_at).toLocaleString(isRtl ? "ar-SA" : "en-US")}
               </p>
             </div>
           ))}

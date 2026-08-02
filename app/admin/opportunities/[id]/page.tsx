@@ -189,6 +189,7 @@ export default async function AdminOpportunityDetailsPage({ params }: PageProps)
     .order("created_at", { ascending: false });
 
   const applicationList = applications ?? [];
+  type AdminApplication = (typeof applicationList)[number];
 
   return (
     <main className="min-h-screen bg-background px-6 py-10 text-white">
@@ -353,7 +354,7 @@ export default async function AdminOpportunityDetailsPage({ params }: PageProps)
             </div>
           ) : (
             <div className="grid gap-4">
-              {applicationList.map((application: any) => {
+              {applicationList.map((application: AdminApplication) => {
                 const talent = Array.isArray(application.talents)
                   ? application.talents[0]
                   : application.talents;

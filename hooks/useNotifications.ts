@@ -133,12 +133,7 @@ export function useNotifications(userId: string) {
     let requestInProgress = false;
 
     if (!userId) {
-      setNotifications([]);
-      setLoading(false);
-
-      return () => {
-        active = false;
-      };
+      return;
     }
 
     async function refreshNotifications(
@@ -316,8 +311,8 @@ export function useNotifications(userId: string) {
   );
 
   return {
-    notifications,
-    unreadCount,
-    loading,
+    notifications: userId ? notifications : [],
+    unreadCount: userId ? unreadCount : 0,
+    loading: userId ? loading : false,
   };
 }

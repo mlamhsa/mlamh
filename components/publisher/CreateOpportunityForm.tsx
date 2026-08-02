@@ -26,6 +26,7 @@ const saudiCities = [
   { value: "jubail", ar: "الجبيل", en: "Jubail" },
   { value: "yanbu", ar: "ينبع", en: "Yanbu" },
 ];
+type AgeMode = "all" | "adults" | "range";
 
 function formatBudgetInput(value: string) {
   const numeric = value.replace(/\D/g, "");
@@ -48,8 +49,14 @@ export default function CreateOpportunityForm({
   const [type, setType] = useState("");
   const [typeOther, setTypeOther] = useState("");
   const [minAge, setMinAge] = useState("");
-  const [maxAge, setMaxAge] = useState("");
-  const [budget, setBudget] = useState("");
+const [maxAge, setMaxAge] = useState("");
+
+const [ageMode, setAgeMode] =
+  useState<AgeMode>("all");
+
+const [budget, setBudget] = useState("");
+  const [applicationDays, setApplicationDays] =
+  useState("30");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -99,11 +106,21 @@ export default function CreateOpportunityForm({
           title: title.trim(),
           description: description.trim(),
           city: finalCity,
-          gender,
-          min_age: minAge || null,
-          max_age: maxAge || null,
+          required_gender: gender,
+          min_age:
+  ageMode === "adults"
+    ? 18
+    : ageMode === "range"
+      ? minAge || null
+      : null,
+
+max_age:
+  ageMode === "range"
+    ? maxAge || null
+    : null,
           budget: budget.replace(/,/g, "") || null,
           opportunity_type: finalOpportunityType,
+          application_days: Number(applicationDays),
         }),
       });
 
@@ -203,6 +220,56 @@ export default function CreateOpportunityForm({
           onSubmit={handleSubmit}
           className={isRtl ? "grid gap-8 text-right" : "grid gap-8 text-left"}
         >
+        <section className="rounded-[2rem] border border-white/10 bg-white/[0.025] p-6 md:p-8">
+  <div className="mb-6">
+    <p className="text-xs uppercase tracking-[0.3em] text-gold">
+      {isRtl ? "مدة استقبال الطلبات" : "Application Period"}
+    </p>
+
+    <h2 className="mt-3 text-3xl font-light">
+      {isRtl
+        ? "كم يوم تستقبل الطلبات؟"
+        : "How many days will applications remain open?"}
+    </h2>
+
+    <p className="mt-3 text-sm text-white/40">
+      {isRtl
+        ? "سيبدأ استقبال الطلبات من اليوم، وسيتم إغلاقها تلقائياً بعد انتهاء المدة."
+        : "Applications start today and close automatically after the selected number of days."}
+    </p>
+  </div>
+
+  <div className="grid gap-4">
+    <input
+      type="number"
+      min="1"
+      max="90"
+      value={applicationDays}
+      onChange={(e) =>
+        setApplicationDays(e.target.value)
+      }
+      placeholder={isRtl ? "عدد الأيام" : "Number of days"}
+      className="rounded-xl border border-white/10 bg-black/30 px-4 py-4 outline-none transition focus:border-gold/50"
+    />
+
+    <div className="flex flex-wrap gap-2">
+      {[7, 14, 30].map((days) => (
+        <button
+          key={days}
+          type="button"
+          onClick={() =>
+            setApplicationDays(String(days))
+          }
+          className="rounded-full border border-gold/30 px-4 py-2 text-xs text-gold transition hover:bg-gold hover:text-black"
+        >
+          {isRtl
+            ? `${days} يوم`
+            : `${days} Days`}
+        </button>
+      ))}
+    </div>
+  </div>
+</section>
           <section className="rounded-[2rem] border border-white/10 bg-white/[0.025] p-6 md:p-8">
             <div className="mb-6">
               <p className="text-xs uppercase tracking-[0.3em] text-gold">
@@ -332,23 +399,159 @@ export default function CreateOpportunityForm({
                 />
               )}
 
-              <div className="grid gap-5 sm:grid-cols-2">
-                <input
-                  type="number"
-                  value={minAge}
-                  onChange={(e) => setMinAge(e.target.value)}
-                  placeholder={isRtl ? "الحد الأدنى للعمر" : "Minimum age"}
-                  className="rounded-xl border border-white/10 bg-black/30 px-4 py-4 outline-none transition placeholder:text-white/25 focus:border-gold/50"
-                />
+<div className="rounded-2xl border border-white/10 bg-black/20 p-4 sm:p-5">
+  <div className="mb-4">
+    <p className="text-sm font-medium text-white">
+      {isRtl ? "الفئة العمرية" : "Age Group"}
+    </p>
 
-                <input
-                  type="number"
-                  value={maxAge}
-                  onChange={(e) => setMaxAge(e.target.value)}
-                  placeholder={isRtl ? "الحد الأعلى للعمر" : "Maximum age"}
-                  className="rounded-xl border border-white/10 bg-black/30 px-4 py-4 outline-none transition placeholder:text-white/25 focus:border-gold/50"
-                />
-              </div>
+    <p className="mt-1 text-xs leading-6 text-white/40">
+      {isRtl
+        ? "حدد الأعمار المناسبة للفرصة، بما في ذلك فرص الأطفال."
+        : "Select the suitable ages, including opportunities for children."}
+    </p>
+  </div>
+
+  <div className="grid gap-3 lg:grid-cols-3">
+    <button
+      type="button"
+      onClick={() => {
+        setAgeMode("all");
+        setMinAge("");
+        setMaxAge("");
+      }}
+      className={`rounded-2xl border p-4 text-start transition ${
+        ageMode === "all"
+          ? "border-gold/50 bg-gold/[0.08] text-gold"
+          : "border-white/10 bg-black/20 text-white/60 hover:border-white/20"
+      }`}
+    >
+      <span className="block text-sm font-medium">
+        {isRtl ? "جميع الأعمار" : "All Ages"}
+      </span>
+
+      <span className="mt-2 block text-xs leading-6 opacity-60">
+        {isRtl
+          ? "للأدوار والفعاليات التي لا تتطلب عمرًا محددًا."
+          : "For roles and events with no specific age restriction."}
+      </span>
+    </button>
+
+    <button
+      type="button"
+      onClick={() => {
+        setAgeMode("adults");
+        setMinAge("");
+        setMaxAge("");
+      }}
+      className={`rounded-2xl border p-4 text-start transition ${
+        ageMode === "adults"
+          ? "border-gold/50 bg-gold/[0.08] text-gold"
+          : "border-white/10 bg-black/20 text-white/60 hover:border-white/20"
+      }`}
+    >
+      <span className="block text-sm font-medium">
+        {isRtl
+          ? "للبالغين فقط"
+          : "Adults Only"}
+      </span>
+
+      <span className="mt-2 block text-xs leading-6 opacity-60">
+        {isRtl
+          ? "للمتقدمين من عمر 18 سنة فأكثر."
+          : "For applicants aged 18 years and above."}
+      </span>
+    </button>
+
+    <button
+      type="button"
+      onClick={() => setAgeMode("range")}
+      className={`rounded-2xl border p-4 text-start transition ${
+        ageMode === "range"
+          ? "border-gold/50 bg-gold/[0.08] text-gold"
+          : "border-white/10 bg-black/20 text-white/60 hover:border-white/20"
+      }`}
+    >
+      <span className="block text-sm font-medium">
+        {isRtl
+          ? "نطاق عمر محدد"
+          : "Specific Age Range"}
+      </span>
+
+      <span className="mt-2 block text-xs leading-6 opacity-60">
+        {isRtl
+          ? "للأطفال أو المراهقين أو أي نطاق عمر معين."
+          : "For children, teenagers, or another specific age range."}
+      </span>
+    </button>
+  </div>
+
+  {ageMode === "range" ? (
+    <div className="mt-5">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className="grid gap-2">
+          <span className="text-xs text-white/45">
+            {isRtl
+              ? "الحد الأدنى للعمر"
+              : "Minimum Age"}
+          </span>
+
+          <input
+            type="number"
+            min="0"
+            max="100"
+            value={minAge}
+            onChange={(event) =>
+              setMinAge(event.target.value)
+            }
+            placeholder={isRtl ? "مثال: 5" : "Example: 5"}
+            className="rounded-xl border border-white/10 bg-black/30 px-4 py-4 outline-none transition placeholder:text-white/25 focus:border-gold/50"
+            required
+          />
+        </label>
+
+        <label className="grid gap-2">
+          <span className="text-xs text-white/45">
+            {isRtl
+              ? "الحد الأعلى للعمر"
+              : "Maximum Age"}
+          </span>
+
+          <input
+            type="number"
+            min={minAge || "0"}
+            max="100"
+            value={maxAge}
+            onChange={(event) =>
+              setMaxAge(event.target.value)
+            }
+            placeholder={isRtl ? "مثال: 12" : "Example: 12"}
+            className="rounded-xl border border-white/10 bg-black/30 px-4 py-4 outline-none transition placeholder:text-white/25 focus:border-gold/50"
+            required
+          />
+        </label>
+      </div>
+
+      {minAge && maxAge ? (
+        <div
+          className={`mt-4 rounded-xl border px-4 py-3 text-sm ${
+            Number(minAge) <= Number(maxAge)
+              ? "border-emerald-400/20 bg-emerald-400/[0.07] text-emerald-300"
+              : "border-red-400/20 bg-red-400/[0.07] text-red-300"
+          }`}
+        >
+          {Number(minAge) <= Number(maxAge)
+            ? isRtl
+              ? `تشمل هذه الفرصة الأعمار من ${minAge} إلى ${maxAge} سنة.`
+              : `This opportunity includes ages ${minAge} to ${maxAge}.`
+            : isRtl
+              ? "الحد الأدنى للعمر يجب ألا يكون أكبر من الحد الأعلى."
+              : "Minimum age cannot be greater than maximum age."}
+        </div>
+      ) : null}
+    </div>
+  ) : null}
+</div>
             </div>
           </section>
 

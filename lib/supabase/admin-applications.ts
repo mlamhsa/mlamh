@@ -6,10 +6,42 @@ export type AdminApplicationStatus =
   | "accepted"
   | "rejected";
 
-export type AdminApplicationFilters = {
-  status?: string;
-  search?: string;
-};
+  export type AdminApplicationFilters = {
+    status?: string;
+    search?: string;
+  };
+  
+  type AdminApplicationOpportunity = {
+    id: number;
+    title: string | null;
+    slug: string | null;
+    city_ar: string | null;
+    opportunity_type: string | null;
+  };
+  
+  type AdminApplicationTalent = {
+    id: number;
+    name_en: string | null;
+    name_ar: string | null;
+    slug: string | null;
+    image_url: string | null;
+    city_ar: string | null;
+    gender: string | null;
+  };
+  
+  type AdminApplicationListItem = {
+    id: number;
+    status: string | null;
+    created_at: string | null;
+    opportunities:
+      | AdminApplicationOpportunity
+      | AdminApplicationOpportunity[]
+      | null;
+    talents:
+      | AdminApplicationTalent
+      | AdminApplicationTalent[]
+      | null;
+  };
 
 export async function getAdminApplications(filters: AdminApplicationFilters = {}) {
   const adminClient = createAdminClient();
@@ -59,7 +91,7 @@ export async function getAdminApplications(filters: AdminApplicationFilters = {}
 
   const search = filters.search.toLowerCase();
 
-  return applications.filter((item: any) => {
+  return (applications as AdminApplicationListItem[]).filter((item) => {
     const opportunity = Array.isArray(item.opportunities)
       ? item.opportunities[0]
       : item.opportunities;

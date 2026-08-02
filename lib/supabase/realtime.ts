@@ -1,6 +1,8 @@
+import type { RealtimeChannel } from "@supabase/supabase-js";
+
 import { supabase } from "@/lib/supabase/client";
 
-let channel: any = null;
+let channel: RealtimeChannel | null = null;
 
 export function getNotificationsChannel(userId: string) {
   if (channel) return channel;

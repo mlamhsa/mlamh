@@ -52,11 +52,6 @@ export function MobileAppShell({ locale }: MobileAppShellProps) {
     };
   }, [menuOpen]);
 
-  useEffect(() => {
-    setMenuOpen(false);
-    document.body.style.overflow = "";
-  }, [pathname, queryString]);
-
   async function handleLogout() {
     await supabase.auth.signOut();
 

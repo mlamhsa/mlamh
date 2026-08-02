@@ -34,7 +34,6 @@ export default async function JoinTalentPage({ params }: PageProps) {
   }
 
   const dict = getDictionary(locale);
-  const j = dict.join;
 
   const displayFont = isRtl
     ? "var(--font-noto-arabic)"

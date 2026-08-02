@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 
 import {
   DndContext,
@@ -290,22 +290,39 @@ export function GallerySortableList({
   removeAction,
 }: GallerySortableListProps) {
   const isArabic = locale === "ar";
+
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+
   const normalizedImages = useMemo(() => uniqueImages(images), [images]);
+  const normalizedImagesKey = useMemo(
+    () => JSON.stringify(normalizedImages),
+    [normalizedImages],
+  );
 
-  const [mounted, setMounted] = useState(false);
-  const [orderedImages, setOrderedImages] = useState<string[]>(normalizedImages);
+  const [galleryState, setGalleryState] = useState<{
+    sourceKey: string;
+    orderedImages: string[];
+  }>(() => ({
+    sourceKey: normalizedImagesKey,
+    orderedImages: normalizedImages,
+  }));
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    setOrderedImages(normalizedImages);
-  }, [normalizedImages]);
+  /*
+   * عند تغيّر الصور القادمة من الخادم نعرض النسخة الجديدة مباشرة،
+   * من دون نسخ props إلى state داخل useEffect.
+   */
+  const orderedImages =
+    galleryState.sourceKey === normalizedImagesKey
+      ? galleryState.orderedImages
+      : normalizedImages;
 
   const hasUnsavedChanges = useMemo(
     () => !areArraysEqual(normalizedImages, orderedImages),
-    [normalizedImages, orderedImages]
+    [normalizedImages, orderedImages],
   );
 
   const sensors = useSensors(
@@ -322,26 +339,44 @@ export function GallerySortableList({
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    })
+    }),
   );
+
+  function updateOrderedImages(
+    updater: (currentImages: string[]) => string[],
+  ) {
+    setGalleryState((currentState) => {
+      const currentImages =
+        currentState.sourceKey === normalizedImagesKey
+          ? currentState.orderedImages
+          : normalizedImages;
+
+      return {
+        sourceKey: normalizedImagesKey,
+        orderedImages: updater(currentImages),
+      };
+    });
+  }
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
 
     if (!over || active.id === over.id) return;
 
-    setOrderedImages((items) => {
+    updateOrderedImages((items) => {
       const oldIndex = items.indexOf(String(active.id));
       const newIndex = items.indexOf(String(over.id));
 
-      if (oldIndex === -1 || newIndex === -1) return items;
+      if (oldIndex === -1 || newIndex === -1) {
+        return items;
+      }
 
       return arrayMove(items, oldIndex, newIndex);
     });
   }
 
   function moveImage(index: number, direction: "up" | "down") {
-    setOrderedImages((items) => {
+    updateOrderedImages((items) => {
       const targetIndex = direction === "up" ? index - 1 : index + 1;
 
       if (
@@ -369,7 +404,9 @@ export function GallerySortableList({
             </p>
 
             <h2 className="mt-2 text-2xl font-light sm:text-3xl">
-              {isArabic ? "رتّب صورك بالطريقة التي تريدها" : "Arrange Your Portfolio Images"}
+              {isArabic
+                ? "رتّب صورك بالطريقة التي تريدها"
+                : "Arrange Your Portfolio Images"}
             </h2>
 
             <p className="mt-3 max-w-2xl text-sm leading-7 text-white/45">

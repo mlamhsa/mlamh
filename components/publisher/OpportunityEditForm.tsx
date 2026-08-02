@@ -69,6 +69,9 @@ type OpportunityFormData = {
   min_age: number | null;
   max_age: number | null;
   budget: number | string | null;
+  application_days: number | null;
+  application_start_date?: string | null;
+  application_deadline?: string | null;
 };
 
 function normalizeBudget(value: unknown) {
@@ -159,12 +162,23 @@ export default function OpportunityEditForm({
       : String(opportunity.min_age),
   );
   const [maxAge, setMaxAge] = useState(
-    opportunity.max_age === null || opportunity.max_age === undefined
+    opportunity.max_age === null ||
+    opportunity.max_age === undefined
       ? ""
       : String(opportunity.max_age),
   );
-  const [budget, setBudget] = useState(normalizeBudget(opportunity.budget));
-
+  
+  const [budget, setBudget] = useState(
+    normalizeBudget(opportunity.budget),
+  );
+  
+  const [applicationDays, setApplicationDays] =
+    useState(
+      opportunity.application_days
+        ? String(opportunity.application_days)
+        : "30",
+    );
+  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -249,10 +263,27 @@ export default function OpportunityEditForm({
 
     const minAgeNumber = minAge ? Number(minAge) : null;
     const maxAgeNumber = maxAge ? Number(maxAge) : null;
+    const applicationDaysNumber =
+    Number(applicationDays);
+  
+  if (
+    !Number.isInteger(applicationDaysNumber) ||
+    applicationDaysNumber < 1 ||
+    applicationDaysNumber > 90
+  ) {
+    setError(
+      isRtl
+        ? "مدة استقبال الطلبات يجب أن تكون بين يوم واحد و90 يومًا."
+        : "The application period must be between 1 and 90 days.",
+    );
+  
+    setLoading(false);
+    return;
+  }
 
     if (
       minAgeNumber !== null &&
-      (!Number.isInteger(minAgeNumber) || minAgeNumber < 1 || minAgeNumber > 100)
+      (!Number.isInteger(minAgeNumber) || minAgeNumber < 0 || minAgeNumber > 100)
     ) {
       setError(
         isRtl
@@ -265,11 +296,11 @@ export default function OpportunityEditForm({
 
     if (
       maxAgeNumber !== null &&
-      (!Number.isInteger(maxAgeNumber) || maxAgeNumber < 1 || maxAgeNumber > 100)
+      (!Number.isInteger(maxAgeNumber) || maxAgeNumber < 0 || maxAgeNumber > 100)
     ) {
       setError(
         isRtl
-          ? "الحد الأعلى للعمر يجب أن يكون رقمًا صحيحًا بين 1 و100."
+          ? "الحد الأعلى للعمر يجب أن يكون رقمًا صحيحًا بين 0 و100."
           : "Maximum age must be a whole number between 1 and 100.",
       );
       setLoading(false);
@@ -307,8 +338,9 @@ export default function OpportunityEditForm({
       opportunity_type: finalOpportunityType,
       status,
       min_age: minAgeNumber,
-      max_age: maxAgeNumber,
-      budget: budget.replace(/,/g, "") || null,
+max_age: maxAgeNumber,
+budget: budget.replace(/,/g, "") || null,
+application_days: applicationDaysNumber,
     };
 
     try {
@@ -528,43 +560,167 @@ export default function OpportunityEditForm({
             </div>
           ) : null}
 
-          <div className="grid gap-5 sm:grid-cols-2">
-            <div>
-              <label htmlFor="minimum-age" className="arabic-safe mb-2 block text-xs uppercase tracking-[0.22em] text-white/40">
-                {isRtl ? "الحد الأدنى للعمر" : "Minimum Age"}
-              </label>
-              <input
-                id="minimum-age"
-                type="number"
-                min={1}
-                max={100}
-                step={1}
-                value={minAge}
-                onChange={(event) => setMinAge(event.target.value)}
-                placeholder={isRtl ? "مثال: 18" : "Example: 18"}
-                disabled={loading}
-                className={inputClass}
-              />
-            </div>
+<div className="rounded-2xl border border-white/10 bg-black/20 p-4 sm:p-5">
+  <div className="mb-4">
+    <p className="text-sm font-medium text-white">
+      {isRtl ? "الفئة العمرية" : "Age Group"}
+    </p>
 
-            <div>
-              <label htmlFor="maximum-age" className="arabic-safe mb-2 block text-xs uppercase tracking-[0.22em] text-white/40">
-                {isRtl ? "الحد الأعلى للعمر" : "Maximum Age"}
-              </label>
-              <input
-                id="maximum-age"
-                type="number"
-                min={1}
-                max={100}
-                step={1}
-                value={maxAge}
-                onChange={(event) => setMaxAge(event.target.value)}
-                placeholder={isRtl ? "مثال: 35" : "Example: 35"}
-                disabled={loading}
-                className={inputClass}
-              />
-            </div>
-          </div>
+    <p className="mt-1 text-xs leading-6 text-white/40">
+      {isRtl
+        ? "حدد الأعمار المناسبة للفرصة، بما في ذلك فرص الأطفال."
+        : "Select suitable ages, including opportunities for children."}
+    </p>
+  </div>
+
+  <div className="grid gap-3 lg:grid-cols-3">
+    <button
+      type="button"
+      disabled={loading}
+      onClick={() => {
+        setMinAge("");
+        setMaxAge("");
+      }}
+      className={`rounded-2xl border p-4 text-start transition disabled:cursor-not-allowed disabled:opacity-50 ${
+        minAge === "" && maxAge === ""
+          ? "border-gold/50 bg-gold/[0.08] text-gold"
+          : "border-white/10 bg-black/20 text-white/60 hover:border-white/20"
+      }`}
+    >
+      <span className="block text-sm font-medium">
+        {isRtl ? "جميع الأعمار" : "All Ages"}
+      </span>
+
+      <span className="mt-2 block text-xs leading-6 opacity-60">
+        {isRtl
+          ? "للأدوار التي لا تحتاج إلى عمر محدد."
+          : "For roles with no specific age restriction."}
+      </span>
+    </button>
+
+    <button
+      type="button"
+      disabled={loading}
+      onClick={() => {
+        setMinAge("18");
+        setMaxAge("");
+      }}
+      className={`rounded-2xl border p-4 text-start transition disabled:cursor-not-allowed disabled:opacity-50 ${
+        minAge === "18" && maxAge === ""
+          ? "border-gold/50 bg-gold/[0.08] text-gold"
+          : "border-white/10 bg-black/20 text-white/60 hover:border-white/20"
+      }`}
+    >
+      <span className="block text-sm font-medium">
+        {isRtl ? "للبالغين فقط" : "Adults Only"}
+      </span>
+
+      <span className="mt-2 block text-xs leading-6 opacity-60">
+        {isRtl
+          ? "للمتقدمين من عمر 18 سنة فأكثر."
+          : "For applicants aged 18 and above."}
+      </span>
+    </button>
+
+    <button
+      type="button"
+      disabled={loading}
+      onClick={() => {
+        setMinAge("0");
+        setMaxAge("12");
+    }}
+      className={`rounded-2xl border p-4 text-start transition disabled:cursor-not-allowed disabled:opacity-50 ${
+        (minAge !== "" || maxAge !== "") &&
+        !(minAge === "18" && maxAge === "")
+          ? "border-gold/50 bg-gold/[0.08] text-gold"
+          : "border-white/10 bg-black/20 text-white/60 hover:border-white/20"
+      }`}
+    >
+      <span className="block text-sm font-medium">
+        {isRtl ? "نطاق عمر محدد" : "Specific Age Range"}
+      </span>
+
+      <span className="mt-2 block text-xs leading-6 opacity-60">
+        {isRtl
+          ? "للأطفال أو المراهقين أو أي نطاق محدد."
+          : "For children, teenagers, or another range."}
+      </span>
+    </button>
+  </div>
+
+  {(minAge !== "" || maxAge !== "") &&
+  !(minAge === "18" && maxAge === "") ? (
+    <div className="mt-5">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label
+            htmlFor="minimum-age"
+            className="arabic-safe mb-2 block text-xs uppercase tracking-[0.22em] text-white/40"
+          >
+            {isRtl ? "الحد الأدنى للعمر" : "Minimum Age"}
+          </label>
+
+          <input
+            id="minimum-age"
+            type="number"
+            min={0}
+            max={100}
+            step={1}
+            value={minAge}
+            onChange={(event) =>
+              setMinAge(event.target.value)
+            }
+            placeholder={isRtl ? "مثال: 5" : "Example: 5"}
+            disabled={loading}
+            className={inputClass}
+          />
+        </div>
+
+        <div>
+          <label
+            htmlFor="maximum-age"
+            className="arabic-safe mb-2 block text-xs uppercase tracking-[0.22em] text-white/40"
+          >
+            {isRtl ? "الحد الأعلى للعمر" : "Maximum Age"}
+          </label>
+
+          <input
+            id="maximum-age"
+            type="number"
+            min={0}
+            max={100}
+            step={1}
+            value={maxAge}
+            onChange={(event) =>
+              setMaxAge(event.target.value)
+            }
+            placeholder={isRtl ? "مثال: 12" : "Example: 12"}
+            disabled={loading}
+            className={inputClass}
+          />
+        </div>
+      </div>
+
+      {minAge && maxAge ? (
+        <div
+          className={`mt-4 rounded-xl border px-4 py-3 text-sm ${
+            Number(minAge) <= Number(maxAge)
+              ? "border-emerald-400/20 bg-emerald-400/[0.07] text-emerald-300"
+              : "border-red-400/20 bg-red-400/[0.07] text-red-300"
+          }`}
+        >
+          {Number(minAge) <= Number(maxAge)
+            ? isRtl
+              ? `تشمل هذه الفرصة الأعمار من ${minAge} إلى ${maxAge} سنة.`
+              : `This opportunity includes ages ${minAge} to ${maxAge}.`
+            : isRtl
+              ? "الحد الأدنى للعمر يجب ألا يكون أكبر من الحد الأعلى."
+              : "Minimum age cannot be greater than maximum age."}
+        </div>
+      ) : null}
+    </div>
+  ) : null}
+</div>
         </div>
       </section>
 
@@ -597,6 +753,85 @@ export default function OpportunityEditForm({
           />
         </div>
       </section>
+
+      <section className="rounded-2xl border border-white/10 bg-white/[0.025] p-6 md:p-8">
+  <div className="mb-6">
+    <p className="text-xs uppercase tracking-[0.3em] text-gold">
+      {isRtl ? "مدة استقبال الطلبات" : "Application Period"}
+    </p>
+
+    <h2 className="mt-3 text-3xl font-light text-white">
+      {isRtl
+        ? "كم يوم تستمر الفرصة؟"
+        : "How long should applications remain open?"}
+    </h2>
+
+    <p className="mt-3 text-sm leading-7 text-white/40">
+      {isPublishedOrOpen
+        ? isRtl
+          ? "الفرصة منشورة حاليًا. تغيير عدد الأيام لا يعيد تاريخ البداية تلقائيًا، وسيتم التعامل مع تاريخ الإغلاق وفق حالة الفرصة."
+          : "This opportunity is currently published. Changing the duration does not automatically restart the application period."
+        : isRtl
+          ? "يبدأ احتساب المدة بعد موافقة الإدارة على نشر الفرصة."
+          : "The application period begins after admin approval."}
+    </p>
+  </div>
+
+  <div className="grid gap-4">
+    <label className="grid gap-2">
+      <span className="text-xs uppercase tracking-[0.22em] text-white/40">
+        {isRtl ? "عدد الأيام" : "Number of Days"}
+      </span>
+
+      <input
+        type="number"
+        min={1}
+        max={90}
+        step={1}
+        value={applicationDays}
+        onChange={(event) =>
+          setApplicationDays(event.target.value)
+        }
+        placeholder={isRtl ? "مثال: 30" : "Example: 30"}
+        disabled={loading}
+        className={inputClass}
+      />
+    </label>
+
+    <div className="flex flex-wrap gap-2">
+      {[7, 14, 30].map((days) => {
+        const selected =
+          applicationDays === String(days);
+
+        return (
+          <button
+            key={days}
+            type="button"
+            disabled={loading}
+            onClick={() =>
+              setApplicationDays(String(days))
+            }
+            className={`rounded-full border px-4 py-2 text-xs transition disabled:cursor-not-allowed disabled:opacity-50 ${
+              selected
+                ? "border-gold/50 bg-gold/[0.1] text-gold"
+                : "border-white/10 text-white/55 hover:border-gold/35 hover:text-gold"
+            }`}
+          >
+            {isRtl
+              ? `${days} يوم`
+              : `${days} Days`}
+          </button>
+        );
+      })}
+    </div>
+
+    <div className="rounded-xl border border-emerald-400/15 bg-emerald-400/[0.05] px-4 py-3 text-sm leading-7 text-emerald-200/80">
+      {isRtl
+        ? `مدة استقبال الطلبات المحددة: ${applicationDays || "—"} يومًا.`
+        : `Selected application period: ${applicationDays || "—"} days.`}
+    </div>
+  </div>
+</section>
 
       {success ? (
         <p role="status" aria-live="polite" className="rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-300">

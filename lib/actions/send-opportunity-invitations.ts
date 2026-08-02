@@ -45,10 +45,11 @@ function getOpportunityIds(formData: FormData) {
 }
 
 export async function sendOpportunityInvitationsAction(
-  _previousState: SendOpportunityInvitationsState =
+  previousState: SendOpportunityInvitationsState =
     initialErrorState,
   formData: FormData,
 ): Promise<SendOpportunityInvitationsState> {
+  void previousState;
   const locale =
     formData.get("locale") === "en" ? "en" : "ar";
 

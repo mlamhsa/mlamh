@@ -2,10 +2,6 @@ import Link from "next/link";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import ContactRequestButton from "@/components/talent/ContactRequestButton";
 
-type PageProps = {
-  params: Promise<{ locale: string }>;
-};
-
 type PublisherContact = {
   id?: number;
   company_name?: string | null;
@@ -29,13 +25,32 @@ type Application = {
   publisher?: PublisherContact | null;
 };
 
+type OpportunityRow = {
+  id: number;
+  title: string | null;
+  slug: string | null;
+  publisher_id: number | null;
+  city_ar: string | null;
+  city_en: string | null;
+  opportunity_type: string | null;
+  budget: string | number | null;
+};
+
+type ApplicationRow = {
+  id: number;
+  status: string;
+  opportunity_id: number;
+  created_at: string;
+  opportunities: OpportunityRow | OpportunityRow[] | null;
+};
+
 type Notification = {
   id: number;
   message: string;
   created_at: string;
 };
 
-export default async function TalentApplicationsPage({ params }: PageProps) {
+export default async function TalentApplicationsPage() {
   const locale = "ar";
 const isRtl = true;
 
@@ -92,9 +107,9 @@ if (!talentId) {
     .eq("talent_id", talentId)
     .order("created_at", { ascending: false });
 
-  const publisherIds =
-    applications
-      ?.map((app: any) => {
+    const publisherIds =
+    (applications as ApplicationRow[] | null)
+      ?.map((app) => {
         const opportunity = Array.isArray(app.opportunities)
           ? app.opportunities[0]
           : app.opportunities;
@@ -121,11 +136,11 @@ if (!talentId) {
       : { data: [] };
 
   const publisherMap = new Map(
-    publishers?.map((publisher: any) => [publisher.id, publisher]) ?? []
+    publishers?.map((publisher) => [publisher.id, publisher]) ?? []
   );
 
   const allApplications: Application[] =
-    applications?.map((app: any) => {
+  (applications as ApplicationRow[] | null)?.map((app) => {
       const opportunity = Array.isArray(app.opportunities)
         ? app.opportunities[0]
         : app.opportunities;

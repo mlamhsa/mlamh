@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import Image from "next/image";
 
 import {
   closeConversationAction,
@@ -242,11 +243,15 @@ export default async function PublisherConversationPage({
             <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex min-w-0 items-center gap-4">
                 {talent?.image_url ? (
-                  <img
+                  <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full border border-white/10">
+                  <Image
                     src={talent.image_url}
                     alt={talentName}
-                    className="h-14 w-14 shrink-0 rounded-full border border-white/10 object-cover"
+                    fill
+                    sizes="56px"
+                    className="object-cover"
                   />
+                </div>
                 ) : (
                   <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-xl text-gold">
                     {talentName.slice(0, 1)}

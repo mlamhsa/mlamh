@@ -3,7 +3,11 @@
 import { revalidatePath } from "next/cache";
 
 import { requirePublisher } from "@/lib/auth/require-publisher";
-import { createEvent, EVENT_TARGETS, EVENT_TYPES } from "@/lib/events";
+import {
+  createEvent,
+  EVENT_TARGETS,
+  EVENT_TYPES,
+} from "@/lib/events";
 import { OpportunityService } from "@/lib/services/opportunities/OpportunityService";
 import {
   cleanText,
@@ -28,6 +32,7 @@ type CreateOpportunityPayload = {
   max_age?: string | number | null;
   budget?: string | number | null;
   opportunity_type?: string | null;
+  application_days?: string | number | null;
 };
 
 function getLocalizedMessage(
@@ -43,7 +48,7 @@ function getLocalizedMessage(
 function isValidAge(value: number | null) {
   return (
     value === null ||
-    (Number.isInteger(value) && value >= 1 && value <= 100)
+    (Number.isInteger(value) && value >= 0 && value <= 100)
   );
 }
 
@@ -82,26 +87,35 @@ export async function createOpportunityAction(
     max_age,
     budget,
     opportunity_type,
+    application_days,
   } = payload;
 
   const safeLocale: SupportedLocale =
     locale === "en" ? "en" : "ar";
 
-  const { publisher } = await requirePublisher(safeLocale);
+  const { publisher } =
+    await requirePublisher(safeLocale);
 
   const cleanTitle = cleanText(title);
   const cleanDescription = cleanText(description);
   const cleanGender = cleanText(required_gender);
-  const cleanOpportunityType = cleanText(opportunity_type);
+  const cleanOpportunityType =
+    cleanText(opportunity_type);
 
   const minAge = numberOrNull(min_age);
   const maxAge = numberOrNull(max_age);
+  const applicationDays =
+    numberOrNull(application_days);
+
   const normalizedBudget = normalizeBudget(
     budget,
     safeLocale,
   );
 
-  if (cleanTitle.length < 3 || cleanTitle.length > 120) {
+  if (
+    cleanTitle.length < 3 ||
+    cleanTitle.length > 120
+  ) {
     throw new Error(
       getLocalizedMessage(safeLocale, {
         ar: "يجب أن يتراوح عنوان الفرصة بين 3 و120 حرفًا.",
@@ -124,7 +138,9 @@ export async function createOpportunityAction(
 
   if (
     cleanGender &&
-    !allowedGenders.includes(cleanGender as AllowedGender)
+    !allowedGenders.includes(
+      cleanGender as AllowedGender,
+    )
   ) {
     throw new Error(
       getLocalizedMessage(safeLocale, {
@@ -137,8 +153,8 @@ export async function createOpportunityAction(
   if (!isValidAge(minAge) || !isValidAge(maxAge)) {
     throw new Error(
       getLocalizedMessage(safeLocale, {
-        ar: "يجب أن يكون العمر رقمًا صحيحًا بين 1 و100.",
-        en: "Age must be a whole number between 1 and 100.",
+        ar: "يجب أن يكون العمر رقمًا صحيحًا بين 0 و100.",
+        en: "Age must be a whole number between 0 and 100.",
       }),
     );
   }
@@ -165,6 +181,20 @@ export async function createOpportunityAction(
     );
   }
 
+  if (
+    applicationDays === null ||
+    !Number.isInteger(applicationDays) ||
+    applicationDays < 1 ||
+    applicationDays > 90
+  ) {
+    throw new Error(
+      getLocalizedMessage(safeLocale, {
+        ar: "يجب أن تكون مدة استقبال الطلبات بين يوم واحد و90 يومًا.",
+        en: "The application period must be between 1 and 90 days.",
+      }),
+    );
+  }
+
   const localizedType =
     localizeOpportunityType(cleanOpportunityType);
 
@@ -177,11 +207,13 @@ export async function createOpportunityAction(
     );
   }
 
-  const localizedCity = localizeOpportunityCity(
-    cleanText(city),
-  );
+  const localizedCity =
+    localizeOpportunityCity(cleanText(city));
 
-  if (!localizedCity.city_ar || !localizedCity.city_en) {
+  if (
+    !localizedCity.city_ar ||
+    !localizedCity.city_en
+  ) {
     throw new Error(
       getLocalizedMessage(safeLocale, {
         ar: "مدينة الفرصة مطلوبة.",
@@ -190,29 +222,33 @@ export async function createOpportunityAction(
     );
   }
 
-  const opportunity = await OpportunityService.create({
-    publisher_id: publisher.id,
 
-    title: cleanTitle,
-    description: cleanDescription,
-    slug: createSlug(cleanTitle),
+  const opportunity =
+    await OpportunityService.create({
+      publisher_id: publisher.id,
 
-    opportunity_type: localizedType.value,
+      title: cleanTitle,
+      description: cleanDescription,
+      slug: createSlug(cleanTitle),
 
-    city_ar: localizedCity.city_ar,
-    city_en: localizedCity.city_en,
+      opportunity_type: localizedType.value,
 
-    required_gender: cleanGender || "any",
+      city_ar: localizedCity.city_ar,
+      city_en: localizedCity.city_en,
 
-    min_age: minAge,
-    max_age: maxAge,
-    budget: normalizedBudget,
+      required_gender: cleanGender || "any",
 
-    company_name:
-      publisher.company_name ??
-      publisher.contact_name ??
-      "Unknown",
-  });
+      min_age: minAge,
+      max_age: maxAge,
+      budget: normalizedBudget,
+
+      application_days: applicationDays,
+
+      company_name:
+        publisher.company_name ??
+        publisher.contact_name ??
+        "Unknown",
+    });
 
   try {
     await createEvent({
@@ -227,6 +263,7 @@ export async function createOpportunityAction(
         city_ar: localizedCity.city_ar,
         city_en: localizedCity.city_en,
         opportunityType: localizedType.value,
+        applicationDays,
       },
     });
   } catch (eventError) {
@@ -236,11 +273,18 @@ export async function createOpportunityAction(
     );
   }
 
-  revalidatePath(`/${safeLocale}/publisher-dashboard`);
+  revalidatePath(
+    `/${safeLocale}/publisher-dashboard`,
+  );
+
   revalidatePath(
     `/${safeLocale}/publisher-dashboard/opportunities`,
   );
-  revalidatePath(`/${safeLocale}/opportunities`);
+
+  revalidatePath(
+    `/${safeLocale}/opportunities`,
+  );
+
   revalidatePath("/admin/opportunities");
 
   return {

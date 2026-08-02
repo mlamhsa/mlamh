@@ -8,6 +8,7 @@ import {
   X,
 } from "lucide-react";
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -43,32 +44,47 @@ export function PublicTalentGallery({
   }, [galleryImages, imageUrl]);
 
   const [activeIndex, setActiveIndex] = useState(0);
-  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+const [isLightboxOpen, setIsLightboxOpen] = useState(false);
 
-  const touchStartX = useRef<number | null>(null);
-  const touchEndX = useRef<number | null>(null);
+const touchStartX = useRef<number | null>(null);
+const touchEndX = useRef<number | null>(null);
 
-  const activeImage = images[activeIndex] ?? images[0];
+const safeActiveIndex =
+  images.length > 0 && activeIndex < images.length
+    ? activeIndex
+    : 0;
 
-  function showPrevious() {
-    if (images.length <= 1) {
-      return;
-    }
+const activeImage = images[safeActiveIndex] ?? images[0];
 
-    setActiveIndex((current) =>
-      current === 0 ? images.length - 1 : current - 1,
-    );
+const showPrevious = useCallback(() => {
+  if (images.length <= 1) {
+    return;
   }
 
-  function showNext() {
-    if (images.length <= 1) {
-      return;
-    }
+  setActiveIndex((current) => {
+    const safeCurrent =
+      current < images.length ? current : 0;
 
-    setActiveIndex((current) =>
-      current === images.length - 1 ? 0 : current + 1,
-    );
+    return safeCurrent === 0
+      ? images.length - 1
+      : safeCurrent - 1;
+  });
+}, [images.length]);
+
+const showNext = useCallback(() => {
+  if (images.length <= 1) {
+    return;
   }
+
+  setActiveIndex((current) => {
+    const safeCurrent =
+      current < images.length ? current : 0;
+
+    return safeCurrent === images.length - 1
+      ? 0
+      : safeCurrent + 1;
+  });
+}, [images.length]);
 
   function handleTouchStart(clientX: number) {
     touchStartX.current = clientX;
@@ -104,12 +120,6 @@ export function PublicTalentGallery({
   }
 
   useEffect(() => {
-    if (activeIndex >= images.length) {
-      setActiveIndex(0);
-    }
-  }, [activeIndex, images.length]);
-
-  useEffect(() => {
     if (!isLightboxOpen) {
       return;
     }
@@ -137,7 +147,7 @@ export function PublicTalentGallery({
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isLightboxOpen, images.length]);
+  }, [isLightboxOpen, showNext, showPrevious]);
 
   if (images.length === 0) {
     return (
@@ -178,7 +188,7 @@ export function PublicTalentGallery({
             src={activeImage}
             alt={alt}
             fill
-            priority={activeIndex === 0}
+            priority={safeActiveIndex === 0}
             sizes="(max-width: 1024px) 100vw, 560px"
             className="object-contain"
           />
@@ -187,7 +197,7 @@ export function PublicTalentGallery({
 
           <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex items-center justify-between gap-3 p-3 sm:p-4">
             <span className="rounded-full border border-white/15 bg-black/55 px-3 py-1.5 text-[10px] text-white/75 backdrop-blur-md">
-              {activeIndex + 1} / {images.length}
+            {safeActiveIndex + 1} / {images.length}
             </span>
 
             <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/55 px-3 py-1.5 text-[10px] text-white/65 backdrop-blur-md">
@@ -232,7 +242,7 @@ export function PublicTalentGallery({
             }
           >
             {images.map((image, index) => {
-              const isActive = index === activeIndex;
+              const isActive = index === safeActiveIndex;
 
               return (
                 <button
@@ -327,7 +337,7 @@ export function PublicTalentGallery({
           ) : null}
 
           <div className="absolute bottom-5 start-1/2 z-20 -translate-x-1/2 rounded-full border border-white/15 bg-black/65 px-4 py-2 text-xs text-white/75 backdrop-blur-md sm:bottom-7">
-            {activeIndex + 1} / {images.length}
+            {safeActiveIndex + 1} / {images.length}
           </div>
         </div>
       ) : null}

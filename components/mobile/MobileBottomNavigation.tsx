@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -41,13 +41,14 @@ export function MobileBottomNavigation({
   authLoading,
 }: MobileBottomNavigationProps) {
   const pathname = usePathname();
-  const [portalReady, setPortalReady] = useState(false);
+
+  const portalReady = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
 
   const isArabic = locale === "ar";
-
-  useEffect(() => {
-    setPortalReady(true);
-  }, []);
 
   function localizedPath(path: string) {
     return path === "/" ? `/${locale}` : `/${locale}${path}`;
@@ -63,7 +64,7 @@ export function MobileBottomNavigation({
     return pathname === localized || pathname.startsWith(`${localized}/`);
   }
 
-  const navigationItems = useMemo<NavigationItem[]>(() => {
+  const navigationItems: NavigationItem[] = (() => {
     const home: NavigationItem = {
       key: "home",
       labelAr: "الرئيسية",
@@ -179,13 +180,7 @@ export function MobileBottomNavigation({
       opportunities,
       account,
     ];
-  }, [
-    accountType,
-    authLoading,
-    isLoggedIn,
-    locale,
-    pathname,
-  ]);
+  })();
 
   if (!portalReady) {
     return null;

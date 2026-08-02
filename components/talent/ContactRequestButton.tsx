@@ -28,11 +28,17 @@ export default function ContactRequestButton({
         opportunityId,
         publisherId,
         talentId,
-        locale
+        locale,
       );
+    
       setStatus("sent");
-    } catch (e: any) {
-      setError(e.message ?? "Failed to send request.");
+    } catch (error: unknown) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Failed to send request.",
+      );
+    
       setStatus("idle");
     }
   };

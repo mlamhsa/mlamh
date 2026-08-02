@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import Image from "next/image";
 
 import TalentPreviewModal from "@/components/publisher/TalentPreviewModal";
 import {
@@ -303,9 +304,10 @@ export default async function OpportunityDetailsPage({ params }: PageProps) {
     ...application,
     talents: talentsById.get(application.talent_id) ?? null,
   }));
+  type RankedApplication = (typeof applications)[number];
 
   const rankedApplications = applications
-  .map((application: any) => {
+  .map((application: RankedApplication) => {
     const talent = application.talents;
 
     let score = calculateApplicantScore();
@@ -645,15 +647,19 @@ export default async function OpportunityDetailsPage({ params }: PageProps) {
                   >
                     <div className="flex items-center gap-4">
                       {talent?.image_url ? (
-                        <img
+                        <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full">
+                        <Image
                           src={talent.image_url}
                           alt={
                             talent?.name_en ??
                             talent?.name_ar ??
                             (isRtl ? "موهبة" : "Talent")
                           }
-                          className="h-14 w-14 shrink-0 rounded-full object-cover"
+                          fill
+                          sizes="56px"
+                          className="object-cover"
                         />
+                      </div>
                       ) : (
                         <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-white/10 text-gold">
                           ?

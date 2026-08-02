@@ -1,4 +1,3 @@
-import Link from "next/link";
 import TalentSidebar from "@/components/talent/TalentSidebar";
 import TalentHeader from "@/components/talent/TalentHeader";
 import TalentProfileCard from "@/components/talent/TalentProfileCard";
@@ -326,7 +325,6 @@ export default async function TalentDashboardPage({
     isRtl
   );
 
-  const pendingCount = counts.pending ?? 0;
   const reviewingCount = counts.reviewing ?? 0;
   const acceptedCount = counts.accepted ?? 0;
   const shortlistedCount = counts.shortlisted ?? 0;

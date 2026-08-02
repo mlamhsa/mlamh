@@ -13,20 +13,21 @@ export const opportunityStatuses = [
 export type OpportunityStatus =
   (typeof opportunityStatuses)[number];
 
-export type CreateOpportunityData = {
-  publisher_id: number;
-  title: string;
-  description: string;
-  slug: string;
-  opportunity_type: string;
-  city_ar: string;
-  city_en: string;
-  required_gender: string | null;
-  min_age: number | null;
-  max_age: number | null;
-  budget: string | null;
-  company_name: string;
-};
+  export type CreateOpportunityData = {
+    publisher_id: number;
+    title: string;
+    description: string;
+    slug: string;
+    opportunity_type: string;
+    city_ar: string;
+    city_en: string;
+    required_gender: string | null;
+    min_age: number | null;
+    max_age: number | null;
+    budget: string | null;
+    application_days: number;
+    company_name: string;
+  };
 
 type OpportunityFilters = {
   status?: string;
@@ -125,7 +126,16 @@ export class OpportunityRepository extends BaseRepository {
   static async getStatusSnapshot(id: number) {
     const { data, error } = await this.client()
       .from("opportunities")
-      .select("id, title, publisher_id, status, published")
+      .select(`
+        id,
+        title,
+        publisher_id,
+        status,
+        published,
+        application_days,
+        application_start_date,
+        application_deadline
+      `)
       .eq("id", id)
       .maybeSingle();
 

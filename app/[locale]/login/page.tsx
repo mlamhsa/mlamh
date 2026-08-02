@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff, Lock, Mail, Sparkles } from "lucide-react";
@@ -16,9 +16,21 @@ export default function LoginPage({
   const searchParams = useSearchParams();
   const isRtl = locale === "ar";
 
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(() => {
+    if (typeof window === "undefined") {
+      return "";
+    }
+  
+    return localStorage.getItem("mlamh_login_email") ?? "";
+  });
   const [password, setPassword] = useState("");
-  const [rememberEmail, setRememberEmail] = useState(true);
+  const [rememberEmail, setRememberEmail] = useState(() => {
+    if (typeof window === "undefined") {
+      return true;
+    }
+  
+    return Boolean(localStorage.getItem("mlamh_login_email"));
+  });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -44,15 +56,6 @@ export default function LoginPage({
   ? "البريد الإلكتروني أو كلمة المرور غير صحيحة."
   : "The email or password is incorrect.",
   };
-
-  useEffect(() => {
-    const savedEmail = localStorage.getItem("mlamh_login_email");
-
-    if (savedEmail) {
-      setEmail(savedEmail);
-      setRememberEmail(true);
-    }
-  }, []);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();

@@ -2,7 +2,7 @@
 
 import {
   useActionState,
-  useEffect,
+  useCallback,
   useMemo,
   useState,
 } from "react";
@@ -36,10 +36,47 @@ export function OpportunityInviteModal({
   const [locallyInvitedIds, setLocallyInvitedIds] =
     useState<number[]>(invitedOpportunityIds);
 
-  const [state, formAction, isPending] = useActionState(
-    sendOpportunityInvitationsAction,
-    initialState,
-  );
+    const handleInvitationAction = useCallback(
+      async (
+        previousState: SendOpportunityInvitationsState,
+        formData: FormData,
+      ) => {
+        const submittedOpportunityIds = formData
+          .getAll("opportunity_ids")
+          .map((value) => Number(value))
+          .filter((value) => Number.isFinite(value));
+    
+        const nextState = await sendOpportunityInvitationsAction(
+          previousState,
+          formData,
+        );
+    
+        if (
+          nextState.success &&
+          nextState.sentCount > 0 &&
+          submittedOpportunityIds.length > 0
+        ) {
+          setLocallyInvitedIds((current) =>
+            Array.from(
+              new Set([
+                ...current,
+                ...submittedOpportunityIds,
+              ]),
+            ),
+          );
+    
+          setSelected([]);
+        }
+    
+        return nextState;
+      },
+      [],
+    );
+    
+    const [state, formAction, isPending] = useActionState(
+      handleInvitationAction,
+      initialState,
+    );
 
   const isArabic = locale === "ar";
 
@@ -60,22 +97,6 @@ export function OpportunityInviteModal({
   const allSelected =
     availableOpportunities.length > 0 &&
     selected.length === availableOpportunities.length;
-
-  useEffect(() => {
-    if (!state.success) {
-      return;
-    }
-
-    if (state.sentCount > 0 && selected.length > 0) {
-      setLocallyInvitedIds((current) =>
-        Array.from(
-          new Set([...current, ...selected]),
-        ),
-      );
-    }
-
-    setSelected([]);
-  }, [state.success, state.sentCount]);
 
   function toggleOpportunity(opportunityId: number) {
     if (

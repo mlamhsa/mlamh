@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowUpRight, BadgeCheck } from "lucide-react";
 
 import type { Locale } from "@/lib/i18n";
+import type { Talent } from "@/lib/types/talent";
 import {
   getTalentCategory,
   getTalentName,
@@ -12,6 +13,10 @@ import { talentPath } from "@/lib/utils/routes";
 type TalentCityFields = {
   city_ar?: string | null;
   city_en?: string | null;
+};
+
+type ShowcaseTalent = Talent & {
+  image_url: string;
 };
 
 function getTalentCity(talent: TalentCityFields, locale: Locale) {
@@ -30,7 +35,7 @@ export async function ModelsShowcase({
   talents,
 }: {
   locale: Locale;
-  talents: any[];
+  talents: ShowcaseTalent[];
 }) {
   if (!Array.isArray(talents) || talents.length === 0) {
     return null;
@@ -136,7 +141,7 @@ function TalentSection({
   priority = false,
 }: {
   title: string;
-  talents: any[];
+  talents: ShowcaseTalent[];
   locale: Locale;
   priority?: boolean;
 }) {
@@ -169,7 +174,7 @@ function TalentCard({
   locale,
   priority = false,
 }: {
-  talent: any;
+  talent: ShowcaseTalent;
   locale: Locale;
   priority?: boolean;
 }) {

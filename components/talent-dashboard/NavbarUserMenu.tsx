@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { User } from "@supabase/supabase-js";
+
 import { supabase } from "@/lib/supabase";
 import { logout } from "@/lib/auth/logout";
 
 export default function NavbarUserMenu() {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -29,7 +31,7 @@ export default function NavbarUserMenu() {
       <button className="flex items-center gap-2 rounded-full border border-white/10 bg-black/30 px-3 py-2 hover:border-gold/40 transition">
         
         <div className="h-8 w-8 rounded-full bg-gold/20 flex items-center justify-center text-gold text-sm">
-          {user.email?.[0].toUpperCase()}
+        {user.email?.[0]?.toUpperCase() ?? "U"}
         </div>
 
         <div className="text-right hidden md:block">

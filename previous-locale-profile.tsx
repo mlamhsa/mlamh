@@ -125,7 +125,14 @@ function calculateAge(dateOfBirth?: string | null) {
   return age;
 }
 
-function calculateSmartCompletion(talent: any) {
+type CompletionTalent = Record<
+  string,
+  string | number | boolean | string[] | null | undefined
+>;
+
+function calculateSmartCompletion(
+  talent: CompletionTalent | null | undefined,
+) {
   const sections = [
     {
       weight: 25,

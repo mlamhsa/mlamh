@@ -1,5 +1,10 @@
 import type { Talent } from "@/lib/types/talent";
 
+type ScoringOpportunity = {
+  skills?: string[] | null;
+  city?: string | null;
+};
+
 /**
  * =========================================
  * V2 OPPORTUNITY SCORING SYSTEM
@@ -15,18 +20,20 @@ import type { Talent } from "@/lib/types/talent";
 
 export function calculateApplicantScore(
   talent: Talent,
-  opportunity: any
+  opportunity: ScoringOpportunity,
 ) {
   let score = 0;
 
   // 1. Skills match (أهم عامل)
-  if (Array.isArray(talent.skills) && opportunity.skills) {
-    const matchCount = talent.skills.filter((s) =>
-      opportunity.skills.includes(s)
-    ).length;
+  const opportunitySkills = opportunity.skills ?? [];
 
-    score += matchCount * 25;
-  }
+if (Array.isArray(talent.skills) && opportunitySkills.length > 0) {
+  const matchCount = talent.skills.filter((skill) =>
+    opportunitySkills.includes(skill),
+  ).length;
+
+  score += matchCount * 25;
+}
 
   // 2. Experience
   score += Math.min((talent.experience_years || 0) * 5, 30);
@@ -60,8 +67,8 @@ export function calculateApplicantScore(
 
 export function rankApplicants(
   talents: Talent[],
-  opportunity: any,
-  limit = 50
+  opportunity: ScoringOpportunity,
+  limit = 50,
 ) {
   return talents
     .map((t) => ({

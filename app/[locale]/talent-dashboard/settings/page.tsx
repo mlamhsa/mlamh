@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 
 import { supabase } from "@/lib/supabase/client";
+import type { User } from "@supabase/supabase-js";
 
 type SettingsPageProps = {
   params: Promise<{ locale: string }>;
@@ -42,7 +43,7 @@ export default function SettingsPage({ params }: SettingsPageProps) {
   const [emailNotif, setEmailNotif] = useState(true);
   const [smsNotif, setSmsNotif] = useState(false);
 
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
 
   const [openEdit, setOpenEdit] = useState(false);
@@ -92,14 +93,6 @@ export default function SettingsPage({ params }: SettingsPageProps) {
   }, [locale, router]);
 
   useEffect(() => {
-    if (!openEdit) {
-      setNewEmail("");
-      setNewPassword("");
-      setFeedback(null);
-    }
-  }, [openEdit]);
-
-  useEffect(() => {
     if (!openEdit) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -112,6 +105,16 @@ export default function SettingsPage({ params }: SettingsPageProps) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [openEdit, saving]);
 
+  function closeEditModal() {
+    if (saving) {
+      return;
+    }
+  
+    setOpenEdit(false);
+    setNewEmail("");
+    setNewPassword("");
+    setFeedback(null);
+  }
   async function saveAccountChanges() {
     const email = newEmail.trim();
     const password = newPassword.trim();
@@ -178,7 +181,7 @@ export default function SettingsPage({ params }: SettingsPageProps) {
       setNewPassword("");
 
       window.setTimeout(() => {
-        setOpenEdit(false);
+        closeEditModal();
       }, 1200);
     } finally {
       setSaving(false);
@@ -469,7 +472,7 @@ export default function SettingsPage({ params }: SettingsPageProps) {
           aria-labelledby="edit-account-title"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget && !saving) {
-              setOpenEdit(false);
+              closeEditModal();
             }
           }}
         >
@@ -489,7 +492,7 @@ export default function SettingsPage({ params }: SettingsPageProps) {
 
               <button
                 type="button"
-                onClick={() => setOpenEdit(false)}
+                onClick={closeEditModal}
                 disabled={saving}
                 className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 text-white/45 transition hover:border-gold/30 hover:text-gold disabled:opacity-40"
                 aria-label={isRtl ? "إغلاق" : "Close"}
@@ -574,7 +577,7 @@ export default function SettingsPage({ params }: SettingsPageProps) {
             <div className="mt-6 grid grid-cols-2 gap-3">
               <button
                 type="button"
-                onClick={() => setOpenEdit(false)}
+                onClick={closeEditModal}
                 disabled={saving}
                 className="min-h-12 rounded-2xl border border-white/10 text-sm text-white/60 transition hover:border-white/20 hover:text-white disabled:opacity-40"
               >

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import {
   BadgeCheck,
   Camera,
@@ -14,7 +15,6 @@ import {
   useRef,
   useState,
   type ChangeEvent,
-  type RefObject,
 } from "react";
 import { useFormStatus } from "react-dom";
 
@@ -308,11 +308,14 @@ function ProfileImagePicker({
         }`}
       >
         {previewUrl ? (
-          <img
-            src={previewUrl}
-            alt={talentName}
-            className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-          />
+          <Image
+          src={previewUrl}
+          alt={talentName}
+          fill
+          unoptimized
+          sizes="128px"
+          className="object-cover transition duration-300 group-hover:scale-105"
+        />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-5xl text-gold">
             {talentName?.charAt(0) ?? "M"}

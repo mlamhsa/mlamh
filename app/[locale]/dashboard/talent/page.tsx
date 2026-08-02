@@ -158,16 +158,18 @@ export default async function TalentDashboardPage({ params }: PageProps) {
 
   const allApplications = applications ?? [];
   const totalApplications = allApplications.length;
+  type DashboardApplication = (typeof allApplications)[number];
 
   const counts = APPLICATION_STATUSES.reduce<Record<string, number>>(
     (acc, status) => {
       acc[status] = allApplications.filter(
-        (item: any) => normalizeStatus(item.status) === status
+        (item: DashboardApplication) =>
+          normalizeStatus(item.status) === status,
       ).length;
-
+  
       return acc;
     },
-    {}
+    {},
   );
 
   const recentApplications = allApplications.slice(0, 5);
@@ -253,29 +255,6 @@ export default async function TalentDashboardPage({ params }: PageProps) {
         : `Complete ${incompleteItems} item(s) to improve your profile.`
       : null,
   ].filter(Boolean) as string[];
-  const isComplete = profileCompletion >= 100;
-
-  const userState =
-    !isComplete
-      ? "incomplete"
-      : !talent.published
-      ? "ready"
-      : "active";
-  
-  const cta = {
-    incomplete: {
-      label: isRtl ? "أكمل ملفك الآن" : "Complete Your Profile",
-      href: `/${locale}/talent-dashboard/profile`,
-    },
-    ready: {
-      label: isRtl ? "نشر ملفك" : "Publish Your Profile",
-      href: `/${locale}/talent-dashboard/profile`,
-    },
-    active: {
-      label: isRtl ? "استعرض الفرص" : "Browse Opportunities",
-      href: `/${locale}/opportunities`,
-    },
-  }[userState];
   
   return (
     <main dir={isRtl ? "rtl" : "ltr"} className="min-h-screen bg-black text-white">
@@ -582,7 +561,7 @@ export default async function TalentDashboardPage({ params }: PageProps) {
 
               {recentApplications.length > 0 ? (
                 <div className="divide-y divide-white/10 overflow-hidden rounded-[1.5rem] border border-white/10">
-                  {recentApplications.map((application: any) => {
+                  {recentApplications.map((application: DashboardApplication) => {
                     const opportunity = Array.isArray(application.opportunities)
                       ? application.opportunities[0]
                       : application.opportunities;

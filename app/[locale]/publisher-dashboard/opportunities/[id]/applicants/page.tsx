@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 
 import TalentPreviewModal from "@/components/publisher/TalentPreviewModal";
 import { updateApplicationStatusAction } from "@/lib/actions/application-status-actions";
@@ -508,11 +509,15 @@ export default async function ApplicantsPage({
                     >
                       <div className="flex items-center gap-4">
                         {talent?.image_url ? (
-                          <img
+                          <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full border border-white/10">
+                          <Image
                             src={talent.image_url}
                             alt={talentName}
-                            className="h-16 w-16 shrink-0 rounded-full border border-white/10 object-cover"
+                            fill
+                            sizes="64px"
+                            className="object-cover"
                           />
+                        </div>
                         ) : (
                           <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-xl text-gold">
                             {talentName.slice(0, 1)}

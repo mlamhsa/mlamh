@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+
 import { createOpportunityAction } from "@/lib/actions/create-opportunity";
 
 export async function POST(req: Request) {
@@ -10,11 +11,12 @@ export async function POST(req: Request) {
       title: body.title,
       description: body.description,
       city: body.city,
-      required_gender: body.gender,
+      required_gender: body.required_gender,
       min_age: body.min_age,
       max_age: body.max_age,
       budget: body.budget,
       opportunity_type: body.opportunity_type,
+      application_days: body.application_days,
     });
 
     return NextResponse.json(result);
@@ -26,7 +28,7 @@ export async function POST(req: Request) {
             ? error.message
             : "Failed to create opportunity",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

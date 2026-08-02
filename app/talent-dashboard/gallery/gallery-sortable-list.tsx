@@ -18,7 +18,7 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 type ServerAction = (formData: FormData) => void | Promise<void>;
 
@@ -32,7 +32,10 @@ type GallerySortableListProps = {
 };
 
 function areArraysEqual(a: string[], b: string[]) {
-  if (a.length !== b.length) return false;
+  if (a.length !== b.length) {
+    return false;
+  }
+
   return a.every((item, index) => item === b[index]);
 }
 
@@ -58,7 +61,9 @@ function SortableImageCard({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: imageUrl });
+  } = useSortable({
+    id: imageUrl,
+  });
 
   return (
     <article
@@ -109,7 +114,11 @@ function SortableImageCard({
       <div className="flex flex-wrap gap-3 p-4">
         {!isMain ? (
           <form action={setMainAction}>
-            <input type="hidden" name="image_url" value={imageUrl} />
+            <input
+              type="hidden"
+              name="image_url"
+              value={imageUrl}
+            />
 
             <button
               type="submit"
@@ -121,7 +130,11 @@ function SortableImageCard({
         ) : null}
 
         <form action={removeAction}>
-          <input type="hidden" name="image_url" value={imageUrl} />
+          <input
+            type="hidden"
+            name="image_url"
+            value={imageUrl}
+          />
 
           <button
             type="submit"
@@ -135,7 +148,7 @@ function SortableImageCard({
   );
 }
 
-export function GallerySortableList({
+function GallerySortableListContent({
   images,
   mainImageUrl,
   talentName,
@@ -143,15 +156,12 @@ export function GallerySortableList({
   setMainAction,
   removeAction,
 }: GallerySortableListProps) {
-  const [orderedImages, setOrderedImages] = useState<string[]>(images);
-
-  useEffect(() => {
-    setOrderedImages(images);
-  }, [images]);
+  const [orderedImages, setOrderedImages] =
+    useState<string[]>(images);
 
   const hasUnsavedChanges = useMemo(
     () => !areArraysEqual(images, orderedImages),
-    [images, orderedImages]
+    [images, orderedImages],
   );
 
   const sensors = useSensors(
@@ -162,19 +172,23 @@ export function GallerySortableList({
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    })
+    }),
   );
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
 
-    if (!over || active.id === over.id) return;
+    if (!over || active.id === over.id) {
+      return;
+    }
 
     setOrderedImages((items) => {
       const oldIndex = items.indexOf(String(active.id));
       const newIndex = items.indexOf(String(over.id));
 
-      if (oldIndex === -1 || newIndex === -1) return items;
+      if (oldIndex === -1 || newIndex === -1) {
+        return items;
+      }
 
       return arrayMove(items, oldIndex, newIndex);
     });
@@ -219,7 +233,10 @@ export function GallerySortableList({
         </div>
 
         {hasUnsavedChanges ? (
-          <form action={reorderAction} className="mt-5">
+          <form
+            action={reorderAction}
+            className="mt-5"
+          >
             <input
               type="hidden"
               name="ordered_images"
@@ -241,7 +258,10 @@ export function GallerySortableList({
         collisionDetection={closestCenter}
         onDragEnd={handleDragEnd}
       >
-        <SortableContext items={orderedImages} strategy={rectSortingStrategy}>
+        <SortableContext
+          items={orderedImages}
+          strategy={rectSortingStrategy}
+        >
           <div className="grid gap-6 md:grid-cols-3">
             {orderedImages.map((imageUrl, index) => (
               <SortableImageCard
@@ -258,5 +278,18 @@ export function GallerySortableList({
         </SortableContext>
       </DndContext>
     </section>
+  );
+}
+
+export function GallerySortableList(
+  props: GallerySortableListProps,
+) {
+  const imagesKey = JSON.stringify(props.images);
+
+  return (
+    <GallerySortableListContent
+      key={imagesKey}
+      {...props}
+    />
   );
 }

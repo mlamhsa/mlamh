@@ -299,6 +299,12 @@ export default async function OpportunitiesPage({
     getPublishedOpportunities(),
     getCurrentAccountType(),
   ]);
+  type Opportunity = (typeof opportunities)[number] & {
+    publisher_name?: string | null;
+    company?: string | null;
+    cover_image?: string | null;
+    image_url?: string | null;
+  };
 
   const search = resolvedSearchParams.search ?? "";
   const selectedCity = resolvedSearchParams.city ?? "";
@@ -308,7 +314,7 @@ export default async function OpportunitiesPage({
   const cities = Array.from(
     new Set(
       opportunities
-        .map((item: any) =>
+        .map((item: Opportunity) =>
           isRtl
             ? item.city_ar || item.city_en
             : item.city_en || item.city_ar,
@@ -320,13 +326,13 @@ export default async function OpportunitiesPage({
   const types = Array.from(
     new Set(
       opportunities
-        .map((item: any) => item.opportunity_type)
+      .map((item: Opportunity) => item.opportunity_type)
         .filter(Boolean),
     ),
   );
 
   const filteredOpportunities = opportunities
-    .filter((item: any) => {
+  .filter((item: Opportunity) => {
       const title = String(item.title ?? "").toLowerCase();
       const description = String(item.description ?? "").toLowerCase();
       const company = String(
@@ -351,7 +357,7 @@ export default async function OpportunitiesPage({
 
       return matchesSearch && matchesCity && matchesType;
     })
-    .sort((a: any, b: any) => {
+    .sort((a: Opportunity, b: Opportunity) => {
       if (selectedSort === "oldest") {
         return (
           new Date(a.created_at ?? 0).getTime() -
@@ -377,7 +383,7 @@ export default async function OpportunitiesPage({
     ? getRelativeDate(opportunities[0].created_at, locale)
     : "—";
 
-  const newCount = opportunities.filter((item: any) =>
+  const newCount = opportunities.filter((item: Opportunity) =>
     isNewOpportunity(item.created_at),
   ).length;
 
@@ -647,7 +653,7 @@ export default async function OpportunitiesPage({
             </div>
           ) : (
             <div className="grid gap-4">
-              {filteredOpportunities.map((item: any) => {
+              {filteredOpportunities.map((item: Opportunity) => {
                 const slug = item.slug || String(item.id);
 
                 const city = isRtl
@@ -1039,7 +1045,7 @@ export default async function OpportunitiesPage({
             </section>
           ) : (
             <section className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-              {filteredOpportunities.map((item: any) => {
+              {filteredOpportunities.map((item: Opportunity) => {
                 const slug = item.slug || String(item.id);
 
                 const city = isRtl

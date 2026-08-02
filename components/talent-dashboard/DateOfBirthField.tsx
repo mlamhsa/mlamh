@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 type Props = {
   label: string;
@@ -8,61 +8,139 @@ type Props = {
   defaultValue?: string | null;
 };
 
+type DateParts = {
+  day: string;
+  month: string;
+  year: string;
+};
+
 const MONTHS = [
-  "يناير","فبراير","مارس","أبريل","مايو","يونيو",
-  "يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"
+  "يناير",
+  "فبراير",
+  "مارس",
+  "أبريل",
+  "مايو",
+  "يونيو",
+  "يوليو",
+  "أغسطس",
+  "سبتمبر",
+  "أكتوبر",
+  "نوفمبر",
+  "ديسمبر",
 ];
+
+function getInitialDateParts(
+  defaultValue?: string | null,
+): DateParts {
+  if (!defaultValue) {
+    return {
+      day: "",
+      month: "",
+      year: "",
+    };
+  }
+
+  const date = new Date(defaultValue);
+
+  if (Number.isNaN(date.getTime())) {
+    return {
+      day: "",
+      month: "",
+      year: "",
+    };
+  }
+
+  return {
+    day: String(date.getDate()),
+    month: String(date.getMonth() + 1),
+    year: String(date.getFullYear()),
+  };
+}
+
+function getDaysCount(month: string, year: string) {
+  if (!month || !year) {
+    return 0;
+  }
+
+  return new Date(
+    Number(year),
+    Number(month),
+    0,
+  ).getDate();
+}
 
 export default function DateOfBirthField({
   name,
   defaultValue,
 }: Props) {
-  const initial = useMemo(() => {
-    if (!defaultValue) return null;
-    const date = new Date(defaultValue);
-    if (isNaN(date.getTime())) return null;
-    return date;
-  }, [defaultValue]);
+  const initialParts = useMemo(
+    () => getInitialDateParts(defaultValue),
+    [defaultValue],
+  );
 
-  const [day, setDay] = useState<string>("");
-  const [month, setMonth] = useState<string>("");
-  const [year, setYear] = useState<string>("");
-
-  useEffect(() => {
-    if (!initial) return;
-
-    setDay(String(initial.getDate()));
-    setMonth(String(initial.getMonth() + 1));
-    setYear(String(initial.getFullYear()));
-  }, [initial]);
+  const [day, setDay] = useState<string>(
+    () => initialParts.day,
+  );
+  const [month, setMonth] = useState<string>(
+    () => initialParts.month,
+  );
+  const [year, setYear] = useState<string>(
+    () => initialParts.year,
+  );
 
   const currentYear = new Date().getFullYear();
 
-  const years = useMemo(() => {
-    return Array.from({ length: currentYear - 1949 }, (_, i) =>
-      String(currentYear - i)
-    );
-  }, [currentYear]);
+  const years = useMemo(
+    () =>
+      Array.from(
+        { length: currentYear - 1949 },
+        (_, index) => String(currentYear - index),
+      ),
+    [currentYear],
+  );
 
   const days = useMemo(() => {
-    if (!month || !year) return [];
+    const count = getDaysCount(month, year);
 
-    const count = new Date(
-      Number(year),
-      Number(month),
-      0
-    ).getDate();
-
-    return Array.from({ length: count }, (_, i) =>
-      String(i + 1)
+    return Array.from(
+      { length: count },
+      (_, index) => String(index + 1),
     );
   }, [month, year]);
 
-  useEffect(() => {
-    if (day && days.length && Number(day) > days.length) {
+  function updateMonth(nextMonth: string) {
+    setMonth(nextMonth);
+
+    const nextDaysCount = getDaysCount(
+      nextMonth,
+      year,
+    );
+
+    if (
+      day &&
+      nextDaysCount > 0 &&
+      Number(day) > nextDaysCount
+    ) {
       setDay("");
     }
-  }, [days, day]);
+  }
+
+  function updateYear(nextYear: string) {
+    setYear(nextYear);
+
+    const nextDaysCount = getDaysCount(
+      month,
+      nextYear,
+    );
+
+    if (
+      day &&
+      nextDaysCount > 0 &&
+      Number(day) > nextDaysCount
+    ) {
+      setDay("");
+    }
+  }
 
   const value =
     year && month && day
@@ -71,54 +149,76 @@ export default function DateOfBirthField({
 
   return (
     <div className="space-y-3">
-      {/* hidden field */}
-      <input type="hidden" name={name} value={value} />
+      <input
+        type="hidden"
+        name={name}
+        value={value}
+      />
 
       <div className="grid grid-cols-3 gap-3">
-
-        {/* YEAR */}
         <select
           value={year}
-          onChange={(e) => setYear(e.target.value)}
+          onChange={(event) =>
+            updateYear(event.target.value)
+          }
           className="w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-white outline-none"
         >
           <option value="">السنة</option>
-          {years.map((y) => (
-            <option key={y} value={y}>{y}</option>
-          ))}
-        </select>
 
-        {/* MONTH */}
-        <select
-          value={month}
-          onChange={(e) => setMonth(e.target.value)}
-          className="w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-white outline-none"
-        >
-          <option value="">الشهر</option>
-          {MONTHS.map((m, i) => (
-            <option key={m} value={String(i + 1)}>
-              {m}
+          {years.map((yearOption) => (
+            <option
+              key={yearOption}
+              value={yearOption}
+            >
+              {yearOption}
             </option>
           ))}
         </select>
 
-        {/* DAY */}
         <select
-          value={day}
-          onChange={(e) => setDay(e.target.value)}
+          value={month}
+          onChange={(event) =>
+            updateMonth(event.target.value)
+          }
           className="w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-white outline-none"
         >
-          <option value="">اليوم</option>
-          {days.map((d) => (
-            <option key={d} value={d}>{d}</option>
+          <option value="">الشهر</option>
+
+          {MONTHS.map((monthName, index) => (
+            <option
+              key={monthName}
+              value={String(index + 1)}
+            >
+              {monthName}
+            </option>
           ))}
         </select>
 
+        <select
+          value={day}
+          onChange={(event) =>
+            setDay(event.target.value)
+          }
+          className="w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-white outline-none"
+        >
+          <option value="">اليوم</option>
+
+          {days.map((dayOption) => (
+            <option
+              key={dayOption}
+              value={dayOption}
+            >
+              {dayOption}
+            </option>
+          ))}
+        </select>
       </div>
 
-      {value && (
-        <p className="text-xs text-gold">{value}</p>
-      )}
+      {value ? (
+        <p className="text-xs text-gold">
+          {value}
+        </p>
+      ) : null}
     </div>
   );
 }

@@ -56,14 +56,10 @@ export default function RealtimeMessageList({
   locale,
 }: RealtimeMessageListProps) {
   const isArabic = locale === "ar";
-  const [messages, setMessages] = useState<MessageRecord[]>(
+  const [messages, setMessages] = useState<MessageRecord[]>(() =>
     sortMessages(initialMessages),
   );
   const bottomRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    setMessages(sortMessages(initialMessages));
-  }, [initialMessages]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });

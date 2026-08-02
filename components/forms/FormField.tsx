@@ -9,16 +9,15 @@ type FieldValue =
   | null
   | undefined;
 
-type BaseFieldProps = {
-  label: string;
-  name: string;
-  required?: boolean;
-  className?: string;
-  value?: FieldValue;
-  defaultValue?: FieldValue;
-  onChange?: (value: any) => void;
-  placeholder?: string;
-};
+  type BaseFieldProps = {
+    label: string;
+    name: string;
+    required?: boolean;
+    className?: string;
+    value?: FieldValue;
+    defaultValue?: FieldValue;
+    placeholder?: string;
+  };
 
 type Option = {
   value: string;
@@ -57,6 +56,7 @@ export function TextField({
     | "tel"
     | "password"
     | "date";
+  onChange?: (value: string) => void;
 }) {
   const inputValue = resolveValue(
     value,
@@ -181,6 +181,7 @@ export function SelectField({
   placeholder = "Select",
 }: BaseFieldProps & {
   options: Option[];
+  onChange?: (value: string) => void;
 }) {
   const selectValue = resolveValue(
     value,
@@ -234,6 +235,7 @@ export function MultiSelectField({
   options,
 }: BaseFieldProps & {
   options: Option[];
+  onChange?: (value: string[]) => void;
 }) {
   const selectedValue = (
     value ??
@@ -296,6 +298,7 @@ export function ComboBoxField({
   placeholder,
 }: BaseFieldProps & {
   options: Option[];
+  onChange?: (value: string) => void;
 }) {
   const inputValue = resolveValue(
     value,
@@ -350,6 +353,7 @@ export function TextAreaField({
   dir = "ltr",
 }: BaseFieldProps & {
   dir?: "ltr" | "rtl";
+  onChange?: (value: string) => void;
 }) {
   const textareaValue = resolveValue(
     value,

@@ -153,8 +153,10 @@ export default function PublisherShell({
   }, []);
 
   useEffect(() => {
-    void refreshCounts();
-
+    const initialRefresh = window.setTimeout(() => {
+      void refreshCounts();
+    }, 0);
+  
     const intervalId = window.setInterval(() => {
       /*
        * لا نرسل الطلب عندما تكون الصفحة مخفية
@@ -192,6 +194,7 @@ export default function PublisherShell({
     );
 
     return () => {
+      window.clearTimeout(initialRefresh);
       window.clearInterval(intervalId);
 
       document.removeEventListener(

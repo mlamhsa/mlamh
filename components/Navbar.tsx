@@ -17,7 +17,6 @@ import {
   Search,
   Settings,
   ShieldCheck,
-  User,
   UserCircle,
   UsersRound,
   X,
@@ -41,6 +40,11 @@ type NavigationItem = {
   en: string;
   href: string;
   icon?: typeof UsersRound;
+};
+type NavbarNotification = {
+  id: string | number;
+  title?: string | null;
+  body?: string | null;
 };
 
 const desktopNavigationItems: NavigationItem[] = [
@@ -389,7 +393,7 @@ export function Navbar({ locale }: { locale: Locale }) {
                         <div className="space-y-3">
                           {notifications
                             .slice(0, 5)
-                            .map((item: any) => (
+                            .map((item: NavbarNotification) => (
                               <div
                                 key={item.id}
                                 className="rounded-xl border border-white/10 bg-white/[0.03] p-3"

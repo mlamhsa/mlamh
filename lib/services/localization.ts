@@ -3,11 +3,22 @@ export function cleanText(value: unknown) {
   }
   
   export function numberOrNull(value: unknown) {
-    const raw = cleanText(value);
-    if (!raw) return null;
+    if (
+      value === null ||
+      value === undefined ||
+      value === ""
+    ) {
+      return null;
+    }
   
-    const parsed = Number(raw);
-    return Number.isFinite(parsed) ? parsed : null;
+    const parsed =
+      typeof value === "number"
+        ? value
+        : Number(String(value).trim());
+  
+    return Number.isFinite(parsed)
+      ? parsed
+      : null;
   }
   
   export function createSlug(value: string) {

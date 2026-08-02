@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import Image from "next/image";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -370,11 +371,15 @@ export default async function PublisherMessagesPage({
                     className="group flex items-center gap-4 p-5 transition hover:bg-white/[0.035] sm:p-6"
                   >
                     {talent?.image_url ? (
-                      <img
+                      <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full border border-white/10">
+                      <Image
                         src={talent.image_url}
                         alt={talentName}
-                        className="h-16 w-16 shrink-0 rounded-full border border-white/10 object-cover"
+                        fill
+                        sizes="64px"
+                        className="object-cover"
                       />
+                    </div>
                     ) : (
                       <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-xl text-gold">
                         {talentName.slice(0, 1)}

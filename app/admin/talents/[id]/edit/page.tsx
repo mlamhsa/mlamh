@@ -1,9 +1,7 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { EditTalentGalleryManager } from "@/components/admin/EditTalentGalleryManager";
 import { updateTalentAction } from "@/lib/actions/update-talent";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { getTalentById } from "@/lib/supabase/talent-by-id";
 

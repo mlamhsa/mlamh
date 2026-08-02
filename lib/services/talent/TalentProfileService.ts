@@ -1,4 +1,4 @@
-export type TalentProfile = Record<string, any>;
+export type TalentProfile = Record<string, unknown>;
 
 type ProfileSection = {
   weight: number;

@@ -31,7 +31,6 @@ import { SAUDI_CITIES } from "@/lib/data/saudi-cities";
 import {
   TextField,
   SelectField,
-  ComboBoxField,
   TextAreaField,
 } from "@/components/forms/FormField";
 
@@ -527,10 +526,12 @@ const isArabic = locale === "ar";
   const [loadingProfile, setLoadingProfile] =
     useState(true);
 
-  const [loadError, setLoadError] = useState("");
+    const [loadError, setLoadError] = useState("");
 
-  const profileReadyRef = useRef(false);
-  const skipNextAutoSaveRef = useRef(true);
+    const [profileReady, setProfileReady] = useState(false);
+    
+    const profileReadyRef = useRef(false);
+    const skipNextAutoSaveRef = useRef(true);
 
   useEffect(() => {
     let active = true;
@@ -539,7 +540,8 @@ const isArabic = locale === "ar";
       setLoadingProfile(true);
       setLoadError("");
       profileReadyRef.current = false;
-
+      setProfileReady(false);
+    
       try {
         const talent =
         await getOwnTalentProfileAction(locale);
@@ -555,6 +557,8 @@ const isArabic = locale === "ar";
               : "No talent profile is linked to this account. Please complete talent profile creation first."
           );
 
+          profileReadyRef.current = false;
+setProfileReady(false);
           setLoadingProfile(false);
           return;
         }
@@ -825,8 +829,9 @@ const isArabic = locale === "ar";
         skipNextAutoSaveRef.current = true;
 
         setFormData(loadedData);
-        profileReadyRef.current = true;
-        setLoadingProfile(false);
+profileReadyRef.current = true;
+setProfileReady(true);
+setLoadingProfile(false);
       } catch (error) {
         if (!active) {
           return;
@@ -846,7 +851,8 @@ const isArabic = locale === "ar";
         );
 
         profileReadyRef.current = false;
-        setLoadingProfile(false);
+setProfileReady(false);
+setLoadingProfile(false);
       }
     }
 
@@ -855,7 +861,7 @@ const isArabic = locale === "ar";
     return () => {
       active = false;
     };
-  }, [isArabic]);
+  }, [isArabic, locale]);
 
   const updateField = useCallback(
     <K extends keyof TalentProfileFormData>(
@@ -939,9 +945,9 @@ const isArabic = locale === "ar";
       enabled:
         !loadingProfile &&
         !loadError &&
-        profileReadyRef.current,
+        profileReady,
       onSave: saveTalent,
-    }
+    },
   );
 
   const completion = useMemo(

@@ -20,7 +20,6 @@ export function useAutoSave<T>(value: T, options: AutoSaveOptions<T>) {
 
   useEffect(() => {
     if (!enabled) {
-      setStatus("idle");
       return;
     }
 
@@ -45,27 +44,40 @@ export function useAutoSave<T>(value: T, options: AutoSaveOptions<T>) {
       try {
         await onSave(value);
 
-        if (saveId !== activeSaveRef.current) return;
+        if (saveId !== activeSaveRef.current) {
+          return;
+        }
 
         setStatus("saved");
 
         resetTimeoutRef.current = setTimeout(() => {
-          setStatus((current) => (current === "saved" ? "idle" : current));
+          setStatus((current) =>
+            current === "saved" ? "idle" : current,
+          );
         }, 1200);
       } catch (error) {
         console.error("AutoSave error:", error);
 
-        if (saveId !== activeSaveRef.current) return;
+        if (saveId !== activeSaveRef.current) {
+          return;
+        }
 
         setStatus("error");
       }
     }, delay);
 
     return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      if (resetTimeoutRef.current) clearTimeout(resetTimeoutRef.current);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+
+      if (resetTimeoutRef.current) {
+        clearTimeout(resetTimeoutRef.current);
+      }
     };
   }, [value, delay, enabled, onSave]);
 
-  return { status };
+  return {
+    status: enabled ? status : "idle",
+  };
 }

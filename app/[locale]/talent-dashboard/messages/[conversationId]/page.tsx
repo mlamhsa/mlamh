@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { redirect } from "next/navigation";
 
 import {
@@ -218,11 +219,15 @@ export default async function TalentConversationPage({
 
           <div className="mt-7 flex items-center gap-4">
             {publisher?.profile_image_url ? (
-              <img
+              <div className="relative h-16 w-16 overflow-hidden rounded-full border border-white/10">
+              <Image
                 src={publisher.profile_image_url}
                 alt={publisherName}
-                className="h-16 w-16 rounded-full border border-white/10 object-cover"
+                fill
+                sizes="64px"
+                className="object-cover"
               />
+            </div>
             ) : (
               <div className="flex h-16 w-16 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-xl text-gold">
                 {publisherName.slice(0, 1)}

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import Image from "next/image";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 type PageProps = {
@@ -93,13 +94,16 @@ export default async function PublisherPublicProfilePage({ params }: PageProps) 
       <div className="mx-auto max-w-7xl px-6 py-16">
         <section className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.025]">
           <div className="relative h-72 border-b border-white/10 bg-black md:h-96">
-            {publisher.cover_image_url ? (
-              <img
-  src={publisher.cover_image_url}
-  alt=""
-  className="absolute inset-0 h-full w-full object-contain"
-/>
-            ) : (
+          {publisher.cover_image_url ? (
+  <Image
+    src={publisher.cover_image_url}
+    alt={publisherName}
+    fill
+    priority
+    sizes="(max-width: 1280px) 100vw, 1280px"
+    className="object-cover"
+  />
+) : (
               <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-gold/10 to-black" />
             )}
 
@@ -110,11 +114,15 @@ export default async function PublisherPublicProfilePage({ params }: PageProps) 
           <div className="relative p-8 md:p-10">
             <div className="-mt-24 mb-8 flex justify-start">
               {publisher.profile_image_url ? (
-                <img
+                <div className="relative h-36 w-36 overflow-hidden rounded-full border-4 border-black bg-black shadow-2xl md:h-44 md:w-44">
+                <Image
                   src={publisher.profile_image_url}
                   alt={publisherName}
-                  className="h-36 w-36 rounded-full border-4 border-black bg-black object-cover shadow-2xl md:h-44 md:w-44"
+                  fill
+                  sizes="(max-width: 768px) 144px, 176px"
+                  className="object-cover"
                 />
+              </div>
               ) : (
                 <div className="flex h-36 w-36 items-center justify-center rounded-full border-4 border-black bg-black text-5xl font-light text-gold shadow-2xl md:h-44 md:w-44">
                   {initial}

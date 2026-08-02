@@ -1,10 +1,28 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useId, useState } from "react";
 
+type PreviewTalent = {
+  id?: string | number | null;
+  slug?: string | null;
+  name_ar?: string | null;
+  name_en?: string | null;
+  image_url?: string | null;
+  category_ar?: string | null;
+  category_en?: string | null;
+  city_ar?: string | null;
+  city_en?: string | null;
+  experience_years?: number | null;
+  profile_completion?: number | null;
+  profile_views?: number | null;
+  featured?: boolean | null;
+  skills?: string[] | null;
+};
+
 type TalentPreviewModalProps = {
-  talent: any;
+  talent: PreviewTalent | null;
   locale: string;
   isRtl: boolean;
 };
@@ -89,11 +107,15 @@ export default function TalentPreviewModal({
             <div className="flex items-start justify-between gap-4">
               <div className="flex min-w-0 items-center gap-4">
                 {talent.image_url ? (
-                  <img
+                  <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full border border-white/10">
+                  <Image
                     src={talent.image_url}
                     alt={talentName}
-                    className="h-16 w-16 shrink-0 rounded-full border border-white/10 object-cover"
+                    fill
+                    sizes="64px"
+                    className="object-cover"
                   />
+                </div>
                 ) : (
                   <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-xl text-gold">
                     {talentName.slice(0, 1)}

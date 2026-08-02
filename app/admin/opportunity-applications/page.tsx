@@ -6,7 +6,6 @@ import {
   shortlistApplicationAction,
 } from "@/lib/actions/admin-application-actions";
 import {
-  AdminActionButton,
   AdminBadge,
   AdminCard,
   AdminEmptyState,
@@ -42,19 +41,6 @@ function formatDate(value?: string | null) {
   });
 }
 
-function getStatusClass(status?: string | null) {
-  switch (status) {
-    case "shortlisted":
-      return "border-blue-500/20 bg-blue-500/10 text-blue-300";
-    case "accepted":
-      return "border-emerald-500/20 bg-emerald-500/10 text-emerald-300";
-    case "rejected":
-      return "border-red-500/20 bg-red-500/10 text-red-300";
-    default:
-      return "border-gold/30 bg-gold/10 text-gold";
-  }
-}
-
 function getStatusLabel(status?: string | null) {
   switch (status) {
     case "shortlisted":
@@ -81,19 +67,57 @@ function buildHref(status?: string, q?: string) {
 export default async function AdminOpportunityApplicationsPage({
   searchParams,
 }: PageProps) {
+  type AdminApplicationOpportunity = {
+    title: string | null;
+    opportunity_type: string | null;
+    city_ar: string | null;
+    slug: string | null;
+  };
+  
+  type AdminApplicationTalent = {
+    name_en: string | null;
+    name_ar: string | null;
+    image_url: string | null;
+    city_ar: string | null;
+    gender: string | null;
+    slug: string | null;
+  };
+  
+  type AdminApplication = {
+    id: string | number;
+    status: string | null;
+    created_at: string | null;
+    opportunities:
+      | AdminApplicationOpportunity
+      | AdminApplicationOpportunity[]
+      | null;
+    talents:
+      | AdminApplicationTalent
+      | AdminApplicationTalent[]
+      | null;
+  };
   const { status, q } = await searchParams;
 
-  const applications = await ApplicationService.getAdminApplications({
+  const applications =
+  (await ApplicationService.getAdminApplications({
     status,
     search: q,
-  });
+  })) as AdminApplication[];
   
   const stats = {
     total: applications.length,
-    pending: applications.filter((item: any) => (item.status || "pending") === "pending").length,
-    shortlisted: applications.filter((item: any) => item.status === "shortlisted").length,
-    accepted: applications.filter((item: any) => item.status === "accepted").length,
-    rejected: applications.filter((item: any) => item.status === "rejected").length,
+    pending: applications.filter(
+      (item) => (item.status || "pending") === "pending",
+    ).length,
+    shortlisted: applications.filter(
+      (item) => item.status === "shortlisted",
+    ).length,
+    accepted: applications.filter(
+      (item) => item.status === "accepted",
+    ).length,
+    rejected: applications.filter(
+      (item) => item.status === "rejected",
+    ).length,
   };
 
   return (
@@ -148,7 +172,7 @@ export default async function AdminOpportunityApplicationsPage({
           <AdminEmptyState message="No opportunity applications found." />
         ) : (
           <AdminGrid>
-            {applications.map((application: any) => {
+            {applications.map((application) => {
               const opportunity = Array.isArray(application.opportunities)
                 ? application.opportunities[0]
                 : application.opportunities;

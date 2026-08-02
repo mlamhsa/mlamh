@@ -18,6 +18,37 @@ const PIPELINE = [
 
 type PipelineStatus = (typeof PIPELINE)[number]["key"];
 
+type ApplicantTalent = {
+  id: string | number;
+  slug: string | null;
+  name_ar: string | null;
+  name_en: string | null;
+  image_url: string | null;
+  city_ar: string | null;
+  city_en: string | null;
+};
+
+type ApplicantOpportunity = {
+  id: string | number;
+  title: string | null;
+};
+
+type PublisherApplication = {
+  id: string | number;
+  status: string | null;
+  created_at: string | null;
+  opportunity_id: string | number;
+  talent_id: string | number;
+  opportunities:
+    | ApplicantOpportunity
+    | ApplicantOpportunity[]
+    | null;
+  talents:
+    | ApplicantTalent
+    | ApplicantTalent[]
+    | null;
+};
+
 function normalizeStatus(status?: string | null): PipelineStatus {
   if (
     status === "reviewing" ||
@@ -31,13 +62,16 @@ function normalizeStatus(status?: string | null): PipelineStatus {
   return "pending";
 }
 
-function getTalentName(talent: any, locale: string) {
+function getTalentName(
+  talent: ApplicantTalent | null | undefined,
+  locale: string,
+) {
   return locale === "ar"
     ? talent?.name_ar ?? talent?.name_en ?? "موهبة"
     : talent?.name_en ?? talent?.name_ar ?? "Talent";
 }
 
-function getTalentCity(talent: any, locale: string) {
+function getTalentCity(talent: ApplicantTalent | null | undefined, locale: string) {
   return locale === "ar"
     ? talent?.city_ar ?? talent?.city_en ?? "-"
     : talent?.city_en ?? talent?.city_ar ?? "-";
@@ -134,17 +168,21 @@ export default async function PublisherApplicantsPage({ params }: PageProps) {
     console.error("Publisher applicants applications error:", applicationsError);
   }
 
-  const allApplications = applications ?? [];
+  const allApplications = applications ?? [] as PublisherApplication[];
 
   const totalApplications = allApplications.length;
   const acceptedCount = allApplications.filter(
-    (item: any) => normalizeStatus(item.status) === "accepted"
+    (item) => normalizeStatus(item.status) === "accepted",
   ).length;
+  
   const rejectedCount = allApplications.filter(
-    (item: any) => normalizeStatus(item.status) === "rejected"
+    (item) => normalizeStatus(item.status) === "rejected",
   ).length;
-  const activeReviewCount = allApplications.filter((item: any) =>
-    ["pending", "reviewing", "shortlisted"].includes(normalizeStatus(item.status))
+  
+  const activeReviewCount = allApplications.filter((item) =>
+    ["pending", "reviewing", "shortlisted"].includes(
+      normalizeStatus(item.status),
+    ),
   ).length;
 
   return (
@@ -197,7 +235,7 @@ export default async function PublisherApplicantsPage({ params }: PageProps) {
         <section className="grid gap-5 xl:grid-cols-5">
           {PIPELINE.map((stage) => {
             const stageApplications = allApplications.filter(
-              (item: any) => normalizeStatus(item.status) === stage.key
+              (item) => normalizeStatus(item.status) === stage.key,
             );
 
             return (
@@ -217,7 +255,7 @@ export default async function PublisherApplicantsPage({ params }: PageProps) {
 
                 <div className="grid gap-3">
                   {stageApplications.length > 0 ? (
-                    stageApplications.map((application: any) => {
+                    stageApplications.map((application: PublisherApplication) => {
                       const talent = Array.isArray(application.talents)
                         ? application.talents[0]
                         : application.talents;

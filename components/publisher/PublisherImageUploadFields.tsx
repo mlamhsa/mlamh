@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import Image from "next/image";
+import { useEffect, useMemo, useState } from "react";
 
 export default function PublisherImageUploadFields({
   isRtl,
@@ -14,41 +15,37 @@ export default function PublisherImageUploadFields({
   const [profileFile, setProfileFile] = useState<File | null>(null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
 
-  const [profilePreviewUrl, setProfilePreviewUrl] = useState<string | null>(
-    currentProfileImageUrl ?? null,
+  const profileObjectUrl = useMemo(
+    () => (profileFile ? URL.createObjectURL(profileFile) : null),
+    [profileFile],
   );
 
-  const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(
-    currentCoverImageUrl ?? null,
+  const coverObjectUrl = useMemo(
+    () => (coverFile ? URL.createObjectURL(coverFile) : null),
+    [coverFile],
   );
 
   useEffect(() => {
-    if (!profileFile) {
-      setProfilePreviewUrl(currentProfileImageUrl ?? null);
-      return;
-    }
-
-    const objectUrl = URL.createObjectURL(profileFile);
-    setProfilePreviewUrl(objectUrl);
-
     return () => {
-      URL.revokeObjectURL(objectUrl);
+      if (profileObjectUrl) {
+        URL.revokeObjectURL(profileObjectUrl);
+      }
     };
-  }, [profileFile, currentProfileImageUrl]);
+  }, [profileObjectUrl]);
 
   useEffect(() => {
-    if (!coverFile) {
-      setCoverPreviewUrl(currentCoverImageUrl ?? null);
-      return;
-    }
-
-    const objectUrl = URL.createObjectURL(coverFile);
-    setCoverPreviewUrl(objectUrl);
-
     return () => {
-      URL.revokeObjectURL(objectUrl);
+      if (coverObjectUrl) {
+        URL.revokeObjectURL(coverObjectUrl);
+      }
     };
-  }, [coverFile, currentCoverImageUrl]);
+  }, [coverObjectUrl]);
+
+  const profilePreviewUrl =
+    profileObjectUrl ?? currentProfileImageUrl ?? null;
+
+  const coverPreviewUrl =
+    coverObjectUrl ?? currentCoverImageUrl ?? null;
 
   return (
     <section className="rounded-[2rem] border border-white/10 bg-white/[0.025] p-5 sm:p-6 md:p-8">
@@ -67,14 +64,23 @@ export default function PublisherImageUploadFields({
 
           <div className="relative flex h-44 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-black sm:h-56 sm:rounded-3xl">
             {coverPreviewUrl ? (
-              <img
+              <Image
                 src={coverPreviewUrl}
-                alt={isRtl ? "معاينة صورة الغلاف" : "Cover image preview"}
-                className="h-full w-full object-cover"
+                alt={
+                  isRtl
+                    ? "معاينة صورة الغلاف"
+                    : "Cover image preview"
+                }
+                fill
+                unoptimized={coverPreviewUrl.startsWith("blob:")}
+                sizes="(max-width: 640px) 100vw, 896px"
+                className="object-cover"
               />
             ) : (
               <p className="px-4 text-center text-sm text-white/35">
-                {isRtl ? "لم يتم اختيار غلاف" : "No cover selected"}
+                {isRtl
+                  ? "لم يتم اختيار غلاف"
+                  : "No cover selected"}
               </p>
             )}
           </div>
@@ -106,20 +112,25 @@ export default function PublisherImageUploadFields({
             htmlFor="profile-image"
             className="mb-3 block text-xs uppercase tracking-[0.25em] text-white/40"
           >
-            {isRtl ? "معاينة صورة البروفايل" : "Profile Image Preview"}
+            {isRtl
+              ? "معاينة صورة البروفايل"
+              : "Profile Image Preview"}
           </label>
 
           <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-            <div className="flex h-32 w-32 shrink-0 items-center justify-center overflow-hidden rounded-full border border-gold/30 bg-black sm:h-36 sm:w-36">
+            <div className="relative flex h-32 w-32 shrink-0 items-center justify-center overflow-hidden rounded-full border border-gold/30 bg-black sm:h-36 sm:w-36">
               {profilePreviewUrl ? (
-                <img
+                <Image
                   src={profilePreviewUrl}
                   alt={
                     isRtl
                       ? "معاينة صورة البروفايل"
                       : "Profile image preview"
                   }
-                  className="h-full w-full object-cover"
+                  fill
+                  unoptimized={profilePreviewUrl.startsWith("blob:")}
+                  sizes="144px"
+                  className="object-cover"
                 />
               ) : (
                 <span className="px-3 text-center text-xs text-white/35">

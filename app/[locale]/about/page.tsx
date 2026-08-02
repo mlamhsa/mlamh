@@ -343,7 +343,7 @@ export default async function AboutPage({
           </div>
 
           <div className="mt-8 space-y-3">
-            {faqs.map((faq, index) => (
+          {faqs.map((faq) => (
               <details
                 key={faq.questionEn}
                 className="group rounded-[1.5rem] border border-white/[0.08] bg-black/20"
