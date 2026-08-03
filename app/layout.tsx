@@ -29,16 +29,16 @@ const notoArabic = Noto_Sans_Arabic({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://mlamh.live"),
+  metadataBase: new URL("https://mlamh.net"),
   title: "MALAMIH — Casting & Talents",
   description:
     "منصة سعودية تربط المواهب والوجوه بالفرص والشركات والوكالات.",
-  
+
   openGraph: {
     title: "MALAMIH — Casting & Talents",
     description:
       "منصة سعودية تربط المواهب والوجوه بالفرص والشركات والوكالات.",
-    url: "https://mlamh.live",
+    url: "https://mlamh.net",
     siteName: "MALAMIH",
     images: [
       {
