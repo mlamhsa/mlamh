@@ -19,6 +19,7 @@ import {
   type Locale,
 } from "@/lib/i18n";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 type AccountType = "talent" | "publisher";
 
@@ -315,7 +316,10 @@ async function quickJoinAction(
   }
 
   const authClient =
-    await createServerSupabaseClient();
+  await createServerSupabaseClient();
+
+const adminClient =
+  createAdminClient();
 
   const { data, error } =
     await authClient.auth.signUp({
@@ -370,7 +374,7 @@ async function quickJoinAction(
       `/${locale}/join?${selectedTypeQuery}&error=signup`,
     );
   }
-  const { error: profileError } = await authClient
+  const { error: profileError } = await adminClient
   .from("profiles")
   .insert({
     user_id: data.user.id,
