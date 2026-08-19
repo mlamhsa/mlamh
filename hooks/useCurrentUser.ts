@@ -383,6 +383,20 @@ export function useCurrentUser(): CurrentUserState {
       }
     }
 
+    function refreshCurrentUser() {
+      void supabase.auth
+        .getUser()
+        .then(({ data }) => {
+          if (!isActive) {
+            return;
+          }
+    
+          void resolveUser(
+            data.user ?? null,
+          );
+        });
+    }
+
     void initialise();
 
     const {
@@ -399,11 +413,22 @@ export function useCurrentUser(): CurrentUserState {
       },
     );
 
+    window.addEventListener(
+      "mlamh:account-updated",
+      refreshCurrentUser,
+    );
+
     return () => {
-      isActive = false;
-      requestVersion += 1;
-      subscription.unsubscribe();
-    };
+  isActive = false;
+  requestVersion += 1;
+
+  window.removeEventListener(
+    "mlamh:account-updated",
+    refreshCurrentUser,
+  );
+
+  subscription.unsubscribe();
+};
   }, []);
 
   return state;

@@ -87,7 +87,7 @@ export async function updateOwnTalentMainImageAction(
 
   const { data: talent, error: talentError } = await supabase
     .from("talents")
-    .select("id, slug, image_url, gallery_images")
+    .select("id, slug, image_url")
     .eq("user_id", user.id)
     .maybeSingle();
 
@@ -127,24 +127,12 @@ export async function updateOwnTalentMainImageAction(
     throw new Error("Failed to generate public image URL.");
   }
 
-  const currentGallery = Array.isArray(talent.gallery_images)
-    ? talent.gallery_images.filter(
-        (item): item is string =>
-          typeof item === "string" && item.trim().length > 0
-      )
-    : [];
-
-  const nextGallery = talent.image_url
-    ? Array.from(new Set([talent.image_url, ...currentGallery]))
-    : currentGallery;
-
   const { error: updateError } = await supabase
-    .from("talents")
-    .update({
-      image_url: publicUrl,
-      gallery_images: nextGallery,
-    })
-    .eq("id", talent.id);
+  .from("talents")
+  .update({
+    image_url: publicUrl,
+  })
+  .eq("id", talent.id);
 
   if (updateError) {
     await supabase.storage.from(PROFILE_BUCKET).remove([filePath]);

@@ -10,12 +10,24 @@ export const EVENT_TYPES = {
   application_shortlisted: "application_shortlisted",
   application_accepted: "application_accepted",
   application_rejected: "application_rejected",
+  message_report_reviewed:
+  "message_report_reviewed",
 
+  /*
+   * Talent review workflow
+   */
   talent_created: "talent_created",
   talent_approved: "talent_approved",
+  talent_changes_requested: "talent_changes_requested",
+  talent_rejected: "talent_rejected",
 
+  /*
+   * Publisher review workflow
+   */
   publisher_created: "publisher_created",
   publisher_verified: "publisher_verified",
+  publisher_changes_requested: "publisher_changes_requested",
+  publisher_rejected: "publisher_rejected",
 } as const;
 
 export type EventType =

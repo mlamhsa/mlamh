@@ -315,22 +315,6 @@ export default async function EditTalentPage({
 
             <div>
               <label className="mb-2 block text-[10px] uppercase tracking-[0.3em] text-gray-muted">
-                Status
-              </label>
-
-              <select
-                name="status"
-                defaultValue={talent.status ?? "pending"}
-                className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none focus:border-gold/40"
-              >
-                <option value="pending">Pending</option>
-                <option value="approved">Approved</option>
-                <option value="rejected">Rejected</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-2 block text-[10px] uppercase tracking-[0.3em] text-gray-muted">
                 Availability
               </label>
 
@@ -349,26 +333,6 @@ export default async function EditTalentPage({
                 <option value="unavailable">Unavailable</option>
               </select>
             </div>
-
-            <label className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white/80">
-              <input
-                type="checkbox"
-                name="featured"
-                defaultChecked={Boolean(talent.featured)}
-                className="h-4 w-4"
-              />
-              Featured
-            </label>
-
-            <label className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white/80">
-              <input
-                type="checkbox"
-                name="published"
-                defaultChecked={Boolean(talent.published)}
-                className="h-4 w-4"
-              />
-              Published
-            </label>
 
             <label className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white/80">
               <input

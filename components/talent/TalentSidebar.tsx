@@ -2,7 +2,9 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import {
+  usePathname,
+} from "next/navigation";
 import { useCallback, useState } from "react";
 import {
   Bell,
@@ -12,6 +14,7 @@ import {
   Languages,
   LayoutDashboard,
   LogOut,
+  MessageSquareText,
   Settings,
   UserRound,
 } from "lucide-react";
@@ -22,6 +25,7 @@ type TalentSidebarProps = {
   locale: string;
   totalApplications: number;
   notificationCount: number;
+  unreadMessagesCount: number;
 };
 
 type SidebarLinkProps = {
@@ -36,9 +40,9 @@ export default function TalentSidebar({
   locale,
   totalApplications,
   notificationCount,
+  unreadMessagesCount,
 }: TalentSidebarProps) {
   const pathname = usePathname();
-  const router = useRouter();
 
   const isAr = locale === "ar";
   const [loggingOut, setLoggingOut] = useState(false);
@@ -76,9 +80,8 @@ export default function TalentSidebar({
       return;
     }
 
-    router.replace(`/${locale}/login`);
-    router.refresh();
-  }, [locale, loggingOut, router]);
+    window.location.replace(`/${locale}/login`);
+  }, [locale, loggingOut]);
 
   const items = [
     {
@@ -96,13 +99,23 @@ export default function TalentSidebar({
       badge: undefined,
     },
     {
-      href: `${dashboardHref}/requests`,
+      href: `${dashboardHref}/applications`,
       label: isAr ? "طلباتي" : "Applications",
       icon: <BriefcaseBusiness size={18} aria-hidden="true" />,
       exact: false,
       badge:
         totalApplications > 0
           ? totalApplications
+          : undefined,
+    },
+    {
+      href: `${dashboardHref}/messages`,
+      label: isAr ? "الرسائل" : "Messages",
+      icon: <MessageSquareText size={18} aria-hidden="true" />,
+      exact: false,
+      badge:
+        unreadMessagesCount > 0
+          ? unreadMessagesCount
           : undefined,
     },
     {

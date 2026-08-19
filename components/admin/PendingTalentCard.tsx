@@ -1,75 +1,114 @@
+import Image from "next/image";
 import Link from "next/link";
 import {
-  approveTalentAction,
-  rejectTalentAction,
-} from "@/lib/actions/review-talent";
+  ArrowUpRight,
+  CalendarDays,
+  CheckCircle2,
+  CircleDashed,
+  Eye,
+  MapPin,
+  Phone,
+  ShieldAlert,
+  UserRound,
+} from "lucide-react";
+
 import {
-  toggleTalentFeaturedAction,
-  toggleTalentPublishedAction,
-} from "@/lib/actions/toggle-talent-flags";
-import { TalentGallery } from "@/components/admin/TalentGallery";
-import type { AdminTalent } from "@/lib/supabase/admin-talents";
+  getAdminDictionary,
+  getAdminLanguage,
+  withAdminLanguage,
+  type AdminLanguage,
+} from "@/lib/admin/i18n";
+
+import type {
+  AdminTalent,
+} from "@/lib/repositories/talents/TalentRepository";
+
 import { calculateTalentCompletion } from "@/lib/utils/talent-completion";
 
-type AdminTalentCardData = AdminTalent & {
-  featured_until?: string | null;
-  availability_status?: string | null;
+type PendingTalentCardProps = {
+  talent: AdminTalent;
+  language?: AdminLanguage | string | null;
 };
 
-function normalizeInstagramUrl(value?: string | null) {
-  if (!value) return null;
+type StatusPresentation = {
+  label: string;
+  className: string;
+  icon: typeof CheckCircle2;
+};
 
-  const cleanValue = value.trim();
+function getStatusPresentation({
+  status,
+  language,
+}: {
+  status: string | null | undefined;
+  language: AdminLanguage;
+}): StatusPresentation {
+  const dictionary = getAdminDictionary(language);
 
-  if (!cleanValue) return null;
-
-  if (cleanValue.startsWith("http://") || cleanValue.startsWith("https://")) {
-    return cleanValue;
-  }
-
-  if (cleanValue.startsWith("@")) {
-    return `https://instagram.com/${cleanValue.slice(1)}`;
-  }
-
-  return `https://${cleanValue}`;
-}
-
-function getStatusStyles(status?: string | null) {
   switch (status) {
-    case "approved":
+    case "suspended":
       return {
-        label: "approved",
-        className: "text-emerald-400",
+        label: dictionary.statuses.suspended,
+        className:
+          "border-red-400/20 bg-red-500/[0.08] text-red-300",
+        icon: ShieldAlert,
       };
 
-    case "rejected":
+    case "active":
       return {
-        label: "rejected",
-        className: "text-red-400",
+        label:
+          language === "ar"
+            ? "نشط"
+            : "Active",
+        className:
+          "border-emerald-400/20 bg-emerald-400/[0.08] text-emerald-300",
+        icon: CheckCircle2,
       };
 
     default:
       return {
-        label: "pending",
-        className: "text-gold",
+        label:
+          language === "ar"
+            ? "غير محدد"
+            : "Unknown",
+        className:
+          "border-white/10 bg-white/[0.04] text-white/45",
+        icon: CircleDashed,
       };
   }
 }
 
-function getCompletionStyles(completion: number) {
+function getCompletionStyle(completion: number) {
   if (completion >= 80) {
-    return "bg-emerald-500/10 text-emerald-400";
+    return {
+      badge:
+        "border-emerald-400/20 bg-emerald-400/[0.08] text-emerald-300",
+      bar: "bg-emerald-400",
+    };
   }
 
   if (completion >= 50) {
-    return "bg-gold/10 text-gold";
+    return {
+      badge:
+        "border-gold/20 bg-gold/[0.08] text-gold",
+      bar: "bg-gold",
+    };
   }
 
-  return "bg-red-500/10 text-red-400";
+  return {
+    badge:
+      "border-red-400/20 bg-red-400/[0.08] text-red-300",
+    bar: "bg-red-400",
+  };
 }
 
-function formatFeaturedUntil(value?: string | null) {
-  if (!value) return "—";
+function formatDate(
+  value: string | null | undefined,
+  language: AdminLanguage,
+) {
+  if (!value) {
+    return "—";
+  }
 
   const date = new Date(value);
 
@@ -77,317 +116,322 @@ function formatFeaturedUntil(value?: string | null) {
     return "—";
   }
 
-  return date.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
+  return new Intl.DateTimeFormat(
+    language === "ar"
+      ? "ar-SA"
+      : "en-US",
+    {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    },
+  ).format(date);
 }
 
-function getAvailabilityLabel(status?: string | null) {
-  switch (status) {
-    case "available_now":
-      return "Available Now";
+function normalizeNumber(value: unknown) {
+  const number = Number(value ?? 0);
 
-    case "available_this_week":
-      return "Available This Week";
-
-    case "available_next_month":
-      return "Available Next Month";
-
-    case "unavailable":
-      return "Unavailable";
-
-    default:
-      return "—";
-  }
-}
-
-function getAvailabilityStyles(status?: string | null) {
-  switch (status) {
-    case "available_now":
-      return "bg-emerald-500/10 text-emerald-400";
-
-    case "available_this_week":
-      return "bg-gold/10 text-gold";
-
-    case "available_next_month":
-      return "bg-blue-500/10 text-blue-400";
-
-    case "unavailable":
-      return "bg-red-500/10 text-red-400";
-
-    default:
-      return "bg-white/5 text-white/40";
-  }
+  return Number.isFinite(number)
+    ? number
+    : 0;
 }
 
 export function PendingTalentCard({
   talent,
-}: {
-  talent: AdminTalentCardData;
-}) {
-  const instagramUrl = normalizeInstagramUrl(talent.instagram);
-  const status = getStatusStyles(talent.status);
-  const completion = calculateTalentCompletion(talent);
+  language: languageParam,
+}: PendingTalentCardProps) {
+  const language = getAdminLanguage(
+    languageParam,
+  );
+
+  const dictionary =
+    getAdminDictionary(language);
+
+  const isArabic =
+    language === "ar";
+
+  const statusPresentation =
+    getStatusPresentation({
+      status: talent.status,
+      language,
+    });
+
+  const StatusIcon =
+    statusPresentation.icon;
+
+  const completion = Math.min(
+    100,
+    Math.max(
+      0,
+      normalizeNumber(
+        calculateTalentCompletion(talent),
+      ),
+    ),
+  );
+
+  const completionStyle =
+    getCompletionStyle(completion);
+
+  const primaryName =
+    (
+      isArabic
+        ? talent.name_ar ||
+          talent.name_en
+        : talent.name_en ||
+          talent.name_ar
+    )?.trim() ||
+    (
+      isArabic
+        ? "موهبة بدون اسم"
+        : "Unnamed talent"
+    );
+
+  const secondaryName =
+    (
+      isArabic
+        ? talent.name_en
+        : talent.name_ar
+    )?.trim() || null;
+
+  const category =
+    (
+      isArabic
+        ? talent.category_ar ||
+          talent.category_en
+        : talent.category_en ||
+          talent.category_ar
+    )?.trim() || "—";
+
+  const city =
+    (
+      isArabic
+        ? talent.city_ar ||
+          talent.city_en
+        : talent.city_en ||
+          talent.city_ar
+    )?.trim() || "—";
+
+  const phone =
+    talent.account_phone?.trim() ||
+    "—";
+
+  const views =
+    normalizeNumber(
+      talent.views,
+    );
+
+  const lastUpdated =
+    talent.account_updated_at ||
+    talent.updated_at ||
+    talent.profile_completed_at;
+
+  const reviewHref =
+    withAdminLanguage(
+      `/admin/talents/${talent.id}`,
+      language,
+    );
 
   return (
-    <article className="overflow-hidden rounded-2xl border border-white/[0.08] bg-gray-elevated/40">
-      <div className="flex flex-col gap-6 p-5 md:flex-row md:p-6">
-        <div className="mx-auto w-full max-w-[220px] shrink-0 md:mx-0">
-          <TalentGallery
-            imageUrl={talent.image_url}
-            galleryImages={talent.gallery_images}
-            alt={talent.name_en || "Talent profile image"}
-          />
+    <article
+      dir={isArabic ? "rtl" : "ltr"}
+      className="group overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.02] transition hover:border-white/[0.14] hover:bg-white/[0.028]"
+    >
+      <div className="grid min-w-0 md:grid-cols-[150px_minmax(0,1fr)]">
+        <div className="relative aspect-[4/3] overflow-hidden bg-black md:aspect-auto md:min-h-[210px]">
+          {talent.image_url ? (
+            <Image
+              src={talent.image_url}
+              alt={
+                isArabic
+                  ? `صورة ${primaryName}`
+                  : `${primaryName} profile image`
+              }
+              fill
+              sizes="(max-width: 768px) 100vw, 150px"
+              className="object-cover transition duration-500 group-hover:scale-[1.025]"
+            />
+          ) : (
+            <div className="flex h-full min-h-44 items-center justify-center bg-white/[0.02] text-white/20">
+              <UserRound
+                aria-hidden="true"
+                className="h-10 w-10"
+              />
+            </div>
+          )}
+
+          <span className="absolute start-3 top-3 rounded-full border border-white/10 bg-black/70 px-2.5 py-1 text-[10px] text-white/60 backdrop-blur">
+            #{talent.id}
+          </span>
         </div>
 
-        <div className="min-w-0 flex-1">
-          <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p
-                className={`text-[10px] uppercase tracking-[0.3em] ${status.className}`}
-              >
-                #{talent.id} · {status.label}
-              </p>
+        <div className="min-w-0 p-5 sm:p-6">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] ${statusPresentation.className}`}
+                >
+                  <StatusIcon
+                    aria-hidden="true"
+                    className="h-3.5 w-3.5"
+                  />
 
-              <h2 className="mt-1 text-2xl font-light text-white">
-                {talent.name_en || "Unnamed talent"}
+                  {statusPresentation.label}
+                </span>
+
+                <span
+                  className={`inline-flex rounded-full border px-3 py-1 text-[11px] ${completionStyle.badge}`}
+                >
+                  {dictionary.talents.profileCompletion}:{" "}
+                  {completion}%
+                </span>
+
+                <span
+                  className={`inline-flex rounded-full border px-3 py-1 text-[11px] ${
+                    talent.published
+                      ? "border-emerald-400/20 bg-emerald-400/[0.07] text-emerald-300"
+                      : "border-white/10 bg-white/[0.04] text-white/40"
+                  }`}
+                >
+                  {talent.published
+                    ? dictionary.statuses.published
+                    : dictionary.statuses.hidden}
+                </span>
+
+                <span
+                  className={`inline-flex rounded-full border px-3 py-1 text-[11px] ${
+                    talent.verified
+                      ? "border-sky-400/20 bg-sky-400/[0.07] text-sky-300"
+                      : "border-white/10 bg-white/[0.04] text-white/40"
+                  }`}
+                >
+                  {talent.verified
+                    ? isArabic
+                      ? "موثّق"
+                      : "Verified"
+                    : isArabic
+                      ? "غير موثّق"
+                      : "Not verified"}
+                </span>
+              </div>
+
+              <h2 className="mt-4 truncate text-xl font-light text-white sm:text-2xl">
+                {primaryName}
               </h2>
 
-              <p
-                className="mt-0.5 text-lg text-white/60"
-                style={{ fontFamily: "var(--font-noto-arabic)" }}
-                dir="rtl"
-              >
-                {talent.name_ar || "—"}
-              </p>
+              {secondaryName ? (
+                <p
+                  dir={
+                    isArabic
+                      ? "ltr"
+                      : "rtl"
+                  }
+                  className="mt-1 truncate text-sm text-white/40"
+                >
+                  {secondaryName}
+                </p>
+              ) : null}
             </div>
 
             <Link
-              href={`/admin/talents/${talent.id}/edit`}
-              className="rounded-full border border-white/10 px-4 py-2 text-[10px] uppercase tracking-[0.25em] text-white/60 transition-colors hover:border-gold/40 hover:text-gold"
+              href={reviewHref}
+              className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-gold/25 bg-gold/[0.07] px-5 text-sm text-gold transition hover:bg-gold hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
             >
-              Edit profile
+              {dictionary.talents.reviewProfile}
+
+              <ArrowUpRight
+                aria-hidden="true"
+                className={`h-4 w-4 ${
+                  isArabic
+                    ? "-scale-x-100"
+                    : ""
+                }`}
+              />
             </Link>
           </div>
 
-          <dl className="grid gap-4 text-sm sm:grid-cols-2">
-            <div>
-              <dt className="text-[9px] uppercase tracking-[0.25em] text-gray-muted">
-                Category EN
+          <div className="mt-5 h-1 overflow-hidden rounded-full bg-white/[0.07]">
+            <div
+              className={`h-full rounded-full transition-[width] duration-500 ${completionStyle.bar}`}
+              style={{
+                width: `${completion}%`,
+              }}
+            />
+          </div>
+
+          <dl className="mt-6 grid gap-x-6 gap-y-4 sm:grid-cols-2 xl:grid-cols-5">
+            <div className="min-w-0">
+              <dt className="flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-white/30">
+                <UserRound className="h-3.5 w-3.5" />
+                {dictionary.talents.category}
               </dt>
 
-              <dd className="mt-1 text-white/80">
-                {talent.category_en || "—"}
+              <dd className="mt-2 truncate text-sm text-white/70">
+                {category}
               </dd>
             </div>
 
-            <div>
-              <dt className="text-[9px] uppercase tracking-[0.25em] text-gray-muted">
-                Category AR
+            <div className="min-w-0">
+              <dt className="flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-white/30">
+                <MapPin className="h-3.5 w-3.5" />
+                {dictionary.talents.city}
+              </dt>
+
+              <dd className="mt-2 truncate text-sm text-white/70">
+                {city}
+              </dd>
+            </div>
+
+            <div className="min-w-0">
+              <dt className="flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-white/30">
+                <Phone className="h-3.5 w-3.5" />
+                {dictionary.talents.phone}
               </dt>
 
               <dd
-                className="mt-1 text-white/80"
-                style={{ fontFamily: "var(--font-noto-arabic)" }}
-                dir="rtl"
+                dir="ltr"
+                className={`mt-2 truncate text-sm text-white/70 ${
+                  isArabic
+                    ? "text-right"
+                    : "text-left"
+                }`}
               >
-                {talent.category_ar || "—"}
+                {phone}
               </dd>
             </div>
 
-            <div>
-              <dt className="text-[9px] uppercase tracking-[0.25em] text-gray-muted">
-                WhatsApp
+            <div className="min-w-0">
+              <dt className="flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-white/30">
+                <Eye className="h-3.5 w-3.5" />
+
+                {isArabic
+                  ? "المشاهدات"
+                  : "Views"}
               </dt>
 
-              <dd className="mt-1 text-white/80">
-                {talent.whatsapp || "—"}
-              </dd>
-            </div>
-
-            <div>
-              <dt className="text-[9px] uppercase tracking-[0.25em] text-gray-muted">
-                Instagram
-              </dt>
-
-              <dd className="mt-1 truncate text-white/80">
-                {instagramUrl ? (
-                  <a
-                    href={instagramUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-gold transition-colors hover:text-gold-soft"
-                  >
-                    {talent.instagram}
-                  </a>
-                ) : (
-                  "—"
+              <dd className="mt-2 text-sm text-white/70">
+                {views.toLocaleString(
+                  isArabic
+                    ? "ar-SA"
+                    : "en-US",
                 )}
               </dd>
             </div>
 
-            <div>
-              <dt className="text-[9px] uppercase tracking-[0.25em] text-gray-muted">
-                Featured
+            <div className="min-w-0">
+              <dt className="flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-white/30">
+                <CalendarDays className="h-3.5 w-3.5" />
+                {dictionary.talents.lastUpdated}
               </dt>
 
-              <dd className="mt-1">
-                <span
-                  className={`rounded-full px-3 py-1 text-[10px] uppercase tracking-[0.2em] ${
-                    talent.featured
-                      ? "bg-gold/10 text-gold"
-                      : "bg-white/5 text-white/40"
-                  }`}
-                >
-                  {talent.featured ? "Featured" : "Standard"}
-                </span>
-              </dd>
-            </div>
-
-            <div>
-              <dt className="text-[9px] uppercase tracking-[0.25em] text-gray-muted">
-                Featured Until
-              </dt>
-
-              <dd className="mt-1 text-white/80">
-                {talent.featured
-                  ? formatFeaturedUntil(talent.featured_until)
-                  : "—"}
-              </dd>
-            </div>
-
-            <div>
-              <dt className="text-[9px] uppercase tracking-[0.25em] text-gray-muted">
-                Availability
-              </dt>
-
-              <dd className="mt-1">
-                <span
-                  className={`rounded-full px-3 py-1 text-[10px] uppercase tracking-[0.2em] ${getAvailabilityStyles(
-                    talent.availability_status
-                  )}`}
-                >
-                  {getAvailabilityLabel(talent.availability_status)}
-                </span>
-              </dd>
-            </div>
-
-            <div>
-              <dt className="text-[9px] uppercase tracking-[0.25em] text-gray-muted">
-                Profile Completion
-              </dt>
-
-              <dd className="mt-1">
-                <span
-                  className={`rounded-full px-3 py-1 text-[10px] uppercase tracking-[0.2em] ${getCompletionStyles(
-                    completion
-                  )}`}
-                >
-                  {completion}%
-                </span>
-              </dd>
-            </div>
-
-            <div>
-              <dt className="text-[9px] uppercase tracking-[0.25em] text-gray-muted">
-                Views
-              </dt>
-
-              <dd className="mt-1 text-white/80">
-                👁 {talent.views.toLocaleString()}
-              </dd>
-            </div>
-
-            <div>
-              <dt className="text-[9px] uppercase tracking-[0.25em] text-gray-muted">
-                Published
-              </dt>
-
-              <dd className="mt-1">
-                <span
-                  className={`rounded-full px-3 py-1 text-[10px] uppercase tracking-[0.2em] ${
-                    talent.published
-                      ? "bg-emerald-500/10 text-emerald-400"
-                      : "bg-red-500/10 text-red-400"
-                  }`}
-                >
-                  {talent.published ? "Published" : "Hidden"}
-                </span>
+              <dd className="mt-2 truncate text-sm text-white/70">
+                {formatDate(
+                  lastUpdated,
+                  language,
+                )}
               </dd>
             </div>
           </dl>
-
-          <div className="mt-6 flex flex-wrap gap-3">
-            <form action={toggleTalentFeaturedAction}>
-              <input type="hidden" name="id" value={talent.id} />
-
-              <input
-                type="hidden"
-                name="featured"
-                value={String(talent.featured)}
-              />
-
-              <button
-                type="submit"
-                className={`rounded-full border px-5 py-2 text-[10px] uppercase tracking-[0.25em] transition-colors ${
-                  talent.featured
-                    ? "border-gold/40 bg-gold/10 text-gold hover:bg-gold/20"
-                    : "border-white/10 text-white/60 hover:border-gold/30 hover:text-gold"
-                }`}
-              >
-                {talent.featured ? "Remove Featured" : "Make Featured"}
-              </button>
-            </form>
-
-            <form action={toggleTalentPublishedAction}>
-              <input type="hidden" name="id" value={talent.id} />
-
-              <input
-                type="hidden"
-                name="published"
-                value={String(talent.published)}
-              />
-
-              <button
-                type="submit"
-                className={`rounded-full border px-5 py-2 text-[10px] uppercase tracking-[0.25em] transition-colors ${
-                  talent.published
-                    ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
-                    : "border-red-500/30 bg-red-950/20 text-red-400 hover:bg-red-950/40"
-                }`}
-              >
-                {talent.published ? "Unpublish" : "Publish"}
-              </button>
-            </form>
-
-            {talent.status !== "approved" ? (
-              <form action={approveTalentAction}>
-                <input type="hidden" name="id" value={talent.id} />
-
-                <button
-                  type="submit"
-                  className="rounded-full border border-emerald-500/40 bg-emerald-950/30 px-5 py-2 text-[10px] uppercase tracking-[0.25em] text-emerald-400 transition-colors hover:border-emerald-400/60 hover:bg-emerald-950/50"
-                >
-                  Approve
-                </button>
-              </form>
-            ) : null}
-
-            {talent.status !== "rejected" ? (
-              <form action={rejectTalentAction}>
-                <input type="hidden" name="id" value={talent.id} />
-
-                <button
-                  type="submit"
-                  className="rounded-full border border-red-500/30 bg-red-950/20 px-5 py-2 text-[10px] uppercase tracking-[0.25em] text-red-400 transition-colors hover:border-red-400/50 hover:bg-red-950/40"
-                >
-                  Reject
-                </button>
-              </form>
-            ) : null}
-          </div>
         </div>
       </div>
     </article>

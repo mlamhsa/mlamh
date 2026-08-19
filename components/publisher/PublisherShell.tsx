@@ -30,11 +30,13 @@ type Props = {
 };
 
 type DashboardCounts = {
+  applicants: number;
   messages: number;
   notifications: number;
 };
 
 const EMPTY_COUNTS: DashboardCounts = {
+  applicants: 0,
   messages: 0,
   notifications: 0,
 };
@@ -51,7 +53,8 @@ export default function PublisherShell({
 
   const activeRequestRef =
     useRef<AbortController | null>(null);
-
+    const loggingOutRef = useRef(false);
+    
   const dashboardHref =
     `/${locale}/publisher-dashboard`;
 
@@ -61,6 +64,9 @@ export default function PublisherShell({
      * هذا يمنع تداخل طلبات العداد عند التنقل
      * أو أثناء تحديث Turbopack.
      */
+    if (loggingOutRef.current) {
+      return;
+    }
     activeRequestRef.current?.abort();
 
     const controller = new AbortController();
@@ -104,11 +110,16 @@ export default function PublisherShell({
       }
 
       setCounts({
+        applicants:
+          typeof data.applicants === "number"
+            ? Math.max(0, data.applicants)
+            : 0,
+      
         messages:
           typeof data.messages === "number"
             ? Math.max(0, data.messages)
             : 0,
-
+      
         notifications:
           typeof data.notifications === "number"
             ? Math.max(0, data.notifications)
@@ -230,7 +241,7 @@ export default function PublisherShell({
       href: `${dashboardHref}/applicants`,
       label: isRtl ? "المتقدمون" : "Applicants",
       icon: <UsersRound size={18} />,
-      badge: 0,
+      badge: counts.applicants,
     },
     {
       href: `${dashboardHref}/messages`,
@@ -261,7 +272,11 @@ export default function PublisherShell({
   ];
 
   async function handleLogout() {
+    loggingOutRef.current = true;
+  
     activeRequestRef.current?.abort();
+  
+    setCounts(EMPTY_COUNTS);
 
     const { error } =
       await supabase.auth.signOut();
@@ -347,7 +362,7 @@ export default function PublisherShell({
 
           <div className="mt-5 grid gap-3 border-t border-white/10 pt-5 lg:mt-8 lg:pt-6">
             <Link
-              href={`/${locale}/opportunities/new`}
+              href={`/${locale}/publisher-dashboard/opportunities/new`}
               className="flex items-center justify-center gap-2 rounded-2xl border border-gold bg-gold/10 px-5 py-4 text-xs uppercase tracking-[0.18em] text-gold transition hover:bg-gold hover:text-black"
             >
               <Plus size={16} />

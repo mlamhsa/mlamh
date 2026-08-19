@@ -1,15 +1,25 @@
-import Link from "next/link";
-import { redirect } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
+import type {
+  MessageAttachmentRecord,
+} from "@/components/messages/MessageBubble";
+import { redirect } from "next/navigation";
+import {
+  ArrowLeft,
+  BriefcaseBusiness,
+  MessageCircle,
+  UserRound,
+  XCircle,
+} from "lucide-react";
 
 import {
   closeConversationAction,
   markConversationReadAction,
-  sendMessageAction,
 } from "@/lib/actions/message-actions";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
+import MessageComposer from "./message-composer";
 import RealtimeMessageList from "./RealtimeMessageList";
 
 type PageProps = {
@@ -39,6 +49,7 @@ type MessageRecord = {
   reported_at: string | null;
   report_reason: string | null;
   created_at: string;
+  attachments: MessageAttachmentRecord[];
 };
 
 type OpportunityRecord = {
@@ -48,11 +59,14 @@ type OpportunityRecord = {
 
 type TalentRecord = {
   id: number;
+  slug: string | null;
   name_ar: string | null;
   name_en: string | null;
   image_url: string | null;
   category_ar: string | null;
   category_en: string | null;
+  city_ar: string | null;
+  city_en: string | null;
 };
 
 function formatMessageDate(value: string, locale: string) {
@@ -62,18 +76,23 @@ function formatMessageDate(value: string, locale: string) {
     return "";
   }
 
-  return new Intl.DateTimeFormat(locale === "ar" ? "ar-SA" : "en-US", {
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
+  return new Intl.DateTimeFormat(
+    locale === "ar" ? "ar-SA" : "en-US",
+    {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    },
+  ).format(date);
 }
 
 export default async function PublisherConversationPage({
   params,
 }: PageProps) {
-  const { locale, conversationId: rawConversationId } = await params;
+  const { locale, conversationId: rawConversationId } =
+    await params;
   const isArabic = locale === "ar";
   const conversationId = Number(rawConversationId);
 
@@ -94,11 +113,12 @@ export default async function PublisherConversationPage({
 
   const adminClient = createAdminClient();
 
-  const { data: profile, error: profileError } = await adminClient
-    .from("profiles")
-    .select("id, account_type")
-    .eq("user_id", user.id)
-    .maybeSingle();
+  const { data: profile, error: profileError } =
+    await adminClient
+      .from("profiles")
+      .select("id, account_type")
+      .eq("user_id", user.id)
+      .maybeSingle();
 
   if (profileError) {
     throw new Error(
@@ -110,11 +130,12 @@ export default async function PublisherConversationPage({
     redirect(`/${locale}/login`);
   }
 
-  const { data: publisher, error: publisherError } = await adminClient
-    .from("publishers")
-    .select("id, company_name, contact_name")
-    .eq("profile_id", profile.id)
-    .maybeSingle();
+  const { data: publisher, error: publisherError } =
+    await adminClient
+      .from("publishers")
+      .select("id, company_name, contact_name")
+      .eq("profile_id", profile.id)
+      .maybeSingle();
 
   if (publisherError) {
     throw new Error(
@@ -155,8 +176,46 @@ export default async function PublisherConversationPage({
     redirect(`/${locale}/publisher-dashboard/messages`);
   }
 
-  const conversation = conversationData as ConversationRecord;
-
+  const conversation =
+    conversationData as ConversationRecord;
+    if (!conversation.application_id) {
+      redirect(
+        `/${locale}/publisher-dashboard/messages`,
+      );
+    }
+    
+    const {
+      data: application,
+      error: applicationError,
+    } = await adminClient
+      .from("opportunity_applications")
+      .select("id, status, opportunity_id, talent_id")
+      .eq("id", conversation.application_id)
+      .eq(
+        "opportunity_id",
+        conversation.opportunity_id,
+      )
+      .eq(
+        "talent_id",
+        conversation.talent_id,
+      )
+      .maybeSingle();
+    
+    if (applicationError) {
+      throw new Error(
+        `[PublisherConversationPage application] ${applicationError.message}`,
+      );
+    }
+    
+    if (
+      !application ||
+      application.status !== "accepted"
+    ) {
+      redirect(
+        `/${locale}/publisher-dashboard/messages`,
+      );
+    }
+    
   const [messagesResult, opportunityResult, talentResult] =
     await Promise.all([
       adminClient
@@ -184,11 +243,14 @@ export default async function PublisherConversationPage({
         .from("talents")
         .select(`
           id,
+          slug,
           name_ar,
           name_en,
           image_url,
           category_ar,
-          category_en
+          category_en,
+          city_ar,
+          city_en
         `)
         .eq("id", conversation.talent_id)
         .maybeSingle(),
@@ -212,8 +274,160 @@ export default async function PublisherConversationPage({
     );
   }
 
-  const messages = (messagesResult.data ?? []) as MessageRecord[];
-  const opportunity = opportunityResult.data as OpportunityRecord | null;
+  const rawMessages =
+  messagesResult.data ?? [];
+
+const messageIds =
+  rawMessages.map(
+    (message) => Number(message.id),
+  );
+
+const attachmentsResult =
+  messageIds.length > 0
+    ? await adminClient
+        .from("message_attachments")
+        .select(`
+          id,
+          message_id,
+          conversation_id,
+          uploader_user_id,
+          storage_path,
+          file_name,
+          mime_type,
+          size_bytes,
+          created_at
+        `)
+        .in(
+          "message_id",
+          messageIds,
+        )
+        .order(
+          "created_at",
+          {
+            ascending: true,
+          },
+        )
+    : {
+        data: [],
+        error: null,
+      };
+
+if (
+  attachmentsResult.error
+) {
+  throw new Error(
+    `[PublisherConversationPage attachments] ${attachmentsResult.error.message}`,
+  );
+}
+
+const rawAttachments =
+  attachmentsResult.data ?? [];
+
+const attachmentsWithSignedUrls =
+  await Promise.all(
+    rawAttachments.map(
+      async (attachment) => {
+        const {
+          data: signedData,
+          error: signedError,
+        } =
+          await adminClient.storage
+            .from("message-attachments")
+            .createSignedUrl(
+              attachment.storage_path,
+              60 * 60,
+            );
+
+        if (signedError) {
+          console.error(
+            "[PublisherConversationPage signed attachment]",
+            signedError,
+          );
+        }
+
+        return {
+          id:
+            attachment.id,
+
+          message_id:
+            attachment.message_id,
+
+          conversation_id:
+            attachment.conversation_id,
+
+          uploader_user_id:
+            attachment.uploader_user_id,
+
+          storage_path:
+            attachment.storage_path,
+
+          file_name:
+            attachment.file_name,
+
+          mime_type:
+            attachment.mime_type,
+
+          size_bytes:
+            Number(
+              attachment.size_bytes,
+            ),
+
+          created_at:
+            attachment.created_at,
+
+          signed_url:
+            signedError
+              ? null
+              : signedData?.signedUrl ??
+                null,
+        };
+      },
+    ),
+  );
+
+const attachmentsByMessage =
+  new Map<
+    number,
+    typeof attachmentsWithSignedUrls
+  >();
+
+for (
+  const attachment
+  of attachmentsWithSignedUrls
+) {
+  const messageId =
+    Number(
+      attachment.message_id,
+    );
+
+  const existing =
+    attachmentsByMessage.get(
+      messageId,
+    ) ?? [];
+
+  existing.push(
+    attachment,
+  );
+
+  attachmentsByMessage.set(
+    messageId,
+    existing,
+  );
+}
+
+const messages: MessageRecord[] =
+  rawMessages.map(
+    (message) => ({
+      ...message,
+
+      attachments:
+        attachmentsByMessage.get(
+          Number(message.id),
+        ) ?? [],
+    }),
+  );
+  const opportunity =
+    opportunityResult.data as OpportunityRecord | null;
   const talent = talentResult.data as TalentRecord | null;
 
   await markConversationReadAction(conversation.id);
@@ -226,187 +440,316 @@ export default async function PublisherConversationPage({
     ? talent?.category_ar || talent?.category_en || ""
     : talent?.category_en || talent?.category_ar || "";
 
-  const isActive = (conversation.status ?? "active") === "active";
+  const talentCity = isArabic
+    ? talent?.city_ar || talent?.city_en || ""
+    : talent?.city_en || talent?.city_ar || "";
+
+  const opportunityTitle =
+    opportunity?.title ??
+    (isArabic ? "فرصة بدون عنوان" : "Untitled Opportunity");
+
+  const isActive =
+    (conversation.status ?? "active") === "active";
 
   const closedAtLabel = conversation.closed_at
     ? formatMessageDate(conversation.closed_at, locale)
     : null;
 
+  const talentHref = talent?.slug || talent?.id
+    ? `/${locale}/talent/${talent.slug ?? talent.id}`
+    : null;
+
+  const opportunityHref = opportunity?.id
+    ? `/${locale}/publisher-dashboard/opportunities/${opportunity.id}`
+    : null;
+
   return (
     <main
       dir={isArabic ? "rtl" : "ltr"}
-      className="min-h-screen bg-background px-4 pb-24 pt-36 text-white sm:px-6 sm:pt-40 lg:pt-32"
+      className="min-h-screen bg-background px-3 pb-24 pt-28 text-white sm:px-6 sm:pt-32 lg:pb-8"
     >
-      <div className="mx-auto max-w-5xl">
-        <section className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.025]">
-          <header className="border-b border-white/10 bg-[radial-gradient(circle_at_top_right,rgba(201,169,98,0.12),transparent_40%)] p-5 sm:p-7">
-            <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex min-w-0 items-center gap-4">
-                {talent?.image_url ? (
-                  <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full border border-white/10">
-                  <Image
-                    src={talent.image_url}
-                    alt={talentName}
-                    fill
-                    sizes="56px"
-                    className="object-cover"
-                  />
-                </div>
-                ) : (
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-xl text-gold">
-                    {talentName.slice(0, 1)}
-                  </div>
-                )}
-
-                <div className="min-w-0">
-                  <Link
-                    href={`/${locale}/publisher-dashboard/messages`}
-                    className="text-xs text-gold underline underline-offset-4"
-                  >
-                    {isArabic
+      <div className="mx-auto max-w-7xl">
+        <section className="flex h-[calc(100dvh-8rem)] min-h-[620px] overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/[0.025] shadow-2xl shadow-black/30 lg:h-[calc(100dvh-9rem)]">
+          <div className="flex min-w-0 flex-1 flex-col">
+            <header className="shrink-0 border-b border-white/10 bg-black/35 px-4 py-3 backdrop-blur-xl sm:px-5">
+              <div className="flex items-center gap-3">
+                <Link
+                  href={`/${locale}/publisher-dashboard/messages`}
+                  aria-label={
+                    isArabic
                       ? "العودة إلى المحادثات"
-                      : "Back to conversations"}
-                  </Link>
+                      : "Back to conversations"
+                  }
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 text-white/65 transition hover:border-gold/40 hover:text-gold"
+                >
+                  <ArrowLeft
+                    size={18}
+                    className={isArabic ? "rotate-180" : ""}
+                  />
+                </Link>
 
-                  <h1 className="mt-2 truncate text-2xl font-light sm:text-3xl">
-                    {talentName}
-                  </h1>
+                <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full border border-gold/25 bg-gold/10">
+                  {talent?.image_url ? (
+                    <Image
+                      src={talent.image_url}
+                      alt={talentName}
+                      fill
+                      sizes="44px"
+                      className="object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center font-medium text-gold">
+                      {talentName.slice(0, 1)}
+                    </div>
+                  )}
+                </div>
 
-                  <p className="mt-1 truncate text-xs text-white/40">
-                    {opportunity?.title ??
-                      (isArabic
-                        ? "فرصة بدون عنوان"
-                        : "Untitled Opportunity")}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <h1 className="truncate text-base font-medium sm:text-lg">
+                      {talentName}
+                    </h1>
+                    <span
+                      className={`h-2 w-2 shrink-0 rounded-full ${
+                        isActive
+                          ? "bg-emerald-300"
+                          : "bg-amber-300"
+                      }`}
+                    />
+                  </div>
+
+                  <p className="truncate text-xs text-gold/75">
+                    {opportunityTitle}
                   </p>
+                </div>
 
-                  {talentCategory ? (
-                    <p className="mt-1 truncate text-[11px] text-gold/65">
-                      {talentCategory}
-                    </p>
+                <div className="hidden items-center gap-2 sm:flex">
+                  {talentHref ? (
+                    <Link
+                      href={talentHref}
+                      className="inline-flex min-h-10 items-center gap-2 rounded-full border border-white/10 px-4 text-xs text-white/60 transition hover:border-gold/40 hover:text-gold"
+                    >
+                      <UserRound size={15} />
+                      {isArabic ? "عرض الملف" : "Profile"}
+                    </Link>
+                  ) : null}
+
+                  {opportunityHref ? (
+                    <Link
+                      href={opportunityHref}
+                      className="inline-flex min-h-10 items-center gap-2 rounded-full border border-white/10 px-4 text-xs text-white/60 transition hover:border-gold/40 hover:text-gold"
+                    >
+                      <BriefcaseBusiness size={15} />
+                      {isArabic ? "الفرصة" : "Opportunity"}
+                    </Link>
+                  ) : null}
+
+                  {isActive ? (
+                    <form action={closeConversationAction}>
+                      <input
+                        type="hidden"
+                        name="conversationId"
+                        value={conversation.id}
+                      />
+                      <input
+                        type="hidden"
+                        name="locale"
+                        value={locale}
+                      />
+                      <button
+                        type="submit"
+                        className="inline-flex min-h-10 items-center gap-2 rounded-full border border-red-300/25 px-4 text-xs text-red-200 transition hover:bg-red-300 hover:text-black"
+                      >
+                        <XCircle size={15} />
+                        {isArabic ? "إغلاق" : "Close"}
+                      </button>
+                    </form>
                   ) : null}
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="text-end">
-                  <div
-                    className={`w-fit rounded-full border px-4 py-2 text-xs ${
-                      isActive
-                        ? "border-emerald-300/25 bg-emerald-300/[0.08] text-emerald-200"
-                        : "border-amber-300/25 bg-amber-300/[0.07] text-amber-200"
-                    }`}
+              <div className="mt-3 flex gap-2 overflow-x-auto pb-1 sm:hidden">
+                {talentHref ? (
+                  <Link
+                    href={talentHref}
+                    className="inline-flex min-h-9 shrink-0 items-center gap-2 rounded-full border border-white/10 px-3 text-[11px] text-white/60"
                   >
-                    {isActive
-                      ? isArabic
-                        ? "المحادثة نشطة"
-                        : "Active conversation"
-                      : isArabic
-                        ? "المحادثة مغلقة"
-                        : "Conversation closed"}
-                  </div>
+                    <UserRound size={14} />
+                    {isArabic ? "الملف" : "Profile"}
+                  </Link>
+                ) : null}
 
-                  {!isActive && closedAtLabel ? (
-                    <p className="mt-2 text-[10px] text-white/35">
+                {opportunityHref ? (
+                  <Link
+                    href={opportunityHref}
+                    className="inline-flex min-h-9 shrink-0 items-center gap-2 rounded-full border border-white/10 px-3 text-[11px] text-white/60"
+                  >
+                    <BriefcaseBusiness size={14} />
+                    {isArabic ? "تفاصيل الفرصة" : "Opportunity"}
+                  </Link>
+                ) : null}
+
+                <span
+                  className={`inline-flex min-h-9 shrink-0 items-center rounded-full border px-3 text-[11px] ${
+                    isActive
+                      ? "border-emerald-300/25 bg-emerald-300/[0.08] text-emerald-200"
+                      : "border-amber-300/25 bg-amber-300/[0.08] text-amber-200"
+                  }`}
+                >
+                  {isActive
+                    ? isArabic
+                      ? "محادثة نشطة"
+                      : "Active"
+                    : isArabic
+                      ? "مغلقة"
+                      : "Closed"}
+                </span>
+              </div>
+            </header>
+
+            <RealtimeMessageList
+              conversationId={conversation.id}
+              currentUserId={user.id}
+              initialMessages={messages}
+              locale={locale}
+            />
+
+            <footer className="shrink-0 border-t border-white/10 bg-black/45 backdrop-blur-xl">
+              {isActive ? (
+                <MessageComposer
+                conversationId={conversation.id}
+                currentUserId={user.id}
+                locale={locale}
+              />
+              ) : (
+                <div className="px-4 py-4 sm:px-5">
+                  <div className="rounded-2xl border border-amber-300/20 bg-amber-300/[0.06] px-5 py-4 text-center">
+                    <p className="text-sm text-amber-100/85">
                       {isArabic
-                        ? `أُغلقت في ${closedAtLabel}`
-                        : `Closed on ${closedAtLabel}`}
+                        ? "المحادثة مغلقة ولا يمكن إرسال رسائل جديدة."
+                        : "This conversation is closed and no new messages can be sent."}
                     </p>
-                  ) : null}
+
+                    {closedAtLabel ? (
+                      <p className="mt-1 text-[10px] text-white/35">
+                        {isArabic
+                          ? `أُغلقت في ${closedAtLabel}`
+                          : `Closed on ${closedAtLabel}`}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+              )}
+            </footer>
+          </div>
+
+          <aside className="hidden w-72 shrink-0 border-s border-white/10 bg-black/20 p-5 xl:block">
+            <div className="flex h-full flex-col">
+              <div className="text-center">
+                <div className="relative mx-auto h-20 w-20 overflow-hidden rounded-full border border-gold/25 bg-gold/10">
+                  {talent?.image_url ? (
+                    <Image
+                      src={talent.image_url}
+                      alt={talentName}
+                      fill
+                      sizes="80px"
+                      className="object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-2xl text-gold">
+                      {talentName.slice(0, 1)}
+                    </div>
+                  )}
                 </div>
 
-                {isActive ? (
-                  <form action={closeConversationAction}>
-                    <input type="hidden" name="conversationId" value={conversation.id} />
-                    <input type="hidden" name="locale" value={locale} />
-                    <button
-                      type="submit"
-                      className="rounded-full border border-red-300/25 bg-red-300/[0.06] px-4 py-2 text-xs text-red-200 transition hover:bg-red-300 hover:text-black"
-                    >
-                      {isArabic ? "إغلاق المحادثة" : "Close conversation"}
-                    </button>
-                  </form>
+                <h2 className="mt-4 truncate text-lg font-medium">
+                  {talentName}
+                </h2>
+
+                {talentCategory ? (
+                  <p className="mt-1 text-xs text-gold/70">
+                    {talentCategory}
+                  </p>
+                ) : null}
+
+                {talentCity ? (
+                  <p className="mt-1 text-xs text-white/35">
+                    {talentCity}
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="mt-6 space-y-3">
+                <ContextItem
+                  icon={<BriefcaseBusiness size={15} />}
+                  label={isArabic ? "الفرصة" : "Opportunity"}
+                  value={opportunityTitle}
+                />
+
+                <ContextItem
+                  icon={<MessageCircle size={15} />}
+                  label={
+                    isArabic ? "حالة التواصل" : "Conversation"
+                  }
+                  value={
+                    isActive
+                      ? isArabic
+                        ? "نشطة"
+                        : "Active"
+                      : isArabic
+                        ? "مغلقة"
+                        : "Closed"
+                  }
+                />
+              </div>
+
+              <div className="mt-auto space-y-2 pt-6">
+                {talentHref ? (
+                  <Link
+                    href={talentHref}
+                    className="flex min-h-11 items-center justify-center rounded-xl border border-white/10 text-sm text-white/65 transition hover:border-gold/40 hover:text-gold"
+                  >
+                    {isArabic ? "فتح ملف الموهبة" : "Open talent profile"}
+                  </Link>
+                ) : null}
+
+                {opportunityHref ? (
+                  <Link
+                    href={opportunityHref}
+                    className="flex min-h-11 items-center justify-center rounded-xl border border-gold/30 bg-gold/10 text-sm text-gold transition hover:bg-gold hover:text-black"
+                  >
+                    {isArabic ? "عرض تفاصيل الفرصة" : "View opportunity"}
+                  </Link>
                 ) : null}
               </div>
             </div>
-          </header>
-
-          <RealtimeMessageList
-            conversationId={conversation.id}
-            currentUserId={user.id}
-            initialMessages={messages}
-            locale={locale}
-          />
-
-          <footer className="border-t border-white/10 bg-black/20 p-4 sm:p-6">
-            {isActive ? (
-              <form action={sendMessageAction}>
-                <input
-                  type="hidden"
-                  name="conversationId"
-                  value={conversation.id}
-                />
-
-                <input type="hidden" name="locale" value={locale} />
-
-                <label htmlFor="message-body" className="sr-only">
-                  {isArabic ? "نص الرسالة" : "Message text"}
-                </label>
-
-                <textarea
-                  id="message-body"
-                  name="body"
-                  required
-                  maxLength={3000}
-                  rows={3}
-                  placeholder={
-                    isArabic
-                      ? "اكتب رسالتك هنا..."
-                      : "Write your message..."
-                  }
-                  className="w-full resize-none rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm leading-7 text-white outline-none transition placeholder:text-white/25 focus:border-gold/45"
-                />
-
-                <div className="mt-3 flex items-center justify-between gap-4">
-                  <p className="text-[10px] text-white/25">
-                    {isArabic
-                      ? "الحد الأقصى 3000 حرف"
-                      : "Maximum 3,000 characters"}
-                  </p>
-
-                  <button
-                    type="submit"
-                    className="inline-flex min-w-28 items-center justify-center rounded-full bg-gold px-6 py-3 text-sm font-medium text-black transition hover:brightness-110"
-                  >
-                    {isArabic ? "إرسال" : "Send"}
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <div className="rounded-2xl border border-amber-300/20 bg-amber-300/[0.06] px-5 py-5 text-center">
-                <p className="text-sm text-amber-100/85">
-                  {isArabic
-                    ? "تم إغلاق هذه المحادثة بواسطة الشركة، ولا يمكن إرسال رسائل جديدة."
-                    : "This conversation was closed by the company, and no new messages can be sent."}
-                </p>
-
-                {closedAtLabel ? (
-                  <p className="mt-2 text-[10px] text-white/35">
-                    {isArabic
-                      ? `تاريخ الإغلاق: ${closedAtLabel}`
-                      : `Closed on: ${closedAtLabel}`}
-                  </p>
-                ) : null}
-
-                <p className="mt-3 text-[10px] leading-5 text-white/25">
-                  {isArabic
-                    ? "ستبقى جميع الرسائل السابقة محفوظة ويمكن الرجوع إليها."
-                    : "All previous messages remain available for reference."}
-                </p>
-              </div>
-            )}
-          </footer>
+          </aside>
         </section>
       </div>
     </main>
+  );
+}
+
+function ContextItem({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.025] p-4">
+      <div className="flex items-center gap-2 text-gold/75">
+        {icon}
+        <p className="text-[10px] uppercase tracking-[0.16em]">
+          {label}
+        </p>
+      </div>
+      <p className="mt-2 line-clamp-3 text-sm leading-6 text-white/70">
+        {value}
+      </p>
+    </div>
   );
 }

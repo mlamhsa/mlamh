@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import {
   autoSavePublisherProfileAction,
+  submitPublisherProfileForReviewAction,
   updatePublisherProfileAction,
 } from "@/lib/actions/update-publisher-profile";
 import PublisherImageUploadFields from "@/components/publisher/PublisherImageUploadFields";
@@ -12,24 +13,24 @@ import { SAUDI_CITIES } from "@/lib/data/saudi-cities";
 
 const PUBLISHER_TYPE_OPTIONS = [
   {
-    value: "individual",
-    ar: "فرد",
-    en: "Individual",
+    value: "production_company",
+    ar: "شركة إنتاج",
+    en: "Production Company",
   },
   {
-    value: "small_business",
-    ar: "منشأة صغيرة",
-    en: "Small Business",
+    value: "advertising_agency",
+    ar: "وكالة إعلانية",
+    en: "Advertising Agency",
   },
   {
-    value: "company",
-    ar: "شركة أو مؤسسة",
-    en: "Company or Establishment",
+    value: "casting_agency",
+    ar: "وكالة كاستينغ",
+    en: "Casting Agency",
   },
   {
-    value: "agency",
-    ar: "وكالة",
-    en: "Agency",
+    value: "talent_agency",
+    ar: "وكالة مواهب",
+    en: "Talent Agency",
   },
   {
     value: "brand",
@@ -37,29 +38,14 @@ const PUBLISHER_TYPE_OPTIONS = [
     en: "Brand",
   },
   {
-    value: "government_entity",
-    ar: "جهة حكومية",
-    en: "Government Entity",
+    value: "content_company",
+    ar: "شركة محتوى",
+    en: "Content Company",
   },
   {
-    value: "nonprofit",
-    ar: "جهة غير ربحية",
-    en: "Nonprofit",
-  },
-  {
-    value: "salon",
-    ar: "صالون أو مركز تجميل",
-    en: "Salon or Beauty Centre",
-  },
-  {
-    value: "store",
-    ar: "متجر أو معرض",
-    en: "Store or Showroom",
-  },
-  {
-    value: "media_company",
-    ar: "شركة أو جهة إعلامية",
-    en: "Media Company",
+    value: "individual",
+    ar: "فرد / مستقل",
+    en: "Individual / Freelancer",
   },
   {
     value: "other",
@@ -218,43 +204,62 @@ savedTimerRef.current = setTimeout(() => {
         </p>
 
         <div className="grid gap-6 md:grid-cols-2">
-          <Field
-            label={isRtl ? "اسم الجهة" : "Company Name"}
-            name="company_name"
-            defaultValue={publisher.company_name ?? ""}
-            dir={isRtl ? "rtl" : "ltr"}
-          />
+        <Field
+  label={isRtl ? "اسم الجهة" : "Organization Name"}
+  name="company_name"
+  defaultValue={publisher.company_name ?? ""}
+  dir={isRtl ? "rtl" : "ltr"}
+  placeholder={
+    isRtl
+      ? "مثال: وكالة ملامح للمواهب"
+      : "e.g. MLAMH Talent Agency"
+  }
+  required
+/>
 
-          <Field
-            label={isRtl ? "اسم المسؤول" : "Contact Name"}
-            name="contact_name"
-            defaultValue={publisher.contact_name ?? ""}
-            dir={isRtl ? "rtl" : "ltr"}
-          />
+<Field
+  label={isRtl ? "اسم مسؤول الحساب" : "Account Manager Name"}
+  name="contact_name"
+  defaultValue={publisher.contact_name ?? ""}
+  dir={isRtl ? "rtl" : "ltr"}
+  placeholder={
+    isRtl
+      ? "اسم الشخص المسؤول عن إدارة الحساب"
+      : "Person responsible for managing this account"
+  }
+  required
+/>
+
+<div>
+  <label className="mb-2 block text-xs uppercase tracking-[0.25em] text-white/40">
+    {isRtl ? "نوع الجهة" : "Organization Type"}
+  </label>
+
+  <div className="w-full border border-white/10 bg-white/[0.02] px-4 py-4 text-white/70">
+    {(() => {
+      const option = PUBLISHER_TYPE_OPTIONS.find(
+        (item) => item.value === publisher.publisher_type
+      );
+
+      return option
+        ? isRtl
+          ? option.ar
+          : option.en
+        : publisher.publisher_type || (isRtl ? "غير محدد" : "Not specified");
+    })()}
+  </div>
+
+  <input
+    type="hidden"
+    name="publisher_type"
+    value={publisher.publisher_type ?? ""}
+  />
+</div>
 
           <div>
             <label className="mb-2 block text-xs uppercase tracking-[0.25em] text-white/40">
-              {isRtl ? "نوع الناشر" : "Publisher Type"}
-            </label>
-
-            <select
-              name="publisher_type"
-              defaultValue={
-                publisher.publisher_type ?? "individual"
-              }
-              className="w-full border border-white/10 bg-black/30 px-4 py-4 text-white outline-none focus:border-gold/50"
-            >
-              {PUBLISHER_TYPE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {isRtl ? option.ar : option.en}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="mb-2 block text-xs uppercase tracking-[0.25em] text-white/40">
-              {isRtl ? "المدينة" : "City"}
+            {isRtl ? "المدينة" : "City"}
+            <span className="ms-1 text-gold">*</span>
             </label>
 
             <select
@@ -319,6 +324,7 @@ savedTimerRef.current = setTimeout(() => {
                   ? "اكتب وصفًا مختصرًا عن الجهة ونوع الأعمال التي تنشرها."
                   : "Write a short description about your company and the kind of opportunities you publish."
               }
+              required
             />
           </div>
         </div>
@@ -438,23 +444,35 @@ savedTimerRef.current = setTimeout(() => {
     ? "يتم حفظ البيانات تلقائيًا أثناء الكتابة، أما الصور فتُحفظ عند الضغط على «حفظ الآن»."
     : "Changes are saved automatically while editing. Images are uploaded when you click “Save Now”."}
 </p>
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <button
-          type="submit"
-          className="flex-1 border border-gold bg-gold/10 px-6 py-4 text-xs uppercase tracking-[0.25em] text-gold transition hover:bg-gold hover:text-black"
-        >
-          {isRtl ? "حفظ الآن" : "Save Now"}
-        </button>
+<div className="grid gap-3 sm:grid-cols-2">
+  <button
+    type="submit"
+    className="border border-white/15 px-6 py-4 text-xs uppercase tracking-[0.25em] text-white/60 transition hover:border-gold/50 hover:text-gold"
+  >
+    {isRtl
+      ? "حفظ الآن"
+      : "Save Now"}
+  </button>
 
-        <Link
-          href={`/${locale}/publisher-dashboard`}
-          className="flex-1 border border-white/15 px-6 py-4 text-center text-xs uppercase tracking-[0.25em] text-white/60 transition hover:border-white hover:text-white"
-        >
-          {isRtl
-  ? "العودة للوحة التحكم"
-  : "Back to Dashboard"}
-        </Link>
-      </div>
+  <button
+    type="submit"
+    formAction={submitPublisherProfileForReviewAction}
+    className="border border-gold bg-gold/10 px-6 py-4 text-xs uppercase tracking-[0.25em] text-gold transition hover:bg-gold hover:text-black"
+  >
+    {isRtl
+      ? "إرسال الملف للمراجعة"
+      : "Submit Profile for Review"}
+  </button>
+
+  <Link
+    href={`/${locale}/publisher-dashboard`}
+    className="sm:col-span-2 inline-flex items-center justify-center px-6 py-3 text-xs text-white/40 transition hover:text-gold"
+  >
+    {isRtl
+      ? "العودة إلى لوحة الناشر"
+      : "Back to Publisher Dashboard"}
+  </Link>
+</div>
     </form>
   );
 }
@@ -466,6 +484,7 @@ function Field({
   type = "text",
   dir,
   placeholder,
+  required = false,
 }: {
   label: string;
   name: string;
@@ -473,12 +492,16 @@ function Field({
   type?: string;
   dir?: "rtl" | "ltr";
   placeholder?: string;
+  required?: boolean;
 }) {
   return (
     <div>
       <label className="mb-2 block text-xs uppercase tracking-[0.25em] text-white/40">
-        {label}
-      </label>
+  {label}
+  {required ? (
+    <span className="ms-1 text-gold">*</span>
+  ) : null}
+</label>
 
       <input
         name={name}
@@ -486,6 +509,7 @@ function Field({
         defaultValue={defaultValue}
         dir={dir}
         placeholder={placeholder}
+        required={required}
         className="w-full border border-white/10 bg-black/30 px-4 py-4 text-white outline-none transition placeholder:text-white/25 focus:border-gold/50"
       />
     </div>
@@ -498,24 +522,30 @@ function Textarea({
   defaultValue,
   dir,
   placeholder,
+  required = false,
 }: {
   label: string;
   name: string;
   defaultValue?: string;
   dir?: "rtl" | "ltr";
   placeholder?: string;
+  required?: boolean;
 }) {
   return (
     <div>
       <label className="mb-2 block text-xs uppercase tracking-[0.25em] text-white/40">
-        {label}
-      </label>
+  {label}
+  {required ? (
+    <span className="ms-1 text-gold">*</span>
+  ) : null}
+</label>
 
       <textarea
-        name={name}
-        defaultValue={defaultValue}
-        dir={dir}
-        placeholder={placeholder}
+  name={name}
+  defaultValue={defaultValue}
+  dir={dir}
+  placeholder={placeholder}
+  required={required}
         className="min-h-36 w-full border border-white/10 bg-black/30 px-4 py-4 text-white outline-none transition placeholder:text-white/25 focus:border-gold/50"
       />
     </div>

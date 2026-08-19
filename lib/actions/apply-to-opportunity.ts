@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getTalentProfileReadiness } from "@/lib/talent/profile-review-readiness";
 
 export type ApplyResult = {
   status:
@@ -15,12 +16,25 @@ export type ApplyResult = {
   message: string;
 };
 
+const RESTRICTED_ACCOUNT_STATUSES = new Set([
+  "suspended",
+  "blocked",
+  "banned",
+  "disabled",
+]);
+
 export async function applyToOpportunityAction(
   _prevState: ApplyResult | null,
   formData: FormData,
 ): Promise<ApplyResult> {
-  const opportunityId = Number(formData.get("opportunity_id"));
-  const locale = formData.get("locale") === "en" ? "en" : "ar";
+  const opportunityId = Number(
+    formData.get("opportunity_id"),
+  );
+
+  const locale =
+    formData.get("locale") === "en"
+      ? "en"
+      : "ar";
 
   if (
     !Number.isInteger(opportunityId) ||
@@ -35,7 +49,8 @@ export async function applyToOpportunityAction(
     };
   }
 
-  const authClient = await createServerSupabaseClient();
+  const authClient =
+    await createServerSupabaseClient();
   const adminClient = createAdminClient();
 
   const {
@@ -53,12 +68,14 @@ export async function applyToOpportunityAction(
     };
   }
 
-  const { data: profile, error: profileError } =
-    await adminClient
-      .from("profiles")
-      .select("id, account_type")
-      .eq("user_id", user.id)
-      .maybeSingle();
+  const {
+    data: profile,
+    error: profileError,
+  } = await adminClient
+  .from("profiles")
+.select("account_type, status, approval_status, phone")
+  .eq("user_id", user.id)
+  .maybeSingle();
 
   if (profileError) {
     console.error(
@@ -75,22 +92,68 @@ export async function applyToOpportunityAction(
     };
   }
 
-  if (!profile || profile.account_type !== "talent") {
+  if (
+    !profile ||
+    profile.account_type !== "talent"
+  ) {
     return {
       status: "not_talent",
       message:
         locale === "ar"
-          ? "يجب إكمال ملف الموهبة قبل التقديم."
-          : "Please complete your talent profile before applying.",
+          ? "يجب إنشاء ملف موهبة قبل التقديم."
+          : "Please create your talent profile before applying.",
     };
   }
 
-  const { data: talent, error: talentError } =
-    await adminClient
-      .from("talents")
-      .select("id")
-      .eq("profile_id", profile.id)
-      .maybeSingle();
+  if (
+    RESTRICTED_ACCOUNT_STATUSES.has(
+      profile.status ?? "",
+    )
+  ) {
+    return {
+      status: "unauthorized",
+      message:
+        locale === "ar"
+          ? "هذا الحساب غير متاح للتقديم حاليًا."
+          : "This account is not currently allowed to apply.",
+    };
+  }
+
+  if (profile.approval_status !== "approved") {
+    return {
+      status: "unauthorized",
+      message:
+        locale === "ar"
+          ? "يجب اعتماد ملف الموهبة من الإدارة قبل التقديم على الفرص."
+          : "Your talent profile must be approved before applying to opportunities.",
+    };
+  }
+
+  const {
+    data: talent,
+    error: talentError,
+  } = await adminClient
+    .from("talents")
+    .select(`
+      id,
+      name_ar,
+      name_en,
+      image_url,
+      primary_role,
+      city_slug,
+      gender,
+      nationality,
+      nationality_slug,
+      date_of_birth,
+      bio_ar,
+      bio_en,
+      height_cm,
+      acting_age_min,
+      acting_age_max,
+      modeling_types
+    `)
+    .eq("user_id", user.id)
+    .maybeSingle();
 
   if (talentError) {
     console.error(
@@ -112,17 +175,53 @@ export async function applyToOpportunityAction(
       status: "not_talent",
       message:
         locale === "ar"
-          ? "يجب إكمال ملف الموهبة قبل التقديم."
-          : "Please complete your talent profile before applying.",
+          ? "يجب إنشاء ملف موهبة قبل التقديم."
+          : "Please create your talent profile before applying.",
     };
   }
 
-  const { data: opportunity, error: opportunityError } =
-    await adminClient
-      .from("opportunities")
-      .select("id, slug, status, published")
-      .eq("id", opportunityId)
-      .maybeSingle();
+  const profileReadiness =
+  getTalentProfileReadiness({
+    ...talent,
+    phone: profile.phone,
+  });
+
+  if (!profileReadiness.isReady) {
+    console.log(
+      "[Talent profile readiness]",
+      {
+        talentId: talent.id,
+        primaryRole: talent.primary_role,
+        missingRequirements:
+          profileReadiness.missingRequirements,
+      },
+    );
+    const missingLabels =
+      profileReadiness.missingRequirements
+        .map((requirement) =>
+          locale === "ar"
+            ? requirement.ar
+            : requirement.en,
+        )
+        .join(locale === "ar" ? "، " : ", ");
+
+    return {
+      status: "not_talent",
+      message:
+        locale === "ar"
+          ? `أكمل البيانات الأساسية قبل التقديم: ${missingLabels}.`
+          : `Complete the required profile information before applying: ${missingLabels}.`,
+    };
+  }
+
+  const {
+    data: opportunity,
+    error: opportunityError,
+  } = await adminClient
+    .from("opportunities")
+    .select("id, slug, status, published, created_at, application_days")
+    .eq("id", opportunityId)
+    .maybeSingle();
 
   if (opportunityError) {
     console.error(
@@ -155,6 +254,38 @@ export async function applyToOpportunityAction(
     };
   }
 
+  if (
+    opportunity.created_at &&
+    opportunity.application_days
+  ) {
+    const createdAt = new Date(
+      opportunity.created_at,
+    );
+  
+    const applicationDeadline =
+      new Date(createdAt);
+  
+    applicationDeadline.setDate(
+      applicationDeadline.getDate() +
+        opportunity.application_days,
+    );
+  
+    if (
+      !Number.isNaN(
+        applicationDeadline.getTime(),
+      ) &&
+      new Date() > applicationDeadline
+    ) {
+      return {
+        status: "error",
+        message:
+          locale === "ar"
+            ? "انتهت مدة استقبال الطلبات لهذه الفرصة."
+            : "The application period for this opportunity has ended.",
+      };
+    }
+  }
+  
   const {
     data: existingApplication,
     error: existingApplicationError,
@@ -190,19 +321,16 @@ export async function applyToOpportunityAction(
     };
   }
 
-  const { error: insertError } = await adminClient
-    .from("opportunity_applications")
-    .insert({
-      opportunity_id: opportunity.id,
-      talent_id: talent.id,
-      status: "pending",
-    });
+  const { error: insertError } =
+    await adminClient
+      .from("opportunity_applications")
+      .insert({
+        opportunity_id: opportunity.id,
+        talent_id: talent.id,
+        status: "pending",
+      });
 
   if (insertError) {
-    /*
-     * PostgreSQL code 23505 means a unique constraint was hit.
-     * This safely handles two submissions arriving together.
-     */
     if (insertError.code === "23505") {
       return {
         status: "already_applied",
@@ -227,13 +355,18 @@ export async function applyToOpportunityAction(
     };
   }
 
-  revalidatePath(
-    `/${locale}/opportunities/${opportunity.slug}`,
-  );
+  if (opportunity.slug) {
+    revalidatePath(
+      `/${locale}/opportunities/${opportunity.slug}`,
+    );
+  }
+
   revalidatePath(
     `/${locale}/talent-dashboard/applications`,
   );
-  revalidatePath(`/${locale}/talent-dashboard`);
+  revalidatePath(
+    `/${locale}/talent-dashboard`,
+  );
 
   return {
     status: "success",

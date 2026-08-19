@@ -24,7 +24,15 @@ export async function requirePublisher(locale: string) {
   const { data: profile, error: profileError } =
     await adminClient
       .from("profiles")
-      .select("id, account_type")
+      .select(
+        `
+          id,
+          account_type,
+          approval_status,
+          onboarding_status,
+          onboarding_step
+        `,
+      )
       .eq("user_id", user.id)
       .maybeSingle();
 
@@ -102,7 +110,7 @@ export async function requirePublisher(locale: string) {
   }
 
   if (!publisher) {
-    redirect(`/${safeLocale}/register-publisher`);
+    redirect(`/${safeLocale}/join/publisher`);
   }
 
   return {

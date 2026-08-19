@@ -3,26 +3,43 @@ type LocalizedLabel = {
     en: string;
   };
   
-  export const publisherTypeLabels: Record<string, LocalizedLabel> = {
-    agency: { ar: "وكالة", en: "Agency" },
-    salon: { ar: "صالون", en: "Salon" },
-    production_company: {
-      ar: "شركة إنتاج",
-      en: "Production Company",
-    },
-    casting_agency: {
-      ar: "وكالة كاستنج",
-      en: "Casting Agency",
-    },
-    media_company: {
-      ar: "شركة إعلامية",
-      en: "Media Company",
-    },
-    brand: {
-      ar: "علامة تجارية",
-      en: "Brand",
-    },
-  };
+  export const publisherTypeLabels: Record<
+  string,
+  { ar: string; en: string }
+> = {
+  production_company: {
+    ar: "شركة إنتاج",
+    en: "Production Company",
+  },
+  advertising_agency: {
+    ar: "وكالة إعلانية",
+    en: "Advertising Agency",
+  },
+  casting_agency: {
+    ar: "وكالة كاستينغ",
+    en: "Casting Agency",
+  },
+  talent_agency: {
+    ar: "وكالة مواهب",
+    en: "Talent Agency",
+  },
+  brand: {
+    ar: "علامة تجارية",
+    en: "Brand",
+  },
+  content_company: {
+    ar: "شركة محتوى",
+    en: "Content Company",
+  },
+  individual: {
+    ar: "فرد / مستقل",
+    en: "Individual / Freelancer",
+  },
+  other: {
+    ar: "أخرى",
+    en: "Other",
+  },
+};
   
   export const cityLabels: Record<string, LocalizedLabel> = {
     riyadh: { ar: "الرياض", en: "Riyadh" },

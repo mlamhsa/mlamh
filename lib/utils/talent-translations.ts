@@ -22,6 +22,11 @@ const AVAILABILITY_TRANSLATIONS: TranslationMap = {
   unavailable: { ar: "غير متاح حاليًا", en: "Unavailable" },
   busy: { ar: "مشغول حاليًا", en: "Currently busy" },
 
+  available_this_week: {
+    ar: "متاح هذا الأسبوع",
+    en: "Available this week",
+  },
+
   "available now": { ar: "متاح حاليًا", en: "Available now" },
   "not available": { ar: "غير متاح حاليًا", en: "Unavailable" },
 

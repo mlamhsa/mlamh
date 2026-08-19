@@ -57,8 +57,7 @@ export default function TalentProfileCard({
       : talent.category_en ?? talent.category_ar ?? null;
 
   const canShareProfile = Boolean(
-    talent.status === "approved" &&
-      talent.published === true &&
+    talent.published === true &&
       talent.slug?.trim()
   );
 
@@ -118,7 +117,10 @@ export default function TalentProfileCard({
               <div className="mt-4 flex flex-wrap gap-2">
                 <Pill
                   label={profileStatus}
-                  success={talent.status === "approved"}
+                  success={
+                    profileStatus === "جاهز" ||
+                    profileStatus === "Ready"
+                  }
                 />
 
                 <Pill label={availabilityStatus} gold />
@@ -127,11 +129,11 @@ export default function TalentProfileCard({
                   label={
                     talent.published
                       ? isRtl
-                        ? "منشور"
-                        : "Published"
+                        ? "ظاهر للجهات"
+                        : "Visible to publishers"
                       : isRtl
-                        ? "غير منشور"
-                        : "Unpublished"
+                        ? "غير ظاهر للجهات"
+                        : "Not visible to publishers"
                   }
                 />
               </div>
@@ -176,8 +178,8 @@ export default function TalentProfileCard({
           <div className="mt-6 rounded-2xl border border-gold/15 bg-gold/[0.04] px-5 py-4">
             <p className="text-xs leading-6 text-white/45">
               {isRtl
-                ? "ستظهر خاصيتا معاينة الملف ومشاركته بعد اعتماد الملف ونشره."
-                : "Profile preview and sharing will appear after the profile is approved and published."}
+                ? "ستظهر خاصيتا معاينة الملف ومشاركته عند إتاحة الملف للظهور العام. يمكنك التقديم على الفرص دون انتظار ذلك."
+                : "Profile preview and sharing will appear when the profile is publicly visible. You can apply for opportunities without waiting for that."}
             </p>
           </div>
         ) : null}

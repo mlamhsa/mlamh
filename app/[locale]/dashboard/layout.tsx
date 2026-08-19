@@ -1,16 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
-import Sidebar from "@/components/dashboard/Sidebar";
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [accountType, setAccountType] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -35,17 +33,14 @@ export default function DashboardLayout({
         router.replace("/ar/login");
         return;
       }
-
-      setAccountType(profile.account_type);
     };
 
     getUser();
   }, [router]);
 
   return (
-    <div className="flex min-h-screen bg-black text-white">
-      <Sidebar role={accountType} />
-      <main className="flex-1 p-6">{children}</main>
-    </div>
+    <main className="min-h-screen bg-black text-white">
+      {children}
+    </main>
   );
 }

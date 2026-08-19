@@ -120,8 +120,6 @@ export async function updateTalentAction(
 
     sort_order: nullableNumberValue(formData, "sort_order"),
     featured: formData.get("featured") === "on",
-    published: formData.get("published") === "on",
-    status: stringValue(formData, "status") || "pending",
     availability_status: getAvailabilityStatus(formData),
 
     verified,

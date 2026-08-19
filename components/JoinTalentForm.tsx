@@ -59,6 +59,7 @@ function FormInput({
   name,
   type = "text",
   placeholder,
+  defaultValue,
   required,
   error,
   dir,
@@ -69,6 +70,7 @@ function FormInput({
   name: string;
   type?: string;
   placeholder?: string;
+  defaultValue?: string;
   required?: boolean;
   error?: string;
   dir?: "ltr" | "rtl";
@@ -82,6 +84,7 @@ function FormInput({
         name={name}
         type={type}
         placeholder={placeholder}
+        defaultValue={defaultValue}
         required={required}
         dir={dir}
         min={min}
@@ -210,62 +213,56 @@ function SectionTitle({
 }
 
 function JoinSuccess({
-  dict,
   locale,
   isRtl,
   displayFont,
   bodyFont,
-  onReset,
 }: {
-  dict: Dictionary;
   locale: Locale;
   isRtl: boolean;
   displayFont: string;
   bodyFont: string;
-  onReset: () => void;
 }) {
-  const j = dict.join;
-
   return (
     <div
-      className={`opacity-0-start animate-fade-up border border-gold/25 bg-gold/[0.04] px-8 py-14 text-center md:px-12 md:py-16 ${
+      className={`opacity-0-start animate-fade-up rounded-[2rem] border border-gold/25 bg-gold/[0.04] px-5 py-10 text-center sm:px-8 sm:py-14 md:px-12 md:py-16 ${
         isRtl ? "text-right" : "text-left"
       }`}
     >
       <div className="gold-line mx-auto mb-8 max-w-xs" />
 
+      <p className="mb-4 text-[10px] uppercase tracking-[0.35em] text-gold">
+        {isRtl
+          ? "تم إنشاء الملف الأساسي"
+          : "Basic profile created"}
+      </p>
+
       <h2
-        className="mb-4 text-3xl font-light text-white md:text-4xl"
+        className="mb-4 text-3xl font-light text-white sm:text-4xl"
         style={{ fontFamily: displayFont }}
       >
-        {j.successTitle}
+        {isRtl
+          ? "ملفك جاهز للخطوة التالية"
+          : "Your profile is ready for the next step"}
       </h2>
 
       <p
-        className="mx-auto max-w-lg text-sm leading-relaxed text-white/65 md:text-base"
+        className="mx-auto max-w-xl text-sm leading-7 text-white/65 md:text-base"
         style={{ fontFamily: bodyFont }}
       >
-        {j.successMessage}
+        {isRtl
+          ? "تم حفظ بياناتك بنجاح. انتقل إلى لوحة الموهبة لاستكمال ملفك المهني ومتابعة حالته والفرص المناسبة لك."
+          : "Your details have been saved. Continue to your talent dashboard to complete your professional profile, track its status, and explore opportunities."}
       </p>
 
-      <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
-        <button
-          type="button"
-          onClick={onReset}
-          className="inline-flex items-center justify-center border border-white/15 px-8 py-3 text-[10px] uppercase tracking-[0.3em] text-white/70 transition-colors hover:border-gold/40 hover:text-gold"
-        >
-          {locale === "ar"
-            ? "إرسال طلب جديد"
-            : "Submit another application"}
-        </button>
-
+      <div className="mt-10 flex justify-center">
         <Link
-          href={`/${locale}`}
-          className={`btn-luxury inline-flex items-center gap-2 border border-gold/40 px-8 py-3 text-[10px] uppercase tracking-[0.3em] text-gold transition-colors hover:bg-gold/10 ${
-            isRtl ? "flex-row-reverse" : ""
-          }`}
+          href={`/${locale}/talent-dashboard`}
+          className="btn-luxury inline-flex min-h-12 w-full items-center justify-center rounded-full border border-gold/40 bg-gold/[0.08] px-8 py-3 text-[10px] uppercase tracking-[0.25em] text-gold transition-colors hover:border-gold hover:bg-gold/15 sm:w-auto"
         >
-          {j.backHome}
+          {isRtl
+            ? "الانتقال إلى لوحة الموهبة"
+            : "Continue to Talent Dashboard"}
         </Link>
       </div>
     </div>
@@ -275,28 +272,22 @@ function JoinSuccess({
 export function JoinTalentForm(props: {
   dict: Dictionary;
   locale: Locale;
+  initialName?: string;
+  initialPhone?: string;
 }) {
-  const [formKey, setFormKey] = useState(0);
-
-  return (
-    <JoinTalentFormInner
-      key={formKey}
-      {...props}
-      onReset={() =>
-        setFormKey((key) => key + 1)
-      }
-    />
-  );
+  return <JoinTalentFormInner {...props} />;
 }
 
 function JoinTalentFormInner({
   dict,
   locale,
-  onReset,
+  initialName = "",
+  initialPhone = "",
 }: {
   dict: Dictionary;
   locale: Locale;
-  onReset: () => void;
+  initialName?: string;
+  initialPhone?: string;
 }) {
   const j = dict.join;
   const isRtl = locale === "ar";
@@ -328,12 +319,18 @@ function JoinTalentFormInner({
     {}) as TalentSubmissionErrors;
 
   const categoryOptions =
-    TALENT_CATEGORIES.map((category) => ({
-      value: category.slug,
-      label: isRtl
-        ? category.ar
-        : category.en,
-    }));
+    TALENT_CATEGORIES
+      .filter(
+        (category) =>
+          category.slug === "actor" ||
+          category.slug === "model",
+      )
+      .map((category) => ({
+        value: category.slug,
+        label: isRtl
+          ? category.ar
+          : category.en,
+      }));
 
   const cityOptions = SAUDI_CITIES.map(
     (city) => ({
@@ -356,7 +353,9 @@ function JoinTalentFormInner({
     const selectedCategory =
       TALENT_CATEGORIES.find(
         (category) =>
-          category.slug === categorySlug
+          category.slug === categorySlug &&
+          (category.slug === "actor" ||
+            category.slug === "model")
       );
 
     if (!selectedCategory) {
@@ -480,12 +479,10 @@ function JoinTalentFormInner({
   if (state?.success) {
     return (
       <JoinSuccess
-        dict={dict}
         locale={locale}
         isRtl={isRtl}
         displayFont={displayFont}
         bodyFont={bodyFont}
-        onReset={onReset}
       />
     );
   }
@@ -555,15 +552,14 @@ function JoinTalentFormInner({
               </FieldLabel>
 
               <FormInput
-                id="name_ar"
-                name="name_ar"
-                placeholder={
-                  j.placeholderNameAr
-                }
-                required
-                error={errors.name_ar}
-                dir="rtl"
-              />
+  id="name_ar"
+  name="name_ar"
+  placeholder={j.placeholderNameAr}
+  defaultValue={initialName}
+  required
+  error={errors.name_ar}
+  dir="rtl"
+/>
             </div>
           </>
         ) : (
@@ -577,15 +573,14 @@ function JoinTalentFormInner({
               </FieldLabel>
 
               <FormInput
-                id="name_en"
-                name="name_en"
-                placeholder={
-                  j.placeholderNameEn
-                }
-                required
-                error={errors.name_en}
-                dir="ltr"
-              />
+  id="name_en"
+  name="name_en"
+  placeholder={j.placeholderNameEn}
+  defaultValue={initialName}
+  required
+  error={errors.name_en}
+  dir="ltr"
+/>
             </div>
           </>
         )}
@@ -736,6 +731,7 @@ function JoinTalentFormInner({
             placeholder={
               j.placeholderWhatsapp
             }
+            defaultValue={initialPhone}
             required
             error={errors.whatsapp}
             dir="ltr"

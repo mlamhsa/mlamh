@@ -49,6 +49,7 @@ const publisherEditableStatuses = [
 const statusLabels: Record<string, { ar: string; en: string }> = {
   draft: { ar: "مسودة", en: "Draft" },
   pending_review: { ar: "قيد مراجعة الإدارة", en: "Pending Admin Review" },
+  needs_changes: { ar: "تحتاج تعديل", en: "Needs Changes" },
   open: { ar: "مفتوحة", en: "Open" },
   published: { ar: "منشورة", en: "Published" },
   closed: { ar: "مغلقة", en: "Closed" },
@@ -68,8 +69,9 @@ type OpportunityFormData = {
   status: string | null;
   min_age: number | null;
   max_age: number | null;
-  budget: number | string | null;
-  application_days: number | null;
+  compensation_type?: "fixed" | "negotiable" | "unpaid" | null;
+budget: number | string | null;
+application_days: number | null;
   application_start_date?: string | null;
   application_deadline?: string | null;
 };
@@ -147,15 +149,19 @@ export default function OpportunityEditForm({
       : opportunity.opportunity_type ?? "",
   );
 
-  const defaultEditableStatus = publisherEditableStatuses.some(
-    (item) => item.value === originalStatus,
-  )
+  const isNeedsChanges = originalStatus === "needs_changes";
+
+const defaultEditableStatus = isNeedsChanges
+  ? "pending_review"
+  : publisherEditableStatuses.some(
+      (item) => item.value === originalStatus,
+    )
     ? originalStatus
     : originalStatus === "open" || originalStatus === "published"
       ? originalStatus
       : "draft";
 
-  const [status, setStatus] = useState(defaultEditableStatus);
+const [status, setStatus] = useState(defaultEditableStatus);
   const [minAge, setMinAge] = useState(
     opportunity.min_age === null || opportunity.min_age === undefined
       ? ""
@@ -168,6 +174,15 @@ export default function OpportunityEditForm({
       : String(opportunity.max_age),
   );
   
+  const [compensationType, setCompensationType] = useState<
+  "fixed" | "negotiable" | "unpaid"
+>(
+  opportunity.compensation_type === "negotiable" ||
+    opportunity.compensation_type === "unpaid"
+    ? opportunity.compensation_type
+    : "fixed",
+);
+
   const [budget, setBudget] = useState(
     normalizeBudget(opportunity.budget),
   );
@@ -326,6 +341,24 @@ export default function OpportunityEditForm({
   type === "other"
     ? normalizedTypeOther
     : type;
+    const normalizedBudget =
+    compensationType === "fixed"
+      ? budget.replace(/,/g, "")
+      : null;
+  
+  if (
+    compensationType === "fixed" &&
+    (!normalizedBudget || Number(normalizedBudget) <= 0)
+  ) {
+    setError(
+      isRtl
+        ? "يرجى إدخال مبلغ صحيح للمقابل المالي."
+        : "Please enter a valid compensation amount.",
+    );
+  
+    setLoading(false);
+    return;
+  }
 
     const payload = {
       id: opportunity.id,
@@ -339,18 +372,25 @@ export default function OpportunityEditForm({
       status,
       min_age: minAgeNumber,
 max_age: maxAgeNumber,
-budget: budget.replace(/,/g, "") || null,
+
+compensation_type: compensationType,
+budget: normalizedBudget,
+
 application_days: applicationDaysNumber,
     };
 
     try {
       await updateOpportunityAction(payload);
-      setSuccess(isRtl ? "تم حفظ التعديلات بنجاح." : "Changes saved successfully.");
-      router.refresh();
 
-      window.setTimeout(() => {
-        router.push(`/${locale}/publisher-dashboard/opportunities/${opportunity.id}`);
-      }, 1200);
+const result =
+  status === "pending_review"
+    ? "submitted"
+    : "saved";
+
+router.push(
+  `/${locale}/publisher-dashboard/opportunities/${opportunity.id}?result=${result}`,
+);
+router.refresh();
     } catch (caughtError) {
       setError(
         caughtError instanceof Error
@@ -725,34 +765,98 @@ application_days: applicationDaysNumber,
       </section>
 
       <section className="rounded-2xl border border-white/10 bg-white/[0.025] p-6 md:p-8">
-        <h2 className="mb-6 text-3xl font-light text-white">
-          {isRtl ? "الميزانية التقريبية" : "Estimated Budget"}
-        </h2>
+  <div className="mb-6">
+    <p className="text-xs uppercase tracking-[0.3em] text-gold">
+      {isRtl ? "المقابل المالي" : "Compensation"}
+    </p>
 
-        <div className="relative">
-          <span
-            className={`pointer-events-none absolute top-1/2 -translate-y-1/2 text-lg text-white/55 ${
-              isRtl ? "right-4" : "left-4"
-            }`}
-          >
-            ﷼
+    <h2 className="mt-3 text-3xl font-light text-white">
+      {isRtl
+        ? "ما نوع المقابل لهذه الفرصة؟"
+        : "How is this opportunity compensated?"}
+    </h2>
+  </div>
+
+  <div className="grid gap-3 md:grid-cols-3">
+    {[
+      {
+        value: "fixed" as const,
+        ar: "مبلغ محدد",
+        en: "Fixed Amount",
+      },
+      {
+        value: "negotiable" as const,
+        ar: "حسب الاتفاق",
+        en: "Negotiable",
+      },
+      {
+        value: "unpaid" as const,
+        ar: "غير مدفوع",
+        en: "Unpaid",
+      },
+    ].map((option) => {
+      const selected = compensationType === option.value;
+
+      return (
+        <button
+          key={option.value}
+          type="button"
+          disabled={loading}
+          onClick={() => {
+            setCompensationType(option.value);
+          }}
+          className={`rounded-2xl border p-4 text-start transition disabled:cursor-not-allowed disabled:opacity-50 ${
+            selected
+              ? "border-gold/50 bg-gold/[0.08] text-gold"
+              : "border-white/10 bg-black/20 text-white/60 hover:border-white/20"
+          }`}
+        >
+          <span className="block text-sm font-medium">
+            {isRtl ? option.ar : option.en}
           </span>
+        </button>
+      );
+    })}
+  </div>
 
-          <input
-            id="opportunity-budget"
-            type="text"
-            aria-label={isRtl ? "الميزانية" : "Budget"}
-            inputMode="numeric"
-            value={budget}
-            onChange={(event) => setBudget(normalizeBudget(event.target.value))}
-            placeholder={isRtl ? "مثال: 2,500" : "Example: 2,500"}
-            disabled={loading}
-            className={`w-full rounded-xl border border-white/10 bg-black/30 py-4 text-white outline-none transition placeholder:text-white/25 focus:border-gold/50 disabled:cursor-not-allowed disabled:opacity-50 ${
-              isRtl ? "pr-12 pl-4 text-right" : "pl-12 pr-4 text-left"
-            }`}
-          />
-        </div>
-      </section>
+  {compensationType === "fixed" ? (
+    <div className="mt-5">
+      <label
+        htmlFor="opportunity-budget"
+        className="arabic-safe mb-2 block text-xs uppercase tracking-[0.22em] text-white/40"
+      >
+        {isRtl ? "المبلغ" : "Amount"}
+      </label>
+
+      <div className="relative">
+        <span
+          className={`pointer-events-none absolute top-1/2 -translate-y-1/2 text-lg text-white/55 ${
+            isRtl ? "right-4" : "left-4"
+          }`}
+        >
+          ﷼
+        </span>
+
+        <input
+          id="opportunity-budget"
+          type="text"
+          inputMode="numeric"
+          value={budget}
+          onChange={(event) =>
+            setBudget(normalizeBudget(event.target.value))
+          }
+          placeholder={isRtl ? "مثال: 2,500" : "Example: 2,500"}
+          disabled={loading}
+          className={`w-full rounded-xl border border-white/10 bg-black/30 py-4 text-white outline-none transition placeholder:text-white/25 focus:border-gold/50 disabled:cursor-not-allowed disabled:opacity-50 ${
+            isRtl
+              ? "pr-12 pl-4 text-right"
+              : "pl-12 pr-4 text-left"
+          }`}
+        />
+      </div>
+    </div>
+  ) : null}
+</section>
 
       <section className="rounded-2xl border border-white/10 bg-white/[0.025] p-6 md:p-8">
   <div className="mb-6">

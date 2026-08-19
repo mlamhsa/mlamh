@@ -1,15 +1,155 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useFormStatus } from "react-dom";
 
 type QuickJoinFormProps = {
   locale: "ar" | "en";
-  action: (formData: FormData) => void | Promise<void>;
+  action: (
+    formData: FormData,
+  ) => void | Promise<void>;
 };
 
-function SubmitButton({ isRtl }: { isRtl: boolean }) {
+type CountryOption = {
+  code: string;
+  dialCode: string;
+  nameAr: string;
+  nameEn: string;
+  example: string;
+};
+
+const COUNTRY_OPTIONS: CountryOption[] = [
+  {
+    code: "SA",
+    dialCode: "+966",
+    nameAr: "السعودية",
+    nameEn: "Saudi Arabia",
+    example: "5XXXXXXXX",
+  },
+  {
+    code: "AE",
+    dialCode: "+971",
+    nameAr: "الإمارات",
+    nameEn: "United Arab Emirates",
+    example: "5XXXXXXXX",
+  },
+  {
+    code: "KW",
+    dialCode: "+965",
+    nameAr: "الكويت",
+    nameEn: "Kuwait",
+    example: "XXXXXXXX",
+  },
+  {
+    code: "QA",
+    dialCode: "+974",
+    nameAr: "قطر",
+    nameEn: "Qatar",
+    example: "XXXXXXXX",
+  },
+  {
+    code: "BH",
+    dialCode: "+973",
+    nameAr: "البحرين",
+    nameEn: "Bahrain",
+    example: "XXXXXXXX",
+  },
+  {
+    code: "OM",
+    dialCode: "+968",
+    nameAr: "عُمان",
+    nameEn: "Oman",
+    example: "XXXXXXXX",
+  },
+  {
+    code: "EG",
+    dialCode: "+20",
+    nameAr: "مصر",
+    nameEn: "Egypt",
+    example: "1XXXXXXXXX",
+  },
+  {
+    code: "JO",
+    dialCode: "+962",
+    nameAr: "الأردن",
+    nameEn: "Jordan",
+    example: "7XXXXXXXX",
+  },
+  {
+    code: "MA",
+    dialCode: "+212",
+    nameAr: "المغرب",
+    nameEn: "Morocco",
+    example: "6XXXXXXXX",
+  },
+  {
+    code: "DZ",
+    dialCode: "+213",
+    nameAr: "الجزائر",
+    nameEn: "Algeria",
+    example: "XXXXXXXXX",
+  },
+  {
+    code: "TN",
+    dialCode: "+216",
+    nameAr: "تونس",
+    nameEn: "Tunisia",
+    example: "XXXXXXXX",
+  },
+  {
+    code: "LB",
+    dialCode: "+961",
+    nameAr: "لبنان",
+    nameEn: "Lebanon",
+    example: "XXXXXXXX",
+  },
+  {
+    code: "SY",
+    dialCode: "+963",
+    nameAr: "سوريا",
+    nameEn: "Syria",
+    example: "9XXXXXXXX",
+  },
+  {
+    code: "IQ",
+    dialCode: "+964",
+    nameAr: "العراق",
+    nameEn: "Iraq",
+    example: "7XXXXXXXXX",
+  },
+  {
+    code: "YE",
+    dialCode: "+967",
+    nameAr: "اليمن",
+    nameEn: "Yemen",
+    example: "XXXXXXXXX",
+  },
+  {
+    code: "US",
+    dialCode: "+1",
+    nameAr: "الولايات المتحدة وكندا",
+    nameEn: "United States & Canada",
+    example: "XXXXXXXXXX",
+  },
+  {
+    code: "GB",
+    dialCode: "+44",
+    nameAr: "المملكة المتحدة",
+    nameEn: "United Kingdom",
+    example: "7XXXXXXXXX",
+  },
+];
+
+function SubmitButton({
+  isRtl,
+}: {
+  isRtl: boolean;
+}) {
   const { pending } = useFormStatus();
 
   return (
@@ -22,14 +162,22 @@ function SubmitButton({ isRtl }: { isRtl: boolean }) {
       {pending ? (
         <>
           <span
-            className="h-4 w-4 animate-spin rounded-full border-2 border-black/25 border-t-black"
             aria-hidden="true"
+            className="h-4 w-4 animate-spin rounded-full border-2 border-black/25 border-t-black"
           />
 
-          <span>{isRtl ? "جارٍ إنشاء الحساب..." : "Creating account..."}</span>
+          <span>
+            {isRtl
+              ? "جارٍ إنشاء الحساب..."
+              : "Creating account..."}
+          </span>
         </>
       ) : (
-        <span>{isRtl ? "ابدأ الآن" : "Get Started"}</span>
+        <span>
+          {isRtl
+            ? "إنشاء الحساب"
+            : "Create account"}
+        </span>
       )}
     </button>
   );
@@ -73,9 +221,23 @@ function PasswordVisibilityIcon({
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <circle cx="12" cy="12" r="2.4" />
+
+      <circle
+        cx="12"
+        cy="12"
+        r="2.4"
+      />
     </svg>
   );
+}
+
+function normalizeLocalPhone(
+  value: string,
+) {
+  return value
+    .replace(/[^\d]/g, "")
+    .replace(/^0+/, "")
+    .slice(0, 15);
 }
 
 export function QuickJoinForm({
@@ -83,20 +245,185 @@ export function QuickJoinForm({
   action,
 }: QuickJoinFormProps) {
   const isRtl = locale === "ar";
-  const [showPassword, setShowPassword] = useState(false);
-  const [showPasswordConfirmation, setShowPasswordConfirmation] =
-    useState(false);
+
+  const draftStorageKey =
+    `mlamh-join-draft:${locale}`;
+
+  const [fullName, setFullName] =
+    useState("");
+
+  const [email, setEmail] =
+    useState("");
+
+  const [countryCode, setCountryCode] =
+    useState("SA");
+
+  const [phone, setPhone] =
+    useState("");
+
+  const [
+    showPassword,
+    setShowPassword,
+  ] = useState(false);
+
+  const [
+    showPasswordConfirmation,
+    setShowPasswordConfirmation,
+  ] = useState(false);
+
+  const selectedCountry =
+    useMemo(
+      () =>
+        COUNTRY_OPTIONS.find(
+          (country) =>
+            country.code === countryCode,
+        ) ?? COUNTRY_OPTIONS[0],
+      [countryCode],
+    );
+
+  const normalizedPhone = phone
+    ? `${selectedCountry.dialCode}${phone}`
+    : "";
+
+  useEffect(() => {
+    try {
+      const savedDraft =
+        window.sessionStorage.getItem(
+          draftStorageKey,
+        );
+
+      if (!savedDraft) {
+        return;
+      }
+
+      const parsedDraft =
+        JSON.parse(savedDraft) as {
+          fullName?: string;
+          email?: string;
+          countryCode?: string;
+          phone?: string;
+        };
+
+      setFullName(
+        parsedDraft.fullName ?? "",
+      );
+
+      setEmail(
+        parsedDraft.email ?? "",
+      );
+
+      setCountryCode(
+        COUNTRY_OPTIONS.some(
+          (country) =>
+            country.code ===
+            parsedDraft.countryCode,
+        )
+          ? String(
+              parsedDraft.countryCode,
+            )
+          : "SA",
+      );
+
+      setPhone(
+        parsedDraft.phone ?? "",
+      );
+    } catch {
+      // فشل التخزين المؤقت لا يمنع التسجيل.
+    }
+  }, [draftStorageKey]);
+
+  useEffect(() => {
+    try {
+      window.sessionStorage.setItem(
+        draftStorageKey,
+        JSON.stringify({
+          fullName,
+          email,
+          countryCode,
+          phone,
+        }),
+      );
+    } catch {
+      // فشل التخزين المؤقت لا يمنع التسجيل.
+    }
+  }, [
+    draftStorageKey,
+    fullName,
+    email,
+    countryCode,
+    phone,
+  ]);
 
   return (
-    <form action={action} className="space-y-5">
-      <input type="hidden" name="locale" value={locale} />
+    <form
+      action={action}
+      className="space-y-5"
+    >
+      <input
+        type="hidden"
+        name="locale"
+        value={locale}
+      />
+
+      <input
+        type="hidden"
+        name="countryCode"
+        value={selectedCountry.dialCode}
+      />
+
+      <input
+        type="hidden"
+        name="countryIso"
+        value={selectedCountry.code}
+      />
+
+      <input
+        type="hidden"
+        name="phone"
+        value={normalizedPhone}
+      />
+
+      <div>
+        <label
+          htmlFor="join-full-name"
+          className="mb-2 block text-sm text-white/65"
+        >
+          {isRtl
+            ? "الاسم الكامل"
+            : "Full name"}
+        </label>
+
+        <input
+          id="join-full-name"
+          name="fullName"
+          type="text"
+          required
+          minLength={2}
+          maxLength={100}
+          autoComplete="name"
+          value={fullName}
+          onChange={(event) =>
+            setFullName(
+              event.currentTarget.value,
+            )
+          }
+          placeholder={
+            isRtl
+              ? "اكتب اسمك الكامل"
+              : "Enter your full name"
+          }
+          className="min-h-14 w-full rounded-2xl border border-white/10 bg-black/30 px-4 text-base text-white outline-none transition placeholder:text-white/25 focus:border-gold/50 sm:text-sm"
+        />
+      </div>
 
       <div>
         <label
           htmlFor="join-email"
           className="mb-2 block text-sm text-white/65"
         >
-          {isRtl ? "البريد الإلكتروني" : "Email address"}
+          {isRtl
+            ? "البريد الإلكتروني"
+            : "Email address"}
         </label>
 
         <input
@@ -109,9 +436,101 @@ export function QuickJoinForm({
           autoCapitalize="none"
           autoCorrect="off"
           spellCheck={false}
-          placeholder={isRtl ? "name@example.com" : "name@example.com"}
+          value={email}
+          onChange={(event) =>
+            setEmail(
+              event.currentTarget.value,
+            )
+          }
+          placeholder="name@example.com"
           className="min-h-14 w-full rounded-2xl border border-white/10 bg-black/30 px-4 text-base text-white outline-none transition placeholder:text-white/25 focus:border-gold/50 sm:text-sm"
         />
+      </div>
+
+      <div>
+        <label
+          htmlFor="join-phone"
+          className="mb-2 block text-sm text-white/65"
+        >
+          {isRtl
+            ? "رقم الجوال"
+            : "Mobile number"}
+        </label>
+
+        <div className="grid grid-cols-[8.75rem_minmax(0,1fr)] gap-2">
+          <label
+            htmlFor="join-country"
+            className="sr-only"
+          >
+            {isRtl
+              ? "الدولة ومفتاح الاتصال"
+              : "Country and calling code"}
+          </label>
+
+          <select
+            id="join-country"
+            value={countryCode}
+            onChange={(event) => {
+              setCountryCode(
+                event.currentTarget.value,
+              );
+
+              setPhone("");
+            }}
+            className="min-h-14 min-w-0 rounded-2xl border border-white/10 bg-black/30 px-3 text-sm text-white outline-none transition focus:border-gold/50"
+          >
+            {COUNTRY_OPTIONS.map(
+              (country) => (
+                <option
+                  key={country.code}
+                  value={country.code}
+                  className="bg-black text-white"
+                >
+                  {country.dialCode}{" "}
+                  {isRtl
+                    ? country.nameAr
+                    : country.nameEn}
+                </option>
+              ),
+            )}
+          </select>
+
+          <input
+            id="join-phone"
+            type="tel"
+            required
+            inputMode="numeric"
+            autoComplete="tel-national"
+            value={phone}
+            onChange={(event) =>
+              setPhone(
+                normalizeLocalPhone(
+                  event.currentTarget.value,
+                ),
+              )
+            }
+            minLength={7}
+            maxLength={15}
+            pattern="[0-9]{7,15}"
+            placeholder={
+              selectedCountry.example
+            }
+            dir="ltr"
+            className="min-h-14 min-w-0 rounded-2xl border border-white/10 bg-black/30 px-4 text-left text-base text-white outline-none transition placeholder:text-white/25 focus:border-gold/50 sm:text-sm"
+          />
+        </div>
+
+        <p className="mt-2 text-[11px] leading-5 text-white/30">
+          {isRtl
+            ? `سيُحفظ الرقم بصيغة دولية: ${
+                normalizedPhone ||
+                `${selectedCountry.dialCode}${selectedCountry.example}`
+              }`
+            : `The number will be saved internationally: ${
+                normalizedPhone ||
+                `${selectedCountry.dialCode}${selectedCountry.example}`
+              }`}
+        </p>
       </div>
 
       <div>
@@ -119,28 +538,42 @@ export function QuickJoinForm({
           htmlFor="join-password"
           className="mb-2 block text-sm text-white/65"
         >
-          {isRtl ? "كلمة المرور" : "Password"}
+          {isRtl
+            ? "كلمة المرور"
+            : "Password"}
         </label>
 
         <div className="relative">
           <input
             id="join-password"
             name="password"
-            type={showPassword ? "text" : "password"}
+            type={
+              showPassword
+                ? "text"
+                : "password"
+            }
             required
             minLength={8}
             autoComplete="new-password"
             placeholder={
-              isRtl ? "٨ أحرف على الأقل" : "At least 8 characters"
+              isRtl
+                ? "٨ أحرف على الأقل"
+                : "At least 8 characters"
             }
             className={`min-h-14 w-full rounded-2xl border border-white/10 bg-black/30 py-3 text-base text-white outline-none transition placeholder:text-white/25 focus:border-gold/50 sm:text-sm ${
-              isRtl ? "pr-4 pl-14" : "pl-4 pr-14"
+              isRtl
+                ? "pr-4 pl-14"
+                : "pl-4 pr-14"
             }`}
           />
 
           <button
             type="button"
-            onClick={() => setShowPassword((current) => !current)}
+            onClick={() =>
+              setShowPassword(
+                (current) => !current,
+              )
+            }
             aria-label={
               showPassword
                 ? isRtl
@@ -152,10 +585,14 @@ export function QuickJoinForm({
             }
             aria-pressed={showPassword}
             className={`absolute top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-xl text-white/40 transition hover:bg-white/[0.05] hover:text-white ${
-              isRtl ? "left-2" : "right-2"
+              isRtl
+                ? "left-2"
+                : "right-2"
             }`}
           >
-            <PasswordVisibilityIcon visible={showPassword} />
+            <PasswordVisibilityIcon
+              visible={showPassword}
+            />
           </button>
         </div>
       </div>
@@ -165,29 +602,41 @@ export function QuickJoinForm({
           htmlFor="join-password-confirmation"
           className="mb-2 block text-sm text-white/65"
         >
-          {isRtl ? "تأكيد كلمة المرور" : "Confirm password"}
+          {isRtl
+            ? "تأكيد كلمة المرور"
+            : "Confirm password"}
         </label>
 
         <div className="relative">
           <input
             id="join-password-confirmation"
             name="passwordConfirmation"
-            type={showPasswordConfirmation ? "text" : "password"}
+            type={
+              showPasswordConfirmation
+                ? "text"
+                : "password"
+            }
             required
             minLength={8}
             autoComplete="new-password"
             placeholder={
-              isRtl ? "أعد كتابة كلمة المرور" : "Enter your password again"
+              isRtl
+                ? "أعد كتابة كلمة المرور"
+                : "Enter your password again"
             }
             className={`min-h-14 w-full rounded-2xl border border-white/10 bg-black/30 py-3 text-base text-white outline-none transition placeholder:text-white/25 focus:border-gold/50 sm:text-sm ${
-              isRtl ? "pr-4 pl-14" : "pl-4 pr-14"
+              isRtl
+                ? "pr-4 pl-14"
+                : "pl-4 pr-14"
             }`}
           />
 
           <button
             type="button"
             onClick={() =>
-              setShowPasswordConfirmation((current) => !current)
+              setShowPasswordConfirmation(
+                (current) => !current,
+              )
             }
             aria-label={
               showPasswordConfirmation
@@ -198,12 +647,20 @@ export function QuickJoinForm({
                   ? "إظهار تأكيد كلمة المرور"
                   : "Show password confirmation"
             }
-            aria-pressed={showPasswordConfirmation}
+            aria-pressed={
+              showPasswordConfirmation
+            }
             className={`absolute top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-xl text-white/40 transition hover:bg-white/[0.05] hover:text-white ${
-              isRtl ? "left-2" : "right-2"
+              isRtl
+                ? "left-2"
+                : "right-2"
             }`}
           >
-            <PasswordVisibilityIcon visible={showPasswordConfirmation} />
+            <PasswordVisibilityIcon
+              visible={
+                showPasswordConfirmation
+              }
+            />
           </button>
         </div>
       </div>
@@ -218,14 +675,19 @@ export function QuickJoinForm({
         />
 
         <span className="text-xs leading-6 text-white/50">
-          {isRtl ? "أوافق على " : "I agree to the "}
+          {isRtl
+            ? "أوافق على "
+            : "I agree to the "}
 
           <Link
             href={`/${locale}/terms`}
             target="_blank"
+            rel="noreferrer"
             className="text-gold transition hover:text-gold-soft"
           >
-            {isRtl ? "الشروط والأحكام" : "Terms and Conditions"}
+            {isRtl
+              ? "الشروط والأحكام"
+              : "Terms and Conditions"}
           </Link>
 
           {isRtl ? " و" : " and "}
@@ -233,14 +695,23 @@ export function QuickJoinForm({
           <Link
             href={`/${locale}/privacy`}
             target="_blank"
+            rel="noreferrer"
             className="text-gold transition hover:text-gold-soft"
           >
-            {isRtl ? "سياسة الخصوصية" : "Privacy Policy"}
+            {isRtl
+              ? "سياسة الخصوصية"
+              : "Privacy Policy"}
           </Link>
         </span>
       </label>
 
       <SubmitButton isRtl={isRtl} />
+
+      <p className="text-center text-[11px] leading-5 text-white/30">
+        {isRtl
+          ? "سيتم توثيق البريد الإلكتروني الآن، أما توثيق رقم الجوال فسيُفعّل لاحقًا."
+          : "Email verification is required now. Mobile OTP verification will be enabled later."}
+      </p>
     </form>
   );
 }

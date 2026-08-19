@@ -34,14 +34,14 @@ export function HowItWorks({ locale }: { locale: Locale }) {
     },
     {
       icon: CheckCircle2,
-      title: isAr ? "ابدأ التقديم" : "Get discovered",
+      title: isAr ? "ابدأ التقديم" : "Start applying",
       desc: isAr
         ? "استعرض الفرص وتابع طلباتك من مكان واحد."
         : "Discover opportunities and track applications in one place.",
     },
   ];
 
-  const companySteps: JourneyStep[] = [
+  const organizationSteps: JourneyStep[] = [
     {
       icon: BriefcaseBusiness,
       title: isAr ? "أنشئ فرصة" : "Create opportunity",
@@ -51,9 +51,9 @@ export function HowItWorks({ locale }: { locale: Locale }) {
     },
     {
       icon: UserRound,
-      title: isAr ? "استقبل المتقدمين" : "Receive applicants",
+      title: isAr ? "راجع المتقدمين" : "Review applicants",
       desc: isAr
-        ? "راجع الملفات، الصور، والمعلومات بسرعة ووضوح."
+        ? "راجع الملفات والصور والمعلومات بسرعة ووضوح."
         : "Review profiles, portfolios, and details with clarity.",
     },
     {
@@ -67,19 +67,23 @@ export function HowItWorks({ locale }: { locale: Locale }) {
 
   return (
     <section
+      id="how-it-works"
       dir={isAr ? "rtl" : "ltr"}
-      className="relative overflow-hidden border-t border-white/10 bg-black py-28"
+      className="relative scroll-mt-24 overflow-hidden border-t border-white/[0.07] bg-black py-20 lg:py-24"
     >
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom,rgba(200,169,106,0.08),transparent_45%)]" />
+      <div
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_100%,rgba(200,169,106,0.08),transparent_42%)]"
+        aria-hidden="true"
+      />
 
-      <div className="relative mx-auto max-w-7xl px-6">
+      <div className="relative mx-auto max-w-[1480px] px-6 lg:px-10 xl:px-16">
         <div className="mx-auto max-w-3xl text-center">
           <p
             className={[
               "text-xs text-gold",
               isAr
                 ? "tracking-normal"
-                : "uppercase tracking-[0.35em]",
+                : "uppercase tracking-[0.3em]",
             ].join(" ")}
           >
             {isAr ? "كيف تعمل ملامح" : "How MLAMH works"}
@@ -87,7 +91,7 @@ export function HowItWorks({ locale }: { locale: Locale }) {
 
           <h2
             className={[
-              "mt-5 text-4xl font-light text-white md:text-6xl",
+              "mt-4 text-4xl font-light leading-tight text-white md:text-5xl",
               isAr ? "tracking-normal" : "tracking-tight",
             ].join(" ")}
           >
@@ -96,22 +100,24 @@ export function HowItWorks({ locale }: { locale: Locale }) {
               : "A clear path for both sides."}
           </h2>
 
-          <p className="mt-6 text-base leading-8 tracking-normal text-white/50">
+          <p className="mt-5 text-sm leading-7 text-white/45 md:text-base">
             {isAr
-              ? "سواء كنت موهبة تبحث عن فرصة، أو شركة تبحث عن الشخص المناسب، التجربة مصممة لتكون بسيطة واحترافية."
-              : "Whether you are a talent looking for opportunities or a company searching for the right person, the experience is simple and professional."}
+              ? "سواء كنت موهبة تبحث عن فرصة، أو جهة تبحث عن الشخص المناسب، التجربة مصممة لتكون بسيطة واحترافية."
+              : "Whether you are a talent looking for opportunities or an organization searching for the right person, the experience is simple and professional."}
           </p>
         </div>
 
-        <div className="mt-16 grid gap-6 lg:grid-cols-2">
-          <JourneyCard
+        <div className="mt-12 grid gap-5">
+          <JourneyRow
             title={isAr ? "للمواهب" : "For Talents"}
             steps={talentSteps}
+            isAr={isAr}
           />
 
-          <JourneyCard
-            title={isAr ? "للشركات" : "For Companies"}
-            steps={companySteps}
+          <JourneyRow
+            title={isAr ? "للجهات" : "For Organizations"}
+            steps={organizationSteps}
+            isAr={isAr}
           />
         </div>
       </div>
@@ -119,48 +125,66 @@ export function HowItWorks({ locale }: { locale: Locale }) {
   );
 }
 
-function JourneyCard({
+function JourneyRow({
   title,
   steps,
+  isAr,
 }: {
   title: string;
   steps: JourneyStep[];
+  isAr: boolean;
 }) {
   return (
-    <article className="rounded-[2rem] border border-white/10 bg-white/[0.035] p-6 md:p-8">
-      <h3 className="text-2xl font-light tracking-normal text-white">
-        {title}
-      </h3>
+    <article className="rounded-[1.75rem] border border-white/[0.08] bg-white/[0.025] p-5 md:p-6 lg:p-7">
+      <div className="grid gap-6 lg:grid-cols-[180px_1fr] lg:items-center">
+        <div>
+          <p className="text-xs text-gold">
+            {title}
+          </p>
+        </div>
 
-      <div className="mt-8 grid gap-4">
-        {steps.map((step, index) => {
-          const Icon = step.icon;
+        <div className="grid gap-3 md:grid-cols-3">
+          {steps.map((step, index) => {
+            const Icon = step.icon;
 
-          return (
-            <div
-              key={step.title}
-              className="grid gap-4 rounded-[1.5rem] border border-white/10 bg-black/25 p-5 md:grid-cols-[auto_1fr]"
-            >
-              <div className="flex h-12 w-12 items-center justify-center rounded-full border border-gold/20 bg-gold/[0.06] text-gold">
-                <Icon size={19} />
-              </div>
+            return (
+              <div
+                key={step.title}
+                className="group relative rounded-[1.4rem] border border-white/[0.07] bg-black/25 p-5 transition duration-300 hover:border-gold/25 hover:bg-white/[0.025]"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full border border-gold/20 bg-gold/[0.06] text-gold">
+                    <Icon size={17} />
+                  </div>
 
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.25em] text-gold">
-                  0{index + 1}
-                </p>
+                  <span className="text-[10px] text-white/20">
+                    0{index + 1}
+                  </span>
+                </div>
 
-                <h4 className="mt-2 text-xl font-light tracking-normal text-white">
+                <h3 className="mt-5 text-xl font-light text-white">
                   {step.title}
-                </h4>
+                </h3>
 
-                <p className="mt-2 text-sm leading-7 tracking-normal text-white/45">
+                <p className="mt-2 text-sm leading-6 text-white/42">
                   {step.desc}
                 </p>
+
+                {index < steps.length - 1 ? (
+                  <span
+                    className={[
+                      "pointer-events-none absolute top-1/2 hidden h-px w-3 bg-gold/20 md:block",
+                      isAr
+                        ? "-left-3"
+                        : "-right-3",
+                    ].join(" ")}
+                    aria-hidden="true"
+                  />
+                ) : null}
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </article>
   );

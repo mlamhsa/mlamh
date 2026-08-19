@@ -7,6 +7,64 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 type DashboardType = "publisher" | "talent";
 
+const MESSAGE_ATTACHMENTS_BUCKET = "message-attachments";
+const MAX_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024;
+
+const ALLOWED_ATTACHMENT_MIME_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+
+  // Voice messages
+  "audio/webm",
+  "audio/webm;codecs=opus",
+  "audio/mp4",
+]);
+
+function getSafeStorageExtension(
+  fileName: string,
+) {
+  const lastDot =
+    fileName.lastIndexOf(".");
+
+  if (
+    lastDot === -1 ||
+    lastDot === fileName.length - 1
+  ) {
+    return "";
+  }
+
+  const extension = fileName
+    .slice(lastDot + 1)
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+
+  return extension
+    ? `.${extension}`
+    : "";
+}
+
+function getAttachmentFromFormData(formData: FormData) {
+  const value = formData.get("attachment");
+
+  if (!(value instanceof File) || value.size === 0) {
+    return null;
+  }
+
+  if (value.size > MAX_ATTACHMENT_SIZE_BYTES) {
+    throw new Error("Attachment size must not exceed 10 MB.");
+  }
+
+  if (!ALLOWED_ATTACHMENT_MIME_TYPES.has(value.type)) {
+    throw new Error("Unsupported attachment type.");
+  }
+
+  return value;
+}
+
 async function getAuthenticatedParticipant(
   conversationId: number,
 ) {
@@ -160,6 +218,9 @@ export async function sendMessageAction(
     formData.get("body") ?? "",
   ).trim();
 
+  const attachment =
+    getAttachmentFromFormData(formData);
+
   if (
     !Number.isInteger(conversationId) ||
     conversationId <= 0
@@ -167,9 +228,15 @@ export async function sendMessageAction(
     throw new Error("Invalid conversation.");
   }
 
-  if (!body || body.length > 3000) {
+  if (body.length > 3000) {
     throw new Error(
-      "Message must contain between 1 and 3000 characters.",
+      "Message must not exceed 3000 characters.",
+    );
+  }
+
+  if (!body && !attachment) {
+    throw new Error(
+      "Message must contain text or an attachment.",
     );
   }
 
@@ -188,25 +255,131 @@ export async function sendMessageAction(
 
   const createdAt = new Date().toISOString();
 
-  const { error: insertError } = await adminClient
-    .from("messages")
-    .insert({
-      conversation_id: conversationId,
-      sender_user_id: user.id,
-      body,
-      read_at: null,
-      created_at: createdAt,
-    });
+  const { data: createdMessage, error: insertError } =
+    await adminClient
+      .from("messages")
+      .insert({
+        conversation_id: conversationId,
+        sender_user_id: user.id,
+        body,
+        read_at: null,
+        created_at: createdAt,
+      })
+      .select("id")
+      .single();
 
-  if (insertError) {
+  if (insertError || !createdMessage) {
     console.error("Send message error:", {
-      message: insertError.message,
-      details: insertError.details,
-      hint: insertError.hint,
-      code: insertError.code,
+      message: insertError?.message,
+      details: insertError?.details,
+      hint: insertError?.hint,
+      code: insertError?.code,
     });
 
-    throw new Error(insertError.message);
+    throw new Error(
+      insertError?.message ??
+        "Message could not be created.",
+    );
+  }
+
+  let uploadedStoragePath: string | null = null;
+
+try {
+  if (attachment) {
+    const storageExtension =
+      getSafeStorageExtension(
+        attachment.name,
+      );
+
+    const storageFileName =
+      `${crypto.randomUUID()}${storageExtension}`;
+
+    uploadedStoragePath = [
+      String(conversationId),
+      user.id,
+      storageFileName,
+    ].join("/");
+
+    const fileBuffer =
+      await attachment.arrayBuffer();
+
+    const { error: uploadError } =
+        await adminClient.storage
+          .from(MESSAGE_ATTACHMENTS_BUCKET)
+          .upload(
+            uploadedStoragePath,
+            fileBuffer,
+            {
+              contentType: attachment.type,
+              upsert: false,
+              cacheControl: "3600",
+            },
+          );
+
+      if (uploadError) {
+        console.error("Attachment upload error:", {
+          message: uploadError.message,
+          name: uploadError.name,
+        });
+
+        throw new Error(uploadError.message);
+      }
+
+      const { error: attachmentInsertError } =
+        await adminClient
+          .from("message_attachments")
+          .insert({
+            message_id: createdMessage.id,
+            conversation_id: conversationId,
+            uploader_user_id: user.id,
+            storage_path: uploadedStoragePath,
+            file_name: attachment.name.slice(0, 255),
+            mime_type: attachment.type,
+            size_bytes: attachment.size,
+            created_at: createdAt,
+          });
+
+      if (attachmentInsertError) {
+        console.error("Attachment record error:", {
+          message: attachmentInsertError.message,
+          details: attachmentInsertError.details,
+          hint: attachmentInsertError.hint,
+          code: attachmentInsertError.code,
+        });
+
+        throw new Error(attachmentInsertError.message);
+      }
+    }
+  } catch (error) {
+    if (uploadedStoragePath) {
+      const { error: storageCleanupError } =
+        await adminClient.storage
+          .from(MESSAGE_ATTACHMENTS_BUCKET)
+          .remove([uploadedStoragePath]);
+
+      if (storageCleanupError) {
+        console.error(
+          "Attachment storage cleanup error:",
+          storageCleanupError,
+        );
+      }
+    }
+
+    const { error: messageCleanupError } =
+      await adminClient
+        .from("messages")
+        .delete()
+        .eq("id", createdMessage.id)
+        .eq("conversation_id", conversationId);
+
+    if (messageCleanupError) {
+      console.error(
+        "Message cleanup error:",
+        messageCleanupError,
+      );
+    }
+
+    throw error;
   }
 
   const { error: conversationUpdateError } =
@@ -226,7 +399,6 @@ export async function sendMessageAction(
     });
   }
 
-
   const notificationRecipientType =
     dashboard === "publisher" ? "talent" : "publisher";
 
@@ -235,21 +407,37 @@ export async function sendMessageAction(
       ? String(conversation.talent_id)
       : String(conversation.publisher_id);
 
+  const notificationBody = attachment
+    ? dashboard === "publisher"
+      ? locale === "ar"
+        ? "لديك مرفق جديد من الشركة."
+        : "You have a new attachment from the company."
+      : locale === "ar"
+        ? "لديك مرفق جديد من الموهبة."
+        : "You have a new attachment from the talent."
+    : dashboard === "publisher"
+      ? locale === "ar"
+        ? "لديك رسالة جديدة من الشركة."
+        : "You have a new message from the company."
+      : locale === "ar"
+        ? "لديك رسالة جديدة من الموهبة."
+        : "You have a new message from the talent.";
+
   const { error: notificationError } = await adminClient
     .from("notifications")
     .insert({
       event_id: conversationId,
       recipient_type: notificationRecipientType,
       recipient_id: notificationRecipientId,
-      title: locale === "ar" ? "رسالة جديدة" : "New message",
-      body:
-        dashboard === "publisher"
-          ? locale === "ar"
-            ? "لديك رسالة جديدة من الشركة."
-            : "You have a new message from the company."
-          : locale === "ar"
-            ? "لديك رسالة جديدة من الموهبة."
-            : "You have a new message from the talent.",
+      title:
+        locale === "ar"
+          ? attachment
+            ? "مرفق جديد"
+            : "رسالة جديدة"
+          : attachment
+            ? "New attachment"
+            : "New message",
+      body: notificationBody,
       is_read: false,
       created_at: createdAt,
     });
@@ -275,8 +463,13 @@ export async function sendMessageAction(
     `/${locale}/${dashboard}-dashboard/messages`,
   );
 
-  revalidatePath(`/${locale}/publisher-dashboard/notifications`);
-  revalidatePath(`/${locale}/talent-dashboard/notifications`);
+  revalidatePath(
+    `/${locale}/publisher-dashboard/notifications`,
+  );
+
+  revalidatePath(
+    `/${locale}/talent-dashboard/notifications`,
+  );
 }
 
 export async function markConversationReadAction(

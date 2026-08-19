@@ -24,7 +24,6 @@ import {
 import {
   useParams,
   usePathname,
-  useRouter,
   useSearchParams,
 } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -62,21 +61,21 @@ const desktopNavigationItems: NavigationItem[] = [
   },
   {
     key: "companies",
-    ar: "الشركات",
-    en: "Companies",
+    ar: "الجهات",
+    en: "Organizations",
     href: "/publishers",
+  },
+  {
+    key: "how-it-works",
+    ar: "كيف تعمل ملامح؟",
+    en: "How it works",
+    href: "#how-it-works",
   },
   {
     key: "about",
     ar: "عن ملامح",
-    en: "About",
+    en: "About MLAMH",
     href: "#about",
-  },
-  {
-    key: "contact",
-    ar: "تواصل",
-    en: "Contact",
-    href: "#contact",
   },
 ];
 
@@ -97,8 +96,8 @@ const exploreItems: NavigationItem[] = [
   },
   {
     key: "companies",
-    ar: "الشركات",
-    en: "Companies",
+    ar: "الجهات",
+    en: "Organizations",
     href: "/publishers",
     icon: Building2,
   },
@@ -139,7 +138,6 @@ export function Navbar({ locale }: { locale: Locale }) {
   const params = useParams();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const router = useRouter();
 
   const routeLocale = (params?.locale as Locale) || locale;
   const isAr = routeLocale === "ar";
@@ -267,19 +265,31 @@ export function Navbar({ locale }: { locale: Locale }) {
   }, [menuOpen]);
 
   async function handleLogout() {
-    await supabase.auth.signOut();
+    const { error } =
+      await supabase.auth.signOut();
+  
+    if (error) {
+      console.error(
+        "[Navbar.logout]",
+        error,
+      );
+      return;
+    }
+  
     setProfileOpen(false);
     setNotificationsOpen(false);
     setMenuOpen(false);
-    router.replace(`/${routeLocale}`);
-    router.refresh();
+  
+    window.location.replace(
+      `/${routeLocale}/login`,
+    );
   }
 
   function localizedHref(href: string) {
     if (href.startsWith("#")) {
-      return href;
+      return `/${routeLocale}${href}`;
     }
-
+  
     return `/${routeLocale}${href}`;
   }
 
@@ -313,21 +323,38 @@ export function Navbar({ locale }: { locale: Locale }) {
   />
 </Link>
 
-          <div className="hidden items-center gap-8 lg:flex">
-            {desktopNavigationItems.map((item) => (
-              <Link
-                key={item.key}
-                href={localizedHref(item.href)}
-                className={`text-[11px] text-white/60 transition hover:text-gold ${
-                  isAr
-                    ? "tracking-normal"
-                    : "uppercase tracking-[0.24em]"
-                }`}
-              >
-                {isAr ? item.ar : item.en}
-              </Link>
-            ))}
-          </div>
+<div className="hidden items-center gap-1 lg:flex">
+  {desktopNavigationItems.map((item) => {
+    const href = localizedHref(item.href);
+
+    const isActive =
+      !item.href.startsWith("#") &&
+      pathname === `/${routeLocale}${item.href}`;
+
+    return (
+      <Link
+        key={item.key}
+        href={href}
+        aria-current={isActive ? "page" : undefined}
+        className={[
+          "relative rounded-full px-4 py-2.5 text-[13px] font-medium transition-all duration-300",
+          isAr
+            ? "tracking-normal"
+            : "tracking-[0.02em]",
+          isActive
+            ? "bg-white/[0.06] text-gold"
+            : "text-white/60 hover:bg-white/[0.035] hover:text-white",
+        ].join(" ")}
+      >
+        {isAr ? item.ar : item.en}
+
+        {isActive ? (
+          <span className="absolute inset-x-4 -bottom-[1px] h-px bg-gold" />
+        ) : null}
+      </Link>
+    );
+  })}
+</div>
 
           <div className="hidden items-center gap-3 lg:flex">
             <Link
@@ -454,67 +481,107 @@ export function Navbar({ locale }: { locale: Locale }) {
                   </button>
 
                   {profileOpen ? (
-                    <div className="absolute mt-3 w-64 rounded-2xl border border-white/10 bg-black p-2 shadow-2xl">
-                      <div className="border-b border-white/10 px-3 py-3">
-                        <p className="truncate text-sm font-semibold text-white">
-                          {displayName}
-                        </p>
-                        <p className="mt-1 text-xs text-white/40">
-                          {accountTypeLabel}
-                        </p>
-                      </div>
+  <div className="absolute mt-3 w-64 overflow-hidden rounded-2xl border border-white/10 bg-black p-2 shadow-2xl">
+    <div className="border-b border-white/10 px-3 py-3">
+      <p className="truncate text-sm font-semibold text-white">
+        {displayName}
+      </p>
 
-                      <Link
-                        href={dashboardHref}
-                        onClick={() => setProfileOpen(false)}
-                        className="mt-2 flex items-center gap-3 rounded-xl px-3 py-3 text-sm tracking-normal text-white/70 transition hover:bg-white/5 hover:text-gold"
-                      >
-                        <LayoutDashboard size={16} />
-                        {dashboardLabel}
-                      </Link>
+      <span className="mt-2 inline-flex items-center rounded-full border border-gold/25 bg-gold/10 px-2.5 py-1 text-[11px] font-medium text-gold">
+        {accountTypeLabel}
+      </span>
+    </div>
 
-                      {accountType !== "admin" ? (
-                        <>
-                          <Link
-                            href={profileHref}
-                            onClick={() =>
-                              setProfileOpen(false)
-                            }
-                            className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm tracking-normal text-white/70 transition hover:bg-white/5 hover:text-gold"
-                          >
-                            <UserCircle size={16} />
-                            {isAr
-                              ? "الملف الشخصي"
-                              : "Profile"}
-                          </Link>
+    <div className="mt-2 space-y-1">
+      <Link
+        href={dashboardHref}
+        onClick={() => setProfileOpen(false)}
+        aria-current={
+          pathname.includes("/dashboard") &&
+          !pathname.includes("/profile") &&
+          !pathname.includes("/settings")
+            ? "page"
+            : undefined
+        }
+        className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm tracking-normal transition ${
+          pathname.includes("/dashboard") &&
+          !pathname.includes("/profile") &&
+          !pathname.includes("/settings")
+            ? "border border-gold/20 bg-gold/10 text-gold"
+            : "border border-transparent text-white/70 hover:bg-white/5 hover:text-gold"
+        }`}
+      >
+        <LayoutDashboard size={16} />
+        <span className="flex-1">{dashboardLabel}</span>
 
-                          <Link
-                            href={settingsHref}
-                            onClick={() =>
-                              setProfileOpen(false)
-                            }
-                            className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm tracking-normal text-white/70 transition hover:bg-white/5 hover:text-gold"
-                          >
-                            <Settings size={16} />
-                            {isAr
-                              ? "الإعدادات"
-                              : "Settings"}
-                          </Link>
-                        </>
-                      ) : null}
+        {pathname.includes("/dashboard") &&
+        !pathname.includes("/profile") &&
+        !pathname.includes("/settings") ? (
+          <span className="h-1.5 w-1.5 rounded-full bg-gold" />
+        ) : null}
+      </Link>
 
-                      <button
-                        type="button"
-                        onClick={handleLogout}
-                        className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-start text-sm tracking-normal text-red-400 transition hover:bg-red-500/10"
-                      >
-                        <LogOut size={16} />
-                        {isAr
-                          ? "تسجيل الخروج"
-                          : "Logout"}
-                      </button>
-                    </div>
-                  ) : null}
+      {accountType !== "admin" ? (
+        <>
+          <Link
+            href={profileHref}
+            onClick={() => setProfileOpen(false)}
+            aria-current={
+              pathname.includes("/profile") ? "page" : undefined
+            }
+            className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm tracking-normal transition ${
+              pathname.includes("/profile")
+                ? "border border-gold/20 bg-gold/10 text-gold"
+                : "border border-transparent text-white/70 hover:bg-white/5 hover:text-gold"
+            }`}
+          >
+            <UserCircle size={16} />
+            <span className="flex-1">
+              {isAr ? "الملف الشخصي" : "Profile"}
+            </span>
+
+            {pathname.includes("/profile") ? (
+              <span className="h-1.5 w-1.5 rounded-full bg-gold" />
+            ) : null}
+          </Link>
+
+          <Link
+            href={settingsHref}
+            onClick={() => setProfileOpen(false)}
+            aria-current={
+              pathname.includes("/settings") ? "page" : undefined
+            }
+            className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm tracking-normal transition ${
+              pathname.includes("/settings")
+                ? "border border-gold/20 bg-gold/10 text-gold"
+                : "border border-transparent text-white/70 hover:bg-white/5 hover:text-gold"
+            }`}
+          >
+            <Settings size={16} />
+            <span className="flex-1">
+              {isAr ? "الإعدادات" : "Settings"}
+            </span>
+
+            {pathname.includes("/settings") ? (
+              <span className="h-1.5 w-1.5 rounded-full bg-gold" />
+            ) : null}
+          </Link>
+        </>
+      ) : null}
+    </div>
+
+    <div className="mx-2 my-2 h-px bg-white/10" />
+
+    <button
+      type="button"
+      onClick={handleLogout}
+      className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-start text-sm tracking-normal text-red-400 transition hover:bg-red-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/40"
+    >
+      <LogOut size={16} />
+      {isAr ? "تسجيل الخروج" : "Logout"}
+    </button>
+  </div>
+) : null}
                 </div>
               </>
             ) : !loading ? (
@@ -608,82 +675,126 @@ export function Navbar({ locale }: { locale: Locale }) {
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 py-5">
-          {!loading && isLoggedIn ? (
-            <section>
-              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-                <div className="flex items-center gap-3">
-                  <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full border border-gold/30 bg-gold/10">
-                    {avatarUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={avatarUrl}
-                        alt={displayName}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-lg font-semibold text-gold">
-                        {avatarInitial}
-                      </div>
-                    )}
-                  </div>
+        {!loading && isLoggedIn ? (
+  <section>
+    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+      <div className="flex items-center gap-3">
+        <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full border border-gold/30 bg-gold/10">
+          {avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={avatarUrl}
+              alt={displayName}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-lg font-semibold text-gold">
+              {avatarInitial}
+            </div>
+          )}
+        </div>
 
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-white">
-                      {displayName}
-                    </p>
-                    <p className="mt-1 text-xs text-white/45">
-                      {accountTypeLabel}
-                    </p>
-                  </div>
-                </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold text-white">
+            {displayName}
+          </p>
 
-                <Link
-                  href={dashboardHref}
-                  onClick={closeMobileMenu}
-                  className="mt-4 flex min-h-11 items-center justify-center gap-2 rounded-xl bg-gold px-4 text-sm font-semibold text-black transition active:scale-[0.98]"
-                >
-                  <LayoutDashboard size={17} />
-                  {dashboardLabel}
-                </Link>
-              </div>
+          <span className="mt-2 inline-flex items-center rounded-full border border-gold/25 bg-gold/10 px-2.5 py-1 text-[11px] font-medium text-gold">
+            {accountTypeLabel}
+          </span>
+        </div>
+      </div>
 
-              {accountType !== "admin" ? (
-                <div className="mt-3 space-y-1">
-                  <Link
-                    href={profileHref}
-                    onClick={closeMobileMenu}
-                    className="flex min-h-12 items-center gap-4 rounded-xl px-3 text-sm text-white/75 transition active:bg-white/[0.06] active:text-white"
-                  >
-                    <UserCircle
-                      size={18}
-                      className="shrink-0 text-gold"
-                    />
-                    <span>
-                      {isAr
-                        ? "الملف الشخصي"
-                        : "Profile"}
-                    </span>
-                  </Link>
+      <Link
+        href={dashboardHref}
+        onClick={closeMobileMenu}
+        aria-current={
+          pathname.includes("/dashboard") &&
+          !pathname.includes("/profile") &&
+          !pathname.includes("/settings")
+            ? "page"
+            : undefined
+        }
+        className={`mt-4 flex min-h-12 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-semibold transition active:scale-[0.98] ${
+          pathname.includes("/dashboard") &&
+          !pathname.includes("/profile") &&
+          !pathname.includes("/settings")
+            ? "border-gold bg-gold text-black"
+            : "border-gold/30 bg-gold/10 text-gold active:bg-gold/15"
+        }`}
+      >
+        <LayoutDashboard size={17} />
+        {dashboardLabel}
+      </Link>
+    </div>
 
-                  <Link
-                    href={settingsHref}
-                    onClick={closeMobileMenu}
-                    className="flex min-h-12 items-center gap-4 rounded-xl px-3 text-sm text-white/75 transition active:bg-white/[0.06] active:text-white"
-                  >
-                    <Settings
-                      size={18}
-                      className="shrink-0 text-gold"
-                    />
-                    <span>
-                      {isAr ? "الإعدادات" : "Settings"}
-                    </span>
-                  </Link>
-                </div>
-              ) : null}
+    {accountType !== "admin" ? (
+      <div className="mt-3 space-y-1">
+        <Link
+          href={profileHref}
+          onClick={closeMobileMenu}
+          aria-current={
+            pathname.includes("/profile") ? "page" : undefined
+          }
+          className={`flex min-h-12 items-center gap-4 rounded-xl border px-3 text-sm transition active:scale-[0.99] ${
+            pathname.includes("/profile")
+              ? "border-gold/20 bg-gold/10 text-gold"
+              : "border-transparent text-white/75 active:bg-white/[0.06] active:text-white"
+          }`}
+        >
+          <UserCircle
+            size={18}
+            className={`shrink-0 ${
+              pathname.includes("/profile")
+                ? "text-gold"
+                : "text-white/45"
+            }`}
+          />
 
-              <div className="my-5 h-px bg-white/10" />
-            </section>
+          <span className="flex-1">
+            {isAr ? "الملف الشخصي" : "Profile"}
+          </span>
+
+          {pathname.includes("/profile") ? (
+            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-gold" />
           ) : null}
+        </Link>
+
+        <Link
+          href={settingsHref}
+          onClick={closeMobileMenu}
+          aria-current={
+            pathname.includes("/settings") ? "page" : undefined
+          }
+          className={`flex min-h-12 items-center gap-4 rounded-xl border px-3 text-sm transition active:scale-[0.99] ${
+            pathname.includes("/settings")
+              ? "border-gold/20 bg-gold/10 text-gold"
+              : "border-transparent text-white/75 active:bg-white/[0.06] active:text-white"
+          }`}
+        >
+          <Settings
+            size={18}
+            className={`shrink-0 ${
+              pathname.includes("/settings")
+                ? "text-gold"
+                : "text-white/45"
+            }`}
+          />
+
+          <span className="flex-1">
+            {isAr ? "الإعدادات" : "Settings"}
+          </span>
+
+          {pathname.includes("/settings") ? (
+            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-gold" />
+          ) : null}
+        </Link>
+      </div>
+    ) : null}
+
+    <div className="my-5 h-px bg-white/10" />
+  </section>
+) : null}
 
           <section>
             <p className="mb-3 px-1 text-[11px] font-semibold text-white/35">

@@ -13,6 +13,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 type PageProps = {
   params: Promise<{ locale: string; id: string }>;
+  searchParams: Promise<{
+    result?: string;
+  }>;
 };
 
 type LocalizedLabel = {
@@ -52,7 +55,7 @@ function formatDate(value: unknown, locale: string) {
     return "-";
   }
 
-  return new Intl.DateTimeFormat(locale === "ar" ? "ar-SA" : "en-US", {
+  return new Intl.DateTimeFormat(locale === "ar" ? "ar-SA-u-nu-latn" : "en-US", {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -100,11 +103,35 @@ function getFieldLabel(value: unknown, locale: string) {
     any: { ar: "أي جنس", en: "Any" },
     male: { ar: "ذكر", en: "Male" },
     female: { ar: "أنثى", en: "Female" },
+  
     full_time: { ar: "دوام كامل", en: "Full Time" },
     part_time: { ar: "دوام جزئي", en: "Part Time" },
     freelance: { ar: "عمل حر", en: "Freelance" },
     temporary: { ar: "مؤقت", en: "Temporary" },
     contract: { ar: "عقد", en: "Contract" },
+  
+    arabic: { ar: "العربية", en: "Arabic" },
+    english: { ar: "الإنجليزية", en: "English" },
+    french: { ar: "الفرنسية", en: "French" },
+  
+    najdi: { ar: "نجدي", en: "Najdi" },
+    hejazi: { ar: "حجازي", en: "Hejazi" },
+    southern: { ar: "جنوبي", en: "Southern" },
+    northern: { ar: "شمالي", en: "Northern" },
+    gulf: { ar: "خليجي", en: "Gulf" },
+  
+    commercial: { ar: "تجاري", en: "Commercial" },
+    fashion: { ar: "أزياء", en: "Fashion" },
+    beauty: { ar: "جمال", en: "Beauty" },
+    lifestyle: { ar: "لايف ستايل", en: "Lifestyle" },
+    ecommerce: { ar: "متاجر إلكترونية", en: "E-commerce" },
+  
+    black: { ar: "أسود", en: "Black" },
+    brown: { ar: "بني", en: "Brown" },
+    blonde: { ar: "أشقر", en: "Blonde" },
+    red: { ar: "أحمر", en: "Red" },
+    gray: { ar: "رمادي", en: "Gray" },
+    other: { ar: "أخرى", en: "Other" },
   };
 
   const translated = labels[normalized];
@@ -128,11 +155,173 @@ function formatBudget(value: unknown, locale: string) {
   }
 
   const formatted = new Intl.NumberFormat(
-    locale === "ar" ? "ar-SA" : "en-US",
+    locale === "ar" ? "ar-SA-u-nu-latn" : "en-US",
     { maximumFractionDigits: 0 },
   ).format(numeric);
 
   return locale === "ar" ? `${formatted} ر.س` : `SAR ${formatted}`;
+}
+
+function formatCompensation(
+  compensationType: unknown,
+  budget: unknown,
+  locale: string,
+) {
+  const type = normalizeKey(compensationType);
+
+  if (type === "unpaid") {
+    return locale === "ar" ? "غير مدفوع" : "Unpaid";
+  }
+
+  if (type === "negotiable") {
+    return locale === "ar" ? "حسب الاتفاق" : "Negotiable";
+  }
+
+  if (type === "fixed") {
+    const formattedBudget = formatBudget(budget, locale);
+
+    return formattedBudget !== "-"
+      ? formattedBudget
+      : locale === "ar"
+        ? "مبلغ محدد"
+        : "Fixed amount";
+  }
+
+  // دعم الفرص القديمة قبل إضافة compensation_type
+  const legacyBudget = formatBudget(budget, locale);
+
+  return legacyBudget !== "-"
+    ? legacyBudget
+    : locale === "ar"
+      ? "غير محدد"
+      : "Not specified";
+}
+
+function formatWorkDuration(
+  value: unknown,
+  locale: string,
+) {
+  if (!value) {
+    return locale === "ar"
+      ? "غير محدد"
+      : "Not specified";
+  }
+
+  const normalized = String(value)
+    .trim()
+    .toLowerCase();
+
+  const labels: Record<
+    string,
+    { ar: string; en: string }
+  > = {
+    "1_hour": {
+      ar: "ساعة",
+      en: "1 Hour",
+    },
+    "2_hours": {
+      ar: "ساعتان",
+      en: "2 Hours",
+    },
+    "4_hours": {
+      ar: "4 ساعات",
+      en: "4 Hours",
+    },
+    "full_day": {
+      ar: "يوم كامل",
+      en: "Full Day",
+    },
+
+    "1 hour": {
+      ar: "ساعة",
+      en: "1 Hour",
+    },
+    "2 hours": {
+      ar: "ساعتان",
+      en: "2 Hours",
+    },
+    "4 hours": {
+      ar: "4 ساعات",
+      en: "4 Hours",
+    },
+    "full day": {
+      ar: "يوم كامل",
+      en: "Full Day",
+    },
+
+    // دعم قيمة قديمة ظهرت عندك
+    "hour 1": {
+      ar: "ساعة",
+      en: "1 Hour",
+    },
+    "hours 2": {
+      ar: "ساعتان",
+      en: "2 Hours",
+    },
+    "hours 4": {
+      ar: "4 ساعات",
+      en: "4 Hours",
+    },
+  };
+
+  const match = labels[normalized];
+
+  return match
+    ? locale === "ar"
+      ? match.ar
+      : match.en
+    : String(value);
+}
+
+function formatPostingMode(value: unknown, locale: string) {
+  const normalized = normalizeKey(value);
+
+  if (normalized === "quick") {
+    return locale === "ar" ? "فرصة سريعة" : "Quick Opportunity";
+  }
+
+  if (normalized === "project") {
+    return locale === "ar" ? "مشروع / كاستينغ" : "Project / Casting";
+  }
+
+  return locale === "ar" ? "غير محدد" : "Not specified";
+}
+
+function formatWorkTime(value: unknown, locale: string) {
+  const raw = formatValue(value);
+
+  if (!raw) {
+    return locale === "ar" ? "غير محدد" : "Not specified";
+  }
+
+  const [hourPart, minutePart = "00"] = raw.split(":");
+  const hour = Number(hourPart);
+  const minute = Number(minutePart);
+
+  if (
+    !Number.isInteger(hour) ||
+    !Number.isInteger(minute) ||
+    hour < 0 ||
+    hour > 23 ||
+    minute < 0 ||
+    minute > 59
+  ) {
+    return raw;
+  }
+
+  const period =
+    hour >= 12
+      ? locale === "ar"
+        ? "مساءً"
+        : "PM"
+      : locale === "ar"
+        ? "صباحًا"
+        : "AM";
+
+  const hour12 = hour % 12 || 12;
+  const formattedMinute = String(minute).padStart(2, "0");
+
+  return `${hour12}:${formattedMinute} ${period}`;
 }
 
 function opportunityStatusLabel(status: string | null, isRtl: boolean) {
@@ -149,10 +338,16 @@ function opportunityStatusLabel(status: string | null, isRtl: boolean) {
       return isRtl ? "مغلقة" : "Closed";
     case "archived":
       return isRtl ? "مؤرشفة" : "Archived";
-    case "rejected":
-      return isRtl ? "مرفوضة" : "Rejected";
-    default:
-      return isRtl ? "غير محددة" : "Not specified";
+      case "rejected":
+        return isRtl ? "مرفوضة" : "Rejected";
+      
+      case "needs_changes":
+        return isRtl
+          ? "تحتاج تعديل"
+          : "Needs Changes";
+      
+      default:
+        return isRtl ? "غير محددة" : "Not specified";
   }
 }
 
@@ -179,9 +374,10 @@ function statusClass(status: string | null) {
       return "border-emerald-400/30 bg-emerald-400/10 text-emerald-300";
     case "published":
       return "border-blue-400/30 bg-blue-400/10 text-blue-300";
-    case "pending_review":
-    case "reviewing":
-      return "border-amber-400/30 bg-amber-400/10 text-amber-300";
+      case "pending_review":
+        case "reviewing":
+        case "needs_changes":
+          return "border-amber-400/30 bg-amber-400/10 text-amber-300";
     case "closed":
       return "border-yellow-400/30 bg-yellow-400/10 text-yellow-300";
     case "archived":
@@ -209,8 +405,13 @@ function countApplicationsByStatus(
     .length;
 }
 
-export default async function OpportunityDetailsPage({ params }: PageProps) {
+export default async function OpportunityDetailsPage({
+  params,
+  searchParams,
+}: PageProps) {
   const { locale, id } = await params;
+  const { result } = await searchParams;
+
   const isRtl = locale === "ar";
 
   const { publisher } = await requirePublisher(locale);
@@ -239,6 +440,59 @@ export default async function OpportunityDetailsPage({ params }: PageProps) {
   if (!opportunity) {
     notFound();
   }
+
+  let reviewReason: string | null = null;
+let reviewRequestedAt: string | null = null;
+
+if (opportunity.status === "needs_changes") {
+  const {
+    data: reviewEvent,
+    error: reviewEventError,
+  } = await adminClient
+    .from("events")
+    .select("metadata, created_at")
+    .eq(
+      "event_type",
+      "opportunity_needs_changes",
+    )
+    .eq(
+      "target_id",
+      String(publisher.id),
+    )
+    .contains("metadata", {
+      opportunityId: opportunity.id,
+    })
+    .order("created_at", {
+      ascending: false,
+    })
+    .limit(1)
+    .maybeSingle();
+
+  if (reviewEventError) {
+    console.error(
+      "Opportunity review event error:",
+      reviewEventError,
+    );
+  }
+
+  const metadata =
+    reviewEvent?.metadata &&
+    typeof reviewEvent.metadata === "object" &&
+    !Array.isArray(reviewEvent.metadata)
+      ? (reviewEvent.metadata as Record<
+          string,
+          unknown
+        >)
+      : null;
+
+  reviewReason =
+    typeof metadata?.reason === "string"
+      ? metadata.reason.trim() || null
+      : null;
+
+  reviewRequestedAt =
+    reviewEvent?.created_at ?? null;
+}
 
   const { data: applicationsData, error: applicationsError } = await adminClient
     .from("opportunity_applications")
@@ -350,57 +604,167 @@ export default async function OpportunityDetailsPage({ params }: PageProps) {
     locale,
   );
 
-  const detailItems = [
-    {
-      label: isRtl ? "تاريخ الإنشاء" : "Created",
-      value: formatDate(opportunity.created_at, locale),
-    },
-    {
-      label: isRtl ? "تاريخ المشروع" : "Project Date",
-      value: formatDate(
-        opportunity.project_date ??
-          opportunity.event_date ??
-          opportunity.start_date,
-        locale,
-      ),
-    },
-    {
-      label: isRtl ? "الميزانية" : "Budget",
-      value: formatBudget(
-        opportunity.budget ??
-          opportunity.estimated_budget ??
-          opportunity.compensation,
-        locale,
-      ),
-    },
-    {
-      label: isRtl ? "نوع العقد" : "Contract Type",
+  const ageRange =
+  opportunity.min_age !== null &&
+  opportunity.min_age !== undefined &&
+  opportunity.max_age !== null &&
+  opportunity.max_age !== undefined
+    ? `\u2066${opportunity.min_age} - ${opportunity.max_age}\u2069`
+    : opportunity.min_age !== null &&
+        opportunity.min_age !== undefined
+      ? isRtl
+        ? `\u2066${opportunity.min_age}+\u2069 سنة`
+        : `${opportunity.min_age}+ years`
+      : opportunity.max_age !== null &&
+          opportunity.max_age !== undefined
+        ? isRtl
+          ? `حتى \u2066${opportunity.max_age}\u2069 سنة`
+          : `Up to ${opportunity.max_age} years`
+        : isRtl
+          ? "جميع الأعمار"
+          : "All ages";
+
+        const detailItems = [
+          {
+            label: isRtl ? "نوع الفرصة" : "Opportunity Format",
+            value: formatPostingMode(opportunity.posting_mode, locale),
+          },
+          {
+            label: isRtl ? "تاريخ الإنشاء" : "Created",
+            value: formatDate(opportunity.created_at, locale),
+          },
+          {
+            label: isRtl ? "تاريخ العمل" : "Work Date",
+            value: formatDate(opportunity.work_date, locale),
+          },
+          {
+            label: isRtl ? "وقت البدء" : "Start Time",
+            value: formatWorkTime(opportunity.work_time, locale),
+          },
+          {
+            label: isRtl ? "مدة العمل" : "Work Duration",
+            value: formatWorkDuration(
+              opportunity.work_duration,
+              locale,
+            ),
+          },
+          {
+            label: isRtl ? "عدد المواهب المطلوبة" : "Required Talents",
+            value:
+              opportunity.required_count !== null &&
+              opportunity.required_count !== undefined
+                ? opportunity.required_count
+                : "-",
+          },
+          {
+            label: isRtl ? "مدة استقبال الطلبات" : "Application Period",
+            value:
+              opportunity.application_days !== null &&
+              opportunity.application_days !== undefined
+                ? isRtl
+                  ? `${opportunity.application_days} يوم`
+                  : `${opportunity.application_days} Days`
+                : "-",
+          },
+          {
+            label: isRtl ? "المقابل المالي" : "Compensation",
+            value: formatCompensation(
+              opportunity.compensation_type,
+              opportunity.budget,
+              locale,
+            ),
+          },
+          {
+            label: isRtl ? "الفئة العمرية" : "Age Range",
+            value: ageRange,
+          },
+          {
+            label: isRtl ? "الجنس المطلوب" : "Preferred Gender",
+            value: getFieldLabel(
+              opportunity.required_gender,
+              locale,
+            ),
+          },
+        ];
+
+const roleRequirements =
+  opportunity.role_requirements &&
+  typeof opportunity.role_requirements === "object" &&
+  !Array.isArray(opportunity.role_requirements)
+    ? (opportunity.role_requirements as Record<string, unknown>)
+    : {};
+
+const roleRequirementItems: Array<{
+  label: string;
+  value: string;
+}> = [];
+
+if (normalizeKey(opportunity.opportunity_type) === "actor") {
+  const languages = Array.isArray(roleRequirements.languages)
+    ? roleRequirements.languages.map((item) =>
+        getFieldLabel(item, locale),
+      )
+    : [];
+
+  const dialects = Array.isArray(roleRequirements.dialects)
+    ? roleRequirements.dialects.map((item) =>
+        getFieldLabel(item, locale),
+      )
+    : [];
+
+  if (languages.length > 0) {
+    roleRequirementItems.push({
+      label: isRtl ? "اللغات المطلوبة" : "Required Languages",
+      value: languages.join("، "),
+    });
+  }
+
+  if (dialects.length > 0) {
+    roleRequirementItems.push({
+      label: isRtl ? "اللهجات المطلوبة" : "Required Dialects",
+      value: dialects.join("، "),
+    });
+  }
+}
+
+if (normalizeKey(opportunity.opportunity_type) === "model") {
+  const modelingTypes = Array.isArray(
+    roleRequirements.modeling_types,
+  )
+    ? roleRequirements.modeling_types.map((item) =>
+        getFieldLabel(item, locale),
+      )
+    : [];
+
+  if (modelingTypes.length > 0) {
+    roleRequirementItems.push({
+      label: isRtl ? "نوع أعمال المودل" : "Modeling Types",
+      value: modelingTypes.join("، "),
+    });
+  }
+
+  if (
+    roleRequirements.min_height_cm !== null &&
+    roleRequirements.min_height_cm !== undefined
+  ) {
+    roleRequirementItems.push({
+      label: isRtl ? "الحد الأدنى للطول" : "Minimum Height",
+      value: isRtl
+        ? `${roleRequirements.min_height_cm} سم`
+        : `${roleRequirements.min_height_cm} cm`,
+    });
+  }
+
+  if (formatValue(roleRequirements.hair_color)) {
+    roleRequirementItems.push({
+      label: isRtl ? "لون الشعر" : "Hair Color",
       value: getFieldLabel(
-        opportunity.contract_type ??
-          opportunity.employment_type ??
-          opportunity.engagement_type,
+        roleRequirements.hair_color,
         locale,
       ),
-    },
-    {
-      label: isRtl ? "الفئة العمرية" : "Age Range",
-      value:
-        formatValue(
-          opportunity.age_range ??
-            opportunity.age_group ??
-            opportunity.target_age,
-        ) || "-",
-    },
-    {
-      label: isRtl ? "الجنس المطلوب" : "Preferred Gender",
-      value: getFieldLabel(
-        opportunity.gender ??
-          opportunity.required_gender ??
-          opportunity.target_gender,
-        locale,
-      ),
-    },
-  ];
+    });
+  }
+}
 
   const localizedDescription = getLocalizedValue(
     opportunity.description_ar,
@@ -433,6 +797,49 @@ export default async function OpportunityDetailsPage({ params }: PageProps) {
 
   return (
       <div className="space-y-8">
+        {result === "submitted" ? (
+  <section
+    role="status"
+    className="rounded-[2rem] border border-emerald-400/25 bg-emerald-400/[0.07] p-5 sm:p-6"
+  >
+    <p className="text-xs font-medium text-emerald-300">
+      {isRtl ? "تم الإرسال بنجاح" : "Submitted Successfully"}
+    </p>
+
+    <h2 className="mt-2 text-xl font-light text-white sm:text-2xl">
+      {isRtl
+        ? "تم إرسال التعديلات للمراجعة"
+        : "Changes submitted for review"}
+    </h2>
+
+    <p className="mt-2 text-sm leading-7 text-white/55">
+      {isRtl
+        ? "تم حفظ تعديلاتك وإعادة إرسال الفرصة إلى فريق ملامح للمراجعة."
+        : "Your changes were saved and the opportunity was resubmitted to the MLAMH team for review."}
+    </p>
+  </section>
+) : result === "saved" ? (
+  <section
+    role="status"
+    className="rounded-[2rem] border border-emerald-400/25 bg-emerald-400/[0.07] p-5 sm:p-6"
+  >
+    <p className="text-xs font-medium text-emerald-300">
+      {isRtl ? "تم الحفظ بنجاح" : "Saved Successfully"}
+    </p>
+
+    <h2 className="mt-2 text-xl font-light text-white sm:text-2xl">
+      {isRtl
+        ? "تم حفظ التعديلات"
+        : "Changes saved"}
+    </h2>
+
+    <p className="mt-2 text-sm leading-7 text-white/55">
+      {isRtl
+        ? "تم تحديث بيانات الفرصة بنجاح."
+        : "The opportunity details were updated successfully."}
+    </p>
+  </section>
+) : null}
         <header className="overflow-hidden rounded-[2.5rem] border border-white/10 bg-gradient-to-br from-white/[0.08] via-white/[0.03] to-gold/[0.06] p-6 sm:p-8 md:p-10">
           <div className="grid gap-8 xl:grid-cols-[1fr_320px] xl:items-start">
             <div>
@@ -525,12 +932,62 @@ export default async function OpportunityDetailsPage({ params }: PageProps) {
               />
               <HeroInfo label={isRtl ? "المدينة" : "City"} value={city} />
               <HeroInfo
-                label={isRtl ? "نوع الفرصة" : "Opportunity Type"}
-                value={opportunityType}
-              />
+  label={isRtl ? "نوع الموهبة" : "Talent Type"}
+  value={opportunityType}
+/>
             </aside>
           </div>
         </header>
+
+        {opportunity.status === "needs_changes" ? (
+  <section className="rounded-[2rem] border border-amber-400/25 bg-amber-400/[0.06] p-6 md:p-8">
+    <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+      <div className="max-w-3xl">
+        <p className="text-xs text-amber-300">
+          {isRtl
+            ? "ملاحظات فريق ملامح"
+            : "MLAMH Review"}
+        </p>
+
+        <h2 className="mt-2 text-2xl font-light text-white">
+          {isRtl
+            ? "هذه الفرصة تحتاج إلى تعديل"
+            : "This opportunity needs changes"}
+        </h2>
+
+        <p className="mt-4 whitespace-pre-line text-sm leading-8 text-white/70">
+          {reviewReason ??
+            (isRtl
+              ? "يرجى مراجعة الفرصة وتحديث البيانات المطلوبة قبل إعادة إرسالها."
+              : "Please review and update the opportunity before resubmitting it.")}
+        </p>
+
+        {reviewRequestedAt ? (
+          <p className="mt-4 text-xs text-white/35">
+            {isRtl
+              ? `طلب التعديل: ${formatDate(
+                  reviewRequestedAt,
+                  locale,
+                )}`
+              : `Changes requested: ${formatDate(
+                  reviewRequestedAt,
+                  locale,
+                )}`}
+          </p>
+        ) : null}
+      </div>
+
+      <Link
+        href={`/${locale}/publisher-dashboard/opportunities/${opportunity.id}/edit`}
+        className="inline-flex shrink-0 items-center justify-center rounded-full border border-amber-400/40 bg-amber-400/[0.08] px-6 py-3 text-sm text-amber-300 transition hover:bg-amber-400 hover:text-black"
+      >
+        {isRtl
+          ? "تعديل الفرصة"
+          : "Edit Opportunity"}
+      </Link>
+    </div>
+  </section>
+) : null}
 
         <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <InfoCard
@@ -571,7 +1028,25 @@ export default async function OpportunityDetailsPage({ params }: PageProps) {
               />
             ))}
           </div>
+          {roleRequirementItems.length > 0 ? (
+  <div className="mt-8">
+    <p className="text-xs uppercase tracking-[0.25em] text-gold">
+      {isRtl
+        ? "متطلبات التخصص"
+        : "Role Requirements"}
+    </p>
 
+    <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      {roleRequirementItems.map((item) => (
+        <DetailItem
+          key={item.label}
+          label={item.label}
+          value={item.value}
+        />
+      ))}
+    </div>
+  </div>
+) : null}
           {(requirements || skills.length > 0) && (
             <div className="mt-8 grid gap-5 lg:grid-cols-2">
               {requirements ? (

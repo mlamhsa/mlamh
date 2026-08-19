@@ -6,7 +6,6 @@ import {
   addOwnGalleryImageAction,
   removeOwnGalleryImageAction,
   reorderOwnGalleryImagesAction,
-  setOwnMainImageAction,
 } from "@/lib/actions/update-own-talent-gallery";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -112,7 +111,7 @@ export default async function TalentGalleryPage({
 
   const { data: talent, error: talentError } = await adminClient
     .from("talents")
-    .select("id, slug, name_ar, name_en, image_url, gallery_images")
+    .select("id, slug, name_ar, name_en, gallery_images")
     .eq("user_id", user.id)
     .maybeSingle();
 
@@ -126,20 +125,21 @@ export default async function TalentGalleryPage({
 
   const gallery = normalizeGalleryImages(talent.gallery_images);
 
-  const allImages = Array.from(
-    new Set([talent.image_url, ...gallery].filter(Boolean) as string[])
+  const galleryImages = Array.from(
+    new Set(gallery.filter(Boolean))
   );
 
   const talentName =
     (isArabic ? talent.name_ar || talent.name_en : talent.name_en || talent.name_ar) ||
     null;
 
-  const galleryProgress = Math.min(
-    100,
-    Math.round((allImages.length / MAX_GALLERY_IMAGES) * 100)
-  );
-
-  const canUploadMore = allImages.length < MAX_GALLERY_IMAGES;
+    const galleryProgress = Math.min(
+      100,
+      Math.round((galleryImages.length / MAX_GALLERY_IMAGES) * 100)
+    );
+    
+    const canUploadMore =
+      galleryImages.length < MAX_GALLERY_IMAGES;
 
   return (
     <main
@@ -171,9 +171,9 @@ export default async function TalentGalleryPage({
               </h1>
 
               <p className="mt-4 max-w-2xl text-sm leading-7 text-white/50 sm:text-base">
-                {isArabic
-                  ? "اعرض أفضل صورك، رتّبها بالطريقة التي تريدها، وحدد الصورة الرئيسية التي تظهر في ملفك."
-                  : "Showcase your best images, arrange them in your preferred order, and choose the main image for your profile."}
+              {isArabic
+  ? "اعرض أفضل صور أعمالك ورتّبها بالطريقة التي تريدها لتظهر للناشرين والشركات."
+  : "Showcase your best work and arrange it in the order you want publishers and companies to see."}
               </p>
             </div>
 
@@ -235,7 +235,7 @@ export default async function TalentGalleryPage({
               <GalleryUploadButton
               isArabic={isArabic}
               locale={locale}
-              currentImageCount={allImages.length}
+              currentImageCount={galleryImages.length}
               action={addOwnGalleryImageAction}
             />
             ) : (
@@ -258,7 +258,7 @@ export default async function TalentGalleryPage({
                   {isArabic ? "إجمالي الصور" : "Total Images"}
                 </p>
                 <p className="mt-2 text-5xl font-light text-white">
-                  {allImages.length}
+                  {galleryImages.length}
                 </p>
               </div>
 
@@ -270,7 +270,7 @@ export default async function TalentGalleryPage({
             <div className="mt-5">
               <div className="flex items-center justify-between text-xs text-white/35">
                 <span>{isArabic ? "سعة المعرض" : "Gallery Capacity"}</span>
-                <span>{allImages.length} / {MAX_GALLERY_IMAGES}</span>
+                <span>{galleryImages.length} / {MAX_GALLERY_IMAGES}</span>
               </div>
 
               <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10">
@@ -280,28 +280,11 @@ export default async function TalentGalleryPage({
                 />
               </div>
             </div>
-
-            <div className="mt-5 rounded-2xl border border-white/10 bg-black/20 p-4">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-white/35">
-                {isArabic ? "الصورة الرئيسية" : "Main Image"}
-              </p>
-
-              <p className="mt-2 inline-flex items-center gap-2 text-sm text-white/60">
-                <span className={`h-2 w-2 rounded-full ${talent.image_url ? "bg-emerald-300" : "bg-amber-300"}`} />
-                {talent.image_url
-                  ? isArabic
-                    ? "تم تحديد صورة رئيسية للملف."
-                    : "A main profile image is selected."
-                  : isArabic
-                    ? "لم يتم تحديد صورة رئيسية بعد."
-                    : "No main profile image selected yet."}
-              </p>
-            </div>
           </div>
         </section>
 
         <section className="mt-6">
-          {allImages.length === 0 ? (
+          {galleryImages.length === 0 ? (
             <div className="rounded-[2rem] border border-dashed border-white/10 bg-white/[0.02] px-5 py-14 text-center sm:px-8 sm:py-20">
               <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-gold/20 bg-gold/[0.05] text-gold">
                 <GalleryIcon name="image" className="h-6 w-6" />
@@ -319,14 +302,12 @@ export default async function TalentGalleryPage({
             </div>
           ) : (
             <GallerySortableList
-              images={allImages}
-              mainImageUrl={talent.image_url}
-              talentName={talentName}
-              locale={locale}
-              reorderAction={reorderOwnGalleryImagesAction}
-              setMainAction={setOwnMainImageAction}
-              removeAction={removeOwnGalleryImageAction}
-            />
+  images={galleryImages}
+  talentName={talentName}
+  locale={locale}
+  reorderAction={reorderOwnGalleryImagesAction}
+  removeAction={removeOwnGalleryImageAction}
+/>
           )}
         </section>
       </div>

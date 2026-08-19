@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { redirect } from "next/navigation";
+import LocalDateTime from "@/components/messages/LocalDateTime";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -29,6 +30,13 @@ type MessageRecord = {
   created_at: string;
 };
 
+type MessageAttachmentRecord = {
+  message_id: number | string;
+  conversation_id: number;
+  file_name: string;
+  mime_type: string;
+};
+
 type OpportunityRecord = {
   id: number;
   title: string | null;
@@ -40,22 +48,6 @@ type PublisherRecord = {
   contact_name: string | null;
   profile_image_url: string | null;
 };
-
-function formatConversationDate(value: string | null, locale: string) {
-  if (!value) return "";
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) return "";
-
-  return new Intl.DateTimeFormat(locale === "ar" ? "ar-SA" : "en-GB", {
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "UTC",
-  }).format(date);
-}
 
 export default async function TalentMessagesPage({
   params,
@@ -139,6 +131,7 @@ export default async function TalentMessagesPage({
 
   const [
     messagesResult,
+    attachmentsResult,
     opportunitiesResult,
     publishersResult,
   ] = await Promise.all([
@@ -155,6 +148,18 @@ export default async function TalentMessagesPage({
           `)
           .in("conversation_id", conversationIds)
           .order("created_at", { ascending: false })
+      : Promise.resolve({ data: [], error: null }),
+
+    conversationIds.length > 0
+      ? adminClient
+          .from("message_attachments")
+          .select(`
+            message_id,
+            conversation_id,
+            file_name,
+            mime_type
+          `)
+          .in("conversation_id", conversationIds)
       : Promise.resolve({ data: [], error: null }),
 
     opportunityIds.length > 0
@@ -183,6 +188,12 @@ export default async function TalentMessagesPage({
     );
   }
 
+  if (attachmentsResult.error) {
+    throw new Error(
+      `[TalentMessagesPage attachments] ${attachmentsResult.error.message}`,
+    );
+  }
+
   if (opportunitiesResult.error) {
     throw new Error(
       `[TalentMessagesPage opportunities] ${opportunitiesResult.error.message}`,
@@ -197,6 +208,21 @@ export default async function TalentMessagesPage({
 
   const messages =
     (messagesResult.data ?? []) as MessageRecord[];
+
+  const attachments =
+    (attachmentsResult.data ?? []) as MessageAttachmentRecord[];
+
+  const attachmentByMessageId = new Map<
+    string,
+    MessageAttachmentRecord
+  >();
+
+  for (const attachment of attachments) {
+    attachmentByMessageId.set(
+      String(attachment.message_id),
+      attachment,
+    );
+  }
 
   const opportunities =
     (opportunitiesResult.data ?? []) as OpportunityRecord[];
@@ -312,6 +338,51 @@ export default async function TalentMessagesPage({
                   conversation.id,
                 );
 
+                const latestAttachment = latestMessage
+                  ? attachmentByMessageId.get(
+                      String(latestMessage.id),
+                    )
+                  : undefined;
+
+                let latestMessagePreview =
+                  latestMessage?.body?.trim() ?? "";
+
+                if (!latestMessagePreview && latestAttachment) {
+                  const mimeType = latestAttachment.mime_type;
+
+                  if (mimeType.startsWith("audio/")) {
+                    latestMessagePreview = isArabic
+                      ? "🎙️ رسالة صوتية"
+                      : "🎙️ Voice message";
+                  } else if (mimeType.startsWith("image/")) {
+                    latestMessagePreview = isArabic
+                      ? "📷 صورة"
+                      : "📷 Photo";
+                  } else if (mimeType === "application/pdf") {
+                    latestMessagePreview = isArabic
+                      ? "📄 ملف PDF"
+                      : "📄 PDF file";
+                  } else if (
+                    mimeType === "application/msword" ||
+                    mimeType ===
+                      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                  ) {
+                    latestMessagePreview = isArabic
+                      ? "📄 ملف Word"
+                      : "📄 Word file";
+                  } else {
+                    latestMessagePreview = isArabic
+                      ? "📎 مرفق"
+                      : "📎 Attachment";
+                  }
+                }
+
+                if (!latestMessagePreview) {
+                  latestMessagePreview = isArabic
+                    ? "لا توجد رسائل بعد."
+                    : "No messages yet.";
+                }
+
                 const unreadCount =
                   unreadCountMap.get(conversation.id) ?? 0;
 
@@ -378,16 +449,12 @@ export default async function TalentMessagesPage({
                         </div>
 
                         <div className="shrink-0 text-end">
-                          <time
-                            suppressHydrationWarning
-                            dateTime={lastActivity ?? undefined}
+                          <LocalDateTime
+                            value={lastActivity}
+                            locale={locale}
+                            mode="conversation"
                             className="text-[9px] text-white/30 sm:text-[10px]"
-                          >
-                            {formatConversationDate(
-                              lastActivity,
-                              locale,
-                            )}
-                          </time>
+                          />
 
                           {unreadCount > 0 ? (
                             <span className="mt-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-gold px-1.5 text-[9px] font-medium text-black sm:mt-2 sm:h-6 sm:min-w-6 sm:px-2 sm:text-[10px]">
@@ -404,10 +471,7 @@ export default async function TalentMessagesPage({
                             : "text-white/35"
                         }`}
                       >
-                        {latestMessage?.body ||
-                          (isArabic
-                            ? "لا توجد رسائل بعد."
-                            : "No messages yet.")}
+                        {latestMessagePreview}
                       </p>
                     </div>
                   </Link>

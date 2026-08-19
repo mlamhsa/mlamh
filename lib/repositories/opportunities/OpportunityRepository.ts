@@ -13,8 +13,17 @@ export const opportunityStatuses = [
 export type OpportunityStatus =
   (typeof opportunityStatuses)[number];
 
+  export const opportunityPostingModes = [
+    "quick",
+    "project",
+  ] as const;
+  
+  export type OpportunityPostingMode =
+    (typeof opportunityPostingModes)[number];
+
   export type CreateOpportunityData = {
     publisher_id: number;
+    posting_mode: OpportunityPostingMode;
     title: string;
     description: string;
     slug: string;
@@ -24,9 +33,16 @@ export type OpportunityStatus =
     required_gender: string | null;
     min_age: number | null;
     max_age: number | null;
-    budget: string | null;
-    application_days: number;
+compensation_type: "fixed" | "negotiable" | "unpaid";
+budget: string | null;
+application_days: number;
     company_name: string;
+  
+    required_count: number | null;
+work_date: string | null;
+work_time: string | null;
+work_duration: string | null;
+role_requirements: Record<string, unknown>;
   };
 
 type OpportunityFilters = {
@@ -57,8 +73,10 @@ export class OpportunityRepository extends BaseRepository {
       .from("opportunities")
       .select(`
         id,
+        publisher_id,
         title,
         slug,
+        posting_mode,
         description,
         opportunity_type,
         city_ar,
@@ -66,11 +84,20 @@ export class OpportunityRepository extends BaseRepository {
         required_gender,
         min_age,
         max_age,
+        compensation_type,
         budget,
         company_name,
         contact_name,
         contact_phone,
         contact_email,
+        required_count,
+        work_date,
+        work_time,
+        work_duration,
+        role_requirements,
+        application_days,
+        application_start_date,
+        application_deadline,
         status,
         published,
         expires_at,
@@ -130,6 +157,7 @@ export class OpportunityRepository extends BaseRepository {
         id,
         title,
         publisher_id,
+          posting_mode,
         status,
         published,
         application_days,

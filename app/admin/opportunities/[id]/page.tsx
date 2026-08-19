@@ -1,9 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { revalidatePath } from "next/cache";
 
 import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  publishOpportunityAction,
+  hideOpportunityAction,
+} from "@/lib/actions/admin-opportunity-actions";
 
 export const metadata = {
   title: "Opportunity Details — MLAMH Admin",
@@ -14,44 +17,6 @@ type PageProps = {
   params: Promise<{ id: string }>;
 };
 
-async function publishOpportunityAction(formData: FormData) {
-  "use server";
-
-  const id = Number(formData.get("id"));
-  if (!id) return;
-
-  const adminClient = createAdminClient();
-
-  await adminClient
-    .from("opportunities")
-    .update({ published: true, status: "published" })
-    .eq("id", id);
-
-  revalidatePath(`/admin/opportunities/${id}`);
-  revalidatePath("/admin/opportunities");
-  revalidatePath("/ar/opportunities");
-  revalidatePath("/en/opportunities");
-}
-
-async function hideOpportunityAction(formData: FormData) {
-  "use server";
-
-  const id = Number(formData.get("id"));
-  if (!id) return;
-
-  const adminClient = createAdminClient();
-
-  await adminClient
-    .from("opportunities")
-    .update({ published: false, status: "draft" })
-    .eq("id", id);
-
-  revalidatePath(`/admin/opportunities/${id}`);
-  revalidatePath("/admin/opportunities");
-  revalidatePath("/ar/opportunities");
-  revalidatePath("/en/opportunities");
-}
-
 function formatDate(value?: string | null) {
   if (!value) return "—";
 
@@ -60,6 +25,33 @@ function formatDate(value?: string | null) {
     month: "short",
     day: "numeric",
   });
+}
+
+function formatCompensation(
+  compensationType: unknown,
+  budget: unknown,
+) {
+  const type = String(compensationType ?? "")
+    .trim()
+    .toLowerCase();
+
+  if (type === "unpaid") {
+    return "Unpaid";
+  }
+
+  if (type === "negotiable") {
+    return "Negotiable";
+  }
+
+  const amount = Number(
+    String(budget ?? "").replaceAll(",", ""),
+  );
+
+  if (Number.isFinite(amount) && amount > 0) {
+    return `SAR ${new Intl.NumberFormat("en-US").format(amount)}`;
+  }
+
+  return "Not specified";
 }
 
 function statusLabel(status?: string | null, published?: boolean) {
@@ -144,6 +136,7 @@ export default async function AdminOpportunityDetailsPage({ params }: PageProps)
       required_gender,
       min_age,
       max_age,
+      compensation_type,
       budget,
       company_name,
       contact_name,
@@ -293,7 +286,13 @@ export default async function AdminOpportunityDetailsPage({ params }: PageProps)
               <InfoBlock label="Type" value={opportunity.opportunity_type} />
               <InfoBlock label="City AR" value={opportunity.city_ar} />
               <InfoBlock label="City EN" value={opportunity.city_en} />
-              <InfoBlock label="Budget" value={opportunity.budget} />
+              <InfoBlock
+  label="Compensation"
+  value={formatCompensation(
+    opportunity.compensation_type,
+    opportunity.budget,
+  )}
+/>
               <InfoBlock label="Required Gender" value={opportunity.required_gender} />
               <InfoBlock
                 label="Age Range"

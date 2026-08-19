@@ -11,6 +11,7 @@ type OpportunitiesPageProps = {
     search?: string;
     city?: string;
     type?: string;
+    compensation?: string;
     sort?: string;
   }>;
 };
@@ -197,7 +198,7 @@ function getRelativeDate(date: string, locale: "ar" | "en") {
       return `منذ ${days} ${days === 1 ? "يوم" : "أيام"}`;
     }
 
-    return new Intl.DateTimeFormat("ar-SA", {
+    return new Intl.DateTimeFormat("ar-SA-u-nu-latn", {
       day: "numeric",
       month: "short",
       year: "numeric",
@@ -227,16 +228,103 @@ function isNewOpportunity(date?: string | null) {
   return diffHours <= 48;
 }
 
-function formatBudget(value: unknown, isRtl: boolean) {
+function formatBudget(
+  value: unknown,
+  compensationType: unknown,
+  isRtl: boolean,
+) {
+  const type = String(compensationType ?? "").toLowerCase();
+
+  if (type === "unpaid") {
+    return isRtl ? "غير مدفوع" : "Unpaid";
+  }
+
+  if (type === "negotiable") {
+    return isRtl ? "حسب الاتفاق" : "Negotiable";
+  }
+
   const budget = Number(value);
 
-  if (!budget) {
+  if (!Number.isFinite(budget) || budget <= 0) {
     return isRtl ? "حسب الاتفاق" : "By agreement";
   }
 
-  return `${new Intl.NumberFormat(isRtl ? "ar-SA" : "en-US").format(
-    budget,
-  )} ${isRtl ? "ريال" : "SAR"}`;
+  return `${new Intl.NumberFormat(
+    isRtl ? "ar-SA-u-nu-latn" : "en-US",
+  ).format(budget)} ${isRtl ? "ريال" : "SAR"}`;
+}
+
+function formatWorkDuration(
+  value: unknown,
+  isRtl: boolean,
+) {
+  if (!value) return "";
+
+  const normalized = String(value)
+    .trim()
+    .toLowerCase();
+
+  const labels: Record<
+    string,
+    { ar: string; en: string }
+  > = {
+    "1_hour": {
+      ar: "ساعة",
+      en: "1 Hour",
+    },
+    "2_hours": {
+      ar: "ساعتان",
+      en: "2 Hours",
+    },
+    "4_hours": {
+      ar: "4 ساعات",
+      en: "4 Hours",
+    },
+    "full_day": {
+      ar: "يوم كامل",
+      en: "Full Day",
+    },
+
+    // دعم البيانات القديمة
+    "1 hour": {
+      ar: "ساعة",
+      en: "1 Hour",
+    },
+    "2 hours": {
+      ar: "ساعتان",
+      en: "2 Hours",
+    },
+    "4 hours": {
+      ar: "4 ساعات",
+      en: "4 Hours",
+    },
+    "full day": {
+      ar: "يوم كامل",
+      en: "Full Day",
+    },
+
+    // دعم القيم القديمة التي ظهرت فعليًا
+    "hour 1": {
+      ar: "ساعة",
+      en: "1 Hour",
+    },
+    "hours 2": {
+      ar: "ساعتان",
+      en: "2 Hours",
+    },
+    "hours 4": {
+      ar: "4 ساعات",
+      en: "4 Hours",
+    },
+  };
+
+  const match = labels[normalized];
+
+  return match
+    ? isRtl
+      ? match.ar
+      : match.en
+    : String(value);
 }
 
 function getOpportunityTypeLabel(value: unknown, isRtl: boolean) {
@@ -245,7 +333,7 @@ function getOpportunityTypeLabel(value: unknown, isRtl: boolean) {
   const labels: Record<string, { ar: string; en: string }> = {
     actor: { ar: "ممثل", en: "Actor" },
     actress: { ar: "ممثلة", en: "Actress" },
-    model: { ar: "عارض أزياء", en: "Model" },
+    model: { ar: "مودل", en: "Model" },
     presenter: { ar: "مقدم", en: "Presenter" },
     voice_actor: { ar: "ممثل صوتي", en: "Voice Actor" },
     singer: { ar: "مغنٍ", en: "Singer" },
@@ -304,12 +392,61 @@ export default async function OpportunitiesPage({
     company?: string | null;
     cover_image?: string | null;
     image_url?: string | null;
+  
+    required_count?: number | null;
+    work_date?: string | null;
+    work_duration?: string | null;
+    required_gender?: string | null;
+    min_age?: number | null;
+    max_age?: number | null;
   };
 
+  type BudgetSortCategory =
+  | "numeric"
+  | "negotiable"
+  | "unpaid";
+
+const getBudgetSortData = (
+  item: Opportunity,
+): {
+  category: BudgetSortCategory;
+  value: number | null;
+} => {
+  const compensationType = String(
+    item.compensation_type ?? "",
+  ).toLowerCase();
+
+  if (compensationType === "unpaid") {
+    return {
+      category: "unpaid",
+      value: 0,
+    };
+  }
+
+  const budget = Number(item.budget);
+
+  if (
+    compensationType === "fixed" &&
+    Number.isFinite(budget) &&
+    budget > 0
+  ) {
+    return {
+      category: "numeric",
+      value: budget,
+    };
+  }
+
+  return {
+    category: "negotiable",
+    value: null,
+  };
+};
+
   const search = resolvedSearchParams.search ?? "";
-  const selectedCity = resolvedSearchParams.city ?? "";
-  const selectedType = resolvedSearchParams.type ?? "";
-  const selectedSort = resolvedSearchParams.sort || "newest";
+const selectedCity = resolvedSearchParams.city ?? "";
+const selectedType = resolvedSearchParams.type ?? "";
+const selectedCompensation = resolvedSearchParams.compensation ?? "";
+const selectedSort = resolvedSearchParams.sort || "newest";
 
   const cities = Array.from(
     new Set(
@@ -351,11 +488,25 @@ export default async function OpportunitiesPage({
         description.includes(normalizedSearch) ||
         company.includes(normalizedSearch);
 
-      const matchesCity = !selectedCity || city === selectedCity;
-      const matchesType =
-        !selectedType || item.opportunity_type === selectedType;
+        const matchesCity = !selectedCity || city === selectedCity;
 
-      return matchesSearch && matchesCity && matchesType;
+        const matchesType =
+          !selectedType || item.opportunity_type === selectedType;
+        
+        const compensationType = String(
+          item.compensation_type ?? "",
+        ).toLowerCase();
+        
+        const matchesCompensation =
+          !selectedCompensation ||
+          compensationType === selectedCompensation;
+        
+        return (
+          matchesSearch &&
+          matchesCity &&
+          matchesType &&
+          matchesCompensation
+        );
     })
     .sort((a: Opportunity, b: Opportunity) => {
       if (selectedSort === "oldest") {
@@ -365,12 +516,52 @@ export default async function OpportunitiesPage({
         );
       }
 
-      if (selectedSort === "budget_high") {
-        return Number(b.budget ?? 0) - Number(a.budget ?? 0);
-      }
-
-      if (selectedSort === "budget_low") {
-        return Number(a.budget ?? 0) - Number(b.budget ?? 0);
+      if (
+        selectedSort === "budget_high" ||
+        selectedSort === "budget_low"
+      ) {
+        const aBudget = getBudgetSortData(a);
+        const bBudget = getBudgetSortData(b);
+      
+        const categoryOrder: Record<
+          BudgetSortCategory,
+          number
+        > =
+          selectedSort === "budget_high"
+            ? {
+                numeric: 0,
+                negotiable: 1,
+                unpaid: 2,
+              }
+            : {
+                unpaid: 0,
+                numeric: 1,
+                negotiable: 2,
+              };
+      
+        const categoryDifference =
+          categoryOrder[aBudget.category] -
+          categoryOrder[bBudget.category];
+      
+        if (categoryDifference !== 0) {
+          return categoryDifference;
+        }
+      
+        if (
+          aBudget.category === "numeric" &&
+          bBudget.category === "numeric"
+        ) {
+          return selectedSort === "budget_high"
+            ? (bBudget.value ?? 0) -
+                (aBudget.value ?? 0)
+            : (aBudget.value ?? 0) -
+                (bBudget.value ?? 0);
+        }
+      
+        return (
+          new Date(b.created_at ?? 0).getTime() -
+          new Date(a.created_at ?? 0).getTime()
+        );
       }
 
       return (
@@ -391,6 +582,7 @@ export default async function OpportunitiesPage({
     search.trim() ||
       selectedCity.trim() ||
       selectedType.trim() ||
+      selectedCompensation.trim() ||
       selectedSort !== "newest",
   );
 
@@ -559,6 +751,28 @@ export default async function OpportunitiesPage({
               </div>
 
               <select
+  name="compensation"
+  defaultValue={selectedCompensation}
+  className="min-h-13 rounded-2xl border border-white/10 bg-black/30 px-4 text-sm text-white outline-none focus:border-gold/40"
+>
+  <option value="">
+    {isRtl ? "كل المقابل" : "All compensation"}
+  </option>
+
+  <option value="fixed">
+    {isRtl ? "مدفوع" : "Paid"}
+  </option>
+
+  <option value="negotiable">
+    {isRtl ? "حسب الاتفاق" : "Negotiable"}
+  </option>
+
+  <option value="unpaid">
+    {isRtl ? "غير مدفوع" : "Unpaid"}
+  </option>
+</select>
+
+              <select
                 name="sort"
                 defaultValue={selectedSort}
                 className="min-h-13 rounded-2xl border border-white/10 bg-black/30 px-4 text-sm text-white outline-none focus:border-gold/40"
@@ -665,7 +879,11 @@ export default async function OpportunitiesPage({
                   : "—";
 
                 const isNew = isNewOpportunity(item.created_at);
-                const budget = formatBudget(item.budget, isRtl);
+                const budget = formatBudget(
+                  item.budget,
+                  item.compensation_type,
+                  isRtl,
+                );
 
                 const typeLabel = getOpportunityTypeLabel(
                   item.opportunity_type,
@@ -756,6 +974,52 @@ export default async function OpportunitiesPage({
                             ? "لا يوجد وصف متاح لهذه الفرصة."
                             : "No description is available for this opportunity.")}
                       </p>
+
+                      <div className="mt-4 flex flex-wrap gap-2">
+  {item.required_count ? (
+    <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-xs text-white/55">
+      {isRtl
+        ? `${item.required_count} مطلوب`
+        : `${item.required_count} needed`}
+    </span>
+  ) : null}
+
+  {item.required_gender ? (
+    <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-xs text-white/55">
+      {item.required_gender === "male"
+        ? isRtl
+          ? "ذكر"
+          : "Male"
+        : item.required_gender === "female"
+          ? isRtl
+            ? "أنثى"
+            : "Female"
+          : isRtl
+            ? "أي جنس"
+            : "Any gender"}
+    </span>
+  ) : null}
+
+  {item.min_age !== null &&
+  item.min_age !== undefined ? (
+    <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-xs text-white/55">
+      {item.max_age !== null &&
+      item.max_age !== undefined
+        ? isRtl
+          ? `${item.min_age}-${item.max_age} سنة`
+          : `${item.min_age}-${item.max_age} yrs`
+        : isRtl
+          ? `${item.min_age}+ سنة`
+          : `${item.min_age}+ yrs`}
+    </span>
+  ) : null}
+
+  {item.work_duration ? (
+    <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-xs text-white/55">
+      {formatWorkDuration(item.work_duration, isRtl)}
+    </span>
+  ) : null}
+</div>
 
                       <div className="mt-5 flex items-center justify-between gap-4 border-t border-white/[0.08] pt-4">
                         <span>
@@ -908,7 +1172,7 @@ export default async function OpportunitiesPage({
 
             <form
               method="GET"
-              className="mt-5 grid gap-3 lg:grid-cols-[1.3fr_1fr_1fr_1fr_auto_auto]"
+              className="mt-5 grid gap-3 lg:grid-cols-[1.3fr_1fr_1fr_1fr_1fr_auto_auto]"
             >
               <label className="relative">
                 <OpportunityIcon
@@ -964,7 +1228,27 @@ export default async function OpportunitiesPage({
                   </option>
                 ))}
               </select>
+              <select
+  name="compensation"
+  defaultValue={selectedCompensation}
+  className="rounded-2xl border border-white/10 bg-black/30 px-4 py-4 text-sm text-white outline-none transition focus:border-gold/40"
+>
+  <option value="">
+    {isRtl ? "كل المقابل" : "All Compensation"}
+  </option>
 
+  <option value="fixed">
+    {isRtl ? "مدفوع" : "Paid"}
+  </option>
+
+  <option value="negotiable">
+    {isRtl ? "حسب الاتفاق" : "Negotiable"}
+  </option>
+
+  <option value="unpaid">
+    {isRtl ? "غير مدفوع" : "Unpaid"}
+  </option>
+</select>
               <select
                 name="sort"
                 defaultValue={selectedSort}
@@ -1057,7 +1341,11 @@ export default async function OpportunitiesPage({
                   : "—";
 
                 const isNew = isNewOpportunity(item.created_at);
-                const budget = formatBudget(item.budget, isRtl);
+                const budget = formatBudget(
+                  item.budget,
+                  item.compensation_type,
+                  isRtl,
+                );
 
                 const typeLabel = getOpportunityTypeLabel(
                   item.opportunity_type,
@@ -1148,6 +1436,52 @@ export default async function OpportunitiesPage({
                             ? "لا يوجد وصف متاح لهذه الفرصة."
                             : "No description is available for this opportunity.")}
                       </p>
+
+                      <div className="mt-4 flex flex-wrap gap-2">
+  {item.required_count ? (
+    <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-xs text-white/55">
+      {isRtl
+        ? `${item.required_count} مطلوب`
+        : `${item.required_count} needed`}
+    </span>
+  ) : null}
+
+  {item.required_gender ? (
+    <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-xs text-white/55">
+      {item.required_gender === "male"
+        ? isRtl
+          ? "ذكر"
+          : "Male"
+        : item.required_gender === "female"
+          ? isRtl
+            ? "أنثى"
+            : "Female"
+          : isRtl
+            ? "أي جنس"
+            : "Any gender"}
+    </span>
+  ) : null}
+
+  {item.min_age !== null &&
+  item.min_age !== undefined ? (
+    <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-xs text-white/55">
+      {item.max_age !== null &&
+      item.max_age !== undefined
+        ? isRtl
+          ? `${item.min_age}-${item.max_age} سنة`
+          : `${item.min_age}-${item.max_age} yrs`
+        : isRtl
+          ? `${item.min_age}+ سنة`
+          : `${item.min_age}+ yrs`}
+    </span>
+  ) : null}
+
+  {item.work_duration ? (
+    <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-xs text-white/55">
+      {formatWorkDuration(item.work_duration, isRtl)}
+    </span>
+  ) : null}
+</div>
 
                       <div className="mt-6 grid grid-cols-2 gap-3 border-t border-white/10 pt-5">
                         <div className="rounded-2xl border border-white/10 bg-black/20 p-4">

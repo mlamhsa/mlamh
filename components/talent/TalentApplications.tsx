@@ -9,6 +9,8 @@ import {
 } from "lucide-react";
 
 type Opportunity = {
+  id?: string | number | null;
+  slug?: string | null;
   title?: string | null;
   opportunity_type?: string | null;
 };
@@ -18,6 +20,7 @@ type RecentApplication = {
   status?: string | null;
   created_at?: string | null;
   opportunities?: Opportunity | Opportunity[] | null;
+  conversationId?: string | number | null;
 };
 
 type TalentApplicationsProps = {
@@ -173,13 +176,26 @@ export default function TalentApplications({
         {recentApplications.length > 0 ? (
           <div className="space-y-3">
             {recentApplications.map((application) => {
-              const opportunity = Array.isArray(
-                application.opportunities,
-              )
-                ? application.opportunities[0]
-                : application.opportunities;
+  const opportunity = Array.isArray(
+    application.opportunities,
+  )
+    ? application.opportunities[0]
+    : application.opportunities;
 
-              return (
+    const opportunityHref =
+    opportunity?.slug || opportunity?.id
+      ? `/${locale}/opportunities/${opportunity.slug ?? opportunity.id}`
+      : null;
+
+  const normalizedStatus = normalizeStatus(
+    application.status,
+  );
+
+  const canMessagePublisher =
+    normalizedStatus === "accepted" &&
+    Boolean(application.conversationId);
+
+  return (
                 <article
                   key={application.id}
                   className="rounded-[1.35rem] border border-white/10 bg-black/25 p-4 transition hover:border-gold/30 sm:rounded-[1.5rem] sm:p-5"
@@ -231,6 +247,35 @@ export default function TalentApplications({
                       </time>
                     </div>
                   </div>
+                  <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-white/[0.07] pt-4">
+                  {opportunityHref ? (
+  <Link
+    href={opportunityHref}
+    className="arabic-safe inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-white/10 px-4 text-[11px] text-white/55 transition hover:border-gold/40 hover:text-gold"
+  >
+    {isRtl ? "عرض الفرصة" : "View Opportunity"}
+    <ArrowUpRight
+      size={14}
+      aria-hidden="true"
+      className={isRtl ? "-scale-x-100" : undefined}
+    />
+  </Link>
+) : null}
+
+  {canMessagePublisher && application.conversationId ? (
+    <Link
+      href={`/${locale}/talent-dashboard/messages/${application.conversationId}`}
+      className="arabic-safe inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-gold/40 bg-gold/[0.08] px-4 text-[11px] text-gold transition hover:bg-gold hover:text-black"
+    >
+      {isRtl ? "مراسلة الناشر" : "Message Publisher"}
+      <ArrowUpRight
+        size={14}
+        aria-hidden="true"
+        className={isRtl ? "-scale-x-100" : undefined}
+      />
+    </Link>
+  ) : null}
+</div>
                 </article>
               );
             })}

@@ -13,6 +13,7 @@ import {
 const publisherStatuses = [
   "draft",
   "pending_review",
+  "needs_changes",
   "closed",
   "archived",
 ] as const;
@@ -21,10 +22,18 @@ const publiclyVisibleStatuses = ["open", "published"] as const;
 
 const allowedGenders = ["any", "male", "female"] as const;
 
+const compensationTypes = [
+  "fixed",
+  "negotiable",
+  "unpaid",
+] as const;
+
 type PublisherStatus = (typeof publisherStatuses)[number];
 type PublicStatus = (typeof publiclyVisibleStatuses)[number];
 type OpportunityStatus = PublisherStatus | PublicStatus;
 type AllowedGender = (typeof allowedGenders)[number];
+type CompensationType =
+  (typeof compensationTypes)[number];
 
 type UpdateOpportunityPayload = {
   id: number;
@@ -37,8 +46,10 @@ type UpdateOpportunityPayload = {
   opportunity_type: string;
   status: string;
   min_age?: number | null;
-  max_age?: number | null;
-  budget?: string | null;
+max_age?: number | null;
+compensation_type?: string | null;
+budget?: string | null;
+application_days?: number | null;
 };
 
 function cleanText(value: unknown) {
@@ -66,7 +77,7 @@ function isOpportunityStatus(
 function isValidAge(value: number | null) {
   return (
     value === null ||
-    (Number.isInteger(value) && value >= 1 && value <= 100)
+    (Number.isInteger(value) && value >= 0 && value <= 100)
   );
 }
 
@@ -115,7 +126,42 @@ export async function updateOpportunityAction(
   const requestedStatus = cleanText(payload.status) || "draft";
   const minAge = payload.min_age ?? null;
   const maxAge = payload.max_age ?? null;
-  const budget = normalizeBudget(payload.budget);
+  const applicationDays =
+  payload.application_days ?? 30;
+
+if (
+  !Number.isInteger(applicationDays) ||
+  applicationDays < 1 ||
+  applicationDays > 90
+) {
+  throw new Error(
+    "Application period must be between 1 and 90 days.",
+  );
+}
+  const compensationType =
+  cleanText(payload.compensation_type) || "fixed";
+
+if (
+  !compensationTypes.includes(
+    compensationType as CompensationType,
+  )
+) {
+  throw new Error("Invalid compensation type.");
+}
+
+const normalizedBudget =
+  compensationType === "fixed"
+    ? normalizeBudget(payload.budget)
+    : null;
+
+if (
+  compensationType === "fixed" &&
+  !normalizedBudget
+) {
+  throw new Error(
+    "A budget is required for fixed compensation.",
+  );
+}
 
   if (title.length < 3 || title.length > 120) {
     throw new Error(
@@ -157,7 +203,7 @@ export async function updateOpportunityAction(
 
   if (!isValidAge(minAge) || !isValidAge(maxAge)) {
     throw new Error(
-      "Age must be a whole number between 1 and 100.",
+      "Age must be a whole number between 0 and 100.",
     );
   }
 
@@ -172,11 +218,11 @@ export async function updateOpportunityAction(
   }
 
   const { data: profile, error: profileError } =
-    await adminClient
-      .from("profiles")
-      .select("id, account_type")
-      .eq("user_id", user.id)
-      .maybeSingle();
+  await adminClient
+    .from("profiles")
+    .select("id, account_type, approval_status")
+    .eq("user_id", user.id)
+    .maybeSingle();
 
   if (profileError) {
     console.error(
@@ -191,12 +237,20 @@ export async function updateOpportunityAction(
     throw new Error("Publisher access required.");
   }
 
+  if (profile.approval_status !== "approved") {
+    throw new Error(
+      locale === "ar"
+        ? "يجب اعتماد حساب الناشر من الإدارة قبل تعديل الفرص."
+        : "Your publisher account must be approved before editing opportunities.",
+    );
+  }
+
   const { data: publisher, error: publisherError } =
-    await adminClient
-      .from("publishers")
-      .select("id")
-      .eq("profile_id", profile.id)
-      .maybeSingle();
+  await adminClient
+    .from("publishers")
+    .select("id, status")
+    .eq("profile_id", profile.id)
+    .maybeSingle();
 
   if (publisherError) {
     console.error(
@@ -213,6 +267,14 @@ export async function updateOpportunityAction(
     throw new Error("Publisher account not found.");
   }
 
+  if (publisher.status === "suspended") {
+    throw new Error(
+      locale === "ar"
+        ? "حساب الناشر موقوف حاليًا ولا يمكنه تعديل الفرص."
+        : "Your publisher account is currently suspended and cannot edit opportunities.",
+    );
+  }
+  
   const { data: opportunity, error: opportunityError } =
     await adminClient
       .from("opportunities")
@@ -245,9 +307,11 @@ export async function updateOpportunityAction(
   }
 
   const allowedNextStatuses: OpportunityStatus[] =
-    currentStatus === "open" ||
-    currentStatus === "published"
-      ? [currentStatus, "closed", "archived"]
+  currentStatus === "open" ||
+  currentStatus === "published"
+    ? [currentStatus, "closed", "archived"]
+    : currentStatus === "needs_changes"
+      ? ["draft", "pending_review", "closed", "archived"]
       : [
           "draft",
           "pending_review",
@@ -269,6 +333,10 @@ export async function updateOpportunityAction(
     (currentStatus === "open" ||
       currentStatus === "published") &&
     requestedStatus === currentStatus;
+
+    const isResubmittedAfterChanges =
+  currentStatus === "needs_changes" &&
+  requestedStatus === "pending_review";
 
   const finalStatus: OpportunityStatus =
     requiresNewReview
@@ -294,9 +362,16 @@ export async function updateOpportunityAction(
       required_gender: gender || "any",
       opportunity_type: opportunityType,
       min_age: minAge,
-      max_age: maxAge,
-      budget,
-      status: finalStatus,
+max_age: maxAge,
+
+compensation_type:
+  compensationType as CompensationType,
+
+budget: normalizedBudget,
+
+application_days: applicationDays,
+
+status: finalStatus,
       published: isPubliclyVisible,
       updated_at: new Date().toISOString(),
     })
@@ -314,7 +389,7 @@ export async function updateOpportunityAction(
     throw new Error("Unable to update the opportunity.");
   }
 
-  if (requiresNewReview) {
+  if (requiresNewReview || isResubmittedAfterChanges) {
     try {
       await createEvent({
         type: EVENT_TYPES.opportunity_pending_review,
@@ -328,7 +403,11 @@ export async function updateOpportunityAction(
           city_ar: cityAr,
           city_en: cityEn,
           opportunityType,
-          reason: "updated_after_publication",
+          compensationType,
+          budget: normalizedBudget,
+          reason: isResubmittedAfterChanges
+  ? "resubmitted_after_changes"
+  : "updated_after_publication",
         },
       });
     } catch (eventError) {

@@ -1,8 +1,7 @@
 import { Footer } from "@/components/Footer";
-import { JoinTalentForm } from "@/components/JoinTalentForm";
+import { TalentQuickSetupForm } from "@/components/TalentQuickSetupForm";
 import { Navbar } from "@/components/Navbar";
 import {
-  getDictionary,
   isValidLocale,
   type Locale,
 } from "@/lib/i18n";
@@ -13,7 +12,17 @@ type PageProps = {
   params: Promise<{ locale: string }>;
 };
 
-export default async function JoinTalentPage({ params }: PageProps) {
+type ProfileRow = {
+  account_type: string | null;
+  display_name: string | null;
+  phone: string | null;
+  onboarding_status: string | null;
+  onboarding_step: string | null;
+};
+
+export default async function JoinTalentPage({
+  params,
+}: PageProps) {
   const { locale: localeParam } = await params;
 
   if (!isValidLocale(localeParam)) {
@@ -27,13 +36,54 @@ export default async function JoinTalentPage({ params }: PageProps) {
 
   const {
     data: { user },
+    error: userError,
   } = await authClient.auth.getUser();
 
-  if (!user) {
-    redirect(`/${locale}/join`);
+  if (userError || !user) {
+    redirect(`/${locale}/join?type=talent`);
   }
 
-  const dict = getDictionary(locale);
+  /*
+   * نتحقق من حالة استكمال الحساب قبل عرض النموذج.
+   */
+  const {
+    data: profile,
+    error: profileError,
+  } = await authClient
+    .from("profiles")
+    .select(
+      "account_type, display_name, phone, onboarding_status, onboarding_step"
+    )
+    .eq("user_id", user.id)
+    .maybeSingle<ProfileRow>();
+
+  if (profileError) {
+    console.error(
+      "[JoinTalentPage profileLookup]",
+      profileError
+    );
+  }
+
+  /*
+   * إذا اكتمل تسجيل الموهبة، لا نعرض نموذج التسجيل مرة أخرى.
+   */
+  if (
+    profile?.account_type === "talent" &&
+    profile.onboarding_status === "completed"
+  ) {
+    redirect(`/${locale}/dashboard/talent`);
+  }
+
+  /*
+   * منع حساب الناشر من الدخول إلى تسجيل الموهبة
+   * بعد اكتمال تحديد نوع حسابه.
+   */
+  if (
+    profile?.account_type === "publisher" &&
+    profile.onboarding_status === "completed"
+  ) {
+    redirect(`/${locale}/dashboard/publisher`);
+  }
 
   const displayFont = isRtl
     ? "var(--font-noto-arabic)"
@@ -45,9 +95,9 @@ export default async function JoinTalentPage({ params }: PageProps) {
 
   return (
     <main
-      dir={isRtl ? "rtl" : "ltr"}
-      className="relative z-[2] bg-background"
-    >
+  dir={isRtl ? "rtl" : "ltr"}
+  className="relative z-[2] bg-background pb-[calc(4.75rem+env(safe-area-inset-bottom))] lg:pb-0"
+>
       <Navbar locale={locale} />
 
       <div className="relative overflow-hidden pb-20 pt-28 md:pb-28 md:pt-32">
@@ -58,9 +108,9 @@ export default async function JoinTalentPage({ params }: PageProps) {
           <div className="absolute left-1/2 top-0 h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-gold/[0.04] blur-[100px]" />
         </div>
 
-        <div className="relative mx-auto max-w-3xl px-4 sm:px-6 lg:max-w-4xl lg:px-10">
+        <div className="group relative mx-auto max-w-3xl px-4 sm:px-6 lg:max-w-4xl lg:px-10">
           <header
-            className={`mb-10 sm:mb-14 md:mb-16 ${
+            className={`mb-10 group-has-[.talent-setup-success]:hidden sm:mb-14 md:mb-16 ${
               isRtl ? "text-right" : "text-left"
             }`}
           >
@@ -72,9 +122,9 @@ export default async function JoinTalentPage({ params }: PageProps) {
               <span className="gold-line max-w-[80px] flex-1" />
 
               <p className="arabic-safe text-[10px] uppercase tracking-[0.4em] text-gold">
-                {isRtl
-                  ? "استكمال ملف الموهبة"
-                  : "Complete Talent Profile"}
+              {isRtl
+  ? "إعداد حساب الموهبة"
+  : "Talent Account Setup"}
               </p>
             </div>
 
@@ -83,8 +133,8 @@ export default async function JoinTalentPage({ params }: PageProps) {
               style={{ fontFamily: displayFont }}
             >
               {isRtl
-                ? "أكمل ملفك كموهبة"
-                : "Complete Your Talent Profile"}
+  ? "خطوتك الأخيرة"
+  : "One Last Step"}
             </h1>
 
             <p
@@ -92,12 +142,14 @@ export default async function JoinTalentPage({ params }: PageProps) {
               style={{ fontFamily: bodyFont }}
             >
               {isRtl
-                ? "تم إنشاء حسابك. الآن أكمل بيانات الموهبة حتى نجهز ملفك ولوحة التحكم."
-                : "Your account has been created. Now complete your talent details so we can prepare your profile and dashboard."}
+  ? "اختر تخصصك الأساسي، وسننقلك مباشرة إلى ملامح."
+  : "Choose your primary talent type, and we'll take you straight into MLAMH."}
             </p>
           </header>
 
-          <JoinTalentForm dict={dict} locale={locale} />
+          <TalentQuickSetupForm
+  locale={locale}
+/>
         </div>
 
         <div

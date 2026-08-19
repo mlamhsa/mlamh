@@ -1,0 +1,298 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+
+import {
+  isValidLocale,
+  type Locale,
+} from "@/lib/i18n";
+import { TalentProfileService } from "@/lib/services/talent/TalentProfileService";
+import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  createEvent,
+  EVENT_TARGETS,
+  EVENT_TYPES,
+} from "@/lib/events";
+
+import {
+  getTalentProfileReviewReadiness,
+} from "@/lib/talent/profile-review-readiness";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
+
+type SubmitReviewResult = {
+  success: boolean;
+  message: string;
+  completion?: number;
+};
+
+export async function submitTalentProfileReviewAction(
+  localeParam: string,
+): Promise<SubmitReviewResult> {
+  const locale: Locale = isValidLocale(localeParam)
+    ? localeParam
+    : "ar";
+
+  const isArabic = locale === "ar";
+
+  const authClient =
+    await createServerSupabaseClient();
+
+  const adminClient = createAdminClient();
+
+  const {
+    data: { user },
+    error: userError,
+  } = await authClient.auth.getUser();
+
+  if (userError || !user) {
+    return {
+      success: false,
+      message: isArabic
+        ? "انتهت جلسة تسجيل الدخول. سجل الدخول مجددًا."
+        : "Your session has expired. Please sign in again.",
+    };
+  }
+
+  const {
+    data: profile,
+    error: profileError,
+  } = await adminClient
+    .from("profiles")
+    .select(
+      "id, account_type, approval_status",
+    )
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (profileError || !profile) {
+    console.error(
+      "[submitTalentProfileReviewAction profile]",
+      profileError,
+    );
+
+    return {
+      success: false,
+      message: isArabic
+        ? "تعذر العثور على بيانات الحساب."
+        : "Unable to find your account profile.",
+    };
+  }
+
+  if (profile.account_type !== "talent") {
+    return {
+      success: false,
+      message: isArabic
+        ? "هذا الإجراء متاح لحسابات المواهب فقط."
+        : "This action is only available to talent accounts.",
+    };
+  }
+
+  if (
+    profile.approval_status === "pending" ||
+    profile.approval_status === "submitted"
+  ) {
+    return {
+      success: false,
+      message: isArabic
+        ? "ملفك قيد المراجعة بالفعل."
+        : "Your profile is already under review.",
+    };
+  }
+
+  if (profile.approval_status === "approved") {
+    return {
+      success: false,
+      message: isArabic
+        ? "ملفك معتمد بالفعل."
+        : "Your profile is already approved.",
+    };
+  }
+
+  const {
+    data: talent,
+    error: talentError,
+  } = await adminClient
+    .from("talents")
+    .select("*")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (talentError || !talent) {
+    console.error(
+      "[submitTalentProfileReviewAction talent]",
+      talentError,
+    );
+
+    return {
+      success: false,
+      message: isArabic
+        ? "أكمل إنشاء ملف الموهبة أولًا."
+        : "Complete your talent profile first.",
+    };
+  }
+
+  const completion =
+  TalentProfileService.calculateCompletion(
+    talent,
+  );
+
+  const readiness =
+  getTalentProfileReviewReadiness(
+    talent,
+  );
+
+if (!readiness.canSubmitForReview) {
+  const missingFields =
+    readiness.missingRequirements
+      .map((requirement) =>
+        isArabic
+          ? requirement.ar
+          : requirement.en,
+      )
+      .join("، ");
+
+  return {
+    success: false,
+    completion,
+    message: isArabic
+      ? `أكمل البيانات المطلوبة قبل إرسال الملف للمراجعة: ${missingFields}`
+      : `Complete the required information before submitting your profile: ${missingFields}`,
+  };
+}
+
+  const submittedAt =
+    new Date().toISOString();
+
+  const {
+    error: profileUpdateError,
+  } = await adminClient
+    .from("profiles")
+    .update({
+      onboarding_status: "completed",
+      onboarding_step: "profile_review",
+      approval_status: "pending",
+      profile_completed_at:
+        submittedAt,
+    })
+    .eq("id", profile.id)
+    .eq("user_id", user.id);
+
+  if (profileUpdateError) {
+    console.error(
+      "[submitTalentProfileReviewAction updateProfile]",
+      profileUpdateError,
+    );
+
+    return {
+      success: false,
+      message: isArabic
+        ? "تعذر إرسال الملف للمراجعة. حاول مرة أخرى."
+        : "Unable to submit the profile for review. Please try again.",
+    };
+  }
+
+  const {
+    error: talentUpdateError,
+  } = await adminClient
+    .from("talents")
+    .update({
+      status: "pending",
+      published: false,
+      verified: false,
+    })
+    .eq("user_id", user.id);
+
+  if (talentUpdateError) {
+    console.error(
+      "[submitTalentProfileReviewAction updateTalent]",
+      talentUpdateError,
+    );
+
+    return {
+      success: false,
+      message: isArabic
+        ? "تم تحديث حالة الحساب، لكن تعذر تحديث حالة ملف الموهبة."
+        : "The account status was updated, but the talent profile status could not be updated.",
+    };
+  }
+
+  try {
+    const talentName =
+      locale === "ar"
+        ? String(
+            talent.name_ar ||
+            talent.name_en ||
+            "",
+          ).trim()
+        : String(
+            talent.name_en ||
+            talent.name_ar ||
+            "",
+          ).trim();
+  
+    await createEvent({
+      type:
+        EVENT_TYPES.talent_created,
+  
+      target:
+        EVENT_TARGETS.ADMIN,
+  
+      targetId:
+        "admin",
+  
+      actorId:
+        talent.id,
+  
+      metadata: {
+        locale,
+        talent_id:
+          talent.id,
+  
+        user_id:
+          user.id,
+  
+        talent_name:
+          talentName,
+  
+        primary_role:
+          talent.primary_role,
+  
+        city_slug:
+          talent.city_slug,
+      },
+    });
+  } catch (eventError) {
+    console.error(
+      "[submitTalentProfileReviewAction event]",
+      eventError,
+    );
+  }
+
+  revalidatePath(
+    `/${locale}/talent-dashboard`,
+  );
+
+  revalidatePath(
+    `/${locale}/talent-dashboard/profile`,
+  );
+
+  revalidatePath(
+    "/admin",
+  );
+  
+  revalidatePath(
+    "/admin/talents",
+  );
+  
+  revalidatePath(
+    "/admin/notifications",
+  );
+  
+  return {
+    success: true,
+    completion,
+    message: isArabic
+      ? "تم إرسال ملفك للمراجعة بنجاح."
+      : "Your profile has been submitted for review.",
+  };
+}

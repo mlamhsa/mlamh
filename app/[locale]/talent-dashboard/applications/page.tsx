@@ -6,6 +6,9 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 type PageProps = {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<{
+    status?: string;
+  }>;
 };
 
 type ApplicationStatus =
@@ -204,8 +207,12 @@ function DashboardIcon({
   );
 }
 
-export default async function TalentRequestsPage({ params }: PageProps) {
+export default async function TalentRequestsPage({
+  params,
+  searchParams,
+}: PageProps) {
   const { locale } = await params;
+  const { status } = await searchParams;
   const isArabic = locale === "ar";
 
   const authClient = await createServerSupabaseClient();
@@ -299,7 +306,48 @@ export default async function TalentRequestsPage({ params }: PageProps) {
   }
 
   const allApplications = (applications ?? []) as ApplicationRecord[];
+  const acceptedApplicationIds = allApplications
+  .filter(
+    (application) =>
+      normalizeStatus(application.status) === "accepted",
+  )
+  .map((application) => application.id);
 
+const conversationByApplicationId = new Map<string, string>();
+
+if (acceptedApplicationIds.length > 0) {
+  const { data: conversations, error: conversationsError } =
+    await adminClient
+      .from("conversations")
+      .select("id, application_id")
+      .in("application_id", acceptedApplicationIds);
+
+  if (conversationsError) {
+    console.error(
+      "[TalentRequestsPage conversations]",
+      conversationsError,
+    );
+  } else {
+    for (const conversation of conversations ?? []) {
+      if (
+        conversation.application_id !== null &&
+        conversation.application_id !== undefined
+      ) {
+        conversationByApplicationId.set(
+          String(conversation.application_id),
+          String(conversation.id),
+        );
+      }
+    }
+  }
+}
+  const filteredApplications =
+  status &&
+  ["pending","reviewing","shortlisted","accepted","rejected"].includes(status)
+    ? allApplications.filter(
+        app => normalizeStatus(app.status) === status
+      )
+    : allApplications;
   const counts = allApplications.reduce(
     (result, application) => {
       const status = normalizeStatus(application.status);
@@ -454,20 +502,26 @@ export default async function TalentRequestsPage({ params }: PageProps) {
 
             <p className="text-xs text-white/35">
               {isArabic
-                ? `${counts.total} طلب`
+                ? `${filteredApplications.length} طلب`
                 : `${counts.total} application${counts.total === 1 ? "" : "s"}`}
             </p>
           </div>
 
-          {allApplications.length > 0 ? (
+          {filteredApplications.length > 0 ? (
             <div className="space-y-3">
-              {allApplications.map((application) => {
+              {filteredApplications.map((application) => {
                 const opportunity = getOpportunity(application);
                 const normalizedStatus = normalizeStatus(application.status);
                 const opportunityHref = opportunity?.slug
                   ? `/${locale}/opportunities/${opportunity.slug}`
                   : `/${locale}/opportunities`;
-
+                  
+                  const conversationId = conversationByApplicationId.get(
+                    String(application.id),
+                  );
+                  
+                  const canMessagePublisher =
+                    normalizedStatus === "accepted" && Boolean(conversationId);
                 return (
                   <article
                     key={application.id}
@@ -518,13 +572,25 @@ export default async function TalentRequestsPage({ params }: PageProps) {
                         value={formatDate(application.created_at, locale)}
                       />
 
-                      <Link
-                        href={opportunityHref}
-                        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-white/10 px-4 text-xs text-white/60 transition hover:border-gold/40 hover:text-gold"
-                      >
-                        {isArabic ? "عرض الفرصة" : "View Opportunity"}
-                        <DashboardIcon name="arrow" className="h-4 w-4" />
-                      </Link>
+<div className="flex flex-col gap-2 sm:flex-row lg:flex-col">
+  <Link
+    href={opportunityHref}
+    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-white/10 px-4 text-xs text-white/60 transition hover:border-gold/40 hover:text-gold"
+  >
+    {isArabic ? "عرض الفرصة" : "View Opportunity"}
+    <DashboardIcon name="arrow" className="h-4 w-4" />
+  </Link>
+
+  {canMessagePublisher && conversationId ? (
+    <Link
+      href={`/${locale}/talent-dashboard/messages/${conversationId}`}
+      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-gold/40 bg-gold/[0.08] px-4 text-xs text-gold transition hover:bg-gold hover:text-black"
+    >
+      {isArabic ? "مراسلة الناشر" : "Message Publisher"}
+      <DashboardIcon name="arrow" className="h-4 w-4" />
+    </Link>
+  ) : null}
+</div>
                     </div>
                   </article>
                 );

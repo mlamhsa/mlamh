@@ -1,5 +1,5 @@
 "use client";
-
+import Link from "next/link";
 import {
   use,
   useCallback,
@@ -12,18 +12,21 @@ import {
 import { useAutoSave } from "@/hooks/useAutoSave";
 
 import {
+  getOwnPendingTalentProfileChangeAction,
   getOwnTalentProfileAction,
   updateOwnTalentProfileAction,
 } from "@/lib/actions/update-own-talent-profile";
 
 import IdentityCard from "@/components/talent/profile/IdentityCard";
+import { submitTalentProfileReviewAction } from "@/lib/actions/submit-talent-profile-review";
 import AboutCard from "@/components/talent/profile/AboutCard";
 import MeasurementsCard from "@/components/talent/profile/MeasurementsCard";
 import ExperienceCard from "@/components/talent/profile/ExperienceCard";
 import { isValidLocale, type Locale } from "@/lib/i18n";
 import ProfileCompletionCard from "@/components/talent/profile/ProfileCompletionCard";
 
-import { TalentProfileService } from "@/lib/services/talent/TalentProfileService";
+import { calculateProfileCompletion } from "@/lib/utils/profile-completion";
+import { getTalentProfileReadiness } from "@/lib/talent/profile-review-readiness";
 
 import { TALENT_CATEGORIES } from "@/lib/data/talent-categories";
 import { SAUDI_CITIES } from "@/lib/data/saudi-cities";
@@ -37,8 +40,13 @@ import {
 type TalentProfileFormData = {
   name_en: string;
   name_ar: string;
+  phone: string;
 
   category_slug: string;
+  primary_role: string;
+  acting_age_min: string;
+  acting_age_max: string;
+  modeling_types: string[];
   city_slug: string;
 
   nationality: string;
@@ -89,6 +97,16 @@ type TalentProfileFormData = {
   gallery_images: string[];
 };
 
+type PendingProfileChange = {
+  id: number | string;
+  requested_name_ar: string | null;
+  requested_name_en: string | null;
+  requested_phone: string | null;
+  requested_nationality_slug: string | null;
+  status: string;
+  created_at: string;
+};
+
 type SelectOption = {
   value: string;
   label: string;
@@ -136,6 +154,19 @@ const SKILL_OPTION_DEFINITIONS: LocalizedOption[] = [
   { value: "singing", ar: "غناء", en: "Singing" },
   { value: "dancing", ar: "رقص", en: "Dancing" },
   { value: "sports", ar: "رياضة", en: "Sports" },
+];
+
+const PRIMARY_ROLE_OPTIONS: LocalizedOption[] = [
+  { value: "actor", ar: "ممثل", en: "Actor" },
+  { value: "model", ar: "مودل", en: "Model" },
+];
+
+const MODELING_TYPE_OPTION_DEFINITIONS: LocalizedOption[] = [
+  { value: "commercial", ar: "إعلاني", en: "Commercial" },
+  { value: "fashion", ar: "أزياء", en: "Fashion" },
+  { value: "beauty", ar: "جمال", en: "Beauty" },
+  { value: "lifestyle", ar: "لايف ستايل", en: "Lifestyle" },
+  { value: "ecommerce", ar: "متاجر إلكترونية", en: "E-commerce" },
 ];
 
 const GENDER_OPTION_DEFINITIONS: LocalizedOption[] = [
@@ -209,8 +240,13 @@ const CLOTHING_SIZE_OPTIONS: SelectOption[] = [
 const EMPTY_FORM_DATA: TalentProfileFormData = {
   name_en: "",
   name_ar: "",
+  phone: "",
 
   category_slug: "",
+  primary_role: "",
+  acting_age_min: "",
+  acting_age_max: "",
+  modeling_types: [],
   city_slug: "",
 
   nationality: "",
@@ -413,6 +449,77 @@ function ChipMultiSelect({
   );
 }
 
+
+function PrimaryRoleSelector({
+  value,
+  isArabic,
+  onChange,
+}: {
+  value: string;
+  isArabic: boolean;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="rounded-[1.75rem] border border-gold/20 bg-[radial-gradient(circle_at_top_right,rgba(197,160,89,0.13),transparent_45%),rgba(255,255,255,0.02)] p-4 sm:p-6">
+      <p className="text-[10px] uppercase tracking-[0.28em] text-gold">
+        {isArabic ? "التخصص الأساسي" : "Primary Role"}
+      </p>
+
+      <h2 className="mt-3 text-xl font-light text-white sm:text-2xl">
+      {isArabic
+  ? "اختر نوع الموهبة *"
+  : "Choose your talent type *"}
+      </h2>
+
+      <p className="mt-2 text-sm leading-7 text-white/45">
+        {isArabic
+          ? "سيتم تخصيص الحقول الظاهرة في ملفك حسب اختيارك."
+          : "Your profile fields will adapt to the role you choose."}
+      </p>
+
+      <div className="mt-5 grid grid-cols-2 gap-3">
+        {PRIMARY_ROLE_OPTIONS.map((option) => {
+          const selected = value === option.value;
+
+          return (
+            <button
+              key={option.value}
+              type="button"
+              aria-pressed={selected}
+              onClick={() => onChange(option.value)}
+              className={`min-h-24 rounded-2xl border px-3 py-4 text-center transition active:scale-[0.98] sm:min-h-28 sm:px-5 ${
+                selected
+                  ? "border-gold bg-gold text-black shadow-lg shadow-gold/10"
+                  : "border-white/10 bg-black/25 text-white/70 hover:border-gold/35 hover:text-gold"
+              }`}
+            >
+              <span className="block text-2xl">
+                {option.value === "actor" ? "🎭" : "◉"}
+              </span>
+              <span className="mt-2 block text-sm font-medium sm:text-base">
+                {isArabic ? option.ar : option.en}
+              </span>
+              <span
+                className={`mt-1 block text-[10px] ${
+                  selected ? "text-black/55" : "text-white/35"
+                }`}
+              >
+                {option.value === "actor"
+                  ? isArabic
+                    ? "تمثيل وإعلانات وأدوار"
+                    : "Acting, commercials & roles"
+                  : isArabic
+                    ? "أزياء وإعلانات وتصوير"
+                    : "Fashion, commercial & shoots"}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function TalentProfileEditorPage({
   params,
 }: {
@@ -453,19 +560,19 @@ const isArabic = locale === "ar";
     [isArabic]
   );
 
-  const GENDER_OPTIONS = useMemo(
+  const MODELING_TYPE_OPTIONS = useMemo(
     () =>
       localizeOptions(
-        GENDER_OPTION_DEFINITIONS,
+        MODELING_TYPE_OPTION_DEFINITIONS,
         isArabic
       ),
     [isArabic]
   );
 
-  const AVAILABILITY_OPTIONS = useMemo(
+  const GENDER_OPTIONS = useMemo(
     () =>
       localizeOptions(
-        AVAILABILITY_OPTION_DEFINITIONS,
+        GENDER_OPTION_DEFINITIONS,
         isArabic
       ),
     [isArabic]
@@ -529,10 +636,34 @@ const isArabic = locale === "ar";
     const [loadError, setLoadError] = useState("");
 
     const [profileReady, setProfileReady] = useState(false);
+
+    const [
+      pendingProfileChange,
+      setPendingProfileChange,
+    ] = useState<PendingProfileChange | null>(null);
+
+    const [
+      approvalStatus,
+      setApprovalStatus,
+    ] = useState("not_submitted");
     
+    const [
+      reviewReason,
+      setReviewReason,
+    ] = useState("");
+    
+    const [
+      submittingReview,
+      setSubmittingReview,
+    ] = useState(false);
+    
+    const [
+      reviewSubmitMessage,
+      setReviewSubmitMessage,
+    ] = useState("");
+
     const profileReadyRef = useRef(false);
     const skipNextAutoSaveRef = useRef(true);
-
   useEffect(() => {
     let active = true;
 
@@ -543,8 +674,13 @@ const isArabic = locale === "ar";
       setProfileReady(false);
     
       try {
-        const talent =
-        await getOwnTalentProfileAction(locale);
+        const [
+  talent,
+  pendingChange,
+] = await Promise.all([
+  getOwnTalentProfileAction(locale),
+  getOwnPendingTalentProfileChangeAction(locale),
+]);
 
         if (!active) {
           return;
@@ -562,6 +698,21 @@ setProfileReady(false);
           setLoadingProfile(false);
           return;
         }
+        setPendingProfileChange(
+          pendingChange as PendingProfileChange | null,
+        );
+
+        setApprovalStatus(
+          stringValue(
+            talent.approval_status,
+          ) || "not_submitted",
+        );
+        
+        setReviewReason(
+          stringValue(
+            talent.review_reason,
+          ).trim(),
+        );
 
         const nationality =
           stringValue(
@@ -577,18 +728,32 @@ setProfileReady(false);
           talent.city_slug
         );
 
-        const loadedData: TalentProfileFormData =
-  {
-    name_en: stringValue(
-      talent.name_en
-    ),
-
-    name_ar: stringValue(
-      talent.name_ar
-    ),
-
-    category_slug: categorySlug,
-            city_slug: citySlug,
+        const loadedData: TalentProfileFormData = {
+          name_en: stringValue(
+            talent.name_en
+          ),
+        
+          name_ar: stringValue(
+            talent.name_ar
+          ),
+        
+          phone: stringValue(
+            talent.phone
+          ),
+          category_slug: categorySlug,
+          primary_role:
+  stringValue(talent.primary_role) ||
+  categorySlug,
+          acting_age_min: stringValue(
+            talent.acting_age_min
+          ),
+          acting_age_max: stringValue(
+            talent.acting_age_max
+          ),
+          modeling_types: stringArrayValue(
+            talent.modeling_types
+          ),
+          city_slug: citySlug,
 
             nationality,
             nationality_slug: nationality,
@@ -891,8 +1056,8 @@ setLoadingProfile(false);
 
       if (
         !data.category_slug.trim() ||
-        !data.city_slug.trim() ||
-        !data.image_url.trim()
+        !data.primary_role.trim() ||
+        !data.city_slug.trim()
       ) {
         return;
       }
@@ -931,12 +1096,27 @@ setLoadingProfile(false);
           data.nationality
       );
 
-      await updateOwnTalentProfileAction(
-        payload
+      payload.set(
+        "phone",
+        data.phone.trim()
       );
-    },
-    [locale]
+      const result =
+  await updateOwnTalentProfileAction(payload);
+
+if (result.protectedChangePending) {
+  const pendingChange =
+    await getOwnPendingTalentProfileChangeAction(
+      locale,
+    );
+
+  setPendingProfileChange(
+    pendingChange as PendingProfileChange | null,
   );
+}
+    },
+    [isArabic, locale]
+  );
+
 
   const { status } = useAutoSave(
     formData,
@@ -950,13 +1130,153 @@ setLoadingProfile(false);
     },
   );
 
+  const resubmitProfileForReview =
+  useCallback(async () => {
+    if (
+      submittingReview ||
+      approvalStatus !==
+        "changes_requested"
+    ) {
+      return;
+    }
+
+    if (status === "saving") {
+      setReviewSubmitMessage(
+        isArabic
+          ? "انتظر حتى يكتمل حفظ التغييرات أولًا."
+          : "Please wait until your changes are saved.",
+      );
+
+      return;
+    }
+
+    setSubmittingReview(true);
+    setReviewSubmitMessage("");
+
+    try {
+      const result =
+        await submitTalentProfileReviewAction(
+          locale,
+        );
+
+      setReviewSubmitMessage(
+        result.message,
+      );
+
+      if (result.success) {
+        setApprovalStatus(
+          "pending",
+        );
+
+        setReviewReason("");
+
+        window.location.href =
+          `/${locale}/talent-dashboard`;
+      }
+    } catch (error) {
+      console.error(
+        "[resubmitProfileForReview]",
+        error,
+      );
+
+      setReviewSubmitMessage(
+        isArabic
+          ? "تعذر إعادة إرسال الملف للمراجعة."
+          : "Unable to resubmit the profile for review.",
+      );
+    } finally {
+      setSubmittingReview(false);
+    }
+  }, [
+    approvalStatus,
+    isArabic,
+    locale,
+    submittingReview,
+    status,
+  ]);
+  
   const completion = useMemo(
-    () =>
-      TalentProfileService.calculateCompletion(
-        formData
-      ),
+    () => calculateProfileCompletion(formData),
     [formData]
   );
+
+  const profileReadiness = useMemo(
+    () =>
+      getTalentProfileReadiness({
+        ...formData,
+  
+        name_ar:
+          pendingProfileChange?.requested_name_ar?.trim() ||
+          formData.name_ar,
+  
+        name_en:
+          pendingProfileChange?.requested_name_en?.trim() ||
+          formData.name_en,
+  
+        phone:
+          pendingProfileChange?.requested_phone?.trim() ||
+          formData.phone,
+  
+        nationality_slug:
+          pendingProfileChange?.requested_nationality_slug?.trim() ||
+          formData.nationality_slug,
+      }),
+    [formData, pendingProfileChange],
+  );
+
+  const isProfileReady =
+    profileReadiness.isReady;
+
+    const readinessPercentage =
+  profileReadiness.totalRequirements > 0
+    ? Math.round(
+        (profileReadiness.completedRequirements /
+          profileReadiness.totalRequirements) *
+          100
+      )
+    : 0;
+
+  function scrollToRequirement(key: string) {
+    const sectionByRequirement: Record<string, string> = {
+      // التخصص
+      primary_role: "specialization",
+  
+      // الهوية
+      name: "identity",
+      phone: "identity",
+      profile_image: "identity",
+      city: "identity",
+      gender: "identity",
+      nationality: "identity",
+      date_of_birth: "identity",
+      languages: "identity",
+  
+      // النبذة
+      bio: "about",
+  
+      // بيانات الممثل / المودل
+      acting_age_range: "measurements",
+      modeling_types: "measurements",
+      height: "measurements",
+      weight: "measurements",
+  
+      // الخبرة والتنقل
+      experience: "experience",
+  
+      // الروابط
+      portfolio: "links",
+    };
+  
+    const sectionId =
+      sectionByRequirement[key] ?? "specialization";
+  
+    document
+      .getElementById(sectionId)
+      ?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+  }
 
   if (loadingProfile) {
     return (
@@ -1021,9 +1341,9 @@ setLoadingProfile(false);
             </h1>
 
             <p className="mt-3 max-w-2xl text-sm leading-7 text-white/50">
-              {isArabic
-                ? "حدّث معلوماتك الشخصية وبياناتك الاحترافية. تُحفظ جميع التغييرات تلقائيًا."
-                : "Update your personal and professional details. All changes are saved automatically."}
+            {isArabic
+  ? "حدّث بيانات ملفك بسهولة. تُحفظ التغييرات تلقائيًا، بينما تحتاج بعض البيانات الأساسية إلى مراجعة قبل تطبيقها."
+  : "Update your profile easily. Changes are saved automatically, while some protected information requires review before it is applied."}
             </p>
           </div>
 
@@ -1034,82 +1354,465 @@ setLoadingProfile(false);
                   ? "bg-red-400"
                   : status === "saving"
                     ? "animate-pulse bg-gold"
-                    : "bg-emerald-400"
+                    : pendingProfileChange
+                      ? "bg-gold"
+                      : "bg-emerald-400"
               }`}
             />
 
-            <span className="text-white/60">
-              {status === "saving"
-                ? isArabic
-                  ? "جارٍ الحفظ..."
-                  : "Saving..."
-                : status === "error"
-                  ? isArabic
-                    ? "تعذر الحفظ"
-                    : "Save failed"
-                  : isArabic
-                    ? "جميع التغييرات محفوظة"
-                    : "All changes saved"}
-            </span>
+<span className="text-white/60">
+  {status === "saving"
+    ? isArabic
+      ? "جارٍ الحفظ..."
+      : "Saving..."
+    : status === "error"
+      ? isArabic
+        ? "تعذر الحفظ"
+        : "Save failed"
+      : pendingProfileChange
+        ? isArabic
+          ? "محفوظ • تعديل قيد المراجعة"
+          : "Saved • Change under review"
+        : isArabic
+          ? "جميع التغييرات محفوظة"
+          : "All changes saved"}
+</span>
           </div>
           </div>
 
-{status === "saved" ? (
+          {approvalStatus ===
+"changes_requested" ? (
+  <section className="mb-6 rounded-[1.75rem] border border-orange-400/25 bg-orange-400/[0.06] p-5 sm:p-6">
+    <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+      <div className="min-w-0">
+        <span className="inline-flex rounded-full border border-orange-400/25 bg-orange-400/10 px-3 py-1.5 text-xs text-orange-300">
+          {isArabic
+            ? "مطلوب تعديل"
+            : "Changes required"}
+        </span>
+
+        <h2 className="mt-4 text-2xl font-light text-white">
+          {isArabic
+            ? "تعديلات مطلوبة من فريق ملامح"
+            : "Changes requested by MLAMH"}
+        </h2>
+
+        <p className="mt-3 text-sm leading-7 text-white/55">
+          {isArabic
+            ? "أجرِ التعديلات المطلوبة على ملفك. تُحفظ التغييرات تلقائيًا، وبعد الانتهاء أعد إرسال الملف للمراجعة."
+            : "Make the requested changes to your profile. Changes are saved automatically, then resubmit the profile for review."}
+        </p>
+
+        {reviewReason ? (
+          <div className="mt-4 rounded-2xl border border-orange-400/15 bg-black/20 px-4 py-4">
+            <p className="text-[11px] text-orange-300/70">
+              {isArabic
+                ? "التعديلات المطلوبة"
+                : "Requested changes"}
+            </p>
+
+            <p className="mt-2 whitespace-pre-line text-sm leading-7 text-white/75">
+              {reviewReason}
+            </p>
+          </div>
+        ) : null}
+
+        {reviewSubmitMessage ? (
+          <p className="mt-4 text-sm text-orange-200">
+            {reviewSubmitMessage}
+          </p>
+        ) : null}
+      </div>
+
+      <button
+        type="button"
+        disabled={
+          submittingReview ||
+          status === "saving"
+        }
+        onClick={
+          resubmitProfileForReview
+        }
+        className="inline-flex min-h-12 shrink-0 items-center justify-center rounded-2xl border border-gold/30 bg-gold/10 px-6 text-sm text-gold transition hover:bg-gold hover:text-black disabled:cursor-wait disabled:opacity-40"
+      >
+        {submittingReview
+          ? isArabic
+            ? "جارٍ الإرسال..."
+            : "Submitting..."
+          : isArabic
+            ? "إعادة إرسال الملف للمراجعة"
+            : "Resubmit for review"}
+      </button>
+    </div>
+  </section>
+) : null}
+
+          {status === "saved" && !pendingProfileChange ? (
   <div className="mb-6 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-5 py-4 text-sm text-emerald-300">
     {isArabic
-      ? "تم حفظ التغييرات بنجاح."
-      : "Changes saved successfully."}
+      ? "تم حفظ التغييرات."
+      : "Changes saved."}
   </div>
+) : null}
+{pendingProfileChange ? (
+  <section className="mb-6 rounded-[1.75rem] border border-amber-400/25 bg-amber-400/[0.06] p-5 sm:p-6">
+    <div className="flex flex-col gap-4">
+      <div>
+        <span className="inline-flex rounded-full border border-amber-400/25 bg-amber-400/10 px-3 py-1.5 text-xs text-amber-200">
+          {isArabic
+            ? "قيد المراجعة"
+            : "Under review"}
+        </span>
+
+        <h2 className="mt-4 text-xl font-light text-white">
+          {isArabic
+            ? "طلب تعديل بياناتك قيد المراجعة"
+            : "Your profile change request is under review"}
+        </h2>
+
+        <p className="mt-2 max-w-3xl text-sm leading-7 text-white/55">
+          {isArabic
+            ? "تم استلام طلب تعديل بياناتك الأساسية. ستبقى البيانات الحالية معتمدة إلى أن تراجع الإدارة الطلب، ويمكنك الاستمرار في استخدام المنصة والتقديم على الفرص."
+            : "Your protected profile changes have been received. Your current data remains active until the request is reviewed, and you can continue using the platform and applying to opportunities."}
+        </p>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {pendingProfileChange.requested_name_ar ? (
+          <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+            <p className="text-[10px] uppercase tracking-[0.18em] text-white/35">
+              {isArabic
+                ? "الاسم بالعربية المطلوب"
+                : "Requested Arabic name"}
+            </p>
+
+            <p
+              dir="rtl"
+              className="mt-2 text-sm text-amber-200"
+            >
+              {
+                pendingProfileChange.requested_name_ar
+              }
+            </p>
+          </div>
+        ) : null}
+
+{pendingProfileChange.requested_name_en ? (
+          <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+            <p className="text-[10px] uppercase tracking-[0.18em] text-white/35">
+              {isArabic
+                ? "الاسم بالإنجليزية المطلوب"
+                : "Requested English name"}
+            </p>
+
+            <p
+              dir="ltr"
+              className="mt-2 text-sm text-amber-200"
+            >
+              {
+                pendingProfileChange.requested_name_en
+              }
+            </p>
+          </div>
+        ) : null}
+
+{pendingProfileChange.requested_phone ? (
+          <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+            <p className="text-[10px] uppercase tracking-[0.18em] text-white/35">
+              {isArabic
+                ? "رقم الجوال المطلوب"
+                : "Requested phone number"}
+            </p>
+
+            <p
+              dir="ltr"
+              className="mt-2 text-sm text-amber-200"
+            >
+              {
+                pendingProfileChange.requested_phone
+              }
+            </p>
+          </div>
+        ) : null}
+
+{pendingProfileChange.requested_nationality_slug ? (
+          <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+            <p className="text-[10px] uppercase tracking-[0.18em] text-white/35">
+              {isArabic
+                ? "الجنسية المطلوبة"
+                : "Requested nationality"}
+            </p>
+
+            <p className="mt-2 text-sm text-amber-200">
+              {nationalityOptions.find(
+                (option) =>
+                  option.value ===
+                  pendingProfileChange.requested_nationality_slug,
+              )?.label ??
+                pendingProfileChange.requested_nationality_slug}
+            </p>
+          </div>
+        ) : null}
+      </div>
+
+    </div>
+  </section>
 ) : null}
 
 <section className="mb-6 grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
           <div className="rounded-[1.75rem] border border-gold/25 bg-[radial-gradient(circle_at_top_right,rgba(197,160,89,0.16),transparent_42%),linear-gradient(135deg,rgba(255,255,255,0.05),rgba(255,255,255,0.015))] p-5 sm:p-6">
             <ProfileCompletionCard
-              label={isArabic ? "اكتمال الملف الشخصي" : "Profile Completion"}
-              value={completion}
-            />
+  label={
+    isArabic
+      ? "قوة الملف المهني"
+      : "Profile Strength"
+  }
+  value={completion}
+/>
           </div>
 
           <div className="rounded-[1.75rem] border border-white/10 bg-white/[0.025] p-5 sm:p-6">
-            <p className="text-[10px] uppercase tracking-[0.28em] text-gold">
-              {isArabic ? "نصيحة سريعة" : "Quick Tip"}
-            </p>
+  <p className="text-[10px] uppercase tracking-[0.28em] text-gold">
+    {isArabic ? "حالة الملف" : "Profile Status"}
+  </p>
 
-            <h2 className="mt-3 text-xl font-light">
-              {isArabic ? "أكمل الحقول الناقصة" : "Complete missing fields"}
-            </h2>
+  <h2 className="mt-3 text-xl font-light">
+    {completion >= 100
+      ? isArabic
+        ? "ملفك مكتمل"
+        : "Your profile is complete"
+      : isArabic
+        ? "طوّر ملفك أكثر"
+        : "Improve your profile"}
+  </h2>
 
-            <p className="mt-3 text-sm leading-7 text-white/50">
-              {isArabic
-                ? "كلما كان ملفك أكثر اكتمالًا، أصبحت فرص ظهوره للشركات والمنتجين أفضل."
-                : "The more complete your profile is, the better your visibility to companies and producers."}
-            </p>
-          </div>
+  <p className="mt-3 text-sm leading-7 text-white/50">
+    {completion >= 100
+      ? isArabic
+        ? "أكملت جميع بيانات ملفك الحالية."
+        : "You have completed all current profile information."
+      : isArabic
+        ? "إضافة المزيد من البيانات الاختيارية قد تساعد في تحسين ظهور ملفك للجهات."
+        : "Adding more optional information may help improve your profile visibility."}
+  </p>
+</div>
         </section>
+        <section className="mb-6 overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/[0.025]">
+  <div className="flex flex-col gap-5 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
+    <div className="min-w-0">
+      <div className="flex flex-wrap items-center gap-3">
+        <p className="text-[10px] uppercase tracking-[0.28em] text-gold">
+          {isArabic
+            ? "معرض الأعمال"
+            : "Portfolio Gallery"}
+        </p>
 
-        <nav className="mb-6 flex gap-2 overflow-x-auto rounded-2xl border border-white/10 bg-black/25 p-2">
-          {[
-            ["identity", isArabic ? "الهوية والخبرة" : "Identity"],
-            ["about", isArabic ? "نبذة عنك" : "Bio"],
-            ["measurements", isArabic ? "البيانات الجسدية" : "Physical"],
-            ["experience", isArabic ? "الخبرة والتنقل" : "Experience"],
-            ["links", isArabic ? "روابط التواصل" : "Links"],
-          ].map(([href, label], index) => (
-            <a
-              key={href}
-              href={`#${href}`}
-              className={`shrink-0 rounded-xl border px-4 py-3 text-xs transition ${
-                index === 0
-                  ? "border-gold bg-gold text-black"
-                  : "border-white/10 bg-black/20 text-white/60 hover:border-gold/35 hover:text-gold"
-              }`}
-            >
-              {label}
-            </a>
-          ))}
-        </nav>
+        <span className="inline-flex shrink-0 items-center rounded-full border border-white/10 bg-black/25 px-3 py-1 text-xs text-white/50">
+          {formData.gallery_images.length} / 20
+        </span>
+      </div>
+
+      <h2 className="mt-3 text-xl font-light text-white sm:text-2xl">
+        {formData.gallery_images.length > 0
+          ? isArabic
+            ? "اعرض أفضل أعمالك"
+            : "Showcase Your Best Work"
+          : isArabic
+            ? "أضف أعمالك إلى ملفك"
+            : "Add Work to Your Profile"}
+      </h2>
+
+      <p className="mt-3 max-w-2xl text-sm leading-7 text-white/50">
+        {formData.gallery_images.length > 0
+          ? isArabic
+            ? `لديك ${formData.gallery_images.length} ${
+                formData.gallery_images.length === 1
+                  ? "صورة"
+                  : "صور"
+              } في معرض أعمالك. يمكنك إضافة صور جديدة أو إعادة ترتيبها.`
+            : `You have ${formData.gallery_images.length} ${
+                formData.gallery_images.length === 1
+                  ? "image"
+                  : "images"
+              } in your portfolio. Add more or rearrange them anytime.`
+          : isArabic
+            ? "معرض الأعمال يساعد الجهات والناشرين على مشاهدة صورك وأعمالك المهنية قبل التواصل معك."
+            : "Your portfolio helps publishers and companies review your professional work before contacting you."}
+      </p>
+    </div>
+
+    <Link
+      href={`/${locale}/talent-dashboard/gallery`}
+      className="inline-flex min-h-12 w-full shrink-0 items-center justify-center gap-2 rounded-2xl border border-gold/30 bg-gold/[0.08] px-6 text-sm text-gold transition hover:bg-gold hover:text-black active:scale-[0.98] sm:w-auto"
+    >
+      <span>
+        {formData.gallery_images.length > 0
+          ? isArabic
+            ? "إدارة معرض الأعمال"
+            : "Manage Portfolio"
+          : isArabic
+            ? "إضافة أعمال"
+            : "Add Portfolio"}
+      </span>
+
+      <span aria-hidden="true">
+        {isArabic ? "←" : "→"}
+      </span>
+    </Link>
+  </div>
+</section>
+        {!isProfileReady ? (
+  <section className="mb-6 rounded-[1.75rem] border border-white/10 bg-white/[0.025] p-5 sm:p-6">
+    <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+      <div className="min-w-0">
+        <span className="inline-flex rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-1.5 text-xs text-amber-300">
+          {isArabic
+            ? "بيانات مطلوبة"
+            : "Required information"}
+        </span>
+
+        <h2 className="mt-4 text-2xl font-light text-white">
+          {isArabic
+            ? "أكمل البيانات الأساسية"
+            : "Complete the required information"}
+        </h2>
+
+        <p className="mt-3 text-sm leading-7 text-white/55">
+        {isArabic
+  ? `جاهزية ملفك للتقديم ${readinessPercentage}٪. أكمل العناصر التالية لتتمكن من التقديم على الفرص.`
+  : `Your application readiness is ${readinessPercentage}%. Complete the following items to start applying.`}
+        </p>
+
+        {profileReadiness.missingRequirements.length > 0 ? (
+          <div className="mt-5 flex flex-wrap gap-2">
+            {profileReadiness.missingRequirements.map(
+              (requirement) => (
+                <button
+                  key={requirement.key}
+                  type="button"
+                  onClick={() =>
+                    scrollToRequirement(
+                      requirement.key,
+                    )
+                  }
+                  className="inline-flex items-center gap-2 rounded-full border border-amber-400/20 bg-amber-400/[0.07] px-3 py-1.5 text-xs text-amber-200 transition hover:border-gold/45 hover:bg-gold/10 hover:text-gold active:scale-[0.97]"
+                  title={
+                    isArabic
+                      ? `انتقل إلى ${requirement.ar}`
+                      : `Go to ${requirement.en}`
+                  }
+                >
+                  <span>
+                    {isArabic
+                      ? requirement.ar
+                      : requirement.en}
+                  </span>
+
+                  <span
+                    aria-hidden="true"
+                    className="text-[10px] opacity-60"
+                  >
+                    {isArabic ? "←" : "→"}
+                  </span>
+                </button>
+              ),
+            )}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  </section>
+) : null}
+
+{isProfileReady ? (
+  <section className="mb-6 rounded-[1.75rem] border border-emerald-400/20 bg-emerald-400/[0.05] p-5 sm:p-6">
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <span className="inline-flex rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5 text-xs text-emerald-300">
+          {isArabic
+            ? "جاهز للتقديم"
+            : "Ready to apply"}
+        </span>
+
+        <h2 className="mt-4 text-2xl font-light text-white">
+          {isArabic
+            ? "ملفك يستوفي المتطلبات الأساسية"
+            : "Your profile meets the requirements"}
+        </h2>
+
+        <p className="mt-3 text-sm leading-7 text-white/55">
+          {isArabic
+            ? "يمكنك الآن تصفح الفرص والتقديم عليها باستخدام ملفك المهني."
+            : "You can now browse and apply to opportunities using your professional profile."}
+        </p>
+      </div>
+
+      <Link
+        href={`/${locale}/opportunities`}
+        className="inline-flex min-h-12 shrink-0 items-center justify-center rounded-full border border-emerald-400/30 px-6 text-sm text-emerald-200 transition hover:bg-emerald-400/10"
+      >
+        {isArabic
+          ? "استعراض الفرص"
+          : "Browse opportunities"}
+      </Link>
+    </div>
+  </section>
+) : null}
+
+<nav
+  className="mb-6 flex gap-2 overflow-x-auto rounded-2xl border border-white/10 bg-black/25 p-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+  aria-label={
+    isArabic
+      ? "أقسام الملف الشخصي"
+      : "Profile sections"
+  }
+>
+  {[
+    ["specialization", isArabic ? "التخصص" : "Role"],
+    ["identity", isArabic ? "الهوية والخبرة" : "Identity"],
+    ["about", isArabic ? "نبذة عنك" : "Bio"],
+    ["measurements", isArabic ? "البيانات الجسدية" : "Physical"],
+    ["experience", isArabic ? "الخبرة والتنقل" : "Experience"],
+    ["links", isArabic ? "روابط التواصل" : "Links"],
+  ].map(([href, label], index) => (
+    <a
+      key={href}
+      href={`#${href}`}
+      className={`shrink-0 whitespace-nowrap rounded-xl border px-4 py-3 text-xs transition ${
+        index === 0
+          ? "border-gold bg-gold text-black"
+          : "border-white/10 bg-black/20 text-white/60 hover:border-gold/35 hover:text-gold"
+      }`}
+    >
+      {label}
+    </a>
+  ))}
+
+  <Link
+    href={`/${locale}/talent-dashboard/gallery`}
+    className="shrink-0 whitespace-nowrap rounded-xl border border-gold/25 bg-gold/[0.06] px-4 py-3 text-xs text-gold transition hover:border-gold/50 hover:bg-gold/10"
+  >
+    {isArabic
+      ? `معرض الأعمال (${formData.gallery_images.length})`
+      : `Portfolio (${formData.gallery_images.length})`}
+  </Link>
+</nav>
 
         <div className="space-y-6 sm:space-y-8">
+          <div id="specialization" className="scroll-mt-28">
+          <PrimaryRoleSelector
+  value={formData.primary_role}
+  isArabic={isArabic}
+  onChange={(value) => {
+    setFormData((previous) => ({
+      ...previous,
+      primary_role: value,
+      category_slug: value,
+    }));
+  }}
+/>
+          </div>
+
           <div id="identity" className="scroll-mt-28">
           <IdentityCard
             title={
@@ -1118,11 +1821,12 @@ setLoadingProfile(false);
                 : "Identity"
             }
           >
+
             <TextField
   label={
     isArabic
       ? "الاسم بالإنجليزية"
-      : "English Name"
+: "Professional Name *"
   }
   name="name_en"
   value={formData.name_en}
@@ -1138,8 +1842,8 @@ setLoadingProfile(false);
 <TextField
   label={
     isArabic
-      ? "الاسم بالعربية"
-      : "Arabic Name"
+      ? "الاسم المهني *"
+: "Arabic Name"
   }
   name="name_ar"
   value={formData.name_ar}
@@ -1151,18 +1855,32 @@ setLoadingProfile(false);
     )
   }
 />
+<div>
+  <label
+    htmlFor="phone"
+    className="mb-2 block text-[10px] uppercase tracking-[0.2em] text-white/40"
+  >
+    {isArabic
+      ? "رقم الجوال"
+      : "Phone Number"}
+  </label>
+
+  <input
+  id="phone"
+  name="phone"
+  type="tel"
+  value={formData.phone}
+  onChange={(event) =>
+    updateField("phone", event.target.value)
+  }
+  dir="ltr"
+  className="min-h-14 w-full rounded-2xl border border-white/10 bg-white/[0.025] px-4 text-white outline-none transition focus:border-[#d6b36a]/45"
+/>
+
+</div>
 
             <SelectField
-              label={isArabic ? "الفئة" : "Category"}
-              name="category_slug"
-              value={formData.category_slug}
-              options={categoryOptions}
-              placeholder={isArabic ? "اختر الفئة" : "Select category"}
-              onChange={(value) => updateField("category_slug", value)}
-            />
-
-            <SelectField
-              label={isArabic ? "المدينة" : "City"}
+              label={isArabic ? "المدينة *" : "City *"}
               name="city_slug"
               value={formData.city_slug}
               options={cityOptions}
@@ -1171,7 +1889,7 @@ setLoadingProfile(false);
             />
 
 <SelectField
-  label={isArabic ? "الجنسية" : "Nationality"}
+  label={isArabic ? "الجنسية *" : "Nationality *"}
   name="nationality_slug"
   value={formData.nationality_slug}
   options={nationalityOptions}
@@ -1185,8 +1903,8 @@ setLoadingProfile(false);
             <SelectField
               label={
                 isArabic
-                  ? "الجنس"
-                  : "Gender"
+                  ? "الجنس *"
+                  : "Gender *"
               }
               name="gender"
               value={formData.gender}
@@ -1205,7 +1923,11 @@ setLoadingProfile(false);
             />
 
 <TextField
-  label={isArabic ? "تاريخ الميلاد" : "Date of Birth"}
+  label={
+    isArabic
+      ? "تاريخ الميلاد *"
+      : "Date of Birth *"
+  }
   name="date_of_birth"
   type="date"
   value={formData.date_of_birth}
@@ -1235,26 +1957,6 @@ setLoadingProfile(false);
               onChange={(value) => updateField("skills", value)}
             />
 
-            <SelectField
-              label={
-                isArabic
-                  ? "حالة التوفر"
-                  : "Availability"
-              }
-              name="availability_status"
-              value={
-                formData.availability_status
-              }
-              options={
-                AVAILABILITY_OPTIONS
-              }
-              onChange={(value) =>
-                updateField(
-                  "availability_status",
-                  value
-                )
-              }
-            />
           </IdentityCard>
           </div>
 
@@ -1303,217 +2005,285 @@ setLoadingProfile(false);
           </div>
 
           <div id="measurements" className="scroll-mt-28">
-          <MeasurementsCard
-            title={
-              isArabic
-                ? "البيانات الجسدية"
-                : "Physical Details"
-            }
-            subtitle={
-              isArabic
-                ? "أدخل المقاسات والصفات الجسدية بدقة."
-                : "Add accurate physical details and measurements."
-            }
-          >
-            <TextField
-              label={
-                isArabic
-                  ? "الطول بالسنتيمتر"
-                  : "Height CM"
+            <MeasurementsCard
+              title={
+                formData.primary_role === "actor"
+                  ? isArabic
+                    ? "بيانات الممثل"
+                    : "Actor Details"
+                  : formData.primary_role === "model"
+                    ? isArabic
+                      ? "بيانات المودل"
+                      : "Model Details"
+                    : isArabic
+                      ? "البيانات المهنية"
+                      : "Professional Details"
               }
-              name="height_cm"
-              type="number"
-              value={formData.height_cm}
-              onChange={(value) =>
-                updateField(
-                  "height_cm",
-                  value
-                )
+              subtitle={
+                formData.primary_role === "actor"
+                  ? isArabic
+                    ? "أضف العمر التمثيلي والصفات الجسدية المهمة للكاستينغ."
+                    : "Add your acting age range and key casting details."
+                  : formData.primary_role === "model"
+                    ? isArabic
+                      ? "أدخل المقاسات والصفات المطلوبة لأعمال المودل بدقة."
+                      : "Add accurate measurements and modeling details."
+                    : isArabic
+                      ? "اختر نوع الموهبة أولًا لإظهار الحقول المناسبة."
+                      : "Choose your talent type first to show the relevant fields."
               }
-            />
+            >
+              {formData.primary_role === "actor" ? (
+                <>
+                  <div className="grid gap-4 sm:grid-cols-2 sm:gap-6">
+                    <TextField
+                      label={
+                        isArabic
+                          ? "العمر التمثيلي من"
+                          : "Acting Age From"
+                      }
+                      name="acting_age_min"
+                      type="number"
+                      value={formData.acting_age_min}
+                      onChange={(value) =>
+                        updateField("acting_age_min", value)
+                      }
+                    />
 
-            <TextField
-              label={
-                isArabic
-                  ? "الوزن بالكيلو"
-                  : "Weight KG"
-              }
-              name="weight_kg"
-              type="number"
-              value={formData.weight_kg}
-              onChange={(value) =>
-                updateField(
-                  "weight_kg",
-                  value
-                )
-              }
-            />
+                    <TextField
+                      label={
+                        isArabic
+                          ? "العمر التمثيلي إلى"
+                          : "Acting Age To"
+                      }
+                      name="acting_age_max"
+                      type="number"
+                      value={formData.acting_age_max}
+                      onChange={(value) =>
+                        updateField("acting_age_max", value)
+                      }
+                    />
+                  </div>
 
-            <SelectField
-              label={
-                isArabic
-                  ? "لون العين"
-                  : "Eye Color"
-              }
-              name="eye_color"
-              value={formData.eye_color}
-              placeholder={isArabic ? "اختر" : "Select"}
-              options={
-                EYE_COLOR_OPTIONS
-              }
-              onChange={(value) =>
-                updateField(
-                  "eye_color",
-                  value
-                )
-              }
-            />
+                  <TextField
+                    label={
+                      isArabic
+                        ? "الطول بالسنتيمتر"
+                        : "Height CM"
+                    }
+                    name="height_cm"
+                    type="number"
+                    value={formData.height_cm}
+                    onChange={(value) =>
+                      updateField("height_cm", value)
+                    }
+                  />
 
-            <SelectField
-              label={
-                isArabic
-                  ? "لون الشعر"
-                  : "Hair Color"
-              }
-              name="hair_color"
-              value={formData.hair_color}
-              placeholder={isArabic ? "اختر" : "Select"}
-              options={
-                HAIR_COLOR_OPTIONS
-              }
-              onChange={(value) =>
-                updateField(
-                  "hair_color",
-                  value
-                )
-              }
-            />
+                  <TextField
+                    label={
+                      isArabic
+                        ? "الوزن بالكيلو"
+                        : "Weight KG"
+                    }
+                    name="weight_kg"
+                    type="number"
+                    value={formData.weight_kg}
+                    onChange={(value) =>
+                      updateField("weight_kg", value)
+                    }
+                  />
 
-            <SelectField
-              label={
-                isArabic
-                  ? "نوع الشعر"
-                  : "Hair Type"
-              }
-              name="hair_type"
-              value={formData.hair_type}
-              placeholder={isArabic ? "اختر" : "Select"}
-              options={HAIR_TYPE_OPTIONS}
-              onChange={(value) =>
-                updateField(
-                  "hair_type",
-                  value
-                )
-              }
-            />
+                  <SelectField
+                    label={isArabic ? "لون العين" : "Eye Color"}
+                    name="eye_color"
+                    value={formData.eye_color}
+                    placeholder={isArabic ? "اختر" : "Select"}
+                    options={EYE_COLOR_OPTIONS}
+                    onChange={(value) =>
+                      updateField("eye_color", value)
+                    }
+                  />
 
-            <SelectField
-              label={
-                isArabic
-                  ? "لون البشرة"
-                  : "Skin Color"
-              }
-              name="skin_color"
-              value={formData.skin_color}
-              placeholder={isArabic ? "اختر" : "Select"}
-              options={SKIN_COLOR_OPTIONS}
-              onChange={(value) =>
-                updateField(
-                  "skin_color",
-                  value
-                )
-              }
-            />
+                  <SelectField
+                    label={isArabic ? "لون الشعر" : "Hair Color"}
+                    name="hair_color"
+                    value={formData.hair_color}
+                    placeholder={isArabic ? "اختر" : "Select"}
+                    options={HAIR_COLOR_OPTIONS}
+                    onChange={(value) =>
+                      updateField("hair_color", value)
+                    }
+                  />
 
-            <SelectField
-              label={
-                isArabic
-                  ? "مقاس الملابس"
-                  : "Clothing Size"
-              }
-              name="clothing_size"
-              value={
-                formData.clothing_size
-              }
-              options={
-                CLOTHING_SIZE_OPTIONS
-              }
-              onChange={(value) =>
-                updateField(
-                  "clothing_size",
-                  value
-                )
-              }
-            />
+                  <SelectField
+                    label={isArabic ? "نوع الشعر" : "Hair Type"}
+                    name="hair_type"
+                    value={formData.hair_type}
+                    placeholder={isArabic ? "اختر" : "Select"}
+                    options={HAIR_TYPE_OPTIONS}
+                    onChange={(value) =>
+                      updateField("hair_type", value)
+                    }
+                  />
 
-            <TextField
-              label={
-                isArabic
-                  ? "مقاس الحذاء"
-                  : "Shoe Size"
-              }
-              name="shoe_size"
-              type="number"
-              value={formData.shoe_size}
-              onChange={(value) =>
-                updateField(
-                  "shoe_size",
-                  value
-                )
-              }
-            />
+                  <SelectField
+                    label={isArabic ? "لون البشرة" : "Skin Color"}
+                    name="skin_color"
+                    value={formData.skin_color}
+                    placeholder={isArabic ? "اختر" : "Select"}
+                    options={SKIN_COLOR_OPTIONS}
+                    onChange={(value) =>
+                      updateField("skin_color", value)
+                    }
+                  />
+                </>
+              ) : formData.primary_role === "model" ? (
+                <>
+                  <ChipMultiSelect
+                    label={
+                      isArabic
+                        ? "نوع أعمال المودل"
+                        : "Modeling Types"
+                    }
+                    value={formData.modeling_types}
+                    options={MODELING_TYPE_OPTIONS}
+                    onChange={(value) =>
+                      updateField("modeling_types", value)
+                    }
+                  />
 
-            <TextField
-              label={
-                isArabic
-                  ? "مقاس الصدر"
-                  : "Chest Size"
-              }
-              name="chest_size"
-              type="number"
-              value={formData.chest_size}
-              onChange={(value) =>
-                updateField(
-                  "chest_size",
-                  value
-                )
-              }
-            />
+                  <TextField
+                    label={
+                      isArabic
+                        ? "الطول بالسنتيمتر"
+                        : "Height CM"
+                    }
+                    name="height_cm"
+                    type="number"
+                    value={formData.height_cm}
+                    onChange={(value) =>
+                      updateField("height_cm", value)
+                    }
+                  />
 
-            <TextField
-              label={
-                isArabic
-                  ? "مقاس الخصر"
-                  : "Waist Size"
-              }
-              name="waist_size"
-              type="number"
-              value={formData.waist_size}
-              onChange={(value) =>
-                updateField(
-                  "waist_size",
-                  value
-                )
-              }
-            />
+                  <TextField
+                    label={
+                      isArabic
+                        ? "الوزن بالكيلو"
+                        : "Weight KG"
+                    }
+                    name="weight_kg"
+                    type="number"
+                    value={formData.weight_kg}
+                    onChange={(value) =>
+                      updateField("weight_kg", value)
+                    }
+                  />
 
-            <TextField
-              label={
-                isArabic
-                  ? "مقاس الورك"
-                  : "Hip Size"
-              }
-              name="hip_size"
-              type="number"
-              value={formData.hip_size}
-              onChange={(value) =>
-                updateField(
-                  "hip_size",
-                  value
-                )
-              }
-            />
-          </MeasurementsCard>
+                  <SelectField
+                    label={isArabic ? "لون العين" : "Eye Color"}
+                    name="eye_color"
+                    value={formData.eye_color}
+                    placeholder={isArabic ? "اختر" : "Select"}
+                    options={EYE_COLOR_OPTIONS}
+                    onChange={(value) =>
+                      updateField("eye_color", value)
+                    }
+                  />
+
+                  <SelectField
+                    label={isArabic ? "لون الشعر" : "Hair Color"}
+                    name="hair_color"
+                    value={formData.hair_color}
+                    placeholder={isArabic ? "اختر" : "Select"}
+                    options={HAIR_COLOR_OPTIONS}
+                    onChange={(value) =>
+                      updateField("hair_color", value)
+                    }
+                  />
+
+                  <SelectField
+                    label={isArabic ? "نوع الشعر" : "Hair Type"}
+                    name="hair_type"
+                    value={formData.hair_type}
+                    placeholder={isArabic ? "اختر" : "Select"}
+                    options={HAIR_TYPE_OPTIONS}
+                    onChange={(value) =>
+                      updateField("hair_type", value)
+                    }
+                  />
+
+                  <SelectField
+                    label={isArabic ? "لون البشرة" : "Skin Color"}
+                    name="skin_color"
+                    value={formData.skin_color}
+                    placeholder={isArabic ? "اختر" : "Select"}
+                    options={SKIN_COLOR_OPTIONS}
+                    onChange={(value) =>
+                      updateField("skin_color", value)
+                    }
+                  />
+
+                  <SelectField
+                    label={isArabic ? "مقاس الملابس" : "Clothing Size"}
+                    name="clothing_size"
+                    value={formData.clothing_size}
+                    options={CLOTHING_SIZE_OPTIONS}
+                    onChange={(value) =>
+                      updateField("clothing_size", value)
+                    }
+                  />
+
+                  <TextField
+                    label={isArabic ? "مقاس الحذاء" : "Shoe Size"}
+                    name="shoe_size"
+                    type="number"
+                    value={formData.shoe_size}
+                    onChange={(value) =>
+                      updateField("shoe_size", value)
+                    }
+                  />
+
+                  <div className="grid gap-4 sm:grid-cols-3 sm:gap-6">
+                    <TextField
+                      label={isArabic ? "مقاس الصدر" : "Chest Size"}
+                      name="chest_size"
+                      type="number"
+                      value={formData.chest_size}
+                      onChange={(value) =>
+                        updateField("chest_size", value)
+                      }
+                    />
+
+                    <TextField
+                      label={isArabic ? "مقاس الخصر" : "Waist Size"}
+                      name="waist_size"
+                      type="number"
+                      value={formData.waist_size}
+                      onChange={(value) =>
+                        updateField("waist_size", value)
+                      }
+                    />
+
+                    <TextField
+                      label={isArabic ? "مقاس الورك" : "Hip Size"}
+                      name="hip_size"
+                      type="number"
+                      value={formData.hip_size}
+                      onChange={(value) =>
+                        updateField("hip_size", value)
+                      }
+                    />
+                  </div>
+                </>
+              ) : (
+                <div className="rounded-2xl border border-amber-400/20 bg-amber-400/[0.07] px-4 py-5 text-sm leading-7 text-amber-200">
+                  {isArabic
+                    ? "اختر «ممثل» أو «مودل» من قسم التخصص لعرض الحقول المناسبة."
+                    : "Choose Actor or Model in the Role section to display the relevant fields."}
+                </div>
+              )}
+            </MeasurementsCard>
           </div>
 
           <div id="experience" className="scroll-mt-28">
@@ -1561,23 +2331,25 @@ setLoadingProfile(false);
               }
             />
 
-            <TextField
-              label={
-                isArabic
-                  ? "رابط الشوريل"
-                  : "Showreel URL"
-              }
-              name="showreel_url"
-              type="url"
-              value={formData.showreel_url}
-              dir="ltr"
-              onChange={(value) =>
-                updateField(
-                  "showreel_url",
-                  value
-                )
-              }
-            />
+            {formData.primary_role === "actor" ? (
+              <TextField
+                label={
+                  isArabic
+                    ? "رابط الشوريل"
+                    : "Showreel URL"
+                }
+                name="showreel_url"
+                type="url"
+                value={formData.showreel_url}
+                dir="ltr"
+                onChange={(value) =>
+                  updateField(
+                    "showreel_url",
+                    value
+                  )
+                }
+              />
+            ) : null}
 
             <BooleanField
               label={
@@ -1737,8 +2509,9 @@ setLoadingProfile(false);
             </div>
           </AboutCard>
           </div>
-        </div>
+          </div>
       </div>
+
     </main>
   );
 }

@@ -67,24 +67,9 @@ async function resolveNotificationRecipient(
   }
 
   if (profile.account_type === "talent") {
-    const { data: talent, error: talentError } = await supabase
-      .from("talents")
-      .select("id")
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    if (talentError) {
-      console.error("Resolve notification talent error:", talentError);
-      return null;
-    }
-
-    if (!talent) {
-      return null;
-    }
-
     return {
       recipientType: "talent",
-      recipientId: String(talent.id),
+      recipientId: userId,
     };
   }
 

@@ -1,6 +1,3 @@
-// public-talents.ts (نسخة معدلة مع الحقول الجديدة)
-// النسخة الأصلية احتفظ بها باسم public-talents.original.ts
-
 import { getCachedValue } from "@/lib/cache/public-talents";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Talent } from "@/lib/types/talent";
@@ -96,8 +93,8 @@ function buildIlikeOrFilter(columns: string[], terms: string[]) {
   return terms
     .flatMap((term) =>
       columns.map(
-        (column) => `${column}.ilike.%${term.replace(/[%]/g, "")}%`
-      )
+        (column) => `${column}.ilike.%${term.replace(/[%]/g, "")}%`,
+      ),
     )
     .join(",");
 }
@@ -118,7 +115,7 @@ export async function getPublicTalents({
   const categoryTerms = getCategorySearchTerms(normalizedCategory);
 
   const cacheKey = [
-    "public-talents-v2",
+    "public-talents-v3",
     safePage,
     safePageSize,
     normalizedSearch ?? "all",
@@ -134,8 +131,7 @@ export async function getPublicTalents({
     let query = supabase
       .from("talents")
       .select("*", { count: "exact" })
-      .eq("published", true)
-      .eq("status", "approved");
+      .eq("published", true);
 
     if (normalizedSearch) {
       query = query.or(
@@ -152,8 +148,8 @@ export async function getPublicTalents({
             "city_en",
             "city_ar",
           ],
-          [normalizedSearch]
-        )
+          [normalizedSearch],
+        ),
       );
     }
 
@@ -164,7 +160,7 @@ export async function getPublicTalents({
           buildIlikeOrFilter(["category_en", "category_ar"], categoryTerms),
         ]
           .filter(Boolean)
-          .join(",")
+          .join(","),
       );
     }
 
@@ -175,7 +171,7 @@ export async function getPublicTalents({
           buildIlikeOrFilter(["city_en", "city_ar"], [normalizedCity]),
         ]
           .filter(Boolean)
-          .join(",")
+          .join(","),
       );
     }
 
@@ -202,9 +198,9 @@ export async function getPublicTalents({
 }
 
 export async function getPublishedTalentById(
-  id: number
+  id: number,
 ): Promise<Talent | null> {
-  return getCachedValue(`published-talent:v2:id:${id}`, async () => {
+  return getCachedValue(`published-talent:v3:id:${id}`, async () => {
     const supabase = createAdminClient();
 
     const { data, error } = await supabase
@@ -212,7 +208,6 @@ export async function getPublishedTalentById(
       .select("*")
       .eq("id", id)
       .eq("published", true)
-      .eq("status", "approved")
       .maybeSingle();
 
     if (error) {
@@ -224,7 +219,7 @@ export async function getPublishedTalentById(
 }
 
 export async function getPublishedTalentBySlug(
-  slug: string
+  slug: string,
 ): Promise<Talent | null> {
   const normalizedSlug = normalizeSlug(slug);
   const supabase = createAdminClient();
@@ -234,7 +229,6 @@ export async function getPublishedTalentBySlug(
     .select("*")
     .eq("slug", normalizedSlug)
     .eq("published", true)
-    .eq("status", "approved")
     .maybeSingle();
 
   if (error) {
@@ -245,14 +239,13 @@ export async function getPublishedTalentBySlug(
 }
 
 export async function getPublishedTalents(): Promise<Talent[]> {
-  return getCachedValue("published-talents:v2:all", async () => {
+  return getCachedValue("published-talents:v3:all", async () => {
     const supabase = createAdminClient();
 
     const { data, error } = await supabase
       .from("talents")
       .select("*")
       .eq("published", true)
-      .eq("status", "approved")
       .order("featured", { ascending: false })
       .order("sort_order", { ascending: true })
       .order("id", { ascending: false });

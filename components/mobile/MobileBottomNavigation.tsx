@@ -3,7 +3,10 @@
 import { useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import {
+  usePathname,
+  useRouter,
+} from "next/navigation";
 import {
   BriefcaseBusiness,
   CirclePlus,
@@ -41,6 +44,7 @@ export function MobileBottomNavigation({
   authLoading,
 }: MobileBottomNavigationProps) {
   const pathname = usePathname();
+  const router = useRouter();
 
   const portalReady = useSyncExternalStore(
     () => () => {},
@@ -51,17 +55,54 @@ export function MobileBottomNavigation({
   const isArabic = locale === "ar";
 
   function localizedPath(path: string) {
-    return path === "/" ? `/${locale}` : `/${locale}${path}`;
+    return path === "/"
+      ? `/${locale}`
+      : `/${locale}${path}`;
   }
 
   function isActive(path: string) {
     const localized = localizedPath(path);
 
     if (path === "/") {
-      return pathname === localized || pathname === `${localized}/`;
+      return (
+        pathname === localized ||
+        pathname === `${localized}/`
+      );
     }
 
-    return pathname === localized || pathname.startsWith(`${localized}/`);
+    return (
+      pathname === localized ||
+      pathname.startsWith(`${localized}/`)
+    );
+  }
+
+  function handleHomeClick(
+    event: React.MouseEvent<HTMLAnchorElement>,
+  ) {
+    event.preventDefault();
+
+    const homePath = localizedPath("/");
+    const isHome =
+      pathname === homePath ||
+      pathname === `${homePath}/`;
+
+    if (isHome) {
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+
+      return;
+    }
+
+    router.push(homePath);
+
+    requestAnimationFrame(() => {
+      window.scrollTo({
+        top: 0,
+        behavior: "auto",
+      });
+    });
   }
 
   const navigationItems: NavigationItem[] = (() => {
@@ -157,7 +198,9 @@ export function MobileBottomNavigation({
           icon: UserRound,
           active:
             pathname.includes("/dashboard-router") ||
-            pathname.includes("/talent-dashboard/profile"),
+            pathname.includes(
+              "/talent-dashboard/profile",
+            ),
           primary: true,
         },
         opportunities,
@@ -223,8 +266,12 @@ export function MobileBottomNavigation({
       >
         {navigationItems.map((item) => {
           const Icon = item.icon;
-          const label = isArabic ? item.labelAr : item.labelEn;
-          const disabled = item.key === "loading";
+          const label = isArabic
+            ? item.labelAr
+            : item.labelEn;
+
+          const disabled =
+            item.key === "loading";
 
           if (item.primary) {
             const content = (
@@ -253,10 +300,15 @@ export function MobileBottomNavigation({
                     }
                   `}
                 >
-                  <Icon size={26} strokeWidth={1.9} />
+                  <Icon
+                    size={26}
+                    strokeWidth={1.9}
+                  />
                 </span>
 
-                <span className="mt-8">{label}</span>
+                <span className="mt-8">
+                  {label}
+                </span>
               </>
             );
 
@@ -287,7 +339,11 @@ export function MobileBottomNavigation({
                 key={item.key}
                 href={item.href}
                 aria-label={label}
-                aria-current={item.active ? "page" : undefined}
+                aria-current={
+                  item.active
+                    ? "page"
+                    : undefined
+                }
                 className="
                   relative
                   flex
@@ -311,8 +367,22 @@ export function MobileBottomNavigation({
             <Link
               key={item.key}
               href={item.href}
+              onClick={
+                item.key === "home"
+                  ? handleHomeClick
+                  : undefined
+              }
+              scroll={
+                item.key === "home"
+                  ? true
+                  : undefined
+              }
               aria-label={label}
-              aria-current={item.active ? "page" : undefined}
+              aria-current={
+                item.active
+                  ? "page"
+                  : undefined
+              }
               className={`
                 flex
                 h-full
@@ -333,7 +403,11 @@ export function MobileBottomNavigation({
             >
               <Icon
                 size={22}
-                strokeWidth={item.active ? 2.2 : 1.7}
+                strokeWidth={
+                  item.active
+                    ? 2.2
+                    : 1.7
+                }
               />
 
               <span className="max-w-full truncate px-1">

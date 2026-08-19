@@ -288,41 +288,90 @@ export default async function AdminOpportunityApplicationsPage({
                       </Link>
                     ) : null}
 
-                    {currentStatus !== "shortlisted" ? (
-                      <form action={shortlistApplicationAction}>
-                        <input type="hidden" name="application_id" value={application.id} />
-                        <button
-                          type="submit"
-                          className="rounded-full border border-blue-500/30 bg-blue-500/[0.06] px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-blue-300 transition hover:bg-blue-500/10"
-                        >
-                          Shortlist
-                        </button>
-                      </form>
-                    ) : null}
+{currentStatus !== "shortlisted" ? (
+  <form action={shortlistApplicationAction}>
+    <input
+      type="hidden"
+      name="application_id"
+      value={application.id}
+    />
 
-                    {currentStatus !== "accepted" ? (
-                      <form action={acceptApplicationAction}>
-                        <input type="hidden" name="application_id" value={application.id} />
-                        <button
-                          type="submit"
-                          className="rounded-full border border-emerald-500/30 bg-emerald-500/[0.06] px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-emerald-300 transition hover:bg-emerald-500/10"
-                        >
-                          Accept
-                        </button>
-                      </form>
-                    ) : null}
+    <input
+      type="hidden"
+      name="locale"
+      value="ar"
+    />
 
-                    {currentStatus !== "rejected" ? (
-                      <form action={rejectAdminApplicationAction}>
-                        <input type="hidden" name="application_id" value={application.id} />
-                        <button
-                          type="submit"
-                          className="rounded-full border border-red-500/30 bg-red-500/[0.06] px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-red-300 transition hover:bg-red-500/10"
-                        >
-                          Reject
-                        </button>
-                      </form>
-                    ) : null}
+    <button
+      type="submit"
+      className="rounded-full border border-blue-500/30 bg-blue-500/[0.06] px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-blue-300 transition hover:bg-blue-500/10"
+    >
+      Shortlist
+    </button>
+  </form>
+) : null}
+
+{currentStatus !== "accepted" ? (
+  <form action={acceptApplicationAction}>
+    <input
+      type="hidden"
+      name="application_id"
+      value={application.id}
+    />
+
+    <input
+      type="hidden"
+      name="locale"
+      value="ar"
+    />
+
+    <button
+      type="submit"
+      className="rounded-full border border-emerald-500/30 bg-emerald-500/[0.06] px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-emerald-300 transition hover:bg-emerald-500/10"
+    >
+      Accept
+    </button>
+  </form>
+) : null}
+
+{currentStatus !== "rejected" ? (
+  <form
+    action={rejectAdminApplicationAction}
+    className="w-full rounded-2xl border border-red-500/15 bg-red-500/[0.03] p-4"
+  >
+    <input
+      type="hidden"
+      name="application_id"
+      value={application.id}
+    />
+
+    <input
+      type="hidden"
+      name="locale"
+      value="ar"
+    />
+
+    <label className="mb-2 block text-xs text-white/55">
+      سبب رفض الطلب
+    </label>
+
+    <textarea
+      required
+      name="reason"
+      rows={2}
+      maxLength={1000}
+      placeholder="اكتب سبب رفض الطلب ليظهر للموهبة..."
+      className="mb-3 w-full resize-none rounded-xl border border-white/[0.08] bg-black/30 px-3 py-2 text-sm text-white outline-none placeholder:text-white/25 focus:border-red-400/30"
+    />
+
+    <button
+      type="submit"
+      className="rounded-full border border-red-500/30 bg-red-500/[0.06] px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-red-300 transition hover:bg-red-500/10"
+    >
+      رفض الطلب
+    </button>
+  </form>
+) : null}
                   </div>
                   </AdminCard>
               );

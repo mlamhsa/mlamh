@@ -89,6 +89,56 @@ export async function GET() {
   }
 
   const {
+    data: publisherOpportunities,
+    error: opportunitiesError,
+  } = await adminClient
+    .from("opportunities")
+    .select("id")
+    .eq("publisher_id", publisher.id);
+  
+  if (opportunitiesError) {
+    console.error(
+      "[PublisherDashboardCounts opportunities]",
+      opportunitiesError,
+    );
+  }
+  
+  const opportunityIds =
+    (publisherOpportunities ?? []).map(
+      (opportunity) => opportunity.id,
+    );
+  
+  const {
+    data: applicantRows,
+    error: applicantsError,
+  } =
+    opportunityIds.length > 0
+      ? await adminClient
+          .from("opportunity_applications")
+          .select("id, status")
+          .in("opportunity_id", opportunityIds)
+      : {
+          data: [],
+          error: null,
+        };
+  
+  if (applicantsError) {
+    console.error(
+      "[PublisherDashboardCounts applicants]",
+      applicantsError,
+    );
+  }
+  
+  const pendingApplicants =
+    applicantsError
+      ? 0
+      : (applicantRows ?? []).filter(
+          (application) =>
+            application.status !== "accepted" &&
+            application.status !== "rejected",
+        ).length;
+
+  const {
     data: conversations,
     error: conversationsError,
   } = await adminClient
@@ -126,11 +176,11 @@ export async function GET() {
             error: null,
           }),
 
-      adminClient
-        .from("notifications")
-        .select("*")
-        .eq("recipient_type", "PUBLISHER")
-        .eq("recipient_id", publisher.id),
+          adminClient
+          .from("notifications")
+          .select("*")
+          .eq("recipient_type", "publisher")
+          .eq("recipient_id", publisher.id),
     ]);
 
   if (messagesResult.error) {
@@ -161,7 +211,8 @@ export async function GET() {
         ).filter(isNotificationUnread).length;
 
   return NextResponse.json({
-    messages: unreadMessages,
-    notifications: unreadNotifications,
-  });
+  applicants: pendingApplicants,
+  messages: unreadMessages,
+  notifications: unreadNotifications,
+});
 }

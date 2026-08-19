@@ -16,9 +16,6 @@ import {
   type TalentSubmissionErrors,
 } from "@/lib/validations/talent-submission";
 
-const PENDING_IMAGE_PLACEHOLDER =
-  "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=800&q=80";
-
 const TALENT_IMAGES_BUCKET = "talent-images";
 const MAX_IMAGE_SIZE_MB = 15;
 const MAX_GALLERY_IMAGES = 1;
@@ -207,7 +204,9 @@ export async function submitTalentAction(
   );
 
   const selectedCategory = TALENT_CATEGORIES.find(
-    (category) => category.slug === categorySlug
+    (category) =>
+      category.slug === categorySlug &&
+      (category.slug === "actor" || category.slug === "model")
   );
 
   if (!selectedCategory) {
@@ -305,9 +304,9 @@ export async function submitTalentAction(
       };
     }
 
-    let imageUrl =
+    let imageUrl: string | null =
       getStringValue(formData, "image_url") ||
-      PENDING_IMAGE_PLACEHOLDER;
+      null;
 
     let galleryImages = getStringArray(
       formData,
@@ -457,12 +456,15 @@ export async function submitTalentAction(
       category_en: selectedCategory.en,
       category_ar: selectedCategory.ar,
 
+      primary_role: selectedCategory.slug,
+
       city_slug: selectedCity.slug,
       city_en: selectedCity.en,
       city_ar: selectedCity.ar,
 
       age: data.age,
       height: data.height,
+      height_cm: data.height,
 
       bio_en: data.bio_en,
       bio_ar: data.bio_ar,
@@ -472,10 +474,6 @@ export async function submitTalentAction(
       tiktok: data.tiktok,
       snapchat: data.snapchat,
       portfolio_url: data.portfolio_url,
-
-      status: "pending",
-      published: false,
-      featured: false,
 
       image_url: imageUrl,
       gallery_images: galleryImages,
@@ -533,7 +531,13 @@ export async function submitTalentAction(
       const { error: talentInsertError } =
         await adminClient
           .from("talents")
-          .insert(talentPayload);
+          .insert({
+            ...talentPayload,
+            status: "draft",
+            published: false,
+            verified: false,
+            featured: false,
+          });
 
       if (talentInsertError) {
         console.error(
@@ -549,11 +553,43 @@ export async function submitTalentAction(
       }
     }
 
-    return {
-      success: true,
-      errors: initialErrors,
-      message: errorMessages.success,
-    };
+    const { data: updatedProfile, error: profileStatusError } =
+  await adminClient
+    .from("profiles")
+    .update({
+      account_type: "talent",
+      onboarding_status: "completed",
+      onboarding_step: "dashboard",
+    })
+    .eq("user_id", user.id)
+    .select(
+      "id, account_type, onboarding_status, onboarding_step"
+    )
+    .single();
+
+if (profileStatusError || !updatedProfile) {
+  console.error(
+    "[submitTalentAction profileStatusUpdate]",
+    profileStatusError
+  );
+
+  return {
+    success: false,
+    errors: initialErrors,
+    message: errorMessages.generic,
+  };
+}
+
+console.log(
+  "[submitTalentAction profileStatusUpdated]",
+  updatedProfile
+);
+
+return {
+  success: true,
+  errors: initialErrors,
+  message: errorMessages.success,
+};
   } catch (error) {
     console.error("[submitTalentAction]", error);
 

@@ -111,7 +111,7 @@ export default async function PublisherNotificationsPage({
   const { data, error } = await adminClient
     .from("notifications")
     .select("*")
-    .eq("recipient_type", "PUBLISHER")
+    .eq("recipient_type", "publisher")
     .eq("recipient_id", publisher.id)
     .order("created_at", { ascending: false });
 

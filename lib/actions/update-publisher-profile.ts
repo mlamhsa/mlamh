@@ -24,16 +24,13 @@ const IMAGE_EXTENSIONS: Record<string, string> = {
 };
 
 const ALLOWED_PUBLISHER_TYPES = new Set([
-  "individual",
-  "small_business",
-  "company",
-  "agency",
+  "production_company",
+  "advertising_agency",
+  "casting_agency",
+  "talent_agency",
   "brand",
-  "government_entity",
-  "nonprofit",
-  "salon",
-  "store",
-  "media_company",
+  "content_company",
+  "individual",
   "other",
 ]);
 
@@ -299,8 +296,128 @@ export async function updatePublisherProfileAction(
   const { locale } =
     await savePublisherProfile(formData);
 
+  const authClient =
+    await createServerSupabaseClient();
+
+  const {
+    data: { user },
+    error: userError,
+  } = await authClient.auth.getUser();
+
+  let submittedForReview = false;
+
+  if (userError) {
+    throw new Error(
+      `[updatePublisherProfileAction.auth] ${userError.message}`,
+    );
+  }
+
+  if (user) {
+    const adminClient =
+      createAdminClient();
+
+    const {
+      data: profile,
+      error: profileError,
+    } = await adminClient
+      .from("profiles")
+      .select(
+        "id, approval_status",
+      )
+      .eq(
+        "user_id",
+        user.id,
+      )
+      .eq(
+        "account_type",
+        "publisher",
+      )
+      .maybeSingle();
+
+    if (profileError) {
+      throw new Error(
+        `[updatePublisherProfileAction.profile] ${profileError.message}`,
+      );
+    }
+
+    if (profile) {
+      const previousApprovalStatus =
+        profile.approval_status;
+
+      const shouldReturnToReview =
+        previousApprovalStatus === "approved" ||
+        previousApprovalStatus === "changes_requested" ||
+        previousApprovalStatus === "rejected";
+
+      if (shouldReturnToReview) {
+        const {
+          error: approvalError,
+        } = await adminClient
+          .from("profiles")
+          .update({
+            approval_status: "pending",
+          })
+          .eq(
+            "id",
+            profile.id,
+          );
+
+        if (approvalError) {
+          throw new Error(
+            `[updatePublisherProfileAction.approval] ${approvalError.message}`,
+          );
+        }
+
+        const {
+          error: verificationError,
+        } = await adminClient
+          .from("publishers")
+          .update({
+            verified: false,
+          })
+          .eq(
+            "profile_id",
+            profile.id,
+          );
+
+        if (verificationError) {
+          await adminClient
+            .from("profiles")
+            .update({
+              approval_status:
+                previousApprovalStatus,
+            })
+            .eq(
+              "id",
+              profile.id,
+            );
+
+          throw new Error(
+            `[updatePublisherProfileAction.verification] ${verificationError.message}`,
+          );
+        }
+
+        submittedForReview = true;
+
+        revalidatePath(
+          "/admin/publishers",
+        );
+
+        revalidatePath(
+          `/${locale}/publisher-dashboard`,
+        );
+
+        revalidatePath(
+          `/${locale}/publisher-dashboard/profile`,
+        );
+      }
+    }
+  }
+
   redirect(
-    `/${locale}/publisher-dashboard/profile?saved=1`,
+    submittedForReview
+      ? `/${locale}/publisher-dashboard/profile?saved=1&submitted=1`
+      : `/${locale}/publisher-dashboard/profile?saved=1`,
   );
 }
 
@@ -312,4 +429,149 @@ export async function autoSavePublisherProfileAction(
   return {
     success: true as const,
   };
+}
+export async function submitPublisherProfileForReviewAction(
+  formData: FormData,
+): Promise<void> {
+  const { locale } =
+    await savePublisherProfile(formData);
+
+  const authClient =
+    await createServerSupabaseClient();
+
+  const adminClient = createAdminClient();
+
+  const {
+    data: { user },
+    error: userError,
+  } = await authClient.auth.getUser();
+
+  if (userError || !user) {
+    redirect(`/${locale}/login`);
+  }
+
+  const {
+    data: profile,
+    error: profileError,
+  } = await adminClient
+    .from("profiles")
+    .select("id, approval_status")
+    .eq("user_id", user.id)
+    .eq("account_type", "publisher")
+    .maybeSingle();
+
+  if (profileError || !profile) {
+    throw new Error(
+      "Publisher profile not found."
+    );
+  }
+
+  const {
+    data: publisher,
+    error: publisherError,
+  } = await adminClient
+    .from("publishers")
+    .select(`
+      id,
+      company_name,
+      contact_name,
+      publisher_type,
+      city,
+      description
+    `)
+    .eq("profile_id", profile.id)
+    .maybeSingle();
+
+  if (publisherError || !publisher) {
+    throw new Error(
+      "Publisher account not found."
+    );
+  }
+
+  const missingRequiredFields = [
+    !publisher.company_name
+      ? locale === "ar"
+        ? "اسم الجهة"
+        : "Company name"
+      : null,
+
+    !publisher.contact_name
+      ? locale === "ar"
+        ? "اسم المسؤول"
+        : "Contact name"
+      : null,
+
+    !publisher.publisher_type
+      ? locale === "ar"
+        ? "نوع الجهة"
+        : "Organization type"
+      : null,
+
+    !publisher.city
+      ? locale === "ar"
+        ? "المدينة"
+        : "City"
+      : null,
+
+    !publisher.description
+      ? locale === "ar"
+        ? "نبذة عن الجهة"
+        : "Company description"
+      : null,
+  ].filter(Boolean);
+
+  if (missingRequiredFields.length > 0) {
+    const missing = encodeURIComponent(
+      missingRequiredFields.join(",")
+    );
+
+    redirect(
+      `/${locale}/publisher-dashboard/profile?error=incomplete&missing=${missing}`
+    );
+  }
+
+  const { error: approvalError } =
+    await adminClient
+      .from("profiles")
+      .update({
+        approval_status: "pending",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", profile.id)
+      .eq("user_id", user.id);
+
+  if (approvalError) {
+    throw new Error(
+      `[submitPublisherProfileForReviewAction] ${approvalError.message}`
+    );
+  }
+
+  const { error: verificationError } =
+    await adminClient
+      .from("publishers")
+      .update({
+        verified: false,
+      })
+      .eq("id", publisher.id)
+      .eq("profile_id", profile.id);
+
+  if (verificationError) {
+    throw new Error(
+      `[submitPublisherProfileForReviewAction] ${verificationError.message}`
+    );
+  }
+
+  revalidatePath(
+    `/${locale}/publisher-dashboard`
+  );
+
+  revalidatePath(
+    `/${locale}/publisher-dashboard/profile`
+  );
+
+  revalidatePath("/admin/publishers");
+
+  redirect(
+    `/${locale}/publisher-dashboard/profile?submitted=1`
+  );
 }

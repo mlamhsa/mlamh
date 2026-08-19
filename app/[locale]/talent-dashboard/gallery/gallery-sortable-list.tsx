@@ -26,11 +26,9 @@ type ServerAction = (formData: FormData) => void | Promise<void>;
 
 type GallerySortableListProps = {
   images: string[];
-  mainImageUrl: string | null;
   talentName: string | null;
   locale: string;
   reorderAction: ServerAction;
-  setMainAction: ServerAction;
   removeAction: ServerAction;
 };
 
@@ -49,11 +47,9 @@ function GalleryActionIcon({
 }: {
   name:
     | "drag"
-    | "star"
     | "trash"
     | "save"
     | "image"
-    | "check"
     | "up"
     | "down";
   className?: string;
@@ -62,14 +58,6 @@ function GalleryActionIcon({
     return (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className={className} aria-hidden="true">
         <path d="M8 7h8M8 12h8M8 17h8" strokeLinecap="round" />
-      </svg>
-    );
-  }
-
-  if (name === "star") {
-    return (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className={className} aria-hidden="true">
-        <path d="m12 4 2.2 4.5 5 .7-3.6 3.5.9 5-4.5-2.4-4.5 2.4.9-5-3.6-3.5 5-.7L12 4Z" strokeLinejoin="round" />
       </svg>
     );
   }
@@ -88,14 +76,6 @@ function GalleryActionIcon({
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className={className} aria-hidden="true">
         <path d="M5 4h11l3 3v13H5V4Z" strokeLinejoin="round" />
         <path d="M8 4v6h8V4M8 20v-6h8v6" />
-      </svg>
-    );
-  }
-
-  if (name === "check") {
-    return (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className={className} aria-hidden="true">
-        <path d="m6 12 4 4 8-8" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     );
   }
@@ -128,7 +108,6 @@ function GalleryActionIcon({
 function SortableImageCard({
   imageUrl,
   index,
-  isMain,
   talentName,
   isArabic,
   locale,
@@ -136,12 +115,10 @@ function SortableImageCard({
   isLast,
   moveUp,
   moveDown,
-  setMainAction,
   removeAction,
 }: {
   imageUrl: string;
   index: number;
-  isMain: boolean;
   talentName: string | null;
   isArabic: boolean;
   locale: string;
@@ -149,7 +126,6 @@ function SortableImageCard({
   isLast: boolean;
   moveUp: () => void;
   moveDown: () => void;
-  setMainAction: ServerAction;
   removeAction: ServerAction;
 }) {
   const {
@@ -190,12 +166,6 @@ function SortableImageCard({
             #{index + 1}
           </span>
 
-          {isMain ? (
-            <span className="inline-flex items-center gap-2 rounded-full border border-gold/30 bg-black/55 px-3 py-1 text-[10px] tracking-[0.14em] text-gold backdrop-blur-md">
-              <GalleryActionIcon name="star" />
-              {isArabic ? "الرئيسية" : "Main"}
-            </span>
-          ) : null}
         </div>
 
         <button
@@ -210,27 +180,8 @@ function SortableImageCard({
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 p-3 sm:p-4">
-        {!isMain ? (
-          <form action={setMainAction}>
-            <input type="hidden" name="locale" value={locale} />
-            <input type="hidden" name="image_url" value={imageUrl} />
-
-            <button
-              type="submit"
-              className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-full border border-gold/30 bg-gold/[0.05] px-3 text-xs text-gold transition hover:bg-gold/10"
-            >
-              <GalleryActionIcon name="star" />
-              {isArabic ? "الرئيسية" : "Set Main"}
-            </button>
-          </form>
-        ) : (
-          <div className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/[0.06] px-3 text-xs text-emerald-200">
-            <GalleryActionIcon name="check" />
-            {isArabic ? "رئيسية" : "Main"}
-          </div>
-        )}
-
+      <div className="p-3 sm:p-4">
+  
         <form action={removeAction}>
           <input type="hidden" name="locale" value={locale} />
           <input type="hidden" name="image_url" value={imageUrl} />
@@ -254,7 +205,7 @@ function SortableImageCard({
             {isArabic ? "حذف" : "Remove"}
           </button>
         </form>
-        <div className="col-span-2 grid grid-cols-2 gap-3 sm:hidden">
+        <div className="mt-3 grid grid-cols-2 gap-3 sm:hidden">
           <button
             type="button"
             onClick={moveUp}
@@ -282,11 +233,9 @@ function SortableImageCard({
 
 export function GallerySortableList({
   images,
-  mainImageUrl,
   talentName,
   locale,
   reorderAction,
-  setMainAction,
   removeAction,
 }: GallerySortableListProps) {
   const isArabic = locale === "ar";
@@ -480,14 +429,12 @@ export function GallerySortableList({
                 imageUrl={imageUrl}
                 locale={locale}
                 index={index}
-                isMain={imageUrl === mainImageUrl}
                 talentName={talentName}
                 isArabic={isArabic}
                 isFirst={index === 0}
                 isLast={index === orderedImages.length - 1}
                 moveUp={() => moveImage(index, "up")}
                 moveDown={() => moveImage(index, "down")}
-                setMainAction={setMainAction}
                 removeAction={removeAction}
               />
             ))}

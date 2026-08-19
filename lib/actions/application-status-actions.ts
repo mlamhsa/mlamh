@@ -58,12 +58,17 @@ function getNotificationMessage(
   return messages[status];
 }
 
+/*
+ * MVP flow:
+ * Every non-final application can be accepted or rejected directly.
+ * Reviewing and shortlisted remain supported for old test data only.
+ */
 const validTransitions: Record<
   ApplicationStatus,
   ApplicationStatus[]
 > = {
-  pending: ["reviewing", "shortlisted", "rejected"],
-  reviewing: ["shortlisted", "accepted", "rejected"],
+  pending: ["accepted", "rejected"],
+  reviewing: ["accepted", "rejected"],
   shortlisted: ["accepted", "rejected"],
   accepted: [],
   rejected: [],
@@ -168,11 +173,6 @@ async function ensureAcceptedConversation(
     return createdConversation.id;
   }
 
-  /*
-   * A second request may have created the conversation between the
-   * lookup and insert. In that case, retrieve and reuse it instead of
-   * creating a duplicate.
-   */
   if (createError?.code === "23505") {
     const { data: concurrentConversation, error: retryError } =
       await adminClient
@@ -249,15 +249,32 @@ export async function updateApplicationStatusAction(
   }
 
   const { data: profile, error: profileError } =
-    await adminClient
-      .from("profiles")
-      .select("id")
-      .eq("user_id", user.id)
-      .maybeSingle();
+  await adminClient
+    .from("profiles")
+    .select("id, account_type, approval_status, status")
+    .eq("user_id", user.id)
+    .maybeSingle();
 
-  if (profileError || !profile) {
-    throw new Error("Profile not found.");
-  }
+if (profileError || !profile) {
+  throw new Error("Profile not found.");
+}
+
+if (profile.account_type !== "publisher") {
+  throw new Error("Publisher access required.");
+}
+
+if (profile.approval_status !== "approved") {
+  throw new Error("Publisher account is not approved.");
+}
+
+if (
+  profile.status === "suspended" ||
+  profile.status === "blocked" ||
+  profile.status === "banned" ||
+  profile.status === "disabled"
+) {
+  throw new Error("Publisher account is not active.");
+}
 
   const { data: publisher, error: publisherError } =
     await adminClient
@@ -300,11 +317,6 @@ export async function updateApplicationStatusAction(
     application.status,
   );
 
-  /*
-   * Keep the action idempotent. If the application was already
-   * accepted but its conversation was not created previously, calling
-   * this action again repairs the missing conversation.
-   */
   if (currentStatus === status) {
     if (status === "accepted") {
       await ensureAcceptedConversation(adminClient, {
@@ -339,17 +351,29 @@ export async function updateApplicationStatusAction(
 
   const now = new Date().toISOString();
 
-  const { error: updateError } = await adminClient
+  const {
+    data: updatedApplication,
+    error: updateError,
+  } = await adminClient
     .from("opportunity_applications")
     .update({
       status,
       updated_at: now,
     })
     .eq("id", application.id)
-    .eq("opportunity_id", application.opportunity_id);
-
+    .eq("opportunity_id", application.opportunity_id)
+    .eq("status", application.status)
+    .select("id")
+    .maybeSingle();
+  
   if (updateError) {
     throw new Error(updateError.message);
+  }
+  
+  if (!updatedApplication) {
+    throw new Error(
+      "Application status changed before the update could complete.",
+    );
   }
 
   await logStatusChange(
@@ -369,9 +393,7 @@ export async function updateApplicationStatusAction(
     });
   }
 
-  if (
-    ["shortlisted", "accepted", "rejected"].includes(status)
-  ) {
+  if (["accepted", "rejected"].includes(status)) {
     const { error: notificationError } = await adminClient
       .from("notifications")
       .insert({

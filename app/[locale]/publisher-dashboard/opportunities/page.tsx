@@ -15,7 +15,11 @@ import {
 
 type PageProps = {
   params: Promise<{ locale: string }>;
-  searchParams?: Promise<{ status?: string }>;
+  searchParams?: Promise<{
+    status?: string;
+    created?: string;
+    id?: string;
+  }>;
 };
 
 function formatDate(value?: string | null, locale = "en") {
@@ -58,6 +62,11 @@ export default async function PublisherOpportunitiesPage({
   const isRtl = locale === "ar";
   const statusLocale = isRtl ? "ar" : "en";
   const selectedStatus = filters.status ?? "all";
+
+  const wasCreated = filters.created === "1";
+  const createdOpportunityId = filters.id
+    ? Number(filters.id)
+    : null;
 
   const { publisher } = await requirePublisher(locale);
   const adminClient = createAdminClient();
@@ -161,6 +170,35 @@ export default async function PublisherOpportunitiesPage({
 
   return (
       <div className="space-y-8">
+        {wasCreated ? (
+          <div className="rounded-[1.5rem] border border-emerald-400/25 bg-emerald-400/[0.06] px-6 py-5">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div>
+                <p className="text-sm font-medium text-emerald-300">
+                  {isRtl
+                    ? "تم إرسال الفرصة للمراجعة بنجاح"
+                    : "Opportunity submitted successfully"}
+                </p>
+
+                <p className="mt-2 text-sm leading-6 text-white/45">
+                  {isRtl
+                    ? "فرصتك الآن قيد مراجعة فريق ملامح، وسيتم نشرها بعد اعتمادها."
+                    : "Your opportunity is now being reviewed by the MLAMH team and will be published once approved."}
+                </p>
+              </div>
+
+              {createdOpportunityId ? (
+                <Link
+                  href={`/${locale}/publisher-dashboard/opportunities/${createdOpportunityId}`}
+                  className="arabic-safe inline-flex shrink-0 rounded-full border border-emerald-400/30 px-5 py-3 text-xs text-emerald-300 transition hover:bg-emerald-400 hover:text-black"
+                >
+                  {isRtl ? "عرض الفرصة" : "View Opportunity"}
+                </Link>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+
         <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
           <div>
             <p className="arabic-safe text-xs uppercase tracking-[0.35em] text-gold">
@@ -180,7 +218,7 @@ export default async function PublisherOpportunitiesPage({
 
           {canCreateOpportunity ? (
             <Link
-              href={`/${locale}/opportunities/new`}
+            href={`/${locale}/publisher-dashboard/opportunities/new`}
               className="arabic-safe inline-flex rounded-full border border-gold bg-gold/10 px-6 py-4 text-xs uppercase tracking-[0.22em] text-gold transition hover:bg-gold hover:text-black"
             >
               {isRtl ? "إنشاء فرصة" : "Create Opportunity"}
@@ -264,7 +302,11 @@ export default async function PublisherOpportunitiesPage({
                   return (
                     <article
                       key={opportunity.id}
-                      className="grid gap-5 bg-black/20 p-5 transition hover:bg-white/[0.03] lg:grid-cols-[1.5fr_0.8fr_0.8fr_1.4fr] lg:items-center"
+                      className={`grid gap-5 p-5 transition lg:grid-cols-[1.5fr_0.8fr_0.8fr_1.4fr] lg:items-center ${
+                        wasCreated && createdOpportunityId === opportunity.id
+                          ? "bg-gold/[0.07] ring-1 ring-inset ring-gold/20"
+                          : "bg-black/20 hover:bg-white/[0.03]"
+                      }`}
                     >
                       <div>
                         <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -391,7 +433,7 @@ export default async function PublisherOpportunitiesPage({
 
               {canCreateOpportunity ? (
                 <Link
-                  href={`/${locale}/opportunities/new`}
+                href={`/${locale}/publisher-dashboard/opportunities/new`}
                   className="mt-6 inline-flex rounded-full border border-gold bg-gold/10 px-6 py-3 text-xs uppercase tracking-[0.2em] text-gold transition hover:bg-gold hover:text-black"
                 >
                   {isRtl ? "إنشاء فرصة" : "Create Opportunity"}

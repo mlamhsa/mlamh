@@ -1,66 +1,156 @@
-import { isFeatureEnabled } from "@/config/features";
+import {
+  BarChart3,
+  Bell,
+  BriefcaseBusiness,
+  Building2,
+  ClipboardList,
+  FileClock,
+  LayoutDashboard,
+  MessageSquare,
+  Settings,
+  ShieldCheck,
+  Users,
+} from "lucide-react";
 
-export const adminNavigation = [
-  {
-    label: "Dashboard",
-    href: "/admin",
-  },
-  {
-    label: "Talents",
-    href: "/admin",
-  },
-  {
-    label: "Publishers",
-    href: "/admin/publishers",
-  },
-  {
-    label: "Opportunities",
-    href: "/admin/opportunities",
-  },
-  {
-    label: "Applications",
-    href: "/admin/opportunity-applications",
-  },
+export type AdminBadgeKey =
+  | "pendingActions"
+  | "pendingPublishers"
+  | "pendingOpportunities"
+  | "reportedMessages"
+  | "notifications";
 
-  {
-    label: "Homepage Management",
-    href: "/admin/site-management/homepage",
-  },
+export type AdminNavigationItem = {
+  labelAr: string;
+  labelEn: string;
+  href: string;
+  icon: typeof LayoutDashboard;
+  badgeKey?: AdminBadgeKey;
+};
 
-  {
-    label: "Footer Management",
-    href: "/admin/footer",
-  },
+export type AdminNavigationGroup = {
+  titleAr: string;
+  titleEn: string;
+  items: AdminNavigationItem[];
+};
 
-  {
-    label: "Talent Requests",
-    href: "/admin/requests",
-  },
-  {
-    label: "Claim Requests",
-    href: "/admin/claim-requests",
-  },
-
-  ...(isFeatureEnabled("notifications")
-    ? [
+export const adminNavigation: AdminNavigationGroup[] =
+  [
+    {
+      titleAr: "نظرة عامة",
+      titleEn: "Overview",
+      items: [
         {
-          label: "Notifications",
-          href: "/admin/notifications",
+          labelAr: "لوحة التحكم",
+          labelEn: "Dashboard",
+          href: "/admin",
+          icon: LayoutDashboard,
         },
-      ]
-    : []),
-
-  ...(isFeatureEnabled("analytics")
-    ? [
         {
-          label: "Analytics",
+          labelAr: "يتطلب إجراء",
+          labelEn: "Action Center",
+          href: "/admin/action-center",
+          icon: FileClock,
+          badgeKey: "pendingActions",
+        },
+      ],
+    },
+
+    {
+      titleAr: "إدارة الحسابات",
+      titleEn: "Account Management",
+      items: [
+        {
+          labelAr: "المواهب",
+          labelEn: "Talents",
+          href: "/admin/talents",
+          icon: Users,
+        },
+        {
+          labelAr: "الناشرون",
+          labelEn: "Publishers",
+          href: "/admin/publishers",
+          icon: Building2,
+          badgeKey:
+            "pendingPublishers",
+        },
+      ],
+    },
+
+    {
+      titleAr: "التشغيل",
+      titleEn: "Operations",
+      items: [
+        {
+          labelAr: "الفرص",
+          labelEn: "Opportunities",
+          href: "/admin/opportunities",
+          icon: BriefcaseBusiness,
+          badgeKey:
+            "pendingOpportunities",
+        },
+        {
+          labelAr: "الطلبات",
+          labelEn: "Applications",
+          href:
+            "/admin/opportunity-applications",
+          icon: ClipboardList,
+        },
+        {
+          labelAr: "المحادثات",
+          labelEn: "Messages",
+          href: "/admin/messages",
+          icon: MessageSquare,
+          badgeKey:
+            "reportedMessages",
+        },
+      ],
+    },
+
+    {
+      titleAr: "الرقابة والتحليلات",
+      titleEn: "Monitoring",
+      items: [
+        {
+          labelAr: "التحليلات",
+          labelEn: "Analytics",
           href: "/admin/analytics",
+          icon: BarChart3,
         },
-      ]
-    : []),
+        {
+          labelAr: "الإشعارات",
+          labelEn: "Notifications",
+          href:
+            "/admin/notifications",
+          icon: Bell,
+          badgeKey:
+            "notifications",
+        },
+        {
+          labelAr: "سجل العمليات",
+          labelEn: "Audit Log",
+          href: "/admin/audit-log",
+          icon: FileClock,
+        },
+      ],
+    },
 
-  {
-    label: "Settings",
-    href: "/admin/settings",
-  },
-];
+    {
+      titleAr: "النظام",
+      titleEn: "System",
+      items: [
+        {
+          labelAr:
+            "المشرفون والصلاحيات",
+          labelEn: "Admins & Roles",
+          href: "/admin/admins",
+          icon: ShieldCheck,
+        },
+        {
+          labelAr: "الإعدادات",
+          labelEn: "Settings",
+          href: "/admin/settings",
+          icon: Settings,
+        },
+      ],
+    },
+  ];

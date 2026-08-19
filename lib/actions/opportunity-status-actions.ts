@@ -8,6 +8,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 type OpportunityStatus =
   | "draft"
   | "pending_review"
+  | "needs_changes"
   | "published"
   | "open"
   | "closed"
@@ -27,7 +28,14 @@ const ALLOWED_TRANSITIONS: Record<
     to: "closed",
   },
   archive: {
-    from: ["draft", "pending_review", "published", "open", "closed"],
+    from: [
+      "draft",
+      "pending_review",
+      "needs_changes",
+      "published",
+      "open",
+      "closed",
+    ],
     to: "archived",
   },
   restore: {
@@ -128,6 +136,8 @@ async function updateOpportunityStatus(
       .from("opportunities")
       .update({
         status: transition.to,
+        published: false,
+        updated_at: new Date().toISOString(),
       })
       .eq("id", opportunity.id)
       .eq("publisher_id", publisher.id)
@@ -147,22 +157,26 @@ async function updateOpportunityStatus(
 
   const locales = ["ar", "en"] as const;
 
-  for (const locale of locales) {
-    const dashboardPath =
-      `/${locale}/publisher-dashboard`;
+for (const locale of locales) {
+  const dashboardPath =
+    `/${locale}/publisher-dashboard`;
 
-    const opportunitiesPath =
-      `${dashboardPath}/opportunities`;
+  const opportunitiesPath =
+    `${dashboardPath}/opportunities`;
 
-    const opportunityPath =
-      `${opportunitiesPath}/${opportunity.id}`;
+  const opportunityPath =
+    `${opportunitiesPath}/${opportunity.id}`;
 
-    revalidatePath(dashboardPath);
-    revalidatePath(opportunitiesPath);
-    revalidatePath(opportunityPath);
-    revalidatePath(`${opportunityPath}/edit`);
-    revalidatePath(`${opportunityPath}/applicants`);
-  }
+  revalidatePath(dashboardPath);
+  revalidatePath(opportunitiesPath);
+  revalidatePath(opportunityPath);
+  revalidatePath(`${opportunityPath}/edit`);
+  revalidatePath(`${opportunityPath}/applicants`);
+}
+
+revalidatePath("/ar/opportunities");
+revalidatePath("/en/opportunities");
+revalidatePath("/admin/opportunities");
 }
 
 export async function closeOpportunityAction(

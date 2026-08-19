@@ -237,7 +237,15 @@ export function MobileAppNavigation({
           z-[9000]
           border-b
           border-white/[0.08]
-          bg-black/95
+          bg-[#050505]
+isolate
+before:pointer-events-none
+before:absolute
+before:inset-x-0
+before:bottom-full
+before:h-[100dvh]
+before:bg-[#050505]
+before:content-['']
           shadow-[0_8px_30px_rgba(0,0,0,0.35)]
           backdrop-blur-2xl
           lg:hidden

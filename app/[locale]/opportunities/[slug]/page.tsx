@@ -1,12 +1,12 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
-import { revalidatePath } from "next/cache";
 
 import OpportunityShareButton from "@/components/opportunities/OpportunityShareButton";
+import { applyToOpportunityAction } from "@/lib/actions/apply-to-opportunity";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getPublishedOpportunities } from "@/lib/supabase/opportunities";
+import { revalidatePath } from "next/cache";
 
 type OpportunityPageProps = {
   params: Promise<{ locale?: string; slug: string }>;
@@ -35,124 +35,6 @@ type ApplicationStatus =
       ? `${description.slice(0, 157).trimEnd()}...`
       : description;
   }
-
-async function applyToOpportunity(formData: FormData) {
-  "use server";
-
-  const locale = String(formData.get("locale") ?? "ar");
-  const opportunityId = Number(formData.get("opportunityId"));
-
-  if (!Number.isFinite(opportunityId) || opportunityId <= 0) {
-    throw new Error("[applyToOpportunity] Invalid opportunity id.");
-  }
-
-  const authClient = await createServerSupabaseClient();
-  const adminClient = createAdminClient();
-  const today = new Date().toISOString().slice(0, 10);
-
-  const {
-    data: { user },
-    error: userError,
-  } = await authClient.auth.getUser();
-
-  if (userError || !user) {
-    redirect(`/${locale}/login`);
-  }
-
-  const { data: talent, error: talentError } = await adminClient
-    .from("talents")
-    .select("id")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (talentError) {
-    throw new Error(`[applyToOpportunity talent] ${talentError.message}`);
-  }
-
-  if (!talent) {
-    redirect(`/${locale}/talent-dashboard/profile`);
-  }
-
-  const {
-    data: availableOpportunity,
-    error: opportunityError,
-  } = await adminClient
-    .from("opportunities")
-    .select("id")
-    .eq("id", opportunityId)
-    .eq("published", true)
-    .in("status", ["published", "open"])
-    .or(
-      `application_deadline.is.null,application_deadline.gte.${today}`,
-    )
-    .maybeSingle();
-  
-  if (opportunityError) {
-    throw new Error(
-      `[applyToOpportunity opportunity] ${opportunityError.message}`,
-    );
-  }
-  
-  if (!availableOpportunity) {
-    throw new Error(
-      "[applyToOpportunity] Opportunity is unavailable.",
-    );
-  }
-
-  const { data: existingApplication, error: existingApplicationError } =
-    await adminClient
-      .from("opportunity_applications")
-      .select("id")
-      .eq("opportunity_id", opportunityId)
-      .eq("talent_id", talent.id)
-      .maybeSingle();
-
-  if (existingApplicationError) {
-    throw new Error(
-      `[applyToOpportunity existing application] ${existingApplicationError.message}`
-    );
-  }
-
-  if (!existingApplication) {
-    const { error: insertError } = await adminClient
-      .from("opportunity_applications")
-      .insert({
-        opportunity_id: opportunityId,
-        talent_id: talent.id,
-        status: "pending",
-      });
-  
-    if (insertError) {
-      throw new Error(
-        `[applyToOpportunity insert] ${insertError.message}`,
-      );
-    }
-  
-    const { error: invitationUpdateError } =
-      await adminClient
-        .from("opportunity_invitations")
-        .update({
-          status: "applied",
-          applied_at: new Date().toISOString(),
-        })
-        .eq("opportunity_id", opportunityId)
-        .eq("talent_id", talent.id)
-        .in("status", ["sent", "viewed"]);
-  
-    if (invitationUpdateError) {
-      console.error(
-        "[applyToOpportunity invitation]",
-        invitationUpdateError,
-      );
-    }
-  }
-
-  revalidatePath(`/${locale}/opportunities`);
-  revalidatePath(`/${locale}/talent-dashboard/applications`);
-  revalidatePath(`/${locale}/talent-dashboard/notifications`);
-
-  redirect(`/${locale}/talent-dashboard/applications`);
-}
 
 function OpportunityIcon({
   name,
@@ -258,12 +140,26 @@ function OpportunityIcon({
   );
 }
 
-function formatBudget(value: unknown, isRtl: boolean) {
+function formatCompensation(
+  compensationType: string | null | undefined,
+  value: unknown,
+  isRtl: boolean,
+) {
+  if (compensationType === "negotiable") {
+    return isRtl ? "حسب الاتفاق" : "Negotiable";
+  }
+
+  if (compensationType === "unpaid") {
+    return isRtl ? "غير مدفوع" : "Unpaid";
+  }
+
   const budget = Number(value);
 
-  if (!budget) return isRtl ? "حسب الاتفاق" : "By agreement";
+  if (!Number.isFinite(budget) || budget <= 0) {
+    return isRtl ? "غير محدد" : "Not specified";
+  }
 
-  return `${new Intl.NumberFormat(isRtl ? "ar-SA" : "en-US").format(budget)} ${
+  return `${new Intl.NumberFormat("en-US").format(budget)} ${
     isRtl ? "ريال" : "SAR"
   }`;
 }
@@ -275,30 +171,59 @@ function formatDate(value: string | null | undefined, locale: string) {
 
   if (Number.isNaN(date.getTime())) return "—";
 
-  return new Intl.DateTimeFormat(locale === "ar" ? "ar-SA" : "en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  }).format(date);
+  return new Intl.DateTimeFormat(
+    locale === "ar" ? "ar-SA-u-nu-latn" : "en-US",
+    {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    },
+  ).format(date);
+}
+
+function formatWorkDuration(
+  value: string | null | undefined,
+  isRtl: boolean,
+) {
+  if (!value) return null;
+
+  const normalized = value.trim().toLowerCase();
+
+  const labels: Record<string, { ar: string; en: string }> = {
+    // القيم الجديدة
+    "1_hour": { ar: "ساعة", en: "1 Hour" },
+    "2_hours": { ar: "ساعتان", en: "2 Hours" },
+    "4_hours": { ar: "4 ساعات", en: "4 Hours" },
+    "full_day": { ar: "يوم كامل", en: "Full Day" },
+
+    // دعم البيانات القديمة الموجودة مسبقًا
+    "1 hour": { ar: "ساعة", en: "1 Hour" },
+    "2 hours": { ar: "ساعتان", en: "2 Hours" },
+    "4 hours": { ar: "4 ساعات", en: "4 Hours" },
+    "full day": { ar: "يوم كامل", en: "Full Day" },
+  };
+
+  const match = labels[normalized];
+
+  if (match) {
+    return isRtl ? match.ar : match.en;
+  }
+
+  return value;
 }
 
 function getOpportunityTypeLabel(value: unknown, isRtl: boolean) {
   const type = String(value ?? "");
 
   const labels: Record<string, { ar: string; en: string }> = {
-    actor: { ar: "ممثل", en: "Actor" },
-    actress: { ar: "ممثلة", en: "Actress" },
-    model: { ar: "مودل", en: "Model" },
-    presenter: { ar: "مقدم", en: "Presenter" },
-    voice_actor: { ar: "ممثل صوتي", en: "Voice Actor" },
-    singer: { ar: "مغنٍ", en: "Singer" },
-    dancer: { ar: "راقص", en: "Dancer" },
-    athlete: { ar: "رياضي", en: "Athlete" },
-    extra: { ar: "كومبارس", en: "Extra" },
-    influencer: { ar: "صانع محتوى", en: "Influencer" },
-    content_creator: { ar: "صانع محتوى", en: "Content Creator" },
-    makeup_artist: { ar: "خبير تجميل", en: "Makeup Artist" },
-    photographer: { ar: "مصور", en: "Photographer" },
+    actor: {
+      ar: "ممثل / ممثلة",
+      en: "Actor",
+    },
+    model: {
+      ar: "مودل",
+      en: "Model",
+    },
   };
 
   if (labels[type]) {
@@ -319,6 +244,53 @@ function getGenderLabel(value: unknown, isRtl: boolean) {
   }
 
   return gender.replaceAll("_", " ");
+}
+function getRoleRequirementLabel(
+  value: unknown,
+  isRtl: boolean,
+) {
+  const key = String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replaceAll("-", "_");
+
+  const labels: Record<
+    string,
+    { ar: string; en: string }
+  > = {
+    arabic: { ar: "العربية", en: "Arabic" },
+    english: { ar: "الإنجليزية", en: "English" },
+    french: { ar: "الفرنسية", en: "French" },
+
+    najdi: { ar: "نجدي", en: "Najdi" },
+    hejazi: { ar: "حجازي", en: "Hejazi" },
+    southern: { ar: "جنوبي", en: "Southern" },
+    northern: { ar: "شمالي", en: "Northern" },
+    gulf: { ar: "خليجي", en: "Gulf" },
+
+    commercial: { ar: "تجاري", en: "Commercial" },
+    fashion: { ar: "أزياء", en: "Fashion" },
+    beauty: { ar: "جمال", en: "Beauty" },
+    lifestyle: { ar: "لايف ستايل", en: "Lifestyle" },
+    ecommerce: { ar: "متاجر إلكترونية", en: "E-commerce" },
+
+    black: { ar: "أسود", en: "Black" },
+    brown: { ar: "بني", en: "Brown" },
+    blonde: { ar: "أشقر", en: "Blonde" },
+    red: { ar: "أحمر", en: "Red" },
+    gray: { ar: "رمادي", en: "Gray" },
+    other: { ar: "أخرى", en: "Other" },
+  };
+
+  const translated = labels[key];
+
+  if (translated) {
+    return isRtl
+      ? translated.ar
+      : translated.en;
+  }
+
+  return key.replaceAll("_", " ");
 }
 function getAgeDisplay(
   minAge: number | null | undefined,
@@ -630,6 +602,12 @@ const opportunity = (
   deadline?: string | null;
   application_start_date?: string | null;
   application_deadline?: string | null;
+
+  required_count?: number | null;
+  work_date?: string | null;
+  work_duration?: string | null;
+  compensation_type?: string | null;
+  role_requirements?: Record<string, unknown> | null;
 })
     | null;
 
@@ -686,10 +664,28 @@ const opportunity = (
     data: { user },
   } = await authClient.auth.getUser();
 
+  const { data: savedOpportunity, error: savedOpportunityError } =
+  user
+    ? await authClient
+        .from("saved_opportunities")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("opportunity_id", opportunity.id)
+        .maybeSingle()
+    : { data: null, error: null };
+
+if (savedOpportunityError) {
+  throw new Error(
+    `[OpportunityDetailPage saved opportunity] ${savedOpportunityError.message}`,
+  );
+}
+
+const isSaved = Boolean(savedOpportunity);
+
   const { data: profile, error: profileError } = user
     ? await adminClient
         .from("profiles")
-        .select("account_type")
+        .select("account_type, approval_status")
         .eq("user_id", user.id)
         .maybeSingle()
     : { data: null, error: null };
@@ -703,10 +699,10 @@ const opportunity = (
   const { data: talent, error: talentError } =
     user && profile?.account_type === "talent"
       ? await adminClient
-          .from("talents")
-          .select("id")
-          .eq("user_id", user.id)
-          .maybeSingle()
+      .from("talents")
+      .select("id, status")
+      .eq("user_id", user.id)
+      .maybeSingle()
       : { data: null, error: null };
 
   if (talentError) {
@@ -734,22 +730,34 @@ const opportunity = (
   const isOpen =
     opportunity.status === "open" || opportunity.status === "published";
 
+    const approvalStatus =
+  profile?.approval_status ??
+  "not_submitted";
+
+const isTalentApproved =
+  approvalStatus === "approved";
+
   const canViewApplicationArea =
     !user || profile?.account_type === "talent";
 
-  const canApply = Boolean(
-    user &&
-      profile?.account_type === "talent" &&
-      talent &&
-      !existingApplication &&
-      isOpen
-  );
+    const canApply = Boolean(
+      user &&
+        profile?.account_type === "talent" &&
+        talent &&
+        isTalentApproved &&
+        !existingApplication &&
+        isOpen
+    );
 
   const city = isRtl
     ? opportunity.city_ar || opportunity.city_en || "—"
     : opportunity.city_en || opportunity.city_ar || "—";
 
-  const budget = formatBudget(opportunity.budget, isRtl);
+    const budget = formatCompensation(
+      opportunity.compensation_type,
+      opportunity.budget,
+      isRtl,
+    );
   const opportunityType = getOpportunityTypeLabel(
     opportunity.opportunity_type,
     isRtl
@@ -783,6 +791,119 @@ const deadline = deadlineValue
     isRtl,
   );
   
+  const workDate = opportunity.work_date
+  ? formatDate(opportunity.work_date, locale)
+  : null;
+
+  const workDuration = formatWorkDuration(
+    opportunity.work_duration,
+    isRtl,
+  );
+
+const requiredCount =
+  opportunity.required_count ?? null;
+
+const roleRequirements =
+  opportunity.role_requirements &&
+  typeof opportunity.role_requirements === "object" &&
+  !Array.isArray(opportunity.role_requirements)
+    ? opportunity.role_requirements
+    : {};
+
+const opportunityTypeKey = String(
+  opportunity.opportunity_type ?? "",
+)
+  .trim()
+  .toLowerCase()
+  .replaceAll("-", "_");
+  
+  const roleRequirementItems: Array<{
+    label: string;
+    value: string;
+  }> = [];
+  
+  if (opportunityTypeKey === "actor") {
+    const languages = Array.isArray(
+      roleRequirements.languages,
+    )
+      ? roleRequirements.languages.map((item) =>
+          getRoleRequirementLabel(item, isRtl),
+        )
+      : [];
+  
+    const dialects = Array.isArray(
+      roleRequirements.dialects,
+    )
+      ? roleRequirements.dialects.map((item) =>
+          getRoleRequirementLabel(item, isRtl),
+        )
+      : [];
+  
+    if (languages.length > 0) {
+      roleRequirementItems.push({
+        label: isRtl
+          ? "اللغات المطلوبة"
+          : "Required Languages",
+        value: languages.join("، "),
+      });
+    }
+  
+    if (dialects.length > 0) {
+      roleRequirementItems.push({
+        label: isRtl
+          ? "اللهجات المطلوبة"
+          : "Required Dialects",
+        value: dialects.join("، "),
+      });
+    }
+  }
+  
+  if (opportunityTypeKey === "model") {
+    const modelingTypes = Array.isArray(
+      roleRequirements.modeling_types,
+    )
+      ? roleRequirements.modeling_types.map(
+          (item) =>
+            getRoleRequirementLabel(item, isRtl),
+        )
+      : [];
+  
+    if (modelingTypes.length > 0) {
+      roleRequirementItems.push({
+        label: isRtl
+          ? "نوع أعمال المودل"
+          : "Modeling Types",
+        value: modelingTypes.join("، "),
+      });
+    }
+  
+    if (
+      roleRequirements.min_height_cm !== null &&
+      roleRequirements.min_height_cm !== undefined
+    ) {
+      roleRequirementItems.push({
+        label: isRtl
+          ? "الحد الأدنى للطول"
+          : "Minimum Height",
+        value: isRtl
+          ? `${roleRequirements.min_height_cm} سم`
+          : `${roleRequirements.min_height_cm} cm`,
+      });
+    }
+  
+    if (roleRequirements.hair_color) {
+      roleRequirementItems.push({
+        label: isRtl
+          ? "لون الشعر"
+          : "Hair Color",
+        value: getRoleRequirementLabel(
+          roleRequirements.hair_color,
+          isRtl,
+        ),
+      });
+    }
+  }
+  
   const deadlineDisplay = getDeadlineDisplay(
     deadlineValue,
     isRtl,
@@ -790,6 +911,11 @@ const deadline = deadlineValue
   
   const publicIsOpen =
     isOpen && !deadlineDisplay.isExpired;
+    const shouldPinMobileApplicationArea =
+  publicIsOpen &&
+  (!user ||
+    canApply ||
+    Boolean(existingApplication));
     const applicationProgress =
   getApplicationProgress(
     applicationStartValue,
@@ -805,6 +931,36 @@ const opportunitySummary =
   opportunityDescription.length > 220
     ? `${opportunityDescription.slice(0, 220).trimEnd()}...`
     : opportunityDescription;
+
+const normalizeOpportunityText = (value: string) =>
+  value
+    .toLocaleLowerCase(locale === "ar" ? "ar-SA" : "en-US")
+    .replace(/[\\s\\p{P}\\p{S}]+/gu, " ")
+    .trim();
+
+const normalizedTitle = normalizeOpportunityText(
+  opportunity.title || "",
+);
+const normalizedDescription = normalizeOpportunityText(
+  opportunityDescription,
+);
+
+const hasMeaningfulDescription =
+  normalizedDescription.length > 0 &&
+  normalizedDescription !==
+    normalizeOpportunityText(
+      isRtl
+        ? "لا يوجد وصف متاح لهذه الفرصة."
+        : "No description is available for this opportunity.",
+    ) &&
+  normalizedDescription !== normalizedTitle &&
+  !(
+    normalizedTitle &&
+    normalizedDescription.length < 90 &&
+    (normalizedDescription.includes(normalizedTitle) ||
+      normalizedTitle.includes(normalizedDescription))
+  );
+
     const opportunityHighlights = [
       publicIsOpen
         ? {
@@ -826,25 +982,36 @@ const opportunitySummary =
             tone: "danger" as const,
           },
     
-      Number(opportunity.budget) > 0
+      opportunity.compensation_type === "unpaid"
         ? {
             title: isRtl
-              ? "الميزانية معلنة"
-              : "Budget disclosed",
-            description: budget,
+              ? "فرصة غير مدفوعة"
+              : "Unpaid Opportunity",
+            description: isRtl
+              ? "لا يوجد مقابل مالي لهذه الفرصة."
+              : "No financial compensation is offered for this opportunity.",
             icon: "wallet" as const,
             tone: "default" as const,
           }
-        : {
-            title: isRtl
-              ? "الأجر حسب الاتفاق"
-              : "Compensation by agreement",
-            description: isRtl
-              ? "يتم الاتفاق مع الجهة الناشرة."
-              : "Compensation is agreed with the publisher.",
-            icon: "wallet" as const,
-            tone: "default" as const,
-          },
+        : opportunity.compensation_type === "negotiable"
+          ? {
+              title: isRtl
+                ? "المقابل حسب الاتفاق"
+                : "Compensation Negotiable",
+              description: isRtl
+                ? "يتم الاتفاق على المقابل المالي مع الجهة الناشرة."
+                : "Compensation will be agreed with the publisher.",
+              icon: "wallet" as const,
+              tone: "default" as const,
+            }
+          : {
+              title: isRtl
+                ? "المقابل المالي معلن"
+                : "Compensation Disclosed",
+              description: budget,
+              icon: "wallet" as const,
+              tone: "default" as const,
+            },
     
       {
         title: ageDisplay.title,
@@ -965,18 +1132,82 @@ const opportunitySummary =
             }
           : undefined,
     };
+    async function toggleSavedOpportunityAction() {
+      "use server";
+    
+      const opportunityId = opportunity!.id;
+      const opportunitySlug =
+        opportunity!.slug || String(opportunity!.id);
+    
+      const supabase = await createServerSupabaseClient();
+    
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser();
+    
+      if (!currentUser) {
+        return;
+      }
+    
+      const { data: existingSaved, error: existingSavedError } =
+        await supabase
+          .from("saved_opportunities")
+          .select("id")
+          .eq("user_id", currentUser.id)
+          .eq("opportunity_id", opportunityId)
+          .maybeSingle();
+    
+      if (existingSavedError) {
+        throw new Error(
+          `[toggleSavedOpportunityAction select] ${existingSavedError.message}`,
+        );
+      }
+    
+      if (existingSaved) {
+        const { error } = await supabase
+          .from("saved_opportunities")
+          .delete()
+          .eq("id", existingSaved.id);
+    
+        if (error) {
+          throw new Error(
+            `[toggleSavedOpportunityAction delete] ${error.message}`,
+          );
+        }
+      } else {
+        const { error } = await supabase
+          .from("saved_opportunities")
+          .insert({
+            user_id: currentUser.id,
+            opportunity_id: opportunityId,
+          });
+    
+        if (error) {
+          throw new Error(
+            `[toggleSavedOpportunityAction insert] ${error.message}`,
+          );
+        }
+      }
+    
+      revalidatePath(
+        `/${locale}/opportunities/${encodeURIComponent(
+          opportunitySlug,
+        )}`,
+      );
+    }
     return (
       <main
         dir={isRtl ? "rtl" : "ltr"}
         className="
   min-h-screen
+  overflow-x-clip
   bg-background
-  px-4
+  px-3
   pb-[12rem]
-  pt-20
+  pt-6
   text-white
   sm:px-6
-  sm:pt-28
+  sm:pt-12
   lg:pb-24
   lg:pt-32
 "
@@ -990,19 +1221,19 @@ const opportunitySummary =
           }}
         />
     
-        <div className="mx-auto max-w-7xl">
+        <div className="mx-auto w-full max-w-7xl min-w-0">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 sm:mb-5">
           <Link
             href={`/${locale}/opportunities`}
-            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-white/10 px-3.5 text-[11px] text-white/55 transition duration-300 hover:border-gold/35 hover:bg-white/[0.025] hover:text-gold sm:min-h-11 sm:px-4 sm:text-xs"
+            className="inline-flex min-h-9 items-center justify-center gap-2 rounded-full border border-white/10 px-3 text-[10px] text-white/55 transition duration-300 hover:border-gold/35 hover:bg-white/[0.025] hover:text-gold sm:min-h-11 sm:px-4 sm:text-xs"
           >
             <span className={isRtl ? "rotate-180" : ""}>
               <OpportunityIcon name="arrow" className="h-4 w-4" />
             </span>
             {isRtl ? "العودة إلى الفرص" : "Back to Opportunities"}
-          </Link>
+            </Link>
 
-        </div>
+</div>
 
         <header className="relative overflow-hidden rounded-[1.5rem] border border-white/10 bg-[#080808] sm:rounded-[2.25rem]">
   <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_85%_15%,rgba(201,169,98,0.19),transparent_32%),radial-gradient(circle_at_10%_90%,rgba(16,185,129,0.08),transparent_30%)]" />
@@ -1010,8 +1241,8 @@ const opportunitySummary =
   <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.045),transparent_45%,rgba(201,169,98,0.035))]" />
 
   <div className="relative p-4 sm:p-7 lg:p-10">
-  <div className="flex flex-col gap-5 sm:gap-7 xl:flex-row xl:items-start xl:justify-between">
-      <div className="max-w-4xl">
+  <div className="flex min-w-0 flex-col gap-4 sm:gap-7 xl:flex-row xl:items-start xl:justify-between">
+      <div className="min-w-0 max-w-4xl">
         <div className="flex flex-wrap items-center gap-2">
         <span className="rounded-full border border-gold/35 bg-gold/[0.08] px-3 py-1.5 text-[9px] text-gold sm:px-4 sm:py-2 sm:text-[10px]">
             {opportunityType}
@@ -1044,14 +1275,14 @@ const opportunitySummary =
 </span>
         </div>
 
-        <h1 className="mt-5 max-w-4xl text-[1.8rem] font-light leading-[1.25] text-white sm:mt-7 sm:text-5xl sm:leading-[1.15] lg:text-7xl">
+        <h1 className="mt-4 max-w-4xl break-words [overflow-wrap:anywhere] text-[1.65rem] font-light leading-[1.25] text-white sm:mt-7 sm:text-5xl sm:leading-[1.15] lg:text-7xl">
           {opportunity.title ||
             (isRtl
               ? "فرصة بدون عنوان"
               : "Untitled Opportunity")}
         </h1>
 
-        <div className="mt-4 grid gap-2 text-xs text-white/50 sm:mt-6 sm:flex sm:flex-wrap sm:gap-x-6 sm:gap-y-3 sm:text-sm">
+        <div className="mt-3 grid gap-1.5 text-[11px] text-white/50 sm:mt-6 sm:flex sm:flex-wrap sm:gap-x-6 sm:gap-y-3 sm:text-sm">
         <span className="inline-flex min-w-0 items-center gap-2">
   <OpportunityIcon
     name="company"
@@ -1076,36 +1307,140 @@ const opportunitySummary =
               name="calendar"
               className="h-4 w-4 text-gold"
             />
-            {publishedDate}
+            {workDate || publishedDate}
           </span>
         </div>
 
-        <div className="mt-5 max-w-3xl sm:mt-7">
-        <p className="text-sm leading-7 text-white/55 sm:text-base sm:leading-8">
-    {opportunitySummary}
-  </p>
+        {hasMeaningfulDescription ? (
+          <div className="mt-4 max-w-3xl sm:mt-7">
+            <p className="break-words [overflow-wrap:anywhere] text-sm leading-7 text-white/55 sm:text-base sm:leading-8">
+              {opportunitySummary}
+            </p>
 
-  {opportunityDescription.length > 220 ? (
-    <a
-      href="#opportunity-description"
-      className="mt-4 inline-flex items-center gap-2 text-xs text-gold transition hover:text-gold-soft"
-    >
-      {isRtl
-        ? "قراءة الوصف الكامل"
-        : "Read Full Description"}
+            {opportunityDescription.length > 220 ? (
+              <a
+                href="#opportunity-description"
+                className="mt-4 inline-flex items-center gap-2 text-xs text-gold transition hover:text-gold-soft"
+              >
+                {isRtl ? "قراءة الوصف الكامل" : "Read Full Description"}
+                <span className="rotate-90">
+                  <OpportunityIcon name="arrow" className="h-4 w-4" />
+                </span>
+              </a>
+            ) : null}
+          </div>
+        ) : null}
 
-      <span className="rotate-90">
-        <OpportunityIcon
-          name="arrow"
-          className="h-4 w-4"
-        />
+<div
+  className="mt-4 flex items-center gap-2 border-t border-white/10 pt-3 text-[11px] text-white/55 sm:hidden"
+  dir={isRtl ? "rtl" : "ltr"}
+>
+  {isRtl ? (
+    <>
+      <span className="shrink-0 whitespace-nowrap text-white">
+        {budget}
       </span>
-    </a>
-  ) : null}
+
+      {workDuration ? (
+        <>
+          <span className="shrink-0 text-white/20">·</span>
+          <span className="shrink-0 whitespace-nowrap">
+            {workDuration}
+          </span>
+        </>
+      ) : null}
+
+      {requiredCount !== null ? (
+        <>
+          <span className="shrink-0 text-white/20">·</span>
+          <span
+            className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap"
+            dir="rtl"
+          >
+            <span>مطلوب:</span>
+            <bdi dir="ltr">{requiredCount}</bdi>
+          </span>
+        </>
+      ) : null}
+    </>
+  ) : (
+    <>
+      <span className="shrink-0 whitespace-nowrap text-white">
+        {budget}
+      </span>
+
+      {workDuration ? (
+        <>
+          <span className="shrink-0 text-white/20">·</span>
+          <span className="shrink-0 whitespace-nowrap">
+            {workDuration}
+          </span>
+        </>
+      ) : null}
+
+      {requiredCount !== null ? (
+        <>
+          <span className="shrink-0 text-white/20">·</span>
+          <span className="shrink-0 whitespace-nowrap">
+            Required: {requiredCount}
+          </span>
+        </>
+      ) : null}
+    </>
+  )}
 </div>
       </div>
+      {user &&
+profile?.account_type === "talent" ? (
+  <div className="mt-3 sm:hidden">
+    <form action={toggleSavedOpportunityAction}>
+      <button
+        type="submit"
+        className={`inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border px-4 text-xs transition ${
+          isSaved
+            ? "border-gold/40 bg-gold/[0.10] text-gold"
+            : "border-white/10 bg-black/20 text-white/60 active:border-gold/35 active:text-gold"
+        }`}
+      >
+        <span className="text-base leading-none">
+          {isSaved ? "♥" : "♡"}
+        </span>
 
-      <div className="w-full shrink-0 xl:w-[310px]">
+        <span>
+          {isSaved
+            ? isRtl
+              ? "تم الحفظ"
+              : "Saved"
+            : isRtl
+              ? "حفظ للمفضلة"
+              : "Save to favorites"}
+        </span>
+      </button>
+    </form>
+  </div>
+) : null}
+
+{publicIsOpen &&
+user &&
+profile?.account_type === "talent" &&
+!isTalentApproved ? (
+  <div className="mt-3 sm:hidden">
+    <ApplyArea
+      locale={locale}
+      isRtl={isRtl}
+      isOpen={publicIsOpen}
+      canApply={canApply}
+      isLoggedIn={Boolean(user)}
+      isTalent={true}
+      approvalStatus={approvalStatus}
+      existingApplication={existingApplication}
+      opportunityId={Number(opportunity.id)}
+      compact
+    />
+  </div>
+) : null}
+
+      <div className="hidden w-full shrink-0 sm:block xl:w-[310px]">
       <div className="rounded-[1.35rem] border border-white/10 bg-black/35 p-4 backdrop-blur-xl sm:rounded-[1.75rem] sm:p-5">
           <p className="text-[10px] uppercase tracking-[0.28em] text-white/35">
             {isRtl
@@ -1190,22 +1525,52 @@ const opportunitySummary =
                 isRtl={isRtl}
                 isOpen={publicIsOpen}
                 canApply={canApply}
+                isLoggedIn={Boolean(user)}
+isTalent={profile?.account_type === "talent"}
+approvalStatus={approvalStatus}
                 existingApplication={existingApplication}
                 opportunityId={Number(opportunity.id)}
               />
             </div>
           ) : null}
 
-          <div className="mt-3">
-            <OpportunityShareButton
-              title={
-                opportunity.title ||
-                (isRtl
-                  ? "فرصة من ملامح"
-                  : "MLAMH Opportunity")
-              }
-            />
-          </div>
+<div className="mt-3 flex flex-wrap items-center gap-2">
+  {user && profile?.account_type === "talent" ? (
+    <form action={toggleSavedOpportunityAction}>
+      <button
+        type="submit"
+        className={`inline-flex min-h-9 items-center justify-center gap-2 rounded-full border px-3 text-[10px] transition duration-300 sm:min-h-11 sm:px-4 sm:text-xs ${
+          isSaved
+            ? "border-gold/40 bg-gold/[0.10] text-gold"
+            : "border-white/10 text-white/55 hover:border-gold/35 hover:bg-gold/[0.05] hover:text-gold"
+        }`}
+      >
+        <span className="text-base leading-none">
+          {isSaved ? "♥" : "♡"}
+        </span>
+
+        <span>
+        {isSaved
+  ? isRtl
+    ? "تم الحفظ"
+    : "Saved"
+  : isRtl
+    ? "حفظ للمفضلة"
+    : "Save to favorites"}
+        </span>
+      </button>
+    </form>
+  ) : null}
+
+  <OpportunityShareButton
+    title={
+      opportunity.title ||
+      (isRtl
+        ? "فرصة من ملامح"
+        : "MLAMH Opportunity")
+    }
+  />
+</div>
         </div>
       </div>
     </div>
@@ -1213,7 +1578,7 @@ const opportunitySummary =
     <div className="mt-9 hidden overflow-hidden rounded-[1.75rem] border border-white/10 bg-black/25 sm:grid sm:grid-cols-2 lg:grid-cols-4">
       <HeroStat
         icon="wallet"
-        label={isRtl ? "الميزانية" : "Budget"}
+        label={isRtl ? "المقابل المالي" : "Compensation"}
         value={budget}
       />
 
@@ -1244,23 +1609,27 @@ const opportunitySummary =
       ? "التنقل داخل تفاصيل الفرصة"
       : "Opportunity page navigation"
   }
-  className="sticky top-[4.75rem] z-40 mt-4 rounded-2xl border border-white/10 bg-black/90 p-2 shadow-lg backdrop-blur-xl sm:top-20 lg:top-24"
+  className="relative z-20 mt-3 max-w-full rounded-2xl border border-white/10 bg-black/70 p-1.5 sm:sticky sm:top-20 sm:mt-4 sm:p-2 sm:shadow-lg sm:backdrop-blur-xl lg:top-24"
 >
-<div className="flex snap-x snap-mandatory items-center gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:gap-2">
-    <OpportunityNavLink
-      href="#opportunity-overview"
-      label={isRtl ? "نظرة سريعة" : "Overview"}
-    />
+<div className="flex max-w-full snap-x snap-mandatory items-center gap-1 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:gap-2">
+    <span className="hidden sm:contents">
+      <OpportunityNavLink
+        href="#opportunity-overview"
+        label={isRtl ? "نظرة سريعة" : "Overview"}
+      />
+    </span>
 
     <OpportunityNavLink
       href="#opportunity-requirements"
       label={isRtl ? "المتطلبات" : "Requirements"}
     />
 
-    <OpportunityNavLink
-      href="#opportunity-description"
-      label={isRtl ? "الوصف" : "Description"}
-    />
+    {hasMeaningfulDescription ? (
+      <OpportunityNavLink
+        href="#opportunity-description"
+        label={isRtl ? "الوصف" : "Description"}
+      />
+    ) : null}
 
     <OpportunityNavLink
       href="#application-journey"
@@ -1274,11 +1643,11 @@ const opportunitySummary =
   </div>
 </nav>
 
-<div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)]">
-          <div className="space-y-5">
+<div className="mt-4 grid min-w-0 gap-4 sm:mt-6 sm:gap-5 lg:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)]">
+          <div className="min-w-0 space-y-4 sm:space-y-5">
           <section
   id="opportunity-overview"
-  className="scroll-mt-32 overflow-hidden rounded-[1.5rem] border border-white/10 bg-white/[0.025] sm:rounded-[2rem]"
+  className="hidden scroll-mt-32 overflow-hidden rounded-[1.5rem] border border-white/10 bg-white/[0.025] sm:block sm:rounded-[2rem]"
 >
   <div className="border-b border-white/10 p-4
 sm:p-6
@@ -1295,75 +1664,23 @@ lg:p-8">
 
     <p className="mt-3 max-w-2xl text-sm leading-7 text-white/40">
       {isRtl
-        ? "راجع الموقع والموعد والجهة قبل التقديم."
-        : "Review the location, deadline, and publisher before applying."}
+        ? "راجع أهم تفاصيل العمل والتقديم قبل اتخاذ قرارك."
+        : "Review the key work and application details before deciding."}
     </p>
   </div>
 
-  <div
-  className="
-    grid
-    gap-px
-    rounded-[1.5rem]
-    overflow-hidden
-    bg-white/10
-    sm:grid-cols-2
-    xl:grid-cols-3
-  "
->
-    <QuickFact
-      icon="city"
-      label={isRtl ? "الموقع" : "Location"}
-      value={city}
-    />
-
-    <QuickFact
-      icon="calendar"
-      label={isRtl ? "آخر موعد" : "Deadline"}
-      value={
-        deadline ||
-        (isRtl ? "غير محدد" : "Not specified")
-      }
-    />
-
+  <div className="grid grid-cols-2 gap-px overflow-hidden rounded-[1.5rem] bg-white/10 xl:grid-cols-3">
+    <QuickFact icon="city" label={isRtl ? "الموقع" : "Location"} value={city} />
+    <QuickFact icon="wallet" label={isRtl ? "الميزانية" : "Budget"} value={budget} />
+    <QuickFact icon="calendar" label={isRtl ? "تاريخ العمل" : "Work Date"} value={workDate || (isRtl ? "غير محدد" : "Not specified")} />
+    <QuickFact icon="clock" label={isRtl ? "مدة العمل" : "Duration"} value={workDuration || (isRtl ? "غير محددة" : "Not specified")} />
+    <QuickFact icon="briefcase" label={isRtl ? "عدد المواهب" : "Required Talents"} value={requiredCount ?? (isRtl ? "غير محدد" : "Not specified")} />
     <QuickFact
       icon="clock"
       label={isRtl ? "حالة التقديم" : "Application Status"}
       value={deadlineDisplay.detail}
-      tone={
-        deadlineDisplay.isExpired
-          ? "danger"
-          : deadlineDisplay.isUrgent
-            ? "warning"
-            : "success"
-      }
+      tone={deadlineDisplay.isExpired ? "danger" : deadlineDisplay.isUrgent ? "warning" : "success"}
     />
-
-    <QuickFact
-      icon="company"
-      label={isRtl ? "الجهة الناشرة" : "Publisher"}
-      value={companyName}
-    />
-
-    <QuickFact
-      icon="briefcase"
-      label={isRtl ? "نوع الفرصة" : "Opportunity Type"}
-      value={opportunityType}
-    />
-
-<QuickFact
-  icon="calendar"
-  label={
-    applicationStartDate
-      ? isRtl
-        ? "بداية استقبال الطلبات"
-        : "Applications Started"
-      : isRtl
-        ? "تاريخ النشر"
-        : "Published"
-  }
-  value={applicationStartDate || publishedDate}
-/>
   </div>
 </section>
 <section className="hidden rounded-[2rem] border border-white/10 bg-white/[0.025] p-4 sm:block sm:p-6 lg:p-8">
@@ -1425,7 +1742,7 @@ lg:p-8">
     </p>
   </div>
 
-  <div className="mt-7 grid gap-3 sm:grid-cols-2">
+  <div className="mt-5 grid grid-cols-2 gap-2 sm:mt-7 sm:gap-3">
     <RequirementItem
       icon="age"
       label={isRtl ? "الفئة العمرية" : "Age Range"}
@@ -1438,35 +1755,53 @@ lg:p-8">
       value={gender}
     />
 
-    <RequirementItem
-      icon="city"
-      label={isRtl ? "موقع الفرصة" : "Opportunity Location"}
-      value={city}
-    />
+    <div className="col-span-2 sm:col-span-1">
+      <RequirementItem
+        icon="briefcase"
+        label={isRtl ? "نوع الموهبة" : "Talent Type"}
+        value={opportunityType}
+      />
+    </div>
 
-    <RequirementItem
-      icon="briefcase"
-      label={isRtl ? "نوع الموهبة" : "Talent Type"}
-      value={opportunityType}
-    />
   </div>
+
+  {roleRequirementItems.length > 0 ? (
+    <div className="mt-5 border-t border-white/10 pt-5 sm:mt-7 sm:pt-6">
+      <p className="text-[10px] uppercase tracking-[0.3em] text-gold">
+        {isRtl ? "متطلبات التخصص" : "Role Requirements"}
+      </p>
+
+      <div className="mt-3 grid grid-cols-2 gap-2 sm:mt-4 sm:gap-3">
+        {roleRequirementItems.map((item) => (
+          <RequirementItem
+            key={`${item.label}-${item.value}`}
+            icon="briefcase"
+            label={item.label}
+            value={item.value}
+          />
+        ))}
+      </div>
+    </div>
+  ) : null}
 </section>
-<section
-  id="opportunity-description"
-  className="scroll-mt-32 rounded-[1.5rem] border border-white/10 bg-white/[0.025] p-4 sm:rounded-[2rem] sm:p-6 lg:p-8"
->
-              <p className="text-[10px] uppercase tracking-[0.3em] text-gold">
-                {isRtl ? "حول الفرصة" : "About the Opportunity"}
-              </p>
+{hasMeaningfulDescription ? (
+  <section
+    id="opportunity-description"
+    className="scroll-mt-32 rounded-[1.5rem] border border-white/10 bg-white/[0.025] p-4 sm:rounded-[2rem] sm:p-6 lg:p-8"
+  >
+    <p className="text-[10px] uppercase tracking-[0.3em] text-gold">
+      {isRtl ? "حول الفرصة" : "About the Opportunity"}
+    </p>
 
-              <h2 className="mt-2 text-2xl font-light sm:text-3xl">
-                {isRtl ? "الوصف الكامل" : "Full Description"}
-              </h2>
+    <h2 className="mt-2 text-2xl font-light sm:text-3xl">
+      {isRtl ? "الوصف الكامل" : "Full Description"}
+    </h2>
 
-              <p className="mt-4 max-w-none whitespace-pre-line break-words [overflow-wrap:anywhere] text-sm leading-7 text-white/60 sm:mt-6 sm:max-w-[75ch] sm:text-base sm:leading-8">
-  {opportunityDescription}
-</p>
-            </section>
+    <p className="mt-4 max-w-none whitespace-pre-line break-words [overflow-wrap:anywhere] text-sm leading-7 text-white/60 sm:mt-6 sm:max-w-[75ch] sm:text-base sm:leading-8">
+      {opportunityDescription}
+    </p>
+  </section>
+) : null}
         
             <section
   id="application-journey"
@@ -1492,7 +1827,7 @@ lg:p-8">
     </p>
   </div>
 
-  <div className="grid sm:grid-cols-2 xl:grid-cols-4">
+  <div className="grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-4">
     <ProcessStep
       number="01"
       title={isRtl ? "إرسال الطلب" : "Submit"}
@@ -1599,35 +1934,77 @@ lg:p-8">
       }
     />
 
-    <FaqItem
-      question={
-        isRtl
-          ? "كيف أعرف أن حالة طلبي تغيرت؟"
-          : "How can I track application updates?"
-      }
-      answer={
-        isRtl
-          ? "يمكنك مراجعة آخر حالة من صفحة طلباتي في لوحة الموهبة، وستظهر هناك التحديثات المرتبطة بالطلب."
-          : "You can review the latest status from My Applications in your talent dashboard."
-      }
-    />
+    <div className="hidden divide-y divide-white/10 sm:block">
+      <FaqItem
+        question={
+          isRtl
+            ? "كيف أعرف أن حالة طلبي تغيرت؟"
+            : "How can I track application updates?"
+        }
+        answer={
+          isRtl
+            ? "يمكنك مراجعة آخر حالة من صفحة طلباتي في لوحة الموهبة، وستظهر هناك التحديثات المرتبطة بالطلب."
+            : "You can review the latest status from My Applications in your talent dashboard."
+        }
+      />
 
-    <FaqItem
-      question={
-        isRtl
-          ? "هل يمكنني التقديم بعد انتهاء الموعد؟"
-          : "Can I apply after the deadline?"
-      }
-      answer={
-        isRtl
-          ? "لا. يتوقف استقبال الطلبات تلقائيًا بعد انتهاء الموعد المحدد للفرصة."
-          : "No. Applications automatically close after the opportunity deadline."
-      }
-    />
+      <FaqItem
+        question={
+          isRtl
+            ? "هل يمكنني التقديم بعد انتهاء الموعد؟"
+            : "Can I apply after the deadline?"
+        }
+        answer={
+          isRtl
+            ? "لا. يتوقف استقبال الطلبات تلقائيًا بعد انتهاء الموعد المحدد للفرصة."
+            : "No. Applications automatically close after the opportunity deadline."
+        }
+      />
+    </div>
+
+    <details className="group sm:hidden">
+      <summary className="flex min-h-14 cursor-pointer list-none items-center justify-center gap-2 px-4 text-sm text-gold">
+        <span className="group-open:hidden">
+          {isRtl ? "عرض المزيد" : "Show More"}
+        </span>
+        <span className="hidden group-open:inline">
+          {isRtl ? "عرض أقل" : "Show Less"}
+        </span>
+        <span className="text-base transition-transform group-open:rotate-45">+</span>
+      </summary>
+
+      <div className="divide-y divide-white/10 border-t border-white/10">
+        <FaqItem
+          question={
+            isRtl
+              ? "كيف أعرف أن حالة طلبي تغيرت؟"
+              : "How can I track application updates?"
+          }
+          answer={
+            isRtl
+              ? "يمكنك مراجعة آخر حالة من صفحة طلباتي في لوحة الموهبة، وستظهر هناك التحديثات المرتبطة بالطلب."
+              : "You can review the latest status from My Applications in your talent dashboard."
+          }
+        />
+
+        <FaqItem
+          question={
+            isRtl
+              ? "هل يمكنني التقديم بعد انتهاء الموعد؟"
+              : "Can I apply after the deadline?"
+          }
+          answer={
+            isRtl
+              ? "لا. يتوقف استقبال الطلبات تلقائيًا بعد انتهاء الموعد المحدد للفرصة."
+              : "No. Applications automatically close after the opportunity deadline."
+          }
+        />
+      </div>
+    </details>
   </div>
 </section>
 
-<section className="relative overflow-hidden rounded-[1.5rem] border border-gold/20 bg-[radial-gradient(circle_at_top_right,rgba(201,169,98,0.16),transparent_42%),rgba(201,169,98,0.035)] p-5 sm:rounded-[2rem] sm:p-8">
+<section className="relative hidden overflow-hidden rounded-[1.5rem] border border-gold/20 bg-[radial-gradient(circle_at_top_right,rgba(201,169,98,0.16),transparent_42%),rgba(201,169,98,0.035)] p-5 sm:block sm:rounded-[2rem] sm:p-8">
   <div className="pointer-events-none absolute -bottom-24 -start-20 h-64 w-64 rounded-full bg-gold/[0.05] blur-3xl" />
 
   <div className="relative">
@@ -1691,6 +2068,9 @@ lg:p-8">
             isRtl={isRtl}
             isOpen={publicIsOpen}
             canApply={canApply}
+            isLoggedIn={Boolean(user)}
+isTalent={profile?.account_type === "talent"}
+approvalStatus={approvalStatus}
             existingApplication={existingApplication}
             opportunityId={Number(opportunity.id)}
           />
@@ -1758,7 +2138,7 @@ lg:p-8">
     </div>
 
     <div
-  className={`flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-5 pt-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:grid lg:gap-px lg:overflow-visible lg:bg-white/10 lg:p-0 ${
+  className={`flex w-full min-w-0 max-w-full snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain scroll-px-5 px-5 pb-5 pt-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:grid lg:gap-px lg:overflow-visible lg:bg-white/10 lg:p-0 ${
     relatedOpportunities.length === 1
       ? "lg:grid-cols-1"
       : relatedOpportunities.length === 2
@@ -1770,7 +2150,7 @@ lg:p-8">
         (relatedOpportunity: PublishedOpportunity) => (
           <div
             key={relatedOpportunity.id}
-            className="w-[88%] max-w-[360px] shrink-0 snap-center min-[420px]:w-[82%] sm:w-[58%] lg:w-auto lg:max-w-none lg:shrink"
+            className="w-[86%] max-w-[360px] shrink-0 snap-start sm:w-[60%] lg:w-auto lg:max-w-none lg:shrink"
           >
             <RelatedOpportunityCard
               locale={locale}
@@ -1785,9 +2165,9 @@ lg:p-8">
 ) : null}
 </div>
 
-<aside className="space-y-5 lg:sticky lg:top-32 lg:self-start">
-            {canViewApplicationArea && (
-              <section className="rounded-[2rem] border border-gold/20 bg-[radial-gradient(circle_at_top_right,rgba(201,169,98,0.12),transparent_45%),rgba(201,169,98,0.035)] p-5 sm:p-6">
+<aside className="min-w-0 space-y-4 sm:space-y-5 lg:sticky lg:top-32 lg:self-start">
+{canViewApplicationArea && (
+              <section className="hidden rounded-[2rem] border border-gold/20 bg-[radial-gradient(circle_at_top_right,rgba(201,169,98,0.12),transparent_45%),rgba(201,169,98,0.035)] p-5 lg:block lg:p-6">
                 <p className="text-[10px] uppercase tracking-[0.3em] text-gold">
                   {isRtl ? "حالة التقديم" : "Application Status"}
                 </p>
@@ -1881,6 +2261,9 @@ lg:p-8">
       isRtl={isRtl}
       isOpen={publicIsOpen}
       canApply={canApply}
+      isLoggedIn={Boolean(user)}
+isTalent={profile?.account_type === "talent"}
+approvalStatus={approvalStatus}
       existingApplication={existingApplication}
       opportunityId={Number(opportunity.id)}
     />
@@ -1952,7 +2335,7 @@ lg:p-8">
   </div>
 
   <div className="mt-5 rounded-2xl border border-white/10 bg-black/20 p-4">
-    <p className="text-[10px] uppercase tracking-[0.18em] text-white/30">
+    <p className="text-[9px] leading-4 text-white/30 sm:text-[10px] sm:uppercase sm:tracking-[0.18em]">
       {isRtl ? "تنبيه للموهبة" : "Talent Notice"}
     </p>
 
@@ -1969,7 +2352,8 @@ lg:p-8">
         </div>
       </div>
 
-      {canViewApplicationArea && (
+      {canViewApplicationArea &&
+  shouldPinMobileApplicationArea && (
   <div
     className="
       fixed
@@ -1986,49 +2370,16 @@ lg:p-8">
       lg:hidden
     "
   >
-    <div className="mx-auto flex max-w-lg items-center gap-2">
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-[10px] uppercase tracking-[0.16em] text-white/30">
-          {deadlineDisplay.isExpired
-            ? isRtl
-              ? "انتهى التقديم"
-              : "Applications Closed"
-            : isRtl
-              ? "الميزانية"
-              : "Budget"}
-        </p>
-
-        <p
-          className={`mt-1 truncate text-sm font-light ${
-            deadlineDisplay.isExpired
-              ? "text-red-200"
-              : "text-white"
-          }`}
-        >
-          {deadlineDisplay.isExpired
-            ? deadlineDisplay.detail
-            : budget}
-        </p>
-
-        {!deadlineDisplay.isExpired ? (
-          <p
-            className={`mt-0.5 truncate text-[10px] ${
-              deadlineDisplay.isUrgent
-                ? "text-amber-200"
-                : "text-emerald-200"
-            }`}
-          >
-            {deadlineDisplay.detail}
-          </p>
-        ) : null}
-      </div>
-
-      <div className="w-[56%] shrink-0 min-[390px]:w-[58%]">
+    <div className="mx-auto w-full max-w-lg">
+      <div className="w-full">
         <ApplyArea
           locale={locale}
           isRtl={isRtl}
           isOpen={publicIsOpen}
           canApply={canApply}
+          isLoggedIn={Boolean(user)}
+isTalent={profile?.account_type === "talent"}
+approvalStatus={approvalStatus}
           existingApplication={existingApplication}
           opportunityId={Number(opportunity.id)}
           compact
@@ -2046,6 +2397,9 @@ function ApplyArea({
   isRtl,
   isOpen,
   canApply,
+  isLoggedIn,
+  isTalent,
+  approvalStatus,
   existingApplication,
   opportunityId,
   compact = false,
@@ -2054,6 +2408,9 @@ function ApplyArea({
   isRtl: boolean;
   isOpen: boolean;
   canApply: boolean;
+  isLoggedIn: boolean;
+  isTalent: boolean;
+  approvalStatus: string;
   existingApplication: { id: number | string; status: string | null } | null;
   opportunityId: number;
   compact?: boolean;
@@ -2082,25 +2439,111 @@ function ApplyArea({
 
   if (canApply) {
     return (
-      <form action={applyToOpportunity}>
-        <input type="hidden" name="locale" value={locale} />
-        <input type="hidden" name="opportunityId" value={opportunityId} />
-
+      <form
+      action={async (formData: FormData) => {
+        "use server";
+    
+        const result = await applyToOpportunityAction(
+          null,
+          formData,
+        );
+        
+        console.log(
+          "[Apply opportunity result]",
+          result,
+        );
+      }}
+    >
+        <input
+          type="hidden"
+          name="locale"
+          value={locale}
+        />
+  
+        <input
+          type="hidden"
+          name="opportunity_id"
+          value={opportunityId}
+        />
+  
         <button
-  type="submit"
-  className={`inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gold font-medium text-black transition hover:bg-gold-soft active:scale-[0.98] ${
-    compact
-      ? "min-h-12 px-3 text-xs"
-      : "min-h-14 px-6 text-sm"
-  }`}
->
+          type="submit"
+          className={`inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gold font-medium text-black transition hover:bg-gold-soft active:scale-[0.98] ${
+            compact
+              ? "min-h-12 px-3 text-xs"
+              : "min-h-14 px-6 text-sm"
+          }`}
+        >
           <OpportunityIcon name="briefcase" />
-          {isRtl ? "التقديم على الفرصة" : "Apply for Opportunity"}
+  
+          {isRtl
+            ? "التقديم على الفرصة"
+            : "Apply for Opportunity"}
         </button>
       </form>
     );
   }
-
+  if (
+    isLoggedIn &&
+    isTalent &&
+    approvalStatus !== "approved"
+  ) {
+    const statusContent =
+      approvalStatus === "pending" ||
+      approvalStatus === "submitted"
+        ? {
+            title: isRtl
+              ? "ملفك قيد المراجعة"
+              : "Your profile is under review",
+            description: isRtl
+              ? "يمكنك التقديم على الفرص بعد اعتماد ملفك."
+              : "You can apply once your profile is approved.",
+          }
+        : approvalStatus === "changes_requested"
+          ? {
+              title: isRtl
+                ? "مطلوب تعديل ملفك"
+                : "Profile changes required",
+              description: isRtl
+                ? "راجع التعديلات المطلوبة، ثم أعد إرسال ملفك للمراجعة."
+                : "Complete the requested changes, then resubmit your profile.",
+            }
+          : approvalStatus === "rejected"
+            ? {
+                title: isRtl
+                  ? "لم يتم اعتماد ملفك"
+                  : "Your profile was not approved",
+                description: isRtl
+                  ? "راجع بيانات ملفك قبل اتخاذ الخطوة التالية."
+                  : "Review your profile before taking the next step.",
+              }
+            : {
+                title: isRtl
+                  ? "ملفك لم يُرسل للمراجعة"
+                  : "Your profile has not been submitted",
+                description: isRtl
+                  ? "أكمل ملفك ثم أرسله للمراجعة لتتمكن من التقديم."
+                  : "Complete and submit your profile for review before applying.",
+              };
+  
+    return (
+      <div
+        className={`w-full rounded-2xl border border-amber-300/20 bg-amber-300/[0.07] text-center text-amber-100 ${
+          compact
+            ? "px-3 py-3 text-xs"
+            : "px-5 py-4 text-sm"
+        }`}
+      >
+        <div className="font-medium">
+          {statusContent.title}
+        </div>
+  
+        <div className="mt-1 text-[11px] leading-5 text-amber-100/60">
+          {statusContent.description}
+        </div>
+      </div>
+    );
+  }
   return (
     <Link
     href={`/${locale}/login`}
@@ -2177,6 +2620,7 @@ function RelatedOpportunityCard({
     opportunity_type?: string | null;
     city_ar?: string | null;
     city_en?: string | null;
+    compensation_type?: string | null;
     budget?: string | number | null;
     min_age?: number | null;
     max_age?: number | null;
@@ -2197,7 +2641,8 @@ function RelatedOpportunityCard({
       isRtl,
     );
 
-  const budget = formatBudget(
+  const budget = formatCompensation(
+    opportunity.compensation_type,
     opportunity.budget,
     isRtl,
   );
@@ -2221,7 +2666,7 @@ function RelatedOpportunityCard({
   href={`/${locale}/opportunities/${encodeURIComponent(
     hrefValue,
   )}`}
-  className="group block h-full rounded-[1.35rem] border border-white/10 bg-[#090909] p-4 transition hover:bg-white/[0.035] sm:rounded-[1.5rem] sm:p-6 lg:rounded-none lg:border-0"
+  className="group block h-full min-w-0 max-w-full overflow-hidden rounded-[1.35rem] border border-white/10 bg-[#090909] p-4 transition hover:bg-white/[0.035] sm:rounded-[1.5rem] sm:p-6 lg:rounded-none lg:border-0"
 >
       <div className="flex items-start justify-between gap-4">
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-gold/20 bg-gold/[0.05] text-gold transition group-hover:border-gold/35 group-hover:bg-gold/[0.08]">
@@ -2248,7 +2693,7 @@ function RelatedOpportunityCard({
         {opportunityType}
       </p>
 
-      <h3 className="mt-1.5 line-clamp-2 text-base font-light leading-6 text-white transition group-hover:text-gold sm:mt-2 sm:text-xl sm:leading-8">
+      <h3 className="mt-1.5 line-clamp-2 min-w-0 break-words [overflow-wrap:anywhere] text-base font-light leading-6 text-white transition group-hover:text-gold sm:mt-2 sm:text-xl sm:leading-8">
         {opportunity.title ||
           (isRtl
             ? "فرصة بدون عنوان"
@@ -2262,7 +2707,7 @@ function RelatedOpportunityCard({
             className="h-4 w-4 text-gold/70"
           />
 
-          <span>{city}</span>
+          <span className="min-w-0 break-words [overflow-wrap:anywhere]">{city}</span>
         </div>
 
         <div className="flex items-center gap-2">
@@ -2373,13 +2818,13 @@ function RequirementItem({
   label,
   value,
 }: {
-  icon: "age" | "gender" | "city" | "briefcase";
+  icon: "age" | "gender" | "city" | "briefcase" | "calendar" | "clock";
   label: string;
   value: string | number;
 }) {
   return (
-    <article className="group flex items-center gap-3 rounded-[1.25rem] border border-white/10 bg-black/20 p-4 transition duration-300 hover:border-gold/25 hover:bg-white/[0.025] sm:items-start sm:gap-4 sm:rounded-[1.5rem] sm:p-5">
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-emerald-300/15 bg-emerald-300/[0.05] text-emerald-200 transition duration-300 group-hover:-translate-y-0.5 group-hover:border-emerald-300/25 group-hover:bg-emerald-300/[0.08] sm:h-11 sm:w-11">
+    <article className="group flex min-w-0 items-center gap-2.5 rounded-[1rem] border border-white/10 bg-black/20 p-3 transition duration-300 hover:border-gold/25 hover:bg-white/[0.025] sm:items-start sm:gap-4 sm:rounded-[1.5rem] sm:p-5">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-emerald-300/15 bg-emerald-300/[0.05] text-emerald-200 transition duration-300 group-hover:-translate-y-0.5 group-hover:border-emerald-300/25 group-hover:bg-emerald-300/[0.08] sm:h-11 sm:w-11">
         <OpportunityIcon name={icon} />
       </div>
 
@@ -2388,7 +2833,7 @@ function RequirementItem({
           {label}
         </p>
 
-        <p className="mt-1.5 break-words text-sm font-light leading-6 text-white sm:mt-2 sm:text-base sm:leading-7">
+        <p className="mt-1 break-words text-[13px] font-light leading-5 text-white sm:mt-2 sm:text-base sm:leading-7">
           {value}
         </p>
       </div>
@@ -2435,16 +2880,16 @@ function ProcessStep({
   description: string;
 }) {
   return (
-    <article className="relative border-b border-white/10 px-4 py-4 last:border-b-0 sm:border-e sm:p-6 sm:last:border-e-0 xl:border-b-0">
+    <article className="relative border-b border-e border-white/10 px-3 py-3 even:border-e-0 sm:p-6 sm:last:border-e-0 xl:border-b-0">
       <span className="inline-flex min-w-10 items-center text-base font-light tracking-[0.22em] text-gold/70 sm:text-lg">
   {number}
 </span>
 
-<h3 className="mt-3 text-base font-light text-white sm:mt-5 sm:text-lg">
+<h3 className="mt-2 text-sm font-light text-white sm:mt-5 sm:text-lg">
         {title}
       </h3>
 
-      <p className="mt-2 text-xs leading-6 text-white/40 sm:mt-3 sm:text-sm sm:leading-7">
+      <p className="mt-2 hidden text-xs leading-6 text-white/40 sm:mt-3 sm:block sm:text-sm sm:leading-7">
         {description}
       </p>
     </article>
@@ -2462,7 +2907,8 @@ function QuickFact({
     | "calendar"
     | "clock"
     | "company"
-    | "briefcase";
+    | "briefcase"
+    | "wallet";
   label: string;
   value: string | number;
   tone?: "default" | "success" | "warning" | "danger";
@@ -2477,9 +2923,9 @@ function QuickFact({
           : "text-white";
 
   return (
-    <article className="border-b border-white/10 bg-[#0b0b0b] px-4 py-3.5 last:border-b-0 sm:border-e sm:p-5 sm:last:border-e-0 xl:border-b-0 xl:p-6">
+    <article className="min-w-0 border-b border-e border-white/10 bg-[#0b0b0b] px-3 py-3 even:border-e-0 sm:p-5 xl:p-6">
       <div className="flex items-center gap-3 sm:items-start">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-gold/20 bg-gold/[0.05] text-gold sm:h-10 sm:w-10">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-gold/20 bg-gold/[0.05] text-gold sm:h-10 sm:w-10 sm:rounded-xl">
           <OpportunityIcon name={icon} />
         </div>
 
@@ -2489,7 +2935,7 @@ function QuickFact({
           </p>
 
           <p
-            className={`mt-1.5 break-words text-sm font-light leading-6 sm:mt-2 sm:text-base ${toneClass}`}
+            className={`mt-1 break-words text-[13px] font-light leading-5 sm:mt-2 sm:text-base sm:leading-6 ${toneClass}`}
           >
             {value}
           </p>

@@ -21,6 +21,7 @@ type Application = {
   opportunity_city_en?: string | null;
   opportunity_type?: string | null;
   opportunity_budget?: string | number | null;
+  opportunity_compensation_type?: string | null;
   created_at: string;
   publisher?: PublisherContact | null;
 };
@@ -34,6 +35,7 @@ type OpportunityRow = {
   city_en: string | null;
   opportunity_type: string | null;
   budget: string | number | null;
+  compensation_type: string | null;
 };
 
 type ApplicationRow = {
@@ -101,7 +103,8 @@ if (!talentId) {
         city_ar,
         city_en,
         opportunity_type,
-        budget
+budget,
+compensation_type
       )
     `)
     .eq("talent_id", talentId)
@@ -159,6 +162,8 @@ if (!talentId) {
         opportunity_city_en: opportunity?.city_en ?? null,
         opportunity_type: opportunity?.opportunity_type ?? null,
         opportunity_budget: opportunity?.budget ?? null,
+        opportunity_compensation_type:
+  opportunity?.compensation_type ?? null,
         created_at: app.created_at,
         publisher: app.status === "accepted" ? publisher ?? null : null,
       };
@@ -307,8 +312,12 @@ if (!talentId) {
                         value={statusLabel(app.status, isRtl)}
                       />
                       <InfoItem
-                        label={isRtl ? "الميزانية" : "Budget"}
-                        value={app.opportunity_budget ?? "-"}
+                        label={isRtl ? "المقابل المالي" : "Compensation"}
+                        value={formatCompensation(
+                          app.opportunity_compensation_type,
+                          app.opportunity_budget,
+                          isRtl,
+                        )}
                       />
                       <InfoItem label={isRtl ? "المدينة" : "City"} value={city} />
                       <InfoItem
@@ -474,6 +483,29 @@ function InfoItem({
       <p className="mt-2 text-white">{value || "-"}</p>
     </div>
   );
+}
+function formatCompensation(
+  compensationType: string | null | undefined,
+  budget: string | number | null | undefined,
+  isRtl: boolean,
+) {
+  if (compensationType === "unpaid") {
+    return isRtl ? "غير مدفوع" : "Unpaid";
+  }
+
+  if (compensationType === "negotiable") {
+    return isRtl ? "حسب الاتفاق" : "Negotiable";
+  }
+
+  const amount = Number(budget);
+
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return isRtl ? "غير محدد" : "Not specified";
+  }
+
+  return `${new Intl.NumberFormat("en-US").format(amount)} ${
+    isRtl ? "ريال" : "SAR"
+  }`;
 }
 
 function statusLabel(status?: string | null, isRtl = false) {
