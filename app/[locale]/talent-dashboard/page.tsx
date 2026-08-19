@@ -9,6 +9,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireTalent } from "@/lib/auth/require-talent";
 import DashboardMessagesCard from "@/components/talent/dashboard/DashboardMessagesCard";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { calculateProfileCompletion } from "@/lib/utils/profile-completion";
 import { getTalentProfileReadiness } from "@/lib/talent/profile-review-readiness";
 import { submitTalentProfileReviewAction } from "@/lib/actions/submit-talent-profile-review";
@@ -618,17 +619,26 @@ const workflowContent = {
 const currentWorkflow =
   workflowContent[workflowState];
 
-async function submitProfileForReview() {
-  "use server";
-
-  await submitTalentProfileReviewAction(
-    locale,
-  );
-
-  revalidatePath(
-    `/${locale}/talent-dashboard`,
-  );
-}
+  async function submitProfileForReview() {
+    "use server";
+  
+    const result =
+      await submitTalentProfileReviewAction(
+        locale,
+      );
+  
+    if (!result.success) {
+      return;
+    }
+  
+    revalidatePath(
+      `/${locale}/talent-dashboard`,
+    );
+  
+    redirect(
+      `/${locale}/talent-dashboard`,
+    );
+  }
   return (
     <main
       dir={isRtl ? "rtl" : "ltr"}
