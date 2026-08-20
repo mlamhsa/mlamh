@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff, Lock, Mail, Sparkles } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
@@ -12,11 +12,17 @@ export default function LoginPage({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = use(params);
-  const router = useRouter();
   const searchParams = useSearchParams();
   const isRtl = locale === "ar";
 
   const [email, setEmail] = useState(() => {
+    const signupEmail =
+      searchParams.get("email")?.trim();
+  
+    if (signupEmail) {
+      return signupEmail;
+    }
+  
     if (typeof window === "undefined") {
       return "";
     }
@@ -57,74 +63,81 @@ export default function LoginPage({
   : "The email or password is incorrect.",
   };
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(
+    event: React.FormEvent<HTMLFormElement>,
+  ) {
     event.preventDefault();
+  
     setLoading(true);
     setErrorMessage("");
-
-    if (rememberEmail && email) {
-      localStorage.setItem("mlamh_login_email", email);
-    } else {
-      localStorage.removeItem("mlamh_login_email");
-    }
-
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    });
-
-    if (error || !data.user) {
-      console.error("[LoginPage.signIn]", error);
-    
-      setErrorMessage(text.error);
-      setLoading(false);
-      return;
-    }
-
-    const {
-      data: profile,
-      error: profileError,
-    } = await supabase
-      .from("profiles")
-      .select("account_type")
-      .eq("user_id", data.user.id)
-      .maybeSingle();
-    
-      if (profileError) {
-        console.error("[LoginPage.profileFetch]", {
-          message: profileError.message,
-          details: profileError.details,
-          hint: profileError.hint,
-          code: profileError.code,
-          fullError: profileError,
-        });
+  
+    try {
+      if (rememberEmail && email) {
+        localStorage.setItem(
+          "mlamh_login_email",
+          email.trim(),
+        );
+      } else {
+        localStorage.removeItem(
+          "mlamh_login_email",
+        );
+      }
+  
+      const signInResult = await Promise.race([
+        supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        }),
+        new Promise<never>((_, reject) => {
+          window.setTimeout(() => {
+            reject(
+              new Error("LOGIN_TIMEOUT"),
+            );
+          }, 12000);
+        }),
+      ]);
       
-        await supabase.auth.signOut();
-      
+      const { data, error } = signInResult;
+  
+      if (error || !data.user) {
+        console.error(
+          "[LoginPage.signIn]",
+          error,
+        );
+  
         setErrorMessage(text.error);
-        setLoading(false);
         return;
       }
-    if (profile?.account_type === "talent") {
-      router.replace(`/${locale}/talent-dashboard`);
-      router.refresh();
-      return;
+  
+      window.location.assign(
+        `/${locale}/dashboard-router`,
+      );
+    } catch (error) {
+      console.error(
+        "[LoginPage.handleSubmit]",
+        error,
+      );
+    
+      if (
+        error instanceof Error &&
+        error.message === "LOGIN_TIMEOUT"
+      ) {
+        setErrorMessage(
+          isRtl
+            ? "تعذر إكمال تسجيل الدخول. حاول مرة أخرى."
+            : "Sign-in could not be completed. Please try again.",
+        );
+        return;
+      }
+    
+      setErrorMessage(
+        isRtl
+          ? "حدث خطأ أثناء تسجيل الدخول. حاول مرة أخرى."
+          : "An error occurred while signing in. Please try again.",
+      );
+    } finally {
+      setLoading(false);
     }
-
-    if (profile?.account_type === "publisher") {
-      router.replace(`/${locale}/publisher-dashboard`);
-      router.refresh();
-      return;
-    }
-
-    if (profile?.account_type === "admin") {
-      router.replace("/admin");
-      router.refresh();
-      return;
-    }
-
-    await supabase.auth.signOut();
-    router.replace(`/${locale}/login?error=no_profile`);
   }
 
   return (

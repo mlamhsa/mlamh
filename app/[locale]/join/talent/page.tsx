@@ -71,7 +71,7 @@ export default async function JoinTalentPage({
     profile?.account_type === "talent" &&
     profile.onboarding_status === "completed"
   ) {
-    redirect(`/${locale}/dashboard/talent`);
+    redirect(`/${locale}/talent-dashboard`);
   }
 
   /*

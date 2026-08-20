@@ -318,108 +318,145 @@ async function quickJoinAction(
   const authClient =
   await createServerSupabaseClient();
 
+const { data, error } =
+  await authClient.auth.signUp({
+    email,
+    password,
+
+    options: {
+      data: {
+        full_name: fullName,
+        display_name: fullName,
+
+        phone,
+        phone_country_iso:
+          countryIso || null,
+        phone_country_code:
+          countryCode || null,
+        phone_verified: false,
+
+        account_type: accountType,
+
+        onboarding_status:
+          "email_verification_required",
+
+        onboarding_step:
+          "email_verification",
+
+        approval_status:
+          "not_submitted",
+
+        preferred_locale: locale,
+
+        terms_accepted: true,
+        terms_accepted_at:
+          new Date().toISOString(),
+      },
+    },
+  });
+
+console.log("SIGNUP RESULT:", {
+  hasUser: Boolean(data.user),
+  userId: data.user?.id ?? null,
+  hasSession: Boolean(data.session),
+  error: error
+    ? {
+        message: error.message,
+        name: error.name,
+        status: error.status,
+        code: error.code,
+      }
+    : null,
+});
+
+if (error) {
+  console.error("SIGNUP ERROR:", {
+    message: error.message,
+    name: error.name,
+    status: error.status,
+    code: error.code,
+  });
+
+  const errorCode =
+    getSignupErrorCode(
+      error.message,
+    );
+
+  redirect(
+    `/${locale}/join?${selectedTypeQuery}&error=${errorCode}`,
+  );
+}
+
+/*
+ * عند تفعيل تأكيد البريد قد لا توجد جلسة
+ * مباشرة بعد إنشاء الحساب.
+ *
+ * بيانات إنشاء الملف محفوظة في user_metadata
+ * وسيتم استخدامها بعد تأكيد البريد وتسجيل الدخول.
+ */
+if (!data.session) {
+  redirect(
+    `/${locale}/login?message=verify_email&email=${encodeURIComponent(email)}`,
+  );
+}
+
+/*
+ * إذا وُجدت جلسة مباشرة، يجب أن يكون لدينا user.
+ */
+if (!data.user) {
+  redirect(
+    `/${locale}/join?${selectedTypeQuery}&error=signup`,
+  );
+}
+
 const adminClient =
   createAdminClient();
 
-  const { data, error } =
-    await authClient.auth.signUp({
-      email,
-      password,
+const { error: profileError } =
+  await adminClient
+    .from("profiles")
+    .insert({
+      user_id: data.user.id,
+      account_type: accountType,
+      display_name: fullName,
+      phone,
 
-      options: {
-        data: {
-          full_name: fullName,
-          display_name: fullName,
+      status: "active",
 
-          phone,
-          phone_country_iso:
-            countryIso || null,
-          phone_country_code:
-            countryCode || null,
-          phone_verified: false,
+      onboarding_status:
+        "account_created",
 
-          account_type: accountType,
+      onboarding_step:
+        accountType === "talent"
+          ? "talent_profile"
+          : "publisher_profile",
 
-          onboarding_status:
-            "email_verification_required",
-
-          onboarding_step:
-            "email_verification",
-
-          approval_status:
-            "not_submitted",
-
-          preferred_locale: locale,
-
-          terms_accepted: true,
-          terms_accepted_at:
-            new Date().toISOString(),
-        },
-      },
+      approval_status:
+        "not_submitted",
     });
-
-  if (error) {
-    const errorCode =
-      getSignupErrorCode(
-        error.message,
-      );
-
-    redirect(
-      `/${locale}/join?${selectedTypeQuery}&error=${errorCode}`,
-    );
-  }
-
-  if (!data.user) {
-    redirect(
-      `/${locale}/join?${selectedTypeQuery}&error=signup`,
-    );
-  }
-  const { error: profileError } = await adminClient
-  .from("profiles")
-  .insert({
-    user_id: data.user.id,
-    account_type: accountType,
-    display_name: fullName,
-    phone,
-
-    status: "active",
-
-    onboarding_status: "account_created",
-    onboarding_step:
-      accountType === "talent"
-        ? "talent_profile"
-        : "publisher_profile",
-
-    approval_status: "not_submitted",
-  });
 
 if (profileError) {
   console.error(
-    "Failed to create user profile:",
-    profileError,
+    "PROFILE INSERT ERROR:",
+    {
+      message: profileError.message,
+      code: profileError.code,
+      details: profileError.details,
+      hint: profileError.hint,
+    },
   );
 
   redirect(
     `/${locale}/join?${selectedTypeQuery}&error=signup`,
   );
 }
-  /*
-   * عند تفعيل توثيق البريد في Supabase،
-   * لن تُنشأ جلسة مباشرة وسيتم إرسال المستخدم
-   * إلى صفحة تسجيل الدخول مع رسالة التحقق.
-   */
-  if (!data.session) {
-    redirect(
-      `/${locale}/login?message=verify_email`,
-    );
-  }
 
-  redirect(
-    getOnboardingPath(
-      locale,
-      accountType,
-    ),
-  );
+redirect(
+  getOnboardingPath(
+    locale,
+    accountType,
+  ),
+);
 }
 
 
