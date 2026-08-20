@@ -16,7 +16,6 @@ import {
 } from "@/lib/actions/create-talent-draft";
 
 import type { Locale } from "@/lib/i18n";
-import { useRouter } from "next/navigation";
 
 const initialCreateTalentDraftState: CreateTalentDraftState = {
   success: false,
@@ -29,7 +28,6 @@ export function TalentQuickSetupForm({
   locale: Locale;
 }) {
   const isRtl = locale === "ar";
-  const router = useRouter();
 
   const [state, formAction, isPending] =
     useActionState(
@@ -79,11 +77,10 @@ export function TalentQuickSetupForm({
   <button
     type="button"
     onClick={() => {
-      router.push(
-        `/${locale}/talent-dashboard/profile`,
-      );
-      router.refresh();
-    }}
+  window.location.assign(
+    `/${locale}/talent-dashboard/profile`,
+  );
+}}
     className="inline-flex min-h-12 items-center justify-center rounded-full bg-gold px-7 text-sm font-medium text-black transition hover:bg-gold-soft"
   >
     {isRtl
@@ -94,11 +91,10 @@ export function TalentQuickSetupForm({
   <button
     type="button"
     onClick={() => {
-      router.push(
-        `/${locale}/talent-dashboard`,
-      );
-      router.refresh();
-    }}
+  window.location.assign(
+    `/${locale}/talent-dashboard`,
+  );
+}}
     className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/10 px-7 text-sm text-white/65 transition hover:border-gold/40 hover:text-gold"
   >
     {isRtl

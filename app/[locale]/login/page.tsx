@@ -3,7 +3,14 @@
 import { use, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Eye, EyeOff, Lock, Mail, Sparkles } from "lucide-react";
+import {
+  CheckCircle2,
+  Eye,
+  EyeOff,
+  Lock,
+  Mail,
+  Sparkles,
+} from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 
 export default function LoginPage({
@@ -42,6 +49,11 @@ export default function LoginPage({
   const [errorMessage, setErrorMessage] = useState("");
 
   const errorParam = searchParams.get("error");
+
+  const messageParam = searchParams.get("message");
+
+  const isVerifyEmail =
+    messageParam === "verify_email";
 
   const text = {
     eyebrow: isRtl ? "دخول ملامح" : "MLAMH Access",
@@ -138,6 +150,78 @@ export default function LoginPage({
     } finally {
       setLoading(false);
     }
+  }
+
+  if (isVerifyEmail) {
+    return (
+      <main
+        dir={isRtl ? "rtl" : "ltr"}
+        className="relative flex min-h-screen items-center justify-center overflow-hidden bg-black px-6 py-24 text-white"
+      >
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(200,169,106,0.16),transparent_45%)]" />
+  
+        <div className="relative w-full max-w-md rounded-[2rem] border border-white/10 bg-white/[0.035] p-7 text-center shadow-2xl backdrop-blur-xl">
+          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full border border-gold/20 bg-gold/[0.08] text-gold">
+            <Mail size={24} />
+          </div>
+  
+          <p className="arabic-safe text-xs uppercase tracking-[0.35em] text-gold">
+            {isRtl ? "خطوة أخيرة" : "One Last Step"}
+          </p>
+  
+          <h1 className="mt-4 text-4xl font-light">
+            {isRtl
+              ? "تحقق من بريدك الإلكتروني"
+              : "Check Your Email"}
+          </h1>
+  
+          <p className="mt-4 text-sm leading-7 text-white/50">
+            {isRtl
+              ? "أرسلنا لك رسالة تحتوي على رابط تأكيد الحساب. افتح بريدك واضغط على رابط التأكيد لإكمال إنشاء حسابك في ملامح."
+              : "We've sent you an email with a confirmation link. Open the email and confirm your address to complete your MLAMH account."}
+          </p>
+  
+          {email ? (
+            <div
+              dir="ltr"
+              className="mt-6 rounded-2xl border border-white/10 bg-black/30 px-4 py-4 text-sm text-white/80"
+            >
+              {email}
+            </div>
+          ) : null}
+  
+          <div className="mt-6 flex items-start gap-3 rounded-2xl border border-gold/15 bg-gold/[0.06] p-4 text-start">
+            <CheckCircle2
+              size={19}
+              className="mt-1 shrink-0 text-gold"
+            />
+  
+            <p className="text-sm leading-6 text-white/60">
+              {isRtl
+                ? "لن تتمكن من تسجيل الدخول قبل تأكيد بريدك الإلكتروني."
+                : "You won't be able to sign in until your email address is confirmed."}
+            </p>
+          </div>
+  
+          <p className="mt-6 text-xs leading-6 text-white/35">
+            {isRtl
+              ? "لم تجد الرسالة؟ تحقق من البريد غير المرغوب فيه (Spam)."
+              : "Can't find the email? Check your spam or junk folder."}
+          </p>
+  
+          <div className="mt-8 border-t border-white/10 pt-6">
+            <Link
+              href={`/${locale}/login`}
+              className="text-sm text-gold transition hover:text-gold-soft"
+            >
+              {isRtl
+                ? "العودة إلى تسجيل الدخول"
+                : "Back to Sign In"}
+            </Link>
+          </div>
+        </div>
+      </main>
+    );
   }
 
   return (

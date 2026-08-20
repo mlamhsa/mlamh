@@ -1,15 +1,18 @@
 import { Footer } from "@/components/Footer";
 import { TalentQuickSetupForm } from "@/components/TalentQuickSetupForm";
 import { Navbar } from "@/components/Navbar";
+
 import {
   isValidLocale,
   type Locale,
 } from "@/lib/i18n";
+
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { notFound, redirect } from "next/navigation";
 
 type PageProps = {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<{ message?: string }>;
 };
 
 type ProfileRow = {
@@ -22,8 +25,10 @@ type ProfileRow = {
 
 export default async function JoinTalentPage({
   params,
+  searchParams,
 }: PageProps) {
   const { locale: localeParam } = await params;
+  const { message } = await searchParams;
 
   if (!isValidLocale(localeParam)) {
     notFound();
@@ -32,7 +37,8 @@ export default async function JoinTalentPage({
   const locale = localeParam as Locale;
   const isRtl = locale === "ar";
 
-  const authClient = await createServerSupabaseClient();
+  const authClient =
+    await createServerSupabaseClient();
 
   const {
     data: { user },
@@ -43,7 +49,7 @@ export default async function JoinTalentPage({
     redirect(`/${locale}/join?type=talent`);
   }
 
-  /*
+  /**
    * نتحقق من حالة استكمال الحساب قبل عرض النموذج.
    */
   const {
@@ -52,7 +58,7 @@ export default async function JoinTalentPage({
   } = await authClient
     .from("profiles")
     .select(
-      "account_type, display_name, phone, onboarding_status, onboarding_step"
+      "account_type, display_name, phone, onboarding_status, onboarding_step",
     )
     .eq("user_id", user.id)
     .maybeSingle<ProfileRow>();
@@ -60,11 +66,11 @@ export default async function JoinTalentPage({
   if (profileError) {
     console.error(
       "[JoinTalentPage profileLookup]",
-      profileError
+      profileError,
     );
   }
 
-  /*
+  /**
    * إذا اكتمل تسجيل الموهبة، لا نعرض نموذج التسجيل مرة أخرى.
    */
   if (
@@ -74,7 +80,7 @@ export default async function JoinTalentPage({
     redirect(`/${locale}/talent-dashboard`);
   }
 
-  /*
+  /**
    * منع حساب الناشر من الدخول إلى تسجيل الموهبة
    * بعد اكتمال تحديد نوع حسابه.
    */
@@ -93,11 +99,14 @@ export default async function JoinTalentPage({
     ? "var(--font-noto-arabic)"
     : "var(--font-dm-sans)";
 
+  const emailVerified =
+    message === "email_verified";
+
   return (
     <main
-  dir={isRtl ? "rtl" : "ltr"}
-  className="relative z-[2] bg-background pb-[calc(4.75rem+env(safe-area-inset-bottom))] lg:pb-0"
->
+      dir={isRtl ? "rtl" : "ltr"}
+      className="relative z-[2] bg-background pb-[calc(4.75rem+env(safe-area-inset-bottom))] lg:pb-0"
+    >
       <Navbar locale={locale} />
 
       <div className="relative overflow-hidden pb-20 pt-28 md:pb-28 md:pt-32">
@@ -109,6 +118,43 @@ export default async function JoinTalentPage({
         </div>
 
         <div className="group relative mx-auto max-w-3xl px-4 sm:px-6 lg:max-w-4xl lg:px-10">
+          {emailVerified && (
+            <div
+              className="mb-8 rounded-2xl border border-gold/25 bg-gold/[0.06] px-5 py-4 sm:px-6"
+              role="status"
+            >
+              <div
+                className={`flex items-start gap-3 ${
+                  isRtl ? "text-right" : "text-left"
+                }`}
+              >
+                <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-gold/40 text-sm text-gold">
+                  ✓
+                </div>
+
+                <div>
+                  <p
+                    className="text-sm font-medium text-white"
+                    style={{ fontFamily: bodyFont }}
+                  >
+                    {isRtl
+                      ? "تم تأكيد بريدك الإلكتروني بنجاح"
+                      : "Your email has been verified successfully"}
+                  </p>
+
+                  <p
+                    className="mt-1 text-xs leading-6 text-gray-muted sm:text-sm"
+                    style={{ fontFamily: bodyFont }}
+                  >
+                    {isRtl
+                      ? "أكمل الآن إعداد حسابك للبدء في ملامح."
+                      : "Complete your account setup to get started with MLAMH."}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <header
             className={`mb-10 group-has-[.talent-setup-success]:hidden sm:mb-14 md:mb-16 ${
               isRtl ? "text-right" : "text-left"
@@ -122,9 +168,9 @@ export default async function JoinTalentPage({
               <span className="gold-line max-w-[80px] flex-1" />
 
               <p className="arabic-safe text-[10px] uppercase tracking-[0.4em] text-gold">
-              {isRtl
-  ? "إعداد حساب الموهبة"
-  : "Talent Account Setup"}
+                {isRtl
+                  ? "إعداد حساب الموهبة"
+                  : "Talent Account Setup"}
               </p>
             </div>
 
@@ -133,8 +179,8 @@ export default async function JoinTalentPage({
               style={{ fontFamily: displayFont }}
             >
               {isRtl
-  ? "خطوتك الأخيرة"
-  : "One Last Step"}
+                ? "خطوتك الأخيرة"
+                : "One Last Step"}
             </h1>
 
             <p
@@ -142,14 +188,14 @@ export default async function JoinTalentPage({
               style={{ fontFamily: bodyFont }}
             >
               {isRtl
-  ? "اختر تخصصك الأساسي، وسننقلك مباشرة إلى ملامح."
-  : "Choose your primary talent type, and we'll take you straight into MLAMH."}
+                ? "اختر تخصصك الأساسي، وسننقلك مباشرة إلى ملامح."
+                : "Choose your primary talent type, and we'll take you straight into MLAMH."}
             </p>
           </header>
 
           <TalentQuickSetupForm
-  locale={locale}
-/>
+            locale={locale}
+          />
         </div>
 
         <div
