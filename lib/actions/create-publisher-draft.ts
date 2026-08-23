@@ -30,23 +30,49 @@ export async function createPublisherDraftAction(
     ? localeValue
     : "ar";
 
-  const publisherType = String(
-    formData.get("publisher_type") ?? ""
-  ).trim();
+    const publisherMode = String(
+      formData.get("publisher_mode") ?? ""
+    ).trim();
+    
+    const selectedPublisherType = String(
+      formData.get("publisher_type") ?? ""
+    ).trim();
+    
+    if (
+      publisherMode !== "individual" &&
+      publisherMode !== "organization"
+    ) {
+      return {
+        success: false,
+        message:
+          locale === "ar"
+            ? "اختر إذا كنت فردًا / مستقلًا أو تمثل شركة / جهة."
+            : "Choose whether you are an individual or represent an organization.",
+      };
+    }
+    
+    const publisherType =
+      publisherMode === "individual"
+        ? "individual"
+        : selectedPublisherType;
 
-  if (
-    !ALLOWED_PUBLISHER_TYPES.includes(
-      publisherType as (typeof ALLOWED_PUBLISHER_TYPES)[number]
-    )
-  ) {
-    return {
-      success: false,
-      message:
-        locale === "ar"
-          ? "اختر نوع الناشر للمتابعة."
-          : "Choose your publisher type to continue.",
-    };
-  }
+        if (
+          !ALLOWED_PUBLISHER_TYPES.includes(
+            publisherType as (typeof ALLOWED_PUBLISHER_TYPES)[number]
+          ) ||
+          (
+            publisherMode === "organization" &&
+            publisherType === "individual"
+          )
+        ) {
+          return {
+            success: false,
+            message:
+              locale === "ar"
+                ? "اختر نوع الشركة أو الجهة للمتابعة."
+                : "Choose your organization type to continue.",
+          };
+        }
 
   try {
     const authClient =
@@ -119,12 +145,14 @@ export async function createPublisherDraftAction(
     }
 
     const contactName =
-      String(
-        profile.display_name ||
-          user.user_metadata?.display_name ||
-          user.user_metadata?.full_name ||
-          "Publisher"
-      ).trim() || "Publisher";
+  String(
+    user.user_metadata?.contact_name ||
+      user.user_metadata?.full_name ||
+      user.user_metadata?.display_name ||
+      profile.display_name ||
+      user.email ||
+      "Publisher"
+  ).trim() || "Publisher";
 
     const {
       data: existingPublisher,
@@ -157,6 +185,13 @@ export async function createPublisherDraftAction(
           .update({
             publisher_type: publisherType,
             contact_name: contactName,
+            verified: false,
+            verification_status: "unverified",
+            verification_method: null,
+            verification_email: null,
+            verification_document_url: null,
+            verification_submitted_at: null,
+            verification_reviewed_at: null,
           })
           .eq("id", existingPublisher.id)
           .eq("profile_id", profile.id);
@@ -183,6 +218,13 @@ export async function createPublisherDraftAction(
             profile_id: profile.id,
             publisher_type: publisherType,
             contact_name: contactName,
+            verified: false,
+            verification_status: "unverified",
+            verification_method: null,
+            verification_email: null,
+            verification_document_url: null,
+            verification_submitted_at: null,
+            verification_reviewed_at: null,
           });
 
       if (insertError) {

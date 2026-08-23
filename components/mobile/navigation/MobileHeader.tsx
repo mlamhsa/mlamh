@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Menu, User, X } from "lucide-react";
+import { LayoutDashboard, Menu, X } from "lucide-react";
 
 import type { Locale } from "@/lib/i18n";
 import { MobileIconButton } from "@/components/mobile/ui";
@@ -83,7 +83,7 @@ export function MobileHeader({
         }
         className="inline-flex h-11 w-11 items-center justify-center justify-self-end rounded-xl border border-transparent text-white/65 transition active:scale-95 hover:bg-white/[0.05] hover:text-white"
       >
-        <User size={21} strokeWidth={1.8} />
+        <LayoutDashboard size={21} strokeWidth={1.8} />
       </Link>
     </div>
   );

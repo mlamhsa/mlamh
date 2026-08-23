@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { NotificationHandler } from "./handlers/NotificationHandler";
+import { EmailHandler } from "./handlers/EmailHandler";
 import type { EventTarget } from "./event-targets";
 import type { EventType } from "./event-types";
 
@@ -37,6 +38,13 @@ export async function createEvent({
 
   await NotificationHandler.handle({
     eventId: event.id,
+    type,
+    target,
+    targetId,
+    metadata,
+  });
+
+  await EmailHandler.handle({
     type,
     target,
     targetId,

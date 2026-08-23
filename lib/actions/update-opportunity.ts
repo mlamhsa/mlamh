@@ -439,6 +439,7 @@ status: finalStatus,
     success: true,
     opportunity: updatedOpportunity,
     status: finalStatus,
-    requiresReview: requiresNewReview,
+    requiresReview:
+requiresNewReview || isResubmittedAfterChanges,
   };
 }

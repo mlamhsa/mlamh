@@ -66,39 +66,43 @@ function buildNotification(
         ? "تم إرسال ملف موهبة جديد للمراجعة."
         : "A new talent profile has been submitted for review."),
   };
-    case "talent_approved":
-      return {
-        title: isArabic
-          ? "تم اعتماد ملفك"
-          : "Talent profile approved",
-        body: isArabic
-          ? "تم اعتماد ملف الموهبة الخاص بك ونشره."
-          : "Your talent profile has been approved and published.",
-      };
+  case "talent_approved":
+    return {
+      title: isArabic
+        ? "تم اعتماد ملفك"
+        : "Your talent profile is approved",
+      body: isArabic
+        ? "تم اعتماد ملفك في ملامح، ويمكنك الآن التقديم على الفرص."
+        : "Your MLAMH talent profile has been approved. You can now apply to opportunities.",
+    };
 
     case "talent_changes_requested":
-      return {
-        title: isArabic
-          ? "ملفك بحاجة إلى تعديل"
-          : "Talent profile needs changes",
-        body: reason
-          ? reason
-          : isArabic
-            ? "يرجى مراجعة ملفك وإجراء التعديلات المطلوبة ثم إرساله للمراجعة مرة أخرى."
-            : "Please review your profile, make the requested changes, and submit it again.",
-      };
+  return {
+    title: isArabic
+      ? "ملفك بحاجة إلى تعديل"
+      : "Your talent profile needs changes",
+    body: reason
+      ? isArabic
+        ? `التعديلات المطلوبة: ${reason}`
+        : `Required changes: ${reason}`
+      : isArabic
+        ? "يرجى مراجعة ملفك وإجراء التعديلات المطلوبة ثم إرساله للمراجعة مرة أخرى."
+        : "Please review your profile, make the requested changes, and submit it again.",
+  };
 
-    case "talent_rejected":
-      return {
-        title: isArabic
-          ? "تم رفض ملف الموهبة"
-          : "Talent profile rejected",
-        body: reason
-          ? reason
-          : isArabic
-            ? "لم يتم اعتماد ملف الموهبة."
-            : "Your talent profile was not approved.",
-      };
+  case "talent_rejected":
+    return {
+      title: isArabic
+        ? "لم يتم اعتماد ملفك"
+        : "Your talent profile was not approved",
+      body: reason
+        ? isArabic
+          ? `سبب عدم الاعتماد: ${reason}`
+          : `Reason: ${reason}`
+        : isArabic
+          ? "لم يتم اعتماد ملفك في المراجعة الحالية."
+          : "Your talent profile was not approved in the current review.",
+    };
 
     /*
      * Publisher review

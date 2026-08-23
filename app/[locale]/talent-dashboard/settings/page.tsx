@@ -41,7 +41,11 @@ export default function SettingsPage({ params }: SettingsPageProps) {
   const router = useRouter();
 
   const [emailNotif, setEmailNotif] = useState(true);
-  const [smsNotif, setSmsNotif] = useState(false);
+const [smsNotif, setSmsNotif] = useState(false);
+const [loadingPreferences, setLoadingPreferences] = useState(true);
+const [savingPreference, setSavingPreference] = useState<
+  "email" | "sms" | null
+>(null);
 
   const [user, setUser] = useState<User | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
@@ -58,37 +62,47 @@ export default function SettingsPage({ params }: SettingsPageProps) {
 
     const loadUser = async () => {
       const { data, error } = await supabase.auth.getUser();
-
+    
       if (!active) return;
-
+    
       if (error || !data.user) {
         router.replace(`/${locale}/login`);
         return;
       }
-
+    
       setUser(data.user);
+    
+      const {
+        data: preferences,
+        error: preferencesError,
+      } = await supabase
+        .from("notification_preferences")
+        .select("email_enabled, sms_enabled")
+        .eq("user_id", data.user.id)
+        .maybeSingle();
+    
+      if (!active) return;
+    
+      if (preferencesError) {
+        console.error(
+          "Notification preferences load error:",
+          preferencesError,
+        );
+      }
+    
+      if (preferences) {
+        setEmailNotif(preferences.email_enabled);
+        setSmsNotif(preferences.sms_enabled);
+      }
+    
+      setLoadingPreferences(false);
       setLoadingUser(false);
     };
 
     loadUser();
 
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        if (!active) return;
-
-        if (!session?.user) {
-          router.replace(`/${locale}/login`);
-          return;
-        }
-
-        setUser(session.user);
-        setLoadingUser(false);
-      }
-    );
-
     return () => {
       active = false;
-      listener.subscription.unsubscribe();
     };
   }, [locale, router]);
 
@@ -114,6 +128,52 @@ export default function SettingsPage({ params }: SettingsPageProps) {
     setNewEmail("");
     setNewPassword("");
     setFeedback(null);
+  }
+  async function saveNotificationPreference(
+    type: "email" | "sms",
+    value: boolean,
+  ) {
+    if (!user || savingPreference) {
+      return;
+    }
+  
+    setSavingPreference(type);
+  
+    const column =
+      type === "email"
+        ? "email_enabled"
+        : "sms_enabled";
+  
+    const { error } = await supabase
+      .from("notification_preferences")
+      .upsert(
+        {
+          user_id: user.id,
+          [column]: value,
+          updated_at: new Date().toISOString(),
+        },
+        {
+          onConflict: "user_id",
+        },
+      );
+  
+    if (error) {
+      console.error(
+        "Notification preference save error:",
+        error,
+      );
+  
+      setSavingPreference(null);
+      return;
+    }
+  
+    if (type === "email") {
+      setEmailNotif(value);
+    } else {
+      setSmsNotif(value);
+    }
+  
+    setSavingPreference(null);
   }
   async function saveAccountChanges() {
     const email = newEmail.trim();
@@ -344,7 +404,9 @@ export default function SettingsPage({ params }: SettingsPageProps) {
                     : "Receive application updates and alerts by email."
                 }
                 checked={emailNotif}
-                onChange={setEmailNotif}
+                onChange={(value) =>
+                  saveNotificationPreference("email", value)
+                }
                 icon={<Mail className="h-5 w-5" />}
                 isRtl={isRtl}
               />
@@ -357,17 +419,14 @@ export default function SettingsPage({ params }: SettingsPageProps) {
                     : "Receive important alerts by SMS when the service is enabled."
                 }
                 checked={smsNotif}
-                onChange={setSmsNotif}
+onChange={(value) =>
+  saveNotificationPreference("sms", value)
+}
                 icon={<MessageSquare className="h-5 w-5" />}
                 isRtl={isRtl}
               />
             </div>
 
-            <p className="mt-4 text-xs leading-6 text-white/30">
-              {isRtl
-                ? "ملاحظة: هذه التفضيلات محفوظة داخل الصفحة مؤقتًا إلى أن يتم ربطها بقاعدة البيانات."
-                : "Note: These preferences are currently local until notification settings are connected to the database."}
-            </p>
           </article>
         </section>
 

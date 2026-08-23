@@ -12,6 +12,7 @@ type DashboardProfileReadinessProps = {
   profileCompletion: number;
   completionChecklist: ChecklistItem[];
   isProfileReady: boolean;
+  approvalStatus: string;
 };
 
 function clampPercentage(value: number) {
@@ -28,10 +29,16 @@ export default function DashboardProfileReadiness({
   profileCompletion,
   completionChecklist,
   isProfileReady,
+  approvalStatus,
 }: DashboardProfileReadinessProps) {
   const safeCompletion =
     clampPercentage(profileCompletion);
-
+    const isApproved =
+    approvalStatus === "approved";
+  
+  const isPendingReview =
+    approvalStatus === "pending" ||
+    approvalStatus === "submitted";
   /*
    * هذه البطاقة مسؤولة فقط عن:
    * هل الموهبة مستوفية الحد الأدنى للتقديم؟
@@ -44,7 +51,7 @@ export default function DashboardProfileReadiness({
    * - verified
    */
 
-  if (isProfileReady) {
+  if (isProfileReady && isApproved) {
     const completionDescription =
       safeCompletion >= 100
         ? isRtl
@@ -98,6 +105,52 @@ export default function DashboardProfileReadiness({
     );
   }
 
+  if (isProfileReady && isPendingReview) {
+    return (
+      <section className="rounded-[1.75rem] border border-amber-400/15 bg-amber-400/[0.045] p-5 sm:p-6">
+        <div>
+          <div className="flex h-10 w-10 items-center justify-center rounded-full border border-amber-400/20 bg-amber-400/10 text-sm text-amber-300">
+            ⏳
+          </div>
+  
+          <p className="arabic-safe mt-5 text-[10px] uppercase tracking-[0.28em] text-gold">
+            {isRtl
+              ? "حالة التقديم"
+              : "Application Status"}
+          </p>
+  
+          <h2 className="mt-3 text-2xl font-light text-white">
+            {isRtl
+              ? "التقديم متاح بعد اعتماد ملفك"
+              : "Applications will be available after approval"}
+          </h2>
+  
+          <p className="mt-3 max-w-md text-sm leading-7 text-white/45">
+            {isRtl
+              ? "يمكنك الآن استعراض الفرص وحفظ ما يناسبك في المفضلة. سيتاح لك التقديم بعد اعتماد ملفك من فريق ملامح."
+              : "You can browse opportunities and save them to your favorites now. Applying will be enabled once your profile is approved by the MLAMH team."}
+          </p>
+  
+          <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-amber-400/20 bg-amber-400/[0.07] px-4 py-2 text-xs text-amber-300">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-300" />
+            {isRtl
+              ? "بانتظار اعتماد الملف"
+              : "Awaiting profile approval"}
+          </div>
+  
+          <Link
+            href={`/${locale}/opportunities`}
+            className="arabic-safe mt-6 inline-flex items-center justify-center rounded-full bg-gold px-5 py-3 text-[10px] uppercase tracking-[0.2em] text-black outline-none transition hover:brightness-110 focus-visible:ring-2 focus-visible:ring-gold/70"
+          >
+            {isRtl
+              ? "استعراض الفرص"
+              : "Browse Opportunities"}
+          </Link>
+        </div>
+      </section>
+    );
+  }
+  
   const missingItems =
     completionChecklist.filter(
       (item) => !item.done,

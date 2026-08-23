@@ -1,9 +1,5 @@
+import { calculateProfileCompletion } from "@/lib/utils/profile-completion";
 export type TalentProfile = Record<string, unknown>;
-
-type ProfileSection = {
-  weight: number;
-  fields: string[];
-};
 
 export class TalentProfileService {
   /* =========================
@@ -39,90 +35,16 @@ export class TalentProfileService {
      PROFILE COMPLETION
   ========================= */
 
-  private static readonly sections: ProfileSection[] = [
-    {
-      weight: 25,
-      fields: [
-        "name_en",
-        "image_url",
-        "category_slug",
-        "gender",
-        "city_slug",
-      ],
-    },
-    {
-      weight: 25,
-      fields: [
-        "height_cm",
-        "weight_kg",
-        "eye_color",
-        "hair_color",
-        "hair_type",
-        "skin_color",
-        "clothing_size",
-        "shoe_size",
-      ],
-    },
-    {
-      weight: 20,
-      fields: [
-        "experience_years",
-        "ready_to_travel",
-        "has_passport",
-        "has_car",
-        "work_outside_city",
-        "work_outside_country",
-      ],
-    },
-    {
-      weight: 30,
-      fields: [
-        "video_intro",
-        "showreel_url",
-        "portfolio_url",
-      ],
-    },
-  ];
-
   static calculateCompletion(profile?: TalentProfile): number {
-    if (!profile) return 0;
-
-    let completion = 0;
-
-    for (const section of this.sections) {
-      const completedFields = section.fields.filter((field) =>
-        this.hasValue(profile[field])
-      ).length;
-
-      completion +=
-        (completedFields / section.fields.length) * section.weight;
+    if (!profile) {
+      return 0;
     }
-
-    return Math.round(Math.min(completion, 100));
-  }
-
-  /* =========================
-     HELPERS
-  ========================= */
-
-  private static hasValue(value: unknown): boolean {
-    if (Array.isArray(value)) {
-      return value.length > 0;
-    }
-
-    if (typeof value === "boolean") {
-      return true;
-    }
-
-    if (typeof value === "number") {
-      return true;
-    }
-
-    if (typeof value === "string") {
-      return value.trim().length > 0;
-    }
-
-    return value !== null && value !== undefined;
+  
+    return calculateProfileCompletion(
+      profile as Parameters<
+        typeof calculateProfileCompletion
+      >[0],
+    );
   }
 
   /* =========================

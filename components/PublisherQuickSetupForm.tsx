@@ -3,6 +3,8 @@ import Link from "next/link";
 import {
   startTransition,
   useActionState,
+  useEffect,
+  useState,
 } from "react";
 import {
   BadgeCheck,
@@ -89,23 +91,13 @@ const publisherTypes = [
     icon: Building2,
   },
   {
-    value: "individual",
-    ar: "فرد / مستقل",
-    en: "Individual / Freelancer",
-    descriptionAr:
-      "للمحترفين المستقلين الذين ينشرون فرصًا بشكل مباشر.",
-    descriptionEn:
-      "For independent professionals posting opportunities directly.",
-    icon: UserRound,
-  },
-  {
     value: "other",
     ar: "أخرى",
     en: "Other",
     descriptionAr:
-      "إذا لم يكن نوع حسابك ضمن الخيارات السابقة.",
+      "إذا لم يكن نوع الجهة ضمن الخيارات السابقة.",
     descriptionEn:
-      "If your publisher type is not listed above.",
+      "If your organization type is not listed above.",
     icon: Sparkles,
   },
 ];
@@ -117,11 +109,22 @@ export function PublisherQuickSetupForm({
 }) {
   const isRtl = locale === "ar";
 
+  const [publisherMode, setPublisherMode] =
+  useState<"individual" | "organization" | null>(null);
+
   const [state, formAction, isPending] =
     useActionState(
       createPublisherDraftAction,
       initialCreatePublisherDraftState
     );
+    useEffect(() => {
+      if (state.success) {
+        window.scrollTo({
+          top: 0,
+          behavior: "smooth",
+        });
+      }
+    }, [state.success]);
 
   if (state.success) {
     return (
@@ -139,9 +142,13 @@ export function PublisherQuickSetupForm({
 </h2>
 
 <p className="mx-auto mt-4 max-w-xl text-sm leading-7 text-white/55">
-  {isRtl
-    ? "تم إنشاء حساب الناشر بنجاح. أكمل ملف شركتك لتجهز حسابك لنشر الفرص واستقبال طلبات المواهب."
-    : "Your publisher account has been created successfully. Complete your company profile to prepare your account for publishing opportunities and receiving talent applications."}
+  {publisherMode === "individual"
+    ? isRtl
+      ? "تم إنشاء حسابك كفرد / مستقل بنجاح. أكمل ملفك لتجهيز حسابك لنشر الفرص واستقبال طلبات المواهب."
+      : "Your individual publisher account has been created successfully. Complete your profile to prepare your account for publishing opportunities and receiving talent applications."
+    : isRtl
+      ? "تم إنشاء حساب الجهة بنجاح. أكمل ملف الجهة لتجهيز حسابك لنشر الفرص واستقبال طلبات المواهب."
+      : "Your organization account has been created successfully. Complete the organization profile to prepare your account for publishing opportunities and receiving talent applications."}
 </p>
 
 <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
@@ -149,9 +156,13 @@ export function PublisherQuickSetupForm({
     href={`/${locale}/publisher-dashboard/profile`}
     className="inline-flex min-h-12 items-center justify-center rounded-full bg-gold px-7 text-sm font-medium text-black transition hover:bg-gold-soft"
   >
-    {isRtl
-      ? "إكمال ملف الشركة"
-      : "Complete Company Profile"}
+    {publisherMode === "individual"
+  ? isRtl
+    ? "إكمال ملفي"
+    : "Complete My Profile"
+  : isRtl
+    ? "إكمال ملف الجهة"
+    : "Complete Organization Profile"}
   </Link>
 
   <Link
@@ -182,24 +193,88 @@ export function PublisherQuickSetupForm({
         value={locale}
       />
 
+<input
+  type="hidden"
+  name="publisher_mode"
+  value={publisherMode ?? ""}
+/>
+
 <div>
   <p className="text-[10px] uppercase tracking-[0.3em] text-gold">
     {isRtl
-      ? "نوع الجهة"
-      : "Organization Type"}
+      ? "صفة الناشر"
+      : "Publisher Type"}
   </p>
 
   <h2 className="mt-3 text-2xl font-light text-white sm:text-3xl">
     {isRtl
-      ? "ما نوع الجهة التي تمثلها؟"
-      : "What type of organization do you represent?"}
+      ? "ما صفتك في ملامح؟"
+      : "How will you publish on MLAMH?"}
   </h2>
 
   <p className="mt-3 text-sm leading-7 text-white/45">
     {isRtl
-      ? "اختر التصنيف الأقرب لجهتك. يمكنك إكمال بيانات الشركة لاحقًا من ملف الشركة."
-      : "Choose the category that best describes your organization. You can complete the remaining company details from your company profile."}
+      ? "اختر إذا كنت تنشر الفرص بصفتك الشخصية أو نيابة عن شركة أو جهة."
+      : "Choose whether you publish opportunities personally or on behalf of an organization."}
   </p>
+</div>
+
+<div className="grid gap-4 sm:grid-cols-2">
+  <button
+    type="button"
+    onClick={() =>
+      setPublisherMode("individual")
+    }
+    className={`min-h-40 rounded-[1.75rem] border p-6 text-start transition ${
+      publisherMode === "individual"
+        ? "border-gold bg-gold/[0.08]"
+        : "border-white/10 bg-white/[0.025] hover:border-gold/35"
+    }`}
+  >
+    <div className="flex h-12 w-12 items-center justify-center rounded-full border border-gold/20 bg-gold/[0.06] text-gold">
+      <UserRound size={22} />
+    </div>
+
+    <h3 className="mt-5 text-xl font-light text-white">
+      {isRtl
+        ? "فرد / مستقل"
+        : "Individual / Freelancer"}
+    </h3>
+
+    <p className="mt-3 text-sm leading-6 text-white/45">
+      {isRtl
+        ? "أنشر الفرص باسمي الشخصي كمستقل أو محترف."
+        : "Publish opportunities under your personal professional identity."}
+    </p>
+  </button>
+
+  <button
+    type="button"
+    onClick={() =>
+      setPublisherMode("organization")
+    }
+    className={`min-h-40 rounded-[1.75rem] border p-6 text-start transition ${
+      publisherMode === "organization"
+        ? "border-gold bg-gold/[0.08]"
+        : "border-white/10 bg-white/[0.025] hover:border-gold/35"
+    }`}
+  >
+    <div className="flex h-12 w-12 items-center justify-center rounded-full border border-gold/20 bg-gold/[0.06] text-gold">
+      <Building2 size={22} />
+    </div>
+
+    <h3 className="mt-5 text-xl font-light text-white">
+      {isRtl
+        ? "شركة / جهة"
+        : "Company / Organization"}
+    </h3>
+
+    <p className="mt-3 text-sm leading-6 text-white/45">
+      {isRtl
+        ? "أنشر الفرص نيابة عن شركة أو وكالة أو علامة تجارية أو جهة."
+        : "Publish opportunities on behalf of a company, agency, brand, or organization."}
+    </p>
+  </button>
 </div>
 
       {state.message ? (
@@ -211,54 +286,90 @@ export function PublisherQuickSetupForm({
         </div>
       ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        {publisherTypes.map((type) => {
-          const Icon = type.icon;
+{publisherMode === "organization" ? (
+  <>
+    <div className="pt-3">
+      <p className="text-[10px] uppercase tracking-[0.3em] text-gold">
+        {isRtl
+          ? "نوع الجهة"
+          : "Organization Type"}
+      </p>
 
-          return (
-            <label
-              key={type.value}
-              className="group cursor-pointer"
-            >
-              <input
-                type="radio"
-                name="publisher_type"
-                value={type.value}
-                className="peer sr-only"
-              />
+      <h3 className="mt-3 text-xl font-light text-white">
+        {isRtl
+          ? "اختر نوع الجهة التي تمثلها"
+          : "Choose your organization type"}
+      </h3>
 
-              <div className="min-h-44 rounded-[1.75rem] border border-white/10 bg-white/[0.025] p-6 transition group-hover:border-gold/35 peer-checked:border-gold peer-checked:bg-gold/[0.08]">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full border border-gold/20 bg-gold/[0.06] text-gold">
-                  <Icon size={22} />
-                </div>
+      <p className="mt-2 text-sm leading-6 text-white/45">
+        {isRtl
+          ? "حدد التصنيف الأقرب للشركة أو الجهة التي تنشر الفرص باسمها."
+          : "Select the category that best describes the organization you represent."}
+      </p>
+    </div>
 
-                <h3 className="mt-5 text-xl font-light text-white">
-                  {isRtl ? type.ar : type.en}
-                </h3>
+    <div className="grid gap-4 sm:grid-cols-2">
+      {publisherTypes.map((type) => {
+        const Icon = type.icon;
 
-                <p className="mt-3 text-sm leading-6 text-white/45">
-                  {isRtl
-                    ? type.descriptionAr
-                    : type.descriptionEn}
-                </p>
+        return (
+          <label
+            key={type.value}
+            className="group cursor-pointer"
+          >
+            <input
+              type="radio"
+              name="publisher_type"
+              value={type.value}
+              required
+              className="peer sr-only"
+            />
+
+            <div className="min-h-44 rounded-[1.75rem] border border-white/10 bg-white/[0.025] p-6 transition group-hover:border-gold/35 peer-checked:border-gold peer-checked:bg-gold/[0.08]">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full border border-gold/20 bg-gold/[0.06] text-gold">
+                <Icon size={22} />
               </div>
-            </label>
-          );
-        })}
-      </div>
+
+              <h3 className="mt-5 text-xl font-light text-white">
+                {isRtl ? type.ar : type.en}
+              </h3>
+
+              <p className="mt-3 text-sm leading-6 text-white/45">
+                {isRtl
+                  ? type.descriptionAr
+                  : type.descriptionEn}
+              </p>
+            </div>
+          </label>
+        );
+      })}
+    </div>
+  </>
+) : null}
 
       <button
         type="submit"
-        disabled={isPending}
+        disabled={
+          isPending ||
+          !publisherMode
+        }
         className="inline-flex min-h-13 w-full items-center justify-center rounded-full bg-gold px-8 py-4 text-sm font-medium text-black transition hover:bg-gold-soft disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
       >
         {isPending
-          ? isRtl
-            ? "جارٍ إنشاء الحساب..."
-            : "Creating account..."
-          : isRtl
-            ? "إنشاء حساب الناشر"
-            : "Create Publisher Account"}
+  ? isRtl
+    ? "جارٍ إنشاء الحساب..."
+    : "Creating account..."
+  : publisherMode === "individual"
+    ? isRtl
+      ? "إكمال كفرد / مستقل"
+      : "Continue as Individual"
+    : publisherMode === "organization"
+      ? isRtl
+        ? "إكمال كجهة"
+        : "Continue as Organization"
+      : isRtl
+        ? "اختر صفتك للمتابعة"
+        : "Choose your publisher type"}
       </button>
     </form>
   );

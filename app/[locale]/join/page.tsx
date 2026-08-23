@@ -10,6 +10,7 @@ import {
   redirect,
 } from "next/navigation";
 
+import { GoogleSignupButton } from "@/components/auth/GoogleSignupButton";
 import { QuickJoinForm } from "@/components/auth/QuickJoinForm";
 import { Footer } from "@/components/Footer";
 import { Navbar } from "@/components/Navbar";
@@ -326,15 +327,24 @@ const { data, error } =
     options: {
       data: {
         full_name: fullName,
-        display_name: fullName,
-
+      
+        display_name:
+          accountType === "talent"
+            ? fullName
+            : null,
+      
+        contact_name:
+          accountType === "publisher"
+            ? fullName
+            : null,
+      
         phone,
         phone_country_iso:
           countryIso || null,
         phone_country_code:
           countryCode || null,
         phone_verified: false,
-
+      
         account_type: accountType,
 
         onboarding_status:
@@ -418,7 +428,10 @@ const { error: profileError } =
     .insert({
       user_id: data.user.id,
       account_type: accountType,
-      display_name: fullName,
+      display_name:
+        accountType === "talent"
+          ? fullName
+          : null,
       phone,
 
       status: "active",
@@ -570,9 +583,9 @@ export default async function JoinPage({
         dir={isRtl ? "rtl" : "ltr"}
         className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-28 text-white sm:px-6 sm:py-32"
       >
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(200,169,106,0.16),transparent_45%)]" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(200,169,106,0.16),transparent_45%)]" />
 
-        <div className="relative w-full max-w-5xl">
+        <div className="relative z-10 w-full max-w-5xl">
           {selectedAccountType ? (
             <div className="mx-auto w-full max-w-md rounded-[1.75rem] border border-white/10 bg-white/[0.035] p-5 shadow-2xl backdrop-blur-xl sm:rounded-[2rem] sm:p-7">
               <div className="mb-7 sm:mb-8">
@@ -656,13 +669,16 @@ export default async function JoinPage({
 
               {boundQuickJoinAction ? (
                 <QuickJoinForm
-                  locale={locale}
-                  action={
-                    boundQuickJoinAction
-                  }
-                />
+                locale={locale}
+                accountType={selectedAccountType}
+                action={boundQuickJoinAction}
+              />
               ) : null}
 
+<GoogleSignupButton
+  locale={locale}
+  accountType={selectedAccountType}
+/>
               <div className="mt-8 border-t border-white/10 pt-6 text-center text-sm text-white/45">
                 {isRtl
                   ? "لديك حساب؟"

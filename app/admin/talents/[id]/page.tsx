@@ -10,6 +10,7 @@ import {
   CircleOff,
   Eye,
   Globe2,
+  History,
   Languages,
   Pencil,
   Phone,
@@ -187,6 +188,30 @@ export default async function AdminTalentPage({
     console.error(
       "[AdminTalentReviewPage pendingProfileChange]",
       pendingProfileChangeError,
+    );
+  }
+
+  const {
+    data: reviewHistory,
+    error: reviewHistoryError,
+  } = await adminClient
+    .from("profile_review_history")
+    .select(`
+      id,
+      decision,
+      reason,
+      admin_note,
+      previous_status,
+      new_status,
+      created_at
+    `)
+    .eq("talent_id", talent.id)
+    .order("created_at", { ascending: false });
+  
+  if (reviewHistoryError) {
+    console.error(
+      "[AdminTalentReviewPage reviewHistory]",
+      reviewHistoryError,
     );
   }
 
@@ -759,6 +784,115 @@ export default async function AdminTalentPage({
                 }
               />
             </section>
+
+            <section className="rounded-3xl border border-white/[0.08] bg-white/[0.02] p-5 sm:p-6">
+  <div className="flex items-center gap-3">
+    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-gold/20 bg-gold/[0.06]">
+      <History
+        aria-hidden="true"
+        className="h-4 w-4 text-gold"
+      />
+    </div>
+
+    <div>
+      <p className="text-[10px] uppercase tracking-[0.25em] text-gold">
+        {isArabic ? "الإدارة" : "Administration"}
+      </p>
+
+      <h2 className="mt-1 text-xl font-light text-white">
+        {isArabic ? "سجل المراجعة" : "Review history"}
+      </h2>
+    </div>
+  </div>
+
+  {reviewHistory && reviewHistory.length > 0 ? (
+    <div className="mt-6 space-y-3">
+      {reviewHistory.map((review) => (
+        <div
+          key={review.id}
+          className="rounded-2xl border border-white/[0.08] bg-black/20 p-5"
+        >
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className={`rounded-full border px-3 py-1 text-[11px] ${
+                    review.decision === "approved"
+                      ? "border-emerald-400/20 bg-emerald-400/[0.08] text-emerald-300"
+                      : "border-amber-400/20 bg-amber-400/[0.08] text-amber-300"
+                  }`}
+                >
+                  {review.decision === "approved"
+                    ? isArabic
+                      ? "اعتماد الملف"
+                      : "Profile approved"
+                    : isArabic
+                      ? "طلب تعديلات"
+                      : "Changes requested"}
+                </span>
+
+                {review.previous_status || review.new_status ? (
+                  <span
+                    dir="ltr"
+                    className="text-xs text-white/30"
+                  >
+                    {review.previous_status || "—"} →{" "}
+                    {review.new_status || "—"}
+                  </span>
+                ) : null}
+              </div>
+
+              <p className="mt-3 text-xs text-white/35">
+                {formatDate(review.created_at, language)}
+              </p>
+            </div>
+          </div>
+
+          {review.reason ? (
+            <div className="mt-4 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
+              <p className="text-[10px] text-white/30">
+                {isArabic ? "السبب المرسل للموهبة" : "Reason sent to talent"}
+              </p>
+
+              <p
+                dir="auto"
+                className="mt-2 whitespace-pre-wrap text-sm leading-7 text-white/65"
+              >
+                {review.reason}
+              </p>
+            </div>
+          ) : null}
+
+          <div className="mt-3 rounded-xl border border-gold/10 bg-gold/[0.03] p-4">
+            <p className="text-[10px] text-gold/60">
+              {isArabic
+                ? "ملاحظة داخلية للإدارة"
+                : "Internal admin note"}
+            </p>
+
+            <p
+              dir="auto"
+              className="mt-2 whitespace-pre-wrap text-sm leading-7 text-white/55"
+            >
+              {review.admin_note ||
+                (isArabic
+                  ? "لا توجد ملاحظة داخلية."
+                  : "No internal note.")}
+            </p>
+          </div>
+        </div>
+      ))}
+    </div>
+  ) : (
+    <div className="mt-6 rounded-2xl border border-dashed border-white/[0.08] bg-black/20 p-6 text-center">
+      <p className="text-sm text-white/35">
+        {isArabic
+          ? "لا يوجد سجل مراجعات لهذا الملف حتى الآن."
+          : "There is no review history for this profile yet."}
+      </p>
+    </div>
+  )}
+</section>
 
             {pendingProfileChange ? (
               <AdminTalentProfileChangeReview

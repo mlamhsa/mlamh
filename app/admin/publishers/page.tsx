@@ -16,6 +16,11 @@ import {
 import { requireAdminAccess } from "@/lib/auth/require-admin";
 
 import {
+  approvePublisherVerificationAction,
+  rejectPublisherVerificationAction,
+} from "@/lib/actions/admin-publisher-verification";
+
+import {
   PublisherService,
 } from "@/lib/services/publishers/PublisherService";
 
@@ -38,7 +43,11 @@ type PublisherFilter =
   | "resubmitted"
   | "changes_requested"
   | "approved"
-  | "rejected";
+  | "rejected"
+  | "verification_pending"
+  | "verified_organizations"
+  | "unverified_organizations"
+  | "individuals";
 
   type PageProps = {
     searchParams: Promise<{
@@ -380,6 +389,76 @@ function getStatusVariant(
   }
 }
 
+function getVerificationStatusLabel(
+  status: string | null | undefined,
+  isArabic: boolean,
+) {
+  switch (status) {
+    case "verified":
+      return isArabic
+        ? "موثقة"
+        : "Verified";
+
+    case "pending":
+      return isArabic
+        ? "التوثيق قيد المراجعة"
+        : "Verification Pending";
+
+    case "rejected":
+      return isArabic
+        ? "التوثيق مرفوض"
+        : "Verification Rejected";
+
+    default:
+      return isArabic
+        ? "غير موثقة"
+        : "Unverified";
+  }
+}
+
+function getVerificationStatusClasses(
+  status: string | null | undefined,
+) {
+  switch (status) {
+    case "verified":
+      return "border-emerald-400/20 bg-emerald-400/[0.07] text-emerald-300";
+
+    case "pending":
+      return "border-amber-400/20 bg-amber-400/[0.07] text-amber-200";
+
+    case "rejected":
+      return "border-red-400/20 bg-red-400/[0.07] text-red-300";
+
+    default:
+      return "border-white/10 bg-white/[0.03] text-white/40";
+  }
+}
+
+function getVerificationMethodLabel(
+  method: string | null | undefined,
+  isArabic: boolean,
+) {
+  switch (method) {
+    case "company_email":
+      return isArabic
+        ? "البريد الرسمي للجهة"
+        : "Official Company Email";
+
+    case "official_document":
+      return isArabic
+        ? "وثيقة رسمية"
+        : "Official Document";
+
+    case "business_card":
+      return isArabic
+        ? "بطاقة عمل"
+        : "Business Card";
+
+    default:
+      return "—";
+  }
+}
+
 function getFilter(
   value?: string,
 ): PublisherFilter {
@@ -389,6 +468,10 @@ function getFilter(
     case "changes_requested":
     case "approved":
     case "rejected":
+    case "verification_pending":
+    case "verified_organizations":
+    case "unverified_organizations":
+    case "individuals":
       return value;
 
     default:
@@ -426,31 +509,59 @@ function filterPublishers(
     return publishers;
   }
 
-  if (
-    filter ===
-    "resubmitted"
-  ) {
+  if (filter === "resubmitted") {
     return publishers.filter(
       (publisher) =>
-        publisher
-          .is_resubmitted_after_changes,
+        publisher.is_resubmitted_after_changes,
     );
   }
 
   if (filter === "pending") {
     return publishers.filter(
       (publisher) =>
-        publisher.approval_status ===
-          "pending" &&
-        !publisher
-          .is_resubmitted_after_changes,
+        publisher.approval_status === "pending" &&
+        !publisher.is_resubmitted_after_changes,
+    );
+  }
+
+  if (filter === "verification_pending") {
+    return publishers.filter(
+      (publisher) =>
+        publisher.publisher_type !== "individual" &&
+        publisher.verification_status === "pending",
+    );
+  }
+
+  if (filter === "verified_organizations") {
+    return publishers.filter(
+      (publisher) =>
+        publisher.publisher_type !== "individual" &&
+        publisher.verification_status === "verified",
+    );
+  }
+
+  if (filter === "unverified_organizations") {
+    return publishers.filter(
+      (publisher) =>
+        publisher.publisher_type !== "individual" &&
+        (
+          publisher.verification_status === "unverified" ||
+          publisher.verification_status === "rejected" ||
+          !publisher.verification_status
+        ),
+    );
+  }
+
+  if (filter === "individuals") {
+    return publishers.filter(
+      (publisher) =>
+        publisher.publisher_type === "individual",
     );
   }
 
   return publishers.filter(
     (publisher) =>
-      publisher.approval_status ===
-      filter,
+      publisher.approval_status === filter,
   );
 }
 
@@ -460,7 +571,19 @@ function sortPublishers(
   return [
     ...publishers,
   ].sort(
-    (a, b) => {
+    (a, b) => {if (
+      a.verification_status === "pending" &&
+      b.verification_status !== "pending"
+    ) {
+      return -1;
+    }
+    
+    if (
+      b.verification_status === "pending" &&
+      a.verification_status !== "pending"
+    ) {
+      return 1;
+    }
       /*
        * الحساب المعاد بعد التعديل
        * يظهر أولًا.
@@ -674,13 +797,6 @@ export default async function AdminPublishersPage({
 
   const total =
     publishers.length;
-
-    const pending =
-    publishers.filter(
-      (publisher) =>
-        publisher.approval_status ===
-          "pending",
-    ).length;
   
   const resubmitted =
     publishers.filter(
@@ -718,6 +834,36 @@ export default async function AdminPublishersPage({
         publisher.approval_status ===
         "rejected",
     ).length;
+    const verificationPending =
+    publishers.filter(
+      (publisher) =>
+        publisher.publisher_type !== "individual" &&
+        publisher.verification_status === "pending",
+    ).length;
+  
+  const verifiedOrganizations =
+    publishers.filter(
+      (publisher) =>
+        publisher.publisher_type !== "individual" &&
+        publisher.verification_status === "verified",
+    ).length;
+  
+  const unverifiedOrganizations =
+    publishers.filter(
+      (publisher) =>
+        publisher.publisher_type !== "individual" &&
+        (
+          publisher.verification_status === "unverified" ||
+          publisher.verification_status === "rejected" ||
+          !publisher.verification_status
+        ),
+    ).length;
+  
+  const individualPublishers =
+    publishers.filter(
+      (publisher) =>
+        publisher.publisher_type === "individual",
+    ).length;
 
   const filteredPublishers =
   selectedPublisherId !== null
@@ -733,34 +879,68 @@ export default async function AdminPublishersPage({
         ),
       );
 
-  const activeFilterLabel =
-    activeFilter === "pending"
-      ? isArabic
-        ? "قيد المراجعة"
-        : "Pending"
-      : activeFilter ===
-          "resubmitted"
-        ? isArabic
-          ? "أعيد للمراجعة"
-          : "Resubmitted"
-        : activeFilter ===
-            "changes_requested"
-          ? isArabic
-            ? "مطلوب تعديل"
-            : "Changes requested"
-          : activeFilter ===
-              "approved"
-            ? isArabic
-              ? "معتمد"
-              : "Approved"
-            : activeFilter ===
-                "rejected"
-              ? isArabic
-                ? "مرفوض"
-                : "Rejected"
-              : isArabic
-                ? "جميع الناشرين"
-                : "All publishers";
+  let activeFilterLabel: string;
+
+switch (activeFilter) {
+  case "pending":
+    activeFilterLabel = isArabic
+      ? "قيد مراجعة الملف"
+      : "Profile Pending";
+    break;
+
+  case "resubmitted":
+    activeFilterLabel = isArabic
+      ? "أعيد للمراجعة"
+      : "Resubmitted";
+    break;
+
+  case "changes_requested":
+    activeFilterLabel = isArabic
+      ? "مطلوب تعديل"
+      : "Changes Requested";
+    break;
+
+  case "approved":
+    activeFilterLabel = isArabic
+      ? "ملفات معتمدة"
+      : "Approved Profiles";
+    break;
+
+  case "rejected":
+    activeFilterLabel = isArabic
+      ? "ملفات مرفوضة"
+      : "Rejected Profiles";
+    break;
+
+  case "verification_pending":
+    activeFilterLabel = isArabic
+      ? "طلبات توثيق الجهات"
+      : "Organization Verification Requests";
+    break;
+
+  case "verified_organizations":
+    activeFilterLabel = isArabic
+      ? "الجهات الموثقة"
+      : "Verified Organizations";
+    break;
+
+  case "unverified_organizations":
+    activeFilterLabel = isArabic
+      ? "الجهات غير الموثقة"
+      : "Unverified Organizations";
+    break;
+
+  case "individuals":
+    activeFilterLabel = isArabic
+      ? "الأفراد والمستقلون"
+      : "Individuals & Freelancers";
+    break;
+
+  default:
+    activeFilterLabel = isArabic
+      ? "جميع الناشرين"
+      : "All Publishers";
+}
 
   return (
     <main
@@ -900,6 +1080,76 @@ export default async function AdminPublishersPage({
           value={rejected}
         />
       </section>
+
+      <section className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+  <FilterCard
+    href={buildFilterHref(
+      language,
+      "verification_pending",
+    )}
+    active={
+      activeFilter ===
+      "verification_pending"
+    }
+    label={
+      isArabic
+        ? "طلبات توثيق الجهات"
+        : "Verification Requests"
+    }
+    value={verificationPending}
+  />
+
+  <FilterCard
+    href={buildFilterHref(
+      language,
+      "verified_organizations",
+    )}
+    active={
+      activeFilter ===
+      "verified_organizations"
+    }
+    label={
+      isArabic
+        ? "جهات موثقة"
+        : "Verified Organizations"
+    }
+    value={verifiedOrganizations}
+  />
+
+  <FilterCard
+    href={buildFilterHref(
+      language,
+      "unverified_organizations",
+    )}
+    active={
+      activeFilter ===
+      "unverified_organizations"
+    }
+    label={
+      isArabic
+        ? "جهات غير موثقة"
+        : "Unverified Organizations"
+    }
+    value={unverifiedOrganizations}
+  />
+
+  <FilterCard
+    href={buildFilterHref(
+      language,
+      "individuals",
+    )}
+    active={
+      activeFilter ===
+      "individuals"
+    }
+    label={
+      isArabic
+        ? "أفراد / مستقلون"
+        : "Individuals / Freelancers"
+    }
+    value={individualPublishers}
+  />
+</section>
 
       {/* فلتر مهم للحسابات التي عدلت ورجعت */}
       {resubmitted > 0 ? (
@@ -1041,21 +1291,24 @@ export default async function AdminPublishersPage({
                             : `Publisher #${publisher.id}`}
                         </span>
 
-                        <span
-                          className={`rounded-full border px-3 py-1 text-[10px] ${
-                            publisher.verified
-                              ? "border-emerald-400/20 bg-emerald-400/[0.07] text-emerald-300"
-                              : "border-white/10 bg-white/[0.03] text-white/40"
-                          }`}
-                        >
-                          {publisher.verified
-                            ? isArabic
-                              ? "نشط"
-                              : "Active"
-                            : isArabic
-                              ? "غير نشط"
-                              : "Inactive"}
-                        </span>
+                        {publisher.publisher_type !== "individual" ? (
+  <span
+    className={`rounded-full border px-3 py-1 text-[10px] ${getVerificationStatusClasses(
+      publisher.verification_status,
+    )}`}
+  >
+    {getVerificationStatusLabel(
+      publisher.verification_status,
+      isArabic,
+    )}
+  </span>
+) : (
+  <span className="rounded-full border border-sky-400/20 bg-sky-400/[0.06] px-3 py-1 text-[10px] text-sky-300">
+    {isArabic
+      ? "فرد / مستقل"
+      : "Individual / Freelancer"}
+  </span>
+)}
                       </div>
 
                       <h2 className="truncate text-2xl font-light text-white">
@@ -1296,6 +1549,182 @@ export default async function AdminPublishersPage({
     </div>
   ) : null}
 </div>
+{publisher.publisher_type !== "individual" ? (
+  <div className="mt-6 rounded-2xl border border-white/[0.08] bg-white/[0.025] p-5">
+    <div className="flex flex-wrap items-start justify-between gap-4">
+      <div>
+        <p className="text-[10px] uppercase tracking-[0.25em] text-gold">
+          {isArabic
+            ? "توثيق الجهة"
+            : "Organization Verification"}
+        </p>
+
+        <p className="mt-2 text-sm text-white/45">
+          {isArabic
+            ? "التحقق من ارتباط حساب الناشر بالجهة التي يمثلها."
+            : "Verify the publisher's connection to the organization."}
+        </p>
+      </div>
+
+      <span
+        className={`rounded-full border px-3 py-1 text-[10px] ${getVerificationStatusClasses(
+          publisher.verification_status,
+        )}`}
+      >
+        {getVerificationStatusLabel(
+          publisher.verification_status,
+          isArabic,
+        )}
+      </span>
+    </div>
+
+    <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <AdminInfoItem
+        label={
+          isArabic
+            ? "طريقة التوثيق"
+            : "Verification Method"
+        }
+        value={getVerificationMethodLabel(
+          publisher.verification_method,
+          isArabic,
+        )}
+      />
+
+      <AdminInfoItem
+        label={
+          isArabic
+            ? "بريد التوثيق"
+            : "Verification Email"
+        }
+        value={publisher.verification_email}
+      />
+
+      <AdminInfoItem
+        label={
+          isArabic
+            ? "تاريخ تقديم الطلب"
+            : "Submitted At"
+        }
+        value={formatDateTime(
+          publisher.verification_submitted_at,
+          language,
+        )}
+      />
+
+      <AdminInfoItem
+        label={
+          isArabic
+            ? "تاريخ مراجعة التوثيق"
+            : "Reviewed At"
+        }
+        value={formatDateTime(
+          publisher.verification_reviewed_at,
+          language,
+        )}
+      />
+    </div>
+
+    {publisher.verification_document_url ? (
+      <a
+        href={publisher.verification_document_url}
+        target="_blank"
+        rel="noreferrer"
+        className="mt-5 inline-flex rounded-full border border-white/10 px-5 py-3 text-xs text-white/60 transition hover:border-gold/40 hover:text-gold"
+      >
+        {isArabic
+          ? "عرض مستند التوثيق"
+          : "View Verification Document"}
+      </a>
+    ) : null}
+
+    {publisher.verification_status === "pending" ? (
+      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        <form
+          action={approvePublisherVerificationAction}
+          className="rounded-2xl border border-emerald-400/15 bg-emerald-400/[0.03] p-4"
+        >
+          <input
+            type="hidden"
+            name="id"
+            value={publisher.id}
+          />
+
+          <input
+            type="hidden"
+            name="locale"
+            value={language}
+          />
+
+          <p className="text-sm text-white/60">
+            {isArabic
+              ? "اعتماد ارتباط هذا الحساب بالجهة."
+              : "Approve this account's connection to the organization."}
+          </p>
+
+          <AdminActionButton
+            type="submit"
+            variant="success"
+          >
+            {isArabic
+              ? "اعتماد التوثيق"
+              : "Approve Verification"}
+          </AdminActionButton>
+        </form>
+
+        <form
+          action={rejectPublisherVerificationAction}
+          className="rounded-2xl border border-red-400/15 bg-red-400/[0.03] p-4"
+        >
+          <input
+            type="hidden"
+            name="id"
+            value={publisher.id}
+          />
+
+          <input
+            type="hidden"
+            name="locale"
+            value={language}
+          />
+
+          <p className="text-sm text-white/60">
+            {isArabic
+              ? "رفض إثبات ارتباط الحساب بهذه الجهة."
+              : "Reject the submitted organization verification."}
+          </p>
+          <label className="mb-2 mt-4 block text-xs text-white/45">
+  {isArabic
+    ? "سبب رفض التوثيق"
+    : "Verification Rejection Reason"}
+</label>
+
+<textarea
+  required
+  name="verification_rejection_reason"
+  rows={3}
+  maxLength={1000}
+  placeholder={
+    isArabic
+      ? "وضح سبب عدم قبول إثبات ارتباط الحساب بالجهة..."
+      : "Explain why the organization verification could not be accepted..."
+  }
+  className="mb-4 w-full resize-none rounded-xl border border-white/[0.08] bg-black/20 px-3 py-3 text-sm text-white outline-none placeholder:text-white/20 focus:border-red-400/30"
+/>
+
+          <AdminActionButton
+            type="submit"
+            variant="danger"
+          >
+            {isArabic
+              ? "رفض التوثيق"
+              : "Reject Verification"}
+          </AdminActionButton>
+        </form>
+      </div>
+    ) : null}
+  </div>
+) : null}
 <div className="mt-6 rounded-2xl border border-white/[0.08] bg-white/[0.025] p-5">
   <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
     <div>
@@ -1356,9 +1785,9 @@ export default async function AdminPublishersPage({
 </div>
                   <div className="mt-6 border-t border-white/[0.08] pt-5">
                     <p className="mb-4 text-[10px] uppercase tracking-[0.25em] text-gold">
-                      {isArabic
-                        ? "قرار المراجعة"
-                        : "Review decision"}
+                    {isArabic
+  ? "قرار مراجعة ملف الناشر"
+  : "Publisher Profile Review Decision"}
                     </p>
 
                     <div className="grid gap-3 lg:grid-cols-3">

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import {
   autoSavePublisherProfileAction,
@@ -59,33 +60,116 @@ type PublisherData = {
   contact_name: string | null;
   publisher_type: string | null;
   city: string | null;
-  company_size: string | null;
-  founded_year: number | null;
   description: string | null;
   phone: string | null;
   email: string | null;
   website: string | null;
-  address: string | null;
   instagram: string | null;
   tiktok_url: string | null;
-  snapchat_url: string | null;
   linkedin_url: string | null;
   profile_image_url: string | null;
   cover_image_url: string | null;
+  verified: boolean | null;
+status: string | null;
+verification_status: string | null;
+verification_method: string | null;
+verification_email: string | null;
+verification_document_url: string | null;
+verification_submitted_at: string | null;
+verification_reviewed_at: string | null;
 };
 
 type PublisherProfileFormProps = {
   locale: string;
   isRtl: boolean;
+  approvalStatus: string;
   publisher: PublisherData;
 };
 
 export default function PublisherProfileForm({
   locale,
   isRtl,
+  approvalStatus,
   publisher,
 }: PublisherProfileFormProps) {
+  const router = useRouter();
+
+  const isIndividual =
+    publisher.publisher_type === "individual";
+
+    const isProfilePending =
+  approvalStatus === "pending" ||
+  approvalStatus === "submitted";
+
+const isProfileApproved =
+  approvalStatus === "approved";
+
+const isProfileRejected =
+  approvalStatus === "rejected" ||
+  approvalStatus === "changes_requested";
+
   const selectedCity = resolveCityValue(publisher.city);
+
+  const verificationRequirements = isIndividual
+  ? []
+  : [
+      {
+        key: "company_name",
+        complete: Boolean(
+          publisher.company_name?.trim(),
+        ),
+        label: isRtl
+          ? "اسم الجهة"
+          : "Organization name",
+      },
+      {
+        key: "contact_name",
+        complete: Boolean(
+          publisher.contact_name?.trim(),
+        ),
+        label: isRtl
+          ? "اسم مسؤول الحساب"
+          : "Account manager name",
+      },
+      {
+        key: "publisher_type",
+        complete: Boolean(
+          publisher.publisher_type?.trim(),
+        ),
+        label: isRtl
+          ? "نوع الجهة"
+          : "Organization type",
+      },
+      {
+        key: "city",
+        complete: Boolean(
+          publisher.city?.trim(),
+        ),
+        label: isRtl
+          ? "المدينة"
+          : "City",
+      },
+      {
+        key: "profile_image_url",
+        complete: Boolean(
+          publisher.profile_image_url?.trim(),
+        ),
+        label: isRtl
+          ? "شعار الجهة"
+          : "Organization logo",
+      },
+    ];
+
+const completedVerificationRequirements =
+  verificationRequirements.filter(
+    (item) => item.complete,
+  ).length;
+
+const isVerificationReady =
+  !isIndividual &&
+  verificationRequirements.length > 0 &&
+  completedVerificationRequirements ===
+    verificationRequirements.length;
 
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
@@ -109,7 +193,8 @@ export default function PublisherProfileForm({
       const formData = new FormData(form);
       const fileFieldNames: string[] = [];
 
-      // الصور تبقى للحفظ اليدوي فقط.
+      // نستبعد ملفات الصور من الحفظ التلقائي للنصوص؛
+ // رفع الصور يتم تلقائيًا من مكوّن الصور نفسه.
       for (const [key, value] of formData.entries()) {
         if (value instanceof File) {
           fileFieldNames.push(key);
@@ -122,7 +207,9 @@ export default function PublisherProfileForm({
 
       await autoSavePublisherProfileAction(formData);
 
-      setIsSaved(true);
+router.refresh();
+
+setIsSaved(true);
 
 if (savedTimerRef.current) {
   clearTimeout(savedTimerRef.current);
@@ -198,154 +285,459 @@ savedTimerRef.current = setTimeout(() => {
 
       <section className="rounded-[2rem] border border-white/10 bg-white/[0.025] p-6 md:p-8">
         <p className="mb-6 text-xs uppercase tracking-[0.3em] text-gold">
-          {isRtl
-            ? "المعلومات الأساسية"
-            : "Basic Information"}
+        {isIndividual
+  ? isRtl
+    ? "المعلومات الأساسية"
+    : "Basic Information"
+  : isRtl
+    ? "هوية الجهة"
+    : "Organization Identity"}
         </p>
 
-        <div className="grid gap-6 md:grid-cols-2">
-        <Field
-  label={isRtl ? "اسم الجهة" : "Organization Name"}
-  name="company_name"
-  defaultValue={publisher.company_name ?? ""}
-  dir={isRtl ? "rtl" : "ltr"}
-  placeholder={
-    isRtl
-      ? "مثال: وكالة ملامح للمواهب"
-      : "e.g. MLAMH Talent Agency"
-  }
-  required
-/>
+        {isIndividual ? (
+  <>
+    <Field
+      label={
+        isRtl
+          ? "الاسم المهني"
+          : "Professional Name"
+      }
+      name="contact_name"
+      defaultValue={publisher.contact_name ?? ""}
+      dir={isRtl ? "rtl" : "ltr"}
+      placeholder={
+        isRtl
+          ? "مثال: أسامة عياش"
+          : "e.g. Osama Ayyash"
+      }
+      required
+    />
 
-<Field
-  label={isRtl ? "اسم مسؤول الحساب" : "Account Manager Name"}
-  name="contact_name"
-  defaultValue={publisher.contact_name ?? ""}
-  dir={isRtl ? "rtl" : "ltr"}
-  placeholder={
-    isRtl
-      ? "اسم الشخص المسؤول عن إدارة الحساب"
-      : "Person responsible for managing this account"
-  }
-  required
-/>
+    <div>
+    <label className="mb-2.5 block text-sm font-medium text-white/65">
+        {isRtl ? "نوع الحساب" : "Account Type"}
+      </label>
 
-<div>
-  <label className="mb-2 block text-xs uppercase tracking-[0.25em] text-white/40">
+      <div className="inline-flex min-h-12 items-center rounded-full border border-gold/20 bg-gold/[0.06] px-5 text-sm text-gold">
+        {isRtl
+          ? "فرد / مستقل"
+          : "Individual / Freelancer"}
+      </div>
+
+      <input
+        type="hidden"
+        name="publisher_type"
+        value="individual"
+      />
+    </div>
+
+    <div className="max-w-md">
+  <label className="mb-2.5 block text-sm font-medium text-white/65">
+    {isRtl ? "المدينة" : "City"}
+    <span className="ms-1 text-gold">*</span>
+  </label>
+
+  <select
+    name="city"
+    defaultValue={
+      selectedCity || publisher.city || ""
+    }
+    required
+    className="h-12 w-full rounded-xl border border-white/[0.08] bg-white/[0.035] px-4 text-sm text-white outline-none transition duration-200 hover:border-white/15 focus:border-gold/45 focus:bg-white/[0.05] focus:ring-4 focus:ring-gold/[0.06]"
+  >
+        <option value="" disabled>
+          {isRtl ? "اختر المدينة" : "Select city"}
+        </option>
+
+        {publisher.city && !selectedCity ? (
+          <option value={publisher.city}>
+            {publisher.city}
+          </option>
+        ) : null}
+
+        {SAUDI_CITIES.map((city) => (
+          <option
+            key={city.slug}
+            value={city.slug}
+          >
+            {isRtl ? city.ar : city.en}
+          </option>
+        ))}
+      </select>
+    </div>
+
+    <div className="md:col-span-2">
+      <Textarea
+        label={
+          isRtl
+            ? "نبذة عنك"
+            : "About You"
+        }
+        name="description"
+        defaultValue={publisher.description ?? ""}
+        dir={isRtl ? "rtl" : "ltr"}
+        placeholder={
+          isRtl
+            ? "اكتب نبذة مختصرة عنك وطبيعة الفرص أو المشاريع التي تنشرها."
+            : "Write a short introduction about yourself and the type of opportunities or projects you publish."
+        }
+        required
+      />
+    </div>
+  </>
+) : (
+  <>
+  <div className="grid gap-x-6 gap-y-7 md:grid-cols-2">
+    <Field
+      label={isRtl ? "اسم الجهة" : "Organization Name"}
+      name="company_name"
+      defaultValue={publisher.company_name ?? ""}
+      dir={isRtl ? "rtl" : "ltr"}
+      placeholder={
+        isRtl
+          ? "مثال: وكالة ملامح للمواهب"
+          : "e.g. MLAMH Talent Agency"
+      }
+      required
+    />
+
+<div className="flex flex-col">
+  <label className="mb-2.5 block text-sm font-medium text-white/65">
     {isRtl ? "نوع الجهة" : "Organization Type"}
   </label>
 
-  <div className="w-full border border-white/10 bg-white/[0.02] px-4 py-4 text-white/70">
-    {(() => {
-      const option = PUBLISHER_TYPE_OPTIONS.find(
-        (item) => item.value === publisher.publisher_type
-      );
+  <div className="inline-flex h-12 w-fit items-center rounded-full border border-gold/20 bg-gold/[0.06] px-5 text-sm text-gold">
+        {(() => {
+          const option = PUBLISHER_TYPE_OPTIONS.find(
+            (item) =>
+              item.value === publisher.publisher_type,
+          );
 
-      return option
-        ? isRtl
-          ? option.ar
-          : option.en
-        : publisher.publisher_type || (isRtl ? "غير محدد" : "Not specified");
-    })()}
-  </div>
+          return option
+            ? isRtl
+              ? option.ar
+              : option.en
+            : publisher.publisher_type ||
+                (isRtl
+                  ? "غير محدد"
+                  : "Not specified");
+        })()}
+      </div>
 
-  <input
-    type="hidden"
-    name="publisher_type"
-    value={publisher.publisher_type ?? ""}
-  />
-</div>
+      <input
+        type="hidden"
+        name="publisher_type"
+        value={publisher.publisher_type ?? ""}
+      />
+    </div>
 
-          <div>
-            <label className="mb-2 block text-xs uppercase tracking-[0.25em] text-white/40">
-            {isRtl ? "المدينة" : "City"}
-            <span className="ms-1 text-gold">*</span>
-            </label>
+    <div className="max-w-md">
+  <label className="mb-2.5 block text-sm font-medium text-white/65">
+        {isRtl ? "المدينة" : "City"}
+        <span className="ms-1 text-gold">*</span>
+      </label>
 
-            <select
-              name="city"
-              defaultValue={
-                selectedCity || publisher.city || ""
-              }
-              required
-              className="w-full border border-white/10 bg-black/30 px-4 py-4 text-white outline-none transition focus:border-gold/50"
-            >
-              <option value="" disabled>
-                {isRtl ? "اختر المدينة" : "Select city"}
-              </option>
+      <select
+        name="city"
+        defaultValue={
+          selectedCity || publisher.city || ""
+        }
+        required
+        className="h-12 w-full rounded-xl border border-white/[0.08] bg-white/[0.035] px-4 text-sm text-white outline-none transition duration-200 hover:border-white/15 focus:border-gold/45 focus:bg-white/[0.05] focus:ring-4 focus:ring-gold/[0.06]"
+      >
+        <option value="" disabled>
+          {isRtl ? "اختر المدينة" : "Select city"}
+        </option>
 
-              {publisher.city && !selectedCity ? (
-                <option value={publisher.city}>
-                  {publisher.city}
-                </option>
-              ) : null}
+        {publisher.city && !selectedCity ? (
+          <option value={publisher.city}>
+            {publisher.city}
+          </option>
+        ) : null}
 
-              {SAUDI_CITIES.map((city) => (
-                <option key={city.slug} value={city.slug}>
-                  {isRtl ? city.ar : city.en}
-                </option>
-              ))}
-            </select>
-          </div>
+        {SAUDI_CITIES.map((city) => (
+          <option
+            key={city.slug}
+            value={city.slug}
+          >
+            {isRtl ? city.ar : city.en}
+          </option>
+        ))}
+      </select>
+    </div>
 
-          <Field
-            label={isRtl ? "حجم الشركة" : "Company Size"}
-            name="company_size"
-            defaultValue={publisher.company_size ?? ""}
-            placeholder={
-              isRtl ? "مثال: 1-10" : "Example: 1-10"
-            }
-            dir="ltr"
-          />
-
-          <Field
-            label={isRtl ? "سنة التأسيس" : "Founded Year"}
-            name="founded_year"
-            type="number"
-            defaultValue={
-              publisher.founded_year?.toString() ?? ""
-            }
-            placeholder="2020"
-            dir="ltr"
-          />
-
-          <div className="md:col-span-2">
-            <Textarea
-              label={
-                isRtl
-                  ? "نبذة عن الجهة"
-                  : "Company Description"
-              }
-              name="description"
-              defaultValue={publisher.description ?? ""}
-              dir={isRtl ? "rtl" : "ltr"}
-              placeholder={
-                isRtl
-                  ? "اكتب وصفًا مختصرًا عن الجهة ونوع الأعمال التي تنشرها."
-                  : "Write a short description about your company and the kind of opportunities you publish."
-              }
-              required
-            />
-          </div>
-        </div>
+    <div className="md:col-span-2">
+      <Textarea
+        label={
+          isRtl
+            ? "نبذة عن الجهة"
+            : "Company Description"
+        }
+        name="description"
+        defaultValue={publisher.description ?? ""}
+        dir={isRtl ? "rtl" : "ltr"}
+        placeholder={
+          isRtl
+            ? "اكتب وصفًا مختصرًا عن الجهة ونوع الأعمال التي تنشرها."
+            : "Write a short description about your company and the kind of opportunities you publish."
+        }
+      />
+    </div>
+    </div>
+  </>
+)}
       </section>
 
       <PublisherImageUploadFields
-        isRtl={isRtl}
-        currentProfileImageUrl={
-          publisher.profile_image_url
-        }
-        currentCoverImageUrl={publisher.cover_image_url}
-      />
+  isRtl={isRtl}
+  currentProfileImageUrl={
+    publisher.profile_image_url
+  }
+  currentCoverImageUrl={
+    publisher.cover_image_url
+  }
+/>
+
+{!isIndividual ? (
+  <section className="rounded-[2rem] border border-white/[0.07] bg-white/[0.018] p-6 shadow-[0_20px_80px_rgba(0,0,0,0.18)] md:p-8">
+    <div className="grid gap-8 lg:grid-cols-[1.2fr_0.9fr_auto] lg:items-center">
+      <div>
+        <p className="text-xs uppercase tracking-[0.3em] text-gold">
+          {isRtl ? "جاهزية الحساب" : "Account Readiness"}
+        </p>
+
+        <h2 className="mt-3 text-2xl font-light text-white">
+  {isProfileApproved
+    ? isRtl
+      ? "حساب الجهة معتمد ✓"
+      : "Organization Account Approved ✓"
+    : isProfilePending
+      ? isRtl
+        ? "ملف الجهة قيد المراجعة"
+        : "Organization Profile Under Review"
+      : isProfileRejected
+        ? isRtl
+          ? "يحتاج الملف إلى تحديث"
+          : "Profile Needs Updates"
+        : isVerificationReady
+          ? isRtl
+            ? "ملف الجهة جاهز للمراجعة"
+            : "Organization Profile Is Ready"
+          : isRtl
+            ? "أكمل ملف الجهة"
+            : "Complete Your Organization Profile"}
+</h2>
+
+<p className="mt-3 max-w-2xl text-sm leading-7 text-white/45">
+  {isProfileApproved
+    ? isRtl
+      ? "تمت مراجعة بيانات حساب الجهة واعتمادها. يمكنك الآن استخدام صلاحيات الناشر المتاحة."
+      : "Your organization account has been reviewed and approved. You can now use the available publisher features."
+    : isProfilePending
+      ? isRtl
+        ? "استلم فريق ملامح ملف الجهة ويقوم بمراجعته الآن. سنبلغك عند صدور القرار."
+        : "The MLAMH team has received your organization profile and is reviewing it. We will notify you when a decision is made."
+      : isProfileRejected
+        ? isRtl
+          ? "راجع الملاحظات وحدّث البيانات المطلوبة، ثم أعد إرسال الملف للمراجعة."
+          : "Review the feedback, update the required information, then resubmit your profile."
+        : isVerificationReady
+          ? isRtl
+            ? "اكتملت المعلومات الأساسية. أرسل الملف إلى فريق ملامح لمراجعة الحساب قبل استخدام صلاحيات الناشر بالكامل."
+            : "The required information is complete. Submit the profile to MLAMH for account review before full publisher access."
+          : isRtl
+            ? "أكمل المعلومات الأساسية أدناه حتى يصبح حساب الجهة جاهزًا للمراجعة."
+            : "Complete the required information below so your organization account is ready for review."}
+</p>
+      </div>
+
+      <div>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <p className="text-xs text-white/45">
+            {isRtl ? "اكتمال الملف" : "Profile Completion"}
+          </p>
+
+          <span className="text-xs text-gold">
+            {completedVerificationRequirements}/
+            {verificationRequirements.length}
+          </span>
+        </div>
+
+        <div className="grid gap-2 sm:grid-cols-2">
+          {verificationRequirements.map((requirement) => (
+            <div
+              key={requirement.key}
+              className="flex items-center gap-2 text-xs"
+            >
+              <span
+                className={
+                  requirement.complete
+                    ? "text-emerald-300"
+                    : "text-white/25"
+                }
+              >
+                {requirement.complete ? "✓" : "○"}
+              </span>
+
+              <span
+                className={
+                  requirement.complete
+                    ? "text-white/60"
+                    : "text-white/35"
+                }
+              >
+                {requirement.label}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="shrink-0">
+  {isProfileApproved ? (
+    <span className="inline-flex min-h-11 items-center justify-center rounded-full border border-emerald-400/25 bg-emerald-400/10 px-5 text-sm text-emerald-300">
+      {isRtl ? "معتمد ✓" : "Approved ✓"}
+    </span>
+  ) : isProfilePending ? (
+    <span className="inline-flex min-h-11 items-center justify-center rounded-full border border-amber-400/25 bg-amber-400/10 px-5 text-sm text-amber-200">
+      {isRtl ? "قيد المراجعة" : "Under Review"}
+    </span>
+  ) : isVerificationReady ? (
+    <button
+      type="submit"
+      formAction={submitPublisherProfileForReviewAction}
+      className="inline-flex min-h-11 items-center justify-center rounded-full bg-gold px-6 text-sm font-medium text-black transition hover:bg-gold-soft"
+    >
+      {isProfileRejected
+        ? isRtl
+          ? "إعادة الإرسال للمراجعة"
+          : "Resubmit for Review"
+        : isRtl
+          ? "إرسال للمراجعة"
+          : "Submit for Review"}
+    </button>
+  ) : (
+    <span className="inline-flex min-h-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] px-6 text-sm text-white/35">
+      {isRtl
+        ? "أكمل البيانات أولًا"
+        : "Complete Required Fields"}
+    </span>
+  )}
+</div>
+    </div>
+  </section>
+) : null}
+
+{!isIndividual ? (
+  <section className="rounded-[2rem] border border-gold/15 bg-gold/[0.025] p-6 md:p-8">
+    <div className="grid gap-6 md:grid-cols-[1fr_auto] md:items-center">
+      <div>
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="text-sm font-medium text-gold">
+            {isRtl
+              ? "توثيق الجهة"
+              : "Organization Verification"}
+          </p>
+
+          <span className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-1 text-[11px] text-white/40">
+            {isRtl ? "خطوة إضافية" : "Additional Step"}
+          </span>
+        </div>
+
+        <h2 className="mt-3 text-2xl font-light text-white">
+          {publisher.verification_status === "verified"
+            ? isRtl
+              ? "جهتك موثقة ✓"
+              : "Your Organization Is Verified ✓"
+            : publisher.verification_status === "pending"
+              ? isRtl
+                ? "طلب التوثيق قيد المراجعة"
+                : "Verification Is Under Review"
+              : publisher.verification_status === "rejected"
+                ? isRtl
+                  ? "تعذر اعتماد طلب التوثيق"
+                  : "Verification Request Was Rejected"
+                : isRtl
+                  ? "احصل على شارة الجهة الموثقة"
+                  : "Get the Verified Organization Badge"}
+        </h2>
+
+        <p className="mt-3 max-w-2xl text-sm leading-7 text-white/45">
+          {publisher.verification_status === "verified"
+            ? isRtl
+              ? "تم التحقق من أنك مخول بتمثيل هذه الجهة، وستظهر شارة التوثيق في حسابك."
+              : "We verified that you are authorized to represent this organization, and the verified badge will appear on your account."
+            : publisher.verification_status === "pending"
+              ? isRtl
+                ? "استلمنا إثبات ارتباطك بالجهة، ويقوم فريق ملامح بمراجعته الآن."
+                : "We received your organization proof and the MLAMH team is reviewing it."
+              : publisher.verification_status === "rejected"
+                ? isRtl
+                  ? "يمكنك مراجعة سبب الرفض وتقديم إثبات جديد."
+                  : "You can review the rejection reason and submit new proof."
+                : isRtl
+                  ? "التوثيق مختلف عن مراجعة الحساب: هنا تثبت أنك مخول بتمثيل الجهة للحصول على شارة التوثيق وزيادة الثقة لدى المواهب."
+                  : "Verification is different from account review: here you prove that you are authorized to represent the organization to receive a verified badge and build trust with talent."}
+        </p>
+      </div>
+
+      <div className="shrink-0">
+        {publisher.verification_status === "verified" ? (
+          <span className="inline-flex min-h-11 items-center justify-center rounded-full border border-emerald-400/25 bg-emerald-400/10 px-5 text-sm text-emerald-300">
+            {isRtl ? "موثقة ✓" : "Verified ✓"}
+          </span>
+        ) : publisher.verification_status === "pending" ? (
+          <span className="inline-flex min-h-11 items-center justify-center rounded-full border border-amber-400/25 bg-amber-400/10 px-5 text-sm text-amber-200">
+            {isRtl ? "قيد المراجعة" : "Under Review"}
+          </span>
+        ) : isProfileApproved ? (
+          <Link
+            href={`/${locale}/publisher-dashboard/verification`}
+            className="inline-flex min-h-11 items-center justify-center rounded-full border border-gold/25 bg-gold/[0.06] px-6 text-sm text-gold transition hover:bg-gold hover:text-black"
+          >
+            {publisher.verification_status === "rejected"
+              ? isRtl
+                ? "إعادة طلب التوثيق"
+                : "Resubmit Verification"
+              : isRtl
+                ? "ابدأ التوثيق"
+                : "Start Verification"}
+          </Link>
+        ) : (
+          <span className="inline-flex min-h-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] px-6 text-sm text-white/35">
+            {isRtl
+  ? "متاح بعد اعتماد الحساب"
+  : "Available After Account Approval"}
+          </span>
+        )}
+      </div>
+    </div>
+  </section>
+) : null}
 
 <section className="rounded-[2rem] border border-white/10 bg-white/[0.025] p-6 md:p-8">
-  <p className="mb-6 text-xs uppercase tracking-[0.3em] text-gold">
+  <p className="mb-6 text-sm font-medium text-gold">
     {isRtl
       ? "معلومات التواصل"
       : "Contact Information"}
   </p>
 
   <div className="grid gap-6 md:grid-cols-2">
+  {!isIndividual ? (
+  <Field
+    label={isRtl ? "اسم مسؤول الحساب" : "Account Manager Name"}
+    name="contact_name"
+    defaultValue={publisher.contact_name ?? ""}
+    dir={isRtl ? "rtl" : "ltr"}
+    placeholder={
+      isRtl
+        ? "اسم الشخص المسؤول عن إدارة الحساب"
+        : "Person responsible for managing this account"
+    }
+    required
+  />
+) : null}
+
     <Field
       label={isRtl ? "رقم التواصل" : "Phone"}
       name="phone"
@@ -367,7 +759,11 @@ savedTimerRef.current = setTimeout(() => {
       defaultValue={publisher.email ?? ""}
       type="email"
       dir="ltr"
-      placeholder="example@company.com"
+      placeholder={
+        isIndividual
+          ? "name@example.com"
+          : "example@company.com"
+      }
     />
 
     <Field
@@ -381,22 +777,11 @@ savedTimerRef.current = setTimeout(() => {
       placeholder="https://example.com"
     />
 
-    <Field
-      label={isRtl ? "العنوان" : "Address"}
-      name="address"
-      defaultValue={publisher.address ?? ""}
-      dir={isRtl ? "rtl" : "ltr"}
-      placeholder={
-        isRtl
-          ? "مثال: الرياض، حي العليا"
-          : "Example: Riyadh, Olaya District"
-      }
-    />
   </div>
 </section>
 
-<section className="rounded-[2rem] border border-white/10 bg-white/[0.025] p-6 md:p-8">
-  <p className="mb-6 text-xs uppercase tracking-[0.3em] text-gold">
+<section className="rounded-[2rem] border border-gold/15 bg-gradient-to-br from-gold/[0.055] via-white/[0.015] to-transparent p-6 md:p-8">
+<p className="mb-8 text-sm font-medium text-gold">
     {isRtl ? "روابط التواصل" : "Social Links"}
   </p>
 
@@ -420,59 +805,38 @@ savedTimerRef.current = setTimeout(() => {
     />
 
     <Field
-      label="Snapchat"
-      name="snapchat_url"
-      defaultValue={publisher.snapchat_url ?? ""}
-      type="url"
-      dir="ltr"
-      placeholder="https://snapchat.com/add/username"
-    />
-
-    <Field
       label="LinkedIn"
       name="linkedin_url"
       defaultValue={publisher.linkedin_url ?? ""}
       type="url"
       dir="ltr"
-      placeholder="https://linkedin.com/company/company-name"
+      placeholder={
+        isIndividual
+          ? "https://linkedin.com/in/username"
+          : "https://linkedin.com/company/company-name"
+      }
     />
   </div>
 </section>
 
       <p className="text-center text-xs text-white/45">
-  {isRtl
-    ? "يتم حفظ البيانات تلقائيًا أثناء الكتابة، أما الصور فتُحفظ عند الضغط على «حفظ الآن»."
-    : "Changes are saved automatically while editing. Images are uploaded when you click “Save Now”."}
+      {isRtl
+  ? "يتم حفظ التغييرات تلقائيًا، بما في ذلك الشعار وصورة الغلاف."
+  : "Changes are saved automatically, including the logo and cover image."}
 </p>
-<div className="grid gap-3 sm:grid-cols-2">
-  <button
-    type="submit"
-    className="border border-white/15 px-6 py-4 text-xs uppercase tracking-[0.25em] text-white/60 transition hover:border-gold/50 hover:text-gold"
-  >
-    {isRtl
-      ? "حفظ الآن"
-      : "Save Now"}
-  </button>
-
-  <button
-    type="submit"
-    formAction={submitPublisherProfileForReviewAction}
-    className="border border-gold bg-gold/10 px-6 py-4 text-xs uppercase tracking-[0.25em] text-gold transition hover:bg-gold hover:text-black"
-  >
-    {isRtl
-      ? "إرسال الملف للمراجعة"
-      : "Submit Profile for Review"}
-  </button>
-
-  <Link
-    href={`/${locale}/publisher-dashboard`}
-    className="sm:col-span-2 inline-flex items-center justify-center px-6 py-3 text-xs text-white/40 transition hover:text-gold"
-  >
-    {isRtl
-      ? "العودة إلى لوحة الناشر"
-      : "Back to Publisher Dashboard"}
-  </Link>
-</div>
+{isIndividual ? (
+  <div className="mt-3">
+    <button
+      type="submit"
+      formAction={submitPublisherProfileForReviewAction}
+      className="min-h-12 w-full rounded-full bg-gold px-6 text-sm font-medium text-black transition hover:bg-gold-soft"
+    >
+      {isRtl
+        ? "إرسال الملف للمراجعة"
+        : "Submit Profile for Review"}
+    </button>
+  </div>
+) : null}
     </form>
   );
 }
@@ -496,7 +860,7 @@ function Field({
 }) {
   return (
     <div>
-      <label className="mb-2 block text-xs uppercase tracking-[0.25em] text-white/40">
+      <label className="mb-2.5 block text-sm font-medium text-white/65">
   {label}
   {required ? (
     <span className="ms-1 text-gold">*</span>
@@ -510,7 +874,7 @@ function Field({
         dir={dir}
         placeholder={placeholder}
         required={required}
-        className="w-full border border-white/10 bg-black/30 px-4 py-4 text-white outline-none transition placeholder:text-white/25 focus:border-gold/50"
+        className="h-12 w-full rounded-xl border border-white/[0.08] bg-white/[0.035] px-4 text-sm text-white outline-none transition duration-200 placeholder:text-white/25 hover:border-white/15 focus:border-gold/45 focus:bg-white/[0.05] focus:ring-4 focus:ring-gold/[0.06]"
       />
     </div>
   );
@@ -533,21 +897,21 @@ function Textarea({
 }) {
   return (
     <div>
-      <label className="mb-2 block text-xs uppercase tracking-[0.25em] text-white/40">
+      <label className="mb-2.5 block text-sm font-medium text-white/65">
   {label}
   {required ? (
     <span className="ms-1 text-gold">*</span>
   ) : null}
 </label>
 
-      <textarea
+<textarea
   name={name}
   defaultValue={defaultValue}
   dir={dir}
   placeholder={placeholder}
   required={required}
-        className="min-h-36 w-full border border-white/10 bg-black/30 px-4 py-4 text-white outline-none transition placeholder:text-white/25 focus:border-gold/50"
-      />
+  className="min-h-28 w-full resize-none rounded-2xl border border-white/[0.08] bg-white/[0.035] px-5 py-4 text-[15px] leading-7 text-white outline-none transition duration-200 placeholder:text-white/25 hover:border-white/15 focus:border-gold/45 focus:bg-white/[0.05] focus:ring-4 focus:ring-gold/[0.06]"
+/>
     </div>
   );
 }

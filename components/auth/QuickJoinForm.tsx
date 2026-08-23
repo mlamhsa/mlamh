@@ -10,6 +10,7 @@ import { useFormStatus } from "react-dom";
 
 type QuickJoinFormProps = {
   locale: "ar" | "en";
+  accountType: "talent" | "publisher";
   action: (
     formData: FormData,
   ) => void | Promise<void>;
@@ -242,6 +243,7 @@ function normalizeLocalPhone(
 
 export function QuickJoinForm({
   locale,
+  accountType,
   action,
 }: QuickJoinFormProps) {
   const isRtl = locale === "ar";
@@ -388,9 +390,13 @@ export function QuickJoinForm({
           htmlFor="join-full-name"
           className="mb-2 block text-sm text-white/65"
         >
-          {isRtl
-            ? "الاسم الكامل"
-            : "Full name"}
+          {accountType === "publisher"
+  ? isRtl
+    ? "اسم المسؤول"
+    : "Contact person name"
+  : isRtl
+    ? "الاسم الكامل"
+    : "Full name"}
         </label>
 
         <input
@@ -408,9 +414,13 @@ export function QuickJoinForm({
             )
           }
           placeholder={
-            isRtl
-              ? "اكتب اسمك الكامل"
-              : "Enter your full name"
+            accountType === "publisher"
+              ? isRtl
+                ? "اكتب اسم الشخص المسؤول عن الحساب"
+                : "Enter the account contact person's name"
+              : isRtl
+                ? "اكتب اسمك الكامل"
+                : "Enter your full name"
           }
           className="min-h-14 w-full rounded-2xl border border-white/10 bg-black/30 px-4 text-base text-white outline-none transition placeholder:text-white/25 focus:border-gold/50 sm:text-sm"
         />

@@ -14,6 +14,7 @@ import {
 
 import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { TalentService } from "@/lib/services/talents/TalentService";
+import { PublisherService } from "@/lib/services/publishers/PublisherService";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const metadata = {
@@ -139,7 +140,8 @@ export default async function AdminPage({
   
     pendingTalentChangesResult,
     pendingTalentsResult,
-    pendingPublishersResult,
+    pendingPublishersData,
+    pendingPublisherVerificationsResult,
     pendingOpportunitiesResult,
     reportedMessagesResult,
   
@@ -185,18 +187,24 @@ export default async function AdminPage({
       .eq("approval_status", "pending"),
   
     /*
-     * حسابات الناشرين التي تنتظر
-     * اعتماد الإدارة.
+ * الناشرون الفعليون المسجلون
+    * في publishers والمربوطون بحساباتهم.
+    */
+   PublisherService.getAll(),
+  
+          /*
+     * طلبات توثيق الجهات
+     * بانتظار قرار الإدارة.
      */
     adminClient
-      .from("profiles")
-      .select("id", {
-        count: "exact",
-        head: true,
-      })
-      .eq("account_type", "publisher")
-      .eq("approval_status", "pending"),
-  
+    .from("publishers")
+    .select("id", {
+      count: "exact",
+      head: true,
+    })
+    .neq("publisher_type", "individual")
+    .eq("verification_status", "pending"),
+    
     /*
      * الفرص بانتظار مراجعة الإدارة.
      */
@@ -322,8 +330,8 @@ export default async function AdminPage({
   );
 
   logError(
-    "pendingPublishers",
-    pendingPublishersResult.error,
+    "pendingPublisherVerifications",
+    pendingPublisherVerificationsResult.error,
   );
 
   logError(
@@ -373,11 +381,16 @@ export default async function AdminPage({
     : pendingTalentsResult.count ??
       0;
 
-  const pendingPublishers =
-    pendingPublishersResult.error
-      ? 0
-      : pendingPublishersResult.count ??
-        0;
+      const pendingPublishers =
+      pendingPublishersData.filter(
+        (publisher) =>
+          publisher.approval_status === "pending",
+      ).length;
+
+        const pendingPublisherVerifications =
+  pendingPublisherVerificationsResult.error
+    ? 0
+    : pendingPublisherVerificationsResult.count ?? 0;
 
   const pendingOpportunities =
     pendingOpportunitiesResult.error
@@ -544,6 +557,7 @@ return {
   pendingTalents +
   pendingTalentChanges +
   pendingPublishers +
+  pendingPublisherVerifications +
   pendingOpportunities +
   reportedMessages;
 

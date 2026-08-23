@@ -419,25 +419,40 @@ router.refresh();
         </div>
 
         {isPublishedOrOpen ? (
-          <div className="rounded-2xl border border-amber-400/20 bg-amber-400/[0.06] p-5 text-amber-200">
-            <p className="font-medium">
-              {isRtl ? "تنبيه قبل حفظ التعديلات" : "Review notice"}
-            </p>
-            <p className="mt-2 text-sm leading-7 text-amber-100/70">
-              {isRtl
-                ? "قد تتطلب التعديلات الجوهرية مراجعة الإدارة قبل استمرار ظهور الفرصة للعامة."
-                : "Major edits may require admin review before the opportunity continues to appear publicly."}
-            </p>
-          </div>
-        ) : (
-          <div className="rounded-2xl border border-white/10 bg-white/[0.025] p-5 text-white/45">
-            <p className="text-sm leading-7">
-              {isRtl
-                ? "يمكنك حفظ الفرصة كمسودة أو إرسالها إلى الإدارة للمراجعة."
-                : "You may save the opportunity as a draft or submit it for admin review."}
-            </p>
-          </div>
-        )}
+  <div className="rounded-2xl border border-amber-400/20 bg-amber-400/[0.06] p-5 text-amber-200">
+    <p className="font-medium">
+      {isRtl ? "تنبيه قبل حفظ التعديلات" : "Review notice"}
+    </p>
+
+    <p className="mt-2 text-sm leading-7 text-amber-100/70">
+      {isRtl
+        ? "قد تتطلب التعديلات الجوهرية مراجعة الإدارة قبل استمرار ظهور الفرصة للعامة."
+        : "Major edits may require admin review before the opportunity continues to appear publicly."}
+    </p>
+  </div>
+) : isNeedsChanges ? (
+  <div className="rounded-2xl border border-amber-400/25 bg-amber-400/[0.06] p-5 text-amber-200">
+    <p className="font-medium">
+      {isRtl
+        ? "الإدارة طلبت تعديل هذه الفرصة"
+        : "Admin requested changes"}
+    </p>
+
+    <p className="mt-2 text-sm leading-7 text-amber-100/70">
+      {isRtl
+        ? "عدّل البيانات المطلوبة، ثم أعد إرسال الفرصة إلى الإدارة للمراجعة."
+        : "Update the requested information, then resubmit the opportunity for admin review."}
+    </p>
+  </div>
+) : (
+  <div className="rounded-2xl border border-white/10 bg-white/[0.025] p-5 text-white/45">
+    <p className="text-sm leading-7">
+      {isRtl
+        ? "يمكنك حفظ الفرصة كمسودة أو إرسالها إلى الإدارة للمراجعة."
+        : "You may save the opportunity as a draft or submit it for admin review."}
+    </p>
+  </div>
+)}
       </div>
 
       <section className="rounded-2xl border border-white/10 bg-white/[0.025] p-6 md:p-8">
@@ -957,12 +972,20 @@ router.refresh();
           className="flex-1 rounded-xl border border-gold/40 bg-gold/[0.06] px-6 py-4 text-gold transition hover:bg-gold hover:text-black disabled:cursor-not-allowed disabled:opacity-50"
         >
           {loading
-            ? isRtl
-              ? "جاري الحفظ..."
-              : "Saving..."
-            : isRtl
-              ? "حفظ التعديلات"
-              : "Save Changes"}
+  ? isRtl
+    ? isNeedsChanges
+      ? "جاري إعادة الإرسال..."
+      : "جاري الحفظ..."
+    : isNeedsChanges
+      ? "Resubmitting..."
+      : "Saving..."
+  : isNeedsChanges
+    ? isRtl
+      ? "حفظ وإعادة الإرسال للمراجعة"
+      : "Save & Resubmit for Review"
+    : isRtl
+      ? "حفظ التعديلات"
+      : "Save Changes"}
         </button>
 
         <Link

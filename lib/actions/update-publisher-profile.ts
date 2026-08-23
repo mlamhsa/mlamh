@@ -9,7 +9,8 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 const BUCKET = "publisher-assets";
 
-const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
+const MAX_PROFILE_IMAGE_SIZE = 5 * 1024 * 1024;
+const MAX_COVER_IMAGE_SIZE = 10 * 1024 * 1024;
 
 const ALLOWED_IMAGE_TYPES = new Set([
   "image/jpeg",
@@ -68,7 +69,12 @@ function getPublisherType(formData: FormData) {
   return publisherType;
 }
 
-function getImageFile(formData: FormData, key: string) {
+function getImageFile(
+  formData: FormData,
+  key: string,
+  maxSize: number,
+  label: "profile" | "cover",
+) {
   const item = formData.get(key);
 
   if (!(item instanceof File) || item.size === 0) {
@@ -81,9 +87,11 @@ function getImageFile(formData: FormData, key: string) {
     );
   }
 
-  if (item.size > MAX_IMAGE_SIZE) {
+  if (item.size > maxSize) {
     throw new Error(
-      "Image size must not exceed 5 MB.",
+      label === "cover"
+        ? "Cover image size must not exceed 10 MB."
+        : "Profile image size must not exceed 5 MB.",
     );
   }
 
@@ -179,15 +187,21 @@ async function savePublisherProfile(
   const contactName = value(formData, "contact_name");
   const phone = value(formData, "phone");
   const publisherType = getPublisherType(formData);
+  const isIndividual =
+  publisherType === "individual";
 
   const profileImage = getImageFile(
     formData,
     "profile_image",
+    MAX_PROFILE_IMAGE_SIZE,
+    "profile",
   );
 
   const coverImage = getImageFile(
     formData,
     "cover_image",
+    MAX_COVER_IMAGE_SIZE,
+    "cover",
   );
 
   let profileImageUrl: string | null = null;
@@ -215,9 +229,11 @@ async function savePublisherProfile(
     await adminClient
       .from("profiles")
       .update({
-        display_name: companyName || contactName || null,
-        phone: phone || null,
-      })
+  display_name: isIndividual
+    ? contactName || null
+    : companyName || null,
+  phone: phone || null,
+})
       .eq("id", profile.id)
       .eq("user_id", user.id);
 
@@ -226,25 +242,21 @@ async function savePublisherProfile(
   }
 
   const publisherUpdateData: Record<
-    string,
-    string | number | null
-  > = {
-    company_name: companyName || null,
-    contact_name: contactName || null,
-    publisher_type: publisherType,
-    city: value(formData, "city") || null,
-    company_size: value(formData, "company_size") || null,
-    founded_year: numberValue(formData, "founded_year"),
-    description: value(formData, "description") || null,
-    phone: phone || null,
-    email: value(formData, "email") || null,
-    website: value(formData, "website") || null,
-    address: value(formData, "address") || null,
-    instagram: value(formData, "instagram") || null,
-    tiktok_url: value(formData, "tiktok_url") || null,
-    snapchat_url: value(formData, "snapchat_url") || null,
-    linkedin_url: value(formData, "linkedin_url") || null,
-  };
+  string,
+  string | number | null
+> = {
+  company_name: companyName || null,
+  contact_name: contactName || null,
+  publisher_type: publisherType,
+  city: value(formData, "city") || null,
+  description: value(formData, "description") || null,
+  phone: phone || null,
+  email: value(formData, "email") || null,
+  website: value(formData, "website") || null,
+  instagram: value(formData, "instagram") || null,
+  tiktok_url: value(formData, "tiktok_url") || null,
+  linkedin_url: value(formData, "linkedin_url") || null,
+};
 
   if (profileImageUrl) {
     publisherUpdateData.profile_image_url =
@@ -296,128 +308,8 @@ export async function updatePublisherProfileAction(
   const { locale } =
     await savePublisherProfile(formData);
 
-  const authClient =
-    await createServerSupabaseClient();
-
-  const {
-    data: { user },
-    error: userError,
-  } = await authClient.auth.getUser();
-
-  let submittedForReview = false;
-
-  if (userError) {
-    throw new Error(
-      `[updatePublisherProfileAction.auth] ${userError.message}`,
-    );
-  }
-
-  if (user) {
-    const adminClient =
-      createAdminClient();
-
-    const {
-      data: profile,
-      error: profileError,
-    } = await adminClient
-      .from("profiles")
-      .select(
-        "id, approval_status",
-      )
-      .eq(
-        "user_id",
-        user.id,
-      )
-      .eq(
-        "account_type",
-        "publisher",
-      )
-      .maybeSingle();
-
-    if (profileError) {
-      throw new Error(
-        `[updatePublisherProfileAction.profile] ${profileError.message}`,
-      );
-    }
-
-    if (profile) {
-      const previousApprovalStatus =
-        profile.approval_status;
-
-      const shouldReturnToReview =
-        previousApprovalStatus === "approved" ||
-        previousApprovalStatus === "changes_requested" ||
-        previousApprovalStatus === "rejected";
-
-      if (shouldReturnToReview) {
-        const {
-          error: approvalError,
-        } = await adminClient
-          .from("profiles")
-          .update({
-            approval_status: "pending",
-          })
-          .eq(
-            "id",
-            profile.id,
-          );
-
-        if (approvalError) {
-          throw new Error(
-            `[updatePublisherProfileAction.approval] ${approvalError.message}`,
-          );
-        }
-
-        const {
-          error: verificationError,
-        } = await adminClient
-          .from("publishers")
-          .update({
-            verified: false,
-          })
-          .eq(
-            "profile_id",
-            profile.id,
-          );
-
-        if (verificationError) {
-          await adminClient
-            .from("profiles")
-            .update({
-              approval_status:
-                previousApprovalStatus,
-            })
-            .eq(
-              "id",
-              profile.id,
-            );
-
-          throw new Error(
-            `[updatePublisherProfileAction.verification] ${verificationError.message}`,
-          );
-        }
-
-        submittedForReview = true;
-
-        revalidatePath(
-          "/admin/publishers",
-        );
-
-        revalidatePath(
-          `/${locale}/publisher-dashboard`,
-        );
-
-        revalidatePath(
-          `/${locale}/publisher-dashboard/profile`,
-        );
-      }
-    }
-  }
-
   redirect(
-    submittedForReview
-      ? `/${locale}/publisher-dashboard/profile?saved=1&submitted=1`
-      : `/${locale}/publisher-dashboard/profile?saved=1`,
+    `/${locale}/publisher-dashboard/profile?saved=1`,
   );
 }
 
@@ -470,15 +362,16 @@ export async function submitPublisherProfileForReviewAction(
     data: publisher,
     error: publisherError,
   } = await adminClient
-    .from("publishers")
-    .select(`
-      id,
-      company_name,
-      contact_name,
-      publisher_type,
-      city,
-      description
-    `)
+  .from("publishers")
+  .select(`
+    id,
+    company_name,
+    contact_name,
+    publisher_type,
+    city,
+    description,
+    profile_image_url
+  `)
     .eq("profile_id", profile.id)
     .maybeSingle();
 
@@ -488,47 +381,53 @@ export async function submitPublisherProfileForReviewAction(
     );
   }
 
-  const missingRequiredFields = [
-    !publisher.company_name
-      ? locale === "ar"
-        ? "اسم الجهة"
-        : "Company name"
-      : null,
+  const isIndividual =
+  publisher.publisher_type === "individual";
 
-    !publisher.contact_name
-      ? locale === "ar"
-        ? "اسم المسؤول"
+const missingRequiredFields = [
+  !isIndividual && !publisher.company_name
+    ? locale === "ar"
+      ? "اسم الجهة"
+      : "Company name"
+    : null,
+
+  !publisher.contact_name
+    ? locale === "ar"
+      ? isIndividual
+        ? "الاسم المهني"
+        : "اسم المسؤول"
+      : isIndividual
+        ? "Professional name"
         : "Contact name"
-      : null,
+    : null,
 
-    !publisher.publisher_type
-      ? locale === "ar"
-        ? "نوع الجهة"
-        : "Organization type"
-      : null,
+  !publisher.publisher_type
+    ? locale === "ar"
+      ? "نوع الحساب"
+      : "Account type"
+    : null,
 
-    !publisher.city
-      ? locale === "ar"
-        ? "المدينة"
-        : "City"
-      : null,
+  !publisher.city
+    ? locale === "ar"
+      ? "المدينة"
+      : "City"
+    : null,
+    !isIndividual && !publisher.profile_image_url
+    ? locale === "ar"
+      ? "شعار الجهة"
+      : "Organization logo"
+    : null,
+    
+].filter(Boolean);
+if (missingRequiredFields.length > 0) {
+  const missing = encodeURIComponent(
+    missingRequiredFields.join(",")
+  );
 
-    !publisher.description
-      ? locale === "ar"
-        ? "نبذة عن الجهة"
-        : "Company description"
-      : null,
-  ].filter(Boolean);
-
-  if (missingRequiredFields.length > 0) {
-    const missing = encodeURIComponent(
-      missingRequiredFields.join(",")
-    );
-
-    redirect(
-      `/${locale}/publisher-dashboard/profile?error=incomplete&missing=${missing}`
-    );
-  }
+  redirect(
+    `/${locale}/publisher-dashboard/profile?error=incomplete&missing=${missing}`
+  );
+}
 
   const { error: approvalError } =
     await adminClient
@@ -543,21 +442,6 @@ export async function submitPublisherProfileForReviewAction(
   if (approvalError) {
     throw new Error(
       `[submitPublisherProfileForReviewAction] ${approvalError.message}`
-    );
-  }
-
-  const { error: verificationError } =
-    await adminClient
-      .from("publishers")
-      .update({
-        verified: false,
-      })
-      .eq("id", publisher.id)
-      .eq("profile_id", profile.id);
-
-  if (verificationError) {
-    throw new Error(
-      `[submitPublisherProfileForReviewAction] ${verificationError.message}`
     );
   }
 

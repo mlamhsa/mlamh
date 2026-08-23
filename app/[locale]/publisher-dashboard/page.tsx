@@ -113,6 +113,15 @@ export default async function PublisherDashboardPage({
     profile.approval_status ?? "not_submitted";
   
   const isApproved = approvalStatus === "approved";
+  const isOrganization =
+  publisher.publisher_type !== "individual";
+
+const isVerifiedOrganization =
+  !isOrganization ||
+  (
+    publisher.verified === true &&
+    publisher.verification_status === "verified"
+  );
   const isPending = approvalStatus === "pending";
   const isChangesRequested =
     approvalStatus === "changes_requested";
@@ -122,7 +131,9 @@ export default async function PublisherDashboardPage({
   approvalStatus === "not_submitted";
 
   const canCreateOpportunity =
-  isApproved && !isSuspended;
+  isApproved &&
+  !isSuspended &&
+  isVerifiedOrganization;
   
     const isProfileComplete =
   Boolean(publisher.company_name?.trim()) &&
@@ -156,60 +167,73 @@ export default async function PublisherDashboardPage({
         ? "يرجى التواصل مع الإدارة لإعادة تفعيل الحساب."
         : "Please contact the administration to reactivate your account.",
     }
-  : isApproved
+  : isApproved &&
+      isOrganization &&
+      !isVerifiedOrganization
     ? {
         label: isRtl
-          ? "الحساب معتمد"
-          : "Account Approved",
+          ? "توثيق الجهة مطلوب"
+          : "Organization Verification Required",
         color:
-          "border-emerald-500/20 bg-emerald-500/10 text-emerald-300",
+          "border-amber-500/20 bg-amber-500/10 text-amber-300",
         description: isRtl
-          ? "يمكنك إنشاء ونشر الفرص واستقبال المتقدمين."
-          : "You can create and publish opportunities and receive applicants.",
+          ? "تم اعتماد ملف الجهة، لكن يجب توثيق ارتباطك بها قبل نشر الفرص واستقبال المتقدمين."
+          : "Your organization profile is approved, but your connection to the organization must be verified before publishing opportunities and receiving applicants.",
       }
-    : isChangesRequested
+    : isApproved
       ? {
           label: isRtl
-            ? "مطلوب تعديل الملف"
-            : "Changes Requested",
+            ? "الحساب معتمد"
+            : "Account Approved",
           color:
-            "border-amber-500/20 bg-amber-500/10 text-amber-300",
+            "border-emerald-500/20 bg-emerald-500/10 text-emerald-300",
           description: isRtl
-            ? "طلبت الإدارة تعديل بعض بيانات ملف الشركة. راجع ملفك وأكمل التعديلات المطلوبة ثم أعد إرساله للمراجعة."
-            : "The administration requested changes to your company profile. Review the requested changes, update your profile, and resubmit it for review.",
+            ? "يمكنك إنشاء ونشر الفرص واستقبال المتقدمين."
+            : "You can create and publish opportunities and receive applicants.",
         }
-      : isRejected
+      : isChangesRequested
         ? {
             label: isRtl
-              ? "لم يتم اعتماد الحساب"
-              : "Account Not Approved",
+              ? "مطلوب تعديل الملف"
+              : "Changes Requested",
             color:
-              "border-red-500/20 bg-red-500/10 text-red-300",
+              "border-amber-500/20 bg-amber-500/10 text-amber-300",
             description: isRtl
-              ? "لم يتم اعتماد ملف الشركة. راجع حالة الملف لمعرفة التفاصيل."
-              : "Your company profile was not approved. Review your profile status for details.",
+              ? "طلبت الإدارة تعديل بعض بيانات ملف الشركة. راجع ملفك وأكمل التعديلات المطلوبة ثم أعد إرساله للمراجعة."
+              : "The administration requested changes to your company profile. Review the requested changes, update your profile, and resubmit it for review.",
           }
-        : isPending
+        : isRejected
           ? {
               label: isRtl
-                ? "قيد مراجعة الإدارة"
-                : "Pending Admin Review",
+                ? "لم يتم اعتماد الحساب"
+                : "Account Not Approved",
               color:
-                "border-amber-500/20 bg-amber-500/10 text-amber-300",
+                "border-red-500/20 bg-red-500/10 text-red-300",
               description: isRtl
-                ? "تم إرسال ملف الشركة وهو قيد مراجعة الإدارة."
-                : "Your company profile has been submitted and is under administrative review.",
+                ? "لم يتم اعتماد ملف الشركة. راجع حالة الملف لمعرفة التفاصيل."
+                : "Your company profile was not approved. Review your profile status for details.",
             }
-          : {
-              label: isRtl
-                ? "ملف الشركة غير مكتمل"
-                : "Company Profile Incomplete",
-              color:
-                "border-gold/25 bg-gold/[0.07] text-gold",
-              description: isRtl
-                ? "أكمل بيانات الشركة ثم أرسل الملف للمراجعة."
-                : "Complete your company details, then submit the profile for review.",
-            };
+          : isPending
+            ? {
+                label: isRtl
+                  ? "قيد مراجعة الإدارة"
+                  : "Pending Admin Review",
+                color:
+                  "border-amber-500/20 bg-amber-500/10 text-amber-300",
+                description: isRtl
+                  ? "تم إرسال ملف الشركة وهو قيد مراجعة الإدارة."
+                  : "Your company profile has been submitted and is under administrative review.",
+              }
+            : {
+                label: isRtl
+                  ? "ملف الشركة غير مكتمل"
+                  : "Company Profile Incomplete",
+                color:
+                  "border-gold/25 bg-gold/[0.07] text-gold",
+                description: isRtl
+                  ? "أكمل بيانات الشركة ثم أرسل الملف للمراجعة."
+                  : "Complete your company details, then submit the profile for review.",
+              };
 
   function formatOpportunityDate(value: string | null) {
     if (!value) {
@@ -255,27 +279,40 @@ if (Number.isNaN(parsedDate.getTime())) {
     {isRtl ? "إنشاء فرصة" : "Create Opportunity"}
   </Button>
 ) : !isSuspended ? (
-  <Button
-    href={`/${locale}/publisher-dashboard/profile`}
-    variant="gold"
-    size="lg"
-  >
-    {isPending
-  ? isRtl
-    ? "عرض ملف الشركة"
-    : "View Company Profile"
-  : isChangesRequested || isRejected
-    ? isRtl
-      ? "تعديل ملف الشركة"
-      : "Update Company Profile"
-    : isProfileComplete
-      ? isRtl
-        ? "مراجعة وإرسال الملف"
-        : "Review and Submit"
-      : isRtl
-        ? "إكمال ملف الشركة"
-        : "Complete Company Profile"}
-  </Button>
+  isApproved &&
+  isOrganization &&
+  !isVerifiedOrganization ? (
+    <Button
+      href={`/${locale}/publisher-dashboard/verification`}
+      variant="gold"
+    >
+      <ShieldCheck size={16} />
+      {isRtl
+        ? "توثيق الجهة"
+        : "Verify Organization"}
+    </Button>
+  ) : (
+    <Button
+      href={`/${locale}/publisher-dashboard/profile`}
+      variant="gold"
+    >
+      {isPending
+        ? isRtl
+          ? "عرض ملف الجهة"
+          : "View Organization Profile"
+        : isChangesRequested || isRejected
+          ? isRtl
+            ? "تعديل ملف الجهة"
+            : "Update Organization Profile"
+          : isProfileComplete
+            ? isRtl
+              ? "مراجعة وإرسال الملف"
+              : "Review and Submit"
+            : isRtl
+              ? "إكمال ملف الجهة"
+              : "Complete Organization Profile"}
+    </Button>
+  )
 ) : null}
 
                 <Button
@@ -501,42 +538,62 @@ if (Number.isNaN(parsedDate.getTime())) {
                     ? isRtl
                       ? "الحساب موقوف حاليًا، لذلك لا يمكن إنشاء فرص جديدة."
                       : "This account is currently suspended, so new opportunities cannot be created."
-                    : isRtl
-                      ? "يمكنك إنشاء الفرص بعد اعتماد ملف الشركة من الإدارة."
-                      : "You can create opportunities after your company profile is approved."
+                    : isApproved &&
+                        isOrganization &&
+                        !isVerifiedOrganization
+                      ? isRtl
+                        ? "ملف الجهة معتمد، لكن يجب توثيق ارتباطك بالجهة قبل إنشاء ونشر الفرص."
+                        : "Your organization profile is approved, but your connection to the organization must be verified before creating opportunities."
+                      : isRtl
+                        ? "يمكنك إنشاء الفرص بعد اعتماد ملف الجهة من الإدارة."
+                        : "You can create opportunities after your organization profile is approved."
               }
               action={
-                canCreateOpportunity ? (
-                  <Button
-                  href={`/${locale}/publisher-dashboard/opportunities/new`}
-                    variant="gold"
-                  >
-                    <Plus size={16} />
-                    {isRtl ? "إنشاء فرصة" : "Create Opportunity"}
-                  </Button>
-                ) : !isSuspended ? (
-                  <Button
-                    href={`/${locale}/publisher-dashboard/profile`}
-                    variant="gold"
-                  >
-                    {isPending
-  ? isRtl
-    ? "عرض ملف الشركة"
-    : "View Company Profile"
-  : isChangesRequested || isRejected
-    ? isRtl
-      ? "تعديل ملف الشركة"
-      : "Update Company Profile"
-    : isProfileComplete
-      ? isRtl
-        ? "مراجعة وإرسال الملف"
-        : "Review and Submit"
-      : isRtl
-        ? "إكمال ملف الشركة"
-        : "Complete Company Profile"}
-                  </Button>
-                ) : undefined
-              }
+  canCreateOpportunity ? (
+    <Button
+      href={`/${locale}/publisher-dashboard/opportunities/new`}
+      variant="gold"
+    >
+      <Plus size={16} />
+      {isRtl ? "إنشاء فرصة" : "Create Opportunity"}
+    </Button>
+  ) : !isSuspended ? (
+    isApproved &&
+    isOrganization &&
+    !isVerifiedOrganization ? (
+      <Button
+        href={`/${locale}/publisher-dashboard/verification`}
+        variant="gold"
+      >
+        <ShieldCheck size={16} />
+        {isRtl
+          ? "توثيق الجهة"
+          : "Verify Organization"}
+      </Button>
+    ) : (
+      <Button
+        href={`/${locale}/publisher-dashboard/profile`}
+        variant="gold"
+      >
+        {isPending
+          ? isRtl
+            ? "عرض ملف الجهة"
+            : "View Organization Profile"
+          : isChangesRequested || isRejected
+            ? isRtl
+              ? "تعديل ملف الجهة"
+              : "Update Organization Profile"
+            : isProfileComplete
+              ? isRtl
+                ? "مراجعة وإرسال الملف"
+                : "Review and Submit"
+              : isRtl
+                ? "إكمال ملف الجهة"
+                : "Complete Organization Profile"}
+      </Button>
+    )
+  ) : undefined
+}
             />
           )}
         </Card>

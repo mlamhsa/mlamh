@@ -28,6 +28,7 @@ type TalentApplicationsProps = {
   isRtl: boolean;
   recentApplications: RecentApplication[];
   notificationItems: string[];
+  approvalStatus: string | null;
 };
 
 type SectionHeaderProps = {
@@ -161,7 +162,10 @@ export default function TalentApplications({
   isRtl,
   recentApplications,
   notificationItems,
+  approvalStatus,
 }: TalentApplicationsProps) {
+  const canApply =
+  approvalStatus === "approved";
   return (
     <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(300px,0.85fr)]">
       <section className="min-w-0 rounded-[2rem] border border-white/10 bg-white/[0.035] p-5 sm:p-6">
@@ -282,20 +286,24 @@ export default function TalentApplications({
           </div>
         ) : (
           <EmptyState
-            icon={<Inbox size={22} aria-hidden="true" />}
-            title={
-              isRtl ? "لا توجد طلبات بعد" : "No applications yet"
-            }
-            text={
-              isRtl
-                ? "ابدأ باستعراض الفرص وقدّم على الفرصة المناسبة لك."
-                : "Browse opportunities and apply to the ones that fit you."
-            }
-            action={
-              isRtl ? "استعراض الفرص" : "Browse opportunities"
-            }
-            href={`/${locale}/opportunities`}
-          />
+  icon={<Inbox size={22} aria-hidden="true" />}
+  title={
+    isRtl ? "لا توجد طلبات بعد" : "No applications yet"
+  }
+  text={
+    canApply
+      ? isRtl
+        ? "ابدأ باستعراض الفرص وقدّم على الفرصة المناسبة لك."
+        : "Browse opportunities and apply to the ones that fit you."
+      : isRtl
+        ? "يمكنك استعراض الفرص وحفظ ما يناسبك في المفضلة. سيتاح لك التقديم بعد اعتماد ملفك."
+        : "You can browse opportunities and save the ones you like. Applying will be available once your profile is approved."
+  }
+  action={
+    isRtl ? "استعراض الفرص" : "Browse opportunities"
+  }
+  href={`/${locale}/opportunities`}
+/>
         )}
       </section>
 

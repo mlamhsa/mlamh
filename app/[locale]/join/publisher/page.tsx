@@ -13,6 +13,7 @@ type PageProps = {
 };
 
 type ProfileRow = {
+  id: number;
   account_type: string | null;
   display_name: string | null;
   onboarding_status: string | null;
@@ -49,10 +50,31 @@ export default async function JoinPublisherPage({
   } = await authClient
     .from("profiles")
     .select(
-      "account_type, display_name, onboarding_status, onboarding_step"
+      "id, account_type, display_name, onboarding_status, onboarding_step"
     )
     .eq("user_id", user.id)
     .maybeSingle<ProfileRow>();
+    let hasPublisherRecord = false;
+
+    if (profile?.account_type === "publisher") {
+      const {
+        data: publisherRecord,
+        error: publisherRecordError,
+      } = await authClient
+        .from("publishers")
+        .select("id")
+        .eq("profile_id", profile.id)
+        .maybeSingle();
+    
+      if (publisherRecordError) {
+        console.error(
+          "[JoinPublisherPage publisherLookup]",
+          publisherRecordError
+        );
+      }
+    
+      hasPublisherRecord = Boolean(publisherRecord);
+    }
 
   if (profileError) {
     console.error(
@@ -63,7 +85,8 @@ export default async function JoinPublisherPage({
 
   if (
     profile?.account_type === "publisher" &&
-    profile.onboarding_status === "completed"
+    profile.onboarding_status === "completed" &&
+    hasPublisherRecord
   ) {
     redirect(`/${locale}/publisher-dashboard`);
   }
@@ -122,8 +145,8 @@ export default async function JoinPublisherPage({
               }}
             >
               {isRtl
-                ? "خطوتك الأخيرة"
-                : "One Last Step"}
+                ? "إعداد حساب الناشر"
+                : "Publisher Setup"}
             </h1>
 
             <p

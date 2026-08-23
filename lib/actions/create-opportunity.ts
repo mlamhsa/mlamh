@@ -186,7 +186,7 @@ role_requirements,
       safeLocale,
     );
   
-  const approvalStatus =
+    const approvalStatus =
     profile.approval_status ??
     "not_submitted";
   
@@ -195,6 +195,16 @@ role_requirements,
   
   const isSuspended =
     publisher.status === "suspended";
+  
+  const isOrganization =
+    publisher.publisher_type !== "individual";
+  
+  const isVerifiedOrganization =
+    !isOrganization ||
+    (
+      publisher.verified === true &&
+      publisher.verification_status === "verified"
+    );
   
   if (!isApproved) {
     throw new Error(
@@ -215,6 +225,21 @@ role_requirements,
         {
           ar: "حساب الناشر موقوف حاليًا ولا يمكنه إنشاء فرص جديدة.",
           en: "Your publisher account is currently suspended and cannot create new opportunities.",
+        },
+      ),
+    );
+  }
+  
+  if (
+    isOrganization &&
+    !isVerifiedOrganization
+  ) {
+    throw new Error(
+      getLocalizedMessage(
+        safeLocale,
+        {
+          ar: "يجب توثيق الجهة قبل إنشاء ونشر الفرص.",
+          en: "Your organization must be verified before creating and publishing opportunities.",
         },
       ),
     );

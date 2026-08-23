@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -11,7 +11,10 @@ import {
   Mail,
   Sparkles,
 } from "lucide-react";
-import { supabase } from "@/lib/supabase/client";
+import {
+  createBrowserSupabaseClient,
+  supabase,
+} from "@/lib/supabase/client";
 
 export default function LoginPage({
   params,
@@ -21,29 +24,29 @@ export default function LoginPage({
   const { locale } = use(params);
   const searchParams = useSearchParams();
   const isRtl = locale === "ar";
+  const emailInputRef = useRef<HTMLInputElement>(null);
 
-  const [email, setEmail] = useState(() => {
-    const signupEmail =
-      searchParams.get("email")?.trim();
-  
-    if (signupEmail) {
-      return signupEmail;
-    }
-  
-    if (typeof window === "undefined") {
-      return "";
-    }
-  
-    return localStorage.getItem("mlamh_login_email") ?? "";
-  });
-  const [password, setPassword] = useState("");
-  const [rememberEmail, setRememberEmail] = useState(() => {
-    if (typeof window === "undefined") {
-      return true;
-    }
-  
-    return Boolean(localStorage.getItem("mlamh_login_email"));
-  });
+  const signupEmail = searchParams.get("email")?.trim() ?? "";
+
+const [email, setEmail] = useState(signupEmail);
+const [password, setPassword] = useState("");
+const [rememberEmail, setRememberEmail] = useState(true);
+
+useEffect(() => {
+  if (signupEmail) {
+    setEmail(signupEmail);
+    return;
+  }
+
+  const savedEmail = localStorage.getItem("mlamh_login_email");
+
+  if (savedEmail) {
+    setEmail(savedEmail);
+    setRememberEmail(true);
+  } else {
+    setRememberEmail(false);
+  }
+}, [signupEmail]);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -55,6 +58,38 @@ export default function LoginPage({
   const isVerifyEmail =
     messageParam === "verify_email";
 
+    function getEmailProviderUrl(emailAddress: string) {
+      const domain = emailAddress
+        .split("@")[1]
+        ?.toLowerCase();
+  
+      if (!domain) {
+        return null;
+      }
+  
+      if (domain === "gmail.com") {
+        return "https://mail.google.com/";
+      }
+  
+      if (
+        domain === "outlook.com" ||
+        domain === "hotmail.com" ||
+        domain === "live.com"
+      ) {
+        return "https://outlook.live.com/mail/";
+      }
+  
+      if (
+        domain === "icloud.com" ||
+        domain === "me.com" ||
+        domain === "mac.com"
+      ) {
+        return "https://www.icloud.com/mail/";
+      }
+  
+      return null;
+    }
+    
   const text = {
     eyebrow: isRtl ? "دخول ملامح" : "MLAMH Access",
     title: isRtl ? "مرحباً بعودتك" : "Welcome Back",
@@ -69,7 +104,9 @@ export default function LoginPage({
     loading: isRtl ? "جارٍ الدخول..." : "Signing in...",
     join: isRtl ? "ليس لديك حساب؟" : "Don’t have an account?",
     create: isRtl ? "انضم إلى ملامح" : "Join MLAMH",
-    socialSoon: isRtl ? "تسجيل Google قريباً" : "Google sign-in coming soon",
+    google: isRtl
+  ? "المتابعة باستخدام Google"
+  : "Continue with Google",
     error: isRtl
   ? "البريد الإلكتروني أو كلمة المرور غير صحيحة."
   : "The email or password is incorrect.",
@@ -152,6 +189,55 @@ export default function LoginPage({
     }
   }
 
+  async function handleGoogleSignIn() {
+    setLoading(true);
+    setErrorMessage("");
+  
+    try {
+      const redirectTo =
+        `${window.location.origin}/auth/callback?locale=${locale}`;
+  
+        const oauthSupabase =
+        createBrowserSupabaseClient();
+      
+      const { error } =
+        await oauthSupabase.auth.signInWithOAuth({
+          provider: "google",
+          options: {
+            redirectTo,
+          },
+        });
+  
+      if (error) {
+        console.error(
+          "[LoginPage.googleSignIn]",
+          error,
+        );
+  
+        setErrorMessage(
+          isRtl
+            ? "تعذر تسجيل الدخول باستخدام Google. حاول مرة أخرى."
+            : "Unable to sign in with Google. Please try again.",
+        );
+  
+        setLoading(false);
+      }
+    } catch (error) {
+      console.error(
+        "[LoginPage.handleGoogleSignIn]",
+        error,
+      );
+  
+      setErrorMessage(
+        isRtl
+          ? "حدث خطأ أثناء تسجيل الدخول باستخدام Google."
+          : "An error occurred while signing in with Google.",
+      );
+  
+      setLoading(false);
+    }
+  }
+
   if (isVerifyEmail) {
     return (
       <main
@@ -166,7 +252,7 @@ export default function LoginPage({
           </div>
   
           <p className="arabic-safe text-xs uppercase tracking-[0.35em] text-gold">
-            {isRtl ? "خطوة أخيرة" : "One Last Step"}
+          {isRtl ? "تأكيد حسابك" : "Confirm Your Account"}
           </p>
   
           <h1 className="mt-4 text-4xl font-light">
@@ -190,6 +276,20 @@ export default function LoginPage({
             </div>
           ) : null}
   
+
+  {email && getEmailProviderUrl(email) ? (
+            <a
+              href={getEmailProviderUrl(email) ?? "#"}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 flex w-full items-center justify-center rounded-2xl bg-gold py-4 text-sm font-medium text-black transition hover:bg-[#e0bd73]"
+            >
+              {isRtl
+                ? "الذهاب إلى بريدك الإلكتروني"
+                : "Open Your Email"}
+            </a>
+          ) : null}
+
           <div className="mt-6 flex items-start gap-3 rounded-2xl border border-gold/15 bg-gold/[0.06] p-4 text-start">
             <CheckCircle2
               size={19}
@@ -205,8 +305,8 @@ export default function LoginPage({
   
           <p className="mt-6 text-xs leading-6 text-white/35">
             {isRtl
-              ? "لم تجد الرسالة؟ تحقق من البريد غير المرغوب فيه (Spam)."
-              : "Can't find the email? Check your spam or junk folder."}
+              ? "لم تجد الرسالة؟ تحقق من البريد غير المرغوب فيه، أو انتظر قليلًا ثم حدّث بريدك."
+              : "Can't find the email? Check your spam folder, wait a moment, then refresh your inbox."}
           </p>
   
           <div className="mt-8 border-t border-white/10 pt-6">
@@ -254,7 +354,7 @@ export default function LoginPage({
           </div>
         ) : null}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+<form onSubmit={handleSubmit} className="space-y-3">
           <div className="relative">
             <Mail
               size={18}
@@ -262,23 +362,49 @@ export default function LoginPage({
               style={isRtl ? { right: 16 } : { left: 16 }}
             />
 
-            <input
-              value={email}
-              name="email"
-aria-label={text.email}
-disabled={loading}
-              onChange={(e) => setEmail(e.target.value)}
-              type="email"
-              autoComplete="email"
-              required
-              className={`w-full rounded-2xl border border-white/10 bg-black/30 py-4 text-white outline-none placeholder:text-white/25 focus:border-gold/50 ${
-                isRtl ? "pr-12 pl-4" : "pl-12 pr-4"
-              }`}
-              placeholder={text.email}
-            />
-          </div>
-
-          <div className="relative">
+<input
+  ref={emailInputRef}
+  value={email}
+  name="email"
+  aria-label={text.email}
+  disabled={loading}
+  onChange={(e) => setEmail(e.target.value)}
+  type="email"
+  inputMode="email"
+  autoComplete="email"
+  autoCapitalize="none"
+  autoCorrect="off"
+  spellCheck={false}
+  dir="ltr"
+  required
+  className={`w-full rounded-2xl border border-white/10 bg-black/30 py-4 text-left text-white outline-none placeholder:text-white/25 focus:border-gold/50 ${
+    isRtl ? "pr-12 pl-20" : "pl-12 pr-20"
+  }`}
+  placeholder={text.email}
+  />
+  
+  {email ? (
+    <button
+      type="button"
+      disabled={loading}
+      onClick={() => {
+        setEmail("");
+        localStorage.removeItem("mlamh_login_email");
+  
+        requestAnimationFrame(() => {
+          emailInputRef.current?.focus();
+        });
+      }}
+      className="absolute top-1/2 -translate-y-1/2 text-xs text-gold transition hover:text-gold-soft disabled:opacity-50"
+      style={isRtl ? { left: 16 } : { right: 16 }}
+    >
+      {isRtl ? "تغيير" : "Change"}
+    </button>
+  ) : null}
+  
+            </div>
+  
+            <div className="relative">
             <Lock
               size={18}
               className="absolute top-1/2 -translate-y-1/2 text-white/30"
@@ -300,6 +426,7 @@ disabled={loading}
               placeholder={text.password}
             />
 
+
 <button
   type="button"
   disabled={loading}
@@ -314,7 +441,7 @@ disabled={loading}
   }
   aria-pressed={showPassword}
   onClick={() => setShowPassword((value) => !value)}
-  className="absolute top-1/2 -translate-y-1/2 text-white/35 transition hover:text-gold"
+  className="absolute top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center text-white/65 transition hover:text-gold disabled:opacity-40"
   style={isRtl ? { left: 16 } : { right: 16 }}
 >
               {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -351,12 +478,36 @@ disabled={loading}
           </button>
 
           <button
-            type="button"
-            disabled
-            className="w-full rounded-2xl border border-white/10 bg-white/[0.025] py-4 text-sm text-white/35"
-          >
-            {text.socialSoon}
-          </button>
+  type="button"
+  onClick={handleGoogleSignIn}
+  disabled={loading}
+  className="flex min-h-14 w-full items-center justify-center gap-3 rounded-2xl border border-white/10 bg-white/[0.025] px-5 text-sm font-medium text-white/70 transition hover:border-white/20 hover:bg-white/[0.05] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+>
+  <svg
+    viewBox="0 0 24 24"
+    className="h-5 w-5"
+    aria-hidden="true"
+  >
+    <path
+      fill="#4285F4"
+      d="M21.6 12.23c0-.71-.06-1.4-.18-2.07H12v3.91h5.38a4.6 4.6 0 0 1-2 3.02v2.54h3.24c1.9-1.75 2.98-4.33 2.98-7.4Z"
+    />
+    <path
+      fill="#34A853"
+      d="M12 22c2.7 0 4.97-.9 6.63-2.43l-3.24-2.54c-.9.6-2.05.96-3.39.96-2.61 0-4.82-1.76-5.61-4.13H3.04v2.62A10 10 0 0 0 12 22Z"
+    />
+    <path
+      fill="#FBBC05"
+      d="M6.39 13.86A6 6 0 0 1 6.08 12c0-.65.11-1.28.31-1.86V7.52H3.04A10 10 0 0 0 2 12c0 1.61.39 3.14 1.04 4.48l3.35-2.62Z"
+    />
+    <path
+      fill="#EA4335"
+      d="M12 6.01c1.47 0 2.79.51 3.83 1.5l2.87-2.87A9.63 9.63 0 0 0 12 2a10 10 0 0 0-8.96 5.52l3.35 2.62C7.18 7.77 9.39 6.01 12 6.01Z"
+    />
+  </svg>
+
+  <span>{text.google}</span>
+</button>
         </form>
 
         <div className="mt-8 border-t border-white/10 pt-6 text-center text-sm text-white/45">

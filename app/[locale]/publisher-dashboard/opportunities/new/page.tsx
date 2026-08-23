@@ -28,11 +28,30 @@ export default async function CreateOpportunityPage({
   const isSuspended =
     publisher.status === "suspended";
 
+    const isOrganization =
+  publisher.publisher_type !== "individual";
+
+const isVerifiedOrganization =
+  !isOrganization ||
+  (
+    publisher.verified === true &&
+    publisher.verification_status === "verified"
+  );
+
   if (!isApproved || isSuspended) {
-    redirect(
-      `/${safeLocale}/publisher-dashboard`,
-    );
-  }
+  redirect(
+    `/${safeLocale}/publisher-dashboard`,
+  );
+}
+
+if (
+  isOrganization &&
+  !isVerifiedOrganization
+) {
+  redirect(
+    `/${safeLocale}/publisher-dashboard/verification`,
+  );
+}
 
   return (
     <CreateOpportunityForm

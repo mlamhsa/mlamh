@@ -33,6 +33,12 @@ export type AdminPublisher = {
   verified: boolean;
   created_at: string;
 
+  verification_status: string;
+  verification_method: string | null;
+  verification_email: string | null;
+  verification_document_url: string | null;
+  verification_submitted_at: string | null;
+  verification_reviewed_at: string | null;
   approval_status: PublisherApprovalStatus;
 
   account_phone: string | null;
@@ -99,6 +105,13 @@ type PublisherRow = {
 
   verified: boolean | null;
   created_at: string;
+
+  verification_status: string | null;
+verification_method: string | null;
+verification_email: string | null;
+verification_document_url: string | null;
+verification_submitted_at: string | null;
+verification_reviewed_at: string | null;
 };
 
 type ProfileRow = {
@@ -214,8 +227,14 @@ export class PublisherRepository extends BaseRepository {
           tiktok_url,
           snapchat_url,
           linkedin_url,
-          verified,
-          created_at
+verified,
+verification_status,
+verification_method,
+verification_email,
+verification_document_url,
+verification_submitted_at,
+verification_reviewed_at,
+created_at
         `,
       )
       .order("created_at", {
@@ -594,8 +613,27 @@ linkedin_url:
           created_at:
             publisher.created_at,
 
-          approval_status:
-            approvalStatus,
+            verification_status:
+  publisher.verification_status ??
+  "unverified",
+
+verification_method:
+  publisher.verification_method,
+
+verification_email:
+  publisher.verification_email,
+
+verification_document_url:
+  publisher.verification_document_url,
+
+  verification_submitted_at:
+  publisher.verification_submitted_at,
+
+verification_reviewed_at:
+  publisher.verification_reviewed_at,
+
+approval_status:
+  approvalStatus,
 
             account_phone:
             profile?.phone?.trim() ||
@@ -684,8 +722,14 @@ linkedin_url:
     tiktok_url,
     snapchat_url,
     linkedin_url,
-    verified,
-    created_at
+verified,
+verification_status,
+verification_method,
+verification_email,
+verification_document_url,
+verification_submitted_at,
+verification_reviewed_at,
+created_at
   `,
 )
       .eq(
@@ -906,6 +950,25 @@ linkedin_url:
 
       created_at:
         publisher.created_at,
+
+        verification_status:
+  publisher.verification_status ??
+  "unverified",
+
+verification_method:
+  publisher.verification_method,
+
+verification_email:
+  publisher.verification_email,
+
+verification_document_url:
+  publisher.verification_document_url,
+
+verification_submitted_at:
+  publisher.verification_submitted_at,
+
+  verification_reviewed_at:
+  publisher.verification_reviewed_at,
 
       approval_status:
         approvalStatus,

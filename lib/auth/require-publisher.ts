@@ -28,6 +28,7 @@ export async function requirePublisher(locale: string) {
         `
           id,
           account_type,
+          phone,
           approval_status,
           onboarding_status,
           onboarding_step
@@ -94,8 +95,16 @@ export async function requirePublisher(locale: string) {
         tiktok_url,
         snapchat_url,
         linkedin_url,
-        verified,
-        status
+verified,
+status,
+verification_status,
+verification_method,
+verification_email,
+verification_document_url,
+verification_submitted_at,
+verification_rejection_reason,
+verification_reviewed_by,
+verification_reviewed_at
       `)
       .eq("profile_id", profile.id)
       .maybeSingle();

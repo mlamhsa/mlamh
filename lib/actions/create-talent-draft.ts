@@ -121,6 +121,13 @@ export async function createTalentDraftAction(
           "Talent"
       ).trim() || "Talent";
 
+      const googleAvatarUrl =
+  String(
+    user.user_metadata?.avatar_url ||
+      user.user_metadata?.picture ||
+      "",
+  ).trim() || null;
+
     const {
       data: existingTalent,
       error: talentLookupError,
@@ -201,7 +208,7 @@ export async function createTalentDraftAction(
             primary_role:
               selectedCategory.slug,
 
-            image_url: null,
+            image_url: googleAvatarUrl,
 
             slug,
 

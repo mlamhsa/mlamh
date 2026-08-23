@@ -16,7 +16,6 @@ import {
   LayoutDashboard,
   LogOut,
   MessageSquare,
-  Plus,
   Settings,
   UsersRound,
 } from "lucide-react";
@@ -361,16 +360,6 @@ export default function PublisherShell({
           </nav>
 
           <div className="mt-5 grid gap-3 border-t border-white/10 pt-5 lg:mt-8 lg:pt-6">
-            <Link
-              href={`/${locale}/publisher-dashboard/opportunities/new`}
-              className="flex items-center justify-center gap-2 rounded-2xl border border-gold bg-gold/10 px-5 py-4 text-xs uppercase tracking-[0.18em] text-gold transition hover:bg-gold hover:text-black"
-            >
-              <Plus size={16} />
-
-              {isRtl
-                ? "إنشاء فرصة"
-                : "Create Opportunity"}
-            </Link>
 
             <button
               type="button"

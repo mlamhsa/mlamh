@@ -194,10 +194,12 @@ export default async function TalentDashboardPage({
     error: unreadNotificationsError,
   } = await adminClient
     .from("notifications")
-    .select("id")
+    .select("id, title, body, is_read, created_at")
     .eq("recipient_type", "talent")
     .eq("recipient_id", String(talent.id))
-    .eq("is_read", false);
+    .eq("is_read", false)
+    .order("created_at", { ascending: false })
+    .limit(5);
 
   if (unreadNotificationsError) {
     console.error(
@@ -426,8 +428,11 @@ export default async function TalentDashboardPage({
     const profileReadiness =
       getTalentProfileReadiness(readinessTalent);
     
-    const isProfileReady =
-      profileReadiness.isReady;
+      const MIN_REVIEW_COMPLETION = 35;
+
+      const isProfileReady =
+        profileReadiness.isReady &&
+        profileCompletion >= MIN_REVIEW_COMPLETION;
 
   const completionChecklist =
     profileReadiness.requirements.map(
@@ -461,30 +466,38 @@ export default async function TalentDashboardPage({
   ).length;
 
   const notificationItems = [
+    ...(unreadNotifications ?? []).map((notification) =>
+      String(
+        notification.body ??
+          notification.title ??
+          ""
+      ).trim()
+    ),
+  
     acceptedCount > 0
       ? isRtl
         ? `لديك ${acceptedCount} طلب مقبول.`
         : `You have ${acceptedCount} accepted application(s).`
       : null,
-
+  
     shortlistedCount > 0
       ? isRtl
         ? `تمت إضافة ${shortlistedCount} طلب إلى القائمة المختصرة.`
         : `${shortlistedCount} application(s) were shortlisted.`
       : null,
-
+  
     reviewingCount > 0
       ? isRtl
         ? `${reviewingCount} طلب قيد المراجعة حالياً.`
         : `${reviewingCount} application(s) are currently under review.`
       : null,
-
+  
     unreadMessagesCount > 0
       ? isRtl
         ? `لديك ${unreadMessagesCount} رسالة غير مقروءة.`
         : `You have ${unreadMessagesCount} unread message(s).`
       : null,
-
+  
     incompleteItems > 0
       ? isRtl
         ? `أكمل ${incompleteItems} قسم لتحسين ظهور ملفك.`
@@ -514,32 +527,61 @@ const workflowState:
 
 const workflowContent = {
   not_submitted: {
-    title: isRtl
-      ? "ملفك جاهز للمراجعة"
-      : "Your profile is ready for review",
-    description: isRtl
-      ? "يمكنك إرسال ملفك الآن إلى فريق ملامح لمراجعته واعتماده."
-      : "You can now submit your profile to the MLAMH team for review and approval.",
-    actionLabel: isRtl
-      ? "إرسال الملف للمراجعة"
-      : "Submit for review",
-    actionHref: null,
-    badge: isRtl
-      ? "جاهز للإرسال"
-      : "Ready to submit",
-    badgeClass:
-      "border-gold/25 bg-gold/10 text-gold",
-    cardClass:
-      "border-gold/15 bg-gold/[0.045]",
-    actionType: "submit" as const,
+    title: isProfileReady
+      ? isRtl
+        ? "ملفك جاهز للمراجعة"
+        : "Your profile is ready for review"
+      : isRtl
+        ? "أكمل ملفك قبل إرساله للمراجعة"
+        : "Complete your profile before review",
+  
+    description: isProfileReady
+      ? isRtl
+        ? "يمكنك إرسال ملفك الآن إلى فريق ملامح لمراجعته واعتماده."
+        : "You can now submit your profile to the MLAMH team for review and approval."
+      : isRtl
+        ? `أكمل البيانات الأساسية وارفع نسبة اكتمال ملفك إلى ${MIN_REVIEW_COMPLETION}% على الأقل قبل إرساله للمراجعة.`
+        : `Complete the required information and reach at least ${MIN_REVIEW_COMPLETION}% profile completion before submitting for review.`,
+  
+    actionLabel: isProfileReady
+      ? isRtl
+        ? "إرسال الملف للمراجعة"
+        : "Submit for review"
+      : isRtl
+        ? "إكمال الملف"
+        : "Complete profile",
+  
+    actionHref: isProfileReady
+      ? null
+      : `/${locale}/talent-dashboard/profile`,
+  
+    badge: isProfileReady
+      ? isRtl
+        ? "جاهز للإرسال"
+        : "Ready to submit"
+      : isRtl
+        ? `${profileCompletion}% مكتمل`
+        : `${profileCompletion}% complete`,
+  
+    badgeClass: isProfileReady
+      ? "border-gold/25 bg-gold/10 text-gold"
+      : "border-white/10 bg-white/[0.04] text-white/55",
+  
+    cardClass: isProfileReady
+      ? "border-gold/15 bg-gold/[0.045]"
+      : "border-white/10 bg-white/[0.025]",
+  
+    actionType: isProfileReady
+      ? ("submit" as const)
+      : ("link" as const),
   },
   pending: {
     title: isRtl
       ? "ملفك قيد المراجعة"
       : "Your profile is under review",
-    description: isRtl
-      ? "تم إرسال ملفك بنجاح إلى فريق ملامح. سنراجع البيانات قبل اعتماد الملف."
-      : "Your profile has been submitted successfully. The MLAMH team will review it before approval.",
+      description: isRtl
+      ? "تم إرسال ملفك إلى فريق ملامح للمراجعة والاعتماد. يمكنك في هذه الأثناء استعراض الفرص وحفظ ما يناسبك في المفضلة، وسيتاح لك التقديم بعد اعتماد الملف."
+      : "Your profile has been submitted to the MLAMH team for review and approval. In the meantime, you can browse opportunities and save them to your favorites. Applying will be available once your profile is approved.",
     actionLabel: null,
     actionHref: null,
     badge: isRtl
@@ -759,12 +801,23 @@ reviewChangeReason ? (
   availabilityStatus={availabilityStatus}
 />
 
+<DashboardProfileReadiness
+  locale={locale}
+  isRtl={isRtl}
+  incompleteItems={incompleteItems}
+  profileCompletion={profileCompletion}
+  completionChecklist={completionChecklist}
+  isProfileReady={isProfileReady}
+  approvalStatus={approvalStatus}
+/>
+
 <TalentApplications
-            locale={locale}
-            isRtl={isRtl}
-            recentApplications={recentApplications}
-            notificationItems={notificationItems}
-          />
+  locale={locale}
+  isRtl={isRtl}
+  recentApplications={recentApplications}
+  notificationItems={notificationItems}
+  approvalStatus={approvalStatus}
+/>
 
 <section className="rounded-[1.75rem] border border-white/10 bg-white/[0.025] p-5 sm:p-6">
     <div className="mb-5 flex items-center justify-between gap-4">
@@ -889,25 +942,12 @@ reviewChangeReason ? (
     ) : null}
   </section>
 
-          <section className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
-            <DashboardApplicationStats
-              locale={locale}
-              isRtl={isRtl}
-              totalApplications={totalApplications}
-              counts={counts}
-            />
-
-<DashboardProfileReadiness
+  <DashboardApplicationStats
   locale={locale}
   isRtl={isRtl}
-  incompleteItems={incompleteItems}
-  profileCompletion={profileCompletion}
-  completionChecklist={completionChecklist}
-  isProfileReady={isProfileReady}
+  totalApplications={totalApplications}
+  counts={counts}
 />
-          </section>
-
-          
 
           <DashboardMessagesCard
   locale={locale}

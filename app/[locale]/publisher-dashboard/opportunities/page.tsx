@@ -71,9 +71,22 @@ export default async function PublisherOpportunitiesPage({
   const { publisher } = await requirePublisher(locale);
   const adminClient = createAdminClient();
 
-  const isVerified = publisher.verified === true;
-  const isSuspended = publisher.status === "suspended";
-  const canCreateOpportunity = isVerified && !isSuspended;
+  const isOrganization =
+  publisher.publisher_type !== "individual";
+
+const isVerifiedOrganization =
+  !isOrganization ||
+  (
+    publisher.verified === true &&
+    publisher.verification_status === "verified"
+  );
+
+const isSuspended =
+  publisher.status === "suspended";
+
+const canCreateOpportunity =
+  !isSuspended &&
+  isVerifiedOrganization;
 
   const { data: opportunities, error: opportunitiesError } = await adminClient
     .from("opportunities")
@@ -217,20 +230,22 @@ export default async function PublisherOpportunitiesPage({
           </div>
 
           {canCreateOpportunity ? (
-            <Link
-            href={`/${locale}/publisher-dashboard/opportunities/new`}
-              className="arabic-safe inline-flex rounded-full border border-gold bg-gold/10 px-6 py-4 text-xs uppercase tracking-[0.22em] text-gold transition hover:bg-gold hover:text-black"
-            >
-              {isRtl ? "إنشاء فرصة" : "Create Opportunity"}
-            </Link>
-          ) : !isSuspended ? (
-            <Link
-              href={`/${locale}/publisher-dashboard/profile`}
-              className="arabic-safe inline-flex rounded-full border border-gold bg-gold/10 px-6 py-4 text-xs uppercase tracking-[0.22em] text-gold transition hover:bg-gold hover:text-black"
-            >
-              {isRtl ? "مراجعة ملف الشركة" : "Review Company Profile"}
-            </Link>
-          ) : null}
+  <Link
+    href={`/${locale}/publisher-dashboard/opportunities/new`}
+    className="arabic-safe inline-flex rounded-full border border-gold bg-gold/10 px-6 py-4 text-xs uppercase tracking-[0.22em] text-gold transition hover:bg-gold hover:text-black"
+  >
+    {isRtl ? "إنشاء فرصة" : "Create Opportunity"}
+  </Link>
+) : !isSuspended ? (
+  <Link
+    href={`/${locale}/publisher-dashboard/verification`}
+    className="arabic-safe inline-flex rounded-full border border-gold bg-gold/10 px-6 py-4 text-xs uppercase tracking-[0.22em] text-gold transition hover:bg-gold hover:text-black"
+  >
+    {isRtl
+      ? "توثيق الجهة"
+      : "Verify Organization"}
+  </Link>
+) : null}
         </div>
 
         <section className="grid gap-4 md:grid-cols-4">
@@ -432,20 +447,22 @@ export default async function PublisherOpportunitiesPage({
               </p>
 
               {canCreateOpportunity ? (
-                <Link
-                href={`/${locale}/publisher-dashboard/opportunities/new`}
-                  className="mt-6 inline-flex rounded-full border border-gold bg-gold/10 px-6 py-3 text-xs uppercase tracking-[0.2em] text-gold transition hover:bg-gold hover:text-black"
-                >
-                  {isRtl ? "إنشاء فرصة" : "Create Opportunity"}
-                </Link>
-              ) : !isSuspended ? (
-                <Link
-                  href={`/${locale}/publisher-dashboard/profile`}
-                  className="mt-6 inline-flex rounded-full border border-gold bg-gold/10 px-6 py-3 text-xs uppercase tracking-[0.2em] text-gold transition hover:bg-gold hover:text-black"
-                >
-                  {isRtl ? "مراجعة ملف الشركة" : "Review Company Profile"}
-                </Link>
-              ) : null}
+  <Link
+    href={`/${locale}/publisher-dashboard/opportunities/new`}
+    className="mt-6 inline-flex rounded-full border border-gold bg-gold/10 px-6 py-3 text-xs uppercase tracking-[0.2em] text-gold transition hover:bg-gold hover:text-black"
+  >
+    {isRtl ? "إنشاء فرصة" : "Create Opportunity"}
+  </Link>
+) : !isSuspended ? (
+  <Link
+    href={`/${locale}/publisher-dashboard/verification`}
+    className="mt-6 inline-flex rounded-full border border-gold bg-gold/10 px-6 py-3 text-xs uppercase tracking-[0.2em] text-gold transition hover:bg-gold hover:text-black"
+  >
+    {isRtl
+      ? "توثيق الجهة"
+      : "Verify Organization"}
+  </Link>
+) : null}
             </div>
           )}
         </section>

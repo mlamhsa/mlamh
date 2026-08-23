@@ -1195,6 +1195,65 @@ if (result.protectedChangePending) {
     status,
   ]);
   
+  const submitProfileForReview =
+  useCallback(async () => {
+    if (
+      submittingReview ||
+      approvalStatus !== "not_submitted"
+    ) {
+      return;
+    }
+
+    if (status === "saving") {
+      setReviewSubmitMessage(
+        isArabic
+          ? "انتظر حتى يكتمل حفظ التغييرات أولًا."
+          : "Please wait until your changes are saved.",
+      );
+
+      return;
+    }
+
+    setSubmittingReview(true);
+    setReviewSubmitMessage("");
+
+    try {
+      const result =
+        await submitTalentProfileReviewAction(
+          locale,
+        );
+
+      setReviewSubmitMessage(
+        result.message,
+      );
+
+      if (result.success) {
+        // مهم: تحديث الحالة فورًا بدون Refresh
+        setApprovalStatus("pending");
+        setReviewReason("");
+      }
+    } catch (error) {
+      console.error(
+        "[submitProfileForReview]",
+        error,
+      );
+
+      setReviewSubmitMessage(
+        isArabic
+          ? "تعذر إرسال الملف للمراجعة."
+          : "Unable to submit the profile for review.",
+      );
+    } finally {
+      setSubmittingReview(false);
+    }
+  }, [
+    approvalStatus,
+    isArabic,
+    locale,
+    submittingReview,
+    status,
+  ]);
+
   const completion = useMemo(
     () => calculateProfileCompletion(formData),
     [formData]
@@ -1725,36 +1784,111 @@ if (result.protectedChangePending) {
 ) : null}
 
 {isProfileReady ? (
-  <section className="mb-6 rounded-[1.75rem] border border-emerald-400/20 bg-emerald-400/[0.05] p-5 sm:p-6">
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <span className="inline-flex rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5 text-xs text-emerald-300">
-          {isArabic
-            ? "جاهز للتقديم"
-            : "Ready to apply"}
+  <section
+    className={`mb-6 rounded-[1.75rem] border p-5 sm:p-6 ${
+      approvalStatus === "approved"
+        ? "border-emerald-400/20 bg-emerald-400/[0.05]"
+        : approvalStatus === "pending"
+          ? "border-gold/20 bg-gold/[0.05]"
+          : "border-white/10 bg-white/[0.025]"
+    }`}
+  >
+    <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0">
+        <span
+          className={`inline-flex rounded-full border px-3 py-1.5 text-xs ${
+            approvalStatus === "approved"
+              ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-300"
+              : approvalStatus === "pending"
+                ? "border-gold/20 bg-gold/10 text-gold"
+                : "border-white/10 bg-white/[0.04] text-white/55"
+          }`}
+        >
+          {approvalStatus === "approved"
+            ? isArabic
+              ? "معتمد"
+              : "Approved"
+            : approvalStatus === "pending"
+              ? isArabic
+                ? "قيد المراجعة"
+                : "Under review"
+              : isArabic
+                ? "جاهز للإرسال"
+                : "Ready to submit"}
         </span>
 
         <h2 className="mt-4 text-2xl font-light text-white">
-          {isArabic
-            ? "ملفك يستوفي المتطلبات الأساسية"
-            : "Your profile meets the requirements"}
+          {approvalStatus === "approved"
+            ? isArabic
+              ? "ملفك معتمد وجاهز للتقديم"
+              : "Your profile is approved and ready to apply"
+            : approvalStatus === "pending"
+              ? isArabic
+                ? "ملفك قيد المراجعة"
+                : "Your profile is under review"
+              : isArabic
+                ? "ملفك جاهز للمراجعة"
+                : "Your profile is ready for review"}
         </h2>
 
-        <p className="mt-3 text-sm leading-7 text-white/55">
-          {isArabic
-            ? "يمكنك الآن تصفح الفرص والتقديم عليها باستخدام ملفك المهني."
-            : "You can now browse and apply to opportunities using your professional profile."}
+        <p className="mt-3 max-w-2xl text-sm leading-7 text-white/55">
+          {approvalStatus === "approved"
+            ? isArabic
+              ? "يمكنك الآن استعراض الفرص والتقديم عليها باستخدام ملفك المهني."
+              : "You can now browse and apply to opportunities using your professional profile."
+            : approvalStatus === "pending"
+              ? isArabic
+                ? "تم إرسال ملفك إلى فريق ملامح للمراجعة. يمكنك في هذه الأثناء استعراض الفرص وحفظ ما يناسبك في المفضلة، وسيُتاح لك التقديم بعد اعتماد الملف."
+                : "Your profile has been sent to the MLAMH team for review. You can continue browsing opportunities and saving them to your favorites while you wait for approval."
+              : isArabic
+                ? "أكملت المتطلبات الأساسية. أرسل ملفك الآن إلى فريق ملامح للمراجعة والاعتماد. يمكنك في هذه الأثناء استعراض الفرص وحفظ ما يناسبك في المفضلة."
+                : "You have completed the basic requirements. Submit your profile to the MLAMH team for review and approval. You can still browse opportunities and save them to your favorites in the meantime."}
         </p>
+
+        {reviewSubmitMessage ? (
+          <p
+            className={`mt-3 text-sm ${
+              approvalStatus === "pending"
+                ? "text-gold"
+                : "text-red-300"
+            }`}
+          >
+            {reviewSubmitMessage}
+          </p>
+        ) : null}
       </div>
 
-      <Link
-        href={`/${locale}/opportunities`}
-        className="inline-flex min-h-12 shrink-0 items-center justify-center rounded-full border border-emerald-400/30 px-6 text-sm text-emerald-200 transition hover:bg-emerald-400/10"
-      >
-        {isArabic
-          ? "استعراض الفرص"
-          : "Browse opportunities"}
-      </Link>
+      <div className="flex shrink-0 flex-col gap-3 sm:min-w-[190px]">
+        {approvalStatus === "not_submitted" ? (
+          <button
+            type="button"
+            onClick={submitProfileForReview}
+            disabled={submittingReview}
+            className="inline-flex min-h-12 items-center justify-center rounded-full bg-gold px-6 text-sm font-medium text-black transition hover:bg-[#e0bd73] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {submittingReview
+              ? isArabic
+                ? "جارٍ الإرسال..."
+                : "Submitting..."
+              : isArabic
+                ? "إرسال الملف للمراجعة"
+                : "Submit profile for review"}
+          </button>
+        ) : null}
+
+        <Link
+          href={`/${locale}/opportunities`}
+          className={`inline-flex min-h-12 items-center justify-center rounded-full border px-6 text-sm transition ${
+            approvalStatus === "approved"
+              ? "border-emerald-400/30 text-emerald-200 hover:bg-emerald-400/10"
+              : "border-white/15 text-white/70 hover:bg-white/[0.05]"
+          }`}
+        >
+          {isArabic
+            ? "استعراض الفرص"
+            : "Browse opportunities"}
+        </Link>
+      </div>
     </div>
   </section>
 ) : null}

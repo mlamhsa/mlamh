@@ -179,8 +179,8 @@ export default async function JoinTalentPage({
               style={{ fontFamily: displayFont }}
             >
               {isRtl
-                ? "خطوتك الأخيرة"
-                : "One Last Step"}
+                ? "إعداد ملف الموهبة"
+                : "Talent Profile Setup"}
             </h1>
 
             <p

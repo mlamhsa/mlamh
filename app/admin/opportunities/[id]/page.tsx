@@ -6,6 +6,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import {
   publishOpportunityAction,
   hideOpportunityAction,
+  rejectOpportunityAction,
+  requestChangesOpportunityAction,
+  archiveOpportunityAction,
 } from "@/lib/actions/admin-opportunity-actions";
 
 export const metadata = {
@@ -15,32 +18,42 @@ export const metadata = {
 
 type PageProps = {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<{
+    lang?: string;
+  }>;
 };
 
-function formatDate(value?: string | null) {
+function formatDate(
+  value?: string | null,
+  isRtl = false,
+) {
   if (!value) return "—";
 
-  return new Date(value).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
+  return new Date(value).toLocaleDateString(
+    isRtl ? "ar-SA-u-nu-latn" : "en-US",
+    {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    },
+  );
 }
 
 function formatCompensation(
   compensationType: unknown,
   budget: unknown,
+  isRtl = false,
 ) {
   const type = String(compensationType ?? "")
     .trim()
     .toLowerCase();
 
   if (type === "unpaid") {
-    return "Unpaid";
+    return isRtl ? "غير مدفوع" : "Unpaid";
   }
 
   if (type === "negotiable") {
-    return "Negotiable";
+    return isRtl ? "حسب الاتفاق" : "Negotiable";
   }
 
   const amount = Number(
@@ -48,39 +61,47 @@ function formatCompensation(
   );
 
   if (Number.isFinite(amount) && amount > 0) {
-    return `SAR ${new Intl.NumberFormat("en-US").format(amount)}`;
+    return isRtl
+    ? `${new Intl.NumberFormat("en-US").format(amount)} ر.س`
+      : `SAR ${new Intl.NumberFormat("en-US").format(amount)}`;
   }
 
-  return "Not specified";
+  return isRtl ? "غير محدد" : "Not specified";
 }
 
-function statusLabel(status?: string | null, published?: boolean) {
-  if (published) return "Published";
+function statusLabel(
+  status?: string | null,
+  published?: boolean,
+  isRtl = false,
+) {
+  if (published) {
+    return isRtl ? "منشورة" : "Published";
+  }
 
   switch (status) {
     case "pending_review":
-      return "Pending Review";
+      return isRtl ? "قيد المراجعة" : "Pending Review";
 
     case "closed":
-      return "Closed";
+      return isRtl ? "مغلقة" : "Closed";
 
     case "archived":
-      return "Archived";
+      return isRtl ? "مؤرشفة" : "Archived";
 
     case "draft":
-      return "Draft";
+      return isRtl ? "مسودة" : "Draft";
 
     case "needs_changes":
-      return "Needs Changes";
+      return isRtl ? "تحتاج تعديلات" : "Needs Changes";
 
     case "rejected":
-      return "Rejected";
+      return isRtl ? "مرفوضة" : "Rejected";
 
     case "published":
-      return "Published";
+      return isRtl ? "منشورة" : "Published";
 
     default:
-      return "Pending Review";
+      return isRtl ? "قيد المراجعة" : "Pending Review";
   }
 }
 
@@ -110,10 +131,15 @@ function statusClass(status?: string | null, published?: boolean) {
   }
 }
 
-export default async function AdminOpportunityDetailsPage({ params }: PageProps) {
+export default async function AdminOpportunityDetailsPage({
+  params,
+  searchParams,
+}: PageProps) {
   await requireAdminAccess();
 
   const { id } = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+  const isRtl = resolvedSearchParams.lang === "ar";
   const opportunityId = Number(id);
 
   if (!opportunityId) {
@@ -123,13 +149,14 @@ export default async function AdminOpportunityDetailsPage({ params }: PageProps)
   const adminClient = createAdminClient();
 
   const { data: opportunity, error } = await adminClient
-    .from("opportunities")
-    .select(
-      `
+  .from("opportunities")
+  .select(
+    `
       id,
       title,
       slug,
       description,
+      posting_mode,
       opportunity_type,
       city_ar,
       city_en,
@@ -138,6 +165,12 @@ export default async function AdminOpportunityDetailsPage({ params }: PageProps)
       max_age,
       compensation_type,
       budget,
+      application_days,
+      required_count,
+      work_date,
+      work_time,
+      work_duration,
+      role_requirements,
       company_name,
       contact_name,
       contact_phone,
@@ -147,8 +180,8 @@ export default async function AdminOpportunityDetailsPage({ params }: PageProps)
       expires_at,
       created_at,
       updated_at
-      `
-    )
+    `
+  )
     .eq("id", opportunityId)
     .maybeSingle();
 
@@ -185,7 +218,10 @@ export default async function AdminOpportunityDetailsPage({ params }: PageProps)
   type AdminApplication = (typeof applicationList)[number];
 
   return (
-    <main className="min-h-screen bg-background px-6 py-10 text-white">
+    <main
+  dir={isRtl ? "rtl" : "ltr"}
+  className="min-h-screen bg-background px-6 py-10 text-white"
+>
       <div className="mx-auto max-w-7xl">
         <header className="mb-10 flex flex-col gap-6 border-b border-white/[0.08] pb-8 md:flex-row md:items-end md:justify-between">
           <div>
@@ -197,19 +233,21 @@ export default async function AdminOpportunityDetailsPage({ params }: PageProps)
               className="mt-3 text-4xl font-light tracking-tight text-white md:text-6xl"
               style={{ fontFamily: "var(--font-cormorant)" }}
             >
-              Opportunity Details
+              {isRtl ? "تفاصيل الفرصة" : "Opportunity Details"}
             </h1>
 
             <p className="mt-3 text-sm text-gray-muted">
-              Review all opportunity data, publishing state, and applicants.
+            {isRtl
+  ? "راجع جميع بيانات الفرصة وحالة النشر والمتقدمين قبل اتخاذ القرار."
+  : "Review all opportunity data, publishing state, and applicants."}
             </p>
           </div>
 
           <Link
-            href="/admin/opportunities"
+            href={`/admin/opportunities?lang=${isRtl ? "ar" : "en"}`}
             className="rounded-full border border-white/10 px-5 py-3 text-[10px] uppercase tracking-[0.3em] text-white/60 transition hover:border-gold/40 hover:text-gold"
           >
-            Back to Opportunities
+            {isRtl ? "العودة إلى الفرص" : "Back to Opportunities"}
           </Link>
         </header>
 
@@ -223,11 +261,17 @@ export default async function AdminOpportunityDetailsPage({ params }: PageProps)
                     opportunity.published
                   )}`}
                 >
-                  {statusLabel(opportunity.status, opportunity.published)}
+                  {statusLabel(
+  opportunity.status,
+  opportunity.published,
+  isRtl,
+)}
                 </span>
 
                 <span className="text-[10px] uppercase tracking-[0.25em] text-white/35">
-                  Opportunity #{opportunity.id}
+                {isRtl
+  ? `الفرصة #${opportunity.id}`
+  : `Opportunity #${opportunity.id}`}
                 </span>
               </div>
 
@@ -241,99 +285,443 @@ export default async function AdminOpportunityDetailsPage({ params }: PageProps)
             </div>
 
             <div className="flex flex-wrap gap-3 lg:justify-end">
-              {opportunity.slug ? (
-                <Link
-                  href={`/ar/opportunities/${opportunity.slug}`}
-                  target="_blank"
-                  className="rounded-full border border-gold/30 bg-gold/[0.04] px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-gold transition hover:bg-gold/10"
-                >
-                  View Public
-                </Link>
-              ) : null}
+  {opportunity.published && opportunity.slug ? (
+    <Link
+      href={`/${isRtl ? "ar" : "en"}/opportunities/${opportunity.slug}`}
+      target="_blank"
+      className="rounded-full border border-gold/30 bg-gold/[0.04] px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-gold transition hover:bg-gold/10"
+    >
+      {isRtl ? "عرض الصفحة العامة" : "View Public"}
+    </Link>
+  ) : null}
 
-              {!opportunity.published ? (
-                <form action={publishOpportunityAction}>
-                  <input type="hidden" name="id" value={opportunity.id} />
-                  <button
-                    type="submit"
-                    className="rounded-full border border-emerald-500/30 bg-emerald-500/[0.06] px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-emerald-300 transition hover:bg-emerald-500/10"
-                  >
-                    Publish
-                  </button>
-                </form>
-              ) : (
-                <form action={hideOpportunityAction}>
-                  <input type="hidden" name="id" value={opportunity.id} />
-                  <button
-                    type="submit"
-                    className="rounded-full border border-yellow-500/30 bg-yellow-500/[0.06] px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-yellow-300 transition hover:bg-yellow-500/10"
-                  >
-                    Hide
-                  </button>
-                </form>
-              )}
-            </div>
+  {opportunity.status === "pending_review" &&
+  !opportunity.published ? (
+    <form action={publishOpportunityAction}>
+      <input
+        type="hidden"
+        name="id"
+        value={opportunity.id}
+      />
+      <input
+        type="hidden"
+        name="locale"
+        value={isRtl ? "ar" : "en"}
+      />
+
+      <button
+        type="submit"
+        className="rounded-full border border-emerald-500/30 bg-emerald-500/[0.06] px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-emerald-300 transition hover:bg-emerald-500/10"
+      >
+        {isRtl ? "اعتماد ونشر" : "Approve & Publish"}
+      </button>
+    </form>
+  ) : null}
+
+  {opportunity.status === "published" &&
+  opportunity.published ? (
+    <>
+      <form action={hideOpportunityAction}>
+        <input
+          type="hidden"
+          name="id"
+          value={opportunity.id}
+        />
+        <input
+          type="hidden"
+          name="locale"
+          value={isRtl ? "ar" : "en"}
+        />
+
+        <button
+          type="submit"
+          className="rounded-full border border-yellow-500/30 bg-yellow-500/[0.06] px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-yellow-300 transition hover:bg-yellow-500/10"
+        >
+          {isRtl ? "إخفاء الفرصة" : "Hide Opportunity"}
+        </button>
+      </form>
+
+      <form action={archiveOpportunityAction}>
+        <input
+          type="hidden"
+          name="id"
+          value={opportunity.id}
+        />
+        <input
+          type="hidden"
+          name="locale"
+          value={isRtl ? "ar" : "en"}
+        />
+
+        <button
+          type="submit"
+          className="rounded-full border border-white/10 px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-white/55 transition hover:border-white/20 hover:text-white"
+        >
+          {isRtl ? "أرشفة" : "Archive"}
+        </button>
+      </form>
+    </>
+  ) : null}
+</div>
           </div>
         </section>
+        {opportunity.status === "pending_review" &&
+!opportunity.published ? (
+  <section className="mb-8 rounded-3xl border border-white/[0.08] bg-gray-elevated/30 p-6">
+    <div className="mb-6">
+      <p className="text-[10px] uppercase tracking-[0.3em] text-gold">
+        {isRtl ? "قرار الإدارة" : "Admin Decision"}
+      </p>
 
-        <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-          <section className="rounded-3xl border border-white/[0.08] bg-gray-elevated/30 p-6">
-            <h3 className="mb-6 text-xl font-light text-white">
-              Opportunity Information
-            </h3>
+      <h3 className="mt-2 text-2xl font-light text-white">
+        {isRtl
+          ? "هل تحتاج الفرصة إلى تعديل أو رفض؟"
+          : "Does this opportunity need changes or rejection?"}
+      </h3>
 
-            <div className="grid gap-4 text-sm md:grid-cols-2">
-              <InfoBlock label="Type" value={opportunity.opportunity_type} />
-              <InfoBlock label="City AR" value={opportunity.city_ar} />
-              <InfoBlock label="City EN" value={opportunity.city_en} />
-              <InfoBlock
-  label="Compensation"
-  value={formatCompensation(
-    opportunity.compensation_type,
-    opportunity.budget,
-  )}
-/>
-              <InfoBlock label="Required Gender" value={opportunity.required_gender} />
-              <InfoBlock
-                label="Age Range"
-                value={
-                  opportunity.min_age || opportunity.max_age
-                    ? `${opportunity.min_age ?? "—"} - ${opportunity.max_age ?? "—"}`
-                    : "—"
-                }
-              />
-              <InfoBlock label="Expires At" value={formatDate(opportunity.expires_at)} />
-              <InfoBlock label="Created At" value={formatDate(opportunity.created_at)} />
-              <InfoBlock label="Updated At" value={formatDate(opportunity.updated_at)} />
-              <InfoBlock
-                label="Published"
-                value={opportunity.published ? "Yes" : "No"}
-              />
-            </div>
-          </section>
+      <p className="mt-2 max-w-3xl text-sm leading-7 text-gray-muted">
+        {isRtl
+          ? "إذا كانت البيانات ناقصة أو تحتاج توضيحًا، اطلب من الناشر تعديلها. استخدم الرفض فقط عندما تكون الفرصة غير مناسبة للنشر على المنصة."
+          : "Request changes when information is incomplete or needs clarification. Reject only when the opportunity should not be published on the platform."}
+      </p>
+    </div>
 
-          <section className="rounded-3xl border border-white/[0.08] bg-gray-elevated/30 p-6">
-            <h3 className="mb-6 text-xl font-light text-white">
-              Publisher / Company
-            </h3>
+    <div className="grid gap-5 lg:grid-cols-2">
+      <form
+        action={requestChangesOpportunityAction}
+        className="rounded-2xl border border-blue-500/15 bg-blue-500/[0.025] p-5"
+      >
+        <input
+          type="hidden"
+          name="id"
+          value={opportunity.id}
+        />
 
-            <div className="grid gap-4 text-sm">
-              <InfoBlock label="Company Name" value={opportunity.company_name} />
-              <InfoBlock label="Contact Name" value={opportunity.contact_name} />
-              <InfoBlock label="Contact Phone" value={opportunity.contact_phone} />
-              <InfoBlock label="Contact Email" value={opportunity.contact_email} />
-            </div>
-          </section>
-        </div>
+        <input
+          type="hidden"
+          name="locale"
+          value={isRtl ? "ar" : "en"}
+        />
+
+        <label className="mb-2 block text-sm font-medium text-blue-200">
+          {isRtl ? "طلب تعديل" : "Request Changes"}
+        </label>
+
+        <p className="mb-4 text-xs leading-6 text-white/40">
+          {isRtl
+            ? "اكتب بوضوح ما الذي يجب على الناشر تعديله قبل إعادة إرسال الفرصة."
+            : "Clearly explain what the publisher must update before resubmitting the opportunity."}
+        </p>
+
+        <textarea
+          required
+          name="reason"
+          rows={4}
+          maxLength={1000}
+          placeholder={
+            isRtl
+              ? "مثال: يرجى توضيح تاريخ العمل والمقابل المالي..."
+              : "Example: Please clarify the work date and compensation..."
+          }
+          className="w-full resize-none rounded-xl border border-white/[0.08] bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/25 focus:border-blue-400/30"
+        />
+
+        <button
+          type="submit"
+          className="mt-4 rounded-full border border-blue-500/30 bg-blue-500/[0.06] px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-blue-300 transition hover:bg-blue-500/10"
+        >
+          {isRtl ? "إرسال طلب التعديل" : "Request Changes"}
+        </button>
+      </form>
+
+      <form
+        action={rejectOpportunityAction}
+        className="rounded-2xl border border-red-500/15 bg-red-500/[0.025] p-5"
+      >
+        <input
+          type="hidden"
+          name="id"
+          value={opportunity.id}
+        />
+
+        <input
+          type="hidden"
+          name="locale"
+          value={isRtl ? "ar" : "en"}
+        />
+
+        <label className="mb-2 block text-sm font-medium text-red-200">
+          {isRtl ? "رفض الفرصة" : "Reject Opportunity"}
+        </label>
+
+        <p className="mb-4 text-xs leading-6 text-white/40">
+          {isRtl
+            ? "استخدم الرفض عندما تكون الفرصة غير مناسبة للنشر، واكتب السبب الذي سيصل إلى الناشر."
+            : "Reject when the opportunity is unsuitable for publication and provide the reason shown to the publisher."}
+        </p>
+
+        <textarea
+          required
+          name="reason"
+          rows={4}
+          maxLength={1000}
+          placeholder={
+            isRtl
+              ? "اكتب سبب رفض الفرصة..."
+              : "Enter the reason for rejecting this opportunity..."
+          }
+          className="w-full resize-none rounded-xl border border-white/[0.08] bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/25 focus:border-red-400/30"
+        />
+
+        <button
+          type="submit"
+          className="mt-4 rounded-full border border-red-500/30 bg-red-500/[0.06] px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-red-300 transition hover:bg-red-500/10"
+        >
+          {isRtl ? "رفض الفرصة" : "Reject Opportunity"}
+        </button>
+      </form>
+    </div>
+  </section>
+) : null}
+        <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+  <section
+    dir="rtl"
+    className="rounded-3xl border border-white/[0.08] bg-gray-elevated/30 p-6"
+  >
+    <div className="mb-6">
+      <p className="text-[10px] uppercase tracking-[0.25em] text-gold">
+        مراجعة الفرصة
+      </p>
+
+      <h3 className="mt-2 text-2xl font-light text-white">
+        معلومات الفرصة
+      </h3>
+
+      <p className="mt-2 text-sm text-gray-muted">
+        جميع البيانات التي أدخلها الناشر قبل اعتماد ونشر الفرصة.
+      </p>
+    </div>
+
+    <div className="grid gap-4 text-sm md:grid-cols-2">
+      <InfoBlock
+        label="طريقة النشر"
+        value={
+          opportunity.posting_mode === "quick"
+            ? "فرصة سريعة"
+            : opportunity.posting_mode === "project"
+              ? "مشروع / كاستينغ"
+              : opportunity.posting_mode
+        }
+      />
+
+      <InfoBlock
+        label="نوع الموهبة"
+        value={
+          opportunity.opportunity_type === "actor"
+            ? "ممثل / ممثلة"
+            : opportunity.opportunity_type === "model"
+              ? "مودل"
+              : opportunity.opportunity_type
+        }
+      />
+
+      <InfoBlock label="المدينة" value={opportunity.city_ar} />
+
+      <InfoBlock
+        label="الجنس المطلوب"
+        value={
+          opportunity.required_gender === "male"
+            ? "ذكر"
+            : opportunity.required_gender === "female"
+              ? "أنثى"
+              : opportunity.required_gender === "any"
+                ? "الجميع"
+                : opportunity.required_gender
+        }
+      />
+
+      <InfoBlock
+        label="الفئة العمرية"
+        value={
+          opportunity.min_age || opportunity.max_age
+            ? `${opportunity.min_age ?? "—"} - ${opportunity.max_age ?? "—"} سنة`
+            : "جميع الأعمار"
+        }
+      />
+
+      <InfoBlock
+        label="عدد المواهب المطلوبة"
+        value={opportunity.required_count}
+      />
+
+      <InfoBlock
+        label="المقابل المالي"
+        value={formatCompensation(
+          opportunity.compensation_type,
+          opportunity.budget,
+          isRtl,
+        )}
+      />
+
+      <InfoBlock
+        label="مدة استقبال الطلبات"
+        value={
+          opportunity.application_days
+            ? `${opportunity.application_days} يوم`
+            : null
+        }
+      />
+
+      <InfoBlock
+        label="تاريخ العمل"
+        value={formatDate(opportunity.work_date, isRtl)}
+      />
+
+      <InfoBlock
+        label="وقت العمل"
+        value={opportunity.work_time}
+      />
+
+      <InfoBlock
+        label="مدة العمل"
+        value={opportunity.work_duration}
+      />
+
+      <InfoBlock
+        label="حالة النشر"
+        value={opportunity.published ? "منشورة" : "غير منشورة"}
+      />
+    </div>
+
+    <div className="mt-4 grid gap-4">
+      <InfoBlock
+        label="عنوان الفرصة"
+        value={opportunity.title}
+      />
+
+      <InfoBlock
+        label="وصف الفرصة"
+        value={opportunity.description}
+      />
+
+{opportunity.opportunity_type === "actor" ? (
+  <>
+    <InfoBlock
+      label="اللغات المطلوبة"
+      value={
+        Array.isArray(opportunity.role_requirements?.languages) &&
+        opportunity.role_requirements.languages.length > 0
+          ? opportunity.role_requirements.languages
+              .map((language: string) => {
+                if (language === "arabic") return "العربية";
+                if (language === "english") return "الإنجليزية";
+                return language;
+              })
+              .join("، ")
+          : null
+      }
+    />
+
+    <InfoBlock
+      label="اللهجات المطلوبة"
+      value={
+        Array.isArray(opportunity.role_requirements?.dialects) &&
+        opportunity.role_requirements.dialects.length > 0
+          ? opportunity.role_requirements.dialects
+              .map((dialect: string) => {
+                if (dialect === "najdi") return "النجدية";
+                if (dialect === "hejazi") return "الحجازية";
+                if (dialect === "gulf") return "الخليجية";
+                return dialect;
+              })
+              .join("، ")
+          : null
+      }
+    />
+  </>
+) : opportunity.opportunity_type === "model" ? (
+  <>
+    <InfoBlock
+      label="نوع المودل"
+      value={opportunity.role_requirements?.model_type ?? null}
+    />
+
+    <InfoBlock
+      label="الحد الأدنى للطول"
+      value={
+        opportunity.role_requirements?.min_height
+          ? `${opportunity.role_requirements.min_height} سم`
+          : null
+      }
+    />
+
+    <InfoBlock
+      label="لون الشعر"
+      value={opportunity.role_requirements?.hair_color ?? null}
+    />
+  </>
+) : null}
+    </div>
+  </section>
+
+  <section
+    dir="rtl"
+    className="rounded-3xl border border-white/[0.08] bg-gray-elevated/30 p-6"
+  >
+    <div className="mb-6">
+      <p className="text-[10px] uppercase tracking-[0.25em] text-gold">
+        صاحب الفرصة
+      </p>
+
+      <h3 className="mt-2 text-2xl font-light text-white">
+        الناشر / الجهة
+      </h3>
+    </div>
+
+    <div className="grid gap-4 text-sm">
+      <InfoBlock
+        label="اسم الجهة"
+        value={opportunity.company_name}
+      />
+
+      <InfoBlock
+        label="اسم المسؤول"
+        value={opportunity.contact_name}
+      />
+
+      <InfoBlock
+        label="رقم التواصل"
+        value={opportunity.contact_phone}
+      />
+
+      <InfoBlock
+        label="البريد الإلكتروني"
+        value={opportunity.contact_email}
+      />
+
+      <InfoBlock
+        label="تاريخ إنشاء الفرصة"
+        value={formatDate(opportunity.created_at, isRtl)}
+      />
+
+      <InfoBlock
+        label="آخر تحديث"
+        value={formatDate(opportunity.updated_at, isRtl)}
+      />
+    </div>
+  </section>
+</div>
 
         <section className="mt-6 rounded-3xl border border-white/[0.08] bg-gray-elevated/30 p-6">
           <div className="mb-6 flex items-center justify-between gap-4">
             <div>
               <h3 className="text-xl font-light text-white">
-                Applications
+              {isRtl ? "المتقدمون" : "Applications"}
               </h3>
               <p className="mt-1 text-sm text-gray-muted">
-                {applicationList.length} applicants for this opportunity.
+              {isRtl
+  ? `${applicationList.length} متقدم على هذه الفرصة.`
+  : `${applicationList.length} applicants for this opportunity.`}
               </p>
             </div>
 
@@ -341,14 +729,16 @@ export default async function AdminOpportunityDetailsPage({ params }: PageProps)
               href="/admin/opportunity-applications"
               className="rounded-full border border-white/10 px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-white/60 transition hover:border-gold/40 hover:text-gold"
             >
-              View All Applications
+              {isRtl ? "عرض جميع الطلبات" : "View All Applications"}
             </Link>
           </div>
 
           {applicationList.length === 0 ? (
             <div className="rounded-2xl border border-white/[0.06] bg-black/10 px-6 py-12 text-center">
               <p className="text-sm text-gray-muted">
-                No applications for this opportunity yet.
+              {isRtl
+  ? "لا توجد طلبات على هذه الفرصة حتى الآن."
+  : "No applications for this opportunity yet."}
               </p>
             </div>
           ) : (
@@ -381,8 +771,19 @@ export default async function AdminOpportunityDetailsPage({ params }: PageProps)
                         </p>
 
                         <p className="mt-1 text-xs text-gray-muted">
-                          {talent?.city_ar || "—"} · {talent?.gender || "—"} · Applied{" "}
-                          {formatDate(application.created_at)}
+                        {talent?.city_ar || "—"} ·{" "}
+{talent?.gender === "male"
+  ? isRtl
+    ? "ذكر"
+    : "Male"
+  : talent?.gender === "female"
+    ? isRtl
+      ? "أنثى"
+      : "Female"
+    : talent?.gender || "—"}{" "}
+·{" "}
+{isRtl ? "تقدم في" : "Applied"}{" "}
+{formatDate(application.created_at, isRtl)}
                         </p>
                       </div>
                     </div>
@@ -398,7 +799,7 @@ export default async function AdminOpportunityDetailsPage({ params }: PageProps)
                           target="_blank"
                           className="rounded-full border border-white/10 px-4 py-2 text-[10px] uppercase tracking-[0.2em] text-white/60 transition hover:border-gold/40 hover:text-gold"
                         >
-                          View Talent
+                          {isRtl ? "عرض الموهبة" : "View Talent"}
                         </Link>
                       ) : null}
                     </div>

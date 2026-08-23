@@ -402,7 +402,7 @@ const eventType =
 await createEvent({
   type: eventType,
   target: "talent",
-  targetId: talent.user_id,
+  targetId: talent.id,
   actorId: adminUser.id,
   metadata: {
     locale,

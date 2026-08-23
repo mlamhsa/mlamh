@@ -136,7 +136,19 @@ export async function submitTalentProfileReviewAction(
     talent,
   );
 
-  const readiness =
+const MIN_REVIEW_COMPLETION = 35;
+
+if (completion < MIN_REVIEW_COMPLETION) {
+  return {
+    success: false,
+    completion,
+    message: isArabic
+      ? `أكمل ملفك إلى ${MIN_REVIEW_COMPLETION}% على الأقل قبل إرساله للمراجعة. نسبة اكتمال ملفك الحالية ${completion}%.`
+      : `Complete at least ${MIN_REVIEW_COMPLETION}% of your profile before submitting it for review. Your current profile completion is ${completion}%.`,
+  };
+}
+
+const readiness =
   getTalentProfileReviewReadiness(
     talent,
   );

@@ -60,6 +60,15 @@ type PublisherLookup = {
   profile_id: number | string;
 };
 
+type PendingPublisherVerification = {
+  id: number | string;
+  profile_id: number | string;
+  company_name: string | null;
+  verification_status: string | null;
+  verification_method: string | null;
+  verification_submitted_at: string | null;
+};
+
 type PendingPublisher = {
   id: number | string;
   profile_id: number | string;
@@ -129,6 +138,7 @@ export default async function AdminActionCenterPage({
     changeRequestsResult,
     pendingTalentsResult,
     pendingPublishersResult,
+    pendingPublisherVerificationsResult,
     pendingOpportunitiesResult,
   ] = await Promise.all([
     /*
@@ -219,6 +229,35 @@ export default async function AdminActionCenterPage({
     },
   ),
 
+  /*
+ * طلبات توثيق الجهات
+ * التي تنتظر مراجعة الإدارة.
+ */
+adminClient
+.from("publishers")
+.select(`
+  id,
+  profile_id,
+  company_name,
+  verification_status,
+  verification_method,
+  verification_submitted_at
+`)
+.neq(
+  "publisher_type",
+  "individual",
+)
+.eq(
+  "verification_status",
+  "pending",
+)
+.order(
+  "verification_submitted_at",
+  {
+    ascending: true,
+  },
+),
+
     /*
      * الفرص التي تنتظر المراجعة.
      */
@@ -266,6 +305,15 @@ export default async function AdminActionCenterPage({
     console.error(
       "[AdminActionCenterPage pendingPublishers]",
       pendingPublishersResult.error,
+    );
+  }
+
+  if (
+    pendingPublisherVerificationsResult.error
+  ) {
+    console.error(
+      "[AdminActionCenterPage pendingPublisherVerifications]",
+      pendingPublisherVerificationsResult.error,
     );
   }
 
@@ -361,6 +409,12 @@ export default async function AdminActionCenterPage({
       },
     );
 
+    const pendingPublisherVerifications =
+  (
+    pendingPublisherVerificationsResult.data ??
+    []
+  ) as PendingPublisherVerification[];
+
   const pendingOpportunities =
     (
       pendingOpportunitiesResult.data ??
@@ -432,10 +486,11 @@ export default async function AdminActionCenterPage({
     );
 
   const totalPending =
-    pendingRequests.length +
-    pendingTalents.length +
-    pendingPublishers.length +
-    pendingOpportunities.length;
+  pendingRequests.length +
+  pendingTalents.length +
+  pendingPublishers.length +
+  pendingPublisherVerifications.length +
+  pendingOpportunities.length;
 
   const ArrowIcon =
     isArabic
@@ -622,6 +677,96 @@ export default async function AdminActionCenterPage({
             </div>
           )}
         </section>
+
+{/* Pending publisher verification */}
+<section className="mt-10 border-t border-white/[0.07] pt-8">
+  <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div>
+      <h2 className="text-xl font-light text-white">
+        {isArabic
+          ? "طلبات توثيق الجهات"
+          : "Organization verification requests"}
+      </h2>
+
+      <p className="mt-1 text-sm text-white/35">
+        {isArabic
+          ? "الجهات التي أرسلت إثبات ارتباطها وتنتظر قرار الإدارة."
+          : "Organizations that submitted verification proof and are awaiting admin review."}
+      </p>
+    </div>
+
+    <span className="inline-flex w-fit min-w-8 items-center justify-center rounded-full border border-amber-400/20 bg-amber-400/[0.06] px-3 py-1 text-xs text-amber-200">
+      {pendingPublisherVerifications.length}
+    </span>
+  </div>
+
+  {pendingPublisherVerifications.length === 0 ? (
+    <div className="rounded-3xl border border-white/[0.08] bg-white/[0.02] px-6 py-10 text-center">
+      <Building2 className="mx-auto h-8 w-8 text-white/15" />
+
+      <h3 className="mt-4 text-lg font-light text-white/65">
+        {isArabic
+          ? "لا توجد طلبات توثيق بانتظار المراجعة"
+          : "No verification requests awaiting review"}
+      </h3>
+    </div>
+  ) : (
+    <div className="grid gap-3 lg:grid-cols-2">
+      {pendingPublisherVerifications.map(
+        (publisher) => (
+          <article
+            key={publisher.id}
+            className="rounded-3xl border border-amber-400/15 bg-amber-400/[0.025] p-5 transition hover:border-amber-400/30 hover:bg-amber-400/[0.04]"
+          >
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-w-0 items-center gap-4">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-amber-400/15 bg-amber-400/[0.05]">
+                  <Building2 className="h-5 w-5 text-amber-200" />
+                </div>
+
+                <div className="min-w-0">
+                  <h3 className="truncate text-base font-medium text-white/85">
+                    {publisher.company_name?.trim() ||
+                      (isArabic
+                        ? "جهة بدون اسم"
+                        : "Unnamed organization")}
+                  </h3>
+
+                  <p className="mt-1 text-sm text-amber-200/80">
+                    {isArabic
+                      ? "بانتظار التوثيق"
+                      : "Awaiting verification"}
+                  </p>
+
+                  <p className="mt-2 text-xs text-white/25">
+                  {formatDate(
+  publisher.verification_submitted_at,
+  language,
+)}
+                  </p>
+                </div>
+              </div>
+
+              <Link
+                href={withAdminLanguage(
+                  `/admin/publishers?publisher=${publisher.id}`,
+                  language,
+                )}
+                className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-amber-400/20 bg-amber-400/[0.07] px-4 text-sm text-amber-200 transition hover:bg-amber-300 hover:text-black"
+              >
+                {isArabic
+                  ? "مراجعة التوثيق"
+                  : "Review verification"}
+
+                <ArrowIcon className="h-4 w-4" />
+              </Link>
+            </div>
+          </article>
+        ),
+      )}
+    </div>
+  )}
+</section>
 
         {/* Pending publishers */}
         <section className="mt-10 border-t border-white/[0.07] pt-8">

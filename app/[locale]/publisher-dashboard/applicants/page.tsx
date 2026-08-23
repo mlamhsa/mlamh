@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { revalidatePath } from "next/cache";
 
 import { updateApplicationStatusAction } from "@/lib/actions/application-status-actions";
 import { requirePublisher } from "@/lib/auth/require-publisher";
@@ -139,21 +140,28 @@ function ApplicationStatusForm({
   status,
   label,
   className,
+  locale,
 }: {
   applicationId: string | number;
   status: "accepted" | "rejected";
   label: string;
   className: string;
+  locale: string;
 }) {
   return (
     <form
-      action={async () => {
-        "use server";
-        await updateApplicationStatusAction(
-          applicationId,
-          status,
-        );
-      }}
+    action={async () => {
+      "use server";
+    
+      await updateApplicationStatusAction(
+        applicationId,
+        status,
+      );
+    
+      revalidatePath(
+        `/${locale}/publisher-dashboard/applicants`,
+      );
+    }}
       className="flex-1"
     >
       <button
@@ -615,18 +623,20 @@ const conversationIdByApplication = new Map<
 {displayStatus === "pending" ? (
   <>
     <ApplicationStatusForm
-      applicationId={application.id}
-      status="accepted"
-      label={isRtl ? "قبول" : "Accept"}
-      className="border-emerald-400/35 text-emerald-300 hover:bg-emerald-400 hover:text-black"
-    />
+  applicationId={application.id}
+  status="accepted"
+  label={isRtl ? "قبول" : "Accept"}
+  className="border-emerald-400/35 text-emerald-300 hover:bg-emerald-400 hover:text-black"
+  locale={locale}
+/>
 
-    <ApplicationStatusForm
-      applicationId={application.id}
-      status="rejected"
-      label={isRtl ? "رفض" : "Reject"}
-      className="border-red-400/35 text-red-300 hover:bg-red-400 hover:text-black"
-    />
+<ApplicationStatusForm
+  applicationId={application.id}
+  status="rejected"
+  label={isRtl ? "رفض" : "Reject"}
+  className="border-red-400/35 text-red-300 hover:bg-red-400 hover:text-black"
+  locale={locale}
+/>
   </>
 ) : displayStatus === "accepted" ? (
   <>
