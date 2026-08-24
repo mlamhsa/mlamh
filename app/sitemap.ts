@@ -1,38 +1,83 @@
 import type { MetadataRoute } from "next";
+
 import { getPublishedTalents } from "@/lib/supabase/public-talents";
+import { getPublishedOpportunities } from "@/lib/supabase/opportunities";
 import { locales } from "@/lib/i18n";
 
 const SITE_URL = (
-  process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
+  process.env.NEXT_PUBLIC_SITE_URL || "https://mlamh.net"
 ).replace(/\/$/, "");
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const now = new Date();
   const talents = await getPublishedTalents();
+  const opportunities = await getPublishedOpportunities();
 
-  const staticRoutes = locales.flatMap((locale) => [
+  const staticRoutes: MetadataRoute.Sitemap = locales.flatMap((locale) => [
     {
       url: `${SITE_URL}/${locale}`,
-      lastModified: now,
+      changeFrequency: "daily",
+      priority: 1,
     },
     {
       url: `${SITE_URL}/${locale}/talent`,
-      lastModified: now,
+      changeFrequency: "daily",
+      priority: 0.9,
     },
     {
-      url: `${SITE_URL}/${locale}/join`,
-      lastModified: now,
+      url: `${SITE_URL}/${locale}/opportunities`,
+      changeFrequency: "daily",
+      priority: 0.9,
+    },
+    {
+      url: `${SITE_URL}/${locale}/publishers`,
+      changeFrequency: "weekly",
+      priority: 0.8,
+    },
+    {
+      url: `${SITE_URL}/${locale}/about`,
+      changeFrequency: "monthly",
+      priority: 0.6,
+    },
+    {
+      url: `${SITE_URL}/${locale}/contact`,
+      changeFrequency: "monthly",
+      priority: 0.5,
+    },
+    {
+      url: `${SITE_URL}/${locale}/privacy`,
+      changeFrequency: "yearly",
+      priority: 0.3,
+    },
+    {
+      url: `${SITE_URL}/${locale}/terms`,
+      changeFrequency: "yearly",
+      priority: 0.3,
     },
   ]);
 
-  const talentRoutes = talents
+  const talentRoutes: MetadataRoute.Sitemap = talents
     .filter((talent) => Boolean(talent.slug))
     .flatMap((talent) =>
       locales.map((locale) => ({
         url: `${SITE_URL}/${locale}/talent/${talent.slug}`,
-        lastModified: now,
-      }))
+        changeFrequency: "weekly" as const,
+        priority: 0.8,
+      })),
     );
 
-  return [...staticRoutes, ...talentRoutes];
+  const opportunityRoutes: MetadataRoute.Sitemap = opportunities
+    .filter((opportunity) => Boolean(opportunity.slug))
+    .flatMap((opportunity) =>
+      locales.map((locale) => ({
+        url: `${SITE_URL}/${locale}/opportunities/${opportunity.slug}`,
+        changeFrequency: "daily" as const,
+        priority: 0.8,
+      })),
+    );
+
+  return [
+    ...staticRoutes,
+    ...talentRoutes,
+    ...opportunityRoutes,
+  ];
 }

@@ -30,32 +30,46 @@ const notoArabic = Noto_Sans_Arabic({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://mlamh.net"),
-  title: "MALAMIH — Casting & Talents",
+
+  title: {
+    default: "MLAMH | ملامح — منصة المواهب والفرص",
+    template: "%s",
+  },
+
   description:
-    "منصة سعودية تربط المواهب والوجوه بالفرص والشركات والوكالات.",
+    "ملامح منصة سعودية تربط المواهب بالمشاريع والفرص المهنية في التمثيل والمودل، وتساعد الشركات والوكالات على اكتشاف المواهب المناسبة.",
+
+  applicationName: "MLAMH",
+
+  icons: {
+    icon: "/icon.png",
+    shortcut: "/icon.png",
+    apple: "/icon.png",
+  },
 
   openGraph: {
-    title: "MALAMIH — Casting & Talents",
+    title: "MLAMH | ملامح — منصة المواهب والفرص",
     description:
-      "منصة سعودية تربط المواهب والوجوه بالفرص والشركات والوكالات.",
+      "اكتشف المواهب وفرص التمثيل والمودل، وتواصل مع الشركات والوكالات وأصحاب المشاريع عبر ملامح.",
     url: "https://mlamh.net",
-    siteName: "MALAMIH",
+    siteName: "MLAMH | ملامح",
     images: [
       {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "MALAMIH — Casting & Talents",
+        alt: "MLAMH | ملامح",
       },
     ],
     locale: "ar_SA",
     type: "website",
   },
+
   twitter: {
     card: "summary_large_image",
-    title: "MALAMIH — Casting & Talents",
+    title: "MLAMH | ملامح — منصة المواهب والفرص",
     description:
-      "منصة سعودية تربط المواهب والوجوه بالفرص والشركات والوكالات.",
+      "منصة تربط المواهب بالفرص والشركات والوكالات وأصحاب المشاريع.",
     images: ["/og-image.png"],
   },
 };

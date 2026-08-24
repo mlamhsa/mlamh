@@ -12,6 +12,10 @@ type OpportunityPageProps = {
   params: Promise<{ locale?: string; slug: string }>;
 };
 
+const SITE_URL = (
+  process.env.NEXT_PUBLIC_SITE_URL || "https://mlamh.net"
+).replace(/\/$/, "");
+
 type ApplicationStatus =
   | "pending"
   | "reviewing"
@@ -559,24 +563,63 @@ export async function generateMetadata({
     fallbackDescription,
   );
 
-  return {
-    title: `${title} | ${isRtl ? "ملامح" : "MLAMH"}`,
+  const canonicalSlug =
+  opportunity.slug || String(opportunity.id);
+
+const canonicalUrl =
+  `${SITE_URL}/${locale}/opportunities/${encodeURIComponent(
+    canonicalSlug,
+  )}`;
+
+const arUrl =
+  `${SITE_URL}/ar/opportunities/${encodeURIComponent(
+    canonicalSlug,
+  )}`;
+
+const enUrl =
+  `${SITE_URL}/en/opportunities/${encodeURIComponent(
+    canonicalSlug,
+  )}`;
+
+const ogImage = `${SITE_URL}/og-image.png`;
+
+return {
+  title: `${title} | ${isRtl ? "ملامح" : "MLAMH"}`,
+  description,
+
+  alternates: {
+    canonical: canonicalUrl,
+    languages: {
+      "ar-SA": arUrl,
+      en: enUrl,
+      "x-default": arUrl,
+    },
+  },
+
+  openGraph: {
+    type: "website",
+    locale: isRtl ? "ar_SA" : "en_US",
+    title,
     description,
+    url: canonicalUrl,
+    siteName: isRtl ? "ملامح" : "MLAMH",
+    images: [
+      {
+        url: ogImage,
+        width: 1200,
+        height: 630,
+        alt: title,
+      },
+    ],
+  },
 
-    openGraph: {
-      type: "website",
-      locale: isRtl ? "ar_SA" : "en_US",
-      title,
-      description,
-      siteName: isRtl ? "ملامح" : "MLAMH",
-    },
-
-    twitter: {
-      card: "summary_large_image",
-      title,
-      description,
-    },
-  };
+  twitter: {
+    card: "summary_large_image",
+    title,
+    description,
+    images: [ogImage],
+  },
+};
 }
 
 export default async function OpportunityDetailPage({
@@ -1079,59 +1122,62 @@ const hasMeaningfulDescription =
       );
     })
     .slice(0, 3);
-    const opportunityStructuredData = {
-      "@context": "https://schema.org",
-      "@type": "JobPosting",
-    
-      title:
-        opportunity.title ||
-        (isRtl
-          ? "فرصة عبر ملامح"
-          : "MLAMH Opportunity"),
-    
-      description: opportunityDescription,
-    
-      datePosted:
-        opportunity.created_at || undefined,
-    
-      validThrough:
-        deadlineValue
-          ? `${deadlineValue.slice(0, 10)}T23:59:59+03:00`
-          : undefined,
-    
-      employmentType: "CONTRACTOR",
-    
-      hiringOrganization: {
+    const shouldRenderJobPosting =
+  opportunity.compensation_type !== "unpaid";
+  const opportunityCanonicalSlug =
+  opportunity.slug || String(opportunity.id);
+
+const opportunityCanonicalUrl =
+  `${SITE_URL}/${locale}/opportunities/${encodeURIComponent(
+    opportunityCanonicalSlug,
+  )}`;
+
+const opportunityStructuredData = {
+  "@context": "https://schema.org",
+  "@type": "JobPosting",
+
+  "@id": `${opportunityCanonicalUrl}#jobposting`,
+
+  url: opportunityCanonicalUrl,
+
+  title:
+    opportunity.title ||
+    (isRtl
+      ? "فرصة عبر ملامح"
+      : "MLAMH Opportunity"),
+
+  description: opportunityDescription,
+
+  datePosted:
+    opportunity.created_at || undefined,
+
+  validThrough:
+    deadlineValue
+      ? `${deadlineValue.slice(0, 10)}T23:59:59+03:00`
+      : undefined,
+
+  employmentType: "CONTRACTOR",
+
+  hiringOrganization:
+  companyName !== "جهة غير محددة" &&
+  companyName !== "Publisher not specified"
+    ? {
         "@type": "Organization",
         name: companyName,
-      },
-    
-      jobLocation: city
-        ? {
-            "@type": "Place",
-            address: {
-              "@type": "PostalAddress",
-              addressLocality: city,
-              addressCountry: "SA",
-            },
-          }
-        : undefined,
-    
-      baseSalary:
-        Number(opportunity.budget) > 0
-          ? {
-              "@type": "MonetaryAmount",
-              currency: "SAR",
-              value: {
-                "@type": "QuantitativeValue",
-                value: Number(
-                  opportunity.budget,
-                ),
-                unitText: "PROJECT",
-              },
-            }
-          : undefined,
-    };
+      }
+    : undefined,
+
+  jobLocation: city && city !== "—"
+    ? {
+        "@type": "Place",
+        address: {
+          "@type": "PostalAddress",
+          addressLocality: city,
+          addressCountry: "SA",
+        },
+      }
+    : undefined,
+};
     async function toggleSavedOpportunityAction() {
       "use server";
     
@@ -1212,14 +1258,16 @@ const hasMeaningfulDescription =
   lg:pt-32
 "
       >
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify(
-              opportunityStructuredData,
-            ).replace(/</g, "\\u003c"),
-          }}
-        />
+        {shouldRenderJobPosting ? (
+  <script
+    type="application/ld+json"
+    dangerouslySetInnerHTML={{
+      __html: JSON.stringify(
+        opportunityStructuredData,
+      ).replace(/</g, "\\u003c"),
+    }}
+  />
+) : null}
     
         <div className="mx-auto w-full max-w-7xl min-w-0">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 sm:mb-5">

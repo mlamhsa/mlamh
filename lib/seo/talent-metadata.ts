@@ -1,10 +1,28 @@
 import type { Metadata } from "next";
+
 import type { Locale } from "@/lib/i18n";
 import type { Talent } from "@/lib/types/talent";
 
 const SITE_URL = (
-  process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
+  process.env.NEXT_PUBLIC_SITE_URL || "https://mlamh.net"
 ).replace(/\/$/, "");
+
+function cleanMetaDescription(
+  value: string | null | undefined,
+  fallback: string,
+) {
+  const cleaned = value
+    ?.replace(/\s+/g, " ")
+    .trim();
+
+  if (!cleaned) {
+    return fallback;
+  }
+
+  return cleaned.length > 160
+    ? `${cleaned.slice(0, 157).trimEnd()}...`
+    : cleaned;
+}
 
 export function buildTalentMetadata({
   talent,
@@ -27,56 +45,90 @@ export function buildTalentMetadata({
     ? talent.bio_ar || talent.bio_en
     : talent.bio_en || talent.bio_ar;
 
-  const title = `${name || "Talent"} | MLAMH`;
+  const safeName =
+    name || (isRtl ? "موهبة" : "Talent");
 
-  const description =
-    bio?.slice(0, 155) ||
-    `${name || "Talent"}${category ? ` — ${category}` : ""} on MLAMH.`;
+  const title = isRtl
+    ? `${safeName}${category ? ` — ${category}` : ""} | ملامح`
+    : `${safeName}${category ? ` — ${category}` : ""} | MLAMH`;
 
-  const image = talent.image_url || undefined;
+  const fallbackDescription = isRtl
+    ? `${safeName}${category ? `، ${category}` : ""}. اكتشف الملف المهني والصور والمعلومات عبر منصة ملامح.`
+    : `Discover ${safeName}${category ? `, ${category}` : ""}. View the professional profile, media and details on MLAMH.`;
 
-  const path = talent.slug
-    ? `/${locale}/talent/${talent.slug}`
-    : `/${locale}/talent`;
+  const description = cleanMetaDescription(
+    bio,
+    fallbackDescription,
+  );
 
-  const url = `${SITE_URL}${path}`;
+  const canonicalSlug = talent.slug || "";
+
+  const canonicalUrl = canonicalSlug
+    ? `${SITE_URL}/${locale}/talent/${encodeURIComponent(
+        canonicalSlug,
+      )}`
+    : `${SITE_URL}/${locale}/talent`;
+
+  const arUrl = canonicalSlug
+    ? `${SITE_URL}/ar/talent/${encodeURIComponent(
+        canonicalSlug,
+      )}`
+    : `${SITE_URL}/ar/talent`;
+
+  const enUrl = canonicalSlug
+    ? `${SITE_URL}/en/talent/${encodeURIComponent(
+        canonicalSlug,
+      )}`
+    : `${SITE_URL}/en/talent`;
+
+  const image =
+    talent.image_url || `${SITE_URL}/og-image.png`;
+
+  const isIndexable = Boolean(
+    talent.slug &&
+      talent.published &&
+      talent.status === "approved",
+  );
 
   return {
     title,
     description,
+
     alternates: {
-      canonical: url,
+      canonical: canonicalUrl,
+      languages: {
+        "ar-SA": arUrl,
+        en: enUrl,
+        "x-default": arUrl,
+      },
     },
+
     openGraph: {
       title,
       description,
-      url,
-      siteName: "MLAMH",
+      url: canonicalUrl,
+      siteName: isRtl ? "ملامح" : "MLAMH",
       type: "profile",
-      images: image
-        ? [
-            {
-              url: image,
-              width: 1200,
-              height: 1600,
-              alt: name || "Talent profile image",
-            },
-          ]
-        : undefined,
-      locale: locale === "ar" ? "ar_SA" : "en_US",
+      locale: isRtl ? "ar_SA" : "en_US",
+      images: [
+        {
+          url: image,
+          width: 1200,
+          height: talent.image_url ? 1600 : 630,
+          alt: safeName,
+        },
+      ],
     },
+
     twitter: {
-      card: image ? "summary_large_image" : "summary",
+      card: "summary_large_image",
       title,
       description,
-      images: image ? [image] : undefined,
+      images: [image],
     },
+
     robots: {
-      index: Boolean(
-        talent.slug &&
-          talent.published &&
-          talent.status === "approved"
-      ),
+      index: isIndexable,
       follow: true,
     },
   };

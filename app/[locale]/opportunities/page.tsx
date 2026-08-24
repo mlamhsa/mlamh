@@ -1,9 +1,75 @@
 // app/[locale]/opportunities/page.tsx
 
+import type { Metadata } from "next";
 import Link from "next/link";
 
 import { getCurrentAccountType } from "@/lib/auth/get-current-account-type";
 import { getPublishedOpportunities } from "@/lib/supabase/opportunities";
+
+const SITE_URL = (
+  process.env.NEXT_PUBLIC_SITE_URL || "https://mlamh.net"
+).replace(/\/$/, "");
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale?: string }>;
+}): Promise<Metadata> {
+  const { locale: rawLocale } = await params;
+  const locale = rawLocale === "en" ? "en" : "ar";
+
+  const isArabic = locale === "ar";
+
+  const title = isArabic
+    ? "فرص كاستينج وتمثيل ومودل في السعودية | ملامح"
+    : "Casting, Acting & Modeling Opportunities in Saudi Arabia | MLAMH";
+
+  const description = isArabic
+    ? "اكتشف أحدث فرص الكاستينج والتمثيل والمودل والإعلانات في السعودية. تصفح الفرص المنشورة من الشركات والوكالات والعلامات التجارية عبر منصة ملامح."
+    : "Discover casting, acting, modeling and advertising opportunities in Saudi Arabia from companies, agencies and brands on MLAMH.";
+
+  const canonicalUrl = `${SITE_URL}/${locale}/opportunities`;
+
+  return {
+    title,
+    description,
+
+    alternates: {
+      canonical: canonicalUrl,
+      languages: {
+        "ar-SA": `${SITE_URL}/ar/opportunities`,
+        en: `${SITE_URL}/en/opportunities`,
+        "x-default": `${SITE_URL}/ar/opportunities`,
+      },
+    },
+
+    openGraph: {
+      title,
+      description,
+      url: canonicalUrl,
+      siteName: "MLAMH",
+      type: "website",
+      locale: isArabic ? "ar_SA" : "en_US",
+      images: [
+        {
+          url: `${SITE_URL}/og-image.png`,
+          width: 1200,
+          height: 630,
+          alt: isArabic
+            ? "ملامح — فرص الكاستينج والمواهب"
+            : "MLAMH — Casting & Talent Opportunities",
+        },
+      ],
+    },
+
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [`${SITE_URL}/og-image.png`],
+    },
+  };
+}
 
 type OpportunitiesPageProps = {
   params: Promise<{ locale?: string }>;

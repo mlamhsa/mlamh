@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import {
   Search,
@@ -29,10 +30,65 @@ type PageProps = {
   }>;
 };
 
-export const metadata = {
-  title: "Talents | MLAMH",
-  description: "Explore published talents on MLAMH.",
-};
+export async function generateMetadata({
+  params,
+}: Pick<PageProps, "params">): Promise<Metadata> {
+  const { locale: localeParam } = await params;
+
+  if (!isValidLocale(localeParam)) {
+    return {};
+  }
+
+  const locale = localeParam as Locale;
+  const isArabic = locale === "ar";
+
+  const title = isArabic
+    ? "مودلز وممثلون في السعودية | دليل المواهب | ملامح"
+    : "Models & Actors in Saudi Arabia | MLAMH Talents";
+
+  const description = isArabic
+    ? "اكتشف مودلز وممثلين ومواهب في السعودية عبر منصة ملامح. ابحث عن المواهب حسب التخصص والمدينة واختر الوجوه المناسبة لمشروعك."
+    : "Discover models, actors and talents in Saudi Arabia on MLAMH. Search talents by category and city and find the right faces for your project.";
+
+  const canonical = `/${locale}/talent`;
+
+  return {
+    title,
+    description,
+
+    alternates: {
+      canonical,
+      languages: {
+        "ar-SA": "/ar/talent",
+        "en-SA": "/en/talent",
+      },
+    },
+
+    openGraph: {
+      title,
+      description,
+      url: canonical,
+      type: "website",
+      images: [
+        {
+          url: "/og-image.png",
+          width: 1200,
+          height: 630,
+          alt: isArabic
+            ? "ملامح - منصة المواهب والكاستينج"
+            : "MLAMH - Casting & Talents",
+        },
+      ],
+    },
+
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: ["/og-image.png"],
+    },
+  };
+}
 
 export default async function TalentListingPage({
   params,

@@ -26,6 +26,9 @@ import { normalizeGalleryImages } from "@/lib/utils/talent-gallery";
 import { talentPath } from "@/lib/utils/routes";
 import { normalizeInstagramUrl } from "@/lib/utils/social-links";
 import { getRelatedTalents } from "@/lib/utils/talent-selectors";
+const SITE_URL = (
+  process.env.NEXT_PUBLIC_SITE_URL || "https://mlamh.net"
+).replace(/\/$/, "");
 import {
   hasDisplayValue,
   translateTalentValue,
@@ -321,6 +324,31 @@ export default async function TalentProfilePage({ params }: PageProps) {
   const category = getTalentCategory(talent, locale);
   const city = getTalentCity(talent, locale);
   const bio = getTalentBio(talent, locale);
+  const talentUrl = `${SITE_URL}/${locale}/talent/${talent.slug}`;
+
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    "@id": `${talentUrl}#person`,
+    url: talentUrl,
+    name: name || undefined,
+    description: bio || undefined,
+    image: talent.image_url || undefined,
+    jobTitle: category || undefined,
+    address: city
+      ? {
+          "@type": "PostalAddress",
+          addressLocality: city,
+          addressCountry: "SA",
+        }
+      : undefined,
+    sameAs: [
+      instagramUrl,
+      tiktokUrl,
+      snapchatUrl,
+      portfolioUrl,
+    ].filter((url): url is string => Boolean(url)),
+  };
 
   const age = calculateAge(talent.date_of_birth);
   const gender = formatGender(talent.gender, isRtl);
@@ -468,11 +496,18 @@ export default async function TalentProfilePage({ params }: PageProps) {
   );
 
   return (
-    <main
-      className="min-h-screen overflow-x-hidden bg-background pb-24 text-white lg:pb-0"
-      dir={isRtl ? "rtl" : "ltr"}
-    >
-      <Navbar locale={locale} />
+  <main
+    className="min-h-screen overflow-x-hidden bg-background pb-24 text-white lg:pb-0"
+    dir={isRtl ? "rtl" : "ltr"}
+  >
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{
+        __html: JSON.stringify(structuredData).replace(/</g, "\\u003c"),
+      }}
+    />
+
+    <Navbar locale={locale} />
 
       <section className="relative overflow-hidden pb-16 pt-16 sm:pb-20 sm:pt-24">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(201,169,98,0.1),transparent_42%)]" />

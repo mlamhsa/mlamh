@@ -1,6 +1,6 @@
 import { getTalentById } from "@/lib/supabase/talents";
 import { isValidLocale, type Locale } from "@/lib/i18n";
-import { redirect, notFound } from "next/navigation";
+import { permanentRedirect, notFound } from "next/navigation";
 
 type PageProps = {
   params: Promise<{
@@ -26,5 +26,5 @@ export default async function LegacyTalentRedirectPage({
 
   const locale = localeParam as Locale;
 
-  redirect(`/${locale}/talent/${talent.slug}`);
+  permanentRedirect(`/${locale}/talent/${talent.slug}`);
 }
