@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { createPortal } from "react-dom";
 import {
   ChevronLeft,
   ChevronRight,
@@ -45,6 +46,11 @@ export function PublicTalentGallery({
 
   const [activeIndex, setActiveIndex] = useState(0);
 const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+const [isMounted, setIsMounted] = useState(false);
+
+useEffect(() => {
+  setIsMounted(true);
+}, []);
 
 const touchStartX = useRef<number | null>(null);
 const touchEndX = useRef<number | null>(null);
@@ -85,6 +91,9 @@ const showNext = useCallback(() => {
       : safeCurrent + 1;
   });
 }, [images.length]);
+const closeLightbox = useCallback(() => {
+  setIsLightboxOpen(false);
+}, []);
 
   function handleTouchStart(clientX: number) {
     touchStartX.current = clientX;
@@ -123,31 +132,52 @@ const showNext = useCallback(() => {
     if (!isLightboxOpen) {
       return;
     }
-
+  
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-
+  
+    // نضيف حالة مؤقتة في History للـ Lightbox.
+    // بذلك زر الرجوع في الجوال يغلق الصورة أولًا
+    // بدل الرجوع مباشرة إلى قائمة المواهب.
+    window.history.pushState(
+      { ...window.history.state, talentLightbox: true },
+      "",
+      window.location.href,
+    );
+  
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        setIsLightboxOpen(false);
+        window.history.back();
+        return;
       }
-
+  
       if (event.key === "ArrowRight") {
         showNext();
       }
-
+  
       if (event.key === "ArrowLeft") {
         showPrevious();
       }
     }
-
+  
+    function handlePopState() {
+      closeLightbox();
+    }
+  
     window.addEventListener("keydown", handleKeyDown);
-
+    window.addEventListener("popstate", handlePopState);
+  
     return () => {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("popstate", handlePopState);
     };
-  }, [isLightboxOpen, showNext, showPrevious]);
+  }, [
+    isLightboxOpen,
+    showNext,
+    showPrevious,
+    closeLightbox,
+  ]);
 
   if (images.length === 0) {
     return (
@@ -276,71 +306,116 @@ const showNext = useCallback(() => {
         ) : null}
       </div>
 
-      {isLightboxOpen ? (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 px-3 py-16 backdrop-blur-sm sm:p-8"
-          role="dialog"
-          aria-modal="true"
-          aria-label={isRtl ? "عارض صور الموهبة" : "Talent image viewer"}
-          onTouchStart={(event) =>
-            handleTouchStart(event.touches[0]?.clientX ?? 0)
+      {isMounted && isLightboxOpen
+  ? createPortal(
+      <div
+        className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/95 p-0 backdrop-blur-sm"
+        role="dialog"
+        aria-modal="true"
+        aria-label={
+          isRtl
+            ? "عارض صور الموهبة"
+            : "Talent image viewer"
+        }
+        onClick={(event) => {
+          if (
+            event.target ===
+            event.currentTarget
+          ) {
+            window.history.back();
           }
-          onTouchMove={(event) =>
-            handleTouchMove(event.touches[0]?.clientX ?? 0)
+        }}
+        onTouchStart={(event) =>
+          handleTouchStart(
+            event.touches[0]?.clientX ??
+              0,
+          )
+        }
+        onTouchMove={(event) =>
+          handleTouchMove(
+            event.touches[0]?.clientX ??
+              0,
+          )
+        }
+        onTouchEnd={handleTouchEnd}
+      >
+        <button
+          type="button"
+          onClick={() =>
+            window.history.back()
           }
-          onTouchEnd={handleTouchEnd}
+          className="fixed end-4 top-[calc(env(safe-area-inset-top)+16px)] z-[100000] flex h-12 w-12 items-center justify-center rounded-full border border-white/25 bg-black/80 text-white shadow-xl backdrop-blur-md transition hover:border-gold/50 hover:text-gold"
+          aria-label={
+            isRtl ? "إغلاق" : "Close"
+          }
         >
-          <button
-            type="button"
-            onClick={() => setIsLightboxOpen(false)}
-            className="absolute end-4 top-4 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-black/65 text-white transition hover:border-gold/40 hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/70 sm:end-7 sm:top-7"
-            aria-label={isRtl ? "إغلاق" : "Close"}
-          >
-            <X size={21} aria-hidden="true" />
-          </button>
+          <X
+            size={24}
+            aria-hidden="true"
+          />
+        </button>
 
-          <div className="relative h-[80vh] w-full max-w-5xl">
-            <Image
-              src={activeImage}
-              alt={alt}
-              fill
-              priority
-              sizes="100vw"
-              className="object-contain"
-            />
-          </div>
-
-          {images.length > 1 ? (
-            <>
-              <button
-                type="button"
-                onClick={showPrevious}
-                className="absolute start-3 top-1/2 z-20 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-black/65 text-white transition hover:border-gold/40 hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/70 sm:start-7"
-                aria-label={
-                  isRtl ? "الصورة السابقة" : "Previous image"
-                }
-              >
-                <PreviousIcon size={22} aria-hidden="true" />
-              </button>
-
-              <button
-                type="button"
-                onClick={showNext}
-                className="absolute end-3 top-1/2 z-20 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-black/65 text-white transition hover:border-gold/40 hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/70 sm:end-7"
-                aria-label={
-                  isRtl ? "الصورة التالية" : "Next image"
-                }
-              >
-                <NextIcon size={22} aria-hidden="true" />
-              </button>
-            </>
-          ) : null}
-
-          <div className="absolute bottom-5 start-1/2 z-20 -translate-x-1/2 rounded-full border border-white/15 bg-black/65 px-4 py-2 text-xs text-white/75 backdrop-blur-md sm:bottom-7">
-            {safeActiveIndex + 1} / {images.length}
-          </div>
+        <div className="relative h-[100dvh] w-full">
+          <Image
+            src={activeImage}
+            alt={alt}
+            fill
+            priority
+            sizes="100vw"
+            className="object-contain"
+          />
         </div>
-      ) : null}
+
+        {images.length > 1 ? (
+          <>
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                showPrevious();
+              }}
+              className="fixed start-3 top-1/2 z-[100000] flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-black/70 text-white backdrop-blur-md"
+              aria-label={
+                isRtl
+                  ? "الصورة السابقة"
+                  : "Previous image"
+              }
+            >
+              <PreviousIcon
+                size={24}
+                aria-hidden="true"
+              />
+            </button>
+
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                showNext();
+              }}
+              className="fixed end-3 top-1/2 z-[100000] flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-black/70 text-white backdrop-blur-md"
+              aria-label={
+                isRtl
+                  ? "الصورة التالية"
+                  : "Next image"
+              }
+            >
+              <NextIcon
+                size={24}
+                aria-hidden="true"
+              />
+            </button>
+          </>
+        ) : null}
+
+        <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+20px)] start-1/2 z-[100000] -translate-x-1/2 rounded-full border border-white/20 bg-black/75 px-4 py-2 text-xs text-white/80 backdrop-blur-md">
+          {safeActiveIndex + 1} /{" "}
+          {images.length}
+        </div>
+      </div>,
+      document.body,
+    )
+  : null}
     </>
   );
 }

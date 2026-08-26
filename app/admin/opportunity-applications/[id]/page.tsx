@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
-
+import {
+  acceptApplicationAction,
+  markPendingApplicationAction,
+  shortlistApplicationAction,
+} from "@/lib/actions/admin-application-actions";
 export const metadata = {
   title: "Application Details — MLAMH Admin",
   robots: { index: false, follow: false },
@@ -11,25 +14,6 @@ export const metadata = {
 type PageProps = {
   params: Promise<{ id: string }>;
 };
-
-async function updateApplicationStatus(formData: FormData) {
-  "use server";
-
-  const id = Number(formData.get("application_id"));
-  const status = String(formData.get("status") || "");
-
-  if (!id || !status) return;
-
-  const adminClient = createAdminClient();
-
-  await adminClient
-    .from("opportunity_applications")
-    .update({ status })
-    .eq("id", id);
-
-  revalidatePath(`/admin/opportunity-applications/${id}`);
-  revalidatePath("/admin/opportunity-applications");
-}
 
 function formatDate(value?: string | null) {
   if (!value) return "—";
@@ -64,6 +48,24 @@ function statusLabel(status?: string | null) {
       return "Rejected";
     default:
       return "Pending";
+  }
+}
+
+function getStatusAction(
+  status: string,
+) {
+  switch (status) {
+    case "pending":
+      return markPendingApplicationAction;
+
+    case "shortlisted":
+      return shortlistApplicationAction;
+
+    case "accepted":
+      return acceptApplicationAction;
+
+    default:
+      return null;
   }
 }
 
@@ -219,24 +221,63 @@ export default async function AdminApplicationDetailsPage({ params }: PageProps)
           </div>
 
           <div className="mt-8 flex flex-wrap gap-3 border-t border-white/10 pt-6">
-            {["pending", "shortlisted", "accepted", "rejected"].map((nextStatus) => (
-              <form key={nextStatus} action={updateApplicationStatus}>
-                <input type="hidden" name="application_id" value={application.id} />
-                <input type="hidden" name="status" value={nextStatus} />
+  {["pending", "shortlisted", "accepted"].map(
+    (nextStatus) => {
+      const action =
+        getStatusAction(nextStatus);
 
-                <button
-                  type="submit"
-                  className={`rounded-full border px-5 py-3 text-[10px] uppercase tracking-[0.25em] transition ${
-                    status === nextStatus
-                      ? "pointer-events-none border-gold/40 bg-gold/10 text-gold"
-                      : "border-white/10 text-white/60 hover:border-gold/40 hover:text-gold"
-                  }`}
-                >
-                  {statusLabel(nextStatus)}
-                </button>
-              </form>
-            ))}
-          </div>
+      if (!action) {
+        return null;
+      }
+
+      const isCurrent =
+        status === nextStatus;
+
+      return (
+        <form
+          key={nextStatus}
+          action={action}
+        >
+          <input
+            type="hidden"
+            name="application_id"
+            value={application.id}
+          />
+
+          <input
+            type="hidden"
+            name="locale"
+            value="ar"
+          />
+
+          <button
+            type="submit"
+            className={`rounded-full border px-5 py-3 text-[10px] uppercase tracking-[0.25em] transition ${
+              isCurrent
+                ? "border-gold/40 bg-gold/10 text-gold"
+                : "border-white/10 text-white/60 hover:border-gold/40 hover:text-gold"
+            }`}
+          >
+            {statusLabel(nextStatus)}
+          </button>
+        </form>
+      );
+    },
+  )}
+
+  <button
+    type="button"
+    disabled
+    title="يجب إدخال سبب الرفض من شاشة المراجعة المعتمدة."
+    className={`rounded-full border px-5 py-3 text-[10px] uppercase tracking-[0.25em] ${
+      status === "rejected"
+        ? "border-red-500/30 bg-red-500/10 text-red-300"
+        : "cursor-not-allowed border-white/10 text-white/25"
+    }`}
+  >
+    Rejected
+  </button>
+</div>
         </section>
 
         <div className="grid gap-6 lg:grid-cols-2">

@@ -15,8 +15,9 @@ type PageProps = {
 type ConversationRecord = {
   id: number;
   opportunity_id: number;
-  publisher_id: number;
+  publisher_id: number | null;
   talent_id: number;
+  conversation_type: string | null;
   status: string | null;
   updated_at: string | null;
 };
@@ -94,6 +95,7 @@ export default async function TalentMessagesPage({
       opportunity_id,
       publisher_id,
       talent_id,
+      conversation_type,
       status,
       updated_at
     `)
@@ -123,9 +125,14 @@ export default async function TalentMessagesPage({
 
   const publisherIds = [
     ...new Set(
-      conversations.map(
-        (conversation) => conversation.publisher_id,
-      ),
+      conversations
+        .map(
+          (conversation) => conversation.publisher_id,
+        )
+        .filter(
+          (publisherId): publisherId is number =>
+            publisherId !== null,
+        ),
     ),
   ];
 
@@ -294,9 +301,9 @@ export default async function TalentMessagesPage({
               </h1>
 
               <p className="mt-2 max-w-2xl text-sm leading-6 text-white/45 sm:mt-3 sm:leading-7">
-                {isArabic
-                  ? "تواصل مع الناشرين بعد قبول طلبك في الفرص."
-                  : "Communicate with publishers after your application is accepted."}
+              {isArabic
+  ? "تواصل مع الجهة أو ملامح بعد قبول طلبك في الفرص."
+  : "Communicate with the publisher or MLAMH after your application is accepted."}
               </p>
             </div>
 
@@ -326,9 +333,13 @@ export default async function TalentMessagesPage({
           {conversations.length > 0 ? (
             <div className="divide-y divide-white/10">
               {conversations.map((conversation) => {
-                const publisher = publisherMap.get(
-                  conversation.publisher_id,
-                );
+  const isMlamhConversation =
+    conversation.conversation_type === "mlamh_talent";
+
+  const publisher =
+    conversation.publisher_id !== null
+      ? publisherMap.get(conversation.publisher_id)
+      : undefined;
 
                 const opportunity = opportunityMap.get(
                   conversation.opportunity_id,
@@ -386,10 +397,14 @@ export default async function TalentMessagesPage({
                 const unreadCount =
                   unreadCountMap.get(conversation.id) ?? 0;
 
-                const publisherName =
-                  publisher?.company_name ||
-                  publisher?.contact_name ||
-                  (isArabic ? "الناشر" : "Publisher");
+                  const conversationPartyName =
+                  isMlamhConversation
+                    ? isArabic
+                      ? "ملامح"
+                      : "MLAMH"
+                    : publisher?.company_name ||
+                      publisher?.contact_name ||
+                      (isArabic ? "الناشر" : "Publisher");
 
                 const lastActivity =
                   latestMessage?.created_at ||
@@ -405,7 +420,7 @@ export default async function TalentMessagesPage({
                       <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full border border-white/10 sm:h-16 sm:w-16">
                       <Image
                         src={publisher.profile_image_url}
-                        alt={publisherName}
+                        alt={conversationPartyName}
                         fill
                         sizes="64px"
                         className="object-cover"
@@ -413,7 +428,7 @@ export default async function TalentMessagesPage({
                     </div>
                     ) : (
                       <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-base text-gold sm:h-16 sm:w-16 sm:text-xl">
-                        {publisherName.slice(0, 1)}
+                        {conversationPartyName.slice(0, 1)}
                       </div>
                     )}
 
@@ -428,7 +443,7 @@ export default async function TalentMessagesPage({
                                   : "font-light text-white/85"
                               }`}
                             >
-                              {publisherName}
+                              {conversationPartyName}
                             </h2>
 
                             {conversation.status === "active" ? (

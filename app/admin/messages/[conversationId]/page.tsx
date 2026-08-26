@@ -14,6 +14,11 @@ import {
 
 import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { reviewReportedMessageAction } from "@/lib/actions/admin-message-actions";
+import {
+  closeConversationAction,
+  markConversationReadAction,
+  sendMessageAction,
+} from "@/lib/actions/message-actions";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 type PageProps = {
@@ -26,8 +31,14 @@ type ConversationRecord = {
   id: number;
   application_id: number | null;
   opportunity_id: number;
-  publisher_id: number;
+  publisher_id: number | null;
   talent_id: number;
+  admin_user_id: string | null;
+  conversation_type:
+    | "publisher_talent"
+    | "mlamh_talent"
+    | string
+    | null;
   status: string | null;
   closed_at: string | null;
   updated_at: string | null;
@@ -160,6 +171,7 @@ function formatFileSize(
 export default async function AdminConversationPage({
   params,
 }: PageProps) {
+  const adminUser =
   await requireAdminAccess();
 
   const {
@@ -193,6 +205,8 @@ export default async function AdminConversationPage({
       opportunity_id,
       publisher_id,
       talent_id,
+      admin_user_id,
+      conversation_type,
       status,
       closed_at,
       updated_at
@@ -215,7 +229,25 @@ export default async function AdminConversationPage({
 
   const conversation =
     conversationData as ConversationRecord;
-
+    const isMlamhConversation =
+    conversation.conversation_type ===
+    "mlamh_talent";
+  
+  const isAssignedMlamhAdmin =
+    isMlamhConversation &&
+    conversation.admin_user_id ===
+      adminUser.id;
+  
+  const canAdminSend =
+    isAssignedMlamhAdmin &&
+    (conversation.status ?? "active") ===
+      "active";
+      if (isAssignedMlamhAdmin) {
+        await markConversationReadAction(
+          conversation.id,
+        );
+      }
+      
   const [
     messagesResult,
     attachmentsResult,
@@ -295,7 +327,8 @@ export default async function AdminConversationPage({
       )
       .maybeSingle(),
 
-    adminClient
+    conversation.publisher_id
+  ? adminClient
       .from("publishers")
       .select(`
         id,
@@ -310,7 +343,11 @@ export default async function AdminConversationPage({
         "id",
         conversation.publisher_id,
       )
-      .maybeSingle(),
+      .maybeSingle()
+  : Promise.resolve({
+      data: null,
+      error: null,
+    }),
 
     adminClient
       .from("opportunities")
@@ -509,10 +546,12 @@ export default async function AdminConversationPage({
     talent?.name_en ||
     "موهبة غير معروفة";
 
-  const publisherName =
-    publisher?.company_name ||
-    publisher?.contact_name ||
-    "ناشر غير معروف";
+    const publisherName =
+    isMlamhConversation
+      ? "ملامح"
+      : publisher?.company_name ||
+        publisher?.contact_name ||
+        "ناشر غير معروف";
 
   const opportunityTitle =
     opportunity?.title ||
@@ -531,41 +570,46 @@ export default async function AdminConversationPage({
         !message.report_reviewed_at,
     );
 
-  function getSender(
-    senderUserId: string,
-  ) {
-    if (
-      talent?.user_id &&
-      senderUserId ===
-        talent.user_id
+    function getSender(
+      senderUserId: string,
     ) {
+      if (
+        talent?.user_id &&
+        senderUserId === talent.user_id
+      ) {
+        return {
+          type: "talent" as const,
+          label: talentName,
+        };
+      }
+    
+      if (
+        isMlamhConversation &&
+        conversation.admin_user_id &&
+        senderUserId ===
+          conversation.admin_user_id
+      ) {
+        return {
+          type: "mlamh" as const,
+          label: "ملامح",
+        };
+      }
+    
+      if (
+        publisherUserId &&
+        senderUserId === publisherUserId
+      ) {
+        return {
+          type: "publisher" as const,
+          label: publisherName,
+        };
+      }
+    
       return {
-        type: "talent" as const,
-        label:
-          talentName,
+        type: "unknown" as const,
+        label: "مستخدم غير معروف",
       };
     }
-
-    if (
-      publisherUserId &&
-      senderUserId ===
-        publisherUserId
-    ) {
-      return {
-        type:
-          "publisher" as const,
-
-        label:
-          publisherName,
-      };
-    }
-
-    return {
-      type: "unknown" as const,
-      label:
-        "مستخدم غير معروف",
-    };
-  }
 
   return (
     <div
@@ -657,6 +701,32 @@ export default async function AdminConversationPage({
   ) : null}
 </a>
                   </div>
+                  {isAssignedMlamhAdmin &&
+                  isActive ? (
+                    <form
+                      action={closeConversationAction}
+                      className="sm:mr-auto"
+                    >
+                      <input
+                        type="hidden"
+                        name="conversationId"
+                        value={conversation.id}
+                      />
+
+                      <input
+                        type="hidden"
+                        name="locale"
+                        value="ar"
+                      />
+
+                      <button
+                        type="submit"
+                        className="rounded-full border border-red-400/25 bg-red-400/[0.05] px-5 py-2.5 text-xs text-red-300 transition hover:border-red-400/40 hover:bg-red-400/[0.1]"
+                      >
+                        إغلاق المحادثة
+                      </button>
+                    </form>
+                  ) : null}
                 </div>
               </header>
 
@@ -726,7 +796,7 @@ export default async function AdminConversationPage({
                 <p className="mt-2 text-sm leading-6 text-red-100/80">
                   {message.report_reason}
                 </p>
-              </div>
+                </div>
             ) : null}
 
             <form
@@ -739,11 +809,11 @@ export default async function AdminConversationPage({
                 value={message.id}
               />
 
-              <input
-                type="hidden"
-                name="conversation_id"
-                value={conversation.id}
-              />
+<input
+  type="hidden"
+  name="conversationId"
+  value={conversation.id}
+/>
 
               <label className="mb-2 block text-xs text-white/45">
                 ملاحظة الإدارة
@@ -1000,10 +1070,55 @@ export default async function AdminConversationPage({
               </div>
 
               <footer className="border-t border-white/[0.08] bg-black/25 px-5 py-4">
-                <p className="text-center text-xs text-white/35">
-                  وضع مراقبة الإدارة — لا يمكن إرسال رسائل من هذه الصفحة.
-                </p>
-              </footer>
+  {canAdminSend ? (
+    <form
+      action={sendMessageAction}
+      className="space-y-3"
+    >
+      <input
+        type="hidden"
+        name="conversation_id"
+        value={conversation.id}
+      />
+
+      <input
+        type="hidden"
+        name="locale"
+        value="ar"
+      />
+
+      <textarea
+        name="body"
+        rows={3}
+        maxLength={3000}
+        required
+        placeholder="اكتب رسالة إلى الموهبة..."
+        className="w-full resize-none rounded-2xl border border-white/[0.08] bg-black/30 px-4 py-3 text-sm leading-7 text-white outline-none placeholder:text-white/25 focus:border-gold/40"
+      />
+
+      <div className="flex items-center justify-between gap-4">
+        <p className="text-[10px] text-white/30">
+          سيتم إرسال الرسالة باسم ملامح
+        </p>
+
+        <button
+          type="submit"
+          className="rounded-full border border-gold/30 bg-gold/[0.08] px-6 py-2.5 text-xs text-gold transition hover:bg-gold hover:text-black"
+        >
+          إرسال الرسالة
+        </button>
+      </div>
+    </form>
+  ) : isMlamhConversation ? (
+    <p className="text-center text-xs text-white/35">
+      هذه المحادثة مرتبطة بمدير نظام آخر أو أنها مغلقة.
+    </p>
+  ) : (
+    <p className="text-center text-xs text-white/35">
+      وضع مراقبة الإدارة — لا يمكن إرسال رسائل من هذه الصفحة.
+    </p>
+  )}
+</footer>
             </section>
           </main>
 
@@ -1016,27 +1131,24 @@ export default async function AdminConversationPage({
               <div className="mt-5 space-y-5">
                 <div className="flex items-center gap-3">
                   <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full border border-white/10 bg-white/[0.04]">
-                    {publisher?.profile_image_url ? (
-                      <Image
-                        src={
-                          publisher.profile_image_url
-                        }
-                        alt={
-                          publisherName
-                        }
-                        fill
-                        sizes="48px"
-                        className="object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-gold">
-                        <Building2
-                          size={
-                            18
-                          }
-                        />
-                      </div>
-                    )}
+                  {!isMlamhConversation &&
+publisher?.profile_image_url ? (
+  <Image
+    src={publisher.profile_image_url}
+    alt={publisherName}
+    fill
+    sizes="48px"
+    className="object-cover"
+  />
+) : (
+  <div className="flex h-full w-full items-center justify-center text-gold">
+    {isMlamhConversation ? (
+      <MessageCircle size={18} />
+    ) : (
+      <Building2 size={18} />
+    )}
+  </div>
+)}
                   </div>
 
                   <div className="min-w-0">
@@ -1047,8 +1159,10 @@ export default async function AdminConversationPage({
                     </p>
 
                     <p className="mt-1 text-xs text-white/35">
-                      الناشر
-                    </p>
+  {isMlamhConversation
+    ? "فريق ملامح"
+    : "الناشر"}
+</p>
                   </div>
                 </div>
 

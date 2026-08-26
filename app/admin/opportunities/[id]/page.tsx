@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import AdminOpportunityLiveRefresh from "@/components/admin/opportunities/AdminOpportunityLiveRefresh";
 import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
@@ -10,6 +11,12 @@ import {
   requestChangesOpportunityAction,
   archiveOpportunityAction,
 } from "@/lib/actions/admin-opportunity-actions";
+
+import {
+  acceptApplicationAction,
+  rejectAdminApplicationAction,
+  shortlistApplicationAction,
+} from "@/lib/actions/admin-application-actions";
 
 export const metadata = {
   title: "Opportunity Details — MLAMH Admin",
@@ -192,6 +199,8 @@ export default async function AdminOpportunityDetailsPage({
   if (!opportunity) {
     notFound();
   }
+  const isManagedByMlamh =
+  opportunity.role_requirements?.managed_by === "mlamh";
 
   const { data: applications } = await adminClient
     .from("opportunity_applications")
@@ -219,9 +228,11 @@ export default async function AdminOpportunityDetailsPage({
 
   return (
     <main
-  dir={isRtl ? "rtl" : "ltr"}
-  className="min-h-screen bg-background px-6 py-10 text-white"
->
+      dir={isRtl ? "rtl" : "ltr"}
+      className="min-h-screen bg-background px-6 py-10 text-white"
+    >
+      <AdminOpportunityLiveRefresh />
+  
       <div className="mx-auto max-w-7xl">
         <header className="mb-10 flex flex-col gap-6 border-b border-white/[0.08] pb-8 md:flex-row md:items-end md:justify-between">
           <div>
@@ -295,8 +306,9 @@ export default async function AdminOpportunityDetailsPage({
     </Link>
   ) : null}
 
-  {opportunity.status === "pending_review" &&
-  !opportunity.published ? (
+  {!isManagedByMlamh &&
+opportunity.status === "pending_review" &&
+!opportunity.published ? (
     <form action={publishOpportunityAction}>
       <input
         type="hidden"
@@ -789,20 +801,111 @@ export default async function AdminOpportunityDetailsPage({
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3">
-                      <span className="rounded-full border border-gold/30 bg-gold/10 px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-gold">
-                        {application.status || "pending"}
-                      </span>
+                    <span className="rounded-full border border-gold/30 bg-gold/10 px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-gold">
+  {application.status === "shortlisted"
+    ? isRtl
+      ? "مرشّح"
+      : "Shortlisted"
+    : application.status === "accepted"
+      ? isRtl
+        ? "مقبول"
+        : "Accepted"
+      : application.status === "rejected"
+        ? isRtl
+          ? "مرفوض"
+          : "Rejected"
+        : isRtl
+          ? "قيد المراجعة"
+          : "Pending"}
+</span>
 
-                      {talent?.slug ? (
-                        <Link
-                          href={`/ar/talent/${talent.slug}`}
-                          target="_blank"
-                          className="rounded-full border border-white/10 px-4 py-2 text-[10px] uppercase tracking-[0.2em] text-white/60 transition hover:border-gold/40 hover:text-gold"
-                        >
-                          {isRtl ? "عرض الموهبة" : "View Talent"}
-                        </Link>
-                      ) : null}
-                    </div>
+  {application.status !== "accepted" &&
+  application.status !== "rejected" ? (
+    <>
+      {application.status !== "shortlisted" ? (
+  <form action={shortlistApplicationAction}>
+    <input
+      type="hidden"
+      name="application_id"
+      value={application.id}
+    />
+    <input
+      type="hidden"
+      name="locale"
+      value={isRtl ? "ar" : "en"}
+    />
+
+    <button
+      type="submit"
+      className="rounded-full border border-blue-500/30 bg-blue-500/[0.06] px-4 py-2 text-[10px] text-blue-300 transition hover:bg-blue-500/10"
+    >
+      {isRtl ? "ترشيح" : "Shortlist"}
+    </button>
+  </form>
+) : null}
+
+      <form action={acceptApplicationAction}>
+        <input
+          type="hidden"
+          name="application_id"
+          value={application.id}
+        />
+        <input
+          type="hidden"
+          name="locale"
+          value={isRtl ? "ar" : "en"}
+        />
+
+        <button
+          type="submit"
+          className="rounded-full border border-emerald-500/30 bg-emerald-500/[0.06] px-4 py-2 text-[10px] text-emerald-300 transition hover:bg-emerald-500/10"
+        >
+          {isRtl ? "قبول" : "Accept"}
+        </button>
+      </form>
+
+      <form
+        action={rejectAdminApplicationAction}
+        className="flex items-center gap-2"
+      >
+        <input
+          type="hidden"
+          name="application_id"
+          value={application.id}
+        />
+        <input
+          type="hidden"
+          name="locale"
+          value={isRtl ? "ar" : "en"}
+        />
+
+        <input
+          type="text"
+          name="reason"
+          required
+          placeholder={isRtl ? "سبب الرفض" : "Rejection reason"}
+          className="h-9 min-w-[150px] rounded-full border border-white/10 bg-black/20 px-3 text-[10px] text-white outline-none placeholder:text-white/30 focus:border-red-500/40"
+        />
+
+        <button
+          type="submit"
+          className="rounded-full border border-red-500/30 bg-red-500/[0.06] px-4 py-2 text-[10px] text-red-300 transition hover:bg-red-500/10"
+        >
+          {isRtl ? "رفض" : "Reject"}
+        </button>
+      </form>
+    </>
+  ) : null}
+
+  {talent?.id ? (
+    <Link
+      href={`/admin/talents/${talent.id}?lang=${isRtl ? "ar" : "en"}`}
+      className="rounded-full border border-white/10 px-4 py-2 text-[10px] uppercase tracking-[0.2em] text-white/60 transition hover:border-gold/40 hover:text-gold"
+    >
+      {isRtl ? "مراجعة الموهبة" : "Review Talent"}
+    </Link>
+  ) : null}
+</div>
                   </article>
                 );
               })}

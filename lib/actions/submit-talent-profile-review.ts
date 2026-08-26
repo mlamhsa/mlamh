@@ -214,19 +214,37 @@ if (!readiness.canSubmitForReview) {
     })
     .eq("user_id", user.id);
 
-  if (talentUpdateError) {
-    console.error(
-      "[submitTalentProfileReviewAction updateTalent]",
-      talentUpdateError,
-    );
-
-    return {
-      success: false,
-      message: isArabic
-        ? "تم تحديث حالة الحساب، لكن تعذر تحديث حالة ملف الموهبة."
-        : "The account status was updated, but the talent profile status could not be updated.",
-    };
-  }
+    if (talentUpdateError) {
+      console.error(
+        "[submitTalentProfileReviewAction updateTalent]",
+        talentUpdateError,
+      );
+    
+      const { error: rollbackError } =
+        await adminClient
+          .from("profiles")
+          .update({
+            approval_status:
+              profile.approval_status ??
+              "not_submitted",
+          })
+          .eq("id", profile.id)
+          .eq("user_id", user.id);
+    
+      if (rollbackError) {
+        console.error(
+          "[submitTalentProfileReviewAction rollbackProfile]",
+          rollbackError,
+        );
+      }
+    
+      return {
+        success: false,
+        message: isArabic
+          ? "تعذر تحديث حالة ملف الموهبة. تم إلغاء إرسال الملف للمراجعة، حاول مرة أخرى."
+          : "Unable to update the talent profile status. The review submission was cancelled. Please try again.",
+      };
+    }
 
   try {
     const talentName =

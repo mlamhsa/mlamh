@@ -2,7 +2,7 @@
 
 import type { Metadata } from "next";
 import Link from "next/link";
-
+import { Fragment } from "react";
 import { getCurrentAccountType } from "@/lib/auth/get-current-account-type";
 import { getPublishedOpportunities } from "@/lib/supabase/opportunities";
 
@@ -465,6 +465,9 @@ export default async function OpportunitiesPage({
     required_gender?: string | null;
     min_age?: number | null;
     max_age?: number | null;
+  
+    application_deadline?: string | null;
+    application_days?: number | null;
   };
 
   type BudgetSortCategory =
@@ -506,6 +509,43 @@ const getBudgetSortData = (
     category: "negotiable",
     value: null,
   };
+};
+const isOpportunityOpenForApplications = (
+  item: Opportunity,
+) => {
+  const now = Date.now();
+
+  if (item.application_deadline) {
+    const deadline = new Date(
+      item.application_deadline,
+    ).getTime();
+
+    if (!Number.isNaN(deadline)) {
+      return deadline >= now;
+    }
+  }
+
+  if (
+    item.created_at &&
+    item.application_days
+  ) {
+    const createdAt = new Date(
+      item.created_at,
+    );
+
+    if (!Number.isNaN(createdAt.getTime())) {
+      const deadline = new Date(createdAt);
+
+      deadline.setDate(
+        deadline.getDate() +
+          item.application_days,
+      );
+
+      return deadline.getTime() >= now;
+    }
+  }
+
+  return true;
 };
 
   const search = resolvedSearchParams.search ?? "";
@@ -635,6 +675,18 @@ const selectedSort = resolvedSearchParams.sort || "newest";
         new Date(a.created_at ?? 0).getTime()
       );
     });
+
+    const activeOpportunities =
+  filteredOpportunities.filter(
+    (item: Opportunity) =>
+      isOpportunityOpenForApplications(item),
+  );
+
+const expiredOpportunities =
+  filteredOpportunities.filter(
+    (item: Opportunity) =>
+      !isOpportunityOpenForApplications(item),
+  );
 
   const latestUpdate = opportunities[0]?.created_at
     ? getRelativeDate(opportunities[0].created_at, locale)
@@ -892,10 +944,10 @@ const selectedSort = resolvedSearchParams.sort || "newest";
               </p>
 
               <h2 className="mt-1 text-xl font-semibold">
-                {isRtl
-                  ? `${filteredOpportunities.length} فرصة متاحة`
-                  : `${filteredOpportunities.length} opportunities`}
-              </h2>
+  {isRtl
+    ? `${activeOpportunities.length} فرصة متاحة`
+    : `${activeOpportunities.length} available opportunities`}
+</h2>
             </div>
 
             <span className="shrink-0 text-xs text-white/35">
@@ -933,7 +985,10 @@ const selectedSort = resolvedSearchParams.sort || "newest";
             </div>
           ) : (
             <div className="grid gap-4">
-              {filteredOpportunities.map((item: Opportunity) => {
+              {[
+  ...activeOpportunities,
+  ...expiredOpportunities,
+].map((item: Opportunity, index: number) => {
                 const slug = item.slug || String(item.id);
 
                 const city = isRtl
@@ -945,6 +1000,13 @@ const selectedSort = resolvedSearchParams.sort || "newest";
                   : "—";
 
                 const isNew = isNewOpportunity(item.created_at);
+                const isOpen =
+  isOpportunityOpenForApplications(item);
+
+const isExpired = !isOpen;
+const showExpiredDivider =
+  isExpired &&
+  index === activeOpportunities.length;
                 const budget = formatBudget(
                   item.budget,
                   item.compensation_type,
@@ -965,11 +1027,36 @@ const selectedSort = resolvedSearchParams.sort || "newest";
                 const imageUrl =
                   item.cover_image || item.image_url || null;
 
-                return (
-                  <Link
+                  return (
+                    <Fragment key={item.id}>
+                      {showExpiredDivider ? (
+                        <div className="mt-6 border-t border-red-500/15 pt-6">
+                          <div className="flex items-center gap-2">
+                            <span className="h-2 w-2 rounded-full bg-red-500" />
+                  
+                            <h2 className="text-lg font-semibold text-white">
+                              {isRtl
+                                ? "فرص انتهى التقديم عليها"
+                                : "Closed opportunities"}
+                            </h2>
+                          </div>
+                  
+                          <p className="mt-2 text-xs leading-5 text-white/35">
+                            {isRtl
+                              ? "يمكنك استعراض هذه الفرص، لكن التقديم عليها مغلق."
+                              : "You can still view these opportunities, but applications are closed."}
+                          </p>
+                        </div>
+                      ) : null}
+                  
+                      <Link
                     key={item.id}
                     href={`/${locale}/opportunities/${slug}`}
-                    className="group overflow-hidden rounded-[1.75rem] border border-white/[0.08] bg-white/[0.03] transition active:scale-[0.99]"
+                    className={`group overflow-hidden rounded-[1.75rem] border bg-white/[0.03] transition active:scale-[0.99] ${
+                      isExpired
+                        ? "border-white/[0.05] opacity-60"
+                        : "border-white/[0.08]"
+                    }`}
                   >
                     {imageUrl ? (
                       <div
@@ -985,11 +1072,17 @@ const selectedSort = resolvedSearchParams.sort || "newest";
                             {typeLabel}
                           </span>
 
-                          {isNew ? (
-                            <span className="rounded-full border border-emerald-300/25 bg-emerald-300/[0.12] px-3 py-1 text-[10px] text-emerald-200 backdrop-blur">
-                              {isRtl ? "جديدة" : "New"}
-                            </span>
-                          ) : null}
+                          {isExpired ? (
+  <span className="rounded-full border border-red-300/25 bg-red-300/[0.12] px-3 py-1 text-[10px] text-red-200 backdrop-blur">
+    {isRtl
+      ? "انتهى التقديم"
+      : "Applications closed"}
+  </span>
+) : isNew ? (
+  <span className="rounded-full border border-emerald-300/25 bg-emerald-300/[0.12] px-3 py-1 text-[10px] text-emerald-200 backdrop-blur">
+    {isRtl ? "جديدة" : "New"}
+  </span>
+) : null}
                         </div>
                       </div>
                     ) : null}
@@ -1105,7 +1198,8 @@ const selectedSort = resolvedSearchParams.sort || "newest";
                         </span>
                       </div>
                     </div>
-                  </Link>
+                    </Link>
+                </Fragment>
                 );
               })}
             </div>
@@ -1395,7 +1489,10 @@ const selectedSort = resolvedSearchParams.sort || "newest";
             </section>
           ) : (
             <section className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-              {filteredOpportunities.map((item: Opportunity) => {
+              {[
+  ...activeOpportunities,
+  ...expiredOpportunities,
+].map((item: Opportunity, index: number) => {
                 const slug = item.slug || String(item.id);
 
                 const city = isRtl
@@ -1407,11 +1504,20 @@ const selectedSort = resolvedSearchParams.sort || "newest";
                   : "—";
 
                 const isNew = isNewOpportunity(item.created_at);
-                const budget = formatBudget(
-                  item.budget,
-                  item.compensation_type,
-                  isRtl,
-                );
+                const isOpen =
+  isOpportunityOpenForApplications(item);
+
+  const isExpired = !isOpen;
+
+  const showExpiredDivider =
+    isExpired &&
+    index === activeOpportunities.length;
+  
+  const budget = formatBudget(
+    item.budget,
+    item.compensation_type,
+    isRtl,
+  );
 
                 const typeLabel = getOpportunityTypeLabel(
                   item.opportunity_type,
@@ -1427,11 +1533,45 @@ const selectedSort = resolvedSearchParams.sort || "newest";
                 const imageUrl =
                   item.cover_image || item.image_url || null;
 
-                return (
-                  <Link
-                    key={item.id}
+                  return (
+                    <Fragment key={item.id}>
+                      {showExpiredDivider ? (
+                        <div className="col-span-full mt-8 border-t border-red-500/15 pt-8">
+                          <div className="flex items-end justify-between gap-6">
+                            <div>
+                              <div className="flex items-center gap-3">
+                                <span className="h-2.5 w-2.5 rounded-full bg-red-500" />
+                  
+                                <h2 className="text-2xl font-light text-white">
+                                  {isRtl
+                                    ? "فرص انتهى التقديم عليها"
+                                    : "Closed Opportunities"}
+                                </h2>
+                              </div>
+                  
+                              <p className="mt-2 text-sm text-white/35">
+                                {isRtl
+                                  ? "يمكنك استعراض الفرص السابقة، لكن التقديم عليها مغلق."
+                                  : "You can browse previous opportunities, but applications are closed."}
+                              </p>
+                            </div>
+                  
+                            <span className="rounded-full border border-red-500/20 bg-red-500/[0.06] px-4 py-2 text-xs text-red-400">
+                              {isRtl
+                                ? `${expiredOpportunities.length} فرصة`
+                                : `${expiredOpportunities.length} opportunities`}
+                            </span>
+                          </div>
+                        </div>
+                      ) : null}
+                  
+                      <Link
                     href={`/${locale}/opportunities/${slug}`}
-                    className="group overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/[0.025] transition duration-500 hover:-translate-y-1 hover:border-gold/35 hover:shadow-[0_24px_70px_rgba(201,169,98,0.1)]"
+                    className={`group overflow-hidden rounded-[1.75rem] border bg-white/[0.025] transition duration-500 ${
+                      isExpired
+                        ? "border-red-500/15 opacity-60"
+                        : "border-white/10 hover:-translate-y-1 hover:border-gold/35 hover:shadow-[0_24px_70px_rgba(201,169,98,0.1)]"
+                    }`}
                   >
                     {imageUrl ? (
                       <div
@@ -1447,11 +1587,15 @@ const selectedSort = resolvedSearchParams.sort || "newest";
                             {typeLabel}
                           </span>
 
-                          {isNew ? (
-                            <span className="rounded-full border border-emerald-300/25 bg-emerald-300/[0.1] px-3 py-1 text-[10px] text-emerald-200 backdrop-blur">
-                              {isRtl ? "جديدة" : "New"}
-                            </span>
-                          ) : null}
+                          {isExpired ? (
+  <span className="rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1 text-[10px] font-medium text-red-400 backdrop-blur">
+    {isRtl ? "انتهى التقديم" : "Applications closed"}
+  </span>
+) : isNew ? (
+  <span className="rounded-full border border-emerald-300/25 bg-emerald-300/[0.1] px-3 py-1 text-[10px] text-emerald-200 backdrop-blur">
+    {isRtl ? "جديدة" : "New"}
+  </span>
+) : null}
                         </div>
                       </div>
                     ) : null}
@@ -1463,11 +1607,15 @@ const selectedSort = resolvedSearchParams.sort || "newest";
                             {typeLabel}
                           </span>
 
-                          {isNew ? (
-                            <span className="rounded-full border border-emerald-300/25 bg-emerald-300/[0.07] px-3 py-1 text-[10px] text-emerald-200">
-                              {isRtl ? "جديدة" : "New"}
-                            </span>
-                          ) : null}
+                          {isExpired ? (
+  <span className="rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1 text-[10px] font-medium text-red-400">
+    {isRtl ? "انتهى التقديم" : "Applications closed"}
+  </span>
+) : isNew ? (
+  <span className="rounded-full border border-emerald-300/25 bg-emerald-300/[0.07] px-3 py-1 text-[10px] text-emerald-200">
+    {isRtl ? "جديدة" : "New"}
+  </span>
+) : null}
                         </div>
                       ) : null}
 
@@ -1583,7 +1731,8 @@ const selectedSort = resolvedSearchParams.sort || "newest";
                         </div>
                       </div>
                     </div>
-                  </Link>
+                    </Link>
+                </Fragment>
                 );
               })}
             </section>

@@ -608,18 +608,29 @@ export default async function AdminOpportunitiesPage({
   return (
     <AdminPageContainer>
       <div dir={isArabic ? "rtl" : "ltr"}>
-        <AdminPageHeader
-          title={
-            isArabic
-              ? "إدارة الفرص"
-              : "Opportunity Management"
-          }
-          description={
-            isArabic
-              ? "راجع الفرص واعتمدها أو اطلب تعديلها، وتابع حالتها من مكان واحد."
-              : "Review, approve, publish, hide, and monitor all platform opportunities."
-          }
-        />
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+          <AdminPageHeader
+            title={
+              isArabic
+                ? "إدارة الفرص"
+                : "Opportunity Management"
+            }
+            description={
+              isArabic
+                ? "راجع الفرص واعتمدها أو اطلب تعديلها، وتابع حالتها من مكان واحد."
+                : "Review, approve, publish, hide, and monitor all platform opportunities."
+            }
+          />
+
+          <Link
+            href="/admin/opportunities/new"
+            className="inline-flex min-h-11 items-center justify-center rounded-full border border-gold/40 bg-gold/[0.08] px-6 py-3 text-sm font-medium text-gold transition hover:bg-gold hover:text-black"
+          >
+            {isArabic
+              ? "+ إنشاء فرصة مُدارة"
+              : "+ Create Managed Opportunity"}
+          </Link>
+        </div>
 
         {hasPublisherFilter ? (
           <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-gold/20 bg-gold/[0.05] px-5 py-4">
@@ -883,7 +894,12 @@ export default async function AdminOpportunitiesPage({
         ) : (
           <AdminGrid>
             {opportunities.map(
-              (opportunity) => (
+  (opportunity) => {
+    const isManagedByMlamh =
+      opportunity.role_requirements?.managed_by ===
+      "mlamh";
+
+    return (
                 <AdminCard
                   key={opportunity.id}
                 >
@@ -1150,7 +1166,19 @@ export default async function AdminOpportunitiesPage({
                         ? "تفاصيل الإدارة"
                         : "Admin Details"}
                     </Link>
-
+                    <Link
+  href={`/admin/opportunities/${opportunity.id}?lang=${language}#applications`}
+  className={[
+    "inline-flex min-h-11 items-center justify-center rounded-full border border-gold/30 bg-gold/[0.04] px-5 py-3 text-[10px] text-gold transition hover:bg-gold/10",
+    isArabic
+      ? "tracking-normal"
+      : "uppercase tracking-[0.25em]",
+  ].join(" ")}
+>
+  {isArabic
+    ? "عرض المتقدمين"
+    : "View Applicants"}
+</Link>
                     {opportunity.slug ? (
                       <Link
                         href={`/${language}/opportunities/${opportunity.slug}`}
@@ -1256,10 +1284,9 @@ export default async function AdminOpportunitiesPage({
                   </div>
 
                   {/* Review decisions */}
-                  {(opportunity.status !==
-  "rejected" &&
-  opportunity.status !==
-    "needs_changes") ? (
+{!isManagedByMlamh &&
+opportunity.status !== "rejected" &&
+opportunity.status !== "needs_changes" ? (
                     <div className="mt-5 grid gap-4 xl:grid-cols-2">
                       {opportunity.status !==
                       "needs_changes" ? (
@@ -1390,9 +1417,10 @@ export default async function AdminOpportunitiesPage({
                       ) : null}
                     </div>
                   ) : null}
-                </AdminCard>
-              ),
-            )}
+                                </AdminCard>
+              );
+            },
+          )}
           </AdminGrid>
         )}
       </div>

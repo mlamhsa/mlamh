@@ -33,14 +33,15 @@ type PageProps = {
     }>;
   };
 
-type ConversationRecord = {
-  id: number;
-  opportunity_id: number;
-  publisher_id: number;
-  talent_id: number;
-  status: string | null;
-  updated_at: string | null;
-};
+  type ConversationRecord = {
+    id: number;
+    opportunity_id: number;
+    publisher_id: number | null;
+    talent_id: number;
+    conversation_type: string | null;
+    status: string | null;
+    updated_at: string | null;
+  };
 
 type MessageRecord = {
     id: number | string;
@@ -171,6 +172,7 @@ export default async function AdminMessagesPage({
         opportunity_id,
         publisher_id,
         talent_id,
+        conversation_type,
         status,
         updated_at
       `)
@@ -233,10 +235,15 @@ export default async function AdminMessagesPage({
 
   const publisherIds = [
     ...new Set(
-      conversations.map(
-        (conversation) =>
-          conversation.publisher_id,
-      ),
+      conversations
+        .map(
+          (conversation) =>
+            conversation.publisher_id,
+        )
+        .filter(
+          (publisherId): publisherId is number =>
+            publisherId !== null,
+        ),
     ),
   ];
 
@@ -467,6 +474,10 @@ export default async function AdminMessagesPage({
     const filteredConversations =
     conversations.filter(
       (conversation) => {
+        const isMlamhConversation =
+  conversation.conversation_type ===
+  "mlamh_talent";
+
         const reportedCount =
           reportedCountMap.get(
             conversation.id,
@@ -488,10 +499,12 @@ export default async function AdminMessagesPage({
             conversation.talent_id,
           );
   
-        const publisher =
-          publisherMap.get(
-            conversation.publisher_id,
-          );
+          const publisher =
+          conversation.publisher_id !== null
+            ? publisherMap.get(
+                conversation.publisher_id,
+              )
+            : undefined;
   
         const opportunity =
           opportunityMap.get(
@@ -503,17 +516,20 @@ export default async function AdminMessagesPage({
             conversation.id,
           );
   
-        const haystack = [
-          talent?.name_ar,
-          talent?.name_en,
-          publisher?.company_name,
-          publisher?.contact_name,
-          opportunity?.title,
-          latestMessage?.body,
-        ]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase();
+          const haystack = [
+            talent?.name_ar,
+            talent?.name_en,
+            isMlamhConversation
+              ? "ملامح MLAMH"
+              : null,
+            publisher?.company_name,
+            publisher?.contact_name,
+            opportunity?.title,
+            latestMessage?.body,
+          ]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase();
   
         return haystack.includes(
           cleanSearch,
@@ -549,9 +565,9 @@ export default async function AdminMessagesPage({
   return (
     <AdminPageContainer>
       <AdminPageHeader
-        title="إدارة المحادثات"
-        description="مراقبة المحادثات بين الناشرين والمواهب ومتابعة آخر النشاط."
-      />
+  title="مراقبة المحادثات"
+  description="متابعة المحادثات بين الناشرين والمواهب والإشراف على النشاط والبلاغات."
+/>
 
       <AdminGrid className="mb-8 md:grid-cols-2 xl:grid-cols-4">
         <AdminStatCard
@@ -665,10 +681,12 @@ export default async function AdminMessagesPage({
                   conversation.talent_id,
                 );
 
-              const publisher =
-                publisherMap.get(
-                  conversation.publisher_id,
-                );
+                const publisher =
+                conversation.publisher_id !== null
+                  ? publisherMap.get(
+                      conversation.publisher_id,
+                    )
+                  : undefined;
 
               const opportunity =
                 opportunityMap.get(
@@ -699,10 +717,16 @@ export default async function AdminMessagesPage({
                 talent?.name_en ||
                 "موهبة غير معروفة";
 
+                const isMlamhConversation =
+                conversation.conversation_type ===
+                "mlamh_talent";
+              
               const publisherName =
-                publisher?.company_name ||
-                publisher?.contact_name ||
-                "ناشر غير معروف";
+                isMlamhConversation
+                  ? "ملامح"
+                  : publisher?.company_name ||
+                    publisher?.contact_name ||
+                    "ناشر غير معروف";
 
               const isActive =
                 conversation.status ===
@@ -779,11 +803,13 @@ export default async function AdminMessagesPage({
 
                   <AdminInfoGrid>
                     <AdminInfoItem
-                      label="الناشر"
-                      value={
-                        publisherName
-                      }
-                    />
+  label={
+    isMlamhConversation
+      ? "مدير الفرصة"
+      : "الناشر"
+  }
+  value={publisherName}
+/>
 
                     <AdminInfoItem
                       label="الموهبة"

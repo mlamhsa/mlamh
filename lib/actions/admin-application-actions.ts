@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { requireAdminAccess } from "@/lib/auth/require-admin";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 import {
   createEvent,
@@ -21,6 +22,8 @@ type ApplicationRelation = {
   title?: string | null;
   name_ar?: string | null;
   name_en?: string | null;
+  publisher_id?: number | null;
+  role_requirements?: Record<string, unknown> | null;
 };
 
 function getApplicationId(
@@ -78,6 +81,98 @@ function normalizeRelation<T>(
   }
 
   return value;
+}
+
+function isMlamhManagedOpportunity(
+  opportunity: ApplicationRelation | null,
+) {
+  return (
+    opportunity?.publisher_id == null &&
+    opportunity?.role_requirements?.managed_by === "mlamh"
+  );
+}
+
+async function ensureMlamhAcceptedConversation({
+  applicationId,
+  opportunityId,
+  talentId,
+  adminUserId,
+}: {
+  applicationId: number;
+  opportunityId: number;
+  talentId: number;
+  adminUserId: string;
+}) {
+  const adminClient = createAdminClient();
+
+  const {
+    data: existingConversation,
+    error: existingConversationError,
+  } = await adminClient
+    .from("conversations")
+    .select("id")
+    .eq("application_id", applicationId)
+    .maybeSingle();
+
+  if (existingConversationError) {
+    throw new Error(
+      `[ensureMlamhAcceptedConversation lookup] ${existingConversationError.message}`,
+    );
+  }
+
+  if (existingConversation) {
+    return existingConversation.id;
+  }
+
+  const now = new Date().toISOString();
+
+  const {
+    data: createdConversation,
+    error: createConversationError,
+  } = await adminClient
+    .from("conversations")
+    .insert({
+      application_id: applicationId,
+      opportunity_id: opportunityId,
+      publisher_id: null,
+      talent_id: talentId,
+      admin_user_id: adminUserId,
+      conversation_type: "mlamh_talent",
+      status: "active",
+      created_at: now,
+      updated_at: now,
+    })
+    .select("id")
+    .single();
+
+  if (createConversationError || !createdConversation) {
+    if (createConversationError?.code === "23505") {
+      const {
+        data: concurrentConversation,
+        error: concurrentConversationError,
+      } = await adminClient
+        .from("conversations")
+        .select("id")
+        .eq("application_id", applicationId)
+        .maybeSingle();
+
+      if (
+        !concurrentConversationError &&
+        concurrentConversation
+      ) {
+        return concurrentConversation.id;
+      }
+    }
+
+    throw new Error(
+      `[ensureMlamhAcceptedConversation create] ${
+        createConversationError?.message ??
+        "Unable to create MLAMH conversation."
+      }`,
+    );
+  }
+
+  return createdConversation.id;
 }
 
 function getEventType(
@@ -143,6 +238,16 @@ function revalidateApplicationPaths(
   revalidatePath(
     "/en/publisher-dashboard/applications",
   );
+
+  revalidatePath("/admin/messages");
+
+revalidatePath(
+  "/ar/talent-dashboard/messages",
+);
+
+revalidatePath(
+  "/en/talent-dashboard/messages",
+);
 }
 
 async function setApplicationStatus(
@@ -200,15 +305,7 @@ async function setApplicationStatus(
   /*
    * لا نعيد تنفيذ نفس القرار.
    */
-  if (
-    currentStatus === status
-  ) {
-    revalidateApplicationPaths(
-      id,
-    );
 
-    return;
-  }
 
   const opportunity =
     normalizeRelation(
@@ -219,6 +316,26 @@ async function setApplicationStatus(
     normalizeRelation(
       application.talents,
     ) as ApplicationRelation | null;
+
+    if (currentStatus === status) {
+      if (
+        status === "accepted" &&
+        isMlamhManagedOpportunity(opportunity) &&
+        opportunity?.id &&
+        talent?.id
+      ) {
+        await ensureMlamhAcceptedConversation({
+          applicationId: id,
+          opportunityId: opportunity.id,
+          talentId: talent.id,
+          adminUserId: adminUser.id,
+        });
+      }
+    
+      revalidateApplicationPaths(id);
+    
+      return;
+    }
 
   /*
    * الطلب المقبول يعتبر قرارًا نهائيًا
@@ -239,11 +356,35 @@ async function setApplicationStatus(
     id,
     status,
   });
+  
+  if (
+    status === "accepted" &&
+    isMlamhManagedOpportunity(opportunity) &&
+    opportunity?.id &&
+    talent?.id
+  ) {
+    try {
+      await ensureMlamhAcceptedConversation({
+        applicationId: id,
+        opportunityId: opportunity.id,
+        talentId: talent.id,
+        adminUserId: adminUser.id,
+      });
+    } catch (error) {
+      // لا نترك الطلب مقبولًا بدون محادثة في فرص MLAMH.
+      await updateAdminApplicationStatus({
+        id,
+        status: currentStatus,
+      });
+  
+      throw error;
+    }
+  }
 
-  const eventType =
-    getEventType(
-      status,
-    );
+const eventType =
+  getEventType(
+    status,
+  );
 
   /*
    * الإشعار يذهب للموهبة صاحبة الطلب.

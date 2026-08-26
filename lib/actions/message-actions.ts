@@ -5,7 +5,10 @@ import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
-type DashboardType = "publisher" | "talent";
+type DashboardType =
+  | "publisher"
+  | "talent"
+  | "admin";
 
 const MESSAGE_ATTACHMENTS_BUCKET = "message-attachments";
 const MAX_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024;
@@ -89,6 +92,8 @@ async function getAuthenticatedParticipant(
         opportunity_id,
         publisher_id,
         talent_id,
+        admin_user_id,
+        conversation_type,
         status
       `)
       .eq("id", conversationId)
@@ -183,6 +188,13 @@ async function getAuthenticatedParticipant(
     }
   }
 
+  if (
+    conversation.conversation_type === "mlamh_talent" &&
+    conversation.admin_user_id === user.id
+  ) {
+    dashboard = "admin";
+  }
+
   if (!dashboard) {
     throw new Error("Access denied.");
   }
@@ -200,6 +212,10 @@ function getConversationPath(
   dashboard: DashboardType,
   conversationId: number,
 ) {
+  if (dashboard === "admin") {
+    return `/admin/messages/${conversationId}?lang=${locale}`;
+  }
+
   return `/${locale}/${dashboard}-dashboard/messages/${conversationId}`;
 }
 
@@ -399,22 +415,43 @@ try {
     });
   }
 
-  const notificationRecipientType =
-    dashboard === "publisher" ? "talent" : "publisher";
+  const isMlamhConversation =
+  conversation.conversation_type === "mlamh_talent";
 
-  const notificationRecipientId =
-    dashboard === "publisher"
-      ? String(conversation.talent_id)
+const notificationRecipientType =
+  dashboard === "publisher" || dashboard === "admin"
+    ? "talent"
+    : isMlamhConversation
+      ? "ADMIN"
+      : "publisher";
+
+const notificationRecipientId =
+  dashboard === "publisher" || dashboard === "admin"
+    ? String(conversation.talent_id)
+    : isMlamhConversation
+      ? String(conversation.admin_user_id)
       : String(conversation.publisher_id);
 
-  const notificationBody = attachment
-    ? dashboard === "publisher"
+const notificationBody = attachment
+  ? dashboard === "admin"
+    ? locale === "ar"
+      ? "لديك مرفق جديد من ملامح."
+      : "You have a new attachment from MLAMH."
+    : dashboard === "publisher"
       ? locale === "ar"
         ? "لديك مرفق جديد من الشركة."
         : "You have a new attachment from the company."
-      : locale === "ar"
-        ? "لديك مرفق جديد من الموهبة."
-        : "You have a new attachment from the talent."
+      : isMlamhConversation
+        ? locale === "ar"
+          ? "لديك مرفق جديد من الموهبة."
+          : "You have a new attachment from the talent."
+        : locale === "ar"
+          ? "لديك مرفق جديد من الموهبة."
+          : "You have a new attachment from the talent."
+  : dashboard === "admin"
+    ? locale === "ar"
+      ? "لديك رسالة جديدة من ملامح."
+      : "You have a new message from MLAMH."
     : dashboard === "publisher"
       ? locale === "ar"
         ? "لديك رسالة جديدة من الشركة."
@@ -459,9 +496,14 @@ try {
     ),
   );
 
-  revalidatePath(
-    `/${locale}/${dashboard}-dashboard/messages`,
-  );
+  if (dashboard === "admin") {
+    revalidatePath("/admin/messages");
+    revalidatePath("/admin/notifications");
+  } else {
+    revalidatePath(
+      `/${locale}/${dashboard}-dashboard/messages`,
+    );
+  }
 
   revalidatePath(
     `/${locale}/publisher-dashboard/notifications`,
@@ -470,6 +512,8 @@ try {
   revalidatePath(
     `/${locale}/talent-dashboard/notifications`,
   );
+  revalidatePath("/admin/messages");
+revalidatePath("/admin/notifications");
 }
 
 export async function markConversationReadAction(
@@ -510,13 +554,17 @@ export async function markConversationReadAction(
   }
   
   const recipientType =
-    dashboard === "talent"
-      ? "talent"
+  dashboard === "talent"
+    ? "talent"
+    : dashboard === "admin"
+      ? "ADMIN"
       : "publisher";
-  
-  const recipientId =
-    dashboard === "talent"
-      ? String(conversation.talent_id)
+
+const recipientId =
+  dashboard === "talent"
+    ? String(conversation.talent_id)
+    : dashboard === "admin"
+      ? String(conversation.admin_user_id)
       : String(conversation.publisher_id);
   
   const { error: notificationError } =
@@ -695,11 +743,20 @@ export async function closeConversationAction(
     dashboard,
   } = await getAuthenticatedParticipant(conversationId);
 
-  if (dashboard !== "publisher") {
-    throw new Error(
-      "Only the publisher can close this conversation.",
-    );
-  }
+  const isMlamhAdminConversation =
+  dashboard === "admin" &&
+  conversation.conversation_type ===
+    "mlamh_talent" &&
+  conversation.admin_user_id === user.id;
+
+if (
+  dashboard !== "publisher" &&
+  !isMlamhAdminConversation
+) {
+  throw new Error(
+    "Only the publisher or assigned MLAMH admin can close this conversation.",
+  );
+}
 
   if ((conversation.status ?? "active") !== "active") {
     revalidatePath(
@@ -719,24 +776,44 @@ export async function closeConversationAction(
 
   const closedAt = new Date().toISOString();
 
-  const { data: closedConversation, error: closeError } =
-    await adminClient
-      .from("conversations")
-      .update({
-        status: "closed",
-        closed_by: user.id,
-        closed_at: closedAt,
-        updated_at: closedAt,
-      })
-      .eq("id", conversationId)
-      .eq("publisher_id", conversation.publisher_id)
-      .select(`
-        id,
-        status,
-        closed_by,
-        closed_at
-      `)
-      .maybeSingle();
+  let closeQuery = adminClient
+  .from("conversations")
+  .update({
+    status: "closed",
+    closed_by: user.id,
+    closed_at: closedAt,
+    updated_at: closedAt,
+  })
+  .eq("id", conversationId);
+
+if (dashboard === "publisher") {
+  closeQuery = closeQuery.eq(
+    "publisher_id",
+    conversation.publisher_id,
+  );
+} else {
+  closeQuery = closeQuery
+    .eq(
+      "conversation_type",
+      "mlamh_talent",
+    )
+    .eq(
+      "admin_user_id",
+      user.id,
+    );
+}
+
+const {
+  data: closedConversation,
+  error: closeError,
+} = await closeQuery
+  .select(`
+    id,
+    status,
+    closed_by,
+    closed_at
+  `)
+  .maybeSingle();
 
   if (closeError) {
     console.error("Close conversation error:", {
@@ -763,11 +840,26 @@ export async function closeConversationAction(
     ),
   );
 
-  revalidatePath(
-    `/${locale}/publisher-dashboard/messages`,
-  );
-
-  revalidatePath(
-    `/${locale}/publisher-dashboard`,
-  );
+  if (dashboard === "admin") {
+    revalidatePath("/admin/messages");
+    revalidatePath(
+      `/admin/messages/${conversationId}`,
+    );
+  
+    revalidatePath(
+      `/${locale}/talent-dashboard/messages`,
+    );
+  
+    revalidatePath(
+      `/${locale}/talent-dashboard`,
+    );
+  } else {
+    revalidatePath(
+      `/${locale}/publisher-dashboard/messages`,
+    );
+  
+    revalidatePath(
+      `/${locale}/publisher-dashboard`,
+    );
+  }
 }

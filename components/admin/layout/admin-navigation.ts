@@ -96,12 +96,11 @@ export const adminNavigation: AdminNavigationGroup[] =
           icon: ClipboardList,
         },
         {
-          labelAr: "المحادثات",
-          labelEn: "Messages",
+          labelAr: "مراقبة المحادثات",
+          labelEn: "Conversation Monitoring",
           href: "/admin/messages",
           icon: MessageSquare,
-          badgeKey:
-            "reportedMessages",
+          badgeKey: "reportedMessages",
         },
       ],
     },

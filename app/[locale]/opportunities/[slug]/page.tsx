@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 import OpportunityShareButton from "@/components/opportunities/OpportunityShareButton";
+import OpportunityViewTracker from "@/components/opportunities/OpportunityViewTracker";
 import { applyToOpportunityAction } from "@/lib/actions/apply-to-opportunity";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -1258,6 +1259,9 @@ const opportunityStructuredData = {
   lg:pt-32
 "
       >
+        <OpportunityViewTracker
+  opportunityId={Number(opportunity.id)}
+/>
         {shouldRenderJobPosting ? (
   <script
     type="application/ld+json"
@@ -1610,14 +1614,15 @@ approvalStatus={approvalStatus}
     </form>
   ) : null}
 
-  <OpportunityShareButton
-    title={
-      opportunity.title ||
-      (isRtl
-        ? "فرصة من ملامح"
-        : "MLAMH Opportunity")
-    }
-  />
+<OpportunityShareButton
+  opportunityId={Number(opportunity.id)}
+  title={
+    opportunity.title ||
+    (isRtl
+      ? "فرصة من ملامح"
+      : "MLAMH Opportunity")
+  }
+/>
 </div>
         </div>
       </div>

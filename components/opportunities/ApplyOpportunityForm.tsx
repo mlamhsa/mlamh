@@ -27,6 +27,7 @@ export default function ApplyOpportunityForm({
     state?.status === "already_applied" ||
     state?.status === "unauthorized" ||
     state?.status === "not_talent";
+
   const isError = state?.status === "error";
 
   return (
@@ -48,9 +49,23 @@ export default function ApplyOpportunityForm({
       ) : null}
 
       <form action={formAction}>
-        <input type="hidden" name="opportunity_id" value={opportunityId} />
-        <input type="hidden" name="locale" value={locale} />
-        <input type="hidden" name="slug" value={slug} />
+        <input
+          type="hidden"
+          name="opportunity_id"
+          value={opportunityId}
+        />
+
+        <input
+          type="hidden"
+          name="locale"
+          value={locale}
+        />
+
+        <input
+          type="hidden"
+          name="slug"
+          value={slug}
+        />
 
         <button
           type="submit"

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-
+import { trackEvent } from "@/lib/events/track-event";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getTalentProfileReadiness } from "@/lib/talent/profile-review-readiness";
@@ -68,6 +68,16 @@ export async function applyToOpportunityAction(
     };
   }
 
+  await trackEvent({
+    type: "application_started",
+    target: "opportunity",
+    targetId: opportunityId,
+    actorId: user.id,
+    metadata: {
+      logged_in: true,
+    },
+  });
+  
   const {
     data: profile,
     error: profileError,
@@ -321,15 +331,19 @@ export async function applyToOpportunityAction(
     };
   }
 
-  const { error: insertError } =
-    await adminClient
-      .from("opportunity_applications")
-      .insert({
-        opportunity_id: opportunity.id,
-        talent_id: talent.id,
-        status: "pending",
-      });
-
+  const {
+    data: insertedApplication,
+    error: insertError,
+  } = await adminClient
+    .from("opportunity_applications")
+    .insert({
+      opportunity_id: opportunity.id,
+      talent_id: talent.id,
+      status: "pending",
+    })
+    .select("id")
+    .single();
+  
   if (insertError) {
     if (insertError.code === "23505") {
       return {
@@ -340,12 +354,12 @@ export async function applyToOpportunityAction(
             : "You have already applied to this opportunity.",
       };
     }
-
+  
     console.error(
       "Apply opportunity insert error:",
       insertError,
     );
-
+  
     return {
       status: "error",
       message:
@@ -354,6 +368,18 @@ export async function applyToOpportunityAction(
           : "Something went wrong while applying. Please try again.",
     };
   }
+  
+  await trackEvent({
+    type: "application_submitted",
+    target: "application",
+    targetId: insertedApplication.id,
+    actorId: user.id,
+    metadata: {
+      opportunity_id: opportunity.id,
+      talent_id: talent.id,
+      logged_in: true,
+    },
+  });
 
   if (opportunity.slug) {
     revalidatePath(
@@ -368,6 +394,14 @@ export async function applyToOpportunityAction(
     `/${locale}/talent-dashboard`,
   );
 
+  revalidatePath(
+    `/admin/opportunities/${opportunity.id}`,
+  );
+  
+  revalidatePath(
+    "/admin/opportunity-applications",
+  );
+  
   return {
     status: "success",
     message:
