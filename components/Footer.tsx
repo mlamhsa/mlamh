@@ -64,6 +64,54 @@ export async function Footer({
     Boolean(cleanPhone) ||
     Boolean(cleanAddress);
 
+    const platformLinks = [
+      {
+        label: isRtl
+          ? "المواهب"
+          : "Talents",
+        href: `/${locale}/talent`,
+      },
+      {
+        label: isRtl
+          ? "الفرص"
+          : "Opportunities",
+        href: `/${locale}/opportunities`,
+      },
+      {
+        label: isRtl
+          ? "الجهات"
+          : "Organizations",
+        href: `/${locale}/publishers`,
+      },
+      {
+        label: isRtl
+          ? "إنشاء حساب"
+          : "Create account",
+        href: `/${locale}/join`,
+      },
+    ];
+    
+    const unifiedLegalLinks = [
+      {
+        label: isRtl
+          ? "سياسة الخصوصية"
+          : "Privacy Policy",
+        href: `/${locale}/privacy`,
+      },
+      {
+        label: isRtl
+          ? "الشروط والأحكام"
+          : "Terms & Conditions",
+        href: `/${locale}/terms`,
+      },
+      {
+        label: isRtl
+          ? "سياسة الاسترجاع"
+          : "Refund Policy",
+        href: `/${locale}/refund-policy`,
+      },
+    ];
+    
   return (
     <footer
       id="contact"
@@ -86,33 +134,25 @@ export async function Footer({
               MLAMH
             </Link>
 
-            {footer.description ? (
-              <p className="mt-5 text-sm leading-7 text-white/45">
-                {footer.description}
-              </p>
-            ) : null}
+            <p className="mt-5 max-w-sm text-sm leading-7 text-white/45">
+  {isRtl
+    ? "منصة تجمع المواهب والفرص والجهات الإبداعية في مكان واحد."
+    : "One platform connecting talent, opportunities, and creative organizations."}
+</p>
 
-            <p className="mt-4 text-sm text-gold/80">
-              {dictionaryFooter.tagline}
-            </p>
+<div className="mt-5 flex items-center gap-2 text-sm text-white/35">
+  <MapPin
+    size={16}
+    strokeWidth={1.7}
+    className="shrink-0 text-gold/70"
+  />
 
-            <div className="mt-7 flex flex-wrap gap-2 text-[10px] text-white/25">
-              <span>
-                {isRtl ? "مواهب" : "Talent"}
-              </span>
-
-              <span>•</span>
-
-              <span>
-                {isRtl ? "جهات" : "Organizations"}
-              </span>
-
-              <span>•</span>
-
-              <span>
-                {isRtl ? "فرص" : "Opportunities"}
-              </span>
-            </div>
+  <span>
+    {isRtl
+      ? "المملكة العربية السعودية"
+      : "Saudi Arabia"}
+  </span>
+</div>
           </div>
 
           {/* Navigation */}
@@ -125,18 +165,21 @@ export async function Footer({
                   : "uppercase tracking-[0.3em]",
               ].join(" ")}
             >
-              {dictionaryFooter.navigate}
+              {isRtl ? "المنصة" : "Platform"}
             </p>
 
             <ul className="space-y-3">
-              {navigationLinks.map((item) => (
-                <FooterLinkItem
-                  key={item.id}
-                  item={item}
-                  showArrow
-                />
-              ))}
-            </ul>
+  {platformLinks.map((item) => (
+    <li key={item.href}>
+      <Link
+        href={item.href}
+        className="text-sm text-white/50 transition hover:text-gold"
+      >
+        {item.label}
+      </Link>
+    </li>
+  ))}
+</ul>
           </div>
 
           {/* Legal */}
@@ -153,12 +196,16 @@ export async function Footer({
             </p>
 
             <ul className="space-y-3">
-              {legalLinks.map((item) => (
-                <FooterLinkItem
-                  key={item.id}
-                  item={item}
-                />
-              ))}
+            {unifiedLegalLinks.map((item) => (
+  <li key={item.href}>
+    <Link
+      href={item.href}
+      className="text-sm text-white/50 transition hover:text-gold"
+    >
+      {item.label}
+    </Link>
+  </li>
+))}
             </ul>
           </div>
 
@@ -186,10 +233,10 @@ export async function Footer({
                       />
 
                       <a
-                        href={`mailto:${cleanEmail}`}
+                        href="mailto:hello@mlamh.com"
                         className="break-all transition hover:text-gold"
                       >
-                        {cleanEmail}
+                        hello@mlamh.com
                       </a>
                     </li>
                   ) : null}
