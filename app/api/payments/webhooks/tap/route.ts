@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { orchestrateSucceededPayment } from "@/lib/payments/payment-orchestrator";
 import {
   markProviderEventFailed,
   markProviderEventIgnored,
@@ -124,7 +125,8 @@ export async function POST(request: Request) {
       providerPaymentId: metadata.providerObjectId,
     });
 
-    await reconcileTapPayment(providerPayment);
+    const reconciled = await reconcileTapPayment(providerPayment);
+    const orchestration = await orchestrateSucceededPayment(reconciled.payment.id);
     await markProviderEventProcessed(eventId);
 
     return NextResponse.json(
@@ -133,6 +135,7 @@ export async function POST(request: Request) {
         accepted: true,
         duplicate: registered.duplicate,
         reconciled: true,
+        entitlementActivated: orchestration.entitlementActivated,
       },
       { status: 200 },
     );
