@@ -2,6 +2,13 @@ import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 
+export type ProviderEventProcessingStatus =
+  | "received"
+  | "processing"
+  | "processed"
+  | "failed"
+  | "ignored";
+
 export type RegisterProviderEventInput = {
   provider: string;
   providerEventId?: string | null;
@@ -12,8 +19,13 @@ export type RegisterProviderEventInput = {
 };
 
 export type RegisterProviderEventResult =
-  | { duplicate: false; eventId: number }
-  | { duplicate: true; eventId: number | null };
+  | { duplicate: false; eventId: number; processingStatus: "received" }
+  | {
+      duplicate: true;
+      eventId: number | null;
+      processingStatus: ProviderEventProcessingStatus | null;
+      retryable: boolean;
+    };
 
 export async function registerProviderEvent(
   input: RegisterProviderEventInput,
@@ -37,7 +49,11 @@ export async function registerProviderEvent(
     .single();
 
   if (!error) {
-    return { duplicate: false, eventId: data.id as number };
+    return {
+      duplicate: false,
+      eventId: Number(data.id),
+      processingStatus: "received",
+    };
   }
 
   if (error.code !== "23505") {
@@ -46,7 +62,7 @@ export async function registerProviderEvent(
 
   const { data: existing, error: existingError } = await adminClient
     .from("payment_provider_events")
-    .select("id")
+    .select("id, processing_status")
     .eq("provider", input.provider)
     .eq("event_fingerprint", input.eventFingerprint)
     .maybeSingle();
@@ -57,17 +73,42 @@ export async function registerProviderEvent(
     );
   }
 
+  const processingStatus =
+    (existing?.processing_status as ProviderEventProcessingStatus | undefined) ?? null;
+
   return {
     duplicate: true,
     eventId: existing?.id ? Number(existing.id) : null,
+    processingStatus,
+    retryable: processingStatus === "failed",
   };
 }
 
 export async function markProviderEventProcessing(eventId: number) {
   const adminClient = createAdminClient();
+
+  const { data: current, error: currentError } = await adminClient
+    .from("payment_provider_events")
+    .select("attempt_count")
+    .eq("id", eventId)
+    .single();
+
+  if (currentError) {
+    throw new Error(
+      `Unable to load provider event attempt count: ${currentError.message}`,
+    );
+  }
+
+  const nextAttemptCount = Math.max(Number(current.attempt_count) || 0, 0) + 1;
+
   const { error } = await adminClient
     .from("payment_provider_events")
-    .update({ processing_status: "processing", last_error: null })
+    .update({
+      processing_status: "processing",
+      attempt_count: nextAttemptCount,
+      last_error: null,
+      processed_at: null,
+    })
     .eq("id", eventId);
 
   if (error) {
