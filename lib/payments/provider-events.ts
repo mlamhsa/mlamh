@@ -42,7 +42,7 @@ export async function registerProviderEvent(
       provider_object_id: input.providerObjectId ?? null,
       signature_verified: true,
       processing_status: "received",
-      attempt_count: 1,
+      attempt_count: 0,
       payload: input.payload,
     })
     .select("id")
