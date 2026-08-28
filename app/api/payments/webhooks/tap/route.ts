@@ -77,19 +77,28 @@ export async function POST(request: Request) {
     payload: verification.rawPayload,
   });
 
-  if (registered.duplicate) {
+  if (registered.duplicate && !registered.retryable) {
     return NextResponse.json(
       {
         ok: true,
         accepted: true,
         duplicate: true,
+        processingStatus: registered.processingStatus,
       },
       { status: 200 },
     );
   }
 
+  const eventId = registered.eventId;
+  if (!eventId) {
+    return NextResponse.json(
+      { ok: false, error: "provider_event_not_resolved" },
+      { status: 500 },
+    );
+  }
+
   if (!metadata.providerObjectId) {
-    await markProviderEventFailed(registered.eventId, "Tap webhook is missing the provider object ID.");
+    await markProviderEventFailed(eventId, "Tap webhook is missing the provider object ID.");
     return NextResponse.json(
       { ok: false, error: "missing_provider_object_id" },
       { status: 400 },
@@ -97,7 +106,7 @@ export async function POST(request: Request) {
   }
 
   if (metadata.objectType !== "charge") {
-    await markProviderEventIgnored(registered.eventId);
+    await markProviderEventIgnored(eventId);
     return NextResponse.json(
       {
         ok: true,
@@ -109,29 +118,29 @@ export async function POST(request: Request) {
   }
 
   try {
-    await markProviderEventProcessing(registered.eventId);
+    await markProviderEventProcessing(eventId);
 
     const providerPayment = await tapPaymentProvider.retrievePayment({
       providerPaymentId: metadata.providerObjectId,
     });
 
     await reconcileTapPayment(providerPayment);
-    await markProviderEventProcessed(registered.eventId);
+    await markProviderEventProcessed(eventId);
 
     return NextResponse.json(
       {
         ok: true,
         accepted: true,
-        duplicate: false,
+        duplicate: registered.duplicate,
         reconciled: true,
       },
       { status: 200 },
     );
   } catch (error) {
     const errorMessage = getErrorMessage(error);
-    await markProviderEventFailed(registered.eventId, errorMessage);
+    await markProviderEventFailed(eventId, errorMessage);
     console.error("[TapWebhook] provider event processing failed", {
-      eventId: registered.eventId,
+      eventId,
       error: errorMessage,
     });
 
