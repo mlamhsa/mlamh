@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import {
   markProviderEventFailed,
+  markProviderEventIgnored,
   markProviderEventProcessed,
   markProviderEventProcessing,
   registerProviderEvent,
@@ -20,6 +21,7 @@ type TapWebhookPayload = {
 function getWebhookMetadata(payload: unknown) {
   if (typeof payload !== "object" || payload === null) {
     return {
+      objectType: null,
       eventType: null,
       providerObjectId: null,
     };
@@ -30,6 +32,7 @@ function getWebhookMetadata(payload: unknown) {
   const status = typeof tapPayload.status === "string" ? tapPayload.status.trim() : "";
 
   return {
+    objectType: object.toLowerCase() || "charge",
     eventType: [object, status].filter(Boolean).join(".") || null,
     providerObjectId:
       typeof tapPayload.id === "string" && tapPayload.id.trim()
@@ -86,10 +89,22 @@ export async function POST(request: Request) {
   }
 
   if (!metadata.providerObjectId) {
-    await markProviderEventFailed(registered.eventId, "Tap webhook is missing the charge ID.");
+    await markProviderEventFailed(registered.eventId, "Tap webhook is missing the provider object ID.");
     return NextResponse.json(
       { ok: false, error: "missing_provider_object_id" },
       { status: 400 },
+    );
+  }
+
+  if (metadata.objectType !== "charge") {
+    await markProviderEventIgnored(registered.eventId);
+    return NextResponse.json(
+      {
+        ok: true,
+        accepted: true,
+        ignored: true,
+      },
+      { status: 200 },
     );
   }
 
