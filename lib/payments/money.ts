@@ -1,11 +1,16 @@
 const CURRENCY_EXPONENTS: Readonly<Record<string, number>> = {
+  AED: 2,
   BHD: 3,
+  EGP: 2,
+  EUR: 2,
+  GBP: 2,
   JOD: 3,
   KWD: 3,
   OMR: 3,
+  QAR: 2,
+  SAR: 2,
+  USD: 2,
 };
-
-const DEFAULT_CURRENCY_EXPONENT = 2;
 
 export function normalizeCurrency(currency: string) {
   const normalized = currency.trim().toUpperCase();
@@ -14,12 +19,16 @@ export function normalizeCurrency(currency: string) {
     throw new Error(`Invalid ISO 4217 currency code: ${currency}`);
   }
 
+  if (!(normalized in CURRENCY_EXPONENTS)) {
+    throw new Error(`Unsupported payment currency: ${normalized}`);
+  }
+
   return normalized;
 }
 
 export function getCurrencyExponent(currency: string) {
   const normalized = normalizeCurrency(currency);
-  return CURRENCY_EXPONENTS[normalized] ?? DEFAULT_CURRENCY_EXPONENT;
+  return CURRENCY_EXPONENTS[normalized];
 }
 
 export function minorToMajorAmount(amountMinor: number, currency: string) {
