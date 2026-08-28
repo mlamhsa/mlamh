@@ -7,7 +7,7 @@ import {
   registerProviderEvent,
 } from "@/lib/payments/provider-events";
 import { tapPaymentProvider } from "@/lib/payments/providers/tap/tap-provider";
-import { validateTapPaymentForReconciliation } from "@/lib/payments/reconciliation";
+import { reconcileTapPayment } from "@/lib/payments/reconciliation";
 
 export const runtime = "nodejs";
 
@@ -100,7 +100,7 @@ export async function POST(request: Request) {
       providerPaymentId: metadata.providerObjectId,
     });
 
-    await validateTapPaymentForReconciliation(providerPayment);
+    await reconcileTapPayment(providerPayment);
     await markProviderEventProcessed(registered.eventId);
 
     return NextResponse.json(
@@ -108,7 +108,7 @@ export async function POST(request: Request) {
         ok: true,
         accepted: true,
         duplicate: false,
-        verified: true,
+        reconciled: true,
       },
       { status: 200 },
     );
