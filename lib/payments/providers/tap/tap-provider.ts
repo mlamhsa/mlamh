@@ -48,7 +48,6 @@ export const tapPaymentProvider: PaymentProvider = {
 
     const charge = await tapRequest<TapCreateChargeResponse>("/charges/", {
       method: "POST",
-      idempotencyKey: input.idempotencyKey,
       body: {
         amount: Number(formatProviderAmount(input.amountMinor, currency)),
         currency,
@@ -116,7 +115,6 @@ export const tapPaymentProvider: PaymentProvider = {
 
     const refund = await tapRequest<TapRefund>("/refunds/", {
       method: "POST",
-      idempotencyKey: input.idempotencyKey,
       body: {
         charge_id: input.providerPaymentId,
         amount: Number(formatProviderAmount(input.amountMinor, currency)),
