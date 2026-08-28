@@ -62,3 +62,46 @@ export async function registerProviderEvent(
     eventId: existing?.id ? Number(existing.id) : null,
   };
 }
+
+export async function markProviderEventProcessing(eventId: number) {
+  const adminClient = createAdminClient();
+  const { error } = await adminClient
+    .from("payment_provider_events")
+    .update({ processing_status: "processing", last_error: null })
+    .eq("id", eventId);
+
+  if (error) {
+    throw new Error(`Unable to mark provider event processing: ${error.message}`);
+  }
+}
+
+export async function markProviderEventProcessed(eventId: number) {
+  const adminClient = createAdminClient();
+  const { error } = await adminClient
+    .from("payment_provider_events")
+    .update({
+      processing_status: "processed",
+      processed_at: new Date().toISOString(),
+      last_error: null,
+    })
+    .eq("id", eventId);
+
+  if (error) {
+    throw new Error(`Unable to mark provider event processed: ${error.message}`);
+  }
+}
+
+export async function markProviderEventFailed(eventId: number, errorMessage: string) {
+  const adminClient = createAdminClient();
+  const { error } = await adminClient
+    .from("payment_provider_events")
+    .update({
+      processing_status: "failed",
+      last_error: errorMessage.slice(0, 2000),
+    })
+    .eq("id", eventId);
+
+  if (error) {
+    throw new Error(`Unable to mark provider event failed: ${error.message}`);
+  }
+}
