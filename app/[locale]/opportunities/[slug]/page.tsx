@@ -1085,21 +1085,44 @@ const hasMeaningfulDescription =
       },
     ];
     const relatedOpportunities = opportunities
-    .filter((item: PublishedOpportunity) => {
-      if (item.id === opportunity.id) {
-        return false;
-      }
-  
-      const sameType =
-        item.opportunity_type ===
-        opportunity.opportunity_type;
-  
-      const sameCity =
-        item.city_ar === opportunity.city_ar ||
-        item.city_en === opportunity.city_en;
-  
-      return sameType || sameCity;
-    })
+  .filter((item: PublishedOpportunity) => {
+    if (item.id === opportunity.id) {
+      return false;
+    }
+
+    const itemDeadlineValue =
+  "application_deadline" in item &&
+  typeof item.application_deadline === "string"
+    ? item.application_deadline
+    : "deadline" in item &&
+        typeof item.deadline === "string"
+      ? item.deadline
+      : null;
+
+    const itemDeadlineDisplay = getDeadlineDisplay(
+      itemDeadlineValue,
+      isRtl,
+    );
+
+    const itemIsOpen =
+      (item.status === "open" ||
+        item.status === "published") &&
+      !itemDeadlineDisplay.isExpired;
+
+    if (!itemIsOpen) {
+      return false;
+    }
+
+    const sameType =
+      item.opportunity_type ===
+      opportunity.opportunity_type;
+
+    const sameCity =
+      item.city_ar === opportunity.city_ar ||
+      item.city_en === opportunity.city_en;
+
+    return sameType || sameCity;
+  })
     .sort((first, second) => {
       const firstSameType =
         first.opportunity_type ===
@@ -1274,6 +1297,72 @@ const opportunityStructuredData = {
 ) : null}
     
         <div className="mx-auto w-full max-w-7xl min-w-0">
+        {!publicIsOpen ? (
+  <section className="mb-4 overflow-hidden rounded-[1.5rem] border border-gold/20 bg-[radial-gradient(circle_at_top_right,rgba(201,169,98,0.14),transparent_45%),rgba(201,169,98,0.035)] sm:mb-6 sm:rounded-[2rem]">
+    <div className="flex flex-col gap-5 p-5 sm:p-7 lg:flex-row lg:items-center lg:justify-between lg:p-8">
+      <div className="max-w-2xl">
+        <div className="flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-gold" />
+
+          <p className="text-[10px] uppercase tracking-[0.3em] text-gold">
+            {isRtl
+              ? "تحديث حالة الفرصة"
+              : "Opportunity Update"}
+          </p>
+        </div>
+
+        <h2 className="mt-3 text-2xl font-light leading-tight text-white sm:text-3xl">
+          {isRtl
+            ? "انتهى التقديم على هذه الفرصة"
+            : "Applications for this opportunity have closed"}
+        </h2>
+
+        <p className="mt-3 max-w-xl text-sm leading-7 text-white/45">
+          {isRtl
+            ? "يمكنك الاطلاع على تفاصيل الفرصة السابقة، أو اكتشاف فرص جديدة متاحة للتقديم الآن عبر ملامح."
+            : "You can still view this opportunity's details or discover new opportunities currently open on MLAMH."}
+        </p>
+
+        {deadline ? (
+          <p className="mt-3 text-xs text-white/30">
+            {isRtl
+              ? `انتهى التقديم في ${deadline}`
+              : `Applications closed on ${deadline}`}
+          </p>
+        ) : null}
+      </div>
+
+      <div className="flex shrink-0 flex-col gap-2 sm:flex-row lg:flex-col">
+        <Link
+          href={`/${locale}/opportunities`}
+          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-gold px-6 text-sm font-medium text-black transition hover:bg-gold-soft"
+        >
+          {isRtl
+            ? "اكتشف الفرص المتاحة"
+            : "Explore Open Opportunities"}
+
+          <span className={isRtl ? "rotate-180" : ""}>
+            <OpportunityIcon
+              name="arrow"
+              className="h-4 w-4"
+            />
+          </span>
+        </Link>
+
+        {relatedOpportunities.length > 0 ? (
+          <a
+            href="#similar-opportunities"
+            className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-white/10 px-6 text-sm text-white/60 transition hover:border-gold/30 hover:text-gold"
+          >
+            {isRtl
+              ? "عرض فرص مشابهة"
+              : "View Similar Opportunities"}
+          </a>
+        ) : null}
+      </div>
+    </div>
+  </section>
+) : null}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 sm:mb-5">
           <Link
             href={`/${locale}/opportunities`}
@@ -1471,6 +1560,18 @@ profile?.account_type === "talent" ? (
     </form>
   </div>
 ) : null}
+
+<div className="mt-3 sm:hidden">
+  <OpportunityShareButton
+    opportunityId={Number(opportunity.id)}
+    title={
+      opportunity.title ||
+      (isRtl
+        ? "فرصة من ملامح"
+        : "MLAMH Opportunity")
+    }
+  />
+</div>
 
 {publicIsOpen &&
 user &&
@@ -2155,7 +2256,10 @@ approvalStatus={approvalStatus}
   </div>
 </section>
 {relatedOpportunities.length > 0 ? (
-  <section className="overflow-hidden rounded-[1.5rem] border border-white/10 bg-white/[0.025] sm:rounded-[2rem]">
+  <section
+    id="similar-opportunities"
+    className="scroll-mt-32 overflow-hidden rounded-[1.5rem] border border-white/10 bg-white/[0.025] sm:rounded-[2rem]"
+  >
     <div className="flex flex-col gap-3 border-b border-white/10 p-4 sm:flex-row sm:items-end sm:justify-between sm:p-6 lg:p-8">
       <div>
         <p className="text-[10px] uppercase tracking-[0.3em] text-gold">
@@ -2470,10 +2574,34 @@ function ApplyArea({
 }) {
   if (!isOpen) {
     return (
-      <div className="rounded-2xl border border-red-300/20 bg-red-300/[0.07] p-4 text-center text-sm text-red-200">
-        {isRtl
-          ? "هذه الفرصة مغلقة حاليًا."
-          : "This opportunity is currently closed."}
+      <div className="rounded-2xl border border-gold/20 bg-gold/[0.05] p-4 text-center">
+        <div className="flex items-center justify-center gap-2 text-gold">
+          <OpportunityIcon
+            name="clock"
+            className="h-4 w-4"
+          />
+  
+          <span className="text-sm font-medium">
+            {isRtl
+              ? "انتهى التقديم"
+              : "Applications Closed"}
+          </span>
+        </div>
+  
+        <p className="mt-2 text-xs leading-6 text-white/40">
+          {isRtl
+            ? "هذه الفرصة لم تعد تستقبل طلبات جديدة."
+            : "This opportunity is no longer accepting new applications."}
+        </p>
+  
+        <Link
+          href={`/${locale}/opportunities`}
+          className="mt-4 inline-flex min-h-10 w-full items-center justify-center rounded-xl border border-gold/25 px-4 text-xs text-gold transition hover:bg-gold hover:text-black"
+        >
+          {isRtl
+            ? "استكشف فرصًا أخرى"
+            : "Explore Other Opportunities"}
+        </Link>
       </div>
     );
   }

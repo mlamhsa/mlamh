@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import AdminOpportunityLiveRefresh from "@/components/admin/opportunities/AdminOpportunityLiveRefresh";
+import OpportunitySocialCreative from "@/components/admin/opportunities/OpportunitySocialCreative";
 import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
@@ -723,6 +724,53 @@ opportunity.status === "pending_review" &&
     </div>
   </section>
 </div>
+{opportunity.published && opportunity.slug ? (
+  <section className="mt-6 rounded-3xl border border-white/[0.08] bg-gray-elevated/30 p-6">
+    <div className="mb-6">
+      <p className="text-[10px] uppercase tracking-[0.3em] text-gold">
+        {isRtl ? "مواد النشر" : "SOCIAL CREATIVE"}
+      </p>
+
+      <h3 className="mt-2 text-2xl font-light text-white">
+        {isRtl
+          ? "تصميم الفرصة للسوشيال ميديا"
+          : "Opportunity Social Creative"}
+      </h3>
+
+      <p className="mt-2 max-w-3xl text-sm leading-7 text-gray-muted">
+        {isRtl
+          ? "أنشئ وحمّل التصميم الجاهز للنشر مع رمز QR المرتبط مباشرة بصفحة الفرصة."
+          : "Generate and download publication-ready creatives with a QR code linked directly to this opportunity."}
+      </p>
+    </div>
+
+    <OpportunitySocialCreative
+      title={opportunity.title || "MLAMH Opportunity"}
+      slug={opportunity.slug}
+      city={
+        isRtl
+          ? opportunity.city_ar
+          : opportunity.city_en || opportunity.city_ar
+      }
+      opportunityType={
+        opportunity.opportunity_type === "actor"
+          ? isRtl
+            ? "ممثل / ممثلة"
+            : "Actor"
+          : opportunity.opportunity_type === "model"
+            ? isRtl
+              ? "مودل"
+              : "Model"
+            : opportunity.opportunity_type
+      }
+      compensation={formatCompensation(
+        opportunity.compensation_type,
+        opportunity.budget,
+        isRtl,
+      )}
+    />
+  </section>
+) : null}
 
         <section className="mt-6 rounded-3xl border border-white/[0.08] bg-gray-elevated/30 p-6">
           <div className="mb-6 flex items-center justify-between gap-4">

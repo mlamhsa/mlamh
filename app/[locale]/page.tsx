@@ -5,6 +5,7 @@ import { FinalCTA } from "@/components/FinalCTA";
 import { Footer } from "@/components/Footer";
 import { Hero } from "@/components/Hero";
 import { HowItWorks } from "@/components/HowItWorks";
+import { HomeScrollReset } from "@/components/home/HomeScrollReset";
 import { ModelsShowcase } from "@/components/ModelsShowcase";
 import { MobileHome } from "@/components/mobile/home/MobileHome";
 import { Opportunities } from "@/components/Opportunities";
@@ -45,6 +46,8 @@ export default async function HomePage({
       dir={isArabic ? "rtl" : "ltr"}
       className="relative z-[2] min-h-screen bg-background"
     >
+      <HomeScrollReset />
+  
       {/* Mobile application home */}
       <div className="lg:hidden">
         <MobileHome

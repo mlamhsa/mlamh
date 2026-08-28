@@ -13,6 +13,7 @@ import {
   withAdminLanguage,
 } from "@/lib/admin/i18n";
 import { requireAdminAccess } from "@/lib/auth/require-admin";
+import { IncompleteRegistrationReminderButton } from "@/components/admin/IncompleteRegistrationReminderButton";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 type PageProps = {
@@ -83,6 +84,16 @@ type PendingOpportunity = {
   created_at: string | null;
 };
 
+type IncompleteRegistration = {
+  id: string;
+  email: string | null;
+  display_name: string | null;
+  provider: string | null;
+  created_at: string | null;
+  reminder_count: number;
+  last_reminder_at: string | null;
+};
+
 function formatDate(
   value: string | null | undefined,
   language: "ar" | "en",
@@ -129,7 +140,142 @@ export default async function AdminActionCenterPage({
 
   const adminClient =
     createAdminClient();
+    const {
+      data: authUsersData,
+      error: authUsersError,
+    } = await adminClient.auth.admin.listUsers({
+      page: 1,
+      perPage: 1000,
+    });
+    
+    if (authUsersError) {
+      console.error(
+        "[AdminActionCenterPage authUsers]",
+        authUsersError,
+      );
+    }
+    const {
+      data: profileUserRows,
+      error: profileUsersError,
+    } = await adminClient
+      .from("profiles")
+      .select("user_id");
+    
+    if (profileUsersError) {
+      console.error(
+        "[AdminActionCenterPage profileUsers]",
+        profileUsersError,
+      );
+    }
+    
+    const profileUserIds = new Set(
+      (profileUserRows ?? [])
+        .map((row) => row.user_id)
+        .filter(Boolean),
+    );
+    const {
+      data: reminderEventRows,
+      error: reminderEventsError,
+    } = await adminClient
+      .from("events")
+      .select("target_id, created_at")
+      .eq(
+        "event_type",
+        "incomplete_registration_reminder_sent",
+      )
+      .eq(
+        "target_type",
+        "auth_user",
+      )
+      .order(
+        "created_at",
+        {
+          ascending: false,
+        },
+      );
+    
+    if (reminderEventsError) {
+      console.error(
+        "[AdminActionCenterPage reminderEvents]",
+        reminderEventsError,
+      );
+    }
+    
+    const reminderStatsByUser =
+      new Map<
+        string,
+        {
+          count: number;
+          lastReminderAt: string | null;
+        }
+      >();
+    
+    for (
+      const event of reminderEventRows ?? []
+    ) {
+      const userId =
+        String(event.target_id ?? "").trim();
+    
+      if (!userId) {
+        continue;
+      }
+    
+      const existing =
+        reminderStatsByUser.get(userId);
+    
+      if (existing) {
+        existing.count += 1;
+        continue;
+      }
+    
+      reminderStatsByUser.set(
+        userId,
+        {
+          count: 1,
+          lastReminderAt:
+            event.created_at ?? null,
+        },
+      );
+    }
+    const incompleteRegistrations: IncompleteRegistration[] =
+  (authUsersData?.users ?? [])
+    .filter(
+      (user) =>
+        !profileUserIds.has(user.id),
+    )
+    .map((user) => {
+      const metadata =
+        user.user_metadata ?? {};
 
+      const identities =
+        user.identities ?? [];
+
+      const provider =
+        identities[0]?.provider ??
+        null;
+        const reminderStats =
+        reminderStatsByUser.get(user.id);
+      return {
+        id: user.id,
+        email: user.email ?? null,
+        display_name:
+          String(
+            metadata.full_name ??
+              metadata.name ??
+              metadata.display_name ??
+              "",
+          ).trim() || null,
+        provider,
+        created_at:
+          user.created_at ?? null,
+          reminder_count:
+  reminderStats?.count ?? 0,
+last_reminder_at:
+  reminderStats?.lastReminderAt ??
+  null,
+      };
+    });
+    
   /*
    * جميع أنواع المهام التي تحتاج
    * قرارًا من الإدارة.
@@ -485,12 +631,13 @@ adminClient
       ),
     );
 
-  const totalPending =
-  pendingRequests.length +
-  pendingTalents.length +
-  pendingPublishers.length +
-  pendingPublisherVerifications.length +
-  pendingOpportunities.length;
+    const totalPending =
+    incompleteRegistrations.length +
+    pendingRequests.length +
+    pendingTalents.length +
+    pendingPublishers.length +
+    pendingPublisherVerifications.length +
+    pendingOpportunities.length;
 
   const ArrowIcon =
     isArabic
@@ -545,6 +692,132 @@ adminClient
             </p>
           </div>
         </div>
+
+{/* Incomplete registrations */}
+<section className="mt-7">
+  <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div>
+      <h2 className="text-xl font-light text-white">
+        {isArabic
+          ? "التسجيلات غير المكتملة"
+          : "Incomplete registrations"}
+      </h2>
+
+      <p className="mt-1 text-sm text-white/35">
+        {isArabic
+          ? "مستخدمون بدأوا التسجيل أو تسجيل الدخول لكن لم يحددوا نوع الحساب ولم يكتمل إنشاء ملفهم."
+          : "Users who authenticated but did not complete account type selection and profile creation."}
+      </p>
+    </div>
+
+    <span className="inline-flex w-fit min-w-8 items-center justify-center rounded-full border border-amber-400/20 bg-amber-400/[0.06] px-3 py-1 text-xs text-amber-200">
+      {incompleteRegistrations.length}
+    </span>
+  </div>
+
+  {incompleteRegistrations.length === 0 ? (
+    <div className="rounded-3xl border border-white/[0.08] bg-white/[0.02] px-6 py-10 text-center">
+      <UserRound className="mx-auto h-8 w-8 text-white/15" />
+
+      <h3 className="mt-4 text-lg font-light text-white/65">
+        {isArabic
+          ? "لا توجد تسجيلات غير مكتملة"
+          : "No incomplete registrations"}
+      </h3>
+    </div>
+  ) : (
+    <div className="grid gap-3 lg:grid-cols-2">
+      {incompleteRegistrations.map((user) => (
+        <article
+          key={user.id}
+          className="rounded-3xl border border-amber-400/15 bg-amber-400/[0.025] p-5"
+        >
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-amber-400/15 bg-amber-400/[0.05]">
+              <UserRound className="h-5 w-5 text-amber-200" />
+            </div>
+
+            <div className="min-w-0">
+              <h3 className="truncate text-base font-medium text-white/85">
+                {user.display_name ||
+                  (isArabic
+                    ? "مستخدم بدون اسم"
+                    : "Unnamed user")}
+              </h3>
+
+              <p
+                dir="ltr"
+                className="mt-1 truncate text-sm text-white/50"
+              >
+                {user.email || "—"}
+              </p>
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                <span className="rounded-full border border-amber-400/20 bg-amber-400/[0.05] px-3 py-1 text-[10px] text-amber-200">
+                  {isArabic
+                    ? "التسجيل غير مكتمل"
+                    : "Incomplete"}
+                </span>
+
+                {user.provider ? (
+                  <span className="rounded-full border border-white/10 px-3 py-1 text-[10px] text-white/45">
+                    {user.provider}
+                  </span>
+                ) : null}
+              </div>
+
+              <p className="mt-3 text-xs text-white/25">
+                {formatDate(
+                  user.created_at,
+                  language,
+                )}
+              </p>
+
+              <p className="mt-2 text-xs text-white/30">
+  {isArabic
+    ? "لم يتم تحديد موهبة أو ناشر بعد."
+    : "Talent or publisher account type has not been selected yet."}
+</p>
+
+{user.reminder_count > 0 ? (
+  <div className="mt-3 rounded-xl border border-white/[0.06] bg-black/20 px-3 py-2">
+    <p className="text-xs text-white/45">
+      {isArabic
+        ? `عدد التذكيرات المرسلة: ${user.reminder_count}`
+        : `Reminders sent: ${user.reminder_count}`}
+    </p>
+
+    <p className="mt-1 text-xs text-white/30">
+      {isArabic
+        ? `آخر تذكير: ${formatDate(
+            user.last_reminder_at,
+            language,
+          )}`
+        : `Last reminder: ${formatDate(
+            user.last_reminder_at,
+            language,
+          )}`}
+    </p>
+  </div>
+) : (
+  <p className="mt-3 text-xs text-white/30">
+    {isArabic
+      ? "لم يرسل أي تذكير حتى الآن."
+      : "No reminder has been sent yet."}
+  </p>
+)}
+
+<IncompleteRegistrationReminderButton
+  userId={user.id}
+  locale={language}
+/>
+            </div>
+          </div>
+        </article>
+      ))}
+    </div>
+  )}
+</section>
 
         {/* Pending talents */}
         <section className="mt-7">

@@ -5,7 +5,8 @@ import { trackEvent } from "@/lib/events/track-event";
 
 export type OpportunityShareChannel =
   | "native"
-  | "copy_link";
+  | "copy_link"
+  | "whatsapp";
 
 export async function trackOpportunityShareAction({
   opportunityId,

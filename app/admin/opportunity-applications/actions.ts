@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 function numberValue(formData: FormData, key: string) {
@@ -12,10 +13,17 @@ async function updateApplicationStatus(
   formData: FormData,
   status: "accepted" | "rejected"
 ) {
-  const applicationId = numberValue(formData, "application_id");
+  await requireAdminAccess();
+
+  const applicationId = numberValue(
+    formData,
+    "application_id",
+  );
 
   if (!applicationId) {
-    throw new Error("Application ID is required.");
+    throw new Error(
+      "Application ID is required.",
+    );
   }
 
   const adminClient = createAdminClient();

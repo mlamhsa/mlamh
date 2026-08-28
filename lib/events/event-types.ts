@@ -28,6 +28,8 @@ export const EVENT_TYPES = {
   publisher_verified: "publisher_verified",
   publisher_changes_requested: "publisher_changes_requested",
   publisher_rejected: "publisher_rejected",
+  incomplete_registration_reminder_sent:
+  "incomplete_registration_reminder_sent",
 } as const;
 
 export type EventType =

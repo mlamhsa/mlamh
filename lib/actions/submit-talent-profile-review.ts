@@ -17,6 +17,9 @@ import {
 import {
   getTalentProfileReviewReadiness,
 } from "@/lib/talent/profile-review-readiness";
+import {
+  evaluateTalentFastTrackApproval,
+} from "@/lib/talent/fast-track-approval";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 type SubmitReviewResult = {
@@ -171,6 +174,14 @@ if (!readiness.canSubmitForReview) {
       : `Complete the required information before submitting your profile: ${missingFields}`,
   };
 }
+const fastTrack =
+  evaluateTalentFastTrackApproval({
+    talent,
+    completion,
+  });
+
+const shouldAutoApprove =
+  fastTrack.decision === "auto_approve";
 
   const submittedAt =
     new Date().toISOString();
@@ -182,7 +193,9 @@ if (!readiness.canSubmitForReview) {
     .update({
       onboarding_status: "completed",
       onboarding_step: "profile_review",
-      approval_status: "pending",
+      approval_status: shouldAutoApprove
+  ? "approved"
+  : "pending",
       profile_completed_at:
         submittedAt,
     })
@@ -208,8 +221,17 @@ if (!readiness.canSubmitForReview) {
   } = await adminClient
     .from("talents")
     .update({
-      status: "pending",
-      published: false,
+      status: shouldAutoApprove
+        ? "approved"
+        : "pending",
+    
+      published: shouldAutoApprove,
+    
+      /*
+       * مهم جدًا:
+       * verified لا تعني approval.
+       * لذلك لا نعطي شارة توثيق تلقائيًا.
+       */
       verified: false,
     })
     .eq("user_id", user.id);
@@ -273,23 +295,32 @@ if (!readiness.canSubmitForReview) {
       actorId:
         talent.id,
   
-      metadata: {
-        locale,
-        talent_id:
-          talent.id,
-  
-        user_id:
-          user.id,
-  
-        talent_name:
-          talentName,
-  
-        primary_role:
-          talent.primary_role,
-  
-        city_slug:
-          talent.city_slug,
-      },
+        metadata: {
+          locale,
+          talent_id:
+            talent.id,
+          user_id:
+            user.id,
+          talent_name:
+            talentName,
+          primary_role:
+            talent.primary_role,
+          city_slug:
+            talent.city_slug,
+        
+          review_route: shouldAutoApprove
+            ? "auto_approved"
+            : "manual_review",
+        
+          fast_track_decision:
+            fastTrack.decision,
+        
+          fast_track_reasons:
+            fastTrack.reasons,
+        
+          profile_completion:
+            completion,
+        },
     });
   } catch (eventError) {
     console.error(
@@ -321,8 +352,12 @@ if (!readiness.canSubmitForReview) {
   return {
     success: true,
     completion,
-    message: isArabic
-      ? "تم إرسال ملفك للمراجعة بنجاح."
-      : "Your profile has been submitted for review.",
+    message: shouldAutoApprove
+  ? isArabic
+    ? "تم اعتماد ملفك وأصبح جاهزًا للظهور على ملامح."
+    : "Your profile has been approved and is now ready to appear on MLAMH."
+  : isArabic
+    ? "تم إرسال ملفك للمراجعة بنجاح."
+    : "Your profile has been submitted for review.",
   };
 }
