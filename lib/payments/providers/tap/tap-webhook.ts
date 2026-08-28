@@ -29,6 +29,14 @@ function getTapSecretKey() {
     throw new Error("TAP_SECRET_KEY is not configured.");
   }
 
+  if (secretKey.startsWith("sk_live_") && process.env.PAYMENTS_LIVE_ENABLED !== "true") {
+    throw new Error("Tap live payments are disabled. Set PAYMENTS_LIVE_ENABLED=true only after production approval.");
+  }
+
+  if (!secretKey.startsWith("sk_test_") && !secretKey.startsWith("sk_live_")) {
+    throw new Error("TAP_SECRET_KEY does not use a recognized Tap secret-key format.");
+  }
+
   return secretKey;
 }
 
