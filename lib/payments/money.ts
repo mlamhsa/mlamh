@@ -30,6 +30,21 @@ export function minorToMajorAmount(amountMinor: number, currency: string) {
   return amountMinor / 10 ** getCurrencyExponent(currency);
 }
 
+export function majorToMinorAmount(amountMajor: number, currency: string) {
+  if (!Number.isFinite(amountMajor) || amountMajor < 0) {
+    throw new Error("amountMajor must be a non-negative finite number.");
+  }
+
+  const multiplier = 10 ** getCurrencyExponent(currency);
+  const amountMinor = Math.round((amountMajor + Number.EPSILON) * multiplier);
+
+  if (!Number.isSafeInteger(amountMinor)) {
+    throw new Error("Converted minor amount exceeds JavaScript safe integer range.");
+  }
+
+  return amountMinor;
+}
+
 export function formatProviderAmount(amountMinor: number, currency: string) {
   const exponent = getCurrencyExponent(currency);
   return minorToMajorAmount(amountMinor, currency).toFixed(exponent);
