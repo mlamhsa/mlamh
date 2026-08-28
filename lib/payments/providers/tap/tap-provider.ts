@@ -14,8 +14,8 @@ import type {
 import { formatProviderAmount, normalizeCurrency } from "../../money";
 import { tapRequest } from "./tap-client";
 import {
-  mapTapChargeToNormalizedPayment,
   mapTapChargeStatus,
+  normalizeTapCharge,
 } from "./tap-mapper";
 import type {
   TapCharge,
@@ -100,7 +100,7 @@ export const tapPaymentProvider: PaymentProvider = {
       `/charges/${encodeURIComponent(input.providerPaymentId)}`,
     );
 
-    return mapTapChargeToNormalizedPayment(charge);
+    return normalizeTapCharge(charge);
   },
 
   verifyWebhook(input: VerifyWebhookInput): Promise<VerifiedWebhookResult> {
@@ -108,7 +108,7 @@ export const tapPaymentProvider: PaymentProvider = {
   },
 
   normalizePayment(input: unknown): NormalizedProviderPayment {
-    return mapTapChargeToNormalizedPayment(input as TapCharge);
+    return normalizeTapCharge(input as TapCharge);
   },
 
   async refund(input: RefundPaymentInput): Promise<RefundResult> {
