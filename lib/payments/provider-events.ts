@@ -91,6 +91,22 @@ export async function markProviderEventProcessed(eventId: number) {
   }
 }
 
+export async function markProviderEventIgnored(eventId: number) {
+  const adminClient = createAdminClient();
+  const { error } = await adminClient
+    .from("payment_provider_events")
+    .update({
+      processing_status: "ignored",
+      processed_at: new Date().toISOString(),
+      last_error: null,
+    })
+    .eq("id", eventId);
+
+  if (error) {
+    throw new Error(`Unable to mark provider event ignored: ${error.message}`);
+  }
+}
+
 export async function markProviderEventFailed(eventId: number, errorMessage: string) {
   const adminClient = createAdminClient();
   const { error } = await adminClient
