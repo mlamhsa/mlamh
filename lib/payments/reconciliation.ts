@@ -80,3 +80,28 @@ export async function validateTapPaymentForReconciliation(
     providerPayment,
   };
 }
+
+export async function reconcileTapPayment(
+  providerPayment: NormalizedProviderPayment,
+): Promise<ReconciledPayment> {
+  const reconciled = await validateTapPaymentForReconciliation(providerPayment);
+  const adminClient = createAdminClient();
+
+  const { error } = await adminClient.rpc("reconcile_payment_charge", {
+    p_payment_id: reconciled.payment.id,
+    p_provider: providerPayment.provider,
+    p_provider_payment_id: providerPayment.providerPaymentId,
+    p_provider_transaction_id:
+      providerPayment.providerTransactionId ?? providerPayment.providerPaymentId,
+    p_status: providerPayment.status,
+    p_provider_status: providerPayment.rawStatus,
+    p_currency: providerPayment.currency,
+    p_amount_minor: providerPayment.amountMinor,
+  });
+
+  if (error) {
+    throw new Error(`Unable to reconcile payment atomically: ${error.message}`);
+  }
+
+  return reconciled;
+}
