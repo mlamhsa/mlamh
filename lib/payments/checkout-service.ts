@@ -86,6 +86,29 @@ function assertPriceIsCurrentlyAvailable(price: CatalogRow, marketCountry: strin
   }
 }
 
+async function assertSandboxCatalogAccess(
+  userId: string,
+  productMetadata: Record<string, unknown> | null,
+) {
+  if (productMetadata?.sandbox_only !== true) return;
+
+  const adminClient = createAdminClient();
+  const { data, error } = await adminClient
+    .from("profiles")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("account_type", "admin")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Unable to validate sandbox payment access: ${error.message}`);
+  }
+
+  if (!data) {
+    throw new Error("Sandbox payment products are restricted to administrators.");
+  }
+}
+
 async function assertTargetOwnership(userId: string, target?: CheckoutTarget | null) {
   if (!target) return;
 
@@ -187,6 +210,7 @@ export async function createPaymentCheckout(
   assertPriceIsCurrentlyAvailable(price, marketCountry);
   const product = price.payment_products;
   if (!product) throw new Error("Payment product was not found.");
+  await assertSandboxCatalogAccess(input.userId, product.metadata);
 
   const currency = normalizeCurrency(price.currency);
   const idempotencyKey = randomUUID();
