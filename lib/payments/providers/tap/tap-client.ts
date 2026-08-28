@@ -5,7 +5,6 @@ const TAP_API_BASE_URL = "https://api.tap.company/v2";
 type TapRequestOptions = {
   method?: "GET" | "POST";
   body?: unknown;
-  idempotencyKey?: string;
 };
 
 function getTapSecretKey() {
@@ -26,10 +25,6 @@ export async function tapRequest<T>(
     Authorization: `Bearer ${getTapSecretKey()}`,
     "Content-Type": "application/json",
   });
-
-  if (options.idempotencyKey) {
-    headers.set("Idempotency-Key", options.idempotencyKey);
-  }
 
   const response = await fetch(`${TAP_API_BASE_URL}${path}`, {
     method: options.method ?? "GET",
