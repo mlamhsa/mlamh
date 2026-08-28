@@ -1,8 +1,8 @@
 import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { NormalizedProviderPayment } from "./types";
 import { normalizeCurrency } from "./money";
+import type { NormalizedProviderPayment } from "./types";
 
 type PaymentRow = {
   id: number;
@@ -28,6 +28,18 @@ function assertProviderPaymentMatches(
     throw new Error("Unexpected payment provider during Tap reconciliation.");
   }
 
+  if (payment.provider !== "tap") {
+    throw new Error("MLAMH payment is not assigned to Tap.");
+  }
+
+  if (providerPayment.referenceOrder !== payment.public_id) {
+    throw new Error("Provider order reference does not match the MLAMH payment.");
+  }
+
+  if (providerPayment.referenceTransaction !== payment.public_id) {
+    throw new Error("Provider transaction reference does not match the MLAMH payment.");
+  }
+
   if (
     payment.provider_payment_id &&
     payment.provider_payment_id !== providerPayment.providerPaymentId
@@ -42,18 +54,17 @@ function assertProviderPaymentMatches(
   if (normalizeCurrency(payment.currency) !== normalizeCurrency(providerPayment.currency)) {
     throw new Error("Provider currency does not match the MLAMH payment.");
   }
-
-  if (
-    providerPayment.referenceOrder &&
-    providerPayment.referenceOrder !== payment.public_id
-  ) {
-    throw new Error("Provider order reference does not match the MLAMH payment.");
-  }
 }
 
 export async function validateTapPaymentForReconciliation(
   providerPayment: NormalizedProviderPayment,
 ): Promise<ReconciledPayment> {
+  const referenceOrder = providerPayment.referenceOrder?.trim();
+
+  if (!referenceOrder) {
+    throw new Error("Tap payment is missing the MLAMH order reference.");
+  }
+
   const adminClient = createAdminClient();
 
   const { data, error } = await adminClient
@@ -61,7 +72,7 @@ export async function validateTapPaymentForReconciliation(
     .select(
       "id, public_id, user_id, provider, provider_payment_id, status, amount_minor, currency",
     )
-    .eq("public_id", providerPayment.referenceOrder ?? "")
+    .eq("public_id", referenceOrder)
     .maybeSingle();
 
   if (error) {
