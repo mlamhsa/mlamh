@@ -108,7 +108,7 @@ export function verifyTapWebhook(input: VerifyWebhookInput): VerifiedWebhookResu
 
     return {
       valid: constantTimeHexEqual(expectedHashString, postedHashString),
-      providerEventId: typeof payload.id === "string" ? payload.id : null,
+      providerEventId: null,
       eventFingerprint,
       rawPayload,
     };
