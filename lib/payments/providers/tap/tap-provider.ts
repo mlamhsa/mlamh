@@ -22,6 +22,7 @@ import type {
   TapCreateChargeResponse,
   TapRefund,
 } from "./tap-types";
+import { verifyTapWebhook } from "./tap-webhook";
 
 function sanitizeMetadata(metadata?: Record<string, string>) {
   if (!metadata) return undefined;
@@ -102,8 +103,8 @@ export const tapPaymentProvider: PaymentProvider = {
     return mapTapChargeToNormalizedPayment(charge);
   },
 
-  verifyWebhook(_input: VerifyWebhookInput): Promise<VerifiedWebhookResult> {
-    throw new Error("Tap webhook verification is not implemented yet.");
+  verifyWebhook(input: VerifyWebhookInput): Promise<VerifiedWebhookResult> {
+    return Promise.resolve(verifyTapWebhook(input));
   },
 
   normalizePayment(input: unknown): NormalizedProviderPayment {
