@@ -1,0 +1,82 @@
+import "server-only";
+
+import { createAdminClient } from "@/lib/supabase/admin";
+import type { NormalizedProviderPayment } from "./types";
+import { normalizeCurrency } from "./money";
+
+type PaymentRow = {
+  id: number;
+  public_id: string;
+  user_id: string;
+  provider: string | null;
+  provider_payment_id: string | null;
+  status: string;
+  amount_minor: number;
+  currency: string;
+};
+
+export type ReconciledPayment = {
+  payment: PaymentRow;
+  providerPayment: NormalizedProviderPayment;
+};
+
+function assertProviderPaymentMatches(
+  payment: PaymentRow,
+  providerPayment: NormalizedProviderPayment,
+) {
+  if (providerPayment.provider !== "tap") {
+    throw new Error("Unexpected payment provider during Tap reconciliation.");
+  }
+
+  if (
+    payment.provider_payment_id &&
+    payment.provider_payment_id !== providerPayment.providerPaymentId
+  ) {
+    throw new Error("Provider payment ID does not match the MLAMH payment.");
+  }
+
+  if (payment.amount_minor !== providerPayment.amountMinor) {
+    throw new Error("Provider amount does not match the MLAMH payment.");
+  }
+
+  if (normalizeCurrency(payment.currency) !== normalizeCurrency(providerPayment.currency)) {
+    throw new Error("Provider currency does not match the MLAMH payment.");
+  }
+
+  if (
+    providerPayment.referenceOrder &&
+    providerPayment.referenceOrder !== payment.public_id
+  ) {
+    throw new Error("Provider order reference does not match the MLAMH payment.");
+  }
+}
+
+export async function validateTapPaymentForReconciliation(
+  providerPayment: NormalizedProviderPayment,
+): Promise<ReconciledPayment> {
+  const adminClient = createAdminClient();
+
+  const { data, error } = await adminClient
+    .from("payments")
+    .select(
+      "id, public_id, user_id, provider, provider_payment_id, status, amount_minor, currency",
+    )
+    .eq("public_id", providerPayment.referenceOrder ?? "")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Unable to load payment for reconciliation: ${error.message}`);
+  }
+
+  if (!data) {
+    throw new Error("No MLAMH payment matches the provider order reference.");
+  }
+
+  const payment = data as PaymentRow;
+  assertProviderPaymentMatches(payment, providerPayment);
+
+  return {
+    payment,
+    providerPayment,
+  };
+}
