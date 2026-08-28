@@ -54,6 +54,6 @@ export async function createPaymentCheckoutAction(
       phone: user.phone ?? null,
     },
     webhookUrl: `${siteUrl}/api/payments/webhooks/tap`,
-    redirectUrl: `${siteUrl}/${locale}`,
+    redirectUrl: `${siteUrl}/${locale}/payment/return`,
   });
 }
