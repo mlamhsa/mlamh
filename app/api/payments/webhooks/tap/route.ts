@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 
-import { registerProviderEvent } from "@/lib/payments/provider-events";
+import {
+  markProviderEventFailed,
+  markProviderEventProcessed,
+  markProviderEventProcessing,
+  registerProviderEvent,
+} from "@/lib/payments/provider-events";
 import { tapPaymentProvider } from "@/lib/payments/providers/tap/tap-provider";
+import { validateTapPaymentForReconciliation } from "@/lib/payments/reconciliation";
 
 export const runtime = "nodejs";
 
@@ -30,6 +36,10 @@ function getWebhookMetadata(payload: unknown) {
         ? tapPayload.id.trim()
         : null,
   };
+}
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Unknown provider event processing error.";
 }
 
 export async function POST(request: Request) {
@@ -75,13 +85,44 @@ export async function POST(request: Request) {
     );
   }
 
-  return NextResponse.json(
-    {
-      ok: true,
-      accepted: true,
-      duplicate: false,
+  if (!metadata.providerObjectId) {
+    await markProviderEventFailed(registered.eventId, "Tap webhook is missing the charge ID.");
+    return NextResponse.json(
+      { ok: false, error: "missing_provider_object_id" },
+      { status: 400 },
+    );
+  }
+
+  try {
+    await markProviderEventProcessing(registered.eventId);
+
+    const providerPayment = await tapPaymentProvider.retrievePayment({
+      providerPaymentId: metadata.providerObjectId,
+    });
+
+    await validateTapPaymentForReconciliation(providerPayment);
+    await markProviderEventProcessed(registered.eventId);
+
+    return NextResponse.json(
+      {
+        ok: true,
+        accepted: true,
+        duplicate: false,
+        verified: true,
+      },
+      { status: 200 },
+    );
+  } catch (error) {
+    const errorMessage = getErrorMessage(error);
+    await markProviderEventFailed(registered.eventId, errorMessage);
+    console.error("[TapWebhook] provider event processing failed", {
       eventId: registered.eventId,
-    },
-    { status: 202 },
-  );
+      error: errorMessage,
+    });
+
+    return NextResponse.json(
+      { ok: false, error: "provider_event_processing_failed" },
+      { status: 500 },
+    );
+  }
 }
