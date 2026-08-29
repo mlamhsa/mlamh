@@ -8,6 +8,7 @@ import {
   FileClock,
   LayoutDashboard,
   MessageSquare,
+  ReceiptText,
   Settings,
   ShieldCheck,
   Star,
@@ -128,6 +129,12 @@ export const adminNavigation: AdminNavigationGroup[] =
           labelEn: "Payments",
           href: "/admin/payments",
           icon: CreditCard,
+        },
+        {
+          labelAr: "الاشتراكات والمزايا",
+          labelEn: "Subscriptions & Benefits",
+          href: "/admin/entitlements",
+          icon: ReceiptText,
         },
         {
           labelAr: "الإشعارات",
