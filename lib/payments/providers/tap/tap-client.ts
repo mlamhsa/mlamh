@@ -44,7 +44,20 @@ export async function tapRequest<T>(
   const payload = (await response.json().catch(() => null)) as T | null;
 
   if (!response.ok || payload === null) {
-    throw new Error(`Tap API request failed with HTTP ${response.status}.`);
+    const details =
+      payload && typeof payload === "object"
+        ? JSON.stringify(payload)
+        : "No response body";
+
+    console.error("[Tap API] Request failed", {
+      status: response.status,
+      path,
+      details,
+    });
+
+    throw new Error(
+      `Tap API request failed with HTTP ${response.status}: ${details}`,
+    );
   }
 
   return payload;
