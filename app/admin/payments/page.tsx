@@ -23,10 +23,15 @@ type PaymentRow = {
   amount_minor: number;
   provider: string | null;
   provider_payment_id: string | null;
-  provider_status: string | null;
   status: string;
   created_at: string;
   succeeded_at: string | null;
+};
+
+type PaymentTransactionRow = {
+  payment_id: number;
+  provider_status: string | null;
+  created_at: string;
 };
 
 const PAYMENT_STATUSES = [
@@ -86,13 +91,43 @@ export default async function AdminPaymentsPage({ searchParams }: PageProps) {
   const { data: payments, error: paymentsError } = await adminClient
     .from("payments")
     .select(
-      "id, public_id, user_id, product_code_snapshot, price_code_snapshot, target_type, target_id, currency, amount_minor, provider, provider_payment_id, provider_status, status, created_at, succeeded_at",
+      "id, public_id, user_id, product_code_snapshot, price_code_snapshot, target_type, target_id, currency, amount_minor, provider, provider_payment_id, status, created_at, succeeded_at",
     )
     .order("created_at", { ascending: false })
     .limit(50);
 
   if (paymentsError) {
     throw new Error(`Unable to load payments: ${paymentsError.message}`);
+  }
+
+  const rows = (payments ?? []) as PaymentRow[];
+  const paymentIds = rows.map((payment) => payment.id);
+  const latestProviderStatusByPaymentId = new Map<number, string>();
+
+  if (paymentIds.length > 0) {
+    const { data: transactions, error: transactionsError } = await adminClient
+      .from("payment_transactions")
+      .select("payment_id, provider_status, created_at")
+      .in("payment_id", paymentIds)
+      .order("created_at", { ascending: false });
+
+    if (transactionsError) {
+      throw new Error(
+        `Unable to load payment transaction statuses: ${transactionsError.message}`,
+      );
+    }
+
+    for (const transaction of (transactions ?? []) as PaymentTransactionRow[]) {
+      if (
+        !latestProviderStatusByPaymentId.has(transaction.payment_id) &&
+        transaction.provider_status
+      ) {
+        latestProviderStatusByPaymentId.set(
+          transaction.payment_id,
+          transaction.provider_status,
+        );
+      }
+    }
   }
 
   const countResults = await Promise.all(
@@ -105,16 +140,26 @@ export default async function AdminPaymentsPage({ searchParams }: PageProps) {
   );
 
   const counts = Object.fromEntries(
-    PAYMENT_STATUSES.map((status, index) => [status, countResults[index].count ?? 0]),
+    PAYMENT_STATUSES.map((status, index) => [
+      status,
+      countResults[index].count ?? 0,
+    ]),
   ) as Record<(typeof PAYMENT_STATUSES)[number], number>;
 
-  const rows = (payments ?? []) as PaymentRow[];
-  const total = PAYMENT_STATUSES.reduce((sum, status) => sum + counts[status], 0);
+  const total = PAYMENT_STATUSES.reduce(
+    (sum, status) => sum + counts[status],
+    0,
+  );
 
   return (
-    <main dir={isArabic ? "rtl" : "ltr"} className="mx-auto max-w-7xl px-6 py-10 text-white">
+    <main
+      dir={isArabic ? "rtl" : "ltr"}
+      className="mx-auto max-w-7xl px-6 py-10 text-white"
+    >
       <section className="mb-10">
-        <p className="text-[10px] uppercase tracking-[0.4em] text-gold">MLAMH ADMIN</p>
+        <p className="text-[10px] uppercase tracking-[0.4em] text-gold">
+          MLAMH ADMIN
+        </p>
         <h1 className="mt-3 text-3xl font-light tracking-tight md:text-5xl">
           {isArabic ? "المدفوعات" : "Payments"}
         </h1>
@@ -126,15 +171,29 @@ export default async function AdminPaymentsPage({ searchParams }: PageProps) {
       </section>
 
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat label={isArabic ? "إجمالي العمليات" : "Total payments"} value={total} />
-        <Stat label={isArabic ? "ناجحة" : "Succeeded"} value={counts.succeeded} />
-        <Stat label={isArabic ? "معلقة / معالجة" : "Pending / Processing"} value={counts.pending + counts.processing} />
-        <Stat label={isArabic ? "فاشلة / ملغاة" : "Failed / Cancelled"} value={counts.failed + counts.cancelled} />
+        <Stat
+          label={isArabic ? "إجمالي العمليات" : "Total payments"}
+          value={total}
+        />
+        <Stat
+          label={isArabic ? "ناجحة" : "Succeeded"}
+          value={counts.succeeded}
+        />
+        <Stat
+          label={isArabic ? "معلقة / معالجة" : "Pending / Processing"}
+          value={counts.pending + counts.processing}
+        />
+        <Stat
+          label={isArabic ? "فاشلة / ملغاة" : "Failed / Cancelled"}
+          value={counts.failed + counts.cancelled}
+        />
       </section>
 
       <section className="mt-8 overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.025]">
         <div className="border-b border-white/10 px-6 py-5">
-          <h2 className="text-lg font-medium">{isArabic ? "آخر 50 عملية" : "Latest 50 payments"}</h2>
+          <h2 className="text-lg font-medium">
+            {isArabic ? "آخر 50 عملية" : "Latest 50 payments"}
+          </h2>
         </div>
 
         {rows.length === 0 ? (
@@ -146,54 +205,100 @@ export default async function AdminPaymentsPage({ searchParams }: PageProps) {
             <table className="min-w-full text-sm">
               <thead className="bg-black/25 text-[10px] uppercase tracking-[0.18em] text-white/35">
                 <tr>
-                  <th className="px-5 py-4 text-start">{isArabic ? "العملية" : "Payment"}</th>
-                  <th className="px-5 py-4 text-start">{isArabic ? "المنتج" : "Product"}</th>
-                  <th className="px-5 py-4 text-start">{isArabic ? "المبلغ" : "Amount"}</th>
-                  <th className="px-5 py-4 text-start">{isArabic ? "الحالة" : "Status"}</th>
+                  <th className="px-5 py-4 text-start">
+                    {isArabic ? "العملية" : "Payment"}
+                  </th>
+                  <th className="px-5 py-4 text-start">
+                    {isArabic ? "المنتج" : "Product"}
+                  </th>
+                  <th className="px-5 py-4 text-start">
+                    {isArabic ? "المبلغ" : "Amount"}
+                  </th>
+                  <th className="px-5 py-4 text-start">
+                    {isArabic ? "الحالة" : "Status"}
+                  </th>
                   <th className="px-5 py-4 text-start">Tap</th>
-                  <th className="px-5 py-4 text-start">{isArabic ? "الهدف" : "Target"}</th>
-                  <th className="px-5 py-4 text-start">{isArabic ? "التاريخ" : "Created"}</th>
+                  <th className="px-5 py-4 text-start">
+                    {isArabic ? "الهدف" : "Target"}
+                  </th>
+                  <th className="px-5 py-4 text-start">
+                    {isArabic ? "التاريخ" : "Created"}
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/[0.07]">
-                {rows.map((payment) => (
-                  <tr key={payment.id} className="align-top hover:bg-white/[0.025]">
-                    <td className="px-5 py-5">
-                      <p className="font-mono text-xs text-white/70">#{payment.id}</p>
-                      <p className="mt-1 max-w-[190px] truncate font-mono text-[10px] text-white/30" title={payment.public_id}>
-                        {payment.public_id}
-                      </p>
-                    </td>
-                    <td className="px-5 py-5">
-                      <p className="text-white/75">{payment.product_code_snapshot ?? "—"}</p>
-                      <p className="mt-1 text-xs text-white/30">{payment.price_code_snapshot ?? "—"}</p>
-                    </td>
-                    <td className="whitespace-nowrap px-5 py-5 text-white/75">
-                      {formatAmount(payment.amount_minor, payment.currency, locale)}
-                    </td>
-                    <td className="px-5 py-5">
-                      <span className={`inline-flex rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.14em] ${statusClasses(payment.status)}`}>
-                        {payment.status}
-                      </span>
-                      {payment.provider_status ? (
-                        <p className="mt-2 text-[10px] text-white/30">{payment.provider_status}</p>
-                      ) : null}
-                    </td>
-                    <td className="px-5 py-5">
-                      <p className="text-xs text-white/60">{payment.provider ?? "—"}</p>
-                      <p className="mt-1 max-w-[180px] truncate font-mono text-[10px] text-white/30" title={payment.provider_payment_id ?? undefined}>
-                        {payment.provider_payment_id ?? "—"}
-                      </p>
-                    </td>
-                    <td className="px-5 py-5 text-xs text-white/50">
-                      <p>{payment.target_type ?? "account"}</p>
-                      <p className="mt-1 font-mono text-[10px] text-white/30">{payment.target_id ?? "—"}</p>
-                    </td>
-                    <td className="whitespace-nowrap px-5 py-5 text-xs text-white/45">
-                      {formatDate(payment.created_at, locale)}
-                    </td>
-                  </tr>
-                ))}
+                {rows.map((payment) => {
+                  const providerStatus =
+                    latestProviderStatusByPaymentId.get(payment.id) ?? null;
+
+                  return (
+                    <tr
+                      key={payment.id}
+                      className="align-top hover:bg-white/[0.025]"
+                    >
+                      <td className="px-5 py-5">
+                        <p className="font-mono text-xs text-white/70">
+                          #{payment.id}
+                        </p>
+                        <p
+                          className="mt-1 max-w-[190px] truncate font-mono text-[10px] text-white/30"
+                          title={payment.public_id}
+                        >
+                          {payment.public_id}
+                        </p>
+                      </td>
+                      <td className="px-5 py-5">
+                        <p className="text-white/75">
+                          {payment.product_code_snapshot ?? "—"}
+                        </p>
+                        <p className="mt-1 text-xs text-white/30">
+                          {payment.price_code_snapshot ?? "—"}
+                        </p>
+                      </td>
+                      <td className="whitespace-nowrap px-5 py-5 text-white/75">
+                        {formatAmount(
+                          payment.amount_minor,
+                          payment.currency,
+                          locale,
+                        )}
+                      </td>
+                      <td className="px-5 py-5">
+                        <span
+                          className={`inline-flex rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.14em] ${statusClasses(
+                            payment.status,
+                          )}`}
+                        >
+                          {payment.status}
+                        </span>
+                        {providerStatus ? (
+                          <p className="mt-2 text-[10px] text-white/30">
+                            {providerStatus}
+                          </p>
+                        ) : null}
+                      </td>
+                      <td className="px-5 py-5">
+                        <p className="text-xs text-white/60">
+                          {payment.provider ?? "—"}
+                        </p>
+                        <p
+                          className="mt-1 max-w-[180px] truncate font-mono text-[10px] text-white/30"
+                          title={payment.provider_payment_id ?? undefined}
+                        >
+                          {payment.provider_payment_id ?? "—"}
+                        </p>
+                      </td>
+                      <td className="px-5 py-5 text-xs text-white/50">
+                        <p>{payment.target_type ?? "account"}</p>
+                        <p className="mt-1 font-mono text-[10px] text-white/30">
+                          {payment.target_id ?? "—"}
+                        </p>
+                      </td>
+                      <td className="whitespace-nowrap px-5 py-5 text-xs text-white/45">
+                        {formatDate(payment.created_at, locale)}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -206,7 +311,9 @@ export default async function AdminPaymentsPage({ searchParams }: PageProps) {
 function Stat({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-3xl border border-white/[0.08] bg-white/[0.025] p-5">
-      <p className="text-[10px] uppercase tracking-[0.2em] text-white/35">{label}</p>
+      <p className="text-[10px] uppercase tracking-[0.2em] text-white/35">
+        {label}
+      </p>
       <p className="mt-3 text-3xl font-light text-white">{value}</p>
     </div>
   );
