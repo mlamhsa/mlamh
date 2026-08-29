@@ -14,6 +14,7 @@ export type PurchasableCatalogItem = {
   currency: string;
   amountMinor: number;
   marketCountry: string | null;
+  durationDays: number | null;
 };
 
 function isCommerciallyReady(metadata: unknown) {
@@ -22,6 +23,24 @@ function isCommerciallyReady(metadata: unknown) {
   }
 
   return (metadata as Record<string, unknown>).commercial_ready === true;
+}
+
+function getDurationDays(metadata: unknown) {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return null;
+  }
+
+  const entitlement = (metadata as Record<string, unknown>).entitlement;
+  if (!entitlement || typeof entitlement !== "object" || Array.isArray(entitlement)) {
+    return null;
+  }
+
+  const value = (entitlement as Record<string, unknown>).duration_days;
+  const durationDays = Number(value);
+
+  return Number.isSafeInteger(durationDays) && durationDays > 0
+    ? durationDays
+    : null;
 }
 
 function areLivePaymentsReady() {
@@ -107,5 +126,6 @@ export async function getPurchasableCatalogItem(
     currency: String(price.currency),
     amountMinor: Number(price.amount_minor),
     marketCountry: price.market_country ? String(price.market_country) : null,
+    durationDays: getDurationDays(product.metadata),
   };
 }
