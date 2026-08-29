@@ -2,6 +2,7 @@ import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { activatePaymentEntitlement } from "./entitlement-service";
+import { applyEntitlementEffect } from "./entitlement-effects";
 
 type EntitlementConfig = {
   code: string;
@@ -12,6 +13,8 @@ type PaymentForOrchestration = {
   id: number;
   status: string;
   product_id: number;
+  target_type: string | null;
+  target_id: string | null;
   payment_products: {
     metadata: Record<string, unknown> | null;
   } | null;
@@ -62,7 +65,7 @@ export async function orchestrateSucceededPayment(
   const adminClient = createAdminClient();
   const { data, error } = await adminClient
     .from("payments")
-    .select("id, status, product_id, payment_products!inner(metadata)")
+    .select("id, status, product_id, target_type, target_id, payment_products!inner(metadata)")
     .eq("id", paymentId)
     .maybeSingle();
 
@@ -89,10 +92,18 @@ export async function orchestrateSucceededPayment(
     };
   }
 
+  const expiresAt = calculateExpiry(config.duration_days);
   const activated = await activatePaymentEntitlement({
     paymentId: payment.id,
     entitlementCode: config.code,
-    expiresAt: calculateExpiry(config.duration_days),
+    expiresAt,
+  });
+
+  await applyEntitlementEffect({
+    entitlementCode: config.code,
+    targetType: payment.target_type,
+    targetId: payment.target_id,
+    expiresAt,
   });
 
   return {
