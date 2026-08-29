@@ -9,6 +9,7 @@ import {
   MessageSquare,
   Settings,
   ShieldCheck,
+  Star,
   Users,
 } from "lucide-react";
 
@@ -87,6 +88,12 @@ export const adminNavigation: AdminNavigationGroup[] =
           icon: BriefcaseBusiness,
           badgeKey:
             "pendingOpportunities",
+        },
+        {
+          labelAr: "الفرص المميزة",
+          labelEn: "Featured Opportunities",
+          href: "/admin/opportunities/featured",
+          icon: Star,
         },
         {
           labelAr: "الطلبات",
