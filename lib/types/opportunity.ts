@@ -18,10 +18,9 @@ export type Opportunity = {
   max_age?: number | null;
 
   compensation_type?: "fixed" | "negotiable" | "unpaid" | null;
-budget?: string | null;
+  budget?: string | null;
 
-
-company_name: string;
+  company_name: string;
 
   contact_name?: string | null;
   contact_phone?: string | null;
@@ -29,6 +28,9 @@ company_name: string;
 
   status: string;
   published: boolean;
+
+  featured?: boolean | null;
+  featured_until?: string | null;
 
   expires_at?: string | null;
 
