@@ -3,6 +3,14 @@ import { FEATURED_TALENTS_LIMIT } from "@/lib/constants/ui";
 import type { Locale } from "@/lib/i18n";
 import type { Talent } from "@/lib/types/talent";
 
+function isCurrentlyFeatured(talent: Talent) {
+  if (!talent.featured) return false;
+  if (!talent.featured_until) return true;
+
+  const expiresAt = Date.parse(talent.featured_until);
+  return Number.isFinite(expiresAt) && expiresAt > Date.now();
+}
+
 export function FeaturedTalentGrid({
   talents,
   locale,
@@ -13,7 +21,7 @@ export function FeaturedTalentGrid({
   const isRtl = locale === "ar";
 
   const featuredTalents = talents
-    .filter((talent) => talent.featured)
+    .filter(isCurrentlyFeatured)
     .slice(0, FEATURED_TALENTS_LIMIT);
 
   if (featuredTalents.length === 0) {
