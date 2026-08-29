@@ -123,6 +123,14 @@ async function assertProductCheckoutAccess(
   if (productMetadata?.commercial_ready !== true) {
     throw new Error("This payment product is not commercially available yet.");
   }
+
+  const secretKey = process.env.TAP_SECRET_KEY?.trim() ?? "";
+  if (
+    process.env.PAYMENTS_LIVE_ENABLED !== "true" ||
+    !secretKey.startsWith("sk_live_")
+  ) {
+    throw new Error("Commercial payments are not enabled with Tap live credentials.");
+  }
 }
 
 function getEntitlementCode(productMetadata: Record<string, unknown> | null) {
@@ -274,7 +282,11 @@ async function assertProductTargetEligibility(
     if (error) {
       throw new Error(`Unable to validate Featured Opportunity eligibility: ${error.message}`);
     }
-    if (!data || data.published !== true || !["published", "open"].includes(String(data.status))) {
+    if (
+      !data ||
+      data.published !== true ||
+      !["published", "open"].includes(String(data.status))
+    ) {
       throw new Error("Only a published open opportunity can be featured.");
     }
 
@@ -372,7 +384,11 @@ export async function createPaymentCheckout(
     market_country: price.market_country,
   };
 
-  let payment: { id: number; public_id: string; existingProviderPaymentId: string | null } | null = null;
+  let payment: {
+    id: number;
+    public_id: string;
+    existingProviderPaymentId: string | null;
+  } | null = null;
 
   const { data: insertedPayment, error: paymentError } = await adminClient
     .from("payments")
