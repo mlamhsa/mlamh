@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { requirePublisher } from "@/lib/auth/require-publisher";
 import { getPurchasableCatalogItem } from "@/lib/payments/catalog";
+import { formatProviderAmount } from "@/lib/payments/money";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 type PageProps = {
@@ -48,9 +49,22 @@ export default async function PublisherFeaturedPage({ params }: PageProps) {
         </h1>
         <p className="mt-4 max-w-3xl text-sm leading-7 text-white/50">
           {isArabic
-            ? "اختر فرصة منشورة لرفع ظهورها داخل ملامح. لا يتم تنفيذ أي شراء ما لم يكن المنتج والسعر مفعّلين في الكتالوج."
-            : "Choose a published opportunity to increase its visibility in MLAMH. No purchase can start unless the product and price are enabled in the catalog."}
+            ? "اختر فرصة منشورة لرفع ظهورها داخل ملامح. يظهر السعر والمدة قبل الانتقال إلى الدفع."
+            : "Choose a published opportunity to increase its visibility in MLAMH. The price and duration are shown before checkout."}
         </p>
+
+        {catalogItem ? (
+          <div className="mt-6 flex flex-wrap gap-3 text-xs">
+            <span className="rounded-full border border-gold/25 bg-gold/10 px-4 py-2 text-gold">
+              {isArabic ? "السعر" : "Price"}: {formatProviderAmount(catalogItem.amountMinor, catalogItem.currency)} {catalogItem.currency}
+            </span>
+            {catalogItem.durationDays ? (
+              <span className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-white/65">
+                {isArabic ? "المدة" : "Duration"}: {catalogItem.durationDays} {isArabic ? "يومًا" : "days"}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
       </section>
 
       {!catalogItem ? (
