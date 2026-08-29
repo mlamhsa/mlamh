@@ -15,6 +15,7 @@ import {
   LayoutDashboard,
   LogOut,
   MessageSquareText,
+  ReceiptText,
   Settings,
   UserRound,
 } from "lucide-react";
@@ -122,6 +123,13 @@ export default function TalentSidebar({
       href: `${dashboardHref}/gallery`,
       label: isAr ? "معرض الأعمال" : "Portfolio",
       icon: <GalleryVerticalEnd size={18} aria-hidden="true" />,
+      exact: false,
+      badge: undefined,
+    },
+    {
+      href: `${dashboardHref}/subscriptions`,
+      label: isAr ? "اشتراكاتي" : "Subscriptions",
+      icon: <ReceiptText size={18} aria-hidden="true" />,
       exact: false,
       badge: undefined,
     },
