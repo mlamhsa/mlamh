@@ -1,4 +1,5 @@
 import { requireAdminAccess } from "@/lib/auth/require-admin";
+import { minorToMajorAmount } from "@/lib/payments/money";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const metadata = {
@@ -55,11 +56,10 @@ function statusClasses(status: string) {
 }
 
 function formatAmount(amountMinor: number, currency: string, locale: string) {
-  const amount = Number(amountMinor) / 100;
+  const amount = minorToMajorAmount(Number(amountMinor), currency);
   return new Intl.NumberFormat(locale === "ar" ? "ar-SA" : "en-US", {
     style: "currency",
     currency,
-    minimumFractionDigits: 2,
   }).format(amount);
 }
 
@@ -83,28 +83,29 @@ export default async function AdminPaymentsPage({ searchParams }: PageProps) {
   const isArabic = locale === "ar";
   const adminClient = createAdminClient();
 
-  const [{ data: payments, error: paymentsError }, ...countResults] = await Promise.all([
-    adminClient
-      .from("payments")
-      .select(
-        "id, public_id, user_id, product_code_snapshot, price_code_snapshot, target_type, target_id, currency, amount_minor, provider, provider_payment_id, provider_status, status, created_at, succeeded_at",
-      )
-      .order("created_at", { ascending: false })
-      .limit(50),
-    ...PAYMENT_STATUSES.map((status) =>
-      adminClient
-        .from("payments")
-        .select("id", { count: "exact", head: true })
-        .eq("status", status),
-    ),
-  ]);
+  const { data: payments, error: paymentsError } = await adminClient
+    .from("payments")
+    .select(
+      "id, public_id, user_id, product_code_snapshot, price_code_snapshot, target_type, target_id, currency, amount_minor, provider, provider_payment_id, provider_status, status, created_at, succeeded_at",
+    )
+    .order("created_at", { ascending: false })
+    .limit(50);
 
   if (paymentsError) {
     throw new Error(`Unable to load payments: ${paymentsError.message}`);
   }
 
+  const countResults = await Promise.all(
+    PAYMENT_STATUSES.map((status) =>
+      adminClient
+        .from("payments")
+        .select("id", { count: "exact", head: true })
+        .eq("status", status),
+    ),
+  );
+
   const counts = Object.fromEntries(
-    PAYMENT_STATUSES.map((status, index) => [status, countResults[index]?.count ?? 0]),
+    PAYMENT_STATUSES.map((status, index) => [status, countResults[index].count ?? 0]),
   ) as Record<(typeof PAYMENT_STATUSES)[number], number>;
 
   const rows = (payments ?? []) as PaymentRow[];
