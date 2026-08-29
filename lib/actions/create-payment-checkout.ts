@@ -1,7 +1,10 @@
 "use server";
 
 import { createPaymentCheckout } from "@/lib/payments/checkout-service";
-import type { PaymentTargetType } from "@/lib/payments/types";
+import {
+  PAYMENT_TARGET_TYPES,
+  type PaymentTargetType,
+} from "@/lib/payments/types";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 type CreatePaymentCheckoutActionInput = {
@@ -34,13 +37,30 @@ function assertValidRequestKey(requestKey: string) {
   }
 }
 
+function assertValidTarget(target: CreatePaymentCheckoutActionInput["target"]) {
+  if (!target) return;
+
+  if (
+    typeof target.type !== "string" ||
+    !PAYMENT_TARGET_TYPES.includes(target.type as PaymentTargetType)
+  ) {
+    throw new Error("Invalid payment target type.");
+  }
+
+  if (typeof target.id !== "string" || !target.id.trim()) {
+    throw new Error("Invalid payment target ID.");
+  }
+}
+
 export async function createPaymentCheckoutAction(
   input: CreatePaymentCheckoutActionInput,
 ) {
   if (!Number.isSafeInteger(input.priceId) || input.priceId <= 0) {
     throw new Error("Invalid payment price ID.");
   }
+
   assertValidRequestKey(input.requestKey);
+  assertValidTarget(input.target);
 
   const authClient = await createServerSupabaseClient();
   const {
