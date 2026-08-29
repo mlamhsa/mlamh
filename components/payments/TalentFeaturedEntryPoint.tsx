@@ -13,11 +13,11 @@ export async function TalentFeaturedEntryPoint({
   const adminClient = createAdminClient();
   const { data: talent, error } = await adminClient
     .from("talents")
-    .select("id, featured, featured_until")
+    .select("id, published, featured, featured_until")
     .eq("user_id", userId)
     .maybeSingle();
 
-  if (error || !talent) return null;
+  if (error || !talent || talent.published !== true) return null;
 
   const featuredUntil = talent.featured_until
     ? Date.parse(String(talent.featured_until))
