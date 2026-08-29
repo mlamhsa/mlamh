@@ -4,6 +4,7 @@ import {
   BriefcaseBusiness,
   Building2,
   ClipboardList,
+  CreditCard,
   FileClock,
   LayoutDashboard,
   MessageSquare,
@@ -121,6 +122,12 @@ export const adminNavigation: AdminNavigationGroup[] =
           labelEn: "Analytics",
           href: "/admin/analytics",
           icon: BarChart3,
+        },
+        {
+          labelAr: "المدفوعات",
+          labelEn: "Payments",
+          href: "/admin/payments",
+          icon: CreditCard,
         },
         {
           labelAr: "الإشعارات",
