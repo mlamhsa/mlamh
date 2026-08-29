@@ -24,6 +24,14 @@ function isCommerciallyReady(metadata: unknown) {
   return (metadata as Record<string, unknown>).commercial_ready === true;
 }
 
+function areLivePaymentsReady() {
+  const secretKey = process.env.TAP_SECRET_KEY?.trim() ?? "";
+  return (
+    process.env.PAYMENTS_LIVE_ENABLED === "true" &&
+    secretKey.startsWith("sk_live_")
+  );
+}
+
 export async function getPurchasableCatalogItem(
   productCode: string,
   marketCountry: string | null,
@@ -31,7 +39,9 @@ export async function getPurchasableCatalogItem(
   const adminClient = createAdminClient();
   const { data: product, error: productError } = await adminClient
     .from("payment_products")
-    .select("id, code, name_ar, name_en, description_ar, description_en, active, metadata")
+    .select(
+      "id, code, name_ar, name_en, description_ar, description_en, active, metadata",
+    )
     .eq("code", productCode)
     .maybeSingle();
 
@@ -39,13 +49,23 @@ export async function getPurchasableCatalogItem(
     throw new Error(`Unable to load payment product: ${productError.message}`);
   }
 
-  if (!product || product.active !== true || !isCommerciallyReady(product.metadata)) {
+  if (
+    !product ||
+    product.active !== true ||
+    !isCommerciallyReady(product.metadata)
+  ) {
+    return null;
+  }
+
+  if (!areLivePaymentsReady()) {
     return null;
   }
 
   let priceQuery = adminClient
     .from("payment_prices")
-    .select("id, code, currency, amount_minor, market_country, active, billing_type, valid_from, valid_until")
+    .select(
+      "id, code, currency, amount_minor, market_country, active, billing_type, valid_from, valid_until",
+    )
     .eq("product_id", product.id)
     .eq("active", true)
     .eq("billing_type", "one_time")
@@ -53,7 +73,9 @@ export async function getPurchasableCatalogItem(
     .limit(1);
 
   if (marketCountry) {
-    priceQuery = priceQuery.or(`market_country.eq.${marketCountry},market_country.is.null`);
+    priceQuery = priceQuery.or(
+      `market_country.eq.${marketCountry},market_country.is.null`,
+    );
   } else {
     priceQuery = priceQuery.is("market_country", null);
   }
