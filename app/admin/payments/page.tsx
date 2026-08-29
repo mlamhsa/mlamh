@@ -1,0 +1,212 @@
+import { requireAdminAccess } from "@/lib/auth/require-admin";
+import { createAdminClient } from "@/lib/supabase/admin";
+
+export const metadata = {
+  title: "Payments — MLAMH Admin",
+  robots: { index: false, follow: false },
+};
+
+type PageProps = {
+  searchParams: Promise<{ lang?: string }>;
+};
+
+type PaymentRow = {
+  id: number;
+  public_id: string;
+  user_id: string;
+  product_code_snapshot: string | null;
+  price_code_snapshot: string | null;
+  target_type: string | null;
+  target_id: string | null;
+  currency: string;
+  amount_minor: number;
+  provider: string | null;
+  provider_payment_id: string | null;
+  provider_status: string | null;
+  status: string;
+  created_at: string;
+  succeeded_at: string | null;
+};
+
+const PAYMENT_STATUSES = [
+  "pending",
+  "processing",
+  "succeeded",
+  "failed",
+  "cancelled",
+  "partially_refunded",
+  "refunded",
+] as const;
+
+function statusClasses(status: string) {
+  if (status === "succeeded") {
+    return "border-emerald-400/30 bg-emerald-400/10 text-emerald-300";
+  }
+  if (status === "failed" || status === "cancelled") {
+    return "border-red-400/30 bg-red-400/10 text-red-300";
+  }
+  if (status === "processing") {
+    return "border-blue-400/30 bg-blue-400/10 text-blue-300";
+  }
+  if (status === "refunded" || status === "partially_refunded") {
+    return "border-purple-400/30 bg-purple-400/10 text-purple-300";
+  }
+  return "border-amber-400/30 bg-amber-400/10 text-amber-300";
+}
+
+function formatAmount(amountMinor: number, currency: string, locale: string) {
+  const amount = Number(amountMinor) / 100;
+  return new Intl.NumberFormat(locale === "ar" ? "ar-SA" : "en-US", {
+    style: "currency",
+    currency,
+    minimumFractionDigits: 2,
+  }).format(amount);
+}
+
+function formatDate(value: string | null, locale: string) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return new Intl.DateTimeFormat(locale === "ar" ? "ar-SA" : "en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+export default async function AdminPaymentsPage({ searchParams }: PageProps) {
+  await requireAdminAccess();
+  const { lang } = await searchParams;
+  const locale = lang === "en" ? "en" : "ar";
+  const isArabic = locale === "ar";
+  const adminClient = createAdminClient();
+
+  const [{ data: payments, error: paymentsError }, ...countResults] = await Promise.all([
+    adminClient
+      .from("payments")
+      .select(
+        "id, public_id, user_id, product_code_snapshot, price_code_snapshot, target_type, target_id, currency, amount_minor, provider, provider_payment_id, provider_status, status, created_at, succeeded_at",
+      )
+      .order("created_at", { ascending: false })
+      .limit(50),
+    ...PAYMENT_STATUSES.map((status) =>
+      adminClient
+        .from("payments")
+        .select("id", { count: "exact", head: true })
+        .eq("status", status),
+    ),
+  ]);
+
+  if (paymentsError) {
+    throw new Error(`Unable to load payments: ${paymentsError.message}`);
+  }
+
+  const counts = Object.fromEntries(
+    PAYMENT_STATUSES.map((status, index) => [status, countResults[index]?.count ?? 0]),
+  ) as Record<(typeof PAYMENT_STATUSES)[number], number>;
+
+  const rows = (payments ?? []) as PaymentRow[];
+  const total = PAYMENT_STATUSES.reduce((sum, status) => sum + counts[status], 0);
+
+  return (
+    <main dir={isArabic ? "rtl" : "ltr"} className="mx-auto max-w-7xl px-6 py-10 text-white">
+      <section className="mb-10">
+        <p className="text-[10px] uppercase tracking-[0.4em] text-gold">MLAMH ADMIN</p>
+        <h1 className="mt-3 text-3xl font-light tracking-tight md:text-5xl">
+          {isArabic ? "المدفوعات" : "Payments"}
+        </h1>
+        <p className="mt-3 max-w-3xl text-sm leading-7 text-white/45">
+          {isArabic
+            ? "عرض مالي للقراءة فقط لمتابعة حالات الدفع ومراجع Tap. لا توجد من هذه الصفحة أي إجراءات استرداد أو تعديل على العمليات."
+            : "Read-only financial visibility for payment states and Tap references. This page does not provide refund or payment mutation actions."}
+        </p>
+      </section>
+
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Stat label={isArabic ? "إجمالي العمليات" : "Total payments"} value={total} />
+        <Stat label={isArabic ? "ناجحة" : "Succeeded"} value={counts.succeeded} />
+        <Stat label={isArabic ? "معلقة / معالجة" : "Pending / Processing"} value={counts.pending + counts.processing} />
+        <Stat label={isArabic ? "فاشلة / ملغاة" : "Failed / Cancelled"} value={counts.failed + counts.cancelled} />
+      </section>
+
+      <section className="mt-8 overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.025]">
+        <div className="border-b border-white/10 px-6 py-5">
+          <h2 className="text-lg font-medium">{isArabic ? "آخر 50 عملية" : "Latest 50 payments"}</h2>
+        </div>
+
+        {rows.length === 0 ? (
+          <div className="p-10 text-center text-sm text-white/40">
+            {isArabic ? "لا توجد عمليات دفع حتى الآن." : "No payments yet."}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead className="bg-black/25 text-[10px] uppercase tracking-[0.18em] text-white/35">
+                <tr>
+                  <th className="px-5 py-4 text-start">{isArabic ? "العملية" : "Payment"}</th>
+                  <th className="px-5 py-4 text-start">{isArabic ? "المنتج" : "Product"}</th>
+                  <th className="px-5 py-4 text-start">{isArabic ? "المبلغ" : "Amount"}</th>
+                  <th className="px-5 py-4 text-start">{isArabic ? "الحالة" : "Status"}</th>
+                  <th className="px-5 py-4 text-start">Tap</th>
+                  <th className="px-5 py-4 text-start">{isArabic ? "الهدف" : "Target"}</th>
+                  <th className="px-5 py-4 text-start">{isArabic ? "التاريخ" : "Created"}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/[0.07]">
+                {rows.map((payment) => (
+                  <tr key={payment.id} className="align-top hover:bg-white/[0.025]">
+                    <td className="px-5 py-5">
+                      <p className="font-mono text-xs text-white/70">#{payment.id}</p>
+                      <p className="mt-1 max-w-[190px] truncate font-mono text-[10px] text-white/30" title={payment.public_id}>
+                        {payment.public_id}
+                      </p>
+                    </td>
+                    <td className="px-5 py-5">
+                      <p className="text-white/75">{payment.product_code_snapshot ?? "—"}</p>
+                      <p className="mt-1 text-xs text-white/30">{payment.price_code_snapshot ?? "—"}</p>
+                    </td>
+                    <td className="whitespace-nowrap px-5 py-5 text-white/75">
+                      {formatAmount(payment.amount_minor, payment.currency, locale)}
+                    </td>
+                    <td className="px-5 py-5">
+                      <span className={`inline-flex rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.14em] ${statusClasses(payment.status)}`}>
+                        {payment.status}
+                      </span>
+                      {payment.provider_status ? (
+                        <p className="mt-2 text-[10px] text-white/30">{payment.provider_status}</p>
+                      ) : null}
+                    </td>
+                    <td className="px-5 py-5">
+                      <p className="text-xs text-white/60">{payment.provider ?? "—"}</p>
+                      <p className="mt-1 max-w-[180px] truncate font-mono text-[10px] text-white/30" title={payment.provider_payment_id ?? undefined}>
+                        {payment.provider_payment_id ?? "—"}
+                      </p>
+                    </td>
+                    <td className="px-5 py-5 text-xs text-white/50">
+                      <p>{payment.target_type ?? "account"}</p>
+                      <p className="mt-1 font-mono text-[10px] text-white/30">{payment.target_id ?? "—"}</p>
+                    </td>
+                    <td className="whitespace-nowrap px-5 py-5 text-xs text-white/45">
+                      {formatDate(payment.created_at, locale)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    </main>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-3xl border border-white/[0.08] bg-white/[0.025] p-5">
+      <p className="text-[10px] uppercase tracking-[0.2em] text-white/35">{label}</p>
+      <p className="mt-3 text-3xl font-light text-white">{value}</p>
+    </div>
+  );
+}
