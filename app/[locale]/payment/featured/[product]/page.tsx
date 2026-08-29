@@ -89,12 +89,29 @@ export default async function FeaturedCheckoutPage({ params, searchParams }: Pag
               {isArabic ? item.descriptionAr : item.descriptionEn}
             </p>
 
-            <div className="mt-6 flex items-center justify-between border-y border-white/10 py-5">
-              <span className="text-sm text-white/50">{isArabic ? "السعر" : "Price"}</span>
-              <span className="text-xl font-medium text-gold">
-                {formatProviderAmount(item.amountMinor, item.currency)} {item.currency}
-              </span>
+            <div className="mt-6 grid gap-4 border-y border-white/10 py-5 sm:grid-cols-2">
+              <div>
+                <p className="text-sm text-white/50">{isArabic ? "السعر" : "Price"}</p>
+                <p className="mt-2 text-xl font-medium text-gold">
+                  {formatProviderAmount(item.amountMinor, item.currency)} {item.currency}
+                </p>
+              </div>
+
+              {item.durationDays ? (
+                <div>
+                  <p className="text-sm text-white/50">{isArabic ? "مدة التمييز" : "Featured duration"}</p>
+                  <p className="mt-2 text-xl font-medium text-white">
+                    {item.durationDays} {isArabic ? "يومًا" : "days"}
+                  </p>
+                </div>
+              ) : null}
             </div>
+
+            <p className="mt-5 text-xs leading-6 text-white/40">
+              {isArabic
+                ? "دفعة واحدة. يبدأ التمييز بعد نجاح الدفع وتفعيله على العنصر المحدد."
+                : "One-time payment. Featured visibility starts after successful payment and activation on the selected item."}
+            </p>
 
             <div className="mt-7">
               <PaymentCheckoutButton
