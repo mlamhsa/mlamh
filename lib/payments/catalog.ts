@@ -16,6 +16,14 @@ export type PurchasableCatalogItem = {
   marketCountry: string | null;
 };
 
+function isCommerciallyReady(metadata: unknown) {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return false;
+  }
+
+  return (metadata as Record<string, unknown>).commercial_ready === true;
+}
+
 export async function getPurchasableCatalogItem(
   productCode: string,
   marketCountry: string | null,
@@ -31,7 +39,7 @@ export async function getPurchasableCatalogItem(
     throw new Error(`Unable to load payment product: ${productError.message}`);
   }
 
-  if (!product || product.active !== true || product.metadata?.commercial_ready !== true) {
+  if (!product || product.active !== true || !isCommerciallyReady(product.metadata)) {
     return null;
   }
 
