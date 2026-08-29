@@ -15,6 +15,22 @@ export type PublisherInviteOpportunity = {
   created_at: string;
 };
 
+function prioritizeActiveFeaturedOpportunities(opportunities: Opportunity[]) {
+  const now = Date.now();
+
+  return opportunities.sort((a, b) => {
+    const aFeatured =
+      a.featured === true &&
+      (!a.featured_until || Date.parse(a.featured_until) > now);
+    const bFeatured =
+      b.featured === true &&
+      (!b.featured_until || Date.parse(b.featured_until) > now);
+
+    if (aFeatured !== bFeatured) return aFeatured ? -1 : 1;
+    return Date.parse(b.created_at) - Date.parse(a.created_at);
+  });
+}
+
 export async function getPublishedOpportunities(): Promise<Opportunity[]> {
   const supabase = createAdminClient();
 
@@ -30,7 +46,7 @@ export async function getPublishedOpportunities(): Promise<Opportunity[]> {
     return [];
   }
 
-  return (data ?? []) as Opportunity[];
+  return prioritizeActiveFeaturedOpportunities((data ?? []) as Opportunity[]);
 }
 
 export async function getPublishedOpportunitiesByPublisher(
