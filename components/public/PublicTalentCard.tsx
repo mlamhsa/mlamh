@@ -34,6 +34,15 @@ export function PublicTalentCard({
   const displayName =
     name || (isRtl ? "موهبة غير مسماة" : "Unnamed Talent");
 
+  const placeholderInitials = displayName
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part.charAt(0))
+    .join("")
+    .toUpperCase();
+
   const ViewProfileIcon = isRtl ? ArrowLeft : ArrowRight;
 
   return (
@@ -57,8 +66,21 @@ export function PublicTalentCard({
             className="object-cover object-center transition-transform duration-700 group-hover:scale-[1.035]"
           />
         ) : (
-          <div className="flex h-full items-center justify-center px-4 text-center text-xs text-white/30">
-            {isRtl ? "لا توجد صورة" : "No image"}
+          <div className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-white/[0.07] via-white/[0.025] to-gold/[0.09] px-5 text-center">
+            <div className="absolute -right-10 -top-10 h-36 w-36 rounded-full border border-gold/10 bg-gold/[0.04] blur-sm" />
+            <div className="absolute -bottom-12 -left-10 h-40 w-40 rounded-full border border-white/[0.06] bg-white/[0.025]" />
+
+            <div className="relative flex h-24 w-24 items-center justify-center rounded-full border border-gold/25 bg-black/35 text-3xl font-light tracking-[0.08em] text-gold shadow-2xl shadow-black/30 backdrop-blur-sm">
+              {placeholderInitials || "M"}
+            </div>
+
+            <p className="relative mt-5 text-[10px] uppercase tracking-[0.35em] text-white/35">
+              MLAMH TALENT
+            </p>
+
+            <p className="relative mt-2 text-xs text-white/45">
+              {isRtl ? "الصورة قيد الإضافة" : "Photo coming soon"}
+            </p>
           </div>
         )}
 
