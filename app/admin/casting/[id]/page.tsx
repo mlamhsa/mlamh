@@ -27,14 +27,21 @@ const statusLabels: Record<string, { ar: string; en: string }> = {
   cancelled: { ar: "ملغي", en: "Cancelled" },
 };
 
+type CastingRoleRequirements = Record<string, unknown>;
+type CastingRoleWithRequirements = { requirements?: unknown };
+
 function label(status: string, isArabic: boolean) {
   const item = statusLabels[status];
   return item ? (isArabic ? item.ar : item.en) : status;
 }
 
-function roleRequirement(role: any, key: string) {
-  const requirements = role?.requirements;
-  return requirements && typeof requirements === "object" ? requirements[key] : null;
+function roleRequirement(role: CastingRoleWithRequirements, key: string) {
+  const requirements = role.requirements;
+  if (!requirements || typeof requirements !== "object" || Array.isArray(requirements)) {
+    return null;
+  }
+
+  return (requirements as CastingRoleRequirements)[key] ?? null;
 }
 
 export const dynamic = "force-dynamic";
