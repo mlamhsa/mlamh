@@ -69,6 +69,7 @@ export default async function CastingStatusPage({
 
   if (!project) notFound();
 
+  const projectId = project.id;
   const opportunityId = project.opportunity_id ? Number(project.opportunity_id) : null;
   const [{ count: applicationCount }, { data: shortlist }, { data: opportunity }] = await Promise.all([
     opportunityId
@@ -158,7 +159,7 @@ export default async function CastingStatusPage({
     const { data: verifiedProject } = await serverClient
       .from("casting_projects")
       .select("id,status")
-      .eq("id", project.id)
+      .eq("id", projectId)
       .eq("client_access_token", submittedToken)
       .maybeSingle();
 
