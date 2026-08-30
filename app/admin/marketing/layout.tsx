@@ -1,14 +1,14 @@
 import { Suspense } from "react";
 
 import { MarketingHubNav } from "@/components/admin/marketing/MarketingHubNav";
-import { requireAdminAccess } from "@/lib/auth/require-admin";
+import { requireMarketingAdminAccess } from "@/lib/auth/require-marketing-admin";
 
 export default async function MarketingHubLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  await requireAdminAccess();
+  await requireMarketingAdminAccess("marketing.view");
 
   return (
     <div className="min-w-0">
