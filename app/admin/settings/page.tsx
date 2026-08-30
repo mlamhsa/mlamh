@@ -36,6 +36,7 @@ type ProductRow = {
   code: string;
   name_ar: string;
   name_en: string;
+  metadata: Record<string, unknown> | null;
 };
 
 const EDITABLE_PRODUCT_CODES = new Set([
@@ -47,6 +48,26 @@ export const metadata = {
   title: "Settings — MLAMH Admin",
   robots: { index: false, follow: false },
 };
+
+function getProductDurationDays(metadata: Record<string, unknown> | null) {
+  const entitlement = metadata?.entitlement;
+
+  if (
+    !entitlement ||
+    typeof entitlement !== "object" ||
+    Array.isArray(entitlement)
+  ) {
+    return 0;
+  }
+
+  const durationDays = Number(
+    (entitlement as Record<string, unknown>).duration_days ?? 0,
+  );
+
+  return Number.isFinite(durationDays) && durationDays > 0
+    ? durationDays
+    : 0;
+}
 
 export default async function AdminSettingsPage({ searchParams }: PageProps) {
   await requireAdminAccess();
@@ -63,7 +84,7 @@ export default async function AdminSettingsPage({ searchParams }: PageProps) {
       .order("id", { ascending: true }),
     adminClient
       .from("payment_products")
-      .select("id, code, name_ar, name_en")
+      .select("id, code, name_ar, name_en, metadata")
       .eq("active", true)
       .order("id", { ascending: true }),
   ]);
@@ -173,7 +194,7 @@ export default async function AdminSettingsPage({ searchParams }: PageProps) {
                 ? product?.name_ar || product?.name_en || price.code
                 : product?.name_en || product?.name_ar || price.code;
               const amountMajor = minorToMajorAmount(price.amount_minor, price.currency);
-              const durationDays = Number(price.metadata?.duration_days ?? 0);
+              const durationDays = getProductDurationDays(product?.metadata ?? null);
 
               return (
                 <div key={price.id} className="px-4 py-5 sm:px-5 sm:py-6">
