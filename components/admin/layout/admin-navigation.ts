@@ -8,6 +8,7 @@ import {
   FileClock,
   Headphones,
   LayoutDashboard,
+  Megaphone,
   MessageSquare,
   ReceiptText,
   Settings,
@@ -55,6 +56,18 @@ export const adminNavigation: AdminNavigationGroup[] = [
         href: "/admin/action-center",
         icon: FileClock,
         badgeKey: "pendingActions",
+      },
+    ],
+  },
+  {
+    titleAr: "النمو والتسويق",
+    titleEn: "Growth & Marketing",
+    items: [
+      {
+        labelAr: "Marketing Hub",
+        labelEn: "Marketing Hub",
+        href: "/admin/marketing",
+        icon: Megaphone,
       },
     ],
   },
