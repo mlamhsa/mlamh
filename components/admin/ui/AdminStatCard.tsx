@@ -11,7 +11,7 @@ export function AdminStatCard({
   href?: string;
   active?: boolean;
 }) {
-  const className = `rounded-2xl border p-4 transition sm:rounded-3xl sm:p-5 ${
+  const className = `admin-stat-card rounded-2xl border p-4 transition sm:rounded-3xl sm:p-5 ${
     active
       ? "border-gold/40 bg-gold/[0.06]"
       : "border-white/[0.08] bg-gray-elevated/30 hover:border-gold/20"
