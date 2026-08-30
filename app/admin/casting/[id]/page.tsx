@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import {
   addCastingShortlistAction,
+  ensureCastingClientAccessAction,
   linkCastingOpportunityAction,
   updateCastingProjectAction,
   updateCastingShortlistStatusAction,
@@ -102,6 +103,9 @@ export default async function AdminCastingProjectPage({
 
   const talentMap = new Map((talents ?? []).map((talent) => [Number(talent.id), talent]));
   const shortlistMap = new Map((shortlist ?? []).map((item) => [Number(item.application_id), item]));
+  const clientStatusHref = project.client_access_token
+    ? `/${language}/casting/status/${project.client_access_token}`
+    : null;
 
   return (
     <div dir={isArabic ? "rtl" : "ltr"} className="px-4 py-6 sm:px-6 lg:px-8">
@@ -118,11 +122,23 @@ export default async function AdminCastingProjectPage({
               <span className="rounded-full border border-white/10 px-3 py-1 text-white/45">Managed by MLAMH</span>
             </div>
           </div>
-          {opportunity?.slug ? (
-            <Link href={`/${language}/opportunities/${opportunity.slug}`} target="_blank" className="rounded-xl border border-gold/25 px-4 py-2.5 text-sm text-gold hover:bg-gold/10">
-              {isArabic ? "عرض الفرصة العامة" : "View public opportunity"}
-            </Link>
-          ) : null}
+
+          <div className="flex flex-wrap gap-2">
+            {clientStatusHref ? (
+              <Link
+                href={clientStatusHref}
+                target="_blank"
+                className="rounded-xl border border-white/10 px-4 py-2.5 text-sm text-white/60 hover:border-gold/25 hover:text-gold"
+              >
+                {isArabic ? "عرض صفحة العميل" : "Client status view"}
+              </Link>
+            ) : null}
+            {opportunity?.slug ? (
+              <Link href={`/${language}/opportunities/${opportunity.slug}`} target="_blank" className="rounded-xl border border-gold/25 px-4 py-2.5 text-sm text-gold hover:bg-gold/10">
+                {isArabic ? "عرض الفرصة العامة" : "View public opportunity"}
+              </Link>
+            ) : null}
+          </div>
         </div>
 
         <div className="mt-6 grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
@@ -166,7 +182,7 @@ export default async function AdminCastingProjectPage({
 
               {!opportunityId ? (
                 <p className="mt-6 rounded-xl border border-amber-500/20 bg-amber-500/[0.05] p-4 text-sm text-amber-200/80">
-                  {isArabic ? "اربط المشروع بفرصة أولًا حتى تظهر طلبات المواهب." : "Link an opportunity first to load talent applications."}
+                  {isArabic ? "أنشئ أو اربط فرصة بالمشروع أولًا حتى تظهر طلبات المواهب." : "Create or link an opportunity first to load talent applications."}
                 </p>
               ) : appRows.length === 0 ? (
                 <p className="mt-6 text-sm text-white/35">{isArabic ? "لا توجد طلبات على الفرصة حتى الآن." : "No applications yet."}</p>
@@ -253,6 +269,15 @@ export default async function AdminCastingProjectPage({
               <label className="mt-4 block text-xs text-white/45">{isArabic ? "السعر المعروض (ر.س)" : "Quoted amount (SAR)"}</label>
               <input name="quoted_amount" type="number" min="0" step="0.01" defaultValue={project.quoted_amount ?? ""} className="mt-2 w-full rounded-xl border border-white/10 bg-black px-4 py-3 text-sm text-white" />
 
+              <label className="mt-4 block text-xs text-white/45">{isArabic ? "تحديث ظاهر للعميل" : "Client-facing status update"}</label>
+              <textarea
+                name="client_status_note"
+                rows={4}
+                maxLength={5000}
+                defaultValue={project.client_status_note || ""}
+                className="mt-2 w-full rounded-xl border border-white/10 bg-black px-4 py-3 text-sm leading-6 text-white"
+              />
+
               <label className="mt-4 block text-xs text-white/45">{isArabic ? "ملاحظات داخلية" : "Internal notes"}</label>
               <textarea name="internal_notes" rows={6} defaultValue={project.internal_notes || ""} className="mt-2 w-full rounded-xl border border-white/10 bg-black px-4 py-3 text-sm leading-6 text-white" />
 
@@ -262,19 +287,59 @@ export default async function AdminCastingProjectPage({
             </form>
 
             <div className="rounded-2xl border border-white/10 bg-white/[0.025] p-6">
+              <p className="text-xs uppercase tracking-[0.25em] text-gold">CLIENT ACCESS</p>
+              <h2 className="mt-2 text-xl font-light text-white">{isArabic ? "متابعة العميل" : "Client tracking"}</h2>
+              {clientStatusHref ? (
+                <>
+                  <p className="mt-4 text-xs leading-6 text-white/35">
+                    {isArabic
+                      ? "الرابط سري ومخصص للعميل لمتابعة الحالة والأرقام بدون تسجيل دخول."
+                      : "This private link lets the client follow status and project counts without signing in."}
+                  </p>
+                  <Link
+                    href={clientStatusHref}
+                    target="_blank"
+                    className="mt-4 inline-flex w-full items-center justify-center rounded-xl border border-gold/30 px-4 py-3 text-sm text-gold hover:bg-gold/10"
+                  >
+                    {isArabic ? "فتح صفحة المتابعة" : "Open client status"}
+                  </Link>
+                </>
+              ) : (
+                <form action={ensureCastingClientAccessAction} className="mt-4">
+                  <input type="hidden" name="project_id" value={projectId} />
+                  <p className="text-xs leading-6 text-white/35">
+                    {isArabic
+                      ? "هذا المشروع لا يملك رابط متابعة بعد. أنشئ رابطًا سريًا قبل إرساله للعميل."
+                      : "This project does not have a tracking link yet. Generate a private link before sharing it with the client."}
+                  </p>
+                  <button className="mt-4 w-full rounded-xl border border-gold/30 px-4 py-3 text-sm text-gold hover:bg-gold/10">
+                    {isArabic ? "إنشاء رابط العميل" : "Generate client link"}
+                  </button>
+                </form>
+              )}
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/[0.025] p-6">
               <p className="text-xs uppercase tracking-[0.25em] text-gold">OPPORTUNITY LINK</p>
-              <h2 className="mt-2 text-xl font-light text-white">{isArabic ? "ربط الفرصة" : "Link opportunity"}</h2>
+              <h2 className="mt-2 text-xl font-light text-white">{isArabic ? "فرصة المشروع" : "Project opportunity"}</h2>
               {opportunity ? (
                 <div className="mt-4 rounded-xl border border-gold/15 bg-gold/[0.04] p-4">
                   <p className="text-xs text-gold">#{opportunity.id}</p>
                   <p className="mt-2 text-sm text-white/80">{isArabic ? opportunity.title : opportunity.title_en || opportunity.title}</p>
                   <p className="mt-1 text-xs text-white/35">{opportunity.status} · {opportunity.published ? "Published" : "Not published"}</p>
                 </div>
-              ) : null}
+              ) : (
+                <Link
+                  href={`/admin/casting/${projectId}/opportunity?lang=${language}`}
+                  className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-gold px-4 py-3 text-sm font-medium text-black hover:brightness-110"
+                >
+                  {isArabic ? "إنشاء فرصة من الـ Brief" : "Create opportunity from brief"}
+                </Link>
+              )}
 
               <form action={linkCastingOpportunityAction} className="mt-4">
                 <input type="hidden" name="project_id" value={projectId} />
-                <label className="block text-xs text-white/45">{isArabic ? "رقم الفرصة" : "Opportunity ID"}</label>
+                <label className="block text-xs text-white/45">{isArabic ? "أو ربط رقم فرصة موجودة" : "Or link an existing opportunity ID"}</label>
                 <input required name="opportunity_id" type="number" min="1" defaultValue={opportunityId ?? ""} className="mt-2 w-full rounded-xl border border-white/10 bg-black px-4 py-3 text-sm text-white" />
                 <p className="mt-2 text-xs leading-5 text-white/30">
                   {isArabic ? "عند الربط ستُعلّم الفرصة تلقائيًا بأنها Managed by MLAMH." : "Linking automatically marks the opportunity as Managed by MLAMH."}
