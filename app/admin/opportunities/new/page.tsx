@@ -28,7 +28,7 @@ export default async function AdminCreateOpportunityPage() {
             </h1>
 
             <p className="mt-2 max-w-2xl text-sm leading-6 text-white/50">
-              أدخل المحتوى بالعربية والإنجليزية مرة واحدة، وسيعرض الموقع النسخة المناسبة تلقائيًا حسب لغة المستخدم.
+              اكتب عنوان ووصف الفرصة بالعربية فقط، وستقوم ملامح بإنشاء النسخة الإنجليزية تلقائيًا عند الحفظ أو النشر.
             </p>
           </div>
 
