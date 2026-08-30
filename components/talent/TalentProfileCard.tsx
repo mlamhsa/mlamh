@@ -25,6 +25,7 @@ type TalentProfileCardProps = {
   locale: string;
   talent: {
     image_url?: string | null;
+    gallery_images?: unknown;
     category_ar?: string | null;
     category_en?: string | null;
     status?: string | null;
@@ -55,6 +56,23 @@ export default function TalentProfileCard({
     locale === "ar"
       ? talent.category_ar ?? talent.category_en ?? null
       : talent.category_en ?? talent.category_ar ?? null;
+
+  const hasProfileImage = Boolean(
+    String(talent.image_url ?? "").trim()
+  );
+
+  const galleryImageCount = Array.isArray(talent.gallery_images)
+    ? Array.from(
+        new Set(
+          talent.gallery_images
+            .filter(
+              (value): value is string =>
+                typeof value === "string" && Boolean(value.trim())
+            )
+            .map((value) => value.trim())
+        )
+      ).length
+    : 0;
 
   const canShareProfile = Boolean(
     talent.published === true &&
@@ -174,17 +192,80 @@ export default function TalentProfileCard({
           </div>
         </div>
 
+        {!hasProfileImage ? (
+          <div className="mt-6 rounded-2xl border border-orange-400/25 bg-orange-400/[0.07] px-5 py-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="min-w-0">
+                <span className="inline-flex rounded-full border border-orange-400/25 bg-orange-400/10 px-3 py-1 text-[11px] font-medium text-orange-300">
+                  {isRtl ? "مهم لظهورك" : "Important for visibility"}
+                </span>
+
+                <h3 className="mt-3 text-lg font-medium text-white">
+                  {isRtl
+                    ? "أضف صورتك الشخصية ليظهر ملفك في صفحة المواهب"
+                    : "Add a profile photo to appear in the talent directory"}
+                </h3>
+
+                <p className="mt-2 max-w-3xl text-sm leading-7 text-white/55">
+                  {isRtl
+                    ? "لن يظهر ملفك ضمن دليل المواهب حتى تضيف صورة شخصية واضحة. اضغط على الصورة أعلاه أو استخدم الزر لإضافتها الآن."
+                    : "Your profile will not appear in the talent directory until you add a clear profile photo. Use the photo above or the button to add one now."}
+                </p>
+              </div>
+
+              <label
+                htmlFor="talent-profile-image"
+                className="inline-flex min-h-11 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl bg-gold px-5 text-sm font-medium text-black transition hover:opacity-90"
+              >
+                <Camera size={16} />
+                {isRtl ? "إضافة الصورة الشخصية" : "Add profile photo"}
+              </label>
+            </div>
+          </div>
+        ) : null}
+
+        {galleryImageCount === 0 ? (
+          <div className="mt-4 rounded-2xl border border-gold/15 bg-gold/[0.04] px-5 py-4">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-white">
+                  {isRtl
+                    ? "أضف صورًا إلى معرض أعمالك"
+                    : "Add photos to your work gallery"}
+                </p>
+
+                <p className="mt-1 text-xs leading-6 text-white/45">
+                  {isRtl
+                    ? "معرض الأعمال اختياري ويمكنك رفع حتى 20 صورة. إضافة صور جيدة تساعد الجهات على تقييم ملفك والتعرف على أعمالك بشكل أفضل."
+                    : "Your work gallery is optional and supports up to 20 photos. Strong photos help publishers evaluate your profile and understand your work better."}
+                </p>
+              </div>
+
+              <Link
+                href={`/${locale}/talent-dashboard/gallery`}
+                className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-xl border border-gold/30 bg-gold/[0.08] px-4 text-xs font-medium text-gold transition hover:bg-gold hover:text-black"
+              >
+                {isRtl ? "إضافة صور الأعمال" : "Add work photos"}
+              </Link>
+            </div>
+          </div>
+        ) : null}
+
         {!canShareProfile ? (
           <div className="mt-6 rounded-2xl border border-gold/15 bg-gold/[0.04] px-5 py-4">
             <p className="text-xs leading-6 text-white/45">
               {isRtl
-                ? "ستظهر خاصيتا معاينة الملف ومشاركته عند إتاحة الملف للظهور العام. يمكنك التقديم على الفرص دون انتظار ذلك."
-                : "Profile preview and sharing will appear when the profile is publicly visible. You can apply for opportunities without waiting for that."}
+                ? hasProfileImage
+                  ? "ستظهر خاصيتا معاينة الملف ومشاركته عند إتاحة الملف للظهور العام. يمكنك التقديم على الفرص دون انتظار ذلك."
+                  : "أضف الصورة الشخصية أولًا لإكمال جاهزية ظهور ملفك، ثم ستتاح لك معاينة الملف ومشاركته عند نشره."
+                : hasProfileImage
+                  ? "Profile preview and sharing will appear when the profile is publicly visible. You can apply for opportunities without waiting for that."
+                  : "Add your profile photo first to complete your visibility readiness. Preview and sharing will become available once the profile is published."}
             </p>
           </div>
         ) : null}
 
-<div className="mt-6 rounded-2xl border border-gold/15 bg-gold/[0.04] p-4">
+        <div className="mt-6 rounded-2xl border border-gold/15 bg-gold/[0.04] p-4">
           <div className="mb-3 flex items-center justify-between gap-4 text-xs uppercase tracking-[0.22em] text-white/40">
             <span>
               {isRtl ? "اكتمال الملف" : "Profile completion"}
@@ -196,27 +277,27 @@ export default function TalentProfileCard({
           </div>
 
           <div
-  role="progressbar"
-  aria-label={
-    isRtl ? "نسبة اكتمال الملف" : "Profile completion percentage"
-  }
-  aria-valuemin={0}
-  aria-valuemax={100}
-  aria-valuenow={Math.min(Math.max(profileCompletion, 0), 100)}
-  className="h-3 overflow-hidden rounded-full bg-white/10"
->
-  <div
-    className="h-full rounded-full bg-gold transition-all duration-500"
-    style={{
-      width: `${Math.min(
-        Math.max(profileCompletion, 0),
-        100
-      )}%`,
-    }}
-  />
-</div>
+            role="progressbar"
+            aria-label={
+              isRtl ? "نسبة اكتمال الملف" : "Profile completion percentage"
+            }
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.min(Math.max(profileCompletion, 0), 100)}
+            className="h-3 overflow-hidden rounded-full bg-white/10"
+          >
+            <div
+              className="h-full rounded-full bg-gold transition-all duration-500"
+              style={{
+                width: `${Math.min(
+                  Math.max(profileCompletion, 0),
+                  100
+                )}%`,
+              }}
+            />
+          </div>
 
-<p className="mt-2 text-xs text-white/45">
+          <p className="mt-2 text-xs text-white/45">
             {profileCompletion >= 100
               ? isRtl
                 ? "ملفك مكتمل وجاهز للظهور أمام الشركات."
@@ -311,13 +392,13 @@ function ProfileImagePicker({
       >
         {previewUrl ? (
           <Image
-          src={previewUrl}
-          alt={talentName}
-          fill
-          unoptimized
-          sizes="128px"
-          className="object-cover transition duration-300 group-hover:scale-105"
-        />
+            src={previewUrl}
+            alt={talentName}
+            fill
+            unoptimized
+            sizes="128px"
+            className="object-cover transition duration-300 group-hover:scale-105"
+          />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-5xl text-gold">
             {talentName?.charAt(0) ?? "M"}
@@ -347,9 +428,9 @@ function ProfileImagePicker({
 
       {!pending ? (
         <button
-        type="button"
-        disabled={pending}
-        onClick={() => inputRef.current?.click()}
+          type="button"
+          disabled={pending}
+          onClick={() => inputRef.current?.click()}
           className="absolute bottom-0 end-0 flex h-9 w-9 items-center justify-center rounded-full border border-gold/40 bg-black text-gold shadow-lg transition hover:bg-gold hover:text-black disabled:cursor-not-allowed disabled:opacity-60"
           aria-label={
             isRtl
