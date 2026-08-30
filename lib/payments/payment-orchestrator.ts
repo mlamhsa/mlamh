@@ -20,6 +20,12 @@ type PaymentForOrchestration = {
   } | null;
 };
 
+type ActivatedEntitlementRow = {
+  id: number;
+  status: string;
+  expires_at: string | null;
+};
+
 export type PaymentOrchestrationResult = {
   entitlementActivated: boolean;
   entitlementId: number | null;
@@ -53,6 +59,14 @@ function parseEntitlementConfig(metadata: Record<string, unknown> | null): Entit
 function calculateExpiry(durationDays?: number | null) {
   if (!durationDays) return null;
   return new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
+}
+
+function isEntitlementCurrentlyActive(entitlement: ActivatedEntitlementRow) {
+  if (entitlement.status !== "active") return false;
+  if (!entitlement.expires_at) return true;
+
+  const expiresAt = Date.parse(entitlement.expires_at);
+  return Number.isFinite(expiresAt) && expiresAt > Date.now();
 }
 
 export async function orchestrateSucceededPayment(
@@ -92,22 +106,43 @@ export async function orchestrateSucceededPayment(
     };
   }
 
-  const expiresAt = calculateExpiry(config.duration_days);
+  const requestedExpiresAt = calculateExpiry(config.duration_days);
   const activated = await activatePaymentEntitlement({
     paymentId: payment.id,
     entitlementCode: config.code,
-    expiresAt,
+    expiresAt: requestedExpiresAt,
   });
+
+  const { data: entitlementData, error: entitlementError } = await adminClient
+    .from("entitlements")
+    .select("id, status, expires_at")
+    .eq("id", activated.entitlementId)
+    .maybeSingle();
+
+  if (entitlementError || !entitlementData) {
+    throw new Error(
+      `Unable to load activated payment entitlement: ${entitlementError?.message ?? "entitlement not found"}`,
+    );
+  }
+
+  const entitlement = entitlementData as ActivatedEntitlementRow;
+
+  if (!isEntitlementCurrentlyActive(entitlement)) {
+    return {
+      entitlementActivated: false,
+      entitlementId: entitlement.id,
+    };
+  }
 
   await applyEntitlementEffect({
     entitlementCode: config.code,
     targetType: payment.target_type,
     targetId: payment.target_id,
-    expiresAt,
+    expiresAt: entitlement.expires_at,
   });
 
   return {
     entitlementActivated: true,
-    entitlementId: activated.entitlementId,
+    entitlementId: entitlement.id,
   };
 }
