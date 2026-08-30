@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 
 type Props = {
@@ -11,6 +12,7 @@ export function CastingRequestForm({ locale }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [successId, setSuccessId] = useState<number | null>(null);
+  const [trackingPath, setTrackingPath] = useState("");
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -31,6 +33,7 @@ export function CastingRequestForm({ locale }: Props) {
       if (!response.ok) throw new Error(data.error || "Request failed");
 
       setSuccessId(Number(data.requestId) || 0);
+      setTrackingPath(typeof data.trackingPath === "string" ? data.trackingPath : "");
       event.currentTarget.reset();
     } catch (cause) {
       setError(
@@ -61,6 +64,25 @@ export function CastingRequestForm({ locale }: Props) {
         </p>
         {successId ? (
           <p className="mt-5 text-xs text-white/35">#{successId}</p>
+        ) : null}
+
+        {trackingPath ? (
+          <div className="mt-6 rounded-2xl border border-white/10 bg-black/20 p-4">
+            <p className="text-xs text-white/40">
+              {isRtl ? "رابط متابعة المشروع" : "Project tracking link"}
+            </p>
+            <p className="mt-2 text-xs leading-6 text-white/35">
+              {isRtl
+                ? "احتفظ بهذا الرابط لمتابعة حالة المشروع بدون الحاجة إلى تسجيل الدخول."
+                : "Keep this private link to follow the project status without signing in."}
+            </p>
+            <Link
+              href={trackingPath}
+              className="mt-4 inline-flex min-h-11 items-center justify-center rounded-xl border border-gold/30 px-5 text-sm text-gold transition hover:bg-gold/10"
+            >
+              {isRtl ? "متابعة حالة الطلب" : "Track request status"}
+            </Link>
+          </div>
         ) : null}
       </div>
     );
