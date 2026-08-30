@@ -115,7 +115,7 @@ export async function getPublicTalents({
   const categoryTerms = getCategorySearchTerms(normalizedCategory);
 
   const cacheKey = [
-    "public-talents-v3",
+    "public-talents-v4",
     safePage,
     safePageSize,
     normalizedSearch ?? "all",
@@ -131,7 +131,9 @@ export async function getPublicTalents({
     let query = supabase
       .from("talents")
       .select("*", { count: "exact" })
-      .eq("published", true);
+      .eq("published", true)
+      .not("image_url", "is", null)
+      .neq("image_url", "");
 
     if (normalizedSearch) {
       query = query.or(
@@ -239,13 +241,15 @@ export async function getPublishedTalentBySlug(
 }
 
 export async function getPublishedTalents(): Promise<Talent[]> {
-  return getCachedValue("published-talents:v3:all", async () => {
+  return getCachedValue("published-talents:v4:all", async () => {
     const supabase = createAdminClient();
 
     const { data, error } = await supabase
       .from("talents")
       .select("*")
       .eq("published", true)
+      .not("image_url", "is", null)
+      .neq("image_url", "")
       .order("featured", { ascending: false })
       .order("sort_order", { ascending: true })
       .order("id", { ascending: false });
