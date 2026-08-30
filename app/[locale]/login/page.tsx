@@ -460,13 +460,12 @@ disabled={loading}
               {text.remember}
             </label>
 
-            <button
-  type="button"
-  disabled
-  className="cursor-not-allowed text-white/25"
->
-  {text.forgot}
-</button>
+            <Link
+              href={`/${locale}/forgot-password`}
+              className="text-white/45 transition hover:text-gold"
+            >
+              {text.forgot}
+            </Link>
           </div>
 
           <button
