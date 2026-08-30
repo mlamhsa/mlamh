@@ -98,7 +98,7 @@ export default async function CastingProjectSalesPage({
           <div className="rounded-2xl border border-white/10 bg-white/[0.025] p-6">
             <h2 className="text-lg font-light text-white">{isArabic ? "تسجيل دفعة" : "Record payment"}</h2>
             <form action={createCastingPaymentAction} className="mt-4 grid gap-3 sm:grid-cols-2">
-              <input type="hidden" name="casting_project_id" value={projectId} />
+              <input type="hidden" name="project_id" value={projectId} />
               <input name="amount" type="number" min="0" step="0.01" required placeholder={isArabic ? "المبلغ" : "Amount"} className="min-h-11 rounded-xl border border-white/10 bg-black px-3 text-sm text-white" />
               <input name="currency" defaultValue={currency} maxLength={3} className="min-h-11 rounded-xl border border-white/10 bg-black px-3 text-sm text-white" />
               <select name="status" defaultValue="pending" className="min-h-11 rounded-xl border border-white/10 bg-black px-3 text-sm text-white/70">{paymentStatuses.map((status) => <option key={status} value={status}>{status}</option>)}</select>
