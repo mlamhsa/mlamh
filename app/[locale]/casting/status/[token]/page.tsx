@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { revalidatePath } from "next/cache";
 import { notFound } from "next/navigation";
 
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -32,6 +33,14 @@ const stages = [
   "client_review",
   "completed",
 ];
+
+const shortlistStatusLabels: Record<string, { ar: string; en: string }> = {
+  shortlisted: { ar: "مرشح", en: "Shortlisted" },
+  presented: { ar: "معروض للعميل", en: "Presented" },
+  selected: { ar: "تم الاختيار", en: "Selected" },
+  declined: { ar: "غير مختار", en: "Not selected" },
+  withdrawn: { ar: "منسحب", en: "Withdrawn" },
+};
 
 export default async function CastingStatusPage({
   params,
@@ -70,8 +79,10 @@ export default async function CastingStatusPage({
       : Promise.resolve({ count: 0 }),
     adminClient
       .from("casting_shortlist")
-      .select("status")
-      .eq("casting_project_id", project.id),
+      .select("id,application_id,status,rank,created_at")
+      .eq("casting_project_id", project.id)
+      .order("rank", { ascending: true, nullsFirst: false })
+      .order("created_at", { ascending: true }),
     opportunityId
       ? adminClient
           .from("opportunities")
@@ -82,6 +93,40 @@ export default async function CastingStatusPage({
   ]);
 
   const shortlistRows = shortlist ?? [];
+  const applicationIds = shortlistRows
+    .map((item) => Number(item.application_id))
+    .filter((id) => Number.isInteger(id) && id > 0);
+
+  const { data: shortlistApplications } = applicationIds.length
+    ? await adminClient
+        .from("opportunity_applications")
+        .select("id,talent_id")
+        .in("id", applicationIds)
+    : { data: [] as Array<{ id: number; talent_id: number }> };
+
+  const applicationMap = new Map(
+    (shortlistApplications ?? []).map((item) => [Number(item.id), Number(item.talent_id)]),
+  );
+
+  const talentIds = Array.from(
+    new Set(
+      (shortlistApplications ?? [])
+        .map((item) => Number(item.talent_id))
+        .filter((id) => Number.isInteger(id) && id > 0),
+    ),
+  );
+
+  const { data: shortlistTalents } = talentIds.length
+    ? await adminClient
+        .from("talents")
+        .select("id,slug,display_name_ar,display_name_en,name_ar,name_en,image_url,city_ar,city_en,category_ar,category_en")
+        .in("id", talentIds)
+    : { data: [] as Array<Record<string, unknown>> };
+
+  const talentMap = new Map(
+    (shortlistTalents ?? []).map((talent) => [Number(talent.id), talent]),
+  );
+
   const shortlistCount = shortlistRows.filter((item) =>
     ["shortlisted", "presented", "selected"].includes(item.status),
   ).length;
@@ -91,6 +136,68 @@ export default async function CastingStatusPage({
     ar: project.status,
     en: project.status,
   };
+  const canReviewShortlist = ["shortlist_ready", "client_review"].includes(project.status);
+
+  async function updateClientSelectionAction(formData: FormData) {
+    "use server";
+
+    const submittedToken = String(formData.get("token") || "").trim();
+    const shortlistId = Number(formData.get("shortlist_id"));
+    const decision = String(formData.get("decision") || "");
+
+    if (
+      submittedToken !== cleanToken ||
+      !Number.isInteger(shortlistId) ||
+      shortlistId <= 0 ||
+      !["selected", "declined"].includes(decision)
+    ) {
+      return;
+    }
+
+    const serverClient = createAdminClient();
+    const { data: verifiedProject } = await serverClient
+      .from("casting_projects")
+      .select("id,status")
+      .eq("id", project.id)
+      .eq("client_access_token", submittedToken)
+      .maybeSingle();
+
+    if (!verifiedProject || !["shortlist_ready", "client_review"].includes(verifiedProject.status)) {
+      return;
+    }
+
+    const { data: shortlistItem } = await serverClient
+      .from("casting_shortlist")
+      .select("id")
+      .eq("id", shortlistId)
+      .eq("casting_project_id", verifiedProject.id)
+      .maybeSingle();
+
+    if (!shortlistItem) return;
+
+    const { error: updateError } = await serverClient
+      .from("casting_shortlist")
+      .update({
+        status: decision,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", shortlistId)
+      .eq("casting_project_id", verifiedProject.id);
+
+    if (updateError) {
+      console.error("[CastingStatusPage client selection]", updateError);
+      return;
+    }
+
+    if (verifiedProject.status === "shortlist_ready") {
+      await serverClient
+        .from("casting_projects")
+        .update({ status: "client_review", updated_at: new Date().toISOString() })
+        .eq("id", verifiedProject.id);
+    }
+
+    revalidatePath(`/${language}/casting/status/${submittedToken}`);
+  }
 
   return (
     <main
@@ -145,6 +252,135 @@ export default async function CastingStatusPage({
             })}
           </div>
         </section>
+
+        {shortlistRows.length > 0 ? (
+          <section className="mt-6 rounded-[2rem] border border-gold/15 bg-[radial-gradient(circle_at_top_right,rgba(201,169,98,0.08),transparent_38%),rgba(255,255,255,0.025)] p-6 sm:p-8">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.25em] text-gold">CLIENT REVIEW</p>
+                <h2 className="mt-2 text-2xl font-light text-white">
+                  {isArabic ? "القائمة المختصرة" : "Casting shortlist"}
+                </h2>
+                <p className="mt-2 max-w-2xl text-sm leading-7 text-white/40">
+                  {canReviewShortlist
+                    ? isArabic
+                      ? "راجع المرشحين وحدد اختيارك النهائي. يمكنك تغيير القرار طالما أن المشروع في مرحلة مراجعة العميل."
+                      : "Review the candidates and record your final decision. You can change a decision while the project remains in client review."
+                    : isArabic
+                      ? "هذه القائمة للعرض فقط في المرحلة الحالية من المشروع."
+                      : "This shortlist is currently view-only at this project stage."}
+                </p>
+              </div>
+              <div className="text-sm text-white/35">
+                {shortlistRows.length} {isArabic ? "مرشح" : "candidates"}
+              </div>
+            </div>
+
+            <div className="mt-6 grid gap-4 sm:grid-cols-2">
+              {shortlistRows.map((shortlistItem) => {
+                const talentId = applicationMap.get(Number(shortlistItem.application_id));
+                const talent = talentId ? (talentMap.get(talentId) as any) : null;
+                const talentName = isArabic
+                  ? talent?.display_name_ar || talent?.name_ar || talent?.display_name_en || talent?.name_en
+                  : talent?.display_name_en || talent?.name_en || talent?.display_name_ar || talent?.name_ar;
+                const city = isArabic
+                  ? talent?.city_ar || talent?.city_en
+                  : talent?.city_en || talent?.city_ar;
+                const category = isArabic
+                  ? talent?.category_ar || talent?.category_en
+                  : talent?.category_en || talent?.category_ar;
+                const shortlistLabel = shortlistStatusLabels[shortlistItem.status] ?? {
+                  ar: shortlistItem.status,
+                  en: shortlistItem.status,
+                };
+
+                return (
+                  <article
+                    key={shortlistItem.id}
+                    className={`rounded-2xl border p-4 transition ${
+                      shortlistItem.status === "selected"
+                        ? "border-emerald-300/25 bg-emerald-300/[0.06]"
+                        : shortlistItem.status === "declined"
+                          ? "border-white/[0.06] bg-black/20 opacity-70"
+                          : "border-white/10 bg-black/20"
+                    }`}
+                  >
+                    <div className="flex items-center gap-4">
+                      {talent?.image_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={talent.image_url}
+                          alt=""
+                          className="h-16 w-16 shrink-0 rounded-2xl object-cover"
+                        />
+                      ) : (
+                        <div className="h-16 w-16 shrink-0 rounded-2xl border border-white/10 bg-white/[0.03]" />
+                      )}
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="truncate text-base font-medium text-white/85">
+                            {talentName || (isArabic ? "موهبة" : "Talent")}
+                          </h3>
+                          <span className={`rounded-full border px-2.5 py-1 text-[10px] ${
+                            shortlistItem.status === "selected"
+                              ? "border-emerald-300/25 text-emerald-200"
+                              : "border-gold/20 text-gold"
+                          }`}>
+                            {isArabic ? shortlistLabel.ar : shortlistLabel.en}
+                          </span>
+                        </div>
+                        <p className="mt-2 text-xs text-white/35">
+                          {[category, city].filter(Boolean).join(" · ") || "—"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap gap-2 border-t border-white/[0.07] pt-4">
+                      {talent?.slug ? (
+                        <Link
+                          href={`/${language}/talent/${talent.slug}`}
+                          target="_blank"
+                          className="inline-flex min-h-10 items-center justify-center rounded-xl border border-white/10 px-4 text-xs text-white/55 transition hover:border-gold/25 hover:text-gold"
+                        >
+                          {isArabic ? "عرض الملف" : "View profile"}
+                        </Link>
+                      ) : null}
+
+                      {canReviewShortlist && shortlistItem.status !== "withdrawn" ? (
+                        <>
+                          <form action={updateClientSelectionAction}>
+                            <input type="hidden" name="token" value={cleanToken} />
+                            <input type="hidden" name="shortlist_id" value={shortlistItem.id} />
+                            <input type="hidden" name="decision" value="selected" />
+                            <button
+                              type="submit"
+                              className="inline-flex min-h-10 items-center justify-center rounded-xl border border-emerald-300/25 bg-emerald-300/[0.06] px-4 text-xs text-emerald-200 transition hover:bg-emerald-300/[0.1]"
+                            >
+                              {isArabic ? "اختيار" : "Select"}
+                            </button>
+                          </form>
+
+                          <form action={updateClientSelectionAction}>
+                            <input type="hidden" name="token" value={cleanToken} />
+                            <input type="hidden" name="shortlist_id" value={shortlistItem.id} />
+                            <input type="hidden" name="decision" value="declined" />
+                            <button
+                              type="submit"
+                              className="inline-flex min-h-10 items-center justify-center rounded-xl border border-white/10 px-4 text-xs text-white/45 transition hover:border-red-300/20 hover:text-red-200"
+                            >
+                              {isArabic ? "استبعاد" : "Pass"}
+                            </button>
+                          </form>
+                        </>
+                      ) : null}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        ) : null}
 
         <section className="mt-6 grid gap-6 lg:grid-cols-[1fr_0.7fr]">
           <div className="rounded-[2rem] border border-white/10 bg-white/[0.025] p-6 sm:p-8">
