@@ -9,6 +9,95 @@ function revalidateMarketingApprovalViews() {
   revalidatePath("/admin/marketing/approvals");
   revalidatePath("/admin/marketing/tasks");
   revalidatePath("/admin/marketing/activity");
+  revalidatePath("/admin/marketing/content");
+  revalidatePath("/admin/marketing/social");
+  revalidatePath("/admin/marketing/campaigns");
+  revalidatePath("/admin/marketing/outreach");
+}
+
+function toTaskInput(value: unknown) {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+async function applyApprovalSideEffects({
+  approvalId,
+  task,
+  decision,
+  executeAfter,
+}: {
+  approvalId: number;
+  task: {
+    id: number;
+    task_type: string;
+    content_id: number | null;
+    campaign_id: number | null;
+    lead_id: number | null;
+    channel: string | null;
+    input: unknown;
+  };
+  decision: "approved" | "rejected" | "cancelled" | "scheduled";
+  executeAfter: string | null;
+}) {
+  const db = createAdminClient();
+  const input = toTaskInput(task.input);
+  const now = new Date().toISOString();
+
+  if (task.task_type === "social_publish" && task.content_id) {
+    if (decision === "approved" || decision === "scheduled") {
+      const channel = task.channel ?? (typeof input.channel === "string" ? input.channel : null);
+      if (!channel) throw new Error("Publishing channel is required.");
+      const jobStatus = decision === "scheduled" ? "scheduled" : "approved";
+      const idempotencyKey = `task-${task.id}-${channel}`;
+      const { error: jobError } = await db.from("marketing_channel_jobs").upsert({
+        content_id: task.content_id,
+        task_id: task.id,
+        approval_id: approvalId,
+        channel,
+        status: jobStatus,
+        scheduled_at: executeAfter,
+        idempotency_key: idempotencyKey,
+        payload: input,
+        updated_at: now,
+      }, { onConflict: "idempotency_key" });
+      if (jobError) throw new Error(`[approval channel job] ${jobError.message}`);
+      await db.from("marketing_content").update({
+        status: decision === "scheduled" ? "scheduled" : "ready",
+        scheduled_at: executeAfter,
+        updated_at: now,
+      }).eq("id", task.content_id);
+    } else {
+      await db.from("marketing_content").update({ status: "review", updated_at: now }).eq("id", task.content_id);
+      await db.from("marketing_channel_jobs").update({ status: "cancelled", updated_at: now }).eq("task_id", task.id).in("status", ["draft", "waiting_approval", "approved", "scheduled", "failed"]);
+    }
+  }
+
+  if (task.task_type === "create_campaign" && task.campaign_id) {
+    if (decision === "approved") {
+      await db.from("marketing_campaigns").update({ status: "active", updated_at: now }).eq("id", task.campaign_id);
+    } else if (decision === "scheduled") {
+      await db.from("marketing_campaigns").update({ status: "draft", updated_at: now }).eq("id", task.campaign_id);
+    } else {
+      await db.from("marketing_campaigns").update({ status: "cancelled", updated_at: now }).eq("id", task.campaign_id);
+    }
+  }
+
+  if (task.task_type === "first_outreach") {
+    const outreachId = Number(input.outreach_id);
+    if (Number.isInteger(outreachId) && outreachId > 0) {
+      const sendStatus = decision === "approved"
+        ? "approved"
+        : decision === "scheduled"
+          ? "scheduled"
+          : "cancelled";
+      await db.from("marketing_outreach").update({
+        send_status: sendStatus,
+        next_follow_up_at: decision === "scheduled" ? executeAfter : undefined,
+        updated_at: now,
+      }).eq("id", outreachId);
+    }
+  }
 }
 
 async function decideApproval(
@@ -29,6 +118,13 @@ async function decideApproval(
 
   if (readError || !approval) throw new Error("Approval not found.");
   if (approval.status !== "pending") throw new Error("Approval is no longer pending.");
+
+  const { data: task, error: taskReadError } = await db
+    .from("marketing_tasks")
+    .select("id,task_type,content_id,campaign_id,lead_id,channel,input")
+    .eq("id", approval.task_id)
+    .single();
+  if (taskReadError || !task) throw new Error("Approval task not found.");
 
   const decisionNote = String(formData.get("decision_note") ?? "").trim() || null;
   const executeAfterRaw = String(formData.get("execute_after") ?? "").trim();
@@ -51,7 +147,6 @@ async function decideApproval(
     })
     .eq("id", approvalId)
     .eq("status", "pending");
-
   if (approvalError) throw new Error(`[approval decision] ${approvalError.message}`);
 
   const taskPatch = decision === "approved"
@@ -64,6 +159,13 @@ async function decideApproval(
 
   const { error: taskError } = await db.from("marketing_tasks").update(taskPatch).eq("id", approval.task_id);
   if (taskError) throw new Error(`[approval task update] ${taskError.message}`);
+
+  await applyApprovalSideEffects({
+    approvalId,
+    task,
+    decision,
+    executeAfter: executeImmediately ? now : executeAfter,
+  });
 
   await db.from("marketing_agent_activity").insert({
     task_id: approval.task_id,
