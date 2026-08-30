@@ -20,6 +20,8 @@ export type CreateMarketingTaskInput = {
   contentId?: number | null;
   conversationId?: number | null;
   metadata?: Record<string, unknown>;
+  idempotencyKey?: string | null;
+  maxRetries?: number;
 };
 
 export function getDefaultApprovalLevel(taskType: string): MarketingApprovalLevel {
@@ -55,6 +57,8 @@ export async function createMarketingTask(input: CreateMarketingTaskInput) {
     content_id: input.contentId ?? null,
     conversation_id: input.conversationId ?? null,
     metadata: input.metadata ?? {},
+    idempotency_key: input.idempotencyKey ?? null,
+    max_retries: Math.max(0, Math.min(20, input.maxRetries ?? 3)),
   }).select("*").single();
 
   if (error) throw new Error(`[createMarketingTask] ${error.message}`);
@@ -71,6 +75,16 @@ export async function createMarketingTask(input: CreateMarketingTaskInput) {
       risk_level: approvalLevel === "ceo_only" ? "high" : "medium",
     });
     if (approvalError) throw new Error(`[createMarketingTask approval] ${approvalError.message}`);
+  }
+
+  if (input.agentId) {
+    const agentStatus = status === "waiting_approval" ? "waiting_approval" : status === "scheduled" ? "scheduled" : "scheduled";
+    await db.from("marketing_agents").update({
+      current_task_id: task.id,
+      status: agentStatus,
+      next_scheduled_task_at: input.scheduledAt ?? null,
+      updated_at: new Date().toISOString(),
+    }).eq("id", input.agentId);
   }
 
   await db.from("marketing_agent_activity").insert({
