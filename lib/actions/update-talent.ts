@@ -119,7 +119,6 @@ export async function updateTalentAction(
     portfolio_url: nullableStringValue(formData, "portfolio_url"),
 
     sort_order: nullableNumberValue(formData, "sort_order"),
-    featured: formData.get("featured") === "on",
     availability_status: getAvailabilityStatus(formData),
 
     verified,
