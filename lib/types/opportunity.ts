@@ -2,9 +2,11 @@ export type Opportunity = {
   id: number;
 
   title: string;
+  title_en?: string | null;
   slug: string;
 
   description: string;
+  description_en?: string | null;
 
   opportunity_type: string;
 
