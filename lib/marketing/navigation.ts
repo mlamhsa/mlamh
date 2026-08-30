@@ -11,6 +11,7 @@ import {
   FileText,
   Inbox,
   Layers3,
+  ListTodo,
   Megaphone,
   Palette,
   Plug,
@@ -32,6 +33,7 @@ export type MarketingHubNavItem = {
 export const marketingHubNavigation: MarketingHubNavItem[] = [
   { key: "overview", labelAr: "نظرة عامة", labelEn: "Overview", href: "/admin/marketing", icon: BarChart3 },
   { key: "ai-team", labelAr: "فريق الذكاء الاصطناعي", labelEn: "AI Team", href: "/admin/marketing/ai-team", icon: Bot },
+  { key: "tasks", labelAr: "محرك المهام", labelEn: "Task Engine", href: "/admin/marketing/tasks", icon: ListTodo },
   { key: "inbox", labelAr: "صندوق الوارد", labelEn: "Inbox", href: "/admin/marketing/inbox", icon: Inbox },
   { key: "leads", labelAr: "العملاء المحتملون", labelEn: "Leads", href: "/admin/marketing/leads", icon: Target },
   { key: "talent-growth", labelAr: "نمو المواهب", labelEn: "Talent Growth", href: "/admin/marketing/talent-growth", icon: UsersRound },
