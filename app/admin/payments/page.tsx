@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { minorToMajorAmount } from "@/lib/payments/money";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -154,20 +156,35 @@ export default async function AdminPaymentsPage({ searchParams }: PageProps) {
   return (
     <main
       dir={isArabic ? "rtl" : "ltr"}
-      className="mx-auto max-w-7xl px-6 py-10 text-white"
+      className="mx-auto max-w-7xl px-4 py-8 text-white sm:px-6 lg:px-8 lg:py-10"
     >
-      <section className="mb-10">
+      <section className="mb-8">
         <p className="text-[10px] uppercase tracking-[0.4em] text-gold">
           MLAMH ADMIN
         </p>
         <h1 className="mt-3 text-3xl font-light tracking-tight md:text-5xl">
-          {isArabic ? "المدفوعات" : "Payments"}
+          {isArabic ? "المدفوعات والاشتراكات" : "Payments & Subscriptions"}
         </h1>
         <p className="mt-3 max-w-3xl text-sm leading-7 text-white/45">
           {isArabic
-            ? "عرض مالي للقراءة فقط لمتابعة حالات الدفع ومراجع Tap. لا توجد من هذه الصفحة أي إجراءات استرداد أو تعديل على العمليات."
-            : "Read-only financial visibility for payment states and Tap references. This page does not provide refund or payment mutation actions."}
+            ? "تابع عمليات الدفع، ثم انتقل إلى الاشتراكات والمزايا لمعرفة ما تم تفعيله لكل مستخدم وموعد انتهائه."
+            : "Track payment operations, then open subscriptions and benefits to see what is active for each user and when it expires."}
         </p>
+
+        <div className="mt-6 flex flex-wrap gap-2 rounded-2xl border border-white/[0.08] bg-white/[0.025] p-2">
+          <Link
+            href={`/admin/payments?lang=${locale}`}
+            className="rounded-xl border border-gold/25 bg-gold/[0.1] px-4 py-2.5 text-sm text-gold"
+          >
+            {isArabic ? "سجل عمليات الدفع" : "Payment log"}
+          </Link>
+          <Link
+            href={`/admin/entitlements?lang=${locale}`}
+            className="rounded-xl border border-white/[0.08] px-4 py-2.5 text-sm text-white/60 transition hover:border-gold/25 hover:text-gold"
+          >
+            {isArabic ? "الاشتراكات والمزايا" : "Subscriptions & Benefits"}
+          </Link>
+        </div>
       </section>
 
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -190,9 +207,9 @@ export default async function AdminPaymentsPage({ searchParams }: PageProps) {
       </section>
 
       <section className="mt-8 overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.025]">
-        <div className="border-b border-white/10 px-6 py-5">
+        <div className="border-b border-white/10 px-5 py-5 sm:px-6">
           <h2 className="text-lg font-medium">
-            {isArabic ? "آخر 50 عملية" : "Latest 50 payments"}
+            {isArabic ? "آخر 50 عملية دفع" : "Latest 50 payments"}
           </h2>
         </div>
 
@@ -205,25 +222,13 @@ export default async function AdminPaymentsPage({ searchParams }: PageProps) {
             <table className="min-w-full text-sm">
               <thead className="bg-black/25 text-[10px] uppercase tracking-[0.18em] text-white/35">
                 <tr>
-                  <th className="px-5 py-4 text-start">
-                    {isArabic ? "العملية" : "Payment"}
-                  </th>
-                  <th className="px-5 py-4 text-start">
-                    {isArabic ? "المنتج" : "Product"}
-                  </th>
-                  <th className="px-5 py-4 text-start">
-                    {isArabic ? "المبلغ" : "Amount"}
-                  </th>
-                  <th className="px-5 py-4 text-start">
-                    {isArabic ? "الحالة" : "Status"}
-                  </th>
+                  <th className="px-5 py-4 text-start">{isArabic ? "العملية" : "Payment"}</th>
+                  <th className="px-5 py-4 text-start">{isArabic ? "المنتج" : "Product"}</th>
+                  <th className="px-5 py-4 text-start">{isArabic ? "المبلغ" : "Amount"}</th>
+                  <th className="px-5 py-4 text-start">{isArabic ? "الحالة" : "Status"}</th>
                   <th className="px-5 py-4 text-start">Tap</th>
-                  <th className="px-5 py-4 text-start">
-                    {isArabic ? "الهدف" : "Target"}
-                  </th>
-                  <th className="px-5 py-4 text-start">
-                    {isArabic ? "التاريخ" : "Created"}
-                  </th>
+                  <th className="px-5 py-4 text-start">{isArabic ? "الهدف" : "Target"}</th>
+                  <th className="px-5 py-4 text-start">{isArabic ? "التاريخ" : "Created"}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/[0.07]">
@@ -237,9 +242,7 @@ export default async function AdminPaymentsPage({ searchParams }: PageProps) {
                       className="align-top hover:bg-white/[0.025]"
                     >
                       <td className="px-5 py-5">
-                        <p className="font-mono text-xs text-white/70">
-                          #{payment.id}
-                        </p>
+                        <p className="font-mono text-xs text-white/70">#{payment.id}</p>
                         <p
                           className="mt-1 max-w-[190px] truncate font-mono text-[10px] text-white/30"
                           title={payment.public_id}
@@ -256,11 +259,7 @@ export default async function AdminPaymentsPage({ searchParams }: PageProps) {
                         </p>
                       </td>
                       <td className="whitespace-nowrap px-5 py-5 text-white/75">
-                        {formatAmount(
-                          payment.amount_minor,
-                          payment.currency,
-                          locale,
-                        )}
+                        {formatAmount(payment.amount_minor, payment.currency, locale)}
                       </td>
                       <td className="px-5 py-5">
                         <span
@@ -277,9 +276,7 @@ export default async function AdminPaymentsPage({ searchParams }: PageProps) {
                         ) : null}
                       </td>
                       <td className="px-5 py-5">
-                        <p className="text-xs text-white/60">
-                          {payment.provider ?? "—"}
-                        </p>
+                        <p className="text-xs text-white/60">{payment.provider ?? "—"}</p>
                         <p
                           className="mt-1 max-w-[180px] truncate font-mono text-[10px] text-white/30"
                           title={payment.provider_payment_id ?? undefined}
@@ -311,9 +308,7 @@ export default async function AdminPaymentsPage({ searchParams }: PageProps) {
 function Stat({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-3xl border border-white/[0.08] bg-white/[0.025] p-5">
-      <p className="text-[10px] uppercase tracking-[0.2em] text-white/35">
-        {label}
-      </p>
+      <p className="text-[10px] uppercase tracking-[0.2em] text-white/35">{label}</p>
       <p className="mt-3 text-3xl font-light text-white">{value}</p>
     </div>
   );
