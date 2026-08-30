@@ -64,6 +64,7 @@ export async function POST(request: Request) {
         brief,
         source: "website_casting_request",
         client_access_token: clientAccessToken,
+        client_shared_at: new Date().toISOString(),
         client_status_note:
           locale === "ar"
             ? "تم استلام طلبكم وهو الآن بانتظار مراجعة فريق MLAMH Casting."
