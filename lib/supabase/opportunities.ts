@@ -1,3 +1,5 @@
+import { headers } from "next/headers";
+
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Opportunity } from "@/lib/types/opportunity";
 
@@ -6,6 +8,7 @@ const PUBLISHED_STATUSES = ["published", "open"] as const;
 export type PublisherInviteOpportunity = {
   id: number;
   title: string;
+  title_en?: string | null;
   slug: string;
   opportunity_type: string | null;
   city_ar: string | null;
@@ -14,6 +17,31 @@ export type PublisherInviteOpportunity = {
   published: boolean;
   created_at: string;
 };
+
+async function getOpportunityLocale(): Promise<"ar" | "en"> {
+  try {
+    const requestHeaders = await headers();
+    return requestHeaders.get("x-mlamh-locale") === "en" ? "en" : "ar";
+  } catch {
+    return "ar";
+  }
+}
+
+function localizeOpportunity(
+  opportunity: Opportunity,
+  locale: "ar" | "en",
+): Opportunity {
+  if (locale !== "en") {
+    return opportunity;
+  }
+
+  return {
+    ...opportunity,
+    title: opportunity.title_en?.trim() || opportunity.title,
+    description:
+      opportunity.description_en?.trim() || opportunity.description,
+  };
+}
 
 function prioritizeActiveFeaturedOpportunities(opportunities: Opportunity[]) {
   const now = Date.now();
@@ -33,6 +61,7 @@ function prioritizeActiveFeaturedOpportunities(opportunities: Opportunity[]) {
 
 export async function getPublishedOpportunities(): Promise<Opportunity[]> {
   const supabase = createAdminClient();
+  const locale = await getOpportunityLocale();
 
   const { data, error } = await supabase
     .from("opportunities")
@@ -46,7 +75,13 @@ export async function getPublishedOpportunities(): Promise<Opportunity[]> {
     return [];
   }
 
-  return prioritizeActiveFeaturedOpportunities((data ?? []) as Opportunity[]);
+  const opportunities = (data ?? []) as Opportunity[];
+
+  return prioritizeActiveFeaturedOpportunities(
+    opportunities.map((opportunity) =>
+      localizeOpportunity(opportunity, locale),
+    ),
+  );
 }
 
 export async function getPublishedOpportunitiesByPublisher(
@@ -57,12 +92,14 @@ export async function getPublishedOpportunitiesByPublisher(
   }
 
   const supabase = createAdminClient();
+  const locale = await getOpportunityLocale();
 
   const { data, error } = await supabase
     .from("opportunities")
     .select(`
       id,
       title,
+      title_en,
       slug,
       opportunity_type,
       city_ar,
@@ -85,13 +122,20 @@ export async function getPublishedOpportunitiesByPublisher(
     return [];
   }
 
-  return (data ?? []) as PublisherInviteOpportunity[];
+  return (data ?? []).map((opportunity) => ({
+    ...opportunity,
+    title:
+      locale === "en"
+        ? opportunity.title_en?.trim() || opportunity.title
+        : opportunity.title,
+  })) as PublisherInviteOpportunity[];
 }
 
 export async function getOpportunityBySlug(
   slug: string,
 ): Promise<Opportunity | null> {
   const supabase = createAdminClient();
+  const locale = await getOpportunityLocale();
 
   const { data, error } = await supabase
     .from("opportunities")
@@ -106,5 +150,9 @@ export async function getOpportunityBySlug(
     return null;
   }
 
-  return data as Opportunity | null;
+  if (!data) {
+    return null;
+  }
+
+  return localizeOpportunity(data as Opportunity, locale);
 }
