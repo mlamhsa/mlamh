@@ -58,7 +58,7 @@ async function getOverviewMetrics() {
     adminClient
       .from("opportunities")
       .select("id", { count: "exact", head: true })
-      .eq("status", "published"),
+      .eq("published", true),
   ]);
 
   const result = {
@@ -117,7 +117,7 @@ export default async function MarketingHubOverviewPage({ searchParams }: PagePro
       </AdminGrid>
 
       <div className="grid gap-5 xl:grid-cols-3">
-        <AdminCard className="xl:col-span-2">
+        <AdminCard className="p-5 xl:col-span-2">
           <p className="text-[10px] uppercase tracking-[0.25em] text-gold/70">Sprint 001</p>
           <h2 className="mt-2 text-xl font-light text-white">
             {isArabic ? "أهداف النمو الحالية" : "Current growth goals"}
@@ -148,7 +148,7 @@ export default async function MarketingHubOverviewPage({ searchParams }: PagePro
           </div>
         </AdminCard>
 
-        <AdminCard>
+        <AdminCard className="p-5">
           <p className="text-[10px] uppercase tracking-[0.25em] text-gold/70">
             {isArabic ? "حالة المصادر" : "Data sources"}
           </p>
