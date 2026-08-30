@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+
+import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const commercialStatuses = new Set(["lead", "proposal", "won", "lost", "cancelled"]);
@@ -10,9 +12,11 @@ function positiveInt(value: FormDataEntryValue | null) {
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
+
 function text(value: FormDataEntryValue | null) {
   return typeof value === "string" ? value.trim() : "";
 }
+
 function refresh(projectId?: number) {
   revalidatePath("/admin/casting");
   revalidatePath("/admin/casting/analytics");
@@ -21,47 +25,94 @@ function refresh(projectId?: number) {
 }
 
 export async function updateCastingCommercialStatusAction(formData: FormData) {
+  await requireAdminAccess();
   const projectId = positiveInt(formData.get("project_id"));
   const status = text(formData.get("commercial_status"));
   if (!projectId || !commercialStatuses.has(status)) return;
+
   const adminClient = createAdminClient();
-  const { error } = await adminClient.from("casting_projects").update({ commercial_status: status, updated_at: new Date().toISOString() }).eq("id", projectId);
-  if (error) { console.error("[updateCastingCommercialStatusAction]", error); return; }
+  const { error } = await adminClient
+    .from("casting_projects")
+    .update({ commercial_status: status, updated_at: new Date().toISOString() })
+    .eq("id", projectId);
+
+  if (error) {
+    console.error("[updateCastingCommercialStatusAction]", error);
+    return;
+  }
   refresh(projectId);
 }
 
 export async function createCastingPaymentAction(formData: FormData) {
+  await requireAdminAccess();
   const projectId = positiveInt(formData.get("project_id"));
   const amount = Number(text(formData.get("amount")));
   const status = text(formData.get("status")) || "pending";
   if (!projectId || !Number.isFinite(amount) || amount <= 0 || !paymentStatuses.has(status)) return;
-  const paidAt = status === "paid" ? (text(formData.get("paid_at")) || new Date().toISOString()) : null;
+
   const adminClient = createAdminClient();
+  const { data: project } = await adminClient
+    .from("casting_projects")
+    .select("id")
+    .eq("id", projectId)
+    .maybeSingle();
+  if (!project) return;
+
+  const paidAt = status === "paid"
+    ? text(formData.get("paid_at")) || new Date().toISOString()
+    : null;
+
   const { error } = await adminClient.from("casting_payments").insert({
     casting_project_id: projectId,
     amount,
     currency: "SAR",
     status,
     provider: text(formData.get("provider")) || "manual",
-    provider_reference: text(formData.get("provider_reference")) || null,
+    provider_reference: text(formData.get("provider_reference")).slice(0, 250) || null,
     paid_at: paidAt,
     internal_notes: text(formData.get("internal_notes")).slice(0, 5000) || null,
   });
-  if (error) { console.error("[createCastingPaymentAction]", error); return; }
+
+  if (error) {
+    console.error("[createCastingPaymentAction]", error);
+    return;
+  }
   refresh(projectId);
 }
 
 export async function updateCastingPaymentStatusAction(formData: FormData) {
+  await requireAdminAccess();
   const paymentId = positiveInt(formData.get("payment_id"));
   const projectId = positiveInt(formData.get("project_id"));
   const status = text(formData.get("status"));
   if (!paymentId || !projectId || !paymentStatuses.has(status)) return;
+
   const adminClient = createAdminClient();
-  const { error } = await adminClient.from("casting_payments").update({
-    status,
-    paid_at: status === "paid" ? new Date().toISOString() : null,
-    updated_at: new Date().toISOString(),
-  }).eq("id", paymentId).eq("casting_project_id", projectId);
-  if (error) { console.error("[updateCastingPaymentStatusAction]", error); return; }
+  const { data: payment } = await adminClient
+    .from("casting_payments")
+    .select("id,status,paid_at")
+    .eq("id", paymentId)
+    .eq("casting_project_id", projectId)
+    .maybeSingle();
+  if (!payment) return;
+
+  const nextPaidAt = status === "paid"
+    ? payment.paid_at || new Date().toISOString()
+    : null;
+
+  const { error } = await adminClient
+    .from("casting_payments")
+    .update({
+      status,
+      paid_at: nextPaidAt,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", paymentId)
+    .eq("casting_project_id", projectId);
+
+  if (error) {
+    console.error("[updateCastingPaymentStatusAction]", error);
+    return;
+  }
   refresh(projectId);
 }
