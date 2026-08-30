@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { requireMarketingAdminAccess } from "@/lib/auth/require-marketing-admin";
+import { createMarketingTask } from "@/lib/marketing/tasks/service";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function createMarketingContentAction(formData: FormData) {
@@ -29,4 +30,43 @@ export async function createMarketingContentAction(formData: FormData) {
 
   if (error) throw new Error(`[create content] ${error.message}`);
   revalidatePath("/admin/marketing/content");
+}
+
+export async function requestContentPublishingApprovalAction(formData: FormData) {
+  await requireMarketingAdminAccess("marketing.manage");
+  const contentId = Number(formData.get("content_id"));
+  if (!Number.isInteger(contentId) || contentId <= 0) throw new Error("Invalid content id.");
+
+  const db = createAdminClient();
+  const { data: content, error } = await db
+    .from("marketing_content")
+    .select("id,title,caption,body,cta,channel,agent_id,status,campaign_id")
+    .eq("id", contentId)
+    .single();
+  if (error || !content) throw new Error("Content not found.");
+  if (!["draft", "review", "ready"].includes(content.status)) throw new Error("Content is not ready to request publishing approval.");
+  if (!content.channel) throw new Error("A publishing channel is required.");
+
+  await createMarketingTask({
+    agentId: content.agent_id ?? "reem",
+    taskType: "social_publish",
+    title: `Approve publishing: ${content.title ?? `content #${content.id}`}`,
+    objective: "Review the proposed social content before publishing.",
+    channel: content.channel,
+    approvalLevel: "approval_required",
+    contentId: content.id,
+    campaignId: content.campaign_id,
+    source: "content_studio",
+    input: {
+      content_id: content.id,
+      channel: content.channel,
+      text: content.caption ?? content.body ?? "",
+      cta: content.cta ?? null,
+    },
+    idempotencyKey: `social-publish-content-${content.id}`,
+  });
+
+  await db.from("marketing_content").update({ status: "approval", updated_at: new Date().toISOString() }).eq("id", content.id);
+  revalidatePath("/admin/marketing/content");
+  revalidatePath("/admin/marketing/approvals");
 }
