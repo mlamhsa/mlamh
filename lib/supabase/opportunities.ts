@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 
+import { compareFeaturedThenNewest } from "@/lib/opportunities/featured";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Opportunity } from "@/lib/types/opportunity";
 
@@ -43,22 +44,6 @@ function localizeOpportunity(
   };
 }
 
-function prioritizeActiveFeaturedOpportunities(opportunities: Opportunity[]) {
-  const now = Date.now();
-
-  return opportunities.sort((a, b) => {
-    const aFeatured =
-      a.featured === true &&
-      (!a.featured_until || Date.parse(a.featured_until) > now);
-    const bFeatured =
-      b.featured === true &&
-      (!b.featured_until || Date.parse(b.featured_until) > now);
-
-    if (aFeatured !== bFeatured) return aFeatured ? -1 : 1;
-    return Date.parse(b.created_at) - Date.parse(a.created_at);
-  });
-}
-
 export async function getPublishedOpportunities(): Promise<Opportunity[]> {
   const supabase = createAdminClient();
   const locale = await getOpportunityLocale();
@@ -77,11 +62,9 @@ export async function getPublishedOpportunities(): Promise<Opportunity[]> {
 
   const opportunities = (data ?? []) as Opportunity[];
 
-  return prioritizeActiveFeaturedOpportunities(
-    opportunities.map((opportunity) =>
-      localizeOpportunity(opportunity, locale),
-    ),
-  );
+  return opportunities
+    .map((opportunity) => localizeOpportunity(opportunity, locale))
+    .sort(compareFeaturedThenNewest);
 }
 
 export async function getPublishedOpportunitiesByPublisher(
