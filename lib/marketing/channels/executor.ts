@@ -1,7 +1,21 @@
 import { getMarketingChannelAdapter } from "./adapters";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+async function assertExternalExecutionEnabled() {
+  const db = createAdminClient();
+  const { data, error } = await db
+    .from("marketing_settings")
+    .select("value")
+    .eq("key", "external_execution_enabled")
+    .maybeSingle();
+
+  if (error || !data) throw new Error("External execution gate is not configured.");
+  const value = data.value as { enabled?: unknown } | null;
+  if (!value || value.enabled !== true) throw new Error("External Marketing Hub execution is disabled.");
+}
+
 export async function executeMarketingChannelJob(jobId: number) {
+  await assertExternalExecutionEnabled();
   const db = createAdminClient();
   const { data: job, error } = await db
     .from("marketing_channel_jobs")
