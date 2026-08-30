@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireAdminAccess } from "@/lib/auth/require-admin";
+import { requireMarketingAdminAccess } from "@/lib/auth/require-marketing-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 function revalidateMarketingApprovalViews() {
@@ -16,7 +16,7 @@ async function decideApproval(
   decision: "approved" | "rejected" | "cancelled" | "scheduled",
   executeImmediately = false,
 ) {
-  const user = await requireAdminAccess();
+  const user = await requireMarketingAdminAccess("marketing.approve");
   const approvalId = Number(formData.get("approval_id"));
   if (!Number.isInteger(approvalId) || approvalId <= 0) throw new Error("Invalid approval id.");
 
@@ -36,9 +36,7 @@ async function decideApproval(
     ? new Date(executeAfterRaw).toISOString()
     : null;
 
-  if (decision === "scheduled" && !executeAfter) {
-    throw new Error("A schedule time is required.");
-  }
+  if (decision === "scheduled" && !executeAfter) throw new Error("A schedule time is required.");
 
   const now = new Date().toISOString();
   const { error: approvalError } = await db
@@ -57,12 +55,7 @@ async function decideApproval(
   if (approvalError) throw new Error(`[approval decision] ${approvalError.message}`);
 
   const taskPatch = decision === "approved"
-    ? {
-        approval_status: "approved",
-        status: "queued",
-        updated_at: now,
-        ...(executeImmediately ? { metadata: { execute_immediately_requested: true, requested_by: user.id } } : {}),
-      }
+    ? { approval_status: "approved", status: "queued", scheduled_at: executeImmediately ? now : null, updated_at: now }
     : decision === "scheduled"
       ? { approval_status: "approved", status: "scheduled", scheduled_at: executeAfter, updated_at: now }
       : decision === "rejected"
@@ -85,7 +78,7 @@ async function decideApproval(
 }
 
 export async function editMarketingApproval(formData: FormData) {
-  const user = await requireAdminAccess();
+  const user = await requireMarketingAdminAccess("marketing.approve");
   const approvalId = Number(formData.get("approval_id"));
   if (!Number.isInteger(approvalId) || approvalId <= 0) throw new Error("Invalid approval id.");
 
