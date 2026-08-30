@@ -12,6 +12,7 @@ export const dynamic = "force-dynamic";
 
 const commercialStatuses = ["lead", "proposal", "won", "lost", "cancelled"] as const;
 const paymentStatuses = ["pending", "paid", "failed", "refunded", "cancelled"] as const;
+const mutablePaymentStatuses = ["pending", "paid", "failed", "cancelled"] as const;
 
 export default async function CastingProjectSalesPage({
   params,
@@ -43,8 +44,12 @@ export default async function CastingProjectSalesPage({
   if (!project) notFound();
 
   const paymentRows = payments ?? [];
-  const paid = paymentRows.filter((item) => item.status === "paid").reduce((sum, item) => sum + Number(item.amount || 0), 0);
-  const refunded = paymentRows.filter((item) => item.status === "refunded").reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  const paid = paymentRows
+    .filter((item) => item.status === "paid")
+    .reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  const refunded = paymentRows
+    .filter((item) => item.status === "refunded")
+    .reduce((sum, item) => sum + Number(item.amount || 0), 0);
   const collected = Math.max(0, paid - refunded);
   const quote = Number(project.quoted_amount || 0);
   const outstanding = Math.max(0, quote - collected);
@@ -73,7 +78,7 @@ export default async function CastingProjectSalesPage({
             [isArabic ? "قيمة العرض" : "Quoted", quote],
             [isArabic ? "المحصّل" : "Collected", collected],
             [isArabic ? "المتبقي" : "Outstanding", outstanding],
-            [isArabic ? "المدفوعات" : "Payments", paymentRows.length],
+            [isArabic ? "السجل" : "Ledger entries", paymentRows.length],
           ].map(([title, value], index) => (
             <div key={String(title)} className="rounded-2xl border border-white/10 bg-white/[0.025] p-5">
               <p className="text-xs text-white/35">{title}</p>
@@ -92,39 +97,43 @@ export default async function CastingProjectSalesPage({
               </select>
               <button className="rounded-xl border border-gold/25 px-4 text-sm text-gold">{isArabic ? "حفظ" : "Save"}</button>
             </form>
-            <p className="mt-4 text-xs leading-6 text-white/30">{isArabic ? "قيمة العرض تمثل قيمة خط المبيعات وليست إيرادًا محصلًا. الإيراد المحصل يعتمد على سجلات الدفع المدفوعة بعد خصم المسترد." : "Quoted amount is pipeline value, not collected revenue. Collected revenue uses paid payment records less refunded records."}</p>
+            <p className="mt-4 text-xs leading-6 text-white/30">{isArabic ? "قيمة العرض تمثل قيمة خط المبيعات وليست إيرادًا محصلًا. الإيراد المحصل = المدفوع ناقص سجلات الاسترداد." : "Quoted amount is pipeline value, not collected revenue. Collected revenue = paid entries less refund entries."}</p>
           </div>
 
           <div className="rounded-2xl border border-white/10 bg-white/[0.025] p-6">
-            <h2 className="text-lg font-light text-white">{isArabic ? "تسجيل دفعة" : "Record payment"}</h2>
+            <h2 className="text-lg font-light text-white">{isArabic ? "تسجيل حركة مالية" : "Record ledger entry"}</h2>
+            <p className="mt-2 text-xs leading-6 text-white/35">{isArabic ? "عند الاسترداد أضف حركة جديدة بحالة Refunded ولا تحوّل الدفعة الأصلية إلى مستردة، حتى يبقى صافي التحصيل صحيحًا." : "For a refund, add a new Refunded ledger entry instead of converting the original paid entry, so net collected remains correct."}</p>
             <form action={createCastingPaymentAction} className="mt-4 grid gap-3 sm:grid-cols-2">
               <input type="hidden" name="project_id" value={projectId} />
-              <input name="amount" type="number" min="0" step="0.01" required placeholder={isArabic ? "المبلغ" : "Amount"} className="min-h-11 rounded-xl border border-white/10 bg-black px-3 text-sm text-white" />
-              <input name="currency" defaultValue={currency} maxLength={3} className="min-h-11 rounded-xl border border-white/10 bg-black px-3 text-sm text-white" />
+              <input name="amount" type="number" min="0.01" step="0.01" required placeholder={isArabic ? "المبلغ" : "Amount"} className="min-h-11 rounded-xl border border-white/10 bg-black px-3 text-sm text-white" />
+              <input name="currency" defaultValue={currency} maxLength={3} pattern="[A-Za-z]{3}" className="min-h-11 rounded-xl border border-white/10 bg-black px-3 text-sm uppercase text-white" />
               <select name="status" defaultValue="pending" className="min-h-11 rounded-xl border border-white/10 bg-black px-3 text-sm text-white/70">{paymentStatuses.map((status) => <option key={status} value={status}>{status}</option>)}</select>
               <input name="provider" placeholder={isArabic ? "مزود الدفع" : "Provider"} className="min-h-11 rounded-xl border border-white/10 bg-black px-3 text-sm text-white" />
               <input name="provider_reference" placeholder={isArabic ? "مرجع العملية" : "Provider reference"} className="min-h-11 rounded-xl border border-white/10 bg-black px-3 text-sm text-white sm:col-span-2" />
               <textarea name="internal_notes" placeholder={isArabic ? "ملاحظات داخلية" : "Internal notes"} className="min-h-24 rounded-xl border border-white/10 bg-black p-3 text-sm text-white sm:col-span-2" />
-              <button className="min-h-11 rounded-xl border border-gold/25 bg-gold/[0.06] px-4 text-sm text-gold sm:col-span-2">{isArabic ? "إضافة الدفعة" : "Add payment"}</button>
+              <button className="min-h-11 rounded-xl border border-gold/25 bg-gold/[0.06] px-4 text-sm text-gold sm:col-span-2">{isArabic ? "إضافة للسجل" : "Add ledger entry"}</button>
             </form>
           </div>
         </section>
 
         <section className="mt-6 rounded-2xl border border-white/10 bg-white/[0.025] p-6">
           <div className="flex items-center justify-between"><h2 className="text-lg font-light text-white">{isArabic ? "سجل المدفوعات" : "Payment ledger"}</h2><span className="text-xs text-white/30">{paymentRows.length}</span></div>
-          {paymentRows.length === 0 ? <p className="mt-5 text-sm text-white/35">{isArabic ? "لا توجد دفعات مسجلة." : "No payments recorded."}</p> : <div className="mt-5 space-y-3">{paymentRows.map((payment) => (
-            <div key={payment.id} className="rounded-xl border border-white/[0.07] bg-black/20 p-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div><p className="text-sm text-white/80">{Number(payment.amount || 0).toLocaleString()} {payment.currency || currency}</p><p className="mt-1 text-xs text-white/30">{[payment.provider, payment.provider_reference].filter(Boolean).join(" · ") || `#${payment.id}`}</p></div>
-                <form action={updateCastingPaymentStatusAction} className="flex gap-2">
-                  <input type="hidden" name="project_id" value={projectId} />
-                  <input type="hidden" name="payment_id" value={payment.id} />
-                  <select name="status" defaultValue={payment.status} className="rounded-lg border border-white/10 bg-black px-3 py-2 text-xs text-white/65">{paymentStatuses.map((status) => <option key={status} value={status}>{status}</option>)}</select>
-                  <button className="rounded-lg border border-white/10 px-3 py-2 text-xs text-white/55">{isArabic ? "تحديث" : "Update"}</button>
-                </form>
+          {paymentRows.length === 0 ? <p className="mt-5 text-sm text-white/35">{isArabic ? "لا توجد حركات مالية مسجلة." : "No ledger entries recorded."}</p> : <div className="mt-5 space-y-3">{paymentRows.map((payment) => {
+            const statusOptions = payment.status === "refunded" ? ["refunded"] : mutablePaymentStatuses;
+            return (
+              <div key={payment.id} className="rounded-xl border border-white/[0.07] bg-black/20 p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div><p className="text-sm text-white/80">{Number(payment.amount || 0).toLocaleString()} {payment.currency || currency}</p><p className="mt-1 text-xs text-white/30">{[payment.provider, payment.provider_reference].filter(Boolean).join(" · ") || `#${payment.id}`} · {payment.status}</p></div>
+                  <form action={updateCastingPaymentStatusAction} className="flex gap-2">
+                    <input type="hidden" name="project_id" value={projectId} />
+                    <input type="hidden" name="payment_id" value={payment.id} />
+                    <select name="status" defaultValue={payment.status} className="rounded-lg border border-white/10 bg-black px-3 py-2 text-xs text-white/65">{statusOptions.map((status) => <option key={status} value={status}>{status}</option>)}</select>
+                    <button disabled={payment.status === "refunded"} className="rounded-lg border border-white/10 px-3 py-2 text-xs text-white/55 disabled:cursor-not-allowed disabled:opacity-40">{isArabic ? "تحديث" : "Update"}</button>
+                  </form>
+                </div>
               </div>
-            </div>
-          ))}</div>}
+            );
+          })}</div>}
         </section>
       </div>
     </div>
