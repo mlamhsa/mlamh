@@ -53,6 +53,7 @@ export function MobileBottomNavigation({
   );
 
   const isArabic = locale === "ar";
+  const isLoginRoute = pathname === `/${locale}/login`;
 
   function localizedPath(path: string) {
     return path === "/"
@@ -225,7 +226,7 @@ export function MobileBottomNavigation({
     ];
   })();
 
-  if (!portalReady) {
+  if (!portalReady || isLoginRoute) {
     return null;
   }
 
