@@ -44,6 +44,7 @@ export async function POST(request: Request) {
       );
     }
 
+    const clientAccessToken = crypto.randomUUID();
     const adminClient = createAdminClient();
     const { data, error } = await adminClient
       .from("casting_projects")
@@ -62,6 +63,11 @@ export async function POST(request: Request) {
         budget: budget || null,
         brief,
         source: "website_casting_request",
+        client_access_token: clientAccessToken,
+        client_status_note:
+          locale === "ar"
+            ? "تم استلام طلبكم وهو الآن بانتظار مراجعة فريق MLAMH Casting."
+            : "Your brief has been received and is awaiting review by the MLAMH Casting team.",
         requirements: {
           submitted_locale: locale,
         },
@@ -77,7 +83,11 @@ export async function POST(request: Request) {
       );
     }
 
-    return NextResponse.json({ ok: true, requestId: data.id });
+    return NextResponse.json({
+      ok: true,
+      requestId: data.id,
+      trackingPath: `/${locale}/casting/status/${clientAccessToken}`,
+    });
   } catch (error) {
     console.error("[casting/request] unexpected error", error);
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
