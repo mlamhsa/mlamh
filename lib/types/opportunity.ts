@@ -33,6 +33,7 @@ export type Opportunity = {
 
   featured?: boolean | null;
   featured_until?: string | null;
+  managed_by_mlamh?: boolean | null;
 
   expires_at?: string | null;
 
