@@ -7,6 +7,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 const commercialStatuses = new Set(["lead", "proposal", "won", "lost", "cancelled"]);
 const paymentStatuses = new Set(["pending", "paid", "failed", "refunded", "cancelled"]);
+const mutablePaymentStatuses = new Set(["pending", "paid", "failed", "cancelled"]);
+const currencyPattern = /^[A-Z]{3}$/;
 
 function positiveInt(value: FormDataEntryValue | null) {
   const parsed = Number(value);
@@ -21,7 +23,10 @@ function refresh(projectId?: number) {
   revalidatePath("/admin/casting");
   revalidatePath("/admin/casting/analytics");
   revalidatePath("/admin/casting/commercial");
-  if (projectId) revalidatePath(`/admin/casting/${projectId}`);
+  if (projectId) {
+    revalidatePath(`/admin/casting/${projectId}`);
+    revalidatePath(`/admin/casting/${projectId}/sales`);
+  }
 }
 
 export async function updateCastingCommercialStatusAction(formData: FormData) {
@@ -48,7 +53,17 @@ export async function createCastingPaymentAction(formData: FormData) {
   const projectId = positiveInt(formData.get("project_id"));
   const amount = Number(text(formData.get("amount")));
   const status = text(formData.get("status")) || "pending";
-  if (!projectId || !Number.isFinite(amount) || amount <= 0 || !paymentStatuses.has(status)) return;
+  const currency = (text(formData.get("currency")) || "SAR").toUpperCase();
+
+  if (
+    !projectId ||
+    !Number.isFinite(amount) ||
+    amount <= 0 ||
+    !paymentStatuses.has(status) ||
+    !currencyPattern.test(currency)
+  ) {
+    return;
+  }
 
   const adminClient = createAdminClient();
   const { data: project } = await adminClient
@@ -65,7 +80,7 @@ export async function createCastingPaymentAction(formData: FormData) {
   const { error } = await adminClient.from("casting_payments").insert({
     casting_project_id: projectId,
     amount,
-    currency: "SAR",
+    currency,
     status,
     provider: text(formData.get("provider")) || "manual",
     provider_reference: text(formData.get("provider_reference")).slice(0, 250) || null,
@@ -95,6 +110,15 @@ export async function updateCastingPaymentStatusAction(formData: FormData) {
     .eq("casting_project_id", projectId)
     .maybeSingle();
   if (!payment) return;
+
+  // Refunded rows are separate refund ledger entries so that collected revenue
+  // remains: paid entries minus refunded entries. Do not convert a payment row
+  // into a refund row (or mutate an existing refund into another status).
+  if (payment.status === "refunded") {
+    if (status !== "refunded") return;
+  } else if (status === "refunded" || !mutablePaymentStatuses.has(status)) {
+    return;
+  }
 
   const nextPaidAt = status === "paid"
     ? payment.paid_at || new Date().toISOString()
