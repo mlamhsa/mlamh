@@ -2,11 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireAdminAccess } from "@/lib/auth/require-admin";
+import { requireMarketingAdminAccess } from "@/lib/auth/require-marketing-admin";
 import { createMarketingTask } from "@/lib/marketing/tasks/service";
 
 export async function createMarketingTaskAction(formData: FormData) {
-  await requireAdminAccess();
+  await requireMarketingAdminAccess("marketing.manage");
 
   const taskType = String(formData.get("task_type") ?? "").trim();
   const title = String(formData.get("title") ?? "").trim();
