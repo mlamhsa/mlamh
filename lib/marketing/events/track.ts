@@ -1,3 +1,4 @@
+import { dispatchMarketingAutomationEvent } from "@/lib/marketing/automation/dispatch";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type TrackMarketingEventInput = {
@@ -18,7 +19,7 @@ export type TrackMarketingEventInput = {
 
 export async function trackMarketingEvent(input: TrackMarketingEventInput) {
   const db = createAdminClient();
-  const { data, error } = await db.from("marketing_events").insert({
+  const eventPayload = {
     event_name: input.eventName,
     user_id: input.userId ?? null,
     anonymous_session_id: input.anonymousSessionId ?? null,
@@ -32,8 +33,24 @@ export async function trackMarketingEvent(input: TrackMarketingEventInput) {
     entity_id: input.entityId ?? null,
     metadata: input.metadata ?? {},
     occurred_at: input.occurredAt ?? new Date().toISOString(),
-  }).select("id").single();
+  };
 
+  const { data, error } = await db.from("marketing_events").insert(eventPayload).select("id").single();
   if (error) throw new Error(`[trackMarketingEvent] ${error.message}`);
+
+  try {
+    await dispatchMarketingAutomationEvent(input.eventName, {
+      ...input.metadata,
+      source: input.source ?? null,
+      medium: input.medium ?? null,
+      campaign: input.campaign ?? null,
+      entity_type: input.entityType ?? null,
+      entity_id: input.entityId ?? null,
+      user_id: input.userId ?? null,
+    });
+  } catch (automationError) {
+    console.error("[trackMarketingEvent automation]", automationError);
+  }
+
   return data;
 }
