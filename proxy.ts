@@ -7,8 +7,18 @@ import {
 export async function proxy(
   request: NextRequest,
 ) {
+  const requestHeaders = new Headers(request.headers);
+  const firstPathSegment = request.nextUrl.pathname.split("/")[1];
+
+  requestHeaders.set(
+    "x-mlamh-locale",
+    firstPathSegment === "en" ? "en" : "ar",
+  );
+
   let response = NextResponse.next({
-    request,
+    request: {
+      headers: requestHeaders,
+    },
   });
 
   const supabase = createServerClient(
@@ -31,7 +41,9 @@ export async function proxy(
           );
 
           response = NextResponse.next({
-            request,
+            request: {
+              headers: requestHeaders,
+            },
           });
 
           cookiesToSet.forEach(
