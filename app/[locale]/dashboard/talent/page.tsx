@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { calculateProfileCompletion } from "@/lib/utils/profile-completion";
 
 type PageProps = {
   params: Promise<{ locale: string }>;
@@ -110,7 +111,7 @@ export default async function TalentDashboardPage({ params }: PageProps) {
 
   const { data: talent } = await adminClient
     .from("talents")
-    .select("id, slug, name_ar, name_en, image_url, city_ar, city_en, user_id, status, availability_status, published, verified, featured, bio_ar, bio_en, instagram, tiktok, snapchat, portfolio_url, category_ar, category_en")
+    .select("id, slug, name_ar, name_en, image_url, city_slug, city_ar, city_en, user_id, status, availability_status, published, verified, featured, bio_ar, bio_en, instagram, tiktok, snapchat, portfolio_url, category_ar, category_en, primary_role, date_of_birth, languages, dialects, skills, gallery_images, showreel_url, acting_age_min, acting_age_max, modeling_types, height_cm, shoe_size, hair_color, eye_color, chest_size, waist_size, hip_size, previous_work")
     .eq("user_id", user.id)
     .maybeSingle();
 
@@ -184,15 +185,6 @@ export default async function TalentDashboardPage({ params }: PageProps) {
       ? talent.city_ar ?? talent.city_en ?? "-"
       : talent.city_en ?? talent.city_ar ?? "-";
 
-  const completionItems = [
-    talent.name_ar || talent.name_en,
-    talent.city_ar || talent.city_en,
-    talent.image_url,
-    talent.bio_ar || talent.bio_en,
-    talent.category_ar || talent.category_en,
-    talent.instagram || talent.tiktok || talent.snapchat || talent.portfolio_url,
-  ];
-
   const completionChecklist = [
     {
       label: isRtl ? "الاسم والمدينة" : "Name and city",
@@ -216,9 +208,7 @@ export default async function TalentDashboardPage({ params }: PageProps) {
     },
   ];
 
-  const profileCompletion = Math.round(
-    (completionItems.filter(Boolean).length / completionItems.length) * 100
-  );
+  const profileCompletion = calculateProfileCompletion(talent);
 
   const talentCategory =
     locale === "ar"
