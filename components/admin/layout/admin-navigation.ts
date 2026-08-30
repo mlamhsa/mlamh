@@ -12,6 +12,7 @@ import {
   ReceiptText,
   Settings,
   ShieldCheck,
+  Sparkles,
   Star,
   Users,
 } from "lucide-react";
@@ -86,6 +87,12 @@ export const adminNavigation: AdminNavigationGroup[] = [
         href: "/admin/opportunities",
         icon: BriefcaseBusiness,
         badgeKey: "pendingOpportunities",
+      },
+      {
+        labelAr: "MLAMH Casting",
+        labelEn: "MLAMH Casting",
+        href: "/admin/casting",
+        icon: Sparkles,
       },
       {
         labelAr: "الفرص المميزة",
