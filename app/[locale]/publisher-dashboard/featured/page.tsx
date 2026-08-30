@@ -21,6 +21,31 @@ function isActiveFeatured(featured: boolean | null, featuredUntil: string | null
   return Number.isFinite(timestamp) && timestamp > Date.now();
 }
 
+function formatFeaturedUntil(featuredUntil: string | null, isArabic: boolean) {
+  if (!featuredUntil) return null;
+
+  const timestamp = Date.parse(featuredUntil);
+  if (!Number.isFinite(timestamp)) return null;
+
+  return new Intl.DateTimeFormat(isArabic ? "ar-SA" : "en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  }).format(new Date(timestamp));
+}
+
+function getRemainingDays(featuredUntil: string | null) {
+  if (!featuredUntil) return null;
+
+  const timestamp = Date.parse(featuredUntil);
+  if (!Number.isFinite(timestamp)) return null;
+
+  const remaining = timestamp - Date.now();
+  if (remaining <= 0) return 0;
+
+  return Math.max(1, Math.ceil(remaining / (1000 * 60 * 60 * 24)));
+}
+
 export default async function PublisherFeaturedPage({ params }: PageProps) {
   const { locale } = await params;
   const isArabic = locale !== "en";
@@ -86,28 +111,59 @@ export default async function PublisherFeaturedPage({ params }: PageProps) {
               opportunity.featured,
               opportunity.featured_until,
             );
+            const featuredUntilLabel = active
+              ? formatFeaturedUntil(opportunity.featured_until, isArabic)
+              : null;
+            const remainingDays = active
+              ? getRemainingDays(opportunity.featured_until)
+              : null;
 
             return (
               <article
                 key={opportunity.id}
-                className="flex flex-col gap-5 rounded-[1.75rem] border border-white/10 bg-white/[0.025] p-6 md:flex-row md:items-center md:justify-between"
+                className={`flex flex-col gap-5 rounded-[1.75rem] border p-6 md:flex-row md:items-center md:justify-between ${
+                  active
+                    ? "border-gold/25 bg-gold/[0.045]"
+                    : "border-white/10 bg-white/[0.025]"
+                }`}
               >
                 <div>
                   <p className="text-xs text-white/35">#{opportunity.id}</p>
                   <h2 className="mt-2 text-xl font-light text-white">{opportunity.title}</h2>
-                  <p className="mt-2 text-xs text-white/35">
-                    {active
-                      ? isArabic
-                        ? "مميزة حاليًا"
-                        : "Currently featured"
-                      : isArabic
+
+                  {active ? (
+                    <div className="mt-3 flex flex-wrap gap-2 text-[10px]">
+                      <span className="rounded-full border border-gold/25 bg-gold/10 px-3 py-1.5 text-gold">
+                        {isArabic ? "مميزة حاليًا" : "Currently featured"}
+                      </span>
+
+                      {remainingDays !== null ? (
+                        <span className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-white/55">
+                          {isArabic
+                            ? `${remainingDays} يوم متبقٍ`
+                            : `${remainingDays} day${remainingDays === 1 ? "" : "s"} remaining`}
+                        </span>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-xs text-white/35">
+                      {isArabic
                         ? "منشورة ومؤهلة للتمييز"
                         : "Published and eligible for featuring"}
-                  </p>
+                    </p>
+                  )}
+
+                  {active && featuredUntilLabel ? (
+                    <p className="mt-3 text-xs text-white/40">
+                      {isArabic
+                        ? `ينتهي التمييز في ${featuredUntilLabel}`
+                        : `Featured until ${featuredUntilLabel}`}
+                    </p>
+                  ) : null}
                 </div>
 
                 {active ? (
-                  <span className="inline-flex rounded-full border border-gold/30 bg-gold/10 px-4 py-2 text-xs text-gold">
+                  <span className="inline-flex justify-center rounded-full border border-gold/30 bg-gold/10 px-4 py-2 text-xs text-gold">
                     {isArabic ? "مميزة" : "Featured"}
                   </span>
                 ) : (
