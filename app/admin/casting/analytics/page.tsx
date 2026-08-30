@@ -147,8 +147,8 @@ export default async function CastingAnalyticsPage({ searchParams }: { searchPar
           </h1>
           <p className="mt-3 max-w-3xl text-sm leading-7 text-white/45">
             {isArabic
-              ? "لوحة موحدة للتشغيل والمبيعات والتحصيل، وتشمل جميع فرص الأدوار داخل كل مشروع. الإيراد المحصل يعتمد فقط على دفعات Paid."
-              : "One view for operations, sales, and collections, including every role opportunity in each project. Collected revenue includes only Paid payments."}
+              ? "لوحة موحدة للتشغيل والمبيعات والتحصيل، وتشمل جميع فرص الأدوار داخل كل مشروع. الإيراد المحصل = دفعات Paid ناقص سجلات Refunded، ولا تُعامل قيمة العروض كإيراد."
+              : "One view for operations, sales, and collections, including every role opportunity in each project. Collected revenue = Paid entries less Refunded entries; quoted value is not revenue."}
           </p>
         </div>
 
