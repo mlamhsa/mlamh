@@ -192,6 +192,7 @@ export function getTalentProfileReadiness(
    */
   const requiredKeys = new Set([
     "name",
+    "profile_image",
     "primary_role",
     "city",
     "gender",
