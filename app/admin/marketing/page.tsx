@@ -37,9 +37,8 @@ async function getOverviewMetrics() {
       .select("id", { count: "exact", head: true })
       .eq("account_type", "talent"),
     adminClient
-      .from("profiles")
+      .from("talents")
       .select("id", { count: "exact", head: true })
-      .eq("account_type", "talent")
       .gte("profile_completion", 100),
     adminClient
       .from("profiles")
@@ -119,9 +118,7 @@ export default async function MarketingHubOverviewPage({ searchParams }: PagePro
 
       <div className="grid gap-5 xl:grid-cols-3">
         <AdminCard className="xl:col-span-2">
-          <p className="text-[10px] uppercase tracking-[0.25em] text-gold/70">
-            {isArabic ? "Sprint 001" : "Sprint 001"}
-          </p>
+          <p className="text-[10px] uppercase tracking-[0.25em] text-gold/70">Sprint 001</p>
           <h2 className="mt-2 text-xl font-light text-white">
             {isArabic ? "أهداف النمو الحالية" : "Current growth goals"}
           </h2>
