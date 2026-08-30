@@ -53,14 +53,14 @@ export async function createCastingPaymentAction(formData: FormData) {
   const projectId = positiveInt(formData.get("project_id"));
   const amount = Number(text(formData.get("amount")));
   const status = text(formData.get("status")) || "pending";
-  const currency = (text(formData.get("currency")) || "SAR").toUpperCase();
+  const requestedCurrency = (text(formData.get("currency")) || "SAR").toUpperCase();
 
   if (
     !projectId ||
     !Number.isFinite(amount) ||
     amount <= 0 ||
     !paymentStatuses.has(status) ||
-    !currencyPattern.test(currency)
+    !currencyPattern.test(requestedCurrency)
   ) {
     return;
   }
@@ -68,10 +68,13 @@ export async function createCastingPaymentAction(formData: FormData) {
   const adminClient = createAdminClient();
   const { data: project } = await adminClient
     .from("casting_projects")
-    .select("id")
+    .select("id,currency")
     .eq("id", projectId)
     .maybeSingle();
   if (!project) return;
+
+  const projectCurrency = String(project.currency || "SAR").trim().toUpperCase();
+  if (!currencyPattern.test(projectCurrency) || requestedCurrency !== projectCurrency) return;
 
   const paidAt = status === "paid"
     ? text(formData.get("paid_at")) || new Date().toISOString()
@@ -80,7 +83,7 @@ export async function createCastingPaymentAction(formData: FormData) {
   const { error } = await adminClient.from("casting_payments").insert({
     casting_project_id: projectId,
     amount,
-    currency,
+    currency: projectCurrency,
     status,
     provider: text(formData.get("provider")) || "manual",
     provider_reference: text(formData.get("provider_reference")).slice(0, 250) || null,
