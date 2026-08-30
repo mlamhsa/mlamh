@@ -2,24 +2,559 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+
 import { createAdminOpportunityAction } from "@/lib/actions/create-admin-opportunity";
 import { translateOpportunityContent } from "@/lib/ai/translate-opportunity";
+import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { SAUDI_CITIES } from "@/lib/data/saudi-cities";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-const allowedStatuses=new Set(["new","qualified","proposal","awaiting_client","active","screening","shortlist_ready","client_review","completed","cancelled"]);
-const allowedPackages=new Set(["starter","pro","custom"]);
-const allowedRoleStatuses=new Set(["draft","active","screening","shortlist_ready","client_review","completed","cancelled"]);
-function toPositiveInt(value:FormDataEntryValue|null){const parsed=Number(value);return Number.isInteger(parsed)&&parsed>0?parsed:null;}
-function stringValue(value:FormDataEntryValue|null){return typeof value==="string"?value.trim():"";}
-function optionalNumber(value:FormDataEntryValue|null){const raw=stringValue(value);if(!raw)return null;const parsed=Number(raw);return Number.isFinite(parsed)?parsed:null;}
-function revalidateCasting(projectId:number){revalidatePath("/admin/casting");revalidatePath(`/admin/casting/${projectId}`);}
-export async function updateCastingProjectAction(formData:FormData){const projectId=toPositiveInt(formData.get("project_id"));if(!projectId)return;const status=stringValue(formData.get("status"));const packageCode=stringValue(formData.get("package_code"));const quotedAmountRaw=stringValue(formData.get("quoted_amount"));const internalNotes=stringValue(formData.get("internal_notes")).slice(0,10000);const clientStatusNote=stringValue(formData.get("client_status_note")).slice(0,5000);if(!allowedStatuses.has(status)||(packageCode&&!allowedPackages.has(packageCode)))return;const quotedAmount=quotedAmountRaw?Number(quotedAmountRaw):null;if(quotedAmount!==null&&(!Number.isFinite(quotedAmount)||quotedAmount<0))return;const adminClient=createAdminClient();const{error}=await adminClient.from("casting_projects").update({status,package_code:packageCode||null,quoted_amount:quotedAmount,internal_notes:internalNotes||null,client_status_note:clientStatusNote||null,updated_at:new Date().toISOString()}).eq("id",projectId);if(error){console.error("[updateCastingProjectAction]",error);return;}revalidateCasting(projectId);}
-export async function createCastingRoleAction(formData:FormData){const projectId=toPositiveInt(formData.get("project_id"));if(!projectId)return;const title=stringValue(formData.get("title")).slice(0,160);const description=stringValue(formData.get("description")).slice(0,5000);const talentType=formData.get("talent_type")==="model"?"model":"actor";const requiredCount=Math.min(1000,Math.max(1,toPositiveInt(formData.get("required_count"))??1));if(!title)return;const sourceLanguage:"ar"|"en"=/[\u0600-\u06FF]/.test(`${title} ${description}`)?"ar":"en";const translated=await translateOpportunityContent({sourceLanguage,title,description:description||title});const titlePrimary=sourceLanguage==="ar"?title:translated.title.trim();const titleEn=sourceLanguage==="en"?title:translated.title.trim();const descriptionPrimary=description?(sourceLanguage==="ar"?description:translated.description.trim()):null;const descriptionEn=description?(sourceLanguage==="en"?description:translated.description.trim()):null;const genderRaw=stringValue(formData.get("gender"));const gender=genderRaw==="male"||genderRaw==="female"?genderRaw:"any";const minAge=optionalNumber(formData.get("min_age"));const maxAge=optionalNumber(formData.get("max_age"));if(minAge!==null&&(minAge<1||minAge>120))return;if(maxAge!==null&&(maxAge<1||maxAge>120))return;if(minAge!==null&&maxAge!==null&&minAge>maxAge)return;const adminClient=createAdminClient();const{data:lastRole}=await adminClient.from("casting_roles").select("sort_order").eq("casting_project_id",projectId).order("sort_order",{ascending:false}).limit(1).maybeSingle();const requestedSort=optionalNumber(formData.get("sort_order"));const sortOrder=requestedSort!==null&&requestedSort>=0?Math.floor(requestedSort):Number(lastRole?.sort_order??-1)+1;const{error}=await adminClient.from("casting_roles").insert({casting_project_id:projectId,title:titlePrimary,title_en:titleEn,description:descriptionPrimary,description_en:descriptionEn,talent_type:talentType,required_count:requiredCount,status:"draft",sort_order:sortOrder,requirements:{gender,min_age:minAge,max_age:maxAge,city:stringValue(formData.get("city"))||null}});if(error){console.error("[createCastingRoleAction]",error);return;}revalidateCasting(projectId);}
-export async function updateCastingRoleAction(formData:FormData){const projectId=toPositiveInt(formData.get("project_id"));const roleId=toPositiveInt(formData.get("role_id"));if(!projectId||!roleId)return;const status=stringValue(formData.get("status"));if(!allowedRoleStatuses.has(status))return;const requiredCount=Math.min(1000,Math.max(1,toPositiveInt(formData.get("required_count"))??1));const adminClient=createAdminClient();const{error}=await adminClient.from("casting_roles").update({status,required_count:requiredCount,updated_at:new Date().toISOString()}).eq("id",roleId).eq("casting_project_id",projectId);if(error){console.error("[updateCastingRoleAction]",error);return;}revalidateCasting(projectId);}
-export async function createCastingRoleOpportunityAction(formData:FormData){const projectId=toPositiveInt(formData.get("project_id"));const roleId=toPositiveInt(formData.get("role_id"));if(!projectId||!roleId)throw new Error("Invalid casting role.");const adminClient=createAdminClient();const[{data:project},{data:role}]=await Promise.all([adminClient.from("casting_projects").select("*").eq("id",projectId).maybeSingle(),adminClient.from("casting_roles").select("*").eq("id",roleId).eq("casting_project_id",projectId).maybeSingle()]);if(!project||!role)throw new Error("Casting project or role not found.");if(role.opportunity_id){revalidateCasting(projectId);return;}const requirements=(role.requirements??{}) as Record<string,unknown>;const gender=requirements.gender==="male"||requirements.gender==="female"?requirements.gender:"any";const minAge=typeof requirements.min_age==="number"?requirements.min_age:null;const maxAge=typeof requirements.max_age==="number"?requirements.max_age:null;const roleCity=typeof requirements.city==="string"?requirements.city.trim():"";const matchedCity=SAUDI_CITIES.find(item=>item.ar===roleCity||item.en===roleCity||item.slug===roleCity)??null;const cityFallback=roleCity||project.city||null;const titleAr=String(role.title||"").trim();const titleEn=String(role.title_en||role.title||"").trim();const descriptionAr=String(role.description||project.brief||titleAr).trim();const descriptionEn=String(role.description_en||role.description||project.brief||titleEn).trim();const result=await createAdminOpportunityAction({sourceType:"client",companyName:project.company_name||"من عملاء ملامح",contactName:project.client_name,contactPhone:project.contact_phone,contactEmail:project.contact_email,postingMode:"project",title:titleAr,description:descriptionAr,opportunityType:role.talent_type==="model"?"model":"actor",citySlug:matchedCity?.slug??null,cityAr:matchedCity?.ar??cityFallback,cityEn:matchedCity?.en??cityFallback,requiredGender:gender,minAge,maxAge,requiredCount:Number(role.required_count)||1,compensationType:"negotiable",workDate:project.work_date||null,roleRequirements:{managed_by:"mlamh",casting_project_id:projectId,casting_role_id:roleId,role_title_ar:titleAr,role_title_en:titleEn},publishNow:false});const opportunityId=Number(result?.opportunity?.id);if(!Number.isInteger(opportunityId)||opportunityId<=0)throw new Error("Unable to create role opportunity.");const now=new Date().toISOString();const{error:opportunityError}=await adminClient.from("opportunities").update({title_en:titleEn,description_en:descriptionEn,managed_by_mlamh:true,updated_at:now}).eq("id",opportunityId);if(opportunityError)throw new Error(opportunityError.message);const{error:roleError}=await adminClient.from("casting_roles").update({opportunity_id:opportunityId,status:"active",updated_at:now}).eq("id",roleId).eq("casting_project_id",projectId);if(roleError)throw new Error(roleError.message);revalidateCasting(projectId);revalidatePath("/admin/opportunities");}
-export async function ensureCastingClientAccessAction(formData:FormData){const projectId=toPositiveInt(formData.get("project_id"));if(!projectId)return;const adminClient=createAdminClient();const{data:project,error:lookupError}=await adminClient.from("casting_projects").select("id,client_access_token").eq("id",projectId).maybeSingle();if(lookupError||!project){console.error("[ensureCastingClientAccessAction lookup]",lookupError);return;}if(!project.client_access_token){const{error}=await adminClient.from("casting_projects").update({client_access_token:crypto.randomUUID(),client_shared_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",projectId);if(error){console.error("[ensureCastingClientAccessAction update]",error);return;}}revalidateCasting(projectId);}
-export async function linkCastingOpportunityAction(formData:FormData){const projectId=toPositiveInt(formData.get("project_id"));const opportunityId=toPositiveInt(formData.get("opportunity_id"));if(!projectId||!opportunityId)return;const adminClient=createAdminClient();const[{data:project,error:projectError},{data:opportunity,error:opportunityError}]=await Promise.all([adminClient.from("casting_projects").select("id,opportunity_id").eq("id",projectId).maybeSingle(),adminClient.from("opportunities").select("id").eq("id",opportunityId).maybeSingle()]);if(projectError||opportunityError||!project||!opportunity){console.error("[linkCastingOpportunityAction] lookup failed",projectError??opportunityError);return;}const previousOpportunityId=project.opportunity_id?Number(project.opportunity_id):null;const{error:projectUpdateError}=await adminClient.from("casting_projects").update({opportunity_id:opportunityId,updated_at:new Date().toISOString()}).eq("id",projectId);if(projectUpdateError){console.error("[linkCastingOpportunityAction] project update",projectUpdateError);return;}await adminClient.from("opportunities").update({managed_by_mlamh:true,updated_at:new Date().toISOString()}).eq("id",opportunityId);if(previousOpportunityId&&previousOpportunityId!==opportunityId){const{count}=await adminClient.from("casting_projects").select("id",{count:"exact",head:true}).eq("opportunity_id",previousOpportunityId);if((count??0)===0)await adminClient.from("opportunities").update({managed_by_mlamh:false,updated_at:new Date().toISOString()}).eq("id",previousOpportunityId);}revalidateCasting(projectId);revalidatePath(`/admin/opportunities/${opportunityId}`);revalidatePath("/ar/opportunities");revalidatePath("/en/opportunities");}
-export async function createCastingOpportunityFromBriefAction(formData:FormData){const projectId=toPositiveInt(formData.get("project_id"));if(!projectId)throw new Error("Invalid casting project.");const adminClient=createAdminClient();const{data:project,error:projectError}=await adminClient.from("casting_projects").select("*").eq("id",projectId).maybeSingle();if(projectError||!project)throw new Error(projectError?.message||"Casting project not found.");if(project.opportunity_id)redirect(`/admin/casting/${projectId}?lang=ar`);const rawTitle=stringValue(formData.get("title"));const rawDescription=stringValue(formData.get("description"));if(!rawTitle||!rawDescription)throw new Error("Title and description are required.");const opportunityType=formData.get("opportunity_type")==="model"?"model":"actor";const citySlug=stringValue(formData.get("city_slug"));const city=SAUDI_CITIES.find(item=>item.slug===citySlug)??null;const sourceLanguage:"ar"|"en"=/[\u0600-\u06FF]/.test(`${rawTitle} ${rawDescription}`)?"ar":"en";const translated=await translateOpportunityContent({sourceLanguage,title:rawTitle,description:rawDescription});const titleAr=sourceLanguage==="ar"?rawTitle:translated.title.trim();const descriptionAr=sourceLanguage==="ar"?rawDescription:translated.description.trim();const titleEn=sourceLanguage==="en"?rawTitle:translated.title.trim();const descriptionEn=sourceLanguage==="en"?rawDescription:translated.description.trim();if(!titleAr||!descriptionAr||!titleEn||!descriptionEn)throw new Error("Automatic bilingual content generation failed.");const compensationRaw=stringValue(formData.get("compensation_type"));const compensationType:"fixed"|"negotiable"|"unpaid"=compensationRaw==="fixed"||compensationRaw==="unpaid"?compensationRaw:"negotiable";const budget=compensationType==="fixed"?stringValue(formData.get("budget"))||null:null;if(compensationType==="fixed"&&!budget)throw new Error("Budget is required for fixed compensation.");const publicCompanyName=stringValue(formData.get("public_company_name"))||project.company_name||"من عملاء ملامح";const result=await createAdminOpportunityAction({sourceType:"client",companyName:publicCompanyName,contactName:project.client_name,contactPhone:project.contact_phone,contactEmail:project.contact_email,postingMode:"project",title:titleAr,description:descriptionAr,opportunityType,citySlug:city?.slug??null,cityAr:city?.ar??project.city??null,cityEn:city?.en??project.city??null,requiredGender:formData.get("required_gender")==="male"?"male":formData.get("required_gender")==="female"?"female":"any",minAge:optionalNumber(formData.get("min_age")),maxAge:optionalNumber(formData.get("max_age")),requiredCount:optionalNumber(formData.get("required_count"))??project.required_count,compensationType,budget,applicationDays:optionalNumber(formData.get("application_days"))??14,workDate:stringValue(formData.get("work_date"))||project.work_date||null,roleRequirements:{managed_by:"mlamh",casting_project_id:projectId,source_type:"client",content_source_language:sourceLanguage,translation_mode:"automatic"},publishNow:false});const opportunityId=Number(result?.opportunity?.id);if(!Number.isInteger(opportunityId)||opportunityId<=0)throw new Error("Unable to create opportunity from casting brief.");const now=new Date().toISOString();const{error:opportunityError}=await adminClient.from("opportunities").update({title_en:titleEn,description_en:descriptionEn,managed_by_mlamh:true,updated_at:now}).eq("id",opportunityId);if(opportunityError)throw new Error(opportunityError.message);const{error:castingError}=await adminClient.from("casting_projects").update({opportunity_id:opportunityId,client_status_note:project.client_status_note||"تم تجهيز مسودة فرصة المشروع، وستتم مراجعتها قبل النشر واستقبال طلبات المواهب.",updated_at:now}).eq("id",projectId);if(castingError)throw new Error(castingError.message);revalidateCasting(projectId);revalidatePath("/admin/opportunities");redirect(`/admin/casting/${projectId}?lang=ar&opportunity_created=1`);}
-export async function addCastingShortlistAction(formData:FormData){const projectId=toPositiveInt(formData.get("project_id"));const applicationId=toPositiveInt(formData.get("application_id"));const roleId=toPositiveInt(formData.get("casting_role_id"));if(!projectId||!applicationId)return;const adminClient=createAdminClient();const{data:application}=await adminClient.from("opportunity_applications").select("id,opportunity_id").eq("id",applicationId).maybeSingle();if(!application)return;const{data:project}=await adminClient.from("casting_projects").select("opportunity_id").eq("id",projectId).maybeSingle();let validOpportunity=Boolean(project?.opportunity_id&&Number(application.opportunity_id)===Number(project.opportunity_id));if(roleId){const{data:role}=await adminClient.from("casting_roles").select("id,opportunity_id").eq("id",roleId).eq("casting_project_id",projectId).maybeSingle();if(!role)return;validOpportunity=Boolean(role.opportunity_id&&Number(application.opportunity_id)===Number(role.opportunity_id));}if(!validOpportunity)return;const{error}=await adminClient.from("casting_shortlist").upsert({casting_project_id:projectId,application_id:applicationId,casting_role_id:roleId,status:"shortlisted",updated_at:new Date().toISOString()},{onConflict:"casting_project_id,application_id"});if(error){console.error("[addCastingShortlistAction]",error);return;}revalidateCasting(projectId);}
-export async function updateCastingShortlistStatusAction(formData:FormData){const projectId=toPositiveInt(formData.get("project_id"));const shortlistId=toPositiveInt(formData.get("shortlist_id"));const status=stringValue(formData.get("status"));if(!projectId||!shortlistId||!["shortlisted","presented","selected","declined","withdrawn"].includes(status))return;const adminClient=createAdminClient();const{error}=await adminClient.from("casting_shortlist").update({status,updated_at:new Date().toISOString()}).eq("id",shortlistId).eq("casting_project_id",projectId);if(error){console.error("[updateCastingShortlistStatusAction]",error);return;}revalidateCasting(projectId);}
+const allowedStatuses = new Set([
+  "new",
+  "qualified",
+  "proposal",
+  "awaiting_client",
+  "active",
+  "screening",
+  "shortlist_ready",
+  "client_review",
+  "completed",
+  "cancelled",
+]);
+const allowedPackages = new Set(["starter", "pro", "custom"]);
+const allowedRoleStatuses = new Set([
+  "draft",
+  "active",
+  "screening",
+  "shortlist_ready",
+  "client_review",
+  "completed",
+  "cancelled",
+]);
+const allowedShortlistStatuses = new Set([
+  "shortlisted",
+  "presented",
+  "selected",
+  "declined",
+  "withdrawn",
+]);
+
+function toPositiveInt(value: FormDataEntryValue | null) {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+function stringValue(value: FormDataEntryValue | null) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function optionalNumber(value: FormDataEntryValue | null) {
+  const raw = stringValue(value);
+  if (!raw) return null;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function revalidateCasting(projectId: number) {
+  revalidatePath("/admin/casting");
+  revalidatePath(`/admin/casting/${projectId}`);
+  revalidatePath(`/admin/casting/${projectId}/applications`);
+  revalidatePath("/admin/casting/analytics");
+  revalidatePath("/admin/casting/commercial");
+}
+
+export async function updateCastingProjectAction(formData: FormData) {
+  await requireAdminAccess();
+  const projectId = toPositiveInt(formData.get("project_id"));
+  if (!projectId) return;
+
+  const status = stringValue(formData.get("status"));
+  const packageCode = stringValue(formData.get("package_code"));
+  const quotedAmountRaw = stringValue(formData.get("quoted_amount"));
+  const internalNotes = stringValue(formData.get("internal_notes")).slice(0, 10000);
+  const clientStatusNote = stringValue(formData.get("client_status_note")).slice(0, 5000);
+
+  if (!allowedStatuses.has(status) || (packageCode && !allowedPackages.has(packageCode))) return;
+
+  const quotedAmount = quotedAmountRaw ? Number(quotedAmountRaw) : null;
+  if (quotedAmount !== null && (!Number.isFinite(quotedAmount) || quotedAmount < 0)) return;
+
+  const adminClient = createAdminClient();
+  const { error } = await adminClient
+    .from("casting_projects")
+    .update({
+      status,
+      package_code: packageCode || null,
+      quoted_amount: quotedAmount,
+      internal_notes: internalNotes || null,
+      client_status_note: clientStatusNote || null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", projectId);
+
+  if (error) {
+    console.error("[updateCastingProjectAction]", error);
+    return;
+  }
+  revalidateCasting(projectId);
+}
+
+export async function createCastingRoleAction(formData: FormData) {
+  await requireAdminAccess();
+  const projectId = toPositiveInt(formData.get("project_id"));
+  if (!projectId) return;
+
+  const title = stringValue(formData.get("title")).slice(0, 160);
+  const description = stringValue(formData.get("description")).slice(0, 5000);
+  const talentType = formData.get("talent_type") === "model" ? "model" : "actor";
+  const requiredCount = Math.min(1000, Math.max(1, toPositiveInt(formData.get("required_count")) ?? 1));
+  if (!title) return;
+
+  const sourceLanguage: "ar" | "en" = /[\u0600-\u06FF]/.test(`${title} ${description}`) ? "ar" : "en";
+  const translated = await translateOpportunityContent({
+    sourceLanguage,
+    title,
+    description: description || title,
+  });
+
+  const titlePrimary = sourceLanguage === "ar" ? title : translated.title.trim();
+  const titleEn = sourceLanguage === "en" ? title : translated.title.trim();
+  const descriptionPrimary = description
+    ? sourceLanguage === "ar"
+      ? description
+      : translated.description.trim()
+    : null;
+  const descriptionEn = description
+    ? sourceLanguage === "en"
+      ? description
+      : translated.description.trim()
+    : null;
+
+  if (!titlePrimary || !titleEn) return;
+
+  const genderRaw = stringValue(formData.get("gender"));
+  const gender = genderRaw === "male" || genderRaw === "female" ? genderRaw : "any";
+  const minAge = optionalNumber(formData.get("min_age"));
+  const maxAge = optionalNumber(formData.get("max_age"));
+  if (minAge !== null && (minAge < 1 || minAge > 120)) return;
+  if (maxAge !== null && (maxAge < 1 || maxAge > 120)) return;
+  if (minAge !== null && maxAge !== null && minAge > maxAge) return;
+
+  const adminClient = createAdminClient();
+  const { data: project } = await adminClient
+    .from("casting_projects")
+    .select("id")
+    .eq("id", projectId)
+    .maybeSingle();
+  if (!project) return;
+
+  const { data: lastRole } = await adminClient
+    .from("casting_roles")
+    .select("sort_order")
+    .eq("casting_project_id", projectId)
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const requestedSort = optionalNumber(formData.get("sort_order"));
+  const sortOrder = requestedSort !== null && requestedSort >= 0
+    ? Math.floor(requestedSort)
+    : Number(lastRole?.sort_order ?? -1) + 1;
+
+  const { error } = await adminClient.from("casting_roles").insert({
+    casting_project_id: projectId,
+    title: titlePrimary,
+    title_en: titleEn,
+    description: descriptionPrimary,
+    description_en: descriptionEn,
+    talent_type: talentType,
+    required_count: requiredCount,
+    status: "draft",
+    sort_order: sortOrder,
+    requirements: {
+      gender,
+      min_age: minAge,
+      max_age: maxAge,
+      city: stringValue(formData.get("city")) || null,
+    },
+  });
+
+  if (error) {
+    console.error("[createCastingRoleAction]", error);
+    return;
+  }
+  revalidateCasting(projectId);
+}
+
+export async function updateCastingRoleAction(formData: FormData) {
+  await requireAdminAccess();
+  const projectId = toPositiveInt(formData.get("project_id"));
+  const roleId = toPositiveInt(formData.get("role_id"));
+  if (!projectId || !roleId) return;
+
+  const status = stringValue(formData.get("status"));
+  if (!allowedRoleStatuses.has(status)) return;
+  const requiredCount = Math.min(1000, Math.max(1, toPositiveInt(formData.get("required_count")) ?? 1));
+
+  const adminClient = createAdminClient();
+  const { error } = await adminClient
+    .from("casting_roles")
+    .update({ status, required_count: requiredCount, updated_at: new Date().toISOString() })
+    .eq("id", roleId)
+    .eq("casting_project_id", projectId);
+
+  if (error) {
+    console.error("[updateCastingRoleAction]", error);
+    return;
+  }
+  revalidateCasting(projectId);
+}
+
+export async function createCastingRoleOpportunityAction(formData: FormData) {
+  await requireAdminAccess();
+  const projectId = toPositiveInt(formData.get("project_id"));
+  const roleId = toPositiveInt(formData.get("role_id"));
+  if (!projectId || !roleId) throw new Error("Invalid casting role.");
+
+  const adminClient = createAdminClient();
+  const [{ data: project }, { data: role }] = await Promise.all([
+    adminClient.from("casting_projects").select("*").eq("id", projectId).maybeSingle(),
+    adminClient.from("casting_roles").select("*").eq("id", roleId).eq("casting_project_id", projectId).maybeSingle(),
+  ]);
+  if (!project || !role) throw new Error("Casting project or role not found.");
+  if (role.opportunity_id) {
+    revalidateCasting(projectId);
+    return;
+  }
+
+  const requirements = (role.requirements ?? {}) as Record<string, unknown>;
+  const gender = requirements.gender === "male" || requirements.gender === "female" ? requirements.gender : "any";
+  const minAge = typeof requirements.min_age === "number" ? requirements.min_age : null;
+  const maxAge = typeof requirements.max_age === "number" ? requirements.max_age : null;
+  const roleCity = typeof requirements.city === "string" ? requirements.city.trim() : "";
+  const matchedCity = SAUDI_CITIES.find(
+    (item) => item.ar === roleCity || item.en === roleCity || item.slug === roleCity,
+  ) ?? null;
+  const cityFallback = roleCity || project.city || null;
+  const titleAr = String(role.title || "").trim();
+  const titleEn = String(role.title_en || role.title || "").trim();
+  const descriptionAr = String(role.description || project.brief || titleAr).trim();
+  const descriptionEn = String(role.description_en || role.description || project.brief || titleEn).trim();
+
+  const result = await createAdminOpportunityAction({
+    sourceType: "client",
+    companyName: project.company_name || "من عملاء ملامح",
+    contactName: project.client_name,
+    contactPhone: project.contact_phone,
+    contactEmail: project.contact_email,
+    postingMode: "project",
+    title: titleAr,
+    description: descriptionAr,
+    opportunityType: role.talent_type === "model" ? "model" : "actor",
+    citySlug: matchedCity?.slug ?? null,
+    cityAr: matchedCity?.ar ?? cityFallback,
+    cityEn: matchedCity?.en ?? cityFallback,
+    requiredGender: gender,
+    minAge,
+    maxAge,
+    requiredCount: Number(role.required_count) || 1,
+    compensationType: "negotiable",
+    workDate: project.work_date || null,
+    roleRequirements: {
+      managed_by: "mlamh",
+      casting_project_id: projectId,
+      casting_role_id: roleId,
+      role_title_ar: titleAr,
+      role_title_en: titleEn,
+    },
+    publishNow: false,
+  });
+
+  const opportunityId = Number(result?.opportunity?.id);
+  if (!Number.isInteger(opportunityId) || opportunityId <= 0) {
+    throw new Error("Unable to create role opportunity.");
+  }
+
+  const now = new Date().toISOString();
+  const { error: opportunityError } = await adminClient
+    .from("opportunities")
+    .update({ title_en: titleEn, description_en: descriptionEn, managed_by_mlamh: true, updated_at: now })
+    .eq("id", opportunityId);
+  if (opportunityError) throw new Error(opportunityError.message);
+
+  const { error: roleError } = await adminClient
+    .from("casting_roles")
+    .update({ opportunity_id: opportunityId, status: "active", updated_at: now })
+    .eq("id", roleId)
+    .eq("casting_project_id", projectId);
+  if (roleError) throw new Error(roleError.message);
+
+  revalidateCasting(projectId);
+  revalidatePath("/admin/opportunities");
+}
+
+export async function ensureCastingClientAccessAction(formData: FormData) {
+  await requireAdminAccess();
+  const projectId = toPositiveInt(formData.get("project_id"));
+  if (!projectId) return;
+
+  const adminClient = createAdminClient();
+  const { data: project, error: lookupError } = await adminClient
+    .from("casting_projects")
+    .select("id,client_access_token")
+    .eq("id", projectId)
+    .maybeSingle();
+  if (lookupError || !project) {
+    console.error("[ensureCastingClientAccessAction lookup]", lookupError);
+    return;
+  }
+
+  if (!project.client_access_token) {
+    const { error } = await adminClient
+      .from("casting_projects")
+      .update({
+        client_access_token: crypto.randomUUID(),
+        client_shared_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", projectId);
+    if (error) {
+      console.error("[ensureCastingClientAccessAction update]", error);
+      return;
+    }
+  }
+  revalidateCasting(projectId);
+}
+
+export async function linkCastingOpportunityAction(formData: FormData) {
+  await requireAdminAccess();
+  const projectId = toPositiveInt(formData.get("project_id"));
+  const opportunityId = toPositiveInt(formData.get("opportunity_id"));
+  if (!projectId || !opportunityId) return;
+
+  const adminClient = createAdminClient();
+  const [{ data: project, error: projectError }, { data: opportunity, error: opportunityError }] = await Promise.all([
+    adminClient.from("casting_projects").select("id,opportunity_id").eq("id", projectId).maybeSingle(),
+    adminClient.from("opportunities").select("id").eq("id", opportunityId).maybeSingle(),
+  ]);
+  if (projectError || opportunityError || !project || !opportunity) {
+    console.error("[linkCastingOpportunityAction] lookup failed", projectError ?? opportunityError);
+    return;
+  }
+
+  const previousOpportunityId = project.opportunity_id ? Number(project.opportunity_id) : null;
+  const { error: projectUpdateError } = await adminClient
+    .from("casting_projects")
+    .update({ opportunity_id: opportunityId, updated_at: new Date().toISOString() })
+    .eq("id", projectId);
+  if (projectUpdateError) {
+    console.error("[linkCastingOpportunityAction] project update", projectUpdateError);
+    return;
+  }
+
+  await adminClient
+    .from("opportunities")
+    .update({ managed_by_mlamh: true, updated_at: new Date().toISOString() })
+    .eq("id", opportunityId);
+
+  if (previousOpportunityId && previousOpportunityId !== opportunityId) {
+    const [{ count: projectCount }, { count: roleCount }] = await Promise.all([
+      adminClient.from("casting_projects").select("id", { count: "exact", head: true }).eq("opportunity_id", previousOpportunityId),
+      adminClient.from("casting_roles").select("id", { count: "exact", head: true }).eq("opportunity_id", previousOpportunityId),
+    ]);
+    if ((projectCount ?? 0) === 0 && (roleCount ?? 0) === 0) {
+      await adminClient
+        .from("opportunities")
+        .update({ managed_by_mlamh: false, updated_at: new Date().toISOString() })
+        .eq("id", previousOpportunityId);
+    }
+  }
+
+  revalidateCasting(projectId);
+  revalidatePath(`/admin/opportunities/${opportunityId}`);
+  revalidatePath("/ar/opportunities");
+  revalidatePath("/en/opportunities");
+}
+
+export async function createCastingOpportunityFromBriefAction(formData: FormData) {
+  await requireAdminAccess();
+  const projectId = toPositiveInt(formData.get("project_id"));
+  if (!projectId) throw new Error("Invalid casting project.");
+
+  const adminClient = createAdminClient();
+  const { data: project, error: projectError } = await adminClient
+    .from("casting_projects")
+    .select("*")
+    .eq("id", projectId)
+    .maybeSingle();
+  if (projectError || !project) throw new Error(projectError?.message || "Casting project not found.");
+  if (project.opportunity_id) redirect(`/admin/casting/${projectId}?lang=ar`);
+
+  const rawTitle = stringValue(formData.get("title"));
+  const rawDescription = stringValue(formData.get("description"));
+  if (!rawTitle || !rawDescription) throw new Error("Title and description are required.");
+
+  const opportunityType = formData.get("opportunity_type") === "model" ? "model" : "actor";
+  const citySlug = stringValue(formData.get("city_slug"));
+  const city = SAUDI_CITIES.find((item) => item.slug === citySlug) ?? null;
+  const sourceLanguage: "ar" | "en" = /[\u0600-\u06FF]/.test(`${rawTitle} ${rawDescription}`) ? "ar" : "en";
+  const translated = await translateOpportunityContent({ sourceLanguage, title: rawTitle, description: rawDescription });
+  const titleAr = sourceLanguage === "ar" ? rawTitle : translated.title.trim();
+  const descriptionAr = sourceLanguage === "ar" ? rawDescription : translated.description.trim();
+  const titleEn = sourceLanguage === "en" ? rawTitle : translated.title.trim();
+  const descriptionEn = sourceLanguage === "en" ? rawDescription : translated.description.trim();
+  if (!titleAr || !descriptionAr || !titleEn || !descriptionEn) {
+    throw new Error("Automatic bilingual content generation failed.");
+  }
+
+  const compensationRaw = stringValue(formData.get("compensation_type"));
+  const compensationType: "fixed" | "negotiable" | "unpaid" =
+    compensationRaw === "fixed" || compensationRaw === "unpaid" ? compensationRaw : "negotiable";
+  const budget = compensationType === "fixed" ? stringValue(formData.get("budget")) || null : null;
+  if (compensationType === "fixed" && !budget) throw new Error("Budget is required for fixed compensation.");
+
+  const publicCompanyName = stringValue(formData.get("public_company_name")) || project.company_name || "من عملاء ملامح";
+  const result = await createAdminOpportunityAction({
+    sourceType: "client",
+    companyName: publicCompanyName,
+    contactName: project.client_name,
+    contactPhone: project.contact_phone,
+    contactEmail: project.contact_email,
+    postingMode: "project",
+    title: titleAr,
+    description: descriptionAr,
+    opportunityType,
+    citySlug: city?.slug ?? null,
+    cityAr: city?.ar ?? project.city ?? null,
+    cityEn: city?.en ?? project.city ?? null,
+    requiredGender:
+      formData.get("required_gender") === "male"
+        ? "male"
+        : formData.get("required_gender") === "female"
+          ? "female"
+          : "any",
+    minAge: optionalNumber(formData.get("min_age")),
+    maxAge: optionalNumber(formData.get("max_age")),
+    requiredCount: optionalNumber(formData.get("required_count")) ?? project.required_count,
+    compensationType,
+    budget,
+    applicationDays: optionalNumber(formData.get("application_days")) ?? 14,
+    workDate: stringValue(formData.get("work_date")) || project.work_date || null,
+    roleRequirements: {
+      managed_by: "mlamh",
+      casting_project_id: projectId,
+      source_type: "client",
+      content_source_language: sourceLanguage,
+      translation_mode: "automatic",
+    },
+    publishNow: false,
+  });
+
+  const opportunityId = Number(result?.opportunity?.id);
+  if (!Number.isInteger(opportunityId) || opportunityId <= 0) {
+    throw new Error("Unable to create opportunity from casting brief.");
+  }
+
+  const now = new Date().toISOString();
+  const { error: opportunityError } = await adminClient
+    .from("opportunities")
+    .update({ title_en: titleEn, description_en: descriptionEn, managed_by_mlamh: true, updated_at: now })
+    .eq("id", opportunityId);
+  if (opportunityError) throw new Error(opportunityError.message);
+
+  const { error: castingError } = await adminClient
+    .from("casting_projects")
+    .update({
+      opportunity_id: opportunityId,
+      client_status_note:
+        project.client_status_note ||
+        "تم تجهيز مسودة فرصة المشروع، وستتم مراجعتها قبل النشر واستقبال طلبات المواهب.",
+      updated_at: now,
+    })
+    .eq("id", projectId);
+  if (castingError) throw new Error(castingError.message);
+
+  revalidateCasting(projectId);
+  revalidatePath("/admin/opportunities");
+  redirect(`/admin/casting/${projectId}?lang=ar&opportunity_created=1`);
+}
+
+export async function addCastingShortlistAction(formData: FormData) {
+  await requireAdminAccess();
+  const projectId = toPositiveInt(formData.get("project_id"));
+  const applicationId = toPositiveInt(formData.get("application_id"));
+  const roleId = toPositiveInt(formData.get("casting_role_id"));
+  if (!projectId || !applicationId) return;
+
+  const adminClient = createAdminClient();
+  const { data: application } = await adminClient
+    .from("opportunity_applications")
+    .select("id,opportunity_id")
+    .eq("id", applicationId)
+    .maybeSingle();
+  if (!application) return;
+
+  const { data: project } = await adminClient
+    .from("casting_projects")
+    .select("opportunity_id")
+    .eq("id", projectId)
+    .maybeSingle();
+  if (!project) return;
+
+  let validOpportunity = Boolean(
+    project.opportunity_id && Number(application.opportunity_id) === Number(project.opportunity_id),
+  );
+
+  if (roleId) {
+    const { data: role } = await adminClient
+      .from("casting_roles")
+      .select("id,opportunity_id,status")
+      .eq("id", roleId)
+      .eq("casting_project_id", projectId)
+      .maybeSingle();
+    if (!role || role.status === "cancelled") return;
+    validOpportunity = Boolean(
+      role.opportunity_id && Number(application.opportunity_id) === Number(role.opportunity_id),
+    );
+  }
+
+  if (!validOpportunity) return;
+
+  const { error } = await adminClient.from("casting_shortlist").upsert(
+    {
+      casting_project_id: projectId,
+      application_id: applicationId,
+      casting_role_id: roleId,
+      status: "shortlisted",
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "casting_project_id,application_id" },
+  );
+
+  if (error) {
+    console.error("[addCastingShortlistAction]", error);
+    return;
+  }
+  revalidateCasting(projectId);
+}
+
+export async function updateCastingShortlistStatusAction(formData: FormData) {
+  await requireAdminAccess();
+  const projectId = toPositiveInt(formData.get("project_id"));
+  const shortlistId = toPositiveInt(formData.get("shortlist_id"));
+  const status = stringValue(formData.get("status"));
+  if (!projectId || !shortlistId || !allowedShortlistStatuses.has(status)) return;
+
+  const adminClient = createAdminClient();
+  const { error } = await adminClient
+    .from("casting_shortlist")
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq("id", shortlistId)
+    .eq("casting_project_id", projectId);
+
+  if (error) {
+    console.error("[updateCastingShortlistStatusAction]", error);
+    return;
+  }
+  revalidateCasting(projectId);
+}

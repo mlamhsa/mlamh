@@ -58,6 +58,12 @@ export default async function AdminCastingPage({
 
           <div className="flex flex-wrap gap-2">
             <Link
+              href={`/admin/casting/commercial?lang=${language}`}
+              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-gold/25 px-4 py-2 text-sm text-gold transition hover:bg-gold/10"
+            >
+              {isArabic ? "المبيعات التجارية" : "Commercial pipeline"}
+            </Link>
+            <Link
               href={`/admin/casting/analytics?lang=${language}`}
               className="inline-flex min-h-11 items-center justify-center rounded-xl border border-white/10 px-4 py-2 text-sm text-white/60 transition hover:border-gold/25 hover:text-gold"
             >
