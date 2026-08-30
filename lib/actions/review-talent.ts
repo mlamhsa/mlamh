@@ -56,8 +56,8 @@ function revalidateTalentReviewPaths(
   revalidatePath(`/admin/talents/${id}`);
   revalidatePath(`/admin/talents/${id}/edit`);
 
-  revalidatePath("/ar/talents");
-  revalidatePath("/en/talents");
+  revalidatePath("/ar/talent");
+  revalidatePath("/en/talent");
 
   revalidatePath("/ar/talent-dashboard");
   revalidatePath("/en/talent-dashboard");
