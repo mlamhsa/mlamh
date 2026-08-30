@@ -84,7 +84,7 @@ export default async function AdminCastingPage({
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1050px] text-sm">
+              <table className="w-full min-w-[1120px] text-sm">
                 <thead className="border-b border-white/10 bg-white/[0.025] text-xs text-white/35">
                   <tr>
                     <th className="px-4 py-4 text-start">#</th>
@@ -95,6 +95,7 @@ export default async function AdminCastingPage({
                     <th className="px-4 py-4 text-start">{isArabic ? "الباقة" : "Package"}</th>
                     <th className="px-4 py-4 text-start">{isArabic ? "التواصل" : "Contact"}</th>
                     <th className="px-4 py-4 text-start">{isArabic ? "الفرصة" : "Opportunity"}</th>
+                    <th className="px-4 py-4 text-start">{isArabic ? "إدارة" : "Manage"}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/[0.07]">
@@ -104,7 +105,9 @@ export default async function AdminCastingPage({
                       <tr key={project.id} className="text-white/65 hover:bg-white/[0.02]">
                         <td className="px-4 py-4 text-white/35">{project.id}</td>
                         <td className="px-4 py-4">
-                          <p className="font-medium text-white/85">{project.project_title}</p>
+                          <Link href={`/admin/casting/${project.id}?lang=${language}`} className="font-medium text-white/85 hover:text-gold">
+                            {project.project_title}
+                          </Link>
                           <p className="mt-1 text-xs text-white/35">{project.city || "—"}</p>
                         </td>
                         <td className="px-4 py-4">
@@ -138,6 +141,11 @@ export default async function AdminCastingPage({
                           ) : (
                             <span className="text-white/25">—</span>
                           )}
+                        </td>
+                        <td className="px-4 py-4">
+                          <Link href={`/admin/casting/${project.id}?lang=${language}`} className="rounded-lg border border-gold/25 px-3 py-2 text-xs text-gold hover:bg-gold/10">
+                            {isArabic ? "فتح المشروع" : "Open"}
+                          </Link>
                         </td>
                       </tr>
                     );
