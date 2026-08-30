@@ -53,7 +53,10 @@ export function MobileBottomNavigation({
   );
 
   const isArabic = locale === "ar";
-  const isLoginRoute = pathname === `/${locale}/login`;
+  const isAuthUtilityRoute =
+    pathname === `/${locale}/login` ||
+    pathname === `/${locale}/forgot-password` ||
+    pathname === `/${locale}/reset-password`;
 
   function localizedPath(path: string) {
     return path === "/"
@@ -226,7 +229,7 @@ export function MobileBottomNavigation({
     ];
   })();
 
-  if (!portalReady || isLoginRoute) {
+  if (!portalReady || isAuthUtilityRoute) {
     return null;
   }
 
