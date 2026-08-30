@@ -59,7 +59,7 @@ export async function updateAdminPaymentPriceAction(
 
   const { data: price, error: priceError } = await adminClient
     .from("payment_prices")
-    .select("id, product_id, currency, active, amount_minor")
+    .select("id, product_id, currency, active, amount_minor, metadata")
     .eq("id", priceId)
     .maybeSingle();
 
@@ -97,14 +97,23 @@ export async function updateAdminPaymentPriceAction(
     );
   }
 
+  const now = new Date().toISOString();
+  const existingMetadata =
+    price.metadata &&
+    typeof price.metadata === "object" &&
+    !Array.isArray(price.metadata)
+      ? (price.metadata as Record<string, unknown>)
+      : {};
+
   const { error: updateError } = await adminClient
     .from("payment_prices")
     .update({
       amount_minor: amountMinor,
-      updated_at: new Date().toISOString(),
+      updated_at: now,
       metadata: {
+        ...existingMetadata,
         admin_price_updated_by: adminUser.id,
-        admin_price_updated_at: new Date().toISOString(),
+        admin_price_updated_at: now,
       },
     })
     .eq("id", price.id)
