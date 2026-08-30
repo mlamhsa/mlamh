@@ -17,8 +17,8 @@ export default async function PublisherDashboardLayout({
       locale={locale}
       isRtl={locale !== "en"}
     >
-      {children}
       <PublisherFeaturedEntryPoint locale={locale} />
+      {children}
     </PublisherShell>
   );
 }

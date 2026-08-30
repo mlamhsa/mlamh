@@ -9,12 +9,14 @@ export async function PublisherFeaturedEntryPoint({ locale }: { locale: string }
   const isArabic = locale !== "en";
 
   return (
-    <Link
-      href={`/${isArabic ? "ar" : "en"}/publisher-dashboard/featured`}
-      className="fixed bottom-24 end-5 z-40 inline-flex items-center gap-2 rounded-full border border-gold/40 bg-black/90 px-5 py-3 text-xs font-medium text-gold shadow-2xl backdrop-blur transition hover:bg-gold hover:text-black md:bottom-6 md:end-6"
-    >
-      <span aria-hidden>★</span>
-      {isArabic ? "تمييز فرصة" : "Feature an opportunity"}
-    </Link>
+    <div className="mb-6 flex justify-end">
+      <Link
+        href={`/${isArabic ? "ar" : "en"}/publisher-dashboard/featured`}
+        className="inline-flex min-h-12 items-center gap-2 rounded-2xl border border-gold/35 bg-gold/[0.08] px-5 py-3 text-sm font-medium text-gold transition hover:bg-gold hover:text-black"
+      >
+        <span aria-hidden>★</span>
+        {isArabic ? "تمييز فرصة" : "Feature an opportunity"}
+      </Link>
+    </div>
   );
 }

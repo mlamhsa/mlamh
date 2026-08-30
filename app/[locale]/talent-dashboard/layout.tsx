@@ -16,10 +16,10 @@ export default async function TalentDashboardLayout({
 
   return (
     <>
-      {children}
       {user ? (
         <TalentFeaturedEntryPoint locale={locale} userId={user.id} />
       ) : null}
+      {children}
     </>
   );
 }
