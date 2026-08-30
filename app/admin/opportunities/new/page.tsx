@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import AdminManagedOpportunityForm from "@/components/admin/opportunities/AdminManagedOpportunityForm";
+import AdminLocalizedOpportunityForm from "@/components/admin/opportunities/AdminLocalizedOpportunityForm";
 import { requireAdminAccess } from "@/lib/auth/require-admin";
 
 export const metadata = {
@@ -27,8 +27,8 @@ export default async function AdminCreateOpportunityPage() {
               إنشاء فرصة مُدارة
             </h1>
 
-            <p className="mt-2 text-sm text-white/50">
-              انشر فرصة باسم ملامح أو نيابة عن عميل بدون إنشاء حساب ناشر.
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-white/50">
+              أدخل المحتوى بالعربية والإنجليزية مرة واحدة، وسيعرض الموقع النسخة المناسبة تلقائيًا حسب لغة المستخدم.
             </p>
           </div>
 
@@ -40,7 +40,7 @@ export default async function AdminCreateOpportunityPage() {
           </Link>
         </div>
 
-        <AdminManagedOpportunityForm />
+        <AdminLocalizedOpportunityForm />
       </div>
     </main>
   );
