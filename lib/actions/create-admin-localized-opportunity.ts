@@ -1,7 +1,9 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { translateOpportunityContent } from "@/lib/ai/translate-opportunity";
 import { createAdminOpportunityAction } from "@/lib/actions/create-admin-opportunity";
 import { SAUDI_CITIES } from "@/lib/data/saudi-cities";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -22,14 +24,23 @@ export async function createAdminLocalizedOpportunityFormAction(
   formData: FormData,
 ) {
   const titleAr = stringValue(formData.get("title"));
-  const titleEn = stringValue(formData.get("title_en"));
   const descriptionAr = stringValue(formData.get("description"));
-  const descriptionEn = stringValue(formData.get("description_en"));
 
-  if (!titleAr || !titleEn || !descriptionAr || !descriptionEn) {
-    throw new Error(
-      "العنوان والوصف مطلوبان باللغتين العربية والإنجليزية.",
-    );
+  if (!titleAr || !descriptionAr) {
+    throw new Error("عنوان ووصف الفرصة مطلوبان.");
+  }
+
+  const translated = await translateOpportunityContent({
+    sourceLanguage: "ar",
+    title: titleAr,
+    description: descriptionAr,
+  });
+
+  const titleEn = translated.title.trim();
+  const descriptionEn = translated.description.trim();
+
+  if (!titleEn || !descriptionEn) {
+    throw new Error("تعذر إنشاء النسخة الإنجليزية للفرصة تلقائيًا. حاول مرة أخرى.");
   }
 
   const sourceType =
@@ -88,6 +99,10 @@ export async function createAdminLocalizedOpportunityFormAction(
     throw new Error("أدخل مبلغ الفرصة.");
   }
 
+  const publishNow = formData.get("publish_now") === "true";
+
+  // Always create as draft first so an opportunity is never public before
+  // the translated fields are saved successfully.
   const result = await createAdminOpportunityAction({
     sourceType,
     companyName: publicCompanyName,
@@ -132,8 +147,10 @@ export async function createAdminLocalizedOpportunityFormAction(
       public_source_mode: publicSourceMode,
       client_company_name:
         sourceType === "client" ? clientCompanyName : null,
+      content_source_language: "ar",
+      translation_mode: "automatic",
     },
-    publishNow: formData.get("publish_now") === "true",
+    publishNow: false,
   });
 
   const opportunityId = result?.opportunity?.id;
@@ -148,6 +165,8 @@ export async function createAdminLocalizedOpportunityFormAction(
     .update({
       title_en: titleEn,
       description_en: descriptionEn,
+      status: publishNow ? "published" : "draft",
+      published: publishNow,
       updated_at: new Date().toISOString(),
     })
     .eq("id", opportunityId);
@@ -157,6 +176,12 @@ export async function createAdminLocalizedOpportunityFormAction(
       `[createAdminLocalizedOpportunityFormAction] ${error.message}`,
     );
   }
+
+  revalidatePath("/admin/opportunities");
+  revalidatePath("/ar/opportunities");
+  revalidatePath("/en/opportunities");
+  revalidatePath("/ar");
+  revalidatePath("/en");
 
   redirect(`/admin/opportunities/${opportunityId}?created=1&lang=ar`);
 }
