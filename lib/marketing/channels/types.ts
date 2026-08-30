@@ -23,7 +23,14 @@ export type MarketingPublishInput = {
   metadata?: Record<string, unknown>;
 };
 
-export type MarketingPublishResult = {
+export type MarketingMessageInput = {
+  recipient: Record<string, unknown>;
+  text: string;
+  templateKey?: string | null;
+  metadata?: Record<string, unknown>;
+};
+
+export type MarketingExecutionResult = {
   ok: boolean;
   externalId?: string;
   errorCode?: string;
@@ -31,10 +38,14 @@ export type MarketingPublishResult = {
   metadata?: Record<string, unknown>;
 };
 
+export type MarketingPublishResult = MarketingExecutionResult;
+export type MarketingMessageResult = MarketingExecutionResult;
+
 export interface MarketingChannelAdapter {
   readonly provider: string;
   readonly capabilities: readonly MarketingChannelCapability[];
   getStatus(): Promise<MarketingChannelStatus>;
   publish?(input: MarketingPublishInput): Promise<MarketingPublishResult>;
+  sendMessage?(input: MarketingMessageInput): Promise<MarketingMessageResult>;
   verifyWebhook?(headers: Headers, rawBody: string): Promise<boolean> | boolean;
 }
