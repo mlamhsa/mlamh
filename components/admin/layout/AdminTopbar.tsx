@@ -3,12 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 
-import {
-  Bell,
-  Menu,
-  Search,
-  X,
-} from "lucide-react";
+import { Bell, Menu, Search, X } from "lucide-react";
 
 import {
   usePathname,
@@ -16,6 +11,7 @@ import {
   type ReadonlyURLSearchParams,
 } from "next/navigation";
 
+import { AdminLogoutButton } from "@/components/admin/AdminLogoutButton";
 import {
   getAdminDictionary,
   getAdminLanguage,
@@ -182,11 +178,11 @@ export function AdminTopbar({
 
           <aside
             dir={isArabic ? "rtl" : "ltr"}
-            className={`absolute top-0 h-full w-[min(88vw,360px)] overflow-y-auto border-white/[0.08] bg-[#080808] shadow-2xl ${
+            className={`absolute top-0 flex h-full w-[min(86vw,340px)] flex-col border-white/[0.08] bg-[#080808] shadow-2xl ${
               isArabic ? "right-0 border-l" : "left-0 border-r"
             }`}
           >
-            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/[0.08] bg-[#080808]/95 px-5 py-5 backdrop-blur-xl">
+            <div className="flex shrink-0 items-center justify-between border-b border-white/[0.08] bg-[#080808]/95 px-5 py-5 backdrop-blur-xl">
               <div>
                 <p className="text-[10px] uppercase tracking-[0.4em] text-gold">MLAMH</p>
                 <p className="mt-1 text-lg font-light text-white">
@@ -204,7 +200,7 @@ export function AdminTopbar({
               </button>
             </div>
 
-            <nav className="space-y-7 px-4 py-5">
+            <nav className="flex-1 space-y-7 overflow-y-auto px-4 py-5">
               {adminNavigation.map((group) => (
                 <section key={group.titleEn}>
                   <p className="mb-2 px-3 text-[9px] uppercase tracking-[0.28em] text-white/25">
@@ -236,6 +232,10 @@ export function AdminTopbar({
                 </section>
               ))}
             </nav>
+
+            <div className="shrink-0 border-t border-white/[0.08] bg-[#080808] p-4 pb-[max(env(safe-area-inset-bottom),1rem)]">
+              <AdminLogoutButton isArabic={isArabic} />
+            </div>
           </aside>
         </div>
       ) : null}
