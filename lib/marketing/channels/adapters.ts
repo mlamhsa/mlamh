@@ -1,3 +1,4 @@
+import { bufferServerAdapter } from "./buffer";
 import type { MarketingChannelAdapter, MarketingChannelCapability, MarketingChannelStatus } from "./types";
 
 class SetupRequiredAdapter implements MarketingChannelAdapter {
@@ -16,12 +17,14 @@ export const MetaAdapter = new SetupRequiredAdapter("meta", ["publish", "analyti
 export const WhatsAppAdapter = new SetupRequiredAdapter("whatsapp", ["messages", "webhooks", "templates", "delivery_status"]);
 export const LinkedInAdapter = new SetupRequiredAdapter("linkedin", ["publish", "analytics"]);
 export const EmailAdapter = new SetupRequiredAdapter("email", ["messages", "webhooks", "delivery_status"]);
+export const BufferAdapter = bufferServerAdapter;
 
 export const marketingChannelAdapters: Record<string, MarketingChannelAdapter> = {
   meta: MetaAdapter,
   whatsapp: WhatsAppAdapter,
   linkedin: LinkedInAdapter,
   email: EmailAdapter,
+  buffer: BufferAdapter,
 };
 
 export function getMarketingChannelAdapter(provider: string) {
