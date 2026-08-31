@@ -41,7 +41,7 @@ export async function testBufferConnectionAction(
 
 export async function beginZohoMailOAuthAction() {
   await requireMarketingAdminAccess("marketing.integrations.manage");
-  const config = getZohoMailRuntimeConfig();
+  const config = await getZohoMailRuntimeConfig();
   const oauth = createZohoOAuthRequest(config);
   const cookieStore = await cookies();
   const secure = process.env.NODE_ENV === "production";
