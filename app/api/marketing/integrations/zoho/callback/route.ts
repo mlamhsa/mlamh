@@ -5,12 +5,13 @@ import { requireMarketingAdminAccess } from "@/lib/auth/require-marketing-admin"
 import {
   exchangeZohoAuthorizationCode,
   getZohoMailRuntimeConfig,
-  persistZohoAccountVerification,
   persistZohoConnectionError,
+  persistZohoDurableConnection,
+  storeZohoRefreshToken,
   verifyZohoMailAccount,
 } from "@/lib/marketing/channels/zoho-mail";
 
-function integrationsUrl(request: NextRequest, state: "verified" | "error") {
+function integrationsUrl(request: NextRequest, state: "connected" | "error") {
   const url = new URL("/admin/marketing/integrations", request.url);
   url.searchParams.set("zoho", state);
   return url;
@@ -33,15 +34,18 @@ export async function GET(request: NextRequest) {
     const config = getZohoMailRuntimeConfig();
     const tokenSet = await exchangeZohoAuthorizationCode({ code, codeVerifier, config });
     const verified = await verifyZohoMailAccount({ accessToken: tokenSet.accessToken, config });
-    await persistZohoAccountVerification({
+    if (!tokenSet.refreshToken) {
+      throw new Error("Zoho OAuth did not return a durable refresh credential.");
+    }
+
+    const stored = await storeZohoRefreshToken(tokenSet.refreshToken);
+    await persistZohoDurableConnection({
       accountId: verified.accountId,
+      credentialRef: stored.credentialRef,
       config,
-      refreshTokenReceived: Boolean(tokenSet.refreshToken),
     });
 
-    // Phase 1 deliberately discards OAuth tokens after READ verification.
-    // Durable refresh-token storage must be configured before the integration can become "connected" or send real email.
-    return NextResponse.redirect(integrationsUrl(request, "verified"));
+    return NextResponse.redirect(integrationsUrl(request, "connected"));
   } catch (error) {
     await persistZohoConnectionError(error);
     return NextResponse.redirect(integrationsUrl(request, "error"));
