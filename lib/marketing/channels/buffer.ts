@@ -53,7 +53,7 @@ function normalizeChannelLabel(value: string | null | undefined) {
 
 function safeBufferError(status?: number) {
   if (status === 401 || status === 403) {
-    return "Buffer authentication failed. Check the server-side BUFFER_API_KEY and its accountRead permission.";
+    return "Buffer authentication failed. Check the server-side BUFFER_API_KEY and its account:read permission.";
   }
   if (status === 429) {
     return "Buffer API rate limit reached. Try the connection test again later.";
