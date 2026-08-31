@@ -1,9 +1,12 @@
 "use server";
 
+import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 import { requireMarketingAdminAccess } from "@/lib/auth/require-marketing-admin";
 import { testAndPersistBufferConnection } from "@/lib/marketing/channels/buffer";
+import { createZohoOAuthRequest, getZohoMailRuntimeConfig } from "@/lib/marketing/channels/zoho-mail";
 
 export type BufferConnectionActionState = {
   ok: boolean | null;
@@ -34,4 +37,27 @@ export async function testBufferConnectionAction(
       message: error instanceof Error ? error.message : "Buffer connection test failed.",
     };
   }
+}
+
+export async function beginZohoMailOAuthAction() {
+  await requireMarketingAdminAccess("marketing.integrations.manage");
+  const config = getZohoMailRuntimeConfig();
+  const oauth = createZohoOAuthRequest(config);
+  const cookieStore = await cookies();
+  const secure = process.env.NODE_ENV === "production";
+  cookieStore.set("mlamh_zoho_oauth_state", oauth.state, {
+    httpOnly: true,
+    secure,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 600,
+  });
+  cookieStore.set("mlamh_zoho_pkce_verifier", oauth.codeVerifier, {
+    httpOnly: true,
+    secure,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 600,
+  });
+  redirect(oauth.authorizationUrl);
 }
