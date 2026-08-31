@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 
-import { PublisherFeaturedEntryPoint } from "@/components/payments/PublisherFeaturedEntryPoint";
 import PublisherShell from "@/components/publisher/PublisherShell";
 
 export default async function PublisherDashboardLayout({
@@ -17,7 +16,6 @@ export default async function PublisherDashboardLayout({
       locale={locale}
       isRtl={locale !== "en"}
     >
-      <PublisherFeaturedEntryPoint locale={locale} />
       {children}
     </PublisherShell>
   );
