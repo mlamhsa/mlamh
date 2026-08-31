@@ -7,17 +7,25 @@ import { getAdminLanguage } from "@/lib/admin/i18n";
 import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { getMarketingAIConfigurationState } from "@/lib/marketing/ai/provider";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { testBufferConnectionAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
 type PageProps = { searchParams: Promise<{ lang?: string }> };
 type SettingValue = { enabled?: unknown } | null;
+type ConfigurationState = Record<string, unknown> | null;
 
 function aiAuthLabel(authMode: string) {
   if (authMode === "vercel_oidc") return "Vercel OIDC";
   if (authMode === "gateway_api_key") return "AI Gateway API Key";
   if (authMode === "openai_api_key") return "OpenAI API Key";
   return "Not configured";
+}
+
+function configurationValue(state: ConfigurationState, key: string) {
+  if (!state || typeof state !== "object" || Array.isArray(state)) return null;
+  const value = state[key];
+  return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
 export default async function MarketingIntegrationsPage({ searchParams }: PageProps) {
@@ -102,21 +110,55 @@ export default async function MarketingIntegrationsPage({ searchParams }: PagePr
           <AdminCard className="p-6 text-sm text-white/40">
             {isArabic ? "لا توجد تكاملات مسجلة بعد." : "No integrations registered yet."}
           </AdminCard>
-        ) : integrations.map((item) => (
-          <AdminCard key={item.id} className="p-5">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <div className="text-base capitalize text-white">{item.provider}</div>
-                <div className="mt-1 text-xs text-white/35">{item.last_error ?? (isArabic ? "لا يوجد خطأ مسجل" : "No recorded error")}</div>
+        ) : integrations.map((item) => {
+          const configuration = item.configuration_state as ConfigurationState;
+          const instagramChannelId = item.provider === "buffer" ? configurationValue(configuration, "instagram_channel_id") : null;
+          const facebookChannelId = item.provider === "buffer" ? configurationValue(configuration, "facebook_channel_id") : null;
+
+          return (
+            <AdminCard key={item.id} className="p-5">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="text-base capitalize text-white">{item.provider}</div>
+                  <div className="mt-1 text-xs text-white/35">{item.last_error ?? (isArabic ? "لا يوجد خطأ مسجل" : "No recorded error")}</div>
+                </div>
+                <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs text-gold">{item.status}</span>
               </div>
-              <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs text-gold">{item.status}</span>
-            </div>
-            <div className="mt-4 grid grid-cols-2 gap-3 text-xs text-white/45">
-              <div>{isArabic ? "آخر مزامنة" : "Last sync"}<div className="mt-1 text-white/70">{item.last_sync_at ? new Date(item.last_sync_at).toLocaleString(isArabic ? "ar-SA" : "en-US") : "—"}</div></div>
-              <div>{isArabic ? "آخر نجاح" : "Last success"}<div className="mt-1 text-white/70">{item.last_success_at ? new Date(item.last_success_at).toLocaleString(isArabic ? "ar-SA" : "en-US") : "—"}</div></div>
-            </div>
-          </AdminCard>
-        ))}
+
+              {item.provider === "buffer" ? (
+                <div className="mt-4 rounded-xl border border-white/[0.07] bg-black/20 p-4">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-xs font-medium text-white/70">Buffer · READ ONLY connection test</p>
+                      <p className="mt-1 text-[11px] leading-5 text-white/35">
+                        {isArabic
+                          ? "يجلب الحساب والقنوات فقط. لا يوجد في هذا المسار أي نشر أو جدولة Posts."
+                          : "Fetches account and channels only. This path contains no post publish or scheduling operation."}
+                      </p>
+                    </div>
+                    <form action={testBufferConnectionAction}>
+                      <button type="submit" className="rounded-lg border border-gold/35 bg-gold/10 px-4 py-2 text-xs text-gold transition hover:bg-gold hover:text-black">
+                        {isArabic ? "اختبار اتصال Buffer" : "Test Buffer connection"}
+                      </button>
+                    </form>
+                  </div>
+
+                  {(instagramChannelId || facebookChannelId) ? (
+                    <div className="mt-4 grid gap-2 text-[11px] text-white/40 sm:grid-cols-2">
+                      <div>Instagram @mlamhco<div className="mt-1 break-all text-white/65">{instagramChannelId ?? "—"}</div></div>
+                      <div>Facebook MLAMH<div className="mt-1 break-all text-white/65">{facebookChannelId ?? "—"}</div></div>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+
+              <div className="mt-4 grid grid-cols-2 gap-3 text-xs text-white/45">
+                <div>{isArabic ? "آخر مزامنة" : "Last sync"}<div className="mt-1 text-white/70">{item.last_sync_at ? new Date(item.last_sync_at).toLocaleString(isArabic ? "ar-SA" : "en-US") : "—"}</div></div>
+                <div>{isArabic ? "آخر نجاح" : "Last success"}<div className="mt-1 text-white/70">{item.last_success_at ? new Date(item.last_success_at).toLocaleString(isArabic ? "ar-SA" : "en-US") : "—"}</div></div>
+              </div>
+            </AdminCard>
+          );
+        })}
       </div>
     </AdminPageContainer>
   );
