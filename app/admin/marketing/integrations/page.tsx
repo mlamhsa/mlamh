@@ -11,8 +11,14 @@ import { createAdminClient } from "@/lib/supabase/admin";
 export const dynamic = "force-dynamic";
 
 type PageProps = { searchParams: Promise<{ lang?: string }> };
-
 type SettingValue = { enabled?: unknown } | null;
+
+function aiAuthLabel(authMode: string) {
+  if (authMode === "vercel_oidc") return "Vercel OIDC";
+  if (authMode === "gateway_api_key") return "AI Gateway API Key";
+  if (authMode === "openai_api_key") return "OpenAI API Key";
+  return "Not configured";
+}
 
 export default async function MarketingIntegrationsPage({ searchParams }: PageProps) {
   await requireAdminAccess();
@@ -53,7 +59,8 @@ export default async function MarketingIntegrationsPage({ searchParams }: PagePr
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-base text-white">Marketing AI</p>
-              <p className="mt-1 text-xs text-white/35">OpenAI Responses API · {aiState.model}</p>
+              <p className="mt-1 text-xs text-white/35">{aiState.provider} · {aiState.model}</p>
+              <p className="mt-1 text-[11px] text-white/25">{aiAuthLabel(aiState.authMode)}</p>
             </div>
             <span className={`rounded-full border px-3 py-1 text-xs ${aiState.configured ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" : "border-amber-500/30 bg-amber-500/10 text-amber-200"}`}>
               {aiState.configured ? "connected" : "setup_required"}
@@ -61,8 +68,8 @@ export default async function MarketingIntegrationsPage({ searchParams }: PagePr
           </div>
           <p className="mt-4 text-xs leading-6 text-white/45">
             {aiState.configured
-              ? (isArabic ? "المفتاح موجود في بيئة الخادم ويمكن لمحرك المهام استخدام AI وفق الحوكمة." : "The server environment contains the AI credential and Task Engine can use it under governance.")
-              : (isArabic ? "يلزم إضافة OPENAI_API_KEY إلى بيئة Vercel. المفتاح لا يُحفظ في Supabase." : "OPENAI_API_KEY must be added to the Vercel environment. The key is not stored in Supabase.")}
+              ? (isArabic ? "محرك المهام يستطيع استخدام AI الآن وفق الحوكمة. المصادقة تتم من بيئة الخادم ولا تُعرض أي أسرار هنا." : "Task Engine can use AI under governance. Authentication stays server-side and no secrets are exposed here.")
+              : (isArabic ? "سيستخدم النظام Vercel AI Gateway عبر OIDC تلقائيًا عند توفره، أو AI_GATEWAY_API_KEY / OPENAI_API_KEY كخيار احتياطي." : "The system will use Vercel AI Gateway via OIDC when available, with AI_GATEWAY_API_KEY / OPENAI_API_KEY as fallbacks.")}
           </p>
         </AdminCard>
 
