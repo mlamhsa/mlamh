@@ -103,17 +103,17 @@ export default function OpportunitySocialCreative({
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_16%,rgba(210,176,107,0.09),transparent_32%),radial-gradient(circle_at_12%_88%,rgba(210,176,107,0.04),transparent_28%)]" />
               <div className="absolute inset-[38px] border border-white/[0.035]" />
 
-              <div className="relative grid h-full grid-rows-[280px_1fr_500px] px-[82px] py-[70px]">
+              <div className="relative grid h-full grid-rows-[320px_1fr_500px] px-[82px] py-[70px]">
                 <header className="flex flex-col items-center justify-center">
                   <img
-                    src="/brand/mlamh-logo.png"
+                    src="/brand/mlamh.svg"
                     alt="MLAMH"
-                    width={460}
-                    height={130}
-                    className="max-h-[130px] w-[460px] object-contain"
+                    width={560}
+                    height={294}
+                    className="h-[210px] w-[560px] object-contain"
                     crossOrigin="anonymous"
                   />
-                  <div className="mt-7 flex items-center gap-5">
+                  <div className="mt-5 flex items-center gap-5">
                     <div className="h-px w-[90px] bg-gradient-to-r from-transparent to-[#d2b06b]/50" />
                     <p className="text-[22px] font-medium tracking-[0.08em] text-[#d2b06b]">فرصة جديدة</p>
                     <div className="h-px w-[90px] bg-gradient-to-l from-transparent to-[#d2b06b]/50" />
