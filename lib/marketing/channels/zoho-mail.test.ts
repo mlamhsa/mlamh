@@ -10,7 +10,7 @@ import {
   sanitizeZohoError,
   verifyZohoMailAccount,
   type ZohoMailRuntimeConfig,
-} from "./zoho-mail-core";
+} from "./zoho-mail-core.ts";
 
 const config: ZohoMailRuntimeConfig = {
   accountsBaseUrl: "https://accounts.example.test",
