@@ -7,11 +7,8 @@ import { testAndPersistBufferConnection } from "@/lib/marketing/channels/buffer"
 
 export async function testBufferConnectionAction() {
   await requireMarketingAdminAccess("marketing.integrations.manage");
-
-  const result = await testAndPersistBufferConnection();
+  await testAndPersistBufferConnection();
 
   revalidatePath("/admin/marketing/integrations");
   revalidatePath("/admin/marketing");
-
-  return result;
 }
