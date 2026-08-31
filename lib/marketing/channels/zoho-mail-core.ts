@@ -82,6 +82,11 @@ export function normalizeZohoBaseUrl(value: string, name: string) {
   return trimmed;
 }
 
+export function buildEmailOutreachIdempotencyKey(outreachId: number) {
+  if (!Number.isInteger(outreachId) || outreachId <= 0) throw new Error("Invalid outreach id.");
+  return `outreach-${outreachId}-email`;
+}
+
 export function sanitizeZohoError(error: unknown) {
   const raw = error instanceof Error ? error.message : String(error ?? "Zoho Mail request failed.");
   if (/access[_ -]?token|refresh[_ -]?token|client[_ -]?secret|authorization|bearer|zoho-oauthtoken/i.test(raw)) {
