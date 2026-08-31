@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireMarketingAdminAccess } from "@/lib/auth/require-marketing-admin";
+import { buildEmailOutreachIdempotencyKey } from "@/lib/marketing/channels/email-executor";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 function revalidateMarketingApprovalViews() {
@@ -59,6 +60,41 @@ async function applyApprovalSideEffects({ approvalId, task, decision, executeAft
     if (Number.isInteger(outreachId) && outreachId > 0) {
       const sendStatus = decision === "approved" ? "approved" : decision === "scheduled" ? "scheduled" : "cancelled";
       await db.from("marketing_outreach").update({ send_status: sendStatus, next_follow_up_at: decision === "scheduled" ? executeAfter : undefined, updated_at: now }).eq("id", outreachId);
+
+      const channel = task.channel ?? (typeof input.channel === "string" ? input.channel : null);
+      if (channel === "email" && decision === "approved") {
+        const recipientEmail = typeof input.recipient_email === "string" ? input.recipient_email.trim() : "";
+        const subject = typeof input.subject === "string" ? input.subject.trim() : "";
+        const text = typeof input.message === "string" ? input.message.trim() : "";
+        if (!recipientEmail || !subject || !text) throw new Error("Approved email outreach is missing recipient, subject, or message.");
+        const idempotencyKey = buildEmailOutreachIdempotencyKey(outreachId);
+        const { error: emailJobError } = await db.from("marketing_channel_jobs").upsert({
+          content_id: null,
+          task_id: task.id,
+          approval_id: approvalId,
+          channel: "email",
+          status: "approved",
+          scheduled_at: null,
+          idempotency_key: idempotencyKey,
+          payload: {
+            kind: "outreach_email",
+            outreach_id: outreachId,
+            lead_id: task.lead_id,
+            recipient: { email: recipientEmail },
+            subject,
+            text,
+          },
+          result: {},
+          updated_at: now,
+        }, { onConflict: "idempotency_key" });
+        if (emailJobError) throw new Error(`[approval email channel job] ${emailJobError.message}`);
+      }
+
+      if (channel === "email" && (decision === "rejected" || decision === "cancelled")) {
+        await db.from("marketing_channel_jobs").update({ status: "cancelled", updated_at: now })
+          .eq("idempotency_key", buildEmailOutreachIdempotencyKey(outreachId))
+          .in("status", ["draft", "waiting_approval", "approved", "scheduled", "failed"]);
+      }
     }
   }
 }
