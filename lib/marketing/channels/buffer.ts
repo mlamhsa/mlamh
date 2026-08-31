@@ -137,7 +137,7 @@ export class BufferServerAdapter {
       organizations.map(async (organization) => {
         const data = await bufferGraphQL<{ channels: BufferChannel[] }>(
           apiKey,
-          `query MLAMHBufferChannels($organizationId: ID!) {
+          `query MLAMHBufferChannels($organizationId: OrganizationId!) {
             channels(input: { organizationId: $organizationId }) {
               id
               name
