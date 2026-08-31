@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { bufferTargetsFromValues, evaluateChannelExecutionPolicy } from "./execution-policy";
+import { bufferTargetsFromValues, evaluateChannelExecutionPolicy } from "./execution-policy.ts";
 
 const valid = {
   jobStatus: "approved",
