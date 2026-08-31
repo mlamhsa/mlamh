@@ -1,7 +1,9 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 
 import { getMarketingChannelAdapter } from "./adapters";
-import { sanitizeZohoError } from "./zoho-mail";
+import { buildEmailOutreachIdempotencyKey, sanitizeZohoError } from "./zoho-mail-core";
+
+export { buildEmailOutreachIdempotencyKey } from "./zoho-mail-core";
 
 function objectValue(value: unknown) {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
@@ -17,11 +19,6 @@ async function getExternalExecutionEnabled() {
   if (error || !data) return false;
   const value = objectValue(data.value);
   return value.enabled === true;
-}
-
-export function buildEmailOutreachIdempotencyKey(outreachId: number) {
-  if (!Number.isInteger(outreachId) || outreachId <= 0) throw new Error("Invalid outreach id.");
-  return `outreach-${outreachId}-email`;
 }
 
 export async function executeMarketingEmailJob(jobId: number) {
