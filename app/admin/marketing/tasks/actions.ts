@@ -3,7 +3,15 @@
 import { revalidatePath } from "next/cache";
 
 import { requireMarketingAdminAccess } from "@/lib/auth/require-marketing-admin";
+import { runNextMarketingTask } from "@/lib/marketing/tasks/runner";
 import { createMarketingTask } from "@/lib/marketing/tasks/service";
+
+function revalidateMarketingTaskViews() {
+  revalidatePath("/admin/marketing/tasks");
+  revalidatePath("/admin/marketing/ai-team");
+  revalidatePath("/admin/marketing/approvals");
+  revalidatePath("/admin/marketing/activity");
+}
 
 export async function createMarketingTaskAction(formData: FormData) {
   await requireMarketingAdminAccess("marketing.manage");
@@ -28,7 +36,11 @@ export async function createMarketingTaskAction(formData: FormData) {
     scheduledAt: scheduledAtRaw ? new Date(scheduledAtRaw).toISOString() : null,
   });
 
-  revalidatePath("/admin/marketing/tasks");
-  revalidatePath("/admin/marketing/ai-team");
-  revalidatePath("/admin/marketing/approvals");
+  revalidateMarketingTaskViews();
+}
+
+export async function runNextMarketingTaskAction() {
+  const user = await requireMarketingAdminAccess("marketing.manage");
+  await runNextMarketingTask(`admin:${user.id}`);
+  revalidateMarketingTaskViews();
 }
