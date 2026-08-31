@@ -59,8 +59,8 @@ export default async function MarketingIntegrationsPage({ searchParams }: PagePr
         description={isArabic ? "حالة AI والقنوات والقدرات المتاحة فعليًا. لا يتم عرض أو تخزين Access Tokens في الواجهة." : "Actual AI, channel, and capability state. Access tokens are never displayed or stored in the UI."}
       />
 
-      {zoho === "verified" ? <AdminCard className="mb-5 border-emerald-500/20 p-4 text-sm text-emerald-300">{isArabic ? "تم التحقق من hello@mlamh.net عبر Zoho OAuth بنجاح. الإرسال ما زال معطلاً حتى نعتمد تخزين Refresh Token آمنًا." : "hello@mlamh.net was verified through Zoho OAuth. Sending remains disabled until secure refresh-token storage is implemented."}</AdminCard> : null}
-      {zoho === "error" ? <AdminCard className="mb-5 border-red-500/20 p-4 text-sm text-red-300">{isArabic ? "تعذر التحقق من Zoho Mail. راجع إعدادات OAuth وData Center ثم أعد المحاولة." : "Zoho Mail verification failed. Check OAuth and data-center configuration, then retry."}</AdminCard> : null}
+      {zoho === "connected" ? <AdminCard className="mb-5 border-emerald-500/20 p-4 text-sm text-emerald-300">{isArabic ? "تم ربط hello@mlamh.net وحفظ اعتماد OAuth في Secret Manager بنجاح. يبقى الإرسال الخارجي خاضعًا للموافقة وبوابة التنفيذ العامة." : "hello@mlamh.net is connected and its OAuth credential was stored in Secret Manager. External sends remain governed by approval and the global execution gate."}</AdminCard> : null}
+      {zoho === "error" ? <AdminCard className="mb-5 border-red-500/20 p-4 text-sm text-red-300">{isArabic ? "تعذر ربط Zoho Mail. راجع إعدادات OAuth وGCP Secret Manager وData Center ثم أعد المحاولة." : "Zoho Mail connection failed. Check OAuth, GCP Secret Manager, and data-center configuration, then retry."}</AdminCard> : null}
 
       <div className="mb-6 grid gap-4 xl:grid-cols-2">
         <AdminCard className="p-5">
@@ -106,6 +106,7 @@ export default async function MarketingIntegrationsPage({ searchParams }: PagePr
           const zohoAccountId = item.provider === "email" ? configurationValue(configuration, "account_id") : null;
           const zohoApiBase = item.provider === "email" ? configurationValue(configuration, "api_base_url") : null;
           const zohoAccountsBase = item.provider === "email" ? configurationValue(configuration, "accounts_base_url") : null;
+          const zohoCredentialStore = item.provider === "email" ? configurationValue(configuration, "credential_store") : null;
 
           return (
             <AdminCard key={item.id} className="p-5">
@@ -140,21 +141,23 @@ export default async function MarketingIntegrationsPage({ searchParams }: PagePr
                 <div className="mt-4 rounded-xl border border-white/[0.07] bg-black/20 p-4">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                      <p className="text-xs font-medium text-white/70">Zoho Mail · OAuth account verification</p>
-                      <p className="mt-1 text-[11px] leading-5 text-white/35">{isArabic ? "Phase 1: OAuth + READ للتحقق من hello@mlamh.net. لا SMTP، ولا Password، ولا إرسال أثناء التطوير." : "Phase 1: OAuth + READ verification for hello@mlamh.net. No SMTP, password, or development send."}</p>
+                      <p className="text-xs font-medium text-white/70">Zoho Mail · OAuth + GCP Secret Manager</p>
+                      <p className="mt-1 text-[11px] leading-5 text-white/35">{isArabic ? "OAuth يتحقق من hello@mlamh.net، وRefresh Token يبقى server-side داخل GCP Secret Manager. لا SMTP ولا Password." : "OAuth verifies hello@mlamh.net and the refresh token remains server-side in GCP Secret Manager. No SMTP or password."}</p>
                       <p className="mt-1 text-[11px] text-white/25">Scopes: ZohoMail.accounts.READ · ZohoMail.messages.CREATE</p>
                     </div>
                     <form action={beginZohoMailOAuthAction}>
-                      <button className="rounded-lg border border-gold/35 bg-gold/10 px-4 py-2 text-xs text-gold">{isArabic ? "ربط / اختبار Zoho" : "Connect / verify Zoho"}</button>
+                      <button className="rounded-lg border border-gold/35 bg-gold/10 px-4 py-2 text-xs text-gold">{item.status === "connected" ? (isArabic ? "إعادة ربط Zoho" : "Reconnect Zoho") : (isArabic ? "ربط Zoho" : "Connect Zoho")}</button>
                     </form>
                   </div>
                   <div className="mt-4 grid gap-2 text-[11px] text-white/40 sm:grid-cols-2">
                     <div>{isArabic ? "الحساب الموثق" : "Verified account"}<div className="mt-1 break-all text-white/65">{zohoAddress ?? "—"}</div></div>
                     <div>Zoho accountId<div className="mt-1 break-all text-white/65">{zohoAccountId ?? "—"}</div></div>
-                    <div>Accounts base<div className="mt-1 break-all text-white/65">{zohoAccountsBase ?? "env / not verified"}</div></div>
-                    <div>Mail API base<div className="mt-1 break-all text-white/65">{zohoApiBase ?? "env / not verified"}</div></div>
+                    <div>Accounts base<div className="mt-1 break-all text-white/65">{zohoAccountsBase ?? "env / not connected"}</div></div>
+                    <div>Mail API base<div className="mt-1 break-all text-white/65">{zohoApiBase ?? "env / not connected"}</div></div>
+                    <div>{isArabic ? "مخزن الاعتماد" : "Credential store"}<div className="mt-1 break-all text-white/65">{zohoCredentialStore ?? "—"}</div></div>
+                    <div>{isArabic ? "الإرسال" : "Sending"}<div className="mt-1 text-white/65">{item.status === "connected" ? (externalExecutionEnabled ? "governed / enabled" : "connected / kill switch off") : "blocked"}</div></div>
                   </div>
-                  <p className="mt-3 text-[11px] leading-5 text-amber-200/70">{isArabic ? "بعد نجاح OAuth تبقى الحالة limited عمدًا؛ Refresh Token لا يُخزن في Supabase، والإرسال يبقى معطلاً حتى تركيب Secret Store دائم." : "After OAuth verification the status intentionally remains limited; the refresh token is not stored in Supabase and sending stays disabled until a durable secret store is wired."}</p>
+                  <p className="mt-3 text-[11px] leading-5 text-amber-200/70">{isArabic ? "نجاح الاتصال لا يرسل أي بريد تلقائيًا. أول Outreach ما زال يحتاج Approval، وSend now مستقل، والبوابة العامة تمنع التنفيذ عندما تكون معطلة." : "Connecting never sends email automatically. First outreach still requires approval, Send now is separate, and the global gate blocks execution while disabled."}</p>
                 </div>
               ) : null}
 
