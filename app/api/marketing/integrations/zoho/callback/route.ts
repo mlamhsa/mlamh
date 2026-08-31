@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     if (!expectedState || !state || state !== expectedState || !codeVerifier || !code) {
       throw new Error("Zoho OAuth callback validation failed.");
     }
-    const config = getZohoMailRuntimeConfig();
+    const config = await getZohoMailRuntimeConfig();
     const tokenSet = await exchangeZohoAuthorizationCode({ code, codeVerifier, config });
     const verified = await verifyZohoMailAccount({ accessToken: tokenSet.accessToken, config });
     if (!tokenSet.refreshToken) {
