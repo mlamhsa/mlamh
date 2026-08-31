@@ -1,10 +1,11 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   buildZohoCredentialRef,
-  getGcpSecretManagerConfig,
+  getInfisicalConfig,
+  readZohoClientCredentials,
   readZohoRefreshTokenSecret,
   writeZohoRefreshTokenSecret,
-} from "@/lib/marketing/credentials/gcp-secret-manager";
+} from "@/lib/marketing/credentials/infisical";
 
 import type { MarketingChannelStatus } from "./types";
 import {
@@ -31,29 +32,32 @@ export {
   type ZohoOAuthRequest,
 } from "./zoho-mail-core";
 
+const APPROVED_ZOHO_REDIRECT_URI = "https://mlamh.net/api/marketing/integrations/zoho/callback";
+
 function requiredEnv(name: string) {
   const value = process.env[name]?.trim();
   if (!value) throw new Error(`${name} is not configured.`);
   return value;
 }
 
-export function getZohoMailRuntimeConfig(): ZohoMailRuntimeConfig {
+export async function getZohoMailRuntimeConfig(): Promise<ZohoMailRuntimeConfig> {
+  const credentials = await readZohoClientCredentials();
   return {
     accountsBaseUrl: normalizeZohoBaseUrl(requiredEnv("ZOHO_ACCOUNTS_BASE_URL"), "ZOHO_ACCOUNTS_BASE_URL"),
     apiBaseUrl: normalizeZohoBaseUrl(requiredEnv("ZOHO_MAIL_API_BASE_URL"), "ZOHO_MAIL_API_BASE_URL"),
-    clientId: requiredEnv("ZOHO_MAIL_CLIENT_ID"),
-    clientSecret: requiredEnv("ZOHO_MAIL_CLIENT_SECRET"),
-    redirectUri: requiredEnv("ZOHO_MAIL_REDIRECT_URI"),
+    clientId: credentials.clientId,
+    clientSecret: credentials.clientSecret,
+    redirectUri: process.env.ZOHO_MAIL_REDIRECT_URI?.trim() || APPROVED_ZOHO_REDIRECT_URI,
   };
 }
 
 export async function persistZohoAccountVerification({
   accountId,
-  config = getZohoMailRuntimeConfig(),
+  config,
   refreshTokenReceived,
 }: {
   accountId: string;
-  config?: ZohoMailRuntimeConfig;
+  config: ZohoMailRuntimeConfig;
   refreshTokenReceived: boolean;
 }) {
   const db = createAdminClient();
@@ -87,11 +91,11 @@ export async function persistZohoAccountVerification({
 export async function persistZohoDurableConnection({
   accountId,
   credentialRef,
-  config = getZohoMailRuntimeConfig(),
+  config,
 }: {
   accountId: string;
   credentialRef: string;
-  config?: ZohoMailRuntimeConfig;
+  config: ZohoMailRuntimeConfig;
 }) {
   const db = createAdminClient();
   const now = new Date().toISOString();
@@ -104,8 +108,8 @@ export async function persistZohoDurableConnection({
     oauth_verified_at: now,
     oauth_scopes: [...ZOHO_MAIL_PHASE1_SCOPES],
     credential_ref: credentialRef,
-    credential_store: "gcp_secret_manager",
-    token_storage: "gcp_secret_manager",
+    credential_store: "infisical",
+    token_storage: "infisical",
   };
   const { error } = await db.from("marketing_integrations").upsert({
     provider: "email",
@@ -123,9 +127,9 @@ export async function persistZohoDurableConnection({
 }
 
 export async function storeZohoRefreshToken(refreshToken: string) {
-  const gcpConfig = getGcpSecretManagerConfig();
-  const stored = await writeZohoRefreshTokenSecret({ refreshToken, config: gcpConfig });
-  if (stored.credentialRef !== buildZohoCredentialRef(gcpConfig)) {
+  const infisicalConfig = getInfisicalConfig();
+  const stored = await writeZohoRefreshTokenSecret({ refreshToken, config: infisicalConfig });
+  if (stored.credentialRef !== buildZohoCredentialRef(infisicalConfig)) {
     throw new Error("Zoho credential reference verification failed.");
   }
   return stored;
@@ -178,7 +182,7 @@ async function getDurableZohoAccessToken(): Promise<string> {
     const refreshToken = await readZohoRefreshTokenSecret({ credentialRef });
     const tokenSet = await exchangeZohoRefreshToken({
       refreshToken,
-      config: getZohoMailRuntimeConfig(),
+      config: await getZohoMailRuntimeConfig(),
     });
     return tokenSet.accessToken;
   } catch (error) {
