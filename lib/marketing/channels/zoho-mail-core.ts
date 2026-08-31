@@ -149,6 +149,39 @@ export async function exchangeZohoAuthorizationCode({
   };
 }
 
+export async function exchangeZohoRefreshToken({
+  refreshToken,
+  config,
+  fetchImpl = fetch,
+}: {
+  refreshToken: string;
+  config: ZohoMailRuntimeConfig;
+  fetchImpl?: typeof fetch;
+}) {
+  if (!refreshToken.trim()) throw new Error("Zoho refresh token is missing.");
+  const body = new URLSearchParams({
+    grant_type: "refresh_token",
+    client_id: config.clientId,
+    client_secret: config.clientSecret,
+    refresh_token: refreshToken,
+  });
+  const response = await fetchImpl(`${normalizeZohoBaseUrl(config.accountsBaseUrl, "Zoho Accounts base URL")}/oauth/v2/token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body,
+    cache: "no-store",
+  });
+  const payload = await response.json().catch(() => ({})) as ZohoTokenResponse;
+  if (!response.ok || !payload.access_token || payload.error) {
+    throw new Error("Zoho OAuth refresh failed.");
+  }
+  return {
+    accessToken: payload.access_token,
+    expiresIn: payload.expires_in ?? null,
+    apiDomain: payload.api_domain ?? null,
+  };
+}
+
 function accountAddresses(account: ZohoAccount) {
   return [
     account.primaryEmailAddress,
