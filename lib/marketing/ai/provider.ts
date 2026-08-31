@@ -23,7 +23,7 @@ export interface MarketingAIProvider {
   generate(request: MarketingAIRequest): Promise<MarketingAIResponse>;
 }
 
-type OpenAIResponsePayload = {
+type ResponsesPayload = {
   model?: string;
   output_text?: string;
   output?: Array<{
@@ -44,28 +44,73 @@ type OpenAIResponsePayload = {
   };
 };
 
-const DEFAULT_OPENAI_MODEL = "gpt-5.6-luna";
+type MarketingAIConfiguration = {
+  disabled: boolean;
+  configured: boolean;
+  provider: "vercel-ai-gateway" | "openai" | "unconfigured";
+  authMode: "vercel_oidc" | "gateway_api_key" | "openai_api_key" | "none";
+  apiKey: string;
+  model: string;
+  baseUrl: string;
+};
+
+const DEFAULT_MODEL = "gpt-5.6-luna";
+const VERCEL_AI_GATEWAY_BASE_URL = "https://ai-gateway.vercel.sh/v1";
 let provider: MarketingAIProvider | null = null;
 
-function readOpenAIConfiguration() {
+function gatewayModel(model: string) {
+  return model.includes("/") ? model : `openai/${model}`;
+}
+
+function directOpenAIModel(model: string) {
+  return model.startsWith("openai/") ? model.slice("openai/".length) : model;
+}
+
+function readMarketingAIConfiguration(): MarketingAIConfiguration {
   const disabled = process.env.MARKETING_AI_DISABLED === "true";
-  const apiKey = process.env.OPENAI_API_KEY?.trim() ?? "";
-  const model = process.env.MARKETING_AI_MODEL?.trim() || DEFAULT_OPENAI_MODEL;
-  const baseUrl = (process.env.OPENAI_BASE_URL?.trim() || "https://api.openai.com/v1").replace(/\/$/, "");
+  const requestedModel = process.env.MARKETING_AI_MODEL?.trim() || DEFAULT_MODEL;
+  const gatewayApiKey = process.env.AI_GATEWAY_API_KEY?.trim() ?? "";
+  const vercelOidcToken = process.env.VERCEL_OIDC_TOKEN?.trim() ?? "";
+  const openAIApiKey = process.env.OPENAI_API_KEY?.trim() ?? "";
+
+  if (!disabled && (gatewayApiKey || vercelOidcToken)) {
+    return {
+      disabled,
+      configured: true,
+      provider: "vercel-ai-gateway",
+      authMode: gatewayApiKey ? "gateway_api_key" : "vercel_oidc",
+      apiKey: gatewayApiKey || vercelOidcToken,
+      model: gatewayModel(requestedModel),
+      baseUrl: VERCEL_AI_GATEWAY_BASE_URL,
+    };
+  }
+
+  if (!disabled && openAIApiKey) {
+    return {
+      disabled,
+      configured: true,
+      provider: "openai",
+      authMode: "openai_api_key",
+      apiKey: openAIApiKey,
+      model: directOpenAIModel(requestedModel),
+      baseUrl: (process.env.OPENAI_BASE_URL?.trim() || "https://api.openai.com/v1").replace(/\/$/, ""),
+    };
+  }
 
   return {
     disabled,
-    apiKey,
-    model,
-    baseUrl,
-    configured: !disabled && apiKey.length > 0,
+    configured: false,
+    provider: "unconfigured",
+    authMode: "none",
+    apiKey: "",
+    model: requestedModel,
+    baseUrl: "",
   };
 }
 
-class OpenAIResponsesMarketingProvider implements MarketingAIProvider {
-  readonly id = "openai";
-
+class ResponsesMarketingProvider implements MarketingAIProvider {
   constructor(
+    public readonly id: string,
     private readonly apiKey: string,
     private readonly model: string,
     private readonly baseUrl: string,
@@ -73,12 +118,14 @@ class OpenAIResponsesMarketingProvider implements MarketingAIProvider {
 
   async generate(request: MarketingAIRequest): Promise<MarketingAIResponse> {
     const input = request.messages.map((message) => ({
+      type: "message",
       role: message.role === "system" ? "developer" : message.role,
       content: message.content,
     }));
 
     if (request.responseFormat === "json") {
       input.unshift({
+        type: "message",
         role: "developer",
         content: "Return valid JSON only. Do not wrap the JSON in markdown fences and do not include commentary outside the JSON value.",
       });
@@ -89,6 +136,8 @@ class OpenAIResponsesMarketingProvider implements MarketingAIProvider {
       headers: {
         Authorization: `Bearer ${this.apiKey}`,
         "Content-Type": "application/json",
+        "http-referer": "https://mlamh.net",
+        "x-title": "MLAMH Marketing Hub",
       },
       body: JSON.stringify({
         model: this.model,
@@ -98,10 +147,16 @@ class OpenAIResponsesMarketingProvider implements MarketingAIProvider {
       cache: "no-store",
     });
 
-    const payload = (await response.json()) as OpenAIResponsePayload;
+    let payload: ResponsesPayload;
+    try {
+      payload = (await response.json()) as ResponsesPayload;
+    } catch {
+      throw new Error(`[MarketingAI.${this.id}] Invalid JSON response (HTTP ${response.status}).`);
+    }
+
     if (!response.ok) {
-      const message = payload.error?.message || `OpenAI request failed with HTTP ${response.status}.`;
-      throw new Error(`[MarketingAI.openai] ${message}`);
+      const message = payload.error?.message || `AI request failed with HTTP ${response.status}.`;
+      throw new Error(`[MarketingAI.${this.id}] ${message}`);
     }
 
     const outputText = payload.output_text?.trim() ||
@@ -114,7 +169,7 @@ class OpenAIResponsesMarketingProvider implements MarketingAIProvider {
       "";
 
     if (!outputText) {
-      throw new Error("[MarketingAI.openai] The model returned no text output.");
+      throw new Error(`[MarketingAI.${this.id}] The model returned no text output.`);
     }
 
     const usage: Record<string, number> = {};
@@ -137,32 +192,38 @@ export function registerMarketingAIProvider(nextProvider: MarketingAIProvider) {
 }
 
 export function getMarketingAIConfigurationState() {
-  const config = readOpenAIConfiguration();
+  const config = readMarketingAIConfiguration();
   return {
     configured: config.configured,
     disabled: config.disabled,
-    provider: "openai",
+    provider: config.provider,
+    authMode: config.authMode,
     model: config.model,
     reason: config.disabled
       ? "MARKETING_AI_DISABLED=true"
-      : config.apiKey
+      : config.configured
         ? null
-        : "OPENAI_API_KEY is not configured",
+        : "No Vercel AI Gateway/OIDC or OpenAI credential is available",
   };
 }
 
 export function getMarketingAIProvider() {
   if (provider) return provider;
 
-  const config = readOpenAIConfiguration();
+  const config = readMarketingAIConfiguration();
   if (!config.configured) {
     throw new Error(
       config.disabled
         ? "Marketing AI is disabled by configuration."
-        : "Marketing AI provider is not configured. Add OPENAI_API_KEY to the server environment.",
+        : "Marketing AI provider is not configured. Vercel OIDC/AI Gateway or OPENAI_API_KEY is required.",
     );
   }
 
-  provider = new OpenAIResponsesMarketingProvider(config.apiKey, config.model, config.baseUrl);
+  provider = new ResponsesMarketingProvider(
+    config.provider,
+    config.apiKey,
+    config.model,
+    config.baseUrl,
+  );
   return provider;
 }
