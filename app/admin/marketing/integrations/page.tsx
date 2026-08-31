@@ -8,10 +8,11 @@ import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { getMarketingAIConfigurationState } from "@/lib/marketing/ai/provider";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { BufferConnectionTestForm } from "./BufferConnectionTestForm";
+import { beginZohoMailOAuthAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
-type PageProps = { searchParams: Promise<{ lang?: string }> };
+type PageProps = { searchParams: Promise<{ lang?: string; zoho?: string }> };
 type SettingValue = { enabled?: unknown } | null;
 type ConfigurationState = Record<string, unknown> | null;
 
@@ -30,7 +31,7 @@ function configurationValue(state: ConfigurationState, key: string) {
 
 export default async function MarketingIntegrationsPage({ searchParams }: PageProps) {
   await requireAdminAccess();
-  const { lang } = await searchParams;
+  const { lang, zoho } = await searchParams;
   const isArabic = getAdminLanguage(lang) === "ar";
   const db = createAdminClient();
   const aiState = getMarketingAIConfigurationState();
@@ -57,6 +58,9 @@ export default async function MarketingIntegrationsPage({ searchParams }: PagePr
         title={isArabic ? "مركز التكاملات" : "Integrations Center"}
         description={isArabic ? "حالة AI والقنوات والقدرات المتاحة فعليًا. لا يتم عرض أو تخزين Access Tokens في الواجهة." : "Actual AI, channel, and capability state. Access tokens are never displayed or stored in the UI."}
       />
+
+      {zoho === "verified" ? <AdminCard className="mb-5 border-emerald-500/20 p-4 text-sm text-emerald-300">{isArabic ? "تم التحقق من hello@mlamh.net عبر Zoho OAuth بنجاح. الإرسال ما زال معطلاً حتى نعتمد تخزين Refresh Token آمنًا." : "hello@mlamh.net was verified through Zoho OAuth. Sending remains disabled until secure refresh-token storage is implemented."}</AdminCard> : null}
+      {zoho === "error" ? <AdminCard className="mb-5 border-red-500/20 p-4 text-sm text-red-300">{isArabic ? "تعذر التحقق من Zoho Mail. راجع إعدادات OAuth وData Center ثم أعد المحاولة." : "Zoho Mail verification failed. Check OAuth and data-center configuration, then retry."}</AdminCard> : null}
 
       <div className="mb-6 grid gap-4 xl:grid-cols-2">
         <AdminCard className="p-5">
@@ -98,6 +102,10 @@ export default async function MarketingIntegrationsPage({ searchParams }: PagePr
           const configuration = item.configuration_state as ConfigurationState;
           const instagramChannelId = item.provider === "buffer" ? configurationValue(configuration, "instagram_channel_id") : null;
           const facebookChannelId = item.provider === "buffer" ? configurationValue(configuration, "facebook_channel_id") : null;
+          const zohoAddress = item.provider === "email" ? configurationValue(configuration, "verified_address") : null;
+          const zohoAccountId = item.provider === "email" ? configurationValue(configuration, "account_id") : null;
+          const zohoApiBase = item.provider === "email" ? configurationValue(configuration, "api_base_url") : null;
+          const zohoAccountsBase = item.provider === "email" ? configurationValue(configuration, "accounts_base_url") : null;
 
           return (
             <AdminCard key={item.id} className="p-5">
@@ -125,6 +133,28 @@ export default async function MarketingIntegrationsPage({ searchParams }: PagePr
                       <div>Facebook MLAMH<div className="mt-1 break-all text-white/65">{facebookChannelId ?? "—"}</div></div>
                     </div>
                   ) : null}
+                </div>
+              ) : null}
+
+              {item.provider === "email" ? (
+                <div className="mt-4 rounded-xl border border-white/[0.07] bg-black/20 p-4">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-xs font-medium text-white/70">Zoho Mail · OAuth account verification</p>
+                      <p className="mt-1 text-[11px] leading-5 text-white/35">{isArabic ? "Phase 1: OAuth + READ للتحقق من hello@mlamh.net. لا SMTP، ولا Password، ولا إرسال أثناء التطوير." : "Phase 1: OAuth + READ verification for hello@mlamh.net. No SMTP, password, or development send."}</p>
+                      <p className="mt-1 text-[11px] text-white/25">Scopes: ZohoMail.accounts.READ · ZohoMail.messages.CREATE</p>
+                    </div>
+                    <form action={beginZohoMailOAuthAction}>
+                      <button className="rounded-lg border border-gold/35 bg-gold/10 px-4 py-2 text-xs text-gold">{isArabic ? "ربط / اختبار Zoho" : "Connect / verify Zoho"}</button>
+                    </form>
+                  </div>
+                  <div className="mt-4 grid gap-2 text-[11px] text-white/40 sm:grid-cols-2">
+                    <div>{isArabic ? "الحساب الموثق" : "Verified account"}<div className="mt-1 break-all text-white/65">{zohoAddress ?? "—"}</div></div>
+                    <div>Zoho accountId<div className="mt-1 break-all text-white/65">{zohoAccountId ?? "—"}</div></div>
+                    <div>Accounts base<div className="mt-1 break-all text-white/65">{zohoAccountsBase ?? "env / not verified"}</div></div>
+                    <div>Mail API base<div className="mt-1 break-all text-white/65">{zohoApiBase ?? "env / not verified"}</div></div>
+                  </div>
+                  <p className="mt-3 text-[11px] leading-5 text-amber-200/70">{isArabic ? "بعد نجاح OAuth تبقى الحالة limited عمدًا؛ Refresh Token لا يُخزن في Supabase، والإرسال يبقى معطلاً حتى تركيب Secret Store دائم." : "After OAuth verification the status intentionally remains limited; the refresh token is not stored in Supabase and sending stays disabled until a durable secret store is wired."}</p>
                 </div>
               ) : null}
 
