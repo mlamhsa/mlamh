@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   MLAMH_ZOHO_MAIL_ADDRESS,
   ZOHO_MAIL_PHASE1_SCOPES,
+  buildEmailOutreachIdempotencyKey,
   createZohoMailAdapter,
   createZohoOAuthRequest,
   sanitizeZohoError,
@@ -30,6 +31,11 @@ test("Zoho OAuth request uses configured base URL, PKCE, and only Phase 1 scopes
   assert.ok(url.searchParams.get("code_challenge"));
   assert.ok(request.codeVerifier.length > 40);
   assert.equal(url.searchParams.get("scope")?.includes("messages.READ"), false);
+});
+
+test("email outreach idempotency key is deterministic", () => {
+  assert.equal(buildEmailOutreachIdempotencyKey(42), "outreach-42-email");
+  assert.equal(buildEmailOutreachIdempotencyKey(42), buildEmailOutreachIdempotencyKey(42));
 });
 
 test("Zoho READ verification accepts only hello@mlamh.net", async () => {
