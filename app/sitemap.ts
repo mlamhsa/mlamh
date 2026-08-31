@@ -9,8 +9,10 @@ const SITE_URL = (
 ).replace(/\/$/, "");
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const talents = await getPublishedTalents();
-  const opportunities = await getPublishedOpportunities();
+  const [talents, opportunities] = await Promise.all([
+    getPublishedTalents().catch(() => []),
+    getPublishedOpportunities().catch(() => []),
+  ]);
 
   const staticRoutes: MetadataRoute.Sitemap = locales.flatMap((locale) => [
     {
