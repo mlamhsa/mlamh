@@ -7,7 +7,7 @@ import { getAdminLanguage } from "@/lib/admin/i18n";
 import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { getMarketingAIConfigurationState } from "@/lib/marketing/ai/provider";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { testBufferConnectionAction } from "./actions";
+import { BufferConnectionTestForm } from "./BufferConnectionTestForm";
 
 export const dynamic = "force-dynamic";
 
@@ -55,11 +55,7 @@ export default async function MarketingIntegrationsPage({ searchParams }: PagePr
     <AdminPageContainer>
       <AdminPageHeader
         title={isArabic ? "مركز التكاملات" : "Integrations Center"}
-        description={
-          isArabic
-            ? "حالة AI والقنوات والقدرات المتاحة فعليًا. لا يتم عرض أو تخزين Access Tokens في الواجهة."
-            : "Actual AI, channel, and capability state. Access tokens are never displayed or stored in the UI."
-        }
+        description={isArabic ? "حالة AI والقنوات والقدرات المتاحة فعليًا. لا يتم عرض أو تخزين Access Tokens في الواجهة." : "Actual AI, channel, and capability state. Access tokens are never displayed or stored in the UI."}
       />
 
       <div className="mb-6 grid gap-4 xl:grid-cols-2">
@@ -91,26 +87,14 @@ export default async function MarketingIntegrationsPage({ searchParams }: PagePr
               {externalExecutionEnabled ? "ENABLED" : "SAFE / DISABLED"}
             </span>
           </div>
-          <p className="mt-4 text-xs leading-6 text-white/45">
-            {isArabic
-              ? "تظل الرسائل والمنشورات الخارجية محظورة حتى تكون القنوات متصلة ثم يتم فتح هذه البوابة عمدًا."
-              : "External messages and publishing remain blocked until channels are connected and this gate is deliberately enabled."}
-          </p>
+          <p className="mt-4 text-xs leading-6 text-white/45">{isArabic ? "تظل الرسائل والمنشورات الخارجية محظورة حتى تكون القنوات متصلة ثم يتم فتح هذه البوابة عمدًا." : "External messages and publishing remain blocked until channels are connected and this gate is deliberately enabled."}</p>
         </AdminCard>
       </div>
 
-      {integrationsResult.error ? (
-        <AdminCard className="mb-5 p-5 text-sm text-amber-200">
-          {isArabic ? "تعذر قراءة جداول التكاملات." : "Could not read integration tables."}
-        </AdminCard>
-      ) : null}
+      {integrationsResult.error ? <AdminCard className="mb-5 p-5 text-sm text-amber-200">{isArabic ? "تعذر قراءة جداول التكاملات." : "Could not read integration tables."}</AdminCard> : null}
 
       <div className="grid gap-4 xl:grid-cols-2">
-        {integrations.length === 0 ? (
-          <AdminCard className="p-6 text-sm text-white/40">
-            {isArabic ? "لا توجد تكاملات مسجلة بعد." : "No integrations registered yet."}
-          </AdminCard>
-        ) : integrations.map((item) => {
+        {integrations.length === 0 ? <AdminCard className="p-6 text-sm text-white/40">{isArabic ? "لا توجد تكاملات مسجلة بعد." : "No integrations registered yet."}</AdminCard> : integrations.map((item) => {
           const configuration = item.configuration_state as ConfigurationState;
           const instagramChannelId = item.provider === "buffer" ? configurationValue(configuration, "instagram_channel_id") : null;
           const facebookChannelId = item.provider === "buffer" ? configurationValue(configuration, "facebook_channel_id") : null;
@@ -130,17 +114,9 @@ export default async function MarketingIntegrationsPage({ searchParams }: PagePr
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <p className="text-xs font-medium text-white/70">Buffer · READ ONLY connection test</p>
-                      <p className="mt-1 text-[11px] leading-5 text-white/35">
-                        {isArabic
-                          ? "يجلب الحساب والقنوات فقط. لا يوجد في هذا المسار أي نشر أو جدولة Posts."
-                          : "Fetches account and channels only. This path contains no post publish or scheduling operation."}
-                      </p>
+                      <p className="mt-1 text-[11px] leading-5 text-white/35">{isArabic ? "يجلب الحساب والقنوات فقط. لا يوجد في هذا المسار أي نشر أو جدولة Posts." : "Fetches account and channels only. This path contains no post publish or scheduling operation."}</p>
                     </div>
-                    <form action={testBufferConnectionAction}>
-                      <button type="submit" className="rounded-lg border border-gold/35 bg-gold/10 px-4 py-2 text-xs text-gold transition hover:bg-gold hover:text-black">
-                        {isArabic ? "اختبار اتصال Buffer" : "Test Buffer connection"}
-                      </button>
-                    </form>
+                    <BufferConnectionTestForm isArabic={isArabic} />
                   </div>
 
                   {(instagramChannelId || facebookChannelId) ? (
