@@ -8,7 +8,7 @@ import {
   sanitizeInfisicalError,
   writeZohoRefreshTokenSecret,
   type InfisicalConfig,
-} from "./infisical";
+} from "./infisical.ts";
 
 const config: InfisicalConfig = {
   siteUrl: "https://app.infisical.test",
