@@ -90,7 +90,9 @@ async function updateTalentReviewStatus({
     createAdminClient();
 
   /*
-   * 1. قراءة الموهبة والحالة الحالية
+   * 1. قراءة الموهبة والحالة الحالية.
+   * image_url يُقرأ هنا أيضًا لأن الاعتماد والنشر
+   * ممنوعان إذا لم توجد صورة شخصية.
    */
   const {
     data: talent,
@@ -98,7 +100,7 @@ async function updateTalentReviewStatus({
   } = await adminClient
     .from("talents")
     .select(
-      "id, user_id, status, published",
+      "id, user_id, status, published, image_url",
     )
     .eq("id", id)
     .maybeSingle();
@@ -135,6 +137,19 @@ async function updateTalentReviewStatus({
         locale === "ar"
           ? "ملف الموهبة غير مرتبط بحساب مستخدم."
           : "The talent profile is not linked to a user account.",
+    };
+  }
+
+  if (
+    decision === "approved" &&
+    !String(talent.image_url ?? "").trim()
+  ) {
+    return {
+      success: false,
+      message:
+        locale === "ar"
+          ? "لا يمكن اعتماد أو نشر ملف الموهبة قبل رفع صورة شخصية. اطلب من الموهبة إضافة صورة ثم أعد المراجعة."
+          : "The talent profile cannot be approved or published until a profile photo is uploaded. Ask the talent to add a photo, then review the profile again.",
     };
   }
 
