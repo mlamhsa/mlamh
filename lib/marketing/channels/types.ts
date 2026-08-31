@@ -20,6 +20,8 @@ export type MarketingPublishInput = {
   text?: string;
   assetUrls?: string[];
   scheduledAt?: string | null;
+  idempotencyKey?: string;
+  target?: string;
   metadata?: Record<string, unknown>;
 };
 
