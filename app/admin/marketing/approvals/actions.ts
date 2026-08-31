@@ -68,7 +68,7 @@ async function applyApprovalSideEffects({ approvalId, task, decision, executeAft
         const text = typeof input.message === "string" ? input.message.trim() : "";
         if (!recipientEmail || !subject || !text) throw new Error("Approved email outreach is missing recipient, subject, or message.");
         const idempotencyKey = buildEmailOutreachIdempotencyKey(outreachId);
-        const { error: emailJobError } = await db.from("marketing_channel_jobs").upsert({
+        const { error: emailJobError } = await db.from("marketing_channel_jobs").insert({
           content_id: null,
           task_id: task.id,
           approval_id: approvalId,
@@ -86,8 +86,8 @@ async function applyApprovalSideEffects({ approvalId, task, decision, executeAft
           },
           result: {},
           updated_at: now,
-        }, { onConflict: "idempotency_key" });
-        if (emailJobError) throw new Error(`[approval email channel job] ${emailJobError.message}`);
+        });
+        if (emailJobError && emailJobError.code !== "23505") throw new Error(`[approval email channel job] ${emailJobError.message}`);
       }
 
       if (channel === "email" && (decision === "rejected" || decision === "cancelled")) {
