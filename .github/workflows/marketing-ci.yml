@@ -1,6 +1,10 @@
 name: Marketing CI
 
 on:
+  push:
+    branches:
+      - feat/zoho-mail-marketing
+      - feat/buffer-approval-channel-jobs
   pull_request:
     branches: [main]
   workflow_dispatch:
