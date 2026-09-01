@@ -57,12 +57,13 @@ test("Meta Insights diagnostics classify failures without persisting raw API mes
   assert.doesNotMatch(source, /diagnostics:.*rawMessage/);
 });
 
-test("Instagram Facebook Login OAuth includes the minimum Insights permissions", () => {
+test("Instagram Facebook Login keeps Insights optional when the app cannot request Instagram insights permission", () => {
   const oauthSource = readFileSync("lib/marketing/channels/meta-instagram-facebook-login.ts", "utf8");
   assert.match(oauthSource, /"instagram_basic"/);
   assert.match(oauthSource, /"pages_read_engagement"/);
-  assert.match(oauthSource, /"instagram_manage_insights"/);
   assert.match(oauthSource, /"read_insights"/);
+  assert.doesNotMatch(oauthSource, /"instagram_manage_insights"/);
+  assert.doesNotMatch(oauthSource, /"instagram_business_manage_insights"/);
 });
 
 test("Marketing Hub wires the Meta read-only test only for a connected Meta integration", () => {
