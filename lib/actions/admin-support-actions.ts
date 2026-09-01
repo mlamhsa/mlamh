@@ -71,6 +71,8 @@ export async function runDanaForExistingSupportTicketAction(formData: FormData) 
     redirect(`/admin/support/${ticketId}?lang=${locale}&error=dana_source_unavailable`);
   }
 
+  let dana: "prepared" | "deduplicated" | "not_commercial";
+
   try {
     const result = await processSupportCommercialIntake({
       ticketNumber: String(ticket.ticket_number),
@@ -83,21 +85,21 @@ export async function runDanaForExistingSupportTicketAction(formData: FormData) 
       category: String(ticket.category),
     });
 
-    const dana =
+    dana =
       result.status === "not_commercial"
         ? "not_commercial"
         : result.deduplicated
           ? "deduplicated"
           : "prepared";
-
-    revalidatePath(`/admin/support/${ticketId}`);
-    revalidatePath("/admin/marketing");
-    revalidatePath("/admin/marketing/approvals");
-    redirect(`/admin/support/${ticketId}?lang=${locale}&dana=${dana}`);
   } catch (error) {
     console.error("[runDanaForExistingSupportTicketAction]", error);
     redirect(`/admin/support/${ticketId}?lang=${locale}&error=dana_failed`);
   }
+
+  revalidatePath(`/admin/support/${ticketId}`);
+  revalidatePath("/admin/marketing");
+  revalidatePath("/admin/marketing/approvals");
+  redirect(`/admin/support/${ticketId}?lang=${locale}&dana=${dana}`);
 }
 
 export async function updateSupportTicketStatusAction(formData: FormData) {
