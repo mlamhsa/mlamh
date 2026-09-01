@@ -1,14 +1,22 @@
 import { createHash } from "crypto";
 
-import {
-  buildDanaBrief,
-  type CommercialClassification,
-  type CommercialInquiry,
-} from "./domain";
-
 export type WorkflowLockAcquisition<TSnapshot> = {
   owner: boolean;
   snapshot: TSnapshot;
+};
+
+type DemandIdentityInput = {
+  occurredAt: string;
+};
+
+type DemandIdentityClassification = {
+  intent: string;
+};
+
+type DemandIdentityBrief = {
+  talentType: string | null;
+  city: string | null;
+  requirements: Record<string, unknown>;
 };
 
 export async function runWithWorkflowLock<TSnapshot, TResult>(options: {
@@ -27,17 +35,19 @@ export function mergeSourceReferences(
   nextReference: string,
 ) {
   const references = Array.isArray(existing)
-    ? existing.filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+    ? existing.filter(
+        (value): value is string =>
+          typeof value === "string" && value.trim().length > 0,
+      )
     : [];
   const next = nextReference.trim();
   return [...new Set(next ? [...references, next] : references)];
 }
 
 function contextSignature(
-  input: CommercialInquiry,
-  classification: CommercialClassification,
+  classification: DemandIdentityClassification,
+  brief: DemandIdentityBrief,
 ) {
-  const brief = buildDanaBrief(input);
   return [
     classification.intent,
     brief.talentType ?? "unknown-role",
@@ -60,26 +70,28 @@ export function commercialDemandWindow(occurredAt: string) {
 }
 
 export function buildResolvedCommercialDemandKey(
-  input: CommercialInquiry,
-  classification: CommercialClassification,
+  input: DemandIdentityInput,
+  classification: DemandIdentityClassification,
   contactId: number,
+  brief: DemandIdentityBrief,
 ) {
   const identity = `contact:${contactId}`;
   return createHash("sha256")
     .update(
-      `${identity}|${contextSignature(input, classification)}|${commercialDemandWindow(input.occurredAt)}`,
+      `${identity}|${contextSignature(classification, brief)}|${commercialDemandWindow(input.occurredAt)}`,
     )
     .digest("hex");
 }
 
 export function buildResolvedDemandLookup(
-  input: CommercialInquiry,
-  classification: CommercialClassification,
+  input: DemandIdentityInput,
+  classification: DemandIdentityClassification,
   contactId: number,
+  brief: DemandIdentityBrief,
 ) {
   return {
     resolved_contact_id: contactId,
-    context_signature: contextSignature(input, classification),
+    context_signature: contextSignature(classification, brief),
     demand_window: commercialDemandWindow(input.occurredAt),
   };
 }
