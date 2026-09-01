@@ -51,6 +51,15 @@ function hasCredentialRef(state: ConfigurationState, key: string) {
   return typeof value === "string" && value.startsWith("infisical://");
 }
 
+function hasLinkedInstagramAccount(state: ConfigurationState) {
+  if (!configurationValue(state, "instagram_login_account_id")) return false;
+  return configurationArray(state, "facebook_pages").some((page) => {
+    if (!page || typeof page !== "object" || Array.isArray(page)) return false;
+    const accountId = (page as Record<string, unknown>).instagramAccountId;
+    return typeof accountId === "string" && accountId.trim().length > 0;
+  });
+}
+
 function metaFacebookAccount(state: ConfigurationState) {
   const pages = configurationArray(state, "facebook_pages");
   const first = pages.find((page) => page && typeof page === "object" && !Array.isArray(page)) as Record<string, unknown> | undefined;
@@ -157,7 +166,7 @@ export default async function MarketingIntegrationsPage({ searchParams }: PagePr
           const zohoAccountsBase = item.provider === "email" ? configurationValue(configuration, "accounts_base_url") : null;
           const zohoCredentialStore = item.provider === "email" ? configurationValue(configuration, "credential_store") : null;
           const metaFacebookConnected = item.provider === "meta" && hasCredentialRef(configuration, "facebook_user") && hasCredentialRef(configuration, "facebook_pages");
-          const metaInstagramConnected = item.provider === "meta" && hasCredentialRef(configuration, "instagram");
+          const metaInstagramConnected = item.provider === "meta" && hasCredentialRef(configuration, "facebook_pages") && hasLinkedInstagramAccount(configuration);
           const metaFacebookName = item.provider === "meta" ? metaFacebookAccount(configuration) : null;
           const metaInstagramName = item.provider === "meta" ? metaInstagramAccount(configuration) : null;
 
