@@ -1,4 +1,5 @@
 import { bufferServerAdapter } from "./buffer";
+import { metaServerAdapter } from "./meta";
 import { zohoMailServerAdapter } from "./zoho-mail";
 import type { MarketingChannelAdapter, MarketingChannelCapability, MarketingChannelStatus } from "./types";
 
@@ -14,7 +15,7 @@ class SetupRequiredAdapter implements MarketingChannelAdapter {
   }
 }
 
-export const MetaAdapter = new SetupRequiredAdapter("meta", ["publish", "analytics", "comments", "messages", "webhooks"]);
+export const MetaAdapter = metaServerAdapter;
 export const WhatsAppAdapter = new SetupRequiredAdapter("whatsapp", ["messages", "webhooks", "templates", "delivery_status"]);
 export const LinkedInAdapter = new SetupRequiredAdapter("linkedin", ["publish", "analytics"]);
 export const EmailAdapter = zohoMailServerAdapter;
