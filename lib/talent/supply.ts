@@ -1,0 +1,260 @@
+import {
+  evaluateTalentQualification,
+  type TalentQualificationEvaluation,
+  type TalentQualificationInput,
+} from "./qualification.ts";
+
+export type TalentBrief = {
+  talent_count?: number | null;
+  needed?: number | null;
+  talent_type?: string | null;
+  role?: string | null;
+  city?: string | null;
+  city_required?: boolean | null;
+  city_flexible?: boolean | null;
+  required_gender?: string | null;
+  gender?: string | null;
+  availability_status?: string | string[] | null;
+  availability_required?: boolean | null;
+  requirements?: Record<string, unknown> | null;
+};
+
+export type BriefTalent = TalentQualificationInput & {
+  user_id?: string | null;
+  gender?: string | null;
+  availability_status?: string | null;
+  nationality?: string | null;
+  nationality_slug?: string | null;
+  languages?: string[] | null;
+  dialects?: string[] | null;
+  skills?: string[] | null;
+  modeling_types?: string[] | null;
+  ready_to_travel?: boolean | null;
+  has_passport?: boolean | null;
+  has_car?: boolean | null;
+  work_outside_city?: boolean | null;
+  work_outside_country?: boolean | null;
+  hijab?: boolean | null;
+  beard?: boolean | null;
+  mustache?: boolean | null;
+  glasses?: boolean | null;
+  hair_color?: string | null;
+  eye_color?: string | null;
+  skin_color?: string | null;
+  clothing_size?: string | null;
+  [key: string]: unknown;
+};
+
+export type TalentBriefEvaluation = {
+  sendable: boolean;
+  status: "sendable_for_brief" | "not_sendable_for_brief";
+  reasons: string[];
+  qualification: TalentQualificationEvaluation;
+};
+
+export type TalentSupplyGap = {
+  needed: number;
+  available: number;
+  missing: number;
+  reasons: string[];
+};
+
+const SUPPORTED_HARD_FIELDS = new Set([
+  "nationality",
+  "nationality_slug",
+  "languages",
+  "dialects",
+  "skills",
+  "modeling_types",
+  "ready_to_travel",
+  "has_passport",
+  "has_car",
+  "work_outside_city",
+  "work_outside_country",
+  "hijab",
+  "beard",
+  "mustache",
+  "glasses",
+  "hair_color",
+  "eye_color",
+  "skin_color",
+  "clothing_size",
+]);
+
+function text(value: unknown) {
+  return typeof value === "string" ? value.trim().toLowerCase() : "";
+}
+
+function valuesEqual(actual: unknown, expected: unknown) {
+  if (Array.isArray(expected)) {
+    if (!Array.isArray(actual)) return false;
+    const actualValues = actual.map(text).filter(Boolean);
+    return expected.map(text).filter(Boolean).every((value) => actualValues.includes(value));
+  }
+
+  if (typeof expected === "boolean") return actual === expected;
+  return text(actual) === text(expected);
+}
+
+function isMissing(value: unknown) {
+  if (value === null || value === undefined) return true;
+  if (typeof value === "string") return !value.trim();
+  if (Array.isArray(value)) return value.length === 0;
+  return false;
+}
+
+function getRoleRequirement(brief: TalentBrief) {
+  return text(brief.role) || text(brief.talent_type) || text(brief.requirements?.role) || text(brief.requirements?.talent_type);
+}
+
+function getRequiredGender(brief: TalentBrief) {
+  return text(brief.required_gender) || text(brief.gender) || text(brief.requirements?.required_gender) || text(brief.requirements?.gender);
+}
+
+function getRequiredAvailability(brief: TalentBrief): string[] {
+  const raw = brief.availability_status ?? brief.requirements?.availability_status;
+  if (Array.isArray(raw)) return raw.map(text).filter(Boolean);
+  const normalized = text(raw);
+  return normalized ? [normalized] : [];
+}
+
+function getTalentRole(talent: BriefTalent, qualification: TalentQualificationEvaluation) {
+  return text(talent.primary_role) || text(talent.category_slug) || text(qualification.role);
+}
+
+function getTalentCity(talent: BriefTalent) {
+  return text(talent.city_slug) || text(talent.city_en) || text(talent.city_ar);
+}
+
+export function evaluateTalentForBrief(
+  talent: BriefTalent,
+  brief: TalentBrief,
+): TalentBriefEvaluation {
+  const qualification = evaluateTalentQualification(talent);
+  const reasons: string[] = [];
+
+  if (!qualification.qualified) {
+    reasons.push(...qualification.reasons.map((reason) => `not_qualified:${reason}`));
+  }
+
+  const requiredRole = getRoleRequirement(brief);
+  if (requiredRole && requiredRole !== "mixed") {
+    const actualRole = getTalentRole(talent, qualification);
+    if (!actualRole) reasons.push("missing_required_role");
+    else if (actualRole !== requiredRole) reasons.push("role_mismatch");
+  }
+
+  const requiredCity = text(brief.city) || text(brief.requirements?.city);
+  const cityFlexible =
+    brief.city_flexible === true ||
+    brief.requirements?.city_flexible === true ||
+    brief.city_required === false ||
+    brief.requirements?.city_required === false;
+  if (requiredCity && !cityFlexible) {
+    const actualCity = getTalentCity(talent);
+    if (!actualCity) reasons.push("missing_required_city");
+    else if (actualCity !== requiredCity) reasons.push("city_mismatch");
+  }
+
+  const requiredGender = getRequiredGender(brief);
+  if (requiredGender) {
+    const actualGender = text(talent.gender);
+    if (!actualGender) reasons.push("missing_required_gender");
+    else if (actualGender !== requiredGender) reasons.push("gender_mismatch");
+  }
+
+  const requiredAvailability = getRequiredAvailability(brief);
+  const availabilityRequired =
+    brief.availability_required === true ||
+    brief.requirements?.availability_required === true ||
+    requiredAvailability.length > 0;
+  if (availabilityRequired) {
+    const actualAvailability = text(talent.availability_status);
+    if (!actualAvailability) reasons.push("missing_required_availability");
+    else if (
+      requiredAvailability.length > 0 &&
+      !requiredAvailability.includes(actualAvailability)
+    ) {
+      reasons.push("availability_mismatch");
+    } else if (
+      requiredAvailability.length === 0 &&
+      ["unavailable", "busy"].includes(actualAvailability)
+    ) {
+      reasons.push("availability_mismatch");
+    }
+  }
+
+  const requirements = brief.requirements ?? {};
+  for (const [field, expected] of Object.entries(requirements)) {
+    if (!SUPPORTED_HARD_FIELDS.has(field) || expected === null || expected === undefined) continue;
+    const actual = talent[field];
+    if (isMissing(actual)) reasons.push(`missing_required_${field}`);
+    else if (!valuesEqual(actual, expected)) reasons.push(`${field}_mismatch`);
+  }
+
+  const uniqueReasons = Array.from(new Set(reasons));
+  const sendable = uniqueReasons.length === 0;
+  return {
+    sendable,
+    status: sendable ? "sendable_for_brief" : "not_sendable_for_brief",
+    reasons: uniqueReasons,
+    qualification,
+  };
+}
+
+export function calculateTalentSupplyGap(
+  brief: TalentBrief,
+  talents: BriefTalent[],
+): TalentSupplyGap {
+  const rawNeeded = brief.talent_count ?? brief.needed ?? 1;
+  const needed = Math.max(1, Number.isFinite(Number(rawNeeded)) ? Math.floor(Number(rawNeeded)) : 1);
+  const evaluations = talents.map((talent) => evaluateTalentForBrief(talent, brief));
+  const available = evaluations.filter((evaluation) => evaluation.sendable).length;
+  const missing = Math.max(0, needed - available);
+  const reasons = Array.from(
+    new Set([
+      ...(missing > 0 ? ["insufficient_matches"] : []),
+      ...evaluations.flatMap((evaluation) => evaluation.reasons),
+    ]),
+  );
+
+  return { needed, available, missing, reasons };
+}
+
+export async function getQualifiedTalents(brief: TalentBrief): Promise<BriefTalent[]> {
+  const { createAdminClient } = await import("../supabase/admin");
+  const supabase = createAdminClient();
+  const { data: talentRows, error } = await supabase
+    .from("talents")
+    .select("*")
+    .eq("published", true);
+
+  if (error) throw new Error(`[getQualifiedTalents] ${error.message}`);
+
+  const talents = (talentRows ?? []) as BriefTalent[];
+  const userIds = talents
+    .map((talent) => (typeof talent.user_id === "string" ? talent.user_id : null))
+    .filter((value): value is string => Boolean(value));
+
+  const profileByUserId = new Map<string, { approval_status?: string | null; status?: string | null }>();
+  if (userIds.length > 0) {
+    const { data: profiles, error: profileError } = await supabase
+      .from("profiles")
+      .select("user_id, approval_status, status")
+      .in("user_id", userIds);
+
+    if (profileError) throw new Error(`[getQualifiedTalents:profiles] ${profileError.message}`);
+    for (const profile of profiles ?? []) profileByUserId.set(profile.user_id, profile);
+  }
+
+  return talents
+    .map((talent) => {
+      const profile = talent.user_id ? profileByUserId.get(String(talent.user_id)) : undefined;
+      return {
+        ...talent,
+        profile_approval_status: profile?.approval_status,
+        profile_status: profile?.status,
+      } satisfies BriefTalent;
+    })
+    .filter((talent) => evaluateTalentForBrief(talent, brief).sendable);
+}

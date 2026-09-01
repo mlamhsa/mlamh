@@ -1,5 +1,9 @@
 import { getCachedValue } from "@/lib/cache/public-talents";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  isTalentPubliclyVisible,
+  type TalentQualificationInput,
+} from "@/lib/talent/qualification";
 import type { Talent } from "@/lib/types/talent";
 
 type GetPublicTalentsOptions = {
@@ -18,42 +22,18 @@ type GetPublicTalentsResult = {
   pageSize: number;
 };
 
+type PublicTalentCandidate = Talent & {
+  primary_role?: string | null;
+  profile_approval_status?: string | null;
+  profile_status?: string | null;
+};
+
 const CATEGORY_ALIASES: Record<string, string[]> = {
   actor: ["actor", "actors", "acting", "ممثل", "ممثلون", "تمثيل"],
   model: ["model", "models", "modeling", "مودل", "مودلز", "عارض", "عارضة"],
-  content_creator: [
-    "content_creator",
-    "creator",
-    "creators",
-    "content creator",
-    "content creators",
-    "صانع محتوى",
-    "صناع محتوى",
-    "محتوى",
-  ],
-  presenter: [
-    "presenter",
-    "presenters",
-    "host",
-    "hosts",
-    "tv host",
-    "مقدم",
-    "مقدمة",
-    "مقدمو برامج",
-    "تقديم",
-    "إعلام",
-  ],
-  voice_actor: [
-    "voice_actor",
-    "voice",
-    "voice over",
-    "voiceover",
-    "voice artist",
-    "voice artists",
-    "تعليق صوتي",
-    "معلق صوتي",
-    "معلقون صوتيون",
-  ],
+  content_creator: ["content_creator", "creator", "creators", "content creator", "content creators", "صانع محتوى", "صناع محتوى", "محتوى"],
+  presenter: ["presenter", "presenters", "host", "hosts", "tv host", "مقدم", "مقدمة", "مقدمو برامج", "تقديم", "إعلام"],
+  voice_actor: ["voice_actor", "voice", "voice over", "voiceover", "voice artist", "voice artists", "تعليق صوتي", "معلق صوتي", "معلقون صوتيون"],
   singer: ["singer", "singers", "مغني", "مغنون", "غناء"],
   dancer: ["dancer", "dancers", "راقص", "راقصون", "رقص"],
   athlete: ["athlete", "athletes", "رياضي", "رياضيون"],
@@ -68,35 +48,181 @@ function normalizeSearchValue(value?: string) {
 
 function normalizeSlug(value: string) {
   let normalized = value.trim();
-
   try {
     normalized = decodeURIComponent(normalized);
   } catch {
     // Next.js may already provide a decoded slug.
   }
-
   return normalized.trim();
 }
 
 function getCategorySearchTerms(category?: string) {
   const normalizedCategory = normalizeSearchValue(category);
-
-  if (!normalizedCategory) {
-    return [];
-  }
-
+  if (!normalizedCategory) return [];
   const normalizedKey = normalizedCategory.toLowerCase();
   return CATEGORY_ALIASES[normalizedKey] ?? [normalizedCategory];
 }
 
-function buildIlikeOrFilter(columns: string[], terms: string[]) {
-  return terms
-    .flatMap((term) =>
-      columns.map(
-        (column) => `${column}.ilike.%${term.replace(/[%]/g, "")}%`,
-      ),
-    )
-    .join(",");
+function includesTerm(value: unknown, terms: string[]) {
+  const normalized = typeof value === "string" ? value.trim().toLowerCase() : "";
+  return normalized ? terms.some((term) => normalized.includes(term.toLowerCase())) : false;
+}
+
+function matchesSearch(talent: Talent, term?: string) {
+  if (!term) return true;
+  const values = [
+    talent.name_en,
+    talent.name_ar,
+    talent.display_name_en,
+    talent.display_name_ar,
+    talent.category_slug,
+    talent.category_en,
+    talent.category_ar,
+    talent.city_slug,
+    talent.city_en,
+    talent.city_ar,
+  ];
+  return values.some((value) => includesTerm(value, [term]));
+}
+
+function matchesCategory(talent: Talent, category?: string) {
+  if (!category) return true;
+  const terms = getCategorySearchTerms(category);
+  return (
+    String(talent.category_slug ?? "").trim().toLowerCase() === category.toLowerCase() ||
+    includesTerm(talent.category_en, terms) ||
+    includesTerm(talent.category_ar, terms)
+  );
+}
+
+function matchesCity(talent: Talent, city?: string) {
+  if (!city) return true;
+  const normalizedCity = city.toLowerCase();
+  return (
+    String(talent.city_slug ?? "").trim().toLowerCase() === normalizedCity ||
+    includesTerm(talent.city_en, [city]) ||
+    includesTerm(talent.city_ar, [city])
+  );
+}
+
+async function attachProfileApprovalContext(
+  talents: Talent[],
+): Promise<PublicTalentCandidate[]> {
+  if (talents.length === 0) return [];
+  const supabase = createAdminClient();
+  const userIds = talents
+    .map((talent) => talent.user_id?.trim())
+    .filter((value): value is string => Boolean(value));
+
+  const profileByUserId = new Map<string, { approval_status: string | null; status: string | null }>();
+  if (userIds.length > 0) {
+    const { data: profiles, error } = await supabase
+      .from("profiles")
+      .select("user_id, approval_status, status")
+      .in("user_id", userIds);
+
+    if (error) throw new Error(`[public-talents:profiles] ${error.message}`);
+    for (const profile of profiles ?? []) {
+      profileByUserId.set(profile.user_id, {
+        approval_status: profile.approval_status,
+        status: profile.status,
+      });
+    }
+  }
+
+  return talents.map((talent) => {
+    const profile = talent.user_id ? profileByUserId.get(talent.user_id) : undefined;
+    return {
+      ...talent,
+      profile_approval_status: profile?.approval_status,
+      profile_status: profile?.status,
+    };
+  });
+}
+
+export function passesPublicTalentVisibilityPolicy(
+  talent: TalentQualificationInput,
+) {
+  return isTalentPubliclyVisible(talent);
+}
+
+const PUBLIC_DIRECTORY_BATCH_SIZE = 100;
+
+type VisiblePublishedCandidateOptions = {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  category?: string;
+  city?: string;
+  collectAll?: boolean;
+};
+
+async function getVisiblePublishedCandidates({
+  page = 1,
+  pageSize = 12,
+  search,
+  category,
+  city,
+  collectAll = false,
+}: VisiblePublishedCandidateOptions = {}): Promise<{
+  talents: PublicTalentCandidate[];
+  total: number;
+}> {
+  const supabase = createAdminClient();
+  const targetFrom = (page - 1) * pageSize;
+  const targetTo = targetFrom + pageSize;
+  const talents: PublicTalentCandidate[] = [];
+  let total = 0;
+  let offset = 0;
+
+  while (true) {
+    const { data, error } = await supabase
+      .from("talents")
+      .select("*")
+      .eq("published", true)
+      .in("status", ["approved", "active"])
+      .or("primary_role.in.(actor,model),category_slug.in.(actor,model)")
+      .order("featured", { ascending: false, nullsFirst: false })
+      .order("sort_order", { ascending: true, nullsFirst: false })
+      .order("id", { ascending: false })
+      .range(offset, offset + PUBLIC_DIRECTORY_BATCH_SIZE - 1);
+
+    if (error) throw new Error(`[public-talents:candidates] ${error.message}`);
+    const rows = (data ?? []) as Talent[];
+    const candidates = await attachProfileApprovalContext(rows);
+
+    for (const candidate of candidates) {
+      if (
+        !passesPublicTalentVisibilityPolicy(candidate) ||
+        !matchesSearch(candidate, search) ||
+        !matchesCategory(candidate, category) ||
+        !matchesCity(candidate, city)
+      ) {
+        continue;
+      }
+
+      if (collectAll || (total >= targetFrom && total < targetTo)) {
+        talents.push(candidate);
+      }
+      total += 1;
+    }
+
+    if (rows.length < PUBLIC_DIRECTORY_BATCH_SIZE) break;
+    offset += PUBLIC_DIRECTORY_BATCH_SIZE;
+  }
+
+  // Derived qualification includes URL validation and profile approval from a
+  // separate table, so an exact directory total cannot be a single DB count
+  // without a view/RPC (out of scope while migrations are prohibited). We scan
+  // bounded DB pages and retain only the requested page, avoiding fetch-all and
+  // full-table memory growth while preserving gallery-image fallback.
+  return { talents, total };
+}
+
+async function qualifySingleTalent(talent: Talent | null): Promise<Talent | null> {
+  if (!talent) return null;
+  const [candidate] = await attachProfileApprovalContext([talent]);
+  return candidate && passesPublicTalentVisibilityPolicy(candidate) ? candidate : null;
 }
 
 export async function getPublicTalents({
@@ -108,14 +234,12 @@ export async function getPublicTalents({
 }: GetPublicTalentsOptions = {}): Promise<GetPublicTalentsResult> {
   const safePage = Math.max(1, page);
   const safePageSize = Math.min(Math.max(pageSize, 1), 48);
-
   const normalizedSearch = normalizeSearchValue(search);
   const normalizedCategory = normalizeSearchValue(category);
   const normalizedCity = normalizeSearchValue(city);
-  const categoryTerms = getCategorySearchTerms(normalizedCategory);
 
   const cacheKey = [
-    "public-talents-v4",
+    "public-talents-v5",
     safePage,
     safePageSize,
     normalizedSearch ?? "all",
@@ -124,73 +248,16 @@ export async function getPublicTalents({
   ].join(":");
 
   return getCachedValue(cacheKey, async () => {
-    const supabase = createAdminClient();
-    const from = (safePage - 1) * safePageSize;
-    const to = from + safePageSize - 1;
-
-    let query = supabase
-      .from("talents")
-      .select("*", { count: "exact" })
-      .eq("published", true)
-      .not("image_url", "is", null)
-      .neq("image_url", "");
-
-    if (normalizedSearch) {
-      query = query.or(
-        buildIlikeOrFilter(
-          [
-            "name_en",
-            "name_ar",
-            "display_name_en",
-            "display_name_ar",
-            "category_slug",
-            "category_en",
-            "category_ar",
-            "city_slug",
-            "city_en",
-            "city_ar",
-          ],
-          [normalizedSearch],
-        ),
-      );
-    }
-
-    if (normalizedCategory && categoryTerms.length > 0) {
-      query = query.or(
-        [
-          `category_slug.eq.${normalizedCategory}`,
-          buildIlikeOrFilter(["category_en", "category_ar"], categoryTerms),
-        ]
-          .filter(Boolean)
-          .join(","),
-      );
-    }
-
-    if (normalizedCity) {
-      query = query.or(
-        [
-          `city_slug.eq.${normalizedCity}`,
-          buildIlikeOrFilter(["city_en", "city_ar"], [normalizedCity]),
-        ]
-          .filter(Boolean)
-          .join(","),
-      );
-    }
-
-    const { data, error, count } = await query
-      .order("featured", { ascending: false })
-      .order("sort_order", { ascending: true })
-      .order("id", { ascending: false })
-      .range(from, to);
-
-    if (error) {
-      throw new Error(`[getPublicTalents] ${error.message}`);
-    }
-
-    const total = count ?? 0;
+    const { talents, total } = await getVisiblePublishedCandidates({
+      page: safePage,
+      pageSize: safePageSize,
+      search: normalizedSearch,
+      category: normalizedCategory,
+      city: normalizedCity,
+    });
 
     return {
-      talents: (data ?? []) as Talent[],
+      talents,
       total,
       totalPages: Math.max(1, Math.ceil(total / safePageSize)),
       currentPage: safePage,
@@ -199,12 +266,9 @@ export async function getPublicTalents({
   });
 }
 
-export async function getPublishedTalentById(
-  id: number,
-): Promise<Talent | null> {
-  return getCachedValue(`published-talent:v3:id:${id}`, async () => {
+export async function getPublishedTalentById(id: number): Promise<Talent | null> {
+  return getCachedValue(`published-talent:v4:id:${id}`, async () => {
     const supabase = createAdminClient();
-
     const { data, error } = await supabase
       .from("talents")
       .select("*")
@@ -212,20 +276,14 @@ export async function getPublishedTalentById(
       .eq("published", true)
       .maybeSingle();
 
-    if (error) {
-      throw new Error(`[getPublishedTalentById] ${error.message}`);
-    }
-
-    return data as Talent | null;
+    if (error) throw new Error(`[getPublishedTalentById] ${error.message}`);
+    return qualifySingleTalent(data as Talent | null);
   });
 }
 
-export async function getPublishedTalentBySlug(
-  slug: string,
-): Promise<Talent | null> {
+export async function getPublishedTalentBySlug(slug: string): Promise<Talent | null> {
   const normalizedSlug = normalizeSlug(slug);
   const supabase = createAdminClient();
-
   const { data, error } = await supabase
     .from("talents")
     .select("*")
@@ -233,31 +291,13 @@ export async function getPublishedTalentBySlug(
     .eq("published", true)
     .maybeSingle();
 
-  if (error) {
-    throw new Error(`[getPublishedTalentBySlug] ${error.message}`);
-  }
-
-  return data as Talent | null;
+  if (error) throw new Error(`[getPublishedTalentBySlug] ${error.message}`);
+  return qualifySingleTalent(data as Talent | null);
 }
 
 export async function getPublishedTalents(): Promise<Talent[]> {
-  return getCachedValue("published-talents:v4:all", async () => {
-    const supabase = createAdminClient();
-
-    const { data, error } = await supabase
-      .from("talents")
-      .select("*")
-      .eq("published", true)
-      .not("image_url", "is", null)
-      .neq("image_url", "")
-      .order("featured", { ascending: false })
-      .order("sort_order", { ascending: true })
-      .order("id", { ascending: false });
-
-    if (error) {
-      throw new Error(`[getPublishedTalents] ${error.message}`);
-    }
-
-    return (data ?? []) as Talent[];
+  return getCachedValue("published-talents:v5:all", async () => {
+    const { talents } = await getVisiblePublishedCandidates({ collectAll: true });
+    return talents;
   });
 }
