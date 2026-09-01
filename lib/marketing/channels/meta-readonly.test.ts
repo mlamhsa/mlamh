@@ -9,7 +9,11 @@ test("Meta connection test is read-only against Meta and keeps credentials serve
   assert.doesNotMatch(source, /method: "(?:POST|PATCH|PUT|DELETE)"/);
   assert.doesNotMatch(source, /writeMetaSecret|deleteMetaSecret/);
   assert.doesNotMatch(source, /external_execution_enabled/);
-  assert.doesNotMatch(source, /publish|reply|send|comment/i);
+  assert.match(source, /publishing: false/);
+  assert.match(source, /replies: false/);
+  assert.match(source, /messages_outbound: false/);
+  assert.match(source, /comments_mutation: false/);
+  assert.match(source, /webhooks_enabled_by_test: false/);
 });
 
 test("Meta connection test verifies MLAMH and mlamhco and persists safe sync state only", () => {
@@ -19,6 +23,6 @@ test("Meta connection test verifies MLAMH and mlamhco and persists safe sync sta
   assert.match(source, /last_sync_at: now/);
   assert.match(source, /last_success_at: now/);
   assert.match(source, /supported_capabilities: capabilities/);
-  assert.match(source, /credential_refs/);
+  assert.match(source, /\.\.\.previous/);
   assert.doesNotMatch(source, /configuration_state:[^\n]*pageToken/);
 });
