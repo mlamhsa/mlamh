@@ -26,3 +26,13 @@ test("Meta connection test verifies MLAMH and mlamhco and persists safe sync sta
   assert.match(source, /\.\.\.previous/);
   assert.doesNotMatch(source, /configuration_state:[^\n]*pageToken/);
 });
+
+test("Marketing Hub wires the Meta read-only test only for a connected Meta integration", () => {
+  const page = readFileSync("app/admin/marketing/integrations/page.tsx", "utf8");
+  const form = readFileSync("app/admin/marketing/integrations/MetaConnectionTestForm.tsx", "utf8");
+  assert.match(page, /import \{ MetaConnectionTestForm \} from "\.\/MetaConnectionTestForm"/);
+  assert.match(page, /const metaConnected = item\.provider === "meta" && item\.status === "connected" && metaFacebookConnected && metaInstagramConnected/);
+  assert.match(page, /\{metaConnected \? <MetaConnectionTestForm isArabic=\{isArabic\} \/> : null\}/);
+  assert.match(form, /اختبار اتصال Meta/);
+  assert.match(form, /testMetaReadOnlyConnectionAction/);
+});
