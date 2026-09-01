@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   calculateTalentSupplyGap,
   evaluateTalentForBrief,
+  evaluateTalentSupplyForBrief,
   type BriefTalent,
 } from "./supply.ts";
 
@@ -92,13 +93,40 @@ test("actual supported hard data is enforced without inference", () => {
 });
 
 test("supply gap reports insufficient matches and never pads availability", () => {
-  const gap = calculateTalentSupplyGap(
-    { talent_count: 3, talent_type: "model", required_gender: "female" },
+  const brief = {
+    talent_count: 3,
+    talent_type: "model",
+    required_gender: "female",
+  };
+  const supply = evaluateTalentSupplyForBrief(
+    brief,
     [qualified, { ...qualified, gender: null }, { ...qualified, primary_role: "actor" }],
   );
+  const gap = calculateTalentSupplyGap(brief, supply);
   assert.deepEqual(
     { needed: gap.needed, available: gap.available, missing: gap.missing },
     { needed: 3, available: 1, missing: 2 },
   );
   assert.ok(gap.reasons.includes("insufficient_matches"));
+  assert.ok(gap.reasons.includes("missing_required_gender"));
+  assert.ok(gap.reasons.includes("role_mismatch"));
+});
+
+test("qualified supply stays distinct from sendable supply", () => {
+  const supply = evaluateTalentSupplyForBrief(
+    { city: "jeddah", required_gender: "female" },
+    [
+      qualified,
+      { ...qualified, name_en: "Riyadh", city_slug: "riyadh" },
+      { ...qualified, name_en: "No image", image_url: null },
+    ],
+  );
+
+  assert.equal(supply.candidatePool.length, 3);
+  assert.equal(supply.qualifiedTalents.length, 2);
+  assert.equal(supply.sendableTalents.length, 1);
+  assert.ok(supply.evaluations[1].reasons.includes("city_mismatch"));
+  assert.ok(
+    supply.evaluations[2].reasons.includes("not_qualified:missing_image"),
+  );
 });
