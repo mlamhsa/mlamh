@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:marketing": "node --experimental-strip-types --test lib/marketing/channels/execution-policy.test.ts lib/marketing/channels/zoho-mail.test.ts lib/marketing/credentials/infisical.test.ts lib/marketing/channels/meta.test.ts lib/marketing/channels/meta-instagram-facebook-login.test.ts lib/marketing/channels/meta-integration-state.test.ts lib/marketing/channels/meta-readonly.test.ts lib/marketing/dana/domain.test.ts"
+    "test:marketing": "node --experimental-strip-types --test lib/marketing/channels/execution-policy.test.ts lib/marketing/channels/zoho-mail.test.ts lib/marketing/credentials/infisical.test.ts lib/marketing/channels/meta.test.ts lib/marketing/channels/meta-instagram-facebook-login.test.ts lib/marketing/channels/meta-integration-state.test.ts lib/marketing/channels/meta-readonly.test.ts lib/marketing/dana/domain.test.ts lib/marketing/dana/workflow.test.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
