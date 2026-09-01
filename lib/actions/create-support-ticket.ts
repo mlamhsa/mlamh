@@ -1,6 +1,7 @@
 "use server";
 
 import { createHash } from "crypto";
+import { after } from "next/server";
 import { redirect } from "next/navigation";
 
 import { processSupportCommercialIntake } from "@/lib/marketing/dana/support-adapter";
@@ -117,21 +118,24 @@ export async function createSupportTicketAction(formData: FormData) {
   const ticketNumber = result?.ticket_number ? String(result.ticket_number) : "";
 
   if (ticketNumber) {
-    try {
-      await processSupportCommercialIntake({
-        ticketNumber,
-        senderName,
-        senderEmail,
-        senderPhone,
-        subject,
-        message,
-        category,
-      });
-    } catch (intakeError) {
-      // Support remains the source of truth and must succeed even if the internal
-      // Marketing Hub intake is temporarily unavailable.
-      console.error("[createSupportTicketAction.commercialIntake]", intakeError);
-    }
+    // Do not make the customer wait for the internal Marketing Hub pipeline.
+    // The support ticket is already the source of truth at this point; Dana runs
+    // after the response and remains independently idempotent/auditable.
+    after(async () => {
+      try {
+        await processSupportCommercialIntake({
+          ticketNumber,
+          senderName,
+          senderEmail,
+          senderPhone,
+          subject,
+          message,
+          category,
+        });
+      } catch (intakeError) {
+        console.error("[createSupportTicketAction.commercialIntake]", intakeError);
+      }
+    });
   }
 
   redirect(
