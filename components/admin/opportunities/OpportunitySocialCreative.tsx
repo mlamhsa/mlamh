@@ -14,6 +14,12 @@ type OpportunitySocialCreativeProps = {
   compensation?: string | null;
 };
 
+const MLAMH_MARKETING_OPPORTUNITY_SLUGS = new Set([
+  "mlamh-new-faces-actors-2026",
+  "mlamh-new-faces-models-2026",
+  "mlamh-national-day-96-actors-2026",
+]);
+
 export default function OpportunitySocialCreative({
   title,
   slug,
@@ -28,6 +34,10 @@ export default function OpportunitySocialCreative({
   const opportunityUrl = useMemo(() => {
     return `https://mlamh.net/ar/opportunities/${slug}`;
   }, [slug]);
+
+  const creativeCompensation = MLAMH_MARKETING_OPPORTUNITY_SLUGS.has(slug)
+    ? "فرص ومشاريع قادمة"
+    : compensation;
 
   useEffect(() => {
     let active = true;
@@ -127,8 +137,8 @@ export default function OpportunitySocialCreative({
                     {city ? <span className="text-white/65">{city}</span> : null}
                     {city && opportunityType ? <span className="text-[#d2b06b]/45">/</span> : null}
                     {opportunityType ? <span className="text-white/65">{opportunityType}</span> : null}
-                    {(city || opportunityType) && compensation ? <span className="text-[#d2b06b]/45">/</span> : null}
-                    {compensation ? <span className="font-medium text-emerald-300">{compensation}</span> : null}
+                    {(city || opportunityType) && creativeCompensation ? <span className="text-[#d2b06b]/45">/</span> : null}
+                    {creativeCompensation ? <span className="font-medium text-emerald-300">{creativeCompensation}</span> : null}
                   </div>
                   <div className="mt-16 h-px w-[640px] bg-gradient-to-r from-transparent via-[#d2b06b]/40 to-transparent" />
                   <p className="mt-9 text-[24px] text-white/35">تفاصيل الفرصة ومتطلبات التقديم على ملامح</p>
