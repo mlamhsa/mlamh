@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getTalentSupplyForBrief } from "@/lib/talent/supply";
 
 import {
   DANA_AGENT,
@@ -6,12 +7,12 @@ import {
   buildCommercialDemandKey,
   buildDanaBrief,
   buildExternalDraft,
+  buildQualifiedTalentShortlist,
   classifyCommercialInquiry,
   normalizeEmail,
   normalizePhone,
-  rankEligibleTalents,
+  toTalentSupplyBrief,
   type CommercialInquiry,
-  type TalentCandidate,
 } from "./domain";
 import {
   buildResolvedCommercialDemandKey,
@@ -63,7 +64,8 @@ async function recordLifecycle(
 ) {
   await Promise.all([
     db.from("marketing_events").insert({
-      event_name: `dana_${action}`,
+      event_name:
+        action === "talent_supply_gap" ? action : `dana_${action}`,
       source: "commercial_intake",
       medium: "internal",
       entity_type: entityType,
@@ -344,32 +346,37 @@ async function resolveBrief(
   return { id: Number(data.id), domain: brief };
 }
 
-async function loadEligibleTalents(db: Db, talentType: "actor" | "model" | "mixed" | null) {
-  if (!talentType) return [] as TalentCandidate[];
-  let query = db
-    .from("talents")
-    .select("id,display_name_en,display_name_ar,name_en,name_ar,primary_role,category_en,category_ar,city_en,city_ar,gender,skills,modeling_types,availability_status,published,status")
-    .eq("published", true)
-    .in("status", ["approved", "active"])
-    .limit(100);
-  if (talentType !== "mixed") query = query.or(`primary_role.eq.${talentType},category_en.ilike.${talentType}`);
-  const { data, error } = await query;
-  if (error) throw new Error(`[Dana.loadTalents] ${error.message}`);
-  return (data ?? []).map((row) => ({
-    id: Number(row.id),
-    name: row.display_name_en || row.display_name_ar || row.name_en || row.name_ar || `Talent ${row.id}`,
-    primaryRole: row.primary_role,
-    categoryEn: row.category_en,
-    categoryAr: row.category_ar,
-    cityEn: row.city_en,
-    cityAr: row.city_ar,
-    gender: row.gender,
-    skills: Array.isArray(row.skills) ? row.skills : null,
-    modelingTypes: Array.isArray(row.modeling_types) ? row.modeling_types : null,
-    availabilityStatus: row.availability_status,
-    published: Boolean(row.published),
-    status: row.status,
-  }));
+async function persistBriefSupplyMetadata(
+  db: Db,
+  briefId: number,
+  shortlist: ReturnType<typeof buildQualifiedTalentShortlist>,
+) {
+  const { data, error } = await db
+    .from("marketing_briefs")
+    .select("id,metadata")
+    .eq("id", briefId)
+    .maybeSingle();
+  if (error || !data) {
+    throw new Error(
+      `[Dana.persistSupply] ${error?.message ?? "brief unavailable"}`,
+    );
+  }
+
+  const metadata = (data.metadata ?? {}) as Record<string, unknown>;
+  const { error: updateError } = await db
+    .from("marketing_briefs")
+    .update({
+      metadata: {
+        ...metadata,
+        qualified_supply: shortlist.matches,
+        shortlist_status: shortlist.status,
+        talent_supply_gap: shortlist.supplyGap,
+      },
+    })
+    .eq("id", briefId);
+  if (updateError) {
+    throw new Error(`[Dana.persistSupply] ${updateError.message}`);
+  }
 }
 
 async function resolveDraftAndApproval(
@@ -379,7 +386,7 @@ async function resolveDraftAndApproval(
   taskId: number,
   conversationId: number,
   brief: ReturnType<typeof buildDanaBrief>,
-  shortlist: ReturnType<typeof rankEligibleTalents>,
+  shortlist: ReturnType<typeof buildQualifiedTalentShortlist>,
 ) {
   const { data: existingDraft } = await db
     .from("marketing_messages")
@@ -409,6 +416,7 @@ async function resolveDraftAndApproval(
         external_execution: false,
         source_references: [input.sourceReference],
         shortlist,
+        talent_supply_gap: shortlist.supplyGap,
       },
     }).select("id").single();
     if (error) throw new Error(`[Dana.prepareDraft] ${error.message}`);
@@ -439,10 +447,18 @@ async function resolveDraftAndApproval(
         },
         sender_identity: DANA_AGENT.externalIdentity,
         content: draft.content,
+        shortlist,
+        talent_supply_gap: shortlist.supplyGap,
         external_execution: false,
       },
       channel: input.sourceChannel,
-      preview: { content: draft.content, shortlist_status: shortlist.status, brief_status: brief.status },
+      preview: {
+        content: draft.content,
+        shortlist_status: shortlist.status,
+        brief_status: brief.status,
+        shortlist: shortlist.matches,
+        talent_supply_gap: shortlist.supplyGap,
+      },
       risk_level: approvalLevel === "ceo_only" ? "high" : "medium",
     }).select("id").single();
     if (error) throw new Error(`[Dana.requestApproval] ${error.message}`);
@@ -616,13 +632,29 @@ export async function processCommercialInquiry(input: CommercialInquiry): Promis
     brief_status: brief.status,
   });
 
-  const candidates = await loadEligibleTalents(db, brief.talentType);
-  const shortlist = rankEligibleTalents(brief, candidates, Math.max(1, Math.min(brief.talentCount ?? 1, 3)));
+  const supply = await getTalentSupplyForBrief(toTalentSupplyBrief(brief));
+  const shortlist = buildQualifiedTalentShortlist(brief, supply);
+  await persistBriefSupplyMetadata(db, briefId, shortlist);
   await recordLifecycle(db, "matched", demandKey, "marketing_brief", String(briefId), {
     source_channel: input.sourceChannel,
     shortlist_status: shortlist.status,
     matches: shortlist.matches,
+    talent_supply_gap: shortlist.supplyGap,
   });
+  if (shortlist.supplyGap.missing > 0) {
+    await recordLifecycle(
+      db,
+      "talent_supply_gap",
+      demandKey,
+      "marketing_brief",
+      String(briefId),
+      {
+        source_channel: input.sourceChannel,
+        shortlist_status: shortlist.status,
+        talent_supply_gap: shortlist.supplyGap,
+      },
+    );
+  }
 
   const { draftMessageId, approvalId } = await resolveDraftAndApproval(
     db,
@@ -650,6 +682,7 @@ export async function processCommercialInquiry(input: CommercialInquiry): Promis
     conversation_id: conversationId,
     brief_id: briefId,
     shortlist,
+    talent_supply_gap: shortlist.supplyGap,
     draft_message_id: draftMessageId,
     approval_id: approvalId,
     external_execution: false,

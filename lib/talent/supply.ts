@@ -59,6 +59,21 @@ export type TalentSupplyGap = {
   reasons: string[];
 };
 
+export type TalentSupplyCandidateEvaluation = {
+  talent: BriefTalent;
+  qualification: TalentQualificationEvaluation;
+  briefEvaluation: TalentBriefEvaluation | null;
+  sendable: boolean;
+  reasons: string[];
+};
+
+export type TalentSupplyEvaluation = {
+  candidatePool: BriefTalent[];
+  qualifiedTalents: BriefTalent[];
+  sendableTalents: BriefTalent[];
+  evaluations: TalentSupplyCandidateEvaluation[];
+};
+
 const SUPPORTED_HARD_FIELDS = new Set([
   "nationality",
   "nationality_slug",
@@ -202,26 +217,65 @@ export function evaluateTalentForBrief(
   };
 }
 
+export function evaluateTalentSupplyForBrief(
+  brief: TalentBrief,
+  candidatePool: BriefTalent[],
+): TalentSupplyEvaluation {
+  const evaluations = candidatePool.map((talent): TalentSupplyCandidateEvaluation => {
+    const qualification = evaluateTalentQualification(talent);
+    if (!qualification.qualified) {
+      return {
+        talent,
+        qualification,
+        briefEvaluation: null,
+        sendable: false,
+        reasons: qualification.reasons.map((reason) => `not_qualified:${reason}`),
+      };
+    }
+
+    const briefEvaluation = evaluateTalentForBrief(talent, brief);
+    return {
+      talent,
+      qualification,
+      briefEvaluation,
+      sendable: briefEvaluation.sendable,
+      reasons: briefEvaluation.reasons,
+    };
+  });
+
+  return {
+    candidatePool,
+    qualifiedTalents: evaluations
+      .filter(({ qualification }) => qualification.qualified)
+      .map(({ talent }) => talent),
+    sendableTalents: evaluations
+      .filter(({ sendable }) => sendable)
+      .map(({ talent }) => talent),
+    evaluations,
+  };
+}
+
 export function calculateTalentSupplyGap(
   brief: TalentBrief,
-  talents: BriefTalent[],
+  supply: TalentSupplyEvaluation,
 ): TalentSupplyGap {
   const rawNeeded = brief.talent_count ?? brief.needed ?? 1;
   const needed = Math.max(1, Number.isFinite(Number(rawNeeded)) ? Math.floor(Number(rawNeeded)) : 1);
-  const evaluations = talents.map((talent) => evaluateTalentForBrief(talent, brief));
-  const available = evaluations.filter((evaluation) => evaluation.sendable).length;
+  const available = supply.sendableTalents.length;
   const missing = Math.max(0, needed - available);
-  const reasons = Array.from(
-    new Set([
-      ...(missing > 0 ? ["insufficient_matches"] : []),
-      ...evaluations.flatMap((evaluation) => evaluation.reasons),
-    ]),
-  );
+  const reasons = missing > 0
+    ? Array.from(
+        new Set([
+          "insufficient_matches",
+          ...supply.evaluations.flatMap((evaluation) => evaluation.reasons),
+        ]),
+      )
+    : [];
 
   return { needed, available, missing, reasons };
 }
 
-export async function getQualifiedTalents(brief: TalentBrief): Promise<BriefTalent[]> {
+async function getTalentCandidatePool(): Promise<BriefTalent[]> {
   const { createAdminClient } = await import("../supabase/admin");
   const supabase = createAdminClient();
   const { data: talentRows, error } = await supabase
@@ -247,14 +301,26 @@ export async function getQualifiedTalents(brief: TalentBrief): Promise<BriefTale
     for (const profile of profiles ?? []) profileByUserId.set(profile.user_id, profile);
   }
 
-  return talents
-    .map((talent) => {
+  return talents.map((talent) => {
       const profile = talent.user_id ? profileByUserId.get(String(talent.user_id)) : undefined;
       return {
         ...talent,
         profile_approval_status: profile?.approval_status,
         profile_status: profile?.status,
       } satisfies BriefTalent;
-    })
-    .filter((talent) => evaluateTalentForBrief(talent, brief).sendable);
+    });
+}
+
+export async function getQualifiedTalents(): Promise<BriefTalent[]> {
+  const candidatePool = await getTalentCandidatePool();
+  return candidatePool.filter(
+    (talent) => evaluateTalentQualification(talent).qualified,
+  );
+}
+
+export async function getTalentSupplyForBrief(
+  brief: TalentBrief,
+): Promise<TalentSupplyEvaluation> {
+  const candidatePool = await getTalentCandidatePool();
+  return evaluateTalentSupplyForBrief(brief, candidatePool);
 }

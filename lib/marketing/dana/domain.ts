@@ -1,5 +1,13 @@
 import { createHash } from "crypto";
 
+import {
+  calculateTalentSupplyGap,
+  type BriefTalent,
+  type TalentBrief,
+  type TalentSupplyEvaluation,
+  type TalentSupplyGap,
+} from "../../talent/supply.ts";
+
 export const DANA_AGENT = {
   id: "dana",
   name: "Dana",
@@ -51,28 +59,17 @@ export type DanaBrief = {
   status: "partial" | "complete";
 };
 
-export type TalentCandidate = {
-  id: number;
-  name: string;
-  primaryRole?: string | null;
-  categoryEn?: string | null;
-  categoryAr?: string | null;
-  cityEn?: string | null;
-  cityAr?: string | null;
-  gender?: string | null;
-  skills?: string[] | null;
-  modelingTypes?: string[] | null;
-  availabilityStatus?: string | null;
-  published: boolean;
-  status?: string | null;
-};
-
 export type ShortlistResult =
   | {
       status: "matched";
       matches: Array<{ talentId: number; talentName: string; score: number; reasons: string[] }>;
+      supplyGap: TalentSupplyGap;
     }
-  | { status: "insufficient_matches"; matches: [] };
+  | {
+      status: "insufficient_matches";
+      matches: Array<{ talentId: number; talentName: string; score: number; reasons: string[] }>;
+      supplyGap: TalentSupplyGap;
+    };
 
 const COMMERCIAL_TERMS = [
   "ممثل",
@@ -220,42 +217,78 @@ export function buildCommercialDemandKey(input: CommercialInquiry, classificatio
   return createHash("sha256").update(`${identity}|${contextSignature(input, classification)}|${window}`).digest("hex");
 }
 
-export function rankEligibleTalents(brief: DanaBrief, candidates: TalentCandidate[], minimumMatches = 1): ShortlistResult {
-  const talentType = brief.talentType;
-  if (!talentType) return { status: "insufficient_matches", matches: [] };
-  const requiredGender = typeof brief.requirements.gender === "string" ? brief.requirements.gender.toLowerCase() : null;
-  const eligible = candidates.filter((candidate) => {
-    if (!candidate.published || !["approved", "active"].includes(candidate.status ?? "")) return false;
-    const role = (candidate.primaryRole ?? candidate.categoryEn ?? candidate.categoryAr ?? "").toLowerCase();
-    if (talentType !== "mixed" && !role.includes(talentType)) return false;
-    if (requiredGender && (candidate.gender ?? "").toLowerCase() !== requiredGender) return false;
-    return true;
-  });
+export function toTalentSupplyBrief(brief: DanaBrief): TalentBrief {
+  return {
+    talent_count: brief.talentCount,
+    talent_type: brief.talentType,
+    city: brief.city,
+    requirements: brief.requirements,
+  };
+}
 
-  const matches = eligible
-    .map((candidate) => {
+function getTalentName(talent: BriefTalent) {
+  return [
+    talent.display_name_en,
+    talent.display_name_ar,
+    talent.name_en,
+    talent.name_ar,
+  ].find((value) => typeof value === "string" && value.trim())?.trim() ?? null;
+}
+
+export function buildQualifiedTalentShortlist(
+  brief: DanaBrief,
+  supply: TalentSupplyEvaluation,
+): ShortlistResult {
+  const supplyBrief = toTalentSupplyBrief(brief);
+  const supplyGap = calculateTalentSupplyGap(supplyBrief, supply);
+  const matches = supply.evaluations
+    .filter(({ sendable }) => sendable)
+    .map(({ talent: candidate, briefEvaluation }) => {
+      const talentId = Number(candidate.id);
+      const talentName = getTalentName(candidate);
+      if (!Number.isFinite(talentId) || !talentName || !briefEvaluation) return null;
+
       let score = 50;
-      const reasons = ["published_and_eligible", `role:${talentType}`];
-      const candidateCity = normalizeText(candidate.cityEn ?? candidate.cityAr);
-      if (brief.city && candidateCity.includes(normalizeText(brief.city))) {
+      const reasons = ["qualified", "sendable_for_brief"];
+      if (brief.talentType) reasons.push(`role:${brief.talentType}`);
+      if (brief.city) {
         score += 30;
         reasons.push(`city:${brief.city}`);
       }
-      if (candidate.availabilityStatus && !["unavailable", "not_available"].includes(candidate.availabilityStatus)) {
+      if (
+        candidate.availability_status &&
+        !["unavailable", "not_available", "busy"].includes(
+          candidate.availability_status,
+        )
+      ) {
         score += 10;
         reasons.push("available");
       }
-      if (brief.requirements.social_content && candidate.modelingTypes?.some((type) => /commercial|fashion|abaya|social/i.test(type))) {
+      if (
+        brief.requirements.social_content &&
+        candidate.modeling_types?.some((type) =>
+          /commercial|fashion|abaya|social/i.test(type),
+        )
+      ) {
         score += 10;
         reasons.push("relevant_modeling_type");
       }
-      return { talentId: candidate.id, talentName: candidate.name, score, reasons };
+      return {
+        talentId,
+        talentName,
+        score,
+        reasons: [...reasons, ...briefEvaluation.reasons],
+      };
     })
+    .filter((match): match is NonNullable<typeof match> => match !== null)
     .sort((a, b) => b.score - a.score || a.talentId - b.talentId)
-    .slice(0, Math.max(1, brief.talentCount ?? 1));
+    .slice(0, supplyGap.needed);
 
-  if (matches.length < minimumMatches) return { status: "insufficient_matches", matches: [] };
-  return { status: "matched", matches };
+  return {
+    status: supplyGap.missing > 0 ? "insufficient_matches" : "matched",
+    matches,
+    supplyGap,
+  };
 }
 
 export function approvalLevelForExternalDraft(content: string): "approval_required" | "ceo_only" {
