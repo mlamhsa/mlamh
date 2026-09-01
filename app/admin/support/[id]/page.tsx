@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, Mail, Phone, Send, UserRound } from "lucide-react";
+import { ArrowLeft, ArrowRight, Bot, Mail, Phone, Send, UserRound } from "lucide-react";
 import { notFound } from "next/navigation";
 
 import {
   adminReplySupportTicketAction,
+  runDanaForExistingSupportTicketAction,
   updateSupportTicketStatusAction,
 } from "@/lib/actions/admin-support-actions";
 import { requireAdminAccess } from "@/lib/auth/require-admin";
@@ -11,7 +12,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 type PageProps = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ lang?: string; error?: string; sent?: string }>;
+  searchParams: Promise<{ lang?: string; error?: string; sent?: string; dana?: string }>;
 };
 
 type TicketRow = {
@@ -61,6 +62,25 @@ function statusLabel(status: string, isArabic: boolean) {
   return label ? (isArabic ? label[0] : label[1]) : status;
 }
 
+function danaMessage(status: string | undefined, isArabic: boolean) {
+  if (status === "prepared") {
+    return isArabic
+      ? "تم تشغيل Dana وتجهيز المسار التجاري حتى المسودة والموافقة فقط. لم يتم إرسال أي رد خارجي."
+      : "Dana prepared the commercial workflow through draft and approval only. No external reply was sent.";
+  }
+  if (status === "deduplicated") {
+    return isArabic
+      ? "تم التعرف على الطلب كحالة موجودة مسبقًا، ولم يتم إنشاء مسار تجاري مكرر."
+      : "Dana recognized an existing workflow and did not create a duplicate commercial chain.";
+  }
+  if (status === "not_commercial") {
+    return isArabic
+      ? "صنّفت Dana هذه التذكرة كطلب غير تجاري، لذلك لم يتم إنشاء Lead أو Brief."
+      : "Dana classified this ticket as non-commercial, so no Lead or Brief was created.";
+  }
+  return null;
+}
+
 export default async function AdminSupportTicketPage({ params, searchParams }: PageProps) {
   const admin = await requireAdminAccess();
   const [{ id }, query] = await Promise.all([params, searchParams]);
@@ -90,6 +110,7 @@ export default async function AdminSupportTicketPage({ params, searchParams }: P
   const ticket = ticketData as TicketRow;
   const messages = (messageData ?? []) as MessageRow[];
   const BackIcon = isArabic ? ArrowRight : ArrowLeft;
+  const danaStatusMessage = danaMessage(query.dana, isArabic);
 
   return (
     <main dir={isArabic ? "rtl" : "ltr"} className="mx-auto max-w-6xl px-4 py-7 text-white sm:px-6 lg:px-8 lg:py-10">
@@ -142,6 +163,39 @@ export default async function AdminSupportTicketPage({ params, searchParams }: P
           <Info icon={<Phone className="h-4 w-4" />} label={isArabic ? "الجوال" : "Phone"} value={ticket.sender_phone || "—"} dir="ltr" />
         </div>
       </section>
+
+      <section className="mt-5 rounded-[2rem] border border-gold/15 bg-gold/[0.035] p-5 sm:p-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-gold">
+              <Bot className="h-4 w-4" />
+              <h2 className="text-sm font-medium">{isArabic ? "Dana — التحويل التجاري الداخلي" : "Dana — Internal commercial intake"}</h2>
+            </div>
+            <p className="mt-2 max-w-2xl text-xs leading-6 text-white/45">
+              {isArabic
+                ? "يشغّل نفس مسار Dana على هذه التذكرة الموجودة، مع منع التكرار والتوقف عند Draft + Approval. لا يرسل أي رد للعميل."
+                : "Runs the same Dana workflow on this existing ticket, deduplicated and stopped at Draft + Approval. It does not send anything to the customer."}
+            </p>
+          </div>
+          <form action={runDanaForExistingSupportTicketAction}>
+            <input type="hidden" name="ticket_id" value={ticket.id} />
+            <input type="hidden" name="locale" value={locale} />
+            <button
+              type="submit"
+              className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-gold/30 bg-gold/[0.1] px-4 text-xs font-medium text-gold transition hover:bg-gold/[0.15]"
+            >
+              <Bot className="h-4 w-4" />
+              {isArabic ? "تشغيل Dana لهذا الطلب" : "Run Dana for this request"}
+            </button>
+          </form>
+        </div>
+      </section>
+
+      {danaStatusMessage ? (
+        <div className="mt-5 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-200">
+          {danaStatusMessage}
+        </div>
+      ) : null}
 
       {query.error ? (
         <div className="mt-5 rounded-2xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm text-red-300">
