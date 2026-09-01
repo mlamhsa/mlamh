@@ -131,7 +131,7 @@ export async function testAndPersistMetaReadOnlyConnection({ fetchImpl = fetch }
   // identity success remains the core connection result even when insight permissions/capabilities are unavailable.
   const pageInsights = await optionalRead<{ data?: unknown[] }>(
     "facebook_page_insights",
-    graphUrl(config.graphBaseUrl, `${pageId}/insights`, pageToken, { metric: "page_impressions" }),
+    graphUrl(config.graphBaseUrl, `${pageId}/insights`, pageToken, { metric: "page_post_engagements", period: "day" }),
     fetchImpl, errors, config.graphVersion,
   );
   const instagramInsights = await optionalRead<{ data?: unknown[] }>(
