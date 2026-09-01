@@ -3,6 +3,7 @@
 import { createHash } from "crypto";
 import { redirect } from "next/navigation";
 
+import { processSupportCommercialIntake } from "@/lib/marketing/dana/support-adapter";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -114,6 +115,24 @@ export async function createSupportTicketAction(formData: FormData) {
 
   const result = Array.isArray(data) ? data[0] : data;
   const ticketNumber = result?.ticket_number ? String(result.ticket_number) : "";
+
+  if (ticketNumber) {
+    try {
+      await processSupportCommercialIntake({
+        ticketNumber,
+        senderName,
+        senderEmail,
+        senderPhone,
+        subject,
+        message,
+        category,
+      });
+    } catch (intakeError) {
+      // Support remains the source of truth and must succeed even if the internal
+      // Marketing Hub intake is temporarily unavailable.
+      console.error("[createSupportTicketAction.commercialIntake]", intakeError);
+    }
+  }
 
   redirect(
     supportUrl(locale, {
