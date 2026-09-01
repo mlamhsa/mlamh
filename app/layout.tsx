@@ -4,6 +4,7 @@ import {
   Noto_Sans_Arabic,
 } from "next/font/google";
 import type { Metadata } from "next";
+import MarketingAttributionTracker from "@/components/MarketingAttributionTracker";
 import { defaultLocale } from "@/lib/i18n";
 import "./globals.css";
 
@@ -88,6 +89,7 @@ export default function RootLayout({
       className={`${cormorant.variable} ${dmSans.variable} ${notoArabic.variable} h-full`}
     >
       <body className="min-h-full antialiased grain vignette">
+        <MarketingAttributionTracker />
         {children}
       </body>
     </html>
