@@ -10,7 +10,7 @@ import { getMetaAppCredentials, getMetaRuntimeConfig } from "./meta";
 
 const INSTAGRAM_FACEBOOK_LOGIN_SCOPES = [
   "instagram_basic",
-  "instagram_content_publishing",
+  "instagram_content_publish",
   "instagram_manage_messages",
   "pages_read_engagement",
   "pages_show_list",
