@@ -31,6 +31,8 @@ type PageProps = {
   }>;
 };
 
+const MLAMH_MARKETING_OPPORTUNITY_IDS = new Set([30, 31, 32]);
+
 function formatDate(
   value?: string | null,
   isRtl = false,
@@ -48,10 +50,17 @@ function formatDate(
 }
 
 function formatCompensation(
+  opportunityId: number,
   compensationType: unknown,
   budget: unknown,
   isRtl = false,
 ) {
+  if (MLAMH_MARKETING_OPPORTUNITY_IDS.has(opportunityId)) {
+    return isRtl
+      ? "يحدد حسب الفرصة المستقبلية"
+      : "Determined per future opportunity";
+  }
+
   const type = String(compensationType ?? "")
     .trim()
     .toLowerCase();
@@ -570,6 +579,7 @@ opportunity.status === "pending_review" &&
       <InfoBlock
         label="المقابل المالي"
         value={formatCompensation(
+          opportunity.id,
           opportunity.compensation_type,
           opportunity.budget,
           isRtl,
@@ -764,6 +774,7 @@ opportunity.status === "pending_review" &&
             : opportunity.opportunity_type
       }
       compensation={formatCompensation(
+        opportunity.id,
         opportunity.compensation_type,
         opportunity.budget,
         isRtl,
