@@ -2,7 +2,8 @@ import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
 import { requireMarketingAdminAccess } from "@/lib/auth/require-marketing-admin";
-import { completeInstagramOAuth, persistMetaConnectionError } from "@/lib/marketing/channels/meta";
+import { completeInstagramFacebookLoginOAuth } from "@/lib/marketing/channels/meta-instagram-facebook-login";
+import { persistMetaConnectionError } from "@/lib/marketing/channels/meta";
 
 function integrationsUrl(request: NextRequest, state: "instagram_connected" | "error") {
   const url = new URL("/admin/marketing/integrations", request.url);
@@ -22,7 +23,7 @@ export async function GET(request: NextRequest) {
     if (!expectedState || !state || state !== expectedState || !code) {
       throw new Error("Meta Instagram OAuth callback validation failed.");
     }
-    await completeInstagramOAuth(code);
+    await completeInstagramFacebookLoginOAuth(code);
     return NextResponse.redirect(integrationsUrl(request, "instagram_connected"));
   } catch (error) {
     await persistMetaConnectionError(error);
