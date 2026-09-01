@@ -2,11 +2,11 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { requireMarketingAdminAccess } from "@/lib/auth/require-marketing-admin";
-import { createInstagramOAuthRequest } from "@/lib/marketing/channels/meta";
+import { createInstagramFacebookLoginOAuthRequest } from "@/lib/marketing/channels/meta-instagram-facebook-login";
 
 export async function GET() {
   await requireMarketingAdminAccess("marketing.integrations.manage");
-  const oauth = await createInstagramOAuthRequest();
+  const oauth = await createInstagramFacebookLoginOAuthRequest();
   const cookieStore = await cookies();
   cookieStore.set("mlamh_meta_instagram_oauth_state", oauth.state, {
     httpOnly: true,
