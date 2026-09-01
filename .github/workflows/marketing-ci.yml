@@ -5,8 +5,9 @@ on:
     branches:
       - feat/zoho-mail-marketing
       - feat/buffer-approval-channel-jobs
+      - feat/meta-marketing-hub
   pull_request:
-    branches: [main]
+    branches: [main, feat/zoho-mail-marketing]
   workflow_dispatch:
 
 permissions:

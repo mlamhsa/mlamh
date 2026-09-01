@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 
 import { requireMarketingAdminAccess } from "@/lib/auth/require-marketing-admin";
 import { testAndPersistBufferConnection } from "@/lib/marketing/channels/buffer";
+import { createFacebookOAuthRequest, createInstagramOAuthRequest } from "@/lib/marketing/channels/meta";
 import { createZohoOAuthRequest, getZohoMailRuntimeConfig } from "@/lib/marketing/channels/zoho-mail";
 
 export type BufferConnectionActionState = {
@@ -39,25 +40,38 @@ export async function testBufferConnectionAction(
   }
 }
 
+function oauthCookieOptions() {
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax" as const,
+    path: "/",
+    maxAge: 600,
+  };
+}
+
 export async function beginZohoMailOAuthAction() {
   await requireMarketingAdminAccess("marketing.integrations.manage");
   const config = await getZohoMailRuntimeConfig();
   const oauth = createZohoOAuthRequest(config);
   const cookieStore = await cookies();
-  const secure = process.env.NODE_ENV === "production";
-  cookieStore.set("mlamh_zoho_oauth_state", oauth.state, {
-    httpOnly: true,
-    secure,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 600,
-  });
-  cookieStore.set("mlamh_zoho_pkce_verifier", oauth.codeVerifier, {
-    httpOnly: true,
-    secure,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 600,
-  });
+  cookieStore.set("mlamh_zoho_oauth_state", oauth.state, oauthCookieOptions());
+  cookieStore.set("mlamh_zoho_pkce_verifier", oauth.codeVerifier, oauthCookieOptions());
+  redirect(oauth.authorizationUrl);
+}
+
+export async function beginMetaFacebookOAuthAction() {
+  await requireMarketingAdminAccess("marketing.integrations.manage");
+  const oauth = await createFacebookOAuthRequest();
+  const cookieStore = await cookies();
+  cookieStore.set("mlamh_meta_facebook_oauth_state", oauth.state, oauthCookieOptions());
+  redirect(oauth.authorizationUrl);
+}
+
+export async function beginMetaInstagramOAuthAction() {
+  await requireMarketingAdminAccess("marketing.integrations.manage");
+  const oauth = await createInstagramOAuthRequest();
+  const cookieStore = await cookies();
+  cookieStore.set("mlamh_meta_instagram_oauth_state", oauth.state, oauthCookieOptions());
   redirect(oauth.authorizationUrl);
 }
