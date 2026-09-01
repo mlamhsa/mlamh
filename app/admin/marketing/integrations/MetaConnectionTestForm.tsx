@@ -10,7 +10,7 @@ export function MetaConnectionTestForm({ isArabic }: { isArabic: boolean }) {
   return (
     <form action={action} className="mt-4">
       <button disabled={pending} className="rounded-lg border border-white/15 bg-white/[0.04] px-4 py-2 text-xs text-white/70 disabled:opacity-50">
-        {pending ? (isArabic ? "جارٍ الاختبار…" : "Testing…") : (isArabic ? "اختبار اتصال Meta — قراءة فقط" : "Test Meta connection — read only")}
+        {pending ? (isArabic ? "جارٍ الاختبار…" : "Testing…") : (isArabic ? "اختبار اتصال Meta" : "Test Meta connection")}
       </button>
       {state.message ? <p className={`mt-2 text-[11px] ${state.ok ? "text-emerald-300" : "text-amber-200"}`}>{state.message}</p> : null}
     </form>
