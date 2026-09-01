@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight, Bot, Mail, Phone, Send, UserRound } from "lucide-react";
 import { notFound } from "next/navigation";
 
+import DanaRunButton from "./DanaRunButton";
 import {
   adminReplySupportTicketAction,
   runDanaForExistingSupportTicketAction,
@@ -109,6 +110,20 @@ export default async function AdminSupportTicketPage({ params, searchParams }: P
 
   const ticket = ticketData as TicketRow;
   const messages = (messageData ?? []) as MessageRow[];
+  const sourceReference = `support-ticket:${ticket.ticket_number}`;
+  const { data: danaApproval, error: danaApprovalError } = await adminClient
+    .from("marketing_approvals")
+    .select("id, status, created_at")
+    .contains("proposed_action", { source_reference: sourceReference })
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (danaApprovalError) {
+    console.error("[AdminSupportTicketPage.danaStatus]", danaApprovalError);
+  }
+
+  const danaProcessed = Boolean(danaApproval?.id);
   const BackIcon = isArabic ? ArrowRight : ArrowLeft;
   const danaStatusMessage = danaMessage(query.dana, isArabic);
 
@@ -164,29 +179,31 @@ export default async function AdminSupportTicketPage({ params, searchParams }: P
         </div>
       </section>
 
-      <section className="mt-5 rounded-[2rem] border border-gold/15 bg-gold/[0.035] p-5 sm:p-6">
+      <section className={`mt-5 rounded-[2rem] border p-5 sm:p-6 ${danaProcessed ? "border-emerald-400/15 bg-emerald-400/[0.035]" : "border-gold/15 bg-gold/[0.035]"}`}>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <div className="flex items-center gap-2 text-gold">
+            <div className={`flex items-center gap-2 ${danaProcessed ? "text-emerald-200" : "text-gold"}`}>
               <Bot className="h-4 w-4" />
               <h2 className="text-sm font-medium">{isArabic ? "Dana — التحويل التجاري الداخلي" : "Dana — Internal commercial intake"}</h2>
             </div>
             <p className="mt-2 max-w-2xl text-xs leading-6 text-white/45">
-              {isArabic
-                ? "يشغّل نفس مسار Dana على هذه التذكرة الموجودة، مع منع التكرار والتوقف عند Draft + Approval. لا يرسل أي رد للعميل."
-                : "Runs the same Dana workflow on this existing ticket, deduplicated and stopped at Draft + Approval. It does not send anything to the customer."}
+              {danaProcessed
+                ? isArabic
+                  ? "تم تشغيل Dana لهذا الطلب وتجهيز المسار التجاري. الحالة محفوظة في Marketing Hub ولن يظهر الطلب كأنه غير معالج بعد تحديث الصفحة."
+                  : "Dana has already processed this request. The state is persisted in Marketing Hub and remains visible after refresh."
+                : isArabic
+                  ? "يشغّل نفس مسار Dana على هذه التذكرة الموجودة، مع منع التكرار والتوقف عند Draft + Approval. لا يرسل أي رد للعميل."
+                  : "Runs the same Dana workflow on this existing ticket, deduplicated and stopped at Draft + Approval. It does not send anything to the customer."}
             </p>
           </div>
           <form action={runDanaForExistingSupportTicketAction}>
             <input type="hidden" name="ticket_id" value={ticket.id} />
             <input type="hidden" name="locale" value={locale} />
-            <button
-              type="submit"
-              className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-gold/30 bg-gold/[0.1] px-4 text-xs font-medium text-gold transition hover:bg-gold/[0.15]"
-            >
-              <Bot className="h-4 w-4" />
-              {isArabic ? "تشغيل Dana لهذا الطلب" : "Run Dana for this request"}
-            </button>
+            <DanaRunButton
+              isArabic={isArabic}
+              processed={danaProcessed}
+              approvalStatus={danaApproval?.status ?? null}
+            />
           </form>
         </div>
       </section>
