@@ -23,8 +23,45 @@ test("Meta connection test verifies MLAMH and mlamhco and persists safe sync sta
   assert.match(source, /last_sync_at: now/);
   assert.match(source, /last_success_at: now/);
   assert.match(source, /supported_capabilities: capabilities/);
+  assert.match(source, /diagnostics: errors/);
   assert.match(source, /\.\.\.previous/);
   assert.doesNotMatch(source, /configuration_state:[^\n]*pageToken/);
+});
+
+test("Meta Insights probes use metric parameters and preserve core read-only success", () => {
+  const source = readFileSync("lib/marketing/channels/meta-readonly.ts", "utf8");
+  assert.match(source, /facebook_page_insights/);
+  assert.match(source, /metric: "page_impressions"/);
+  assert.match(source, /instagram_account_insights/);
+  assert.match(source, /metric: "reach", period: "day"/);
+  assert.match(source, /instagram_media_insights/);
+  assert.match(source, /metric: "reach,likes,comments,saved,shares"/);
+  assert.match(source, /return null;/);
+  assert.match(source, /status: "connected"/);
+  assert.match(source, /read_identity: true/);
+});
+
+test("Meta Insights diagnostics classify failures without persisting raw API messages or secrets", () => {
+  const source = readFileSync("lib/marketing/channels/meta-readonly.ts", "utf8");
+  assert.match(source, /type SafeErrorCategory = "permission" \| "unsupported_metric" \| "api_version" \| "account_capability" \| "invalid_request" \| "token" \| "api_error"/);
+  assert.match(source, /error\.code === 190/);
+  assert.match(source, /\[10, 200, 294\]/);
+  assert.match(source, /message\.includes\("metric"\)/);
+  assert.match(source, /message\.includes\("version"\)/);
+  assert.match(source, /message\.includes\("professional"\)/);
+  assert.match(source, /category,\n      message: `Meta read-only/);
+  assert.match(source, /code: error\.code/);
+  assert.match(source, /subcode: error\.subcode/);
+  assert.doesNotMatch(source, /lastError = errors[^\n]*rawMessage/);
+  assert.doesNotMatch(source, /diagnostics:.*rawMessage/);
+});
+
+test("Instagram Facebook Login OAuth currently omits insights permissions, documenting the Production root cause", () => {
+  const oauthSource = readFileSync("lib/marketing/channels/meta-instagram-facebook-login.ts", "utf8");
+  assert.match(oauthSource, /"instagram_basic"/);
+  assert.match(oauthSource, /"pages_read_engagement"/);
+  assert.doesNotMatch(oauthSource, /"instagram_manage_insights"/);
+  assert.doesNotMatch(oauthSource, /"read_insights"/);
 });
 
 test("Marketing Hub wires the Meta read-only test only for a connected Meta integration", () => {
