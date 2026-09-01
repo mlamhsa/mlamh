@@ -8,47 +8,39 @@ import { requireMarketingAdminAccess } from "@/lib/auth/require-marketing-admin"
 import { testAndPersistBufferConnection } from "@/lib/marketing/channels/buffer";
 import { createFacebookOAuthRequest } from "@/lib/marketing/channels/meta";
 import { createInstagramFacebookLoginOAuthRequest } from "@/lib/marketing/channels/meta-instagram-facebook-login";
+import { testAndPersistMetaReadOnlyConnection } from "@/lib/marketing/channels/meta-readonly";
 import { createZohoOAuthRequest, getZohoMailRuntimeConfig } from "@/lib/marketing/channels/zoho-mail";
 
-export type BufferConnectionActionState = {
-  ok: boolean | null;
-  message: string | null;
-};
+export type ConnectionActionState = { ok: boolean | null; message: string | null };
+export type BufferConnectionActionState = ConnectionActionState;
 
-export async function testBufferConnectionAction(
-  _previousState: BufferConnectionActionState,
-): Promise<BufferConnectionActionState> {
+export async function testBufferConnectionAction(_previousState: BufferConnectionActionState): Promise<BufferConnectionActionState> {
   try {
     await requireMarketingAdminAccess("marketing.integrations.manage");
     const result = await testAndPersistBufferConnection();
-
     revalidatePath("/admin/marketing/integrations");
     revalidatePath("/admin/marketing");
-
-    if (!result.ok) {
-      return { ok: false, message: result.error ?? "Buffer connection test failed." };
-    }
-
-    return {
-      ok: true,
-      message: "Buffer connected successfully. Instagram @mlamhco and Facebook MLAMH were verified.",
-    };
+    if (!result.ok) return { ok: false, message: result.error ?? "Buffer connection test failed." };
+    return { ok: true, message: "Buffer connected successfully. Instagram @mlamhco and Facebook MLAMH were verified." };
   } catch (error) {
-    return {
-      ok: false,
-      message: error instanceof Error ? error.message : "Buffer connection test failed.",
-    };
+    return { ok: false, message: error instanceof Error ? error.message : "Buffer connection test failed." };
+  }
+}
+
+export async function testMetaReadOnlyConnectionAction(_previousState: ConnectionActionState): Promise<ConnectionActionState> {
+  try {
+    await requireMarketingAdminAccess("marketing.integrations.manage");
+    const result = await testAndPersistMetaReadOnlyConnection();
+    revalidatePath("/admin/marketing/integrations");
+    revalidatePath("/admin/marketing");
+    return { ok: true, message: `Meta read-only test passed: ${result.page.name} · @${result.instagram.username}.` };
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : "Meta read-only connection test failed." };
   }
 }
 
 function oauthCookieOptions() {
-  return {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax" as const,
-    path: "/",
-    maxAge: 600,
-  };
+  return { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax" as const, path: "/", maxAge: 600 };
 }
 
 export async function beginZohoMailOAuthAction() {
