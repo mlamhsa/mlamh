@@ -29,6 +29,19 @@ export default function OpportunitySocialCreative({
     return `https://mlamh.net/ar/opportunities/${slug}`;
   }, [slug]);
 
+  const creativeCompensation = useMemo(() => {
+    const normalized = compensation?.trim().toLowerCase() ?? "";
+    if (!normalized) return null;
+
+    const isFutureOpportunity =
+      normalized.includes("الفرصة المستقبلية") ||
+      normalized.includes("فرصة مستقبلية") ||
+      normalized.includes("future opportunity") ||
+      normalized.includes("future project");
+
+    return isFutureOpportunity ? "فرص ومشاريع قادمة" : compensation;
+  }, [compensation]);
+
   useEffect(() => {
     let active = true;
 
@@ -127,8 +140,8 @@ export default function OpportunitySocialCreative({
                     {city ? <span className="text-white/65">{city}</span> : null}
                     {city && opportunityType ? <span className="text-[#d2b06b]/45">/</span> : null}
                     {opportunityType ? <span className="text-white/65">{opportunityType}</span> : null}
-                    {(city || opportunityType) && compensation ? <span className="text-[#d2b06b]/45">/</span> : null}
-                    {compensation ? <span className="font-medium text-emerald-300">{compensation}</span> : null}
+                    {(city || opportunityType) && creativeCompensation ? <span className="text-[#d2b06b]/45">/</span> : null}
+                    {creativeCompensation ? <span className="font-medium text-emerald-300">{creativeCompensation}</span> : null}
                   </div>
                   <div className="mt-16 h-px w-[640px] bg-gradient-to-r from-transparent via-[#d2b06b]/40 to-transparent" />
                   <p className="mt-9 text-[24px] text-white/35">تفاصيل الفرصة ومتطلبات التقديم على ملامح</p>
