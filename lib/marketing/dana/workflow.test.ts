@@ -7,6 +7,7 @@ import {
   runWithWorkflowLock,
 } from "./workflow.ts";
 import {
+  buildDanaBrief,
   classifyCommercialInquiry,
   type CommercialInquiry,
 } from "./domain.ts";
@@ -26,16 +27,31 @@ const base: CommercialInquiry = {
 
 test("resolved contact identity keeps email+phone, phone-only and email-only on one commercial demand", () => {
   const classification = classifyCommercialInquiry(base);
-  const both = buildResolvedCommercialDemandKey(base, classification, 501);
+  const brief = buildDanaBrief(base);
+  const both = buildResolvedCommercialDemandKey(base, classification, 501, brief);
+  const phoneOnlyInput = {
+    ...base,
+    sourceChannel: "whatsapp" as const,
+    sourceReference: "whatsapp:FEHA-2",
+    senderEmail: null,
+  };
+  const emailOnlyInput = {
+    ...base,
+    sourceChannel: "email" as const,
+    sourceReference: "email:FEHA-3",
+    senderPhone: null,
+  };
   const phoneOnly = buildResolvedCommercialDemandKey(
-    { ...base, sourceChannel: "whatsapp", sourceReference: "whatsapp:FEHA-2", senderEmail: null },
+    phoneOnlyInput,
     classification,
     501,
+    buildDanaBrief(phoneOnlyInput),
   );
   const emailOnly = buildResolvedCommercialDemandKey(
-    { ...base, sourceChannel: "email", sourceReference: "email:FEHA-3", senderPhone: null },
+    emailOnlyInput,
     classification,
     501,
+    buildDanaBrief(emailOnlyInput),
   );
   assert.equal(both, phoneOnly);
   assert.equal(both, emailOnly);
@@ -43,12 +59,14 @@ test("resolved contact identity keeps email+phone, phone-only and email-only on 
 
 test("same name and context with different resolved contacts stays different", () => {
   const classification = classifyCommercialInquiry(base);
+  const brief = buildDanaBrief(base);
   assert.notEqual(
-    buildResolvedCommercialDemandKey(base, classification, 501),
+    buildResolvedCommercialDemandKey(base, classification, 501, brief),
     buildResolvedCommercialDemandKey(
       { ...base, senderEmail: "other@example.com", senderPhone: "+966511111111" },
       classification,
       777,
+      brief,
     ),
   );
 });
