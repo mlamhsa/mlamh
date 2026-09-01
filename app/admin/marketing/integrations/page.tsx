@@ -8,6 +8,7 @@ import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { getMarketingAIConfigurationState } from "@/lib/marketing/ai/provider";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { BufferConnectionTestForm } from "./BufferConnectionTestForm";
+import { MetaConnectionTestForm } from "./MetaConnectionTestForm";
 import {
   beginMetaFacebookOAuthAction,
   beginMetaInstagramOAuthAction,
@@ -169,6 +170,7 @@ export default async function MarketingIntegrationsPage({ searchParams }: PagePr
           const metaInstagramConnected = item.provider === "meta" && hasCredentialRef(configuration, "facebook_pages") && hasLinkedInstagramAccount(configuration);
           const metaFacebookName = item.provider === "meta" ? metaFacebookAccount(configuration) : null;
           const metaInstagramName = item.provider === "meta" ? metaInstagramAccount(configuration) : null;
+          const metaConnected = item.provider === "meta" && item.status === "connected" && metaFacebookConnected && metaInstagramConnected;
 
           return (
             <AdminCard key={item.id} className="p-5">
@@ -198,6 +200,7 @@ export default async function MarketingIntegrationsPage({ searchParams }: PagePr
                       <form action={beginMetaFacebookOAuthAction} className="mt-3"><button className="rounded-lg border border-gold/35 bg-gold/10 px-4 py-2 text-xs text-gold">{metaFacebookConnected ? (isArabic ? "إعادة ربط Facebook" : "Reconnect Facebook") : (isArabic ? "ربط Facebook" : "Connect Facebook")}</button></form>
                     </div>
                   </div>
+                  {metaConnected ? <MetaConnectionTestForm isArabic={isArabic} /> : null}
                   <div className="mt-4 grid gap-2 text-[11px] text-white/40 sm:grid-cols-2">
                     <div>{isArabic ? "آخر مزامنة" : "Last sync"}<div className="mt-1 text-white/65">{formatDate(item.last_sync_at, isArabic)}</div></div>
                     <div>{isArabic ? "آخر نجاح" : "Last success"}<div className="mt-1 text-white/65">{formatDate(item.last_success_at, isArabic)}</div></div>
