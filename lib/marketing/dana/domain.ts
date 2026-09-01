@@ -221,12 +221,13 @@ export function buildCommercialDemandKey(input: CommercialInquiry, classificatio
 }
 
 export function rankEligibleTalents(brief: DanaBrief, candidates: TalentCandidate[], minimumMatches = 1): ShortlistResult {
-  if (!brief.talentType) return { status: "insufficient_matches", matches: [] };
+  const talentType = brief.talentType;
+  if (!talentType) return { status: "insufficient_matches", matches: [] };
   const requiredGender = typeof brief.requirements.gender === "string" ? brief.requirements.gender.toLowerCase() : null;
   const eligible = candidates.filter((candidate) => {
     if (!candidate.published || !["approved", "active"].includes(candidate.status ?? "")) return false;
     const role = (candidate.primaryRole ?? candidate.categoryEn ?? candidate.categoryAr ?? "").toLowerCase();
-    if (brief.talentType !== "mixed" && !role.includes(brief.talentType)) return false;
+    if (talentType !== "mixed" && !role.includes(talentType)) return false;
     if (requiredGender && (candidate.gender ?? "").toLowerCase() !== requiredGender) return false;
     return true;
   });
@@ -234,7 +235,7 @@ export function rankEligibleTalents(brief: DanaBrief, candidates: TalentCandidat
   const matches = eligible
     .map((candidate) => {
       let score = 50;
-      const reasons = ["published_and_eligible", `role:${brief.talentType}`];
+      const reasons = ["published_and_eligible", `role:${talentType}`];
       const candidateCity = normalizeText(candidate.cityEn ?? candidate.cityAr);
       if (brief.city && candidateCity.includes(normalizeText(brief.city))) {
         score += 30;
