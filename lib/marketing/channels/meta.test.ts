@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
+import { readFileSync } from "node:fs";
 
 import {
   buildMetaDeletionConfirmationCode,
@@ -39,6 +40,15 @@ function signedRequest(payload: Record<string, unknown>, appSecret = "app-secret
   const signature = createHmac("sha256", appSecret).update(encodedPayload).digest("base64url");
   return `${signature}.${encodedPayload}`;
 }
+
+test("Marketing Hub Instagram action uses Facebook Login OAuth and preserves its state cookie", () => {
+  const source = readFileSync("app/admin/marketing/integrations/actions.ts", "utf8");
+  const action = source.match(/export async function beginMetaInstagramOAuthAction\(\) \{([\s\S]*?)\n\}/)?.[1] ?? "";
+  assert.match(source, /createInstagramFacebookLoginOAuthRequest/);
+  assert.doesNotMatch(source, /createInstagramOAuthRequest/);
+  assert.match(action, /await createInstagramFacebookLoginOAuthRequest\(\)/);
+  assert.match(action, /mlamh_meta_instagram_oauth_state/);
+});
 
 test("Meta webhook verification succeeds only with the stored verify token", () => {
   assert.equal(verifyMetaWebhookChallenge({
