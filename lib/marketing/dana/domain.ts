@@ -111,7 +111,11 @@ function normalizeText(value?: string | null) {
 }
 
 export function normalizeEmail(value?: string | null) {
-  const email = normalizeText(value).replace(/\s/g, "");
+  const email = (value ?? "")
+    .normalize("NFKC")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "");
   return email.includes("@") ? email : "";
 }
 
