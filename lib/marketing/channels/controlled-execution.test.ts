@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { evaluateControlledExecution } from "./controlled-execution";
+import { evaluateControlledExecution } from "./controlled-execution-core.ts";
 
 const testMode = {
   enabled: true,
