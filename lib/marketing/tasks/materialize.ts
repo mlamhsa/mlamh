@@ -162,6 +162,13 @@ async function materializeOutboundEmail(task: SourceTask, output: Record<string,
       .maybeSingle();
     if (!lead?.contact_id) continue;
 
+    const { count: suppressed } = await db
+      .from("marketing_outreach")
+      .select("id", { count: "exact", head: true })
+      .eq("lead_id", leadId)
+      .in("reply_status", ["not_interested", "blocked"]);
+    if ((suppressed ?? 0) > 0) continue;
+
     const { data: contact } = await db
       .from("marketing_contacts")
       .select("email")
