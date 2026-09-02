@@ -139,3 +139,35 @@ export async function getOpportunityBySlug(
 
   return localizeOpportunity(data as Opportunity, locale);
 }
+
+export async function getPublishedOpportunityByIdentifier(
+  identifier: string,
+): Promise<Opportunity | null> {
+  const value = identifier.trim();
+  if (!value) return null;
+
+  const supabase = createAdminClient();
+  const locale = await getOpportunityLocale();
+  let query = supabase
+    .from("opportunities")
+    .select("*")
+    .eq("published", true)
+    .in("status", [...PUBLISHED_STATUSES]);
+
+  if (/^\d+$/.test(value)) {
+    query = query.eq("id", Number(value));
+  } else {
+    query = query.eq("slug", value);
+  }
+
+  const { data, error } = await query.maybeSingle();
+
+  if (error) {
+    console.error("[getPublishedOpportunityByIdentifier]", error);
+    return null;
+  }
+
+  if (!data) return null;
+
+  return localizeOpportunity(data as Opportunity, locale);
+}
