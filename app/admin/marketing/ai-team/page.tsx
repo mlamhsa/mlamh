@@ -1,102 +1,32 @@
-import {
-  AdminCard,
-  AdminGrid,
-  AdminPageContainer,
-  AdminPageHeader,
-  AdminStatCard,
-} from "@/components/admin/ui";
+import { AdminCard, AdminGrid, AdminPageContainer, AdminPageHeader, AdminStatCard } from "@/components/admin/ui";
+import { MarketingLiveRefresh } from "@/components/admin/marketing/MarketingLiveRefresh";
 import { getAdminLanguage } from "@/lib/admin/i18n";
 import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
-
 type PageProps = { searchParams: Promise<{ lang?: string }> };
+type Agent = { id:string; name:string; role:string; status:string; autonomy_level:string; assigned_channels:string[]|null; current_task_id:number|null; last_action_at:string|null; next_scheduled_task_at:string|null; tasks_completed:number; tasks_failed:number; };
+type Activity = { id:number; agent_id:string|null; task_id:number|null; action:string; reason:string|null; channel:string|null; error:string|null; result:Record<string,unknown>|null; created_at:string; };
+const statusLabel: Record<string,{ar:string;en:string}> = { idle:{ar:"متاح",en:"Idle"},working:{ar:"يعمل الآن",en:"Working"},waiting_approval:{ar:"بانتظار اعتماد",en:"Waiting approval"},scheduled:{ar:"مجدول",en:"Scheduled"},paused:{ar:"متوقف",en:"Paused"},error:{ar:"خطأ",en:"Error"} };
+const activityLabel: Record<string,{ar:string;en:string}> = { task_created:{ar:"أنشأ مهمة",en:"Task created"},task_completed:{ar:"أكمل التحليل",en:"Analysis completed"},task_retry_queued:{ar:"أعاد المهمة للطابور",en:"Queued for retry"},task_failed:{ar:"فشلت المهمة",en:"Task failed"},resolved:{ar:"حدد جهة الاتصال",en:"Contact resolved"},lead:{ar:"جهز العميل المحتمل",en:"Lead prepared"},brief:{ar:"جهز الـBrief",en:"Brief prepared"},matched:{ar:"طابق المواهب",en:"Talent matched"},draft_prepared:{ar:"جهز المسودة",en:"Draft prepared"},approval_requested:{ar:"طلب اعتماد",en:"Approval requested"},deduplicated:{ar:"منع تكرار التنفيذ",en:"Duplicate prevented"} };
+function formatTime(value:string,ar:boolean){return new Intl.DateTimeFormat(ar?"ar-SA":"en-US",{dateStyle:"medium",timeStyle:"short"}).format(new Date(value));}
+function summary(a:Activity,ar:boolean){const l=activityLabel[a.action]??{ar:a.action,en:a.action};return `${ar?l.ar:l.en}${a.task_id?` · #${a.task_id}`:""}`;}
 
-type Agent = {
-  id: string;
-  name: string;
-  role: string;
-  status: string;
-  autonomy_level: string;
-  assigned_channels: string[] | null;
-  current_task_id: number | null;
-  last_action_at: string | null;
-  next_scheduled_task_at: string | null;
-  tasks_completed: number;
-  tasks_failed: number;
-};
-
-const statusLabel: Record<string, { ar: string; en: string }> = {
-  idle: { ar: "متاح", en: "Idle" },
-  working: { ar: "يعمل الآن", en: "Working" },
-  waiting_approval: { ar: "بانتظار اعتماد", en: "Waiting approval" },
-  scheduled: { ar: "مجدول", en: "Scheduled" },
-  paused: { ar: "متوقف", en: "Paused" },
-  error: { ar: "خطأ", en: "Error" },
-};
-
-export default async function MarketingAiTeamPage({ searchParams }: PageProps) {
-  await requireAdminAccess();
-  const { lang } = await searchParams;
-  const language = getAdminLanguage(lang);
-  const isArabic = language === "ar";
-  const admin = createAdminClient();
-
-  const [{ data: agents, error }, { count: queued }, { count: running }, { count: approvals }] = await Promise.all([
-    admin.from("marketing_agents").select("id,name,role,status,autonomy_level,assigned_channels,current_task_id,last_action_at,next_scheduled_task_at,tasks_completed,tasks_failed").eq("is_active", true).order("id"),
-    admin.from("marketing_tasks").select("id", { count: "exact", head: true }).in("status", ["queued", "scheduled"]),
-    admin.from("marketing_tasks").select("id", { count: "exact", head: true }).eq("status", "running"),
-    admin.from("marketing_approvals").select("id", { count: "exact", head: true }).eq("status", "pending"),
-  ]);
-
-  if (error) console.error("[MarketingAiTeamPage]", error);
-  const team = (agents ?? []) as Agent[];
-
-  return (
-    <AdminPageContainer>
-      <AdminPageHeader
-        title={isArabic ? "فريق الذكاء الاصطناعي" : "AI Team"}
-        description={isArabic ? "حالة فريق التسويق التشغيلي، المهام الجارية، مستوى الاستقلالية، وما ينتظر اعتمادك." : "Operational marketing team status, active work, autonomy levels, and approvals awaiting your decision."}
-      />
-
-      <AdminGrid className="mb-8 md:grid-cols-3">
-        <AdminStatCard label={isArabic ? "مهام في الطابور" : "Queued tasks"} value={queued ?? 0} />
-        <AdminStatCard label={isArabic ? "يعمل عليها الآن" : "Running now"} value={running ?? 0} />
-        <AdminStatCard label={isArabic ? "بانتظار اعتماد" : "Awaiting approval"} value={approvals ?? 0} />
-      </AdminGrid>
-
-      {error ? (
-        <AdminCard className="p-5 text-sm text-amber-200/80">
-          {isArabic ? "جداول Marketing Hub لم تُفعّل في قاعدة البيانات بعد. الواجهة جاهزة وستقرأ البيانات الحقيقية فور تطبيق Migration المعتمدة." : "Marketing Hub tables are not active in the database yet. This view is ready and will read real data once the approved migration is applied."}
-        </AdminCard>
-      ) : (
-        <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-          {team.map((agent) => {
-            const label = statusLabel[agent.status] ?? { ar: agent.status, en: agent.status };
-            return (
-              <AdminCard key={agent.id} className="p-5">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-xl font-light text-white">{agent.name}</p>
-                    <p className="mt-1 text-sm text-white/45">{agent.role}</p>
-                  </div>
-                  <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] text-gold/80">{isArabic ? label.ar : label.en}</span>
-                </div>
-                <div className="mt-5 grid grid-cols-2 gap-3 text-xs">
-                  <div className="rounded-xl bg-black/20 p-3"><p className="text-white/35">{isArabic ? "الاستقلالية" : "Autonomy"}</p><p className="mt-1 text-white/75">{agent.autonomy_level}</p></div>
-                  <div className="rounded-xl bg-black/20 p-3"><p className="text-white/35">{isArabic ? "المهمة الحالية" : "Current task"}</p><p className="mt-1 text-white/75">{agent.current_task_id ?? "—"}</p></div>
-                  <div className="rounded-xl bg-black/20 p-3"><p className="text-white/35">{isArabic ? "مكتملة" : "Completed"}</p><p className="mt-1 tabular-nums text-white/75">{agent.tasks_completed}</p></div>
-                  <div className="rounded-xl bg-black/20 p-3"><p className="text-white/35">{isArabic ? "فشلت" : "Failed"}</p><p className="mt-1 tabular-nums text-white/75">{agent.tasks_failed}</p></div>
-                </div>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {(agent.assigned_channels ?? []).map((channel) => <span key={channel} className="rounded-lg border border-white/[0.07] px-2 py-1 text-[10px] text-white/40">{channel}</span>)}
-                </div>
-              </AdminCard>
-            );
-          })}
-        </div>
-      )}
-    </AdminPageContainer>
-  );
+export default async function MarketingAiTeamPage({searchParams}:PageProps){
+ await requireAdminAccess(); const {lang}=await searchParams; const language=getAdminLanguage(lang); const ar=language==="ar"; const db=createAdminClient();
+ const [{data:agents,error},{count:queued},{count:running},{count:approvals},activityResult]=await Promise.all([
+  db.from("marketing_agents").select("id,name,role,status,autonomy_level,assigned_channels,current_task_id,last_action_at,next_scheduled_task_at,tasks_completed,tasks_failed").eq("is_active",true).order("id"),
+  db.from("marketing_tasks").select("id",{count:"exact",head:true}).in("status",["queued","scheduled"]),
+  db.from("marketing_tasks").select("id",{count:"exact",head:true}).eq("status","running"),
+  db.from("marketing_approvals").select("id",{count:"exact",head:true}).eq("status","pending"),
+  db.from("marketing_agent_activity").select("id,agent_id,task_id,action,reason,channel,error,result,created_at").order("created_at",{ascending:false}).limit(12)
+ ]);
+ if(error) console.error("[MarketingAiTeamPage]",error); const team=(agents??[]) as Agent[]; const activity=(activityResult.data??[]) as Activity[]; const names=new Map(team.map(a=>[a.id,a.name]));
+ return <AdminPageContainer><MarketingLiveRefresh intervalMs={5000}/><AdminPageHeader eyebrow="MLAMH AI OPERATIONS" title={ar?"فريق الذكاء الاصطناعي":"AI Team"} description={ar?"مراقبة حية للفريق التشغيلي: من يعمل الآن، ما الذي أنجزه، وما الذي ينتظر قرارًا.":"Live operating view of who is working, what was completed, and what needs a decision."}/>
+ <AdminGrid className="mb-5 md:grid-cols-3"><AdminStatCard label={ar?"مهام في الطابور":"Queued tasks"} value={queued??0}/><AdminStatCard label={ar?"يعمل عليها الآن":"Running now"} value={running??0}/><AdminStatCard label={ar?"بانتظار اعتماد":"Awaiting approval"} value={approvals??0}/></AdminGrid>
+ <AdminCard className="mb-8 overflow-hidden"><div className="flex items-center justify-between border-b border-white/[0.07] px-5 py-4"><div><div className="flex items-center gap-2"><span className={`h-2 w-2 rounded-full ${(running??0)>0?"animate-pulse bg-gold":"bg-emerald-400"}`}/><h2 className="text-sm font-medium text-white">{ar?"نشاط الفريق المباشر":"Live team activity"}</h2></div><p className="mt-1 text-xs text-white/35">{ar?"تحديث تلقائي كل 5 ثوانٍ أثناء فتح الصفحة.":"Automatically refreshed every 5 seconds while visible."}</p></div>{activity[0]&&<p className="text-[10px] text-white/30">{ar?"آخر حركة":"Last activity"}: {formatTime(activity[0].created_at,ar)}</p>}</div>
+ <div className="divide-y divide-white/[0.06]">{activity.length===0?<p className="p-6 text-sm text-white/35">{ar?"لا توجد حركة مسجلة بعد.":"No activity recorded yet."}</p>:activity.map(a=><div key={a.id} className="group flex gap-4 px-5 py-4 transition-colors hover:bg-white/[0.025]"><span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${a.error?"bg-amber-300":"bg-emerald-400"}`}/><div className="min-w-0 flex-1"><div className="flex flex-wrap justify-between gap-2"><p className="text-sm font-medium text-white/80">{a.agent_id?names.get(a.agent_id)??a.agent_id:"Marketing AI"}</p><p className="text-[10px] text-white/25">{formatTime(a.created_at,ar)}</p></div><p className="mt-1 text-sm text-white/55">{summary(a,ar)}</p>{a.reason&&<p className="mt-1 line-clamp-2 text-xs leading-5 text-white/30">{a.reason}</p>}</div></div>)}</div></AdminCard>
+ <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">{team.map(agent=>{const s=statusLabel[agent.status]??{ar:agent.status,en:agent.status};return <AdminCard key={agent.id} className="group p-5"><div className="flex items-start justify-between gap-3"><div><p className="text-lg font-medium text-white">{agent.name}</p><p className="mt-1 text-xs leading-5 text-white/35">{agent.role}</p></div><span className={`rounded-full border px-2.5 py-1 text-[10px] ${agent.status==="working"?"border-gold/35 bg-gold/10 text-gold":agent.status==="error"?"border-amber-400/30 bg-amber-400/10 text-amber-200":"border-emerald-400/20 bg-emerald-400/[0.07] text-emerald-300"}`}>{ar?s.ar:s.en}</span></div><div className="mt-5 grid grid-cols-2 gap-2"><div className="rounded-xl border border-white/[0.06] bg-black/20 p-3"><p className="text-[9px] text-white/25">{ar?"مكتملة":"Completed"}</p><p className="mt-1 text-xl text-white/80">{agent.tasks_completed}</p></div><div className="rounded-xl border border-white/[0.06] bg-black/20 p-3"><p className="text-[9px] text-white/25">{ar?"فشلت":"Failed"}</p><p className="mt-1 text-xl text-white/80">{agent.tasks_failed}</p></div></div>{agent.current_task_id&&<p className="mt-4 text-xs text-gold/70">{ar?"يعمل على":"Working on"} #{agent.current_task_id}</p>}</AdminCard>})}</div>
+ </AdminPageContainer>;
 }

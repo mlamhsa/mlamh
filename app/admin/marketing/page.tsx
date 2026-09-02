@@ -1,131 +1,22 @@
 import Link from "next/link";
-
-import {
-  AdminCard,
-  AdminGrid,
-  AdminPageContainer,
-  AdminPageHeader,
-  AdminStatCard,
-} from "@/components/admin/ui";
+import { MarketingLiveRefresh } from "@/components/admin/marketing/MarketingLiveRefresh";
+import { AdminCard, AdminGrid, AdminPageContainer, AdminPageHeader, AdminStatCard } from "@/components/admin/ui";
 import { getAdminLanguage } from "@/lib/admin/i18n";
 import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-export const metadata = {
-  title: "MLAMH Marketing Hub — Admin",
-  robots: { index: false, follow: false },
-};
-export const dynamic = "force-dynamic";
-
-type PeriodKey = "today" | "yesterday" | "7d" | "30d";
-type PageProps = { searchParams: Promise<{ lang?: string; period?: string }> };
-
-type Window = { start: Date; end: Date; previousStart: Date; previousEnd: Date };
-
-function startOfRiyadhDay(date = new Date()) {
-  const riyadh = new Date(date.getTime() + 3 * 60 * 60 * 1000);
-  const utcMidnight = Date.UTC(riyadh.getUTCFullYear(), riyadh.getUTCMonth(), riyadh.getUTCDate());
-  return new Date(utcMidnight - 3 * 60 * 60 * 1000);
-}
-
-function getWindow(period: PeriodKey): Window {
-  const now = new Date();
-  if (period === "today") {
-    const start = startOfRiyadhDay(now);
-    const duration = now.getTime() - start.getTime();
-    return { start, end: now, previousStart: new Date(start.getTime() - duration), previousEnd: start };
-  }
-  if (period === "yesterday") {
-    const todayStart = startOfRiyadhDay(now);
-    const start = new Date(todayStart.getTime() - 24 * 60 * 60 * 1000);
-    const previousStart = new Date(start.getTime() - 24 * 60 * 60 * 1000);
-    return { start, end: todayStart, previousStart, previousEnd: start };
-  }
-  const days = period === "30d" ? 30 : 7;
-  const duration = days * 24 * 60 * 60 * 1000;
-  const start = new Date(now.getTime() - duration);
-  return { start, end: now, previousStart: new Date(start.getTime() - duration), previousEnd: start };
-}
-
-function delta(current: number, previous: number) {
-  if (previous === 0) return current === 0 ? "0%" : "+100%";
-  const value = Math.round(((current - previous) / previous) * 100);
-  return `${value >= 0 ? "+" : ""}${value}%`;
-}
-
-async function getPeriodMetrics(period: PeriodKey) {
-  const db = createAdminClient();
-  const window = getWindow(period);
-  const range = (query: any, column: string, start: Date, end: Date) => query.gte(column, start.toISOString()).lt(column, end.toISOString());
-
-  const build = (start: Date, end: Date) => Promise.all([
-    range(db.from("profiles").select("id", { count: "exact", head: true }).eq("account_type", "talent"), "created_at", start, end),
-    range(db.from("profiles").select("id", { count: "exact", head: true }).eq("account_type", "talent").not("profile_completed_at", "is", null), "profile_completed_at", start, end),
-    range(db.from("events").select("id", { count: "exact", head: true }).eq("event_type", "talent_approved"), "created_at", start, end),
-    range(db.from("opportunity_applications").select("id", { count: "exact", head: true }), "created_at", start, end),
-    range(db.from("profiles").select("id", { count: "exact", head: true }).eq("account_type", "publisher"), "created_at", start, end),
-    range(db.from("opportunities").select("id", { count: "exact", head: true }), "created_at", start, end),
-    range(db.from("events").select("id", { count: "exact", head: true }).eq("event_type", "opportunity_published"), "created_at", start, end),
-  ]);
-
-  const [currentRows, previousRows] = await Promise.all([
-    build(window.start, window.end),
-    build(window.previousStart, window.previousEnd),
-  ]);
-
-  const values = (rows: typeof currentRows) => ({
-    talentRegistrations: rows[0].count ?? 0,
-    completedTalentProfiles: rows[1].count ?? 0,
-    approvedTalents: rows[2].count ?? 0,
-    talentApplications: rows[3].count ?? 0,
-    publisherRegistrations: rows[4].count ?? 0,
-    opportunitiesCreated: rows[5].count ?? 0,
-    opportunitiesPublished: rows[6].count ?? 0,
-  });
-
-  return { current: values(currentRows), previous: values(previousRows) };
-}
-
-async function getMarketingOpsState() {
-  const db = createAdminClient();
-  const [approvals, alerts, integrations, leads, briefs] = await Promise.all([
-    db.from("marketing_approvals").select("id", { count: "exact", head: true }).eq("status", "pending"),
-    db.from("marketing_alerts").select("id,level,title,body,created_at").eq("status", "open").order("created_at", { ascending: false }).limit(5),
-    db.from("marketing_integrations").select("provider,status,last_error").order("provider"),
-    db.from("marketing_leads").select("id", { count: "exact", head: true }).eq("stage", "qualified"),
-    db.from("marketing_briefs").select("id", { count: "exact", head: true }).eq("status", "complete"),
-  ]);
-  return {
-    pendingApprovals: approvals.error ? null : approvals.count ?? 0,
-    alerts: alerts.error ? [] : alerts.data ?? [],
-    integrations: integrations.error ? [] : integrations.data ?? [],
-    qualifiedLeads: leads.error ? null : leads.count ?? 0,
-    completeBriefs: briefs.error ? null : briefs.count ?? 0,
-  };
-}
-
-export default async function MarketingHubOverviewPage({ searchParams }: PageProps) {
-  await requireAdminAccess();
-  const { lang, period: rawPeriod } = await searchParams;
-  const language = getAdminLanguage(lang);
-  const isArabic = language === "ar";
-  const period: PeriodKey = rawPeriod === "today" || rawPeriod === "yesterday" || rawPeriod === "30d" ? rawPeriod : "7d";
-  const [{ current, previous }, ops] = await Promise.all([getPeriodMetrics(period), getMarketingOpsState()]);
-  const cards = [
-    [isArabic ? "تسجيلات المواهب" : "Talent Registrations", current.talentRegistrations, previous.talentRegistrations],
-    [isArabic ? "ملفات مكتملة" : "Completed Profiles", current.completedTalentProfiles, previous.completedTalentProfiles],
-    [isArabic ? "مواهب معتمدة" : "Approved Talents", current.approvedTalents, previous.approvedTalents],
-    [isArabic ? "طلبات المواهب" : "Talent Applications", current.talentApplications, previous.talentApplications],
-    [isArabic ? "تسجيلات الناشرين" : "Publisher Registrations", current.publisherRegistrations, previous.publisherRegistrations],
-    [isArabic ? "الفرص المنشأة" : "Opportunities Created", current.opportunitiesCreated, previous.opportunitiesCreated],
-    [isArabic ? "الفرص المنشورة" : "Opportunities Published", current.opportunitiesPublished, previous.opportunitiesPublished],
-  ] as const;
-
-  return <AdminPageContainer>
-    <AdminPageHeader title="MLAMH Marketing Hub" description={isArabic ? "مركز قيادة Growth Engine ببيانات حقيقية ومقارنة بالفترة السابقة. أي مصدر غير مفعّل يظهر كذلك ولا يتم اختراع أرقام." : "Growth Engine command center using real data with previous-period comparison. Unavailable sources stay explicitly unavailable."} />
-    <div className="mb-6 flex flex-wrap gap-2">{(["today","yesterday","7d","30d"] as PeriodKey[]).map((key) => <Link key={key} href={`/admin/marketing?lang=${language}&period=${key}`} className={`rounded-xl border px-3 py-2 text-xs ${period === key ? "border-gold/30 bg-gold/10 text-gold" : "border-white/10 text-white/45"}`}>{key === "today" ? (isArabic ? "اليوم" : "Today") : key === "yesterday" ? (isArabic ? "أمس" : "Yesterday") : key === "7d" ? (isArabic ? "7 أيام" : "7 Days") : (isArabic ? "30 يوم" : "30 Days")}</Link>)}</div>
-    <AdminGrid className="mb-8 md:grid-cols-2 xl:grid-cols-4">{cards.map(([label, value, previousValue]) => <AdminStatCard key={label} label={`${label} · ${delta(value, previousValue)}`} value={value} />)}<AdminStatCard label={isArabic ? "Qualified Demand Leads" : "Qualified Demand Leads"} value={ops.qualifiedLeads ?? "N/A"} /><AdminStatCard label={isArabic ? "Briefs مكتملة" : "Complete Briefs"} value={ops.completeBriefs ?? "N/A"} /><AdminStatCard label={isArabic ? "اعتمادات CEO معلقة" : "Pending Approvals"} value={ops.pendingApprovals ?? "N/A"} /></AdminGrid>
-    <div className="grid gap-5 xl:grid-cols-3"><AdminCard className="p-5 xl:col-span-2"><p className="text-[10px] uppercase tracking-[0.25em] text-gold/70">Sprint 001</p><h2 className="mt-2 text-xl font-light text-white">{isArabic ? "تقدم الفترة المحددة" : "Selected-period progress"}</h2><div className="mt-5 grid gap-3 sm:grid-cols-2">{[[isArabic ? "تسجيلات المواهب" : "Talent registrations", current.talentRegistrations, 100],[isArabic ? "ملفات مكتملة" : "Complete profiles", current.completedTalentProfiles, 70],[isArabic ? "مواهب معتمدة" : "Approved talents", current.approvedTalents, 40],[isArabic ? "طلبات" : "Applications", current.talentApplications, 100]].map(([label, value, target]) => { const n = Number(value); const t = Number(target); const percentage = Math.min(100, Math.round((n / t) * 100)); return <div key={String(label)} className="rounded-2xl border border-white/[0.08] bg-black/25 p-4"><div className="flex items-center justify-between gap-3 text-sm"><span className="text-white/65">{label}</span><span className="tabular-nums text-gold">{n} / {t}</span></div><div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-gold" style={{ width: `${percentage}%` }}/></div></div>; })}</div></AdminCard><AdminCard className="p-5"><p className="text-[10px] uppercase tracking-[0.25em] text-gold/70">{isArabic ? "التكاملات" : "Integrations"}</p><div className="mt-4 space-y-2">{ops.integrations.length === 0 ? <div className="text-sm text-white/35">{isArabic ? "Setup Required / No Data" : "Setup Required / No Data"}</div> : ops.integrations.map((item) => <div key={item.provider} className="flex items-center justify-between rounded-xl border border-white/[0.07] bg-black/20 px-4 py-3 text-sm"><span className="capitalize text-white/60">{item.provider}</span><span className="text-xs text-gold">{item.status}</span></div>)}</div></AdminCard></div>
-    <AdminCard className="mt-5 p-5"><div className="flex items-center justify-between"><h2 className="text-lg text-white">{isArabic ? "Growth Alerts" : "Growth Alerts"}</h2><span className="text-xs text-white/35">{ops.alerts.length}</span></div><div className="mt-4 space-y-2">{ops.alerts.length === 0 ? <div className="text-sm text-white/35">{isArabic ? "لا توجد تنبيهات مفتوحة أو أن الوحدة غير مفعلة بعد." : "No open alerts, or the module is not active yet."}</div> : ops.alerts.map((alert) => <div key={alert.id} className="rounded-xl border border-white/[0.07] bg-black/20 px-4 py-3"><div className="flex items-center justify-between gap-3"><span className="text-sm text-white">{alert.title}</span><span className="text-xs text-gold">{alert.level}</span></div>{alert.body ? <p className="mt-1 text-xs text-white/40">{alert.body}</p> : null}</div>)}</div></AdminCard>
-  </AdminPageContainer>;
-}
+export const metadata={title:"MLAMH AI Marketing Command Center — Admin",robots:{index:false,follow:false}}; export const dynamic="force-dynamic";
+type PeriodKey="today"|"yesterday"|"7d"|"30d"; type PageProps={searchParams:Promise<{lang?:string;period?:string}>}; type Window={start:Date;end:Date;previousStart:Date;previousEnd:Date}; type Activity={id:number;agent_id:string|null;task_id:number|null;action:string;reason:string|null;channel:string|null;error:string|null;result:Record<string,unknown>|null;created_at:string};
+function startOfRiyadhDay(date=new Date()){const r=new Date(date.getTime()+10800000);return new Date(Date.UTC(r.getUTCFullYear(),r.getUTCMonth(),r.getUTCDate())-10800000)}
+function getWindow(p:PeriodKey):Window{const now=new Date();if(p==="today"){const s=startOfRiyadhDay(now),d=now.getTime()-s.getTime();return{start:s,end:now,previousStart:new Date(s.getTime()-d),previousEnd:s}}if(p==="yesterday"){const t=startOfRiyadhDay(now),s=new Date(t.getTime()-86400000);return{start:s,end:t,previousStart:new Date(s.getTime()-86400000),previousEnd:s}}const d=(p==="30d"?30:7)*86400000,s=new Date(now.getTime()-d);return{start:s,end:now,previousStart:new Date(s.getTime()-d),previousEnd:s}}
+function delta(c:number,p:number){if(p===0)return c===0?"0%":"+100%";const v=Math.round(((c-p)/p)*100);return`${v>=0?"+":""}${v}%`}
+function formatTime(v:string,ar:boolean){return new Intl.DateTimeFormat(ar?"ar-SA":"en-US",{dateStyle:"short",timeStyle:"short"}).format(new Date(v))}
+async function getPeriodMetrics(period:PeriodKey){const db=createAdminClient(),w=getWindow(period);const range=(q:any,c:string,s:Date,e:Date)=>q.gte(c,s.toISOString()).lt(c,e.toISOString());const build=(s:Date,e:Date)=>Promise.all([range(db.from("profiles").select("id",{count:"exact",head:true}).eq("account_type","talent"),"created_at",s,e),range(db.from("profiles").select("id",{count:"exact",head:true}).eq("account_type","talent").not("profile_completed_at","is",null),"profile_completed_at",s,e),range(db.from("events").select("id",{count:"exact",head:true}).eq("event_type","talent_approved"),"created_at",s,e),range(db.from("opportunity_applications").select("id",{count:"exact",head:true}),"created_at",s,e),range(db.from("profiles").select("id",{count:"exact",head:true}).eq("account_type","publisher"),"created_at",s,e),range(db.from("opportunities").select("id",{count:"exact",head:true}),"created_at",s,e),range(db.from("events").select("id",{count:"exact",head:true}).eq("event_type","opportunity_published"),"created_at",s,e)]);const [a,b]=await Promise.all([build(w.start,w.end),build(w.previousStart,w.previousEnd)]);const values=(x:typeof a)=>({talentRegistrations:x[0].count??0,completedTalentProfiles:x[1].count??0,approvedTalents:x[2].count??0,talentApplications:x[3].count??0,publisherRegistrations:x[4].count??0,opportunitiesCreated:x[5].count??0,opportunitiesPublished:x[6].count??0});return{current:values(a),previous:values(b)}}
+async function getCommandState(){const db=createAdminClient();const [approvals,integrations,leads,briefs,queued,running,completed,failed,agents,activity]=await Promise.all([db.from("marketing_approvals").select("id",{count:"exact",head:true}).eq("status","pending"),db.from("marketing_integrations").select("provider,status").order("provider"),db.from("marketing_leads").select("id",{count:"exact",head:true}).eq("stage","qualified"),db.from("marketing_briefs").select("id",{count:"exact",head:true}).eq("status","complete"),db.from("marketing_tasks").select("id",{count:"exact",head:true}).in("status",["queued","scheduled"]),db.from("marketing_tasks").select("id",{count:"exact",head:true}).eq("status","running"),db.from("marketing_tasks").select("id",{count:"exact",head:true}).eq("status","completed"),db.from("marketing_tasks").select("id",{count:"exact",head:true}).eq("status","failed"),db.from("marketing_agents").select("id,name,role,status,current_task_id,last_action_at,tasks_completed,tasks_failed").eq("is_active",true).order("id"),db.from("marketing_agent_activity").select("id,agent_id,task_id,action,reason,channel,error,result,created_at").order("created_at",{ascending:false}).limit(8)]);return{pendingApprovals:approvals.error?null:approvals.count??0,integrations:integrations.error?[]:integrations.data??[],qualifiedLeads:leads.error?null:leads.count??0,completeBriefs:briefs.error?null:briefs.count??0,queued:queued.count??0,running:running.count??0,completed:completed.count??0,failed:failed.count??0,agents:agents.error?[]:agents.data??[],activity:activity.error?[]:(activity.data??[]) as Activity[]}}
+const actionAr:Record<string,string>={task_created:"أنشأ مهمة",task_completed:"أكمل تحليلًا",task_retry_queued:"أعاد المحاولة",task_failed:"تعذر تنفيذ المهمة",resolved:"حدد جهة الاتصال",lead:"جهز عميلًا محتملًا",brief:"جهز Brief",matched:"طابق المواهب",draft_prepared:"جهز مسودة",approval_requested:"طلب اعتمادك",deduplicated:"منع تنفيذًا مكررًا"};
+export default async function MarketingHubOverviewPage({searchParams}:PageProps){await requireAdminAccess();const{lang,period:raw}=await searchParams,language=getAdminLanguage(lang),ar=language==="ar",period:PeriodKey=raw==="today"||raw==="yesterday"||raw==="30d"?raw:"7d";const[{current,previous},ops]=await Promise.all([getPeriodMetrics(period),getCommandState()]);const names=new Map(ops.agents.map((a:any)=>[a.id,a.name])),connected=ops.integrations.filter((i:any)=>i.status==="connected").length;const growth=[[ar?"مواهب جديدة":"New talents",current.talentRegistrations,previous.talentRegistrations],[ar?"ملفات مكتملة":"Completed profiles",current.completedTalentProfiles,previous.completedTalentProfiles],[ar?"طلبات على الفرص":"Applications",current.talentApplications,previous.talentApplications],[ar?"ناشرون جدد":"New publishers",current.publisherRegistrations,previous.publisherRegistrations]] as const;
+return <AdminPageContainer><MarketingLiveRefresh intervalMs={5000}/><AdminPageHeader eyebrow="MLAMH · LIVE OPERATIONS" title={ar?"مركز قيادة التسويق بالذكاء الاصطناعي":"AI Marketing Command Center"} description={ar?"غرفة عمليات حية تربط نمو المنصة، عمل فريق AI، القرارات، وقنوات التنفيذ الفعلية.":"Live operations room connecting marketplace growth, AI work, decisions, and real execution channels."}/>
+<AdminCard className="mb-5 overflow-hidden border-gold/20 bg-gradient-to-br from-gold/[0.09] via-black/20 to-black/50 p-6"><div className="flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between"><div><div className="flex items-center gap-2"><span className={`h-2.5 w-2.5 rounded-full ${ops.running>0?"animate-pulse bg-gold":"bg-emerald-400"}`}/><p className="text-xs uppercase tracking-[0.22em] text-gold/70">AUTONOMOUS MARKETING ENGINE</p></div><h2 className="mt-3 text-2xl font-light text-white">{ops.running>0?(ar?`${ops.running} مهمة يعمل عليها الفريق الآن`:`${ops.running} task(s) running now`):(ar?"الفريق مستقل وجاهز للدورة التالية":"Team autonomous and ready for the next cycle")}</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-white/45">{ar?"الصفحة تتحدث تلقائيًا. الأرقام والحالات مأخوذة من محرك المهام والاعتمادات والتكاملات، وليست حركة تجميلية.":"Auto-refreshing state from the real task, approval, and integration engines — no decorative activity."}</p></div><div className="grid grid-cols-2 gap-2 sm:grid-cols-4"><div className="rounded-xl border border-white/[0.08] bg-black/25 px-4 py-3"><p className="text-[10px] text-white/35">{ar?"قيد العمل":"Running"}</p><p className="mt-1 text-xl text-white">{ops.running}</p></div><div className="rounded-xl border border-white/[0.08] bg-black/25 px-4 py-3"><p className="text-[10px] text-white/35">{ar?"في الطابور":"Queued"}</p><p className="mt-1 text-xl text-white">{ops.queued}</p></div><Link href={`/admin/marketing/approvals?lang=${language}`} className="rounded-xl border border-gold/20 bg-gold/[0.06] px-4 py-3 transition-all hover:-translate-y-0.5 hover:border-gold/40"><p className="text-[10px] text-gold/60">{ar?"قرارك مطلوب":"Needs you"}</p><p className="mt-1 text-xl text-gold">{ops.pendingApprovals??"—"}</p></Link><div className="rounded-xl border border-white/[0.08] bg-black/25 px-4 py-3"><p className="text-[10px] text-white/35">{ar?"تكاملات متصلة":"Connected"}</p><p className="mt-1 text-xl text-white">{connected}</p></div></div></div></AdminCard>
+<div className="mb-5 grid gap-5 xl:grid-cols-[1.25fr_.75fr]"><AdminCard className="overflow-hidden"><div className="flex items-center justify-between border-b border-white/[0.07] px-5 py-4"><div><p className="text-[10px] uppercase tracking-[0.22em] text-gold/60">LIVE OPERATIONS</p><h2 className="mt-1 text-lg text-white">{ar?"ماذا يفعل الفريق؟":"What is the team doing?"}</h2></div><Link href={`/admin/marketing/ai-team?lang=${language}`} className="rounded-lg px-3 py-2 text-xs text-gold/70 transition hover:bg-gold/[0.08] hover:text-gold">{ar?"فتح الفريق ←":"Open team →"}</Link></div><div className="divide-y divide-white/[0.06]">{ops.activity.length===0?<p className="p-6 text-sm text-white/35">{ar?"لا توجد حركة مسجلة بعد.":"No activity recorded yet."}</p>:ops.activity.slice(0,6).map((i:Activity,index:number)=><div key={i.id} className="flex gap-3 px-5 py-4 transition hover:bg-white/[0.025]"><span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${index===0?"bg-emerald-400":i.error?"bg-amber-300":"bg-white/20"}`}/><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-medium text-white/80">{i.agent_id?names.get(i.agent_id)??i.agent_id:"Marketing AI"}</p><p className="text-[10px] text-white/25">{formatTime(i.created_at,ar)}</p></div><p className="mt-1 text-sm text-white/55">{ar?actionAr[i.action]??i.action:i.action.replaceAll("_"," ")}{i.task_id?` · #${i.task_id}`:""}</p>{i.reason&&<p className="mt-1 line-clamp-1 text-xs text-white/30">{i.reason}</p>}</div></div>)}</div></AdminCard><AdminCard className="p-5"><p className="text-[10px] uppercase tracking-[0.22em] text-gold/60">AI TEAM</p><h2 className="mt-1 text-lg text-white">{ar?"الفريق التشغيلي":"Operating team"}</h2><div className="mt-4 space-y-3">{ops.agents.map((a:any)=><div key={a.id} className="rounded-xl border border-white/[0.07] bg-black/20 p-3 transition hover:border-white/[0.13] hover:bg-white/[0.025]"><div className="flex items-center justify-between gap-3"><div><p className="text-sm text-white/80">{a.name}</p><p className="mt-0.5 text-[10px] text-white/30">{a.role}</p></div><span className={`h-2 w-2 rounded-full ${a.status==="working"?"animate-pulse bg-gold":a.status==="error"?"bg-amber-300":"bg-emerald-400"}`}/></div></div>)}</div></AdminCard></div>
+<AdminGrid className="mb-5 sm:grid-cols-2 xl:grid-cols-4">{growth.map(([label,value,prev])=><AdminStatCard key={label} label={`${label} · ${delta(value,prev)}`} value={value}/>)}</AdminGrid>
+<div className="grid gap-5 lg:grid-cols-3"><Link href={`/admin/marketing/leads?lang=${language}`}><AdminCard className="h-full p-5 transition hover:-translate-y-0.5 hover:border-gold/25"><p className="text-[10px] text-white/30">{ar?"عملاء مؤهلون":"Qualified leads"}</p><p className="mt-2 text-3xl text-white">{ops.qualifiedLeads??"—"}</p></AdminCard></Link><Link href={`/admin/marketing/briefs?lang=${language}`}><AdminCard className="h-full p-5 transition hover:-translate-y-0.5 hover:border-gold/25"><p className="text-[10px] text-white/30">{ar?"Briefs مكتملة":"Complete briefs"}</p><p className="mt-2 text-3xl text-white">{ops.completeBriefs??"—"}</p></AdminCard></Link><Link href={`/admin/marketing/tasks?lang=${language}`}><AdminCard className="h-full p-5 transition hover:-translate-y-0.5 hover:border-gold/25"><p className="text-[10px] text-white/30">{ar?"مهام مكتملة / فاشلة":"Completed / failed"}</p><p className="mt-2 text-3xl text-white">{ops.completed} <span className="text-sm text-white/25">/ {ops.failed}</span></p></AdminCard></Link></div></AdminPageContainer>}

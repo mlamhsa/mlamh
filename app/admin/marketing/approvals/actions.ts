@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireMarketingAdminAccess } from "@/lib/auth/require-marketing-admin";
+import { getMarketingChannelAdapter } from "@/lib/marketing/channels/adapters";
 import { buildEmailOutreachIdempotencyKey } from "@/lib/marketing/channels/email-executor";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -18,21 +19,27 @@ function toRecord(value: unknown) {
 
 function isExternalReply(value: unknown) { return toRecord(value).kind === "external_reply"; }
 
-function selectedReplyChannels(formData: FormData, action: Record<string, unknown>) {
-  const requested = formData.getAll("delivery_channels").map(String).filter((value) => value === "email" || value === "whatsapp");
-  if (requested.length > 0) return [...new Set(requested)];
-  const source = typeof action.source_channel === "string" ? action.source_channel : "support";
-  return source === "email" || source === "whatsapp" ? [source] : ["support"];
+function selectedReplyChannels(formData: FormData) {
+  return [...new Set(formData.getAll("delivery_channels").map(String).filter((value) => value === "email" || value === "whatsapp"))];
 }
 
-function enrichExternalReplyAction(formData: FormData, proposedAction: unknown) {
+async function assertReplyChannelsReady(channels: string[]) {
+  if (channels.length === 0) throw new Error("Connect at least one delivery channel before approving this reply.");
+  for (const channel of channels) {
+    const adapter = getMarketingChannelAdapter(channel);
+    if (!adapter?.sendMessage) throw new Error(`Channel ${channel} is not configured for outbound messages.`);
+    const status = await adapter.getStatus();
+    if (status !== "connected") throw new Error(`Channel ${channel} is ${status}, not connected.`);
+  }
+}
+
+function enrichExternalReplyAction(formData: FormData, proposedAction: unknown, channels: string[]) {
   const action = toRecord(proposedAction);
   if (!isExternalReply(action)) return action;
   const emailDraft = String(formData.get("email_draft") ?? "").trim();
   const whatsappDraft = String(formData.get("whatsapp_draft") ?? "").trim();
   const executiveSummary = String(formData.get("executive_summary") ?? "").trim();
   const clientLanguage = String(formData.get("client_language") ?? "").trim();
-  const channels = selectedReplyChannels(formData, action);
   const channelDrafts = {
     ...(emailDraft ? { email: emailDraft } : {}),
     ...(whatsappDraft ? { whatsapp: whatsappDraft } : {}),
@@ -52,8 +59,8 @@ async function applyExternalReplySideEffect({ approvalId, task, proposedAction, 
   const action = toRecord(proposedAction);
   const now = new Date().toISOString();
   const channels = Array.isArray(action.delivery_channels)
-    ? action.delivery_channels.filter((value): value is string => value === "email" || value === "whatsapp" || value === "support")
-    : [typeof action.source_channel === "string" ? action.source_channel : task.channel ?? "support"];
+    ? action.delivery_channels.filter((value): value is string => value === "email" || value === "whatsapp")
+    : [];
   const drafts = toRecord(action.channel_drafts);
 
   if (decision === "approved" || decision === "scheduled") {
@@ -61,7 +68,7 @@ async function applyExternalReplySideEffect({ approvalId, task, proposedAction, 
       const channelContent = typeof drafts[channel] === "string" && String(drafts[channel]).trim()
         ? String(drafts[channel]).trim()
         : typeof action.content === "string" ? action.content : "";
-      const payload = { ...action, channel, content: channelContent, external_execution: false };
+      const payload = { ...action, channel, content: channelContent, text: channelContent, external_execution: false };
       const { error } = await db.from("marketing_channel_jobs").upsert({
         content_id: null,
         task_id: task.id,
@@ -123,15 +130,30 @@ async function applyApprovalSideEffects({ approvalId, task, proposedAction, deci
       const sendStatus = decision === "approved" ? "approved" : decision === "scheduled" ? "scheduled" : "cancelled";
       await db.from("marketing_outreach").update({ send_status: sendStatus, next_follow_up_at: decision === "scheduled" ? executeAfter : undefined, updated_at: now }).eq("id", outreachId);
       const channel = task.channel ?? (typeof input.channel === "string" ? input.channel : null);
-      if (channel === "email" && decision === "approved") {
+
+      if (channel === "email" && (decision === "approved" || decision === "scheduled")) {
         const recipientEmail = typeof input.recipient_email === "string" ? input.recipient_email.trim() : "";
         const subject = typeof input.subject === "string" ? input.subject.trim() : "";
         const text = typeof input.message === "string" ? input.message.trim() : "";
         if (!recipientEmail || !subject || !text) throw new Error("Approved email outreach is missing recipient, subject, or message.");
+        if (decision === "scheduled" && !executeAfter) throw new Error("Scheduled email outreach requires an execution time.");
+
         const idempotencyKey = buildEmailOutreachIdempotencyKey(outreachId);
-        const { error: emailJobError } = await db.from("marketing_channel_jobs").insert({ content_id: null, task_id: task.id, approval_id: approvalId, channel: "email", status: "approved", scheduled_at: null, idempotency_key: idempotencyKey, payload: { kind: "outreach_email", outreach_id: outreachId, lead_id: task.lead_id, recipient: { email: recipientEmail }, subject, text }, result: {}, updated_at: now });
-        if (emailJobError && emailJobError.code !== "23505") throw new Error(`[approval email channel job] ${emailJobError.message}`);
+        const { error: emailJobError } = await db.from("marketing_channel_jobs").upsert({
+          content_id: null,
+          task_id: task.id,
+          approval_id: approvalId,
+          channel: "email",
+          status: decision === "scheduled" ? "scheduled" : "approved",
+          scheduled_at: decision === "scheduled" ? executeAfter : null,
+          idempotency_key: idempotencyKey,
+          payload: { kind: "outreach_email", outreach_id: outreachId, lead_id: task.lead_id, recipient: { email: recipientEmail }, subject, text },
+          result: {},
+          updated_at: now,
+        }, { onConflict: "idempotency_key" });
+        if (emailJobError) throw new Error(`[approval email channel job] ${emailJobError.message}`);
       }
+
       if (channel === "email" && (decision === "rejected" || decision === "cancelled")) {
         await db.from("marketing_channel_jobs").update({ status: "cancelled", updated_at: now }).eq("idempotency_key", buildEmailOutreachIdempotencyKey(outreachId)).in("status", ["draft", "waiting_approval", "approved", "scheduled", "failed"]);
       }
@@ -155,7 +177,9 @@ async function decideApproval(formData: FormData, decision: ApprovalDecision) {
   const executeAfter = decision === "scheduled" && executeAfterRaw ? new Date(executeAfterRaw).toISOString() : null;
   if (decision === "scheduled" && !executeAfter) throw new Error("A schedule time is required.");
   const externalReply = isExternalReply(approval.proposed_action);
-  const proposedAction = externalReply ? enrichExternalReplyAction(formData, approval.proposed_action) : approval.proposed_action;
+  const channels = externalReply && (decision === "approved" || decision === "scheduled") ? selectedReplyChannels(formData) : [];
+  if (externalReply && (decision === "approved" || decision === "scheduled")) await assertReplyChannelsReady(channels);
+  const proposedAction = externalReply ? enrichExternalReplyAction(formData, approval.proposed_action, channels) : approval.proposed_action;
   const now = new Date().toISOString();
   const { error: approvalError } = await db.from("marketing_approvals").update({ status: decision, proposed_action: proposedAction, decision_by_user_id: user.id, decision_note: decisionNote, decided_at: decision === "scheduled" ? null : now, execute_after: executeAfter, updated_at: now }).eq("id", approvalId).eq("status", "pending");
   if (approvalError) throw new Error(`[approval decision] ${approvalError.message}`);

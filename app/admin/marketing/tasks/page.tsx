@@ -11,6 +11,7 @@ import {
   createMarketingTaskAction,
   runNextMarketingTaskAction,
 } from "./actions";
+import { RunNextTaskButton, TaskLiveRefresh } from "./TaskLiveControls";
 
 export const dynamic = "force-dynamic";
 
@@ -30,8 +31,14 @@ type Task = {
   approval_status: string;
   scheduled_at: string | null;
   retry_count: number;
+  output: unknown;
+  started_at: string | null;
+  completed_at: string | null;
+  failed_at: string | null;
   created_at: string;
 };
+
+type RecordValue = Record<string, unknown>;
 
 const allowedStatuses = new Set([
   "queued",
@@ -42,6 +49,121 @@ const allowedStatuses = new Set([
   "failed",
   "cancelled",
 ]);
+
+function isRecord(value: unknown): value is RecordValue {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function taskOutputValue(output: unknown) {
+  if (!isRecord(output)) return output;
+  return isRecord(output.value) ? output.value : output;
+}
+
+function outputMeta(output: unknown) {
+  if (!isRecord(output)) return null;
+  return {
+    provider: typeof output.provider === "string" ? output.provider : null,
+    model: typeof output.model === "string" ? output.model : null,
+  };
+}
+
+function formatDate(value: string | null, isArabic: boolean) {
+  if (!value) return "—";
+  return new Intl.DateTimeFormat(isArabic ? "ar-SA" : "en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
+function statusLabel(status: string, isArabic: boolean) {
+  if (!isArabic) return status;
+  const labels: Record<string, string> = {
+    queued: "في الانتظار",
+    scheduled: "مجدولة",
+    running: "جاري التحليل",
+    waiting_approval: "بانتظار الاعتماد",
+    completed: "مكتملة",
+    failed: "فشلت",
+    cancelled: "ملغاة",
+  };
+  return labels[status] ?? status;
+}
+
+function TaskResult({ task, isArabic }: { task: Task; isArabic: boolean }) {
+  const value = taskOutputValue(task.output);
+  const meta = outputMeta(task.output);
+  const valueRecord = isRecord(value) ? value : null;
+  const priorities = valueRecord && isRecord(valueRecord.three_internal_priorities)
+    ? Object.values(valueRecord.three_internal_priorities).filter(isRecord)
+    : [];
+  const resultStatus = valueRecord && typeof valueRecord.status === "string"
+    ? valueRecord.status
+    : isArabic
+      ? "اكتمل التحليل"
+      : "Analysis completed";
+
+  return (
+    <AdminCard className="mb-5 overflow-hidden border border-emerald-500/20 bg-emerald-500/[0.035]">
+      <div className="border-b border-white/[0.07] px-5 py-4">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-emerald-400" />
+              <p className="text-xs font-medium uppercase tracking-[0.16em] text-emerald-300">
+                {isArabic ? "آخر نتيجة من Marketing AI" : "Latest Marketing AI result"}
+              </p>
+            </div>
+            <h2 className="mt-2 text-lg font-semibold text-white">#{task.id} · {task.title}</h2>
+            <p className="mt-1 text-xs text-white/40">{resultStatus}</p>
+          </div>
+          <div className="text-start text-xs text-white/35 md:text-end">
+            <p>{formatDate(task.completed_at, isArabic)}</p>
+            {(meta?.provider || meta?.model) && (
+              <p className="mt-1">{[meta.provider, meta.model].filter(Boolean).join(" · ")}</p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="p-5">
+        {priorities.length > 0 ? (
+          <div className="grid gap-3 lg:grid-cols-3">
+            {priorities.map((priority, index) => {
+              const focus = typeof priority.focus === "string"
+                ? priority.focus
+                : `${isArabic ? "الأولوية" : "Priority"} ${index + 1}`;
+              const actions = Array.isArray(priority.actions)
+                ? priority.actions.filter((action): action is string => typeof action === "string")
+                : [];
+              return (
+                <div key={`${focus}-${index}`} className="rounded-2xl border border-white/[0.08] bg-black/20 p-4">
+                  <p className="text-[10px] uppercase tracking-[0.15em] text-gold/70">
+                    {isArabic ? `الأولوية ${index + 1}` : `Priority ${index + 1}`}
+                  </p>
+                  <p className="mt-2 text-sm font-medium text-white/85">{focus}</p>
+                  {actions.length > 0 && (
+                    <ul className="mt-3 space-y-2 text-xs leading-5 text-white/50">
+                      {actions.map((action) => (
+                        <li key={action} className="flex gap-2">
+                          <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-white/35" />
+                          <span>{action}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <pre className="max-h-[420px] overflow-auto whitespace-pre-wrap rounded-2xl border border-white/[0.08] bg-black/25 p-4 text-xs leading-6 text-white/60">
+            {typeof value === "string" ? value : JSON.stringify(value, null, 2)}
+          </pre>
+        )}
+      </div>
+    </AdminCard>
+  );
+}
 
 export default async function MarketingTasksPage({ searchParams }: PageProps) {
   await requireAdminAccess();
@@ -54,7 +176,7 @@ export default async function MarketingTasksPage({ searchParams }: PageProps) {
 
   let query = admin
     .from("marketing_tasks")
-    .select("id,agent_id,task_type,title,priority,status,channel,approval_level,approval_status,scheduled_at,retry_count,created_at")
+    .select("id,agent_id,task_type,title,priority,status,channel,approval_level,approval_status,scheduled_at,retry_count,output,started_at,completed_at,failed_at,created_at")
     .order("created_at", { ascending: false })
     .limit(100);
 
@@ -77,17 +199,45 @@ export default async function MarketingTasksPage({ searchParams }: PageProps) {
     ["queued", "scheduled"].includes(task.status) &&
     (task.approval_level === "auto" || task.approval_status === "approved"),
   ).length;
+  const runningCount = tasks.filter((task) => task.status === "running").length;
+  const completedCount = tasks.filter((task) => task.status === "completed").length;
+  const failedCount = tasks.filter((task) => task.status === "failed").length;
+  const latestResult = tasks.find((task) => task.status === "completed" && task.output);
 
   return (
     <AdminPageContainer>
+      <TaskLiveRefresh enabled={runningCount > 0} />
+
       <AdminPageHeader
         title={isArabic ? "محرك المهام" : "Task Engine"}
         description={
           isArabic
-            ? "إنشاء وتفويض وجدولة وتنفيذ مهام AI حقيقية مع Approval Policy وRetry وAudit."
-            : "Create, delegate, schedule, and run real AI tasks with approval policy, retry, and audit."
+            ? "أنشئ وشغّل مهام Marketing AI وشاهد النتيجة مباشرة داخل لوحة التشغيل."
+            : "Create and run Marketing AI tasks and review the result directly in the operating console."
         }
       />
+
+      <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <AdminCard className="p-4">
+          <p className="text-[10px] uppercase tracking-[0.14em] text-white/30">{isArabic ? "قابلة للتنفيذ" : "Runnable"}</p>
+          <p className="mt-2 text-2xl font-semibold text-white">{runnableCount}</p>
+        </AdminCard>
+        <AdminCard className="p-4">
+          <p className="text-[10px] uppercase tracking-[0.14em] text-white/30">{isArabic ? "تعمل الآن" : "Running now"}</p>
+          <div className="mt-2 flex items-center gap-2">
+            {runningCount > 0 && <span className="h-2 w-2 animate-pulse rounded-full bg-gold" />}
+            <p className="text-2xl font-semibold text-white">{runningCount}</p>
+          </div>
+        </AdminCard>
+        <AdminCard className="p-4">
+          <p className="text-[10px] uppercase tracking-[0.14em] text-white/30">{isArabic ? "مكتملة" : "Completed"}</p>
+          <p className="mt-2 text-2xl font-semibold text-emerald-300">{completedCount}</p>
+        </AdminCard>
+        <AdminCard className="p-4">
+          <p className="text-[10px] uppercase tracking-[0.14em] text-white/30">{isArabic ? "فشلت" : "Failed"}</p>
+          <p className="mt-2 text-2xl font-semibold text-amber-200">{failedCount}</p>
+        </AdminCard>
+      </div>
 
       <AdminCard className="mb-5 p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -108,31 +258,32 @@ export default async function MarketingTasksPage({ searchParams }: PageProps) {
               {aiState.provider} · {aiState.model}
               {!aiState.configured && aiState.reason ? ` · ${aiState.reason}` : ""}
             </p>
-            <p className="mt-1 text-xs text-white/30">
-              {isArabic
-                ? `${runnableCount} مهمة ظاهرة في القائمة قابلة للتنفيذ بعد استيفاء الحوكمة.`
-                : `${runnableCount} visible tasks are eligible to run after governance checks.`}
+            <p className="mt-1 text-xs text-white/30" aria-live="polite">
+              {runningCount > 0
+                ? isArabic
+                  ? "Marketing AI يعمل الآن. ستتحدث الصفحة تلقائيًا عند اكتمال التحليل."
+                  : "Marketing AI is working. This page will refresh automatically when the analysis completes."
+                : isArabic
+                  ? `${runnableCount} مهمة قابلة للتنفيذ بعد استيفاء الحوكمة.`
+                  : `${runnableCount} tasks are eligible to run after governance checks.`}
             </p>
           </div>
 
           {aiState.configured ? (
             <form action={runNextMarketingTaskAction}>
-              <button
-                type="submit"
-                className="rounded-xl border border-gold/40 bg-gold/10 px-5 py-2.5 text-sm text-gold transition hover:bg-gold hover:text-black"
-              >
-                {isArabic ? "تشغيل المهمة التالية" : "Run next AI task"}
-              </button>
+              <RunNextTaskButton isArabic={isArabic} />
             </form>
           ) : (
             <div className="max-w-md text-xs leading-6 text-white/40">
               {isArabic
-                ? "التشغيل الخارجي للـAI متوقف بأمان حتى تتم إضافة OPENAI_API_KEY إلى بيئة الخادم. لا يتم حفظ المفتاح في قاعدة البيانات أو عرضه في لوحة الإدارة."
-                : "AI execution stays safely disabled until OPENAI_API_KEY exists in the server environment. The key is never stored in the database or displayed in Admin."}
+                ? "التشغيل الخارجي للـAI متوقف بأمان حتى تتم إضافة إعداد مزود AI إلى بيئة الخادم. لا يتم حفظ المفاتيح في قاعدة البيانات أو عرضها في لوحة الإدارة."
+                : "AI execution stays safely disabled until a server-side AI provider is configured. Secrets are never stored in the database or displayed in Admin."}
             </div>
           )}
         </div>
       </AdminCard>
+
+      {latestResult && <TaskResult task={latestResult} isArabic={isArabic} />}
 
       <AdminCard className="mb-5 p-5">
         <form action={createMarketingTaskAction} className="grid gap-3 xl:grid-cols-4">
@@ -159,7 +310,7 @@ export default async function MarketingTasksPage({ searchParams }: PageProps) {
       <div className="mb-5 flex flex-wrap gap-2">
         <a href={`/admin/marketing/tasks?lang=${language}`} className={`rounded-full border px-3 py-1.5 text-xs ${!selectedStatus ? "border-gold/40 text-gold" : "border-white/10 text-white/45"}`}>{isArabic ? "الكل" : "All"}</a>
         {filters.map((filter) => (
-          <a key={filter} href={`/admin/marketing/tasks?lang=${language}&status=${filter}`} className={`rounded-full border px-3 py-1.5 text-xs ${selectedStatus === filter ? "border-gold/40 text-gold" : "border-white/10 text-white/45"}`}>{filter}</a>
+          <a key={filter} href={`/admin/marketing/tasks?lang=${language}&status=${filter}`} className={`rounded-full border px-3 py-1.5 text-xs ${selectedStatus === filter ? "border-gold/40 text-gold" : "border-white/10 text-white/45"}`}>{statusLabel(filter, isArabic)}</a>
         ))}
       </div>
 
@@ -170,9 +321,9 @@ export default async function MarketingTasksPage({ searchParams }: PageProps) {
       ) : (
         <AdminCard className="overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-sm">
+            <table className="w-full min-w-[980px] text-sm">
               <thead className="border-b border-white/10 bg-white/[0.025] text-xs text-white/40">
-                <tr><th className="px-4 py-3 text-start">ID</th><th className="px-4 py-3 text-start">{isArabic ? "المهمة" : "Task"}</th><th className="px-4 py-3 text-start">Agent</th><th className="px-4 py-3 text-start">{isArabic ? "الأولوية" : "Priority"}</th><th className="px-4 py-3 text-start">{isArabic ? "الحالة" : "Status"}</th><th className="px-4 py-3 text-start">{isArabic ? "الاعتماد" : "Approval"}</th><th className="px-4 py-3 text-start">Channel</th><th className="px-4 py-3 text-start">Retry</th></tr>
+                <tr><th className="px-4 py-3 text-start">ID</th><th className="px-4 py-3 text-start">{isArabic ? "المهمة" : "Task"}</th><th className="px-4 py-3 text-start">Agent</th><th className="px-4 py-3 text-start">{isArabic ? "الأولوية" : "Priority"}</th><th className="px-4 py-3 text-start">{isArabic ? "الحالة" : "Status"}</th><th className="px-4 py-3 text-start">{isArabic ? "الاعتماد" : "Approval"}</th><th className="px-4 py-3 text-start">Channel</th><th className="px-4 py-3 text-start">{isArabic ? "النتيجة" : "Result"}</th><th className="px-4 py-3 text-start">Retry</th></tr>
               </thead>
               <tbody className="divide-y divide-white/[0.06]">
                 {tasks.map((task) => (
@@ -181,9 +332,29 @@ export default async function MarketingTasksPage({ searchParams }: PageProps) {
                     <td className="px-4 py-3"><p className="text-white/80">{task.title}</p><p className="mt-0.5 text-[10px] text-white/30">{task.task_type}</p></td>
                     <td className="px-4 py-3">{task.agent_id ?? "—"}</td>
                     <td className="px-4 py-3">{task.priority}</td>
-                    <td className="px-4 py-3">{task.status}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        {task.status === "running" && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-gold" />}
+                        {task.status === "completed" && <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />}
+                        <span>{statusLabel(task.status, isArabic)}</span>
+                      </div>
+                    </td>
                     <td className="px-4 py-3"><p>{task.approval_level}</p><p className="text-[10px] text-white/30">{task.approval_status}</p></td>
                     <td className="px-4 py-3">{task.channel ?? "—"}</td>
+                    <td className="px-4 py-3">
+                      {task.output ? (
+                        <details className="group max-w-[320px]">
+                          <summary className="cursor-pointer text-xs text-gold/80 marker:text-white/20">
+                            {isArabic ? "عرض مخرجات AI" : "View AI output"}
+                          </summary>
+                          <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap rounded-xl border border-white/[0.08] bg-black/30 p-3 text-[10px] leading-5 text-white/50">
+                            {JSON.stringify(taskOutputValue(task.output), null, 2)}
+                          </pre>
+                        </details>
+                      ) : task.status === "running" ? (
+                        <span className="text-xs text-gold/70">{isArabic ? "جاري التحليل..." : "Analyzing..."}</span>
+                      ) : "—"}
+                    </td>
                     <td className="px-4 py-3 tabular-nums">{task.retry_count}</td>
                   </tr>
                 ))}

@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 
 import { getMarketingChannelAdapter } from "./adapters";
+import { withMlamhEmailSignature } from "./email-signature";
 import { buildEmailOutreachIdempotencyKey, sanitizeZohoError } from "./zoho-mail-core";
 
 export { buildEmailOutreachIdempotencyKey } from "./zoho-mail-core";
@@ -24,7 +25,7 @@ async function getExternalExecutionEnabled() {
 export async function executeMarketingEmailJob(jobId: number) {
   const db = createAdminClient();
   const { data: job, error } = await db.from("marketing_channel_jobs")
-    .select("id,task_id,approval_id,channel,status,payload,result,retry_count,idempotency_key")
+    .select("id,task_id,approval_id,channel,status,scheduled_at,payload,result,retry_count,idempotency_key")
     .eq("id", jobId)
     .single();
   if (error || !job) throw new Error("Marketing email job not found.");
@@ -37,15 +38,26 @@ export async function executeMarketingEmailJob(jobId: number) {
   if (job.status === "published" || priorExternalMessageId) {
     return { ok: true, externalId: priorExternalMessageId ?? undefined, metadata: { duplicate_prevented: true } };
   }
-  if (!["approved", "failed"].includes(job.status)) throw new Error("Email execution blocked: invalid_job_status.");
+  if (!["approved", "scheduled", "failed"].includes(job.status)) throw new Error("Email execution blocked: invalid_job_status.");
 
   const { data: approval } = await db.from("marketing_approvals")
     .select("id,status,task_id")
     .eq("id", job.approval_id)
     .maybeSingle();
-  if (!approval || approval.status !== "approved" || approval.task_id !== job.task_id) {
-    throw new Error("Email execution blocked: invalid_approval.");
+  const validApproval = Boolean(
+    approval &&
+    approval.task_id === job.task_id &&
+    ((job.status === "scheduled" && approval.status === "scheduled") ||
+      (job.status !== "scheduled" && approval.status === "approved")),
+  );
+  if (!validApproval) throw new Error("Email execution blocked: invalid_approval.");
+
+  if (job.status === "scheduled") {
+    const dueAt = job.scheduled_at ? Date.parse(job.scheduled_at) : Number.NaN;
+    if (!Number.isFinite(dueAt)) throw new Error("Email execution blocked: invalid_schedule.");
+    if (dueAt > Date.now()) throw new Error("Email execution blocked: scheduled_not_due.");
   }
+
   if (!(await getExternalExecutionEnabled())) throw new Error("Email execution blocked: external_execution_disabled.");
 
   const adapter = getMarketingChannelAdapter("email");
@@ -57,7 +69,7 @@ export async function executeMarketingEmailJob(jobId: number) {
   const { data: claimed, error: claimError } = await db.from("marketing_channel_jobs")
     .update({ status: "publishing", started_at: startedAt, updated_at: startedAt })
     .eq("id", job.id)
-    .in("status", ["approved", "failed"])
+    .in("status", ["approved", "scheduled", "failed"])
     .select("id")
     .maybeSingle();
   if (claimError) throw new Error("Email job could not be claimed for execution.");
@@ -85,12 +97,13 @@ export async function executeMarketingEmailJob(jobId: number) {
   try {
     const result = await adapter.sendMessage({
       recipient,
-      text,
+      text: withMlamhEmailSignature(text),
       metadata: {
         subject,
         outreach_id: outreachId,
         lead_id: payload.lead_id,
         idempotency_key: job.idempotency_key,
+        signature: "mlamh_official",
       },
     });
     if (!result.ok || !result.externalId) throw new Error(result.errorMessage ?? result.errorCode ?? "Email send failed.");
@@ -100,6 +113,7 @@ export async function executeMarketingEmailJob(jobId: number) {
       ...(result.metadata ?? {}),
       external_message_id: result.externalId,
       provider: "zoho_mail",
+      signature: "mlamh_official",
     };
     const { error: jobUpdateError } = await db.from("marketing_channel_jobs").update({
       status: "published",
