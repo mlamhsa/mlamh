@@ -292,7 +292,7 @@ export async function persistNormalizedWhatsAppEvents(events: NormalizedWhatsApp
         external_message_id: event.externalMessageId,
         sender_id: event.senderId,
       },
-      approval_level: "approval",
+      approval_level: "auto",
       approval_status: "not_required",
       conversation_id: conversationId,
       idempotency_key: `whatsapp-inbound-${event.externalMessageId}`,
