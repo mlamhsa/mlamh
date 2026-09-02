@@ -73,6 +73,72 @@ async function materializeContentStrategy(task: SourceTask, output: Record<strin
   return { contentCreated: rows.length, outreachCreated: 0, approvalsCreated: 0 };
 }
 
+async function ensureOutreachApproval({
+  task,
+  leadId,
+  organization,
+  recipientEmail,
+  subject,
+  message,
+  outreachId,
+}: {
+  task: SourceTask;
+  leadId: number;
+  organization: string;
+  recipientEmail: string;
+  subject: string;
+  message: string;
+  outreachId: number;
+}) {
+  const db = createAdminClient();
+  const { data: existingTask } = await db
+    .from("marketing_tasks")
+    .select("id")
+    .eq("idempotency_key", `outreach:${outreachId}:first_email`)
+    .maybeSingle();
+
+  let approvalTaskId = existingTask?.id ?? null;
+  if (!approvalTaskId) {
+    const approvalTask = await createMarketingTask({
+      agentId: "dana",
+      taskType: "first_outreach",
+      title: `First outreach · ${organization}`,
+      objective: "Review the AI-prepared first publisher/client outreach before external delivery.",
+      priority: "high",
+      channel: "email",
+      source: "autonomous_materializer",
+      leadId,
+      input: {
+        outreach_id: outreachId,
+        recipient_email: recipientEmail,
+        subject,
+        message,
+        source_task_id: task.id,
+      },
+      metadata: { source_task_id: task.id, autonomous: true },
+      idempotencyKey: `outreach:${outreachId}:first_email`,
+    });
+    approvalTaskId = approvalTask.id;
+  }
+
+  const { data: approval } = await db
+    .from("marketing_approvals")
+    .select("id")
+    .eq("task_id", approvalTaskId)
+    .maybeSingle();
+
+  await db
+    .from("marketing_outreach")
+    .update({
+      send_status: approval?.id ? "waiting_approval" : "draft",
+      approval_id: approval?.id ?? null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", outreachId);
+
+  return Boolean(approval?.id);
+}
+
 async function materializeOutboundEmail(task: SourceTask, output: Record<string, unknown>) {
   const drafts = Array.isArray(output.outreach_drafts) ? output.outreach_drafts.slice(0, 3) : [];
   if (!drafts.length) return { contentCreated: 0, outreachCreated: 0, approvalsCreated: 0 };
@@ -96,14 +162,6 @@ async function materializeOutboundEmail(task: SourceTask, output: Record<string,
       .maybeSingle();
     if (!lead?.contact_id) continue;
 
-    const { count: existing } = await db
-      .from("marketing_outreach")
-      .select("id", { count: "exact", head: true })
-      .eq("lead_id", leadId)
-      .eq("channel", "email")
-      .in("send_status", ["draft", "waiting_approval", "approved", "scheduled", "sent"]);
-    if ((existing ?? 0) > 0) continue;
-
     const { data: contact } = await db
       .from("marketing_contacts")
       .select("email")
@@ -112,58 +170,48 @@ async function materializeOutboundEmail(task: SourceTask, output: Record<string,
     const recipientEmail = text(contact?.email);
     if (!recipientEmail) continue;
 
-    const { data: outreach, error: outreachError } = await db
+    const { data: existing } = await db
       .from("marketing_outreach")
-      .insert({
-        lead_id: leadId,
-        template_key: "ai_personalized_first_outreach",
-        personalization: { subject, message, source_task_id: task.id },
-        channel: "email",
-        send_status: "draft",
-        reply_status: "none",
-        metadata: { source: "marketing_ai", source_task_id: task.id, autonomous: true },
-      })
-      .select("id")
-      .single();
-    if (outreachError || !outreach) throw new Error(`[marketing_materialize.outreach] ${outreachError?.message ?? "insert failed"}`);
-    outreachCreated += 1;
-
-    const approvalTask = await createMarketingTask({
-      agentId: "dana",
-      taskType: "first_outreach",
-      title: `First outreach · ${lead.organization}`,
-      objective: "Review the AI-prepared first publisher/client outreach before external delivery.",
-      priority: "high",
-      channel: "email",
-      source: "autonomous_materializer",
-      leadId,
-      input: {
-        outreach_id: outreach.id,
-        recipient_email: recipientEmail,
-        subject,
-        message,
-        source_task_id: task.id,
-      },
-      metadata: { source_task_id: task.id, autonomous: true },
-      idempotencyKey: `outreach:${outreach.id}:first_email`,
-    });
-
-    const { data: approval } = await db
-      .from("marketing_approvals")
-      .select("id")
-      .eq("task_id", approvalTask.id)
+      .select("id,approval_id,send_status")
+      .eq("lead_id", leadId)
+      .eq("channel", "email")
+      .in("send_status", ["draft", "waiting_approval", "approved", "scheduled", "sent"])
+      .order("created_at", { ascending: false })
+      .limit(1)
       .maybeSingle();
 
-    await db
-      .from("marketing_outreach")
-      .update({
-        send_status: "waiting_approval",
-        approval_id: approval?.id ?? null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", outreach.id);
+    if (existing?.send_status === "sent" || existing?.approval_id) continue;
 
-    approvalsCreated += approval?.id ? 1 : 0;
+    let outreachId = existing?.id ?? null;
+    if (!outreachId) {
+      const { data: outreach, error: outreachError } = await db
+        .from("marketing_outreach")
+        .insert({
+          lead_id: leadId,
+          template_key: "ai_personalized_first_outreach",
+          personalization: { subject, message, source_task_id: task.id },
+          channel: "email",
+          send_status: "draft",
+          reply_status: "none",
+          metadata: { source: "marketing_ai", source_task_id: task.id, autonomous: true },
+        })
+        .select("id")
+        .single();
+      if (outreachError || !outreach) throw new Error(`[marketing_materialize.outreach] ${outreachError?.message ?? "insert failed"}`);
+      outreachId = outreach.id;
+      outreachCreated += 1;
+    }
+
+    const approved = await ensureOutreachApproval({
+      task,
+      leadId,
+      organization: lead.organization,
+      recipientEmail,
+      subject,
+      message,
+      outreachId,
+    });
+    if (approved) approvalsCreated += 1;
   }
 
   return { contentCreated: 0, outreachCreated, approvalsCreated };
