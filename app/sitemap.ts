@@ -8,6 +8,12 @@ const SITE_URL = (
   process.env.NEXT_PUBLIC_SITE_URL || "https://mlamh.net"
 ).replace(/\/$/, "");
 
+const GUIDE_SLUGS = [
+  "how-to-start-acting-saudi-arabia",
+  "how-to-start-modeling-saudi-arabia",
+  "casting-auditions-saudi-arabia",
+] as const;
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [talents, opportunities] = await Promise.all([
     getPublishedTalents().catch(() => []),
@@ -19,12 +25,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/${locale}/talent`, changeFrequency: "daily", priority: 0.9 },
     { url: `${SITE_URL}/${locale}/opportunities`, changeFrequency: "daily", priority: 0.9 },
     { url: `${SITE_URL}/${locale}/casting`, changeFrequency: "weekly", priority: 0.85 },
+    { url: `${SITE_URL}/${locale}/guides`, changeFrequency: "weekly", priority: 0.8 },
     { url: `${SITE_URL}/${locale}/publishers`, changeFrequency: "weekly", priority: 0.8 },
     { url: `${SITE_URL}/${locale}/about`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${SITE_URL}/${locale}/contact`, changeFrequency: "monthly", priority: 0.5 },
     { url: `${SITE_URL}/${locale}/privacy`, changeFrequency: "yearly", priority: 0.3 },
     { url: `${SITE_URL}/${locale}/terms`, changeFrequency: "yearly", priority: 0.3 },
   ]);
+
+  const guideRoutes: MetadataRoute.Sitemap = GUIDE_SLUGS.flatMap((slug) =>
+    locales.map((locale) => ({
+      url: `${SITE_URL}/${locale}/guides/${slug}`,
+      changeFrequency: "monthly" as const,
+      priority: 0.75,
+    })),
+  );
 
   const talentRoutes: MetadataRoute.Sitemap = talents
     .filter((talent) => Boolean(talent.slug))
@@ -83,6 +98,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   return [
     ...staticRoutes,
+    ...guideRoutes,
     ...talentRoutes,
     ...categoryRoutes,
     ...cityRoutes,
