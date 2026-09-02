@@ -73,7 +73,21 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
         "x-default": `${SITE_URL}/ar/guides`,
       },
     },
-    openGraph: { title, description, url: canonical, siteName: "MLAMH", type: "website" },
+    openGraph: {
+      title,
+      description,
+      url: canonical,
+      siteName: "MLAMH",
+      type: "website",
+      images: [`${SITE_URL}/og-image.png`],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [`${SITE_URL}/og-image.png`],
+    },
+    robots: { index: true, follow: true },
   };
 }
 
@@ -82,9 +96,32 @@ export default async function GuidesPage({ params }: { params: Promise<{ locale:
   if (!isValidLocale(rawLocale)) notFound();
   const locale = rawLocale as Locale;
   const isArabic = locale === "ar";
+  const pageUrl = `${SITE_URL}/${locale}/guides`;
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: isArabic ? "ملامح" : "MLAMH",
+        item: `${SITE_URL}/${locale}`,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: isArabic ? "أدلة ملامح" : "MLAMH Guides",
+        item: pageUrl,
+      },
+    ],
+  };
 
   return (
     <main dir={isArabic ? "rtl" : "ltr"} className="min-h-screen bg-background text-white">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
       <section className="mx-auto max-w-7xl px-4 pb-20 pt-24 sm:px-6 lg:px-8 lg:pt-32">
         <header className="max-w-4xl">
           <p className="text-[10px] uppercase tracking-[0.35em] text-gold">{isArabic ? "أدلة ملامح" : "MLAMH GUIDES"}</p>
@@ -116,6 +153,7 @@ export default async function GuidesPage({ params }: { params: Promise<{ locale:
           <Link href={`/${locale}/opportunities/type/acting`} className="rounded-full border border-white/10 px-4 py-2 text-sm text-white/65 hover:border-gold/30 hover:text-gold">{isArabic ? "فرص تمثيل وكاستينج" : "Acting & casting opportunities"}</Link>
           <Link href={`/${locale}/opportunities/type/modeling`} className="rounded-full border border-white/10 px-4 py-2 text-sm text-white/65 hover:border-gold/30 hover:text-gold">{isArabic ? "فرص مودل وتصوير" : "Modeling opportunities"}</Link>
           <Link href={`/${locale}/talent`} className="rounded-full border border-white/10 px-4 py-2 text-sm text-white/65 hover:border-gold/30 hover:text-gold">{isArabic ? "دليل الممثلين والمودلز" : "Actors & models directory"}</Link>
+          <Link href={`/${locale}/casting`} className="rounded-full border border-white/10 px-4 py-2 text-sm text-white/65 hover:border-gold/30 hover:text-gold">{isArabic ? "إدارة الكاستينغ للشركات" : "Managed casting service"}</Link>
         </nav>
       </section>
       <Footer locale={locale} />
