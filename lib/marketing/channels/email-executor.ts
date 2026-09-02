@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 
 import { getMarketingChannelAdapter } from "./adapters";
+import { evaluateControlledExecution, getExternalExecutionSettings } from "./controlled-execution";
 import { withMlamhEmailSignature } from "./email-signature";
 import { buildEmailOutreachIdempotencyKey, sanitizeZohoError } from "./zoho-mail-core";
 
@@ -12,14 +13,6 @@ function objectValue(value: unknown) {
 
 function stringValue(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
-}
-
-async function getExternalExecutionEnabled() {
-  const db = createAdminClient();
-  const { data, error } = await db.from("marketing_settings").select("value").eq("key", "external_execution_enabled").maybeSingle();
-  if (error || !data) return false;
-  const value = objectValue(data.value);
-  return value.enabled === true;
 }
 
 export async function executeMarketingEmailJob(jobId: number) {
@@ -58,7 +51,27 @@ export async function executeMarketingEmailJob(jobId: number) {
     if (dueAt > Date.now()) throw new Error("Email execution blocked: scheduled_not_due.");
   }
 
-  if (!(await getExternalExecutionEnabled())) throw new Error("Email execution blocked: external_execution_disabled.");
+  const payload = objectValue(job.payload);
+  const outreachId = Number(payload.outreach_id);
+  const recipient = objectValue(payload.recipient);
+  const recipientEmail = stringValue(recipient.email);
+  const text = stringValue(payload.text);
+  const subject = stringValue(payload.subject);
+  if (!Number.isInteger(outreachId) || outreachId <= 0 || !recipientEmail || !text || !subject) {
+    const message = "Email job payload is incomplete.";
+    await db.from("marketing_channel_jobs").update({ status: "failed", retry_count: job.retry_count + 1, last_error: message, updated_at: new Date().toISOString() }).eq("id", job.id);
+    throw new Error(message);
+  }
+
+  const executionSettings = await getExternalExecutionSettings();
+  const controlledExecution = evaluateControlledExecution({
+    channel: "email",
+    productionEnabled: executionSettings.productionEnabled,
+    testModeRequested: payload.test_mode === true,
+    testMode: executionSettings.testMode,
+    recipientEmail,
+  });
+  if (!controlledExecution.allowed) throw new Error(`Email execution blocked: ${controlledExecution.reason}.`);
 
   const adapter = getMarketingChannelAdapter("email");
   if (!adapter?.sendMessage) throw new Error("No email message adapter is configured.");
@@ -83,17 +96,6 @@ export async function executeMarketingEmailJob(jobId: number) {
     throw new Error("Email job is already being executed. Manual review is required before retrying.");
   }
 
-  const payload = objectValue(job.payload);
-  const outreachId = Number(payload.outreach_id);
-  const recipient = objectValue(payload.recipient);
-  const text = stringValue(payload.text);
-  const subject = stringValue(payload.subject);
-  if (!Number.isInteger(outreachId) || outreachId <= 0 || !text || !subject) {
-    const message = "Email job payload is incomplete.";
-    await db.from("marketing_channel_jobs").update({ status: "failed", retry_count: job.retry_count + 1, last_error: message, updated_at: new Date().toISOString() }).eq("id", job.id);
-    throw new Error(message);
-  }
-
   try {
     const result = await adapter.sendMessage({
       recipient,
@@ -104,6 +106,7 @@ export async function executeMarketingEmailJob(jobId: number) {
         lead_id: payload.lead_id,
         idempotency_key: job.idempotency_key,
         signature: "mlamh_official",
+        execution_mode: controlledExecution.mode,
       },
     });
     if (!result.ok || !result.externalId) throw new Error(result.errorMessage ?? result.errorCode ?? "Email send failed.");
@@ -114,6 +117,7 @@ export async function executeMarketingEmailJob(jobId: number) {
       external_message_id: result.externalId,
       provider: "zoho_mail",
       signature: "mlamh_official",
+      execution_mode: controlledExecution.mode,
     };
     const { error: jobUpdateError } = await db.from("marketing_channel_jobs").update({
       status: "published",
@@ -126,7 +130,7 @@ export async function executeMarketingEmailJob(jobId: number) {
       throw new Error("Email was accepted by the provider but the local result could not be persisted. Manual review is required before any retry.");
     }
     await db.from("marketing_outreach").update({ send_status: "sent", updated_at: now }).eq("id", outreachId);
-    if (Number.isInteger(Number(payload.lead_id)) && Number(payload.lead_id) > 0) {
+    if (controlledExecution.mode === "production" && Number.isInteger(Number(payload.lead_id)) && Number(payload.lead_id) > 0) {
       await db.from("marketing_leads").update({ stage: "contacted", last_contact_at: now, updated_at: now }).eq("id", Number(payload.lead_id)).eq("stage", "new");
     }
     return result;
