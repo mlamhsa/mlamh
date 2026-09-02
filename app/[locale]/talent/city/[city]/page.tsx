@@ -20,14 +20,16 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const item = getSaudiCityBySlug(city);
   if (!item) return {};
 
+  const { talents } = await getPublicTalents({ city, pageSize: 1 });
+  const hasPublishedSupply = talents.length > 0;
   const isArabic = locale === "ar";
   const label = isArabic ? item.ar : item.en;
   const title = isArabic
-    ? `مواهب وممثلون ومودلز في ${label} | ملامح`
+    ? `ممثلون ومودلز في ${label} | ملامح`
     : `Actors & Models in ${label} | MLAMH`;
   const description = isArabic
-    ? `اكتشف المواهب والممثلين والمودلز المنشورين في ${label} عبر منصة ملامح، واستعرض الملفات المهنية والصور لمشاريع الكاستينج والإعلانات.`
-    : `Discover actors, models and published talent profiles in ${label} on MLAMH for casting, advertising and production projects.`;
+    ? `اكتشف الممثلين والمودلز المنشورين في ${label} عبر منصة ملامح، واستعرض الملفات المهنية والصور لمشاريع الكاستينج والإعلانات.`
+    : `Discover published actors and models in ${label} on MLAMH for casting, advertising and production projects.`;
   const canonical = `${SITE_URL}/${locale}/talent/city/${city}`;
 
   return {
@@ -42,7 +44,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       },
     },
     openGraph: { title, description, url: canonical, type: "website", siteName: "MLAMH" },
-    robots: { index: true, follow: true },
+    robots: { index: hasPublishedSupply, follow: true },
   };
 }
 
@@ -62,11 +64,11 @@ export default async function TalentCityPage({ params }: PageProps) {
     <TalentSeoLanding
       locale={locale}
       eyebrow={isArabic ? "مواهب حسب المدينة" : "TALENTS BY CITY"}
-      title={isArabic ? `مواهب في ${label}` : `Talents in ${label}`}
+      title={isArabic ? `ممثلون ومودلز في ${label}` : `Actors & Models in ${label}`}
       description={
         isArabic
-          ? `استعرض ملفات المواهب المنشورة في ${label} واختر الممثلين والمودلز المناسبين لمشروعك.`
-          : `Browse published talent profiles in ${label} and find actors and models for your next project.`
+          ? `استعرض ملفات الممثلين والمودلز المنشورة في ${label} واختر المواهب المناسبة لمشروع الكاستينج أو التصوير أو الإعلان.`
+          : `Browse published actors and models in ${label} and find talent for casting, shoots, advertising and production projects.`
       }
       talents={talents}
     />
