@@ -11,6 +11,13 @@ type DailyMission = {
   priority: "normal" | "high";
 };
 
+type RunnableDailyTask = {
+  id: number;
+  agent_id: string | null;
+  retry_count: number;
+  max_retries: number;
+};
+
 const DAILY_MISSIONS: DailyMission[] = [
   { agentId: "rakan", taskType: "growth_analytics", title: "Daily growth intelligence", objective: "Analyze MLAMH live marketplace metrics, identify the strongest signal, the largest bottleneck, and the three highest-impact actions for today. Use only supplied data.", channel: "internal", priority: "high" },
   { agentId: "nora", taskType: "growth_strategy", title: "Daily marketing direction", objective: "Turn current MLAMH marketplace signals into a focused daily marketing direction. Prioritize talent supply, publisher demand, opportunity liquidity and applications. Produce decisions and internal assignments only.", channel: "internal", priority: "high" },
@@ -29,7 +36,9 @@ function riyadhDayKey(now = new Date()) {
 export async function seedDailyMarketingCycle(now = new Date()) {
   const db = createAdminClient();
   const day = riyadhDayKey(now);
-  const rows = DAILY_MISSIONS.map((mission) => ({
+  const { data: activeAgents } = await db.from("marketing_agents").select("id").eq("is_active", true);
+  const active = new Set((activeAgents ?? []).map((agent) => agent.id));
+  const rows = DAILY_MISSIONS.filter((mission) => active.has(mission.agentId)).map((mission) => ({
     agent_id: mission.agentId,
     task_type: mission.taskType,
     title: mission.title,
@@ -45,44 +54,73 @@ export async function seedDailyMarketingCycle(now = new Date()) {
     metadata: { orchestrated: true, external_execution: false, day },
   }));
 
-  const { data, error } = await db.from("marketing_tasks").upsert(rows, { onConflict: "idempotency_key", ignoreDuplicates: true }).select("id,agent_id,status");
+  const { data, error } = await db.from("marketing_tasks").upsert(rows, { onConflict: "idempotency_key", ignoreDuplicates: true }).select("id,agent_id,title,objective,channel,status");
   if (error) throw new Error(`[marketing_orchestrator.seed] ${error.message}`);
-  return { day, seeded: data?.length ?? 0 };
+
+  const created = data ?? [];
+  if (created.length) {
+    await db.from("marketing_agent_activity").insert(created.map((task) => ({
+      agent_id: task.agent_id,
+      task_id: task.id,
+      action: "task_created",
+      reason: task.objective ?? task.title,
+      channel: task.channel ?? "internal",
+      result: { source: "autonomous_orchestrator", day, status: task.status },
+    })));
+  }
+
+  return { day, seeded: created.length };
 }
 
-async function getRunnableDailyTaskIds(day: string, limit: number) {
+async function getRunnableDailyTasks(day: string, limit = 8) {
   const db = createAdminClient();
   const safeLimit = Math.max(1, Math.min(limit, 8));
   const { data, error } = await db
     .from("marketing_tasks")
-    .select("id")
+    .select("id,agent_id,retry_count,max_retries")
     .eq("source", "autonomous_orchestrator")
     .contains("metadata", { day })
     .in("status", ["queued", "scheduled"])
-    .lte("retry_count", 3)
     .order("id", { ascending: true })
-    .limit(safeLimit);
+    .limit(8);
   if (error) throw new Error(`[marketing_orchestrator.queue] ${error.message}`);
-  return (data ?? []).map((row) => row.id as number);
+  return ((data ?? []) as RunnableDailyTask[])
+    .filter((task) => task.retry_count <= task.max_retries)
+    .slice(0, safeLimit);
+}
+
+async function reflectQueuedAgents(tasks: RunnableDailyTask[]) {
+  const db = createAdminClient();
+  await Promise.all(tasks.map(async (task) => {
+    if (!task.agent_id) return;
+    await db.from("marketing_agents").update({
+      status: "scheduled",
+      current_task_id: task.id,
+      updated_at: new Date().toISOString(),
+    }).eq("id", task.agent_id).in("status", ["idle", "scheduled"]);
+  }));
 }
 
 export async function runAutonomousMarketingCycle({ maxTasks = 3, maxChannelJobs = 2 }: { maxTasks?: number; maxChannelJobs?: number } = {}) {
   const seeded = await seedDailyMarketingCycle();
-  const executed: Array<{ taskId: number; status: string; error?: string }> = [];
-  const taskIds = await getRunnableDailyTaskIds(seeded.day, maxTasks);
+  const allRunnable = await getRunnableDailyTasks(seeded.day, 8);
+  await reflectQueuedAgents(allRunnable);
 
-  for (const taskId of taskIds) {
-    const result = await runMarketingTaskById(taskId, `autonomous-marketing-${seeded.day}`, "autonomous_orchestrator");
+  const executed: Array<{ taskId: number; status: string; error?: string }> = [];
+  for (const task of allRunnable.slice(0, Math.max(1, Math.min(maxTasks, 8)))) {
+    const result = await runMarketingTaskById(task.id, `autonomous-marketing-${seeded.day}`, "autonomous_orchestrator");
     if (result) executed.push(result);
   }
 
   const channels = await runGovernedChannelWorker({ maxJobs: maxChannelJobs });
-  const remaining = await getRunnableDailyTaskIds(seeded.day, 1);
+  const remaining = await getRunnableDailyTasks(seeded.day, 8);
+  await reflectQueuedAgents(remaining);
 
   return {
     ...seeded,
     executed,
     channels,
     remainingForNextTick: remaining.length > 0,
+    remainingTaskCount: remaining.length,
   };
 }
