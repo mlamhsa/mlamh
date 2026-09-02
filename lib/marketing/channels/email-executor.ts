@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 
 import { getMarketingChannelAdapter } from "./adapters";
+import { withMlamhEmailSignature } from "./email-signature";
 import { buildEmailOutreachIdempotencyKey, sanitizeZohoError } from "./zoho-mail-core";
 
 export { buildEmailOutreachIdempotencyKey } from "./zoho-mail-core";
@@ -96,12 +97,13 @@ export async function executeMarketingEmailJob(jobId: number) {
   try {
     const result = await adapter.sendMessage({
       recipient,
-      text,
+      text: withMlamhEmailSignature(text),
       metadata: {
         subject,
         outreach_id: outreachId,
         lead_id: payload.lead_id,
         idempotency_key: job.idempotency_key,
+        signature: "mlamh_official",
       },
     });
     if (!result.ok || !result.externalId) throw new Error(result.errorMessage ?? result.errorCode ?? "Email send failed.");
@@ -111,6 +113,7 @@ export async function executeMarketingEmailJob(jobId: number) {
       ...(result.metadata ?? {}),
       external_message_id: result.externalId,
       provider: "zoho_mail",
+      signature: "mlamh_official",
     };
     const { error: jobUpdateError } = await db.from("marketing_channel_jobs").update({
       status: "published",
