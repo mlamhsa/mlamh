@@ -4,7 +4,7 @@ import { getPublishedOpportunityByIdentifier } from "@/lib/supabase/opportunitie
 
 type OpportunityLayoutProps = {
   children: React.ReactNode;
-  params: Promise<{ slug: string }>;
+  params: Promise<{ locale: string; slug: string }>;
 };
 
 export default async function OpportunityLayout({
