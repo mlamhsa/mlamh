@@ -1,5 +1,6 @@
 name: Marketing CI
 
+# Preview validation trigger for TikTok integration branch.
 on:
   push:
     branches:
