@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireMarketingAdminAccess } from "@/lib/auth/require-marketing-admin";
+import { getMarketingChannelAdapter } from "@/lib/marketing/channels/adapters";
 import { buildEmailOutreachIdempotencyKey } from "@/lib/marketing/channels/email-executor";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -18,21 +19,27 @@ function toRecord(value: unknown) {
 
 function isExternalReply(value: unknown) { return toRecord(value).kind === "external_reply"; }
 
-function selectedReplyChannels(formData: FormData, action: Record<string, unknown>) {
-  const requested = formData.getAll("delivery_channels").map(String).filter((value) => value === "email" || value === "whatsapp");
-  if (requested.length > 0) return [...new Set(requested)];
-  const source = typeof action.source_channel === "string" ? action.source_channel : "support";
-  return source === "email" || source === "whatsapp" ? [source] : ["support"];
+function selectedReplyChannels(formData: FormData) {
+  return [...new Set(formData.getAll("delivery_channels").map(String).filter((value) => value === "email" || value === "whatsapp"))];
 }
 
-function enrichExternalReplyAction(formData: FormData, proposedAction: unknown) {
+async function assertReplyChannelsReady(channels: string[]) {
+  if (channels.length === 0) throw new Error("Connect at least one delivery channel before approving this reply.");
+  for (const channel of channels) {
+    const adapter = getMarketingChannelAdapter(channel);
+    if (!adapter?.sendMessage) throw new Error(`Channel ${channel} is not configured for outbound messages.`);
+    const status = await adapter.getStatus();
+    if (status !== "connected") throw new Error(`Channel ${channel} is ${status}, not connected.`);
+  }
+}
+
+function enrichExternalReplyAction(formData: FormData, proposedAction: unknown, channels: string[]) {
   const action = toRecord(proposedAction);
   if (!isExternalReply(action)) return action;
   const emailDraft = String(formData.get("email_draft") ?? "").trim();
   const whatsappDraft = String(formData.get("whatsapp_draft") ?? "").trim();
   const executiveSummary = String(formData.get("executive_summary") ?? "").trim();
   const clientLanguage = String(formData.get("client_language") ?? "").trim();
-  const channels = selectedReplyChannels(formData, action);
   const channelDrafts = {
     ...(emailDraft ? { email: emailDraft } : {}),
     ...(whatsappDraft ? { whatsapp: whatsappDraft } : {}),
@@ -52,8 +59,8 @@ async function applyExternalReplySideEffect({ approvalId, task, proposedAction, 
   const action = toRecord(proposedAction);
   const now = new Date().toISOString();
   const channels = Array.isArray(action.delivery_channels)
-    ? action.delivery_channels.filter((value): value is string => value === "email" || value === "whatsapp" || value === "support")
-    : [typeof action.source_channel === "string" ? action.source_channel : task.channel ?? "support"];
+    ? action.delivery_channels.filter((value): value is string => value === "email" || value === "whatsapp")
+    : [];
   const drafts = toRecord(action.channel_drafts);
 
   if (decision === "approved" || decision === "scheduled") {
@@ -61,7 +68,7 @@ async function applyExternalReplySideEffect({ approvalId, task, proposedAction, 
       const channelContent = typeof drafts[channel] === "string" && String(drafts[channel]).trim()
         ? String(drafts[channel]).trim()
         : typeof action.content === "string" ? action.content : "";
-      const payload = { ...action, channel, content: channelContent, external_execution: false };
+      const payload = { ...action, channel, content: channelContent, text: channelContent, external_execution: false };
       const { error } = await db.from("marketing_channel_jobs").upsert({
         content_id: null,
         task_id: task.id,
@@ -155,7 +162,9 @@ async function decideApproval(formData: FormData, decision: ApprovalDecision) {
   const executeAfter = decision === "scheduled" && executeAfterRaw ? new Date(executeAfterRaw).toISOString() : null;
   if (decision === "scheduled" && !executeAfter) throw new Error("A schedule time is required.");
   const externalReply = isExternalReply(approval.proposed_action);
-  const proposedAction = externalReply ? enrichExternalReplyAction(formData, approval.proposed_action) : approval.proposed_action;
+  const channels = externalReply && (decision === "approved" || decision === "scheduled") ? selectedReplyChannels(formData) : [];
+  if (externalReply && (decision === "approved" || decision === "scheduled")) await assertReplyChannelsReady(channels);
+  const proposedAction = externalReply ? enrichExternalReplyAction(formData, approval.proposed_action, channels) : approval.proposed_action;
   const now = new Date().toISOString();
   const { error: approvalError } = await db.from("marketing_approvals").update({ status: decision, proposed_action: proposedAction, decision_by_user_id: user.id, decision_note: decisionNote, decided_at: decision === "scheduled" ? null : now, execute_after: executeAfter, updated_at: now }).eq("id", approvalId).eq("status", "pending");
   if (approvalError) throw new Error(`[approval decision] ${approvalError.message}`);
