@@ -9,7 +9,10 @@ function normalizeStatus(value: unknown): MarketingChannelStatus {
 
 export const whatsappServerAdapter: MarketingChannelAdapter = {
   provider: "whatsapp",
-  capabilities: ["messages", "webhooks", "templates", "delivery_status"],
+  // WhatsApp account state may exist in Marketing Hub, but outbound messaging and
+  // webhook verification are not implemented yet. Do not advertise capabilities
+  // that the runtime cannot actually execute.
+  capabilities: [],
   async getStatus() {
     const db = createAdminClient();
     const { data, error } = await db.from("marketing_integrations")
@@ -17,6 +20,9 @@ export const whatsappServerAdapter: MarketingChannelAdapter = {
       .eq("provider", "whatsapp")
       .maybeSingle();
     if (error || !data) return "setup_required";
-    return normalizeStatus(data.status);
+    const status = normalizeStatus(data.status);
+    // A persisted account-level "connected" state must not make Dana treat
+    // WhatsApp as send-ready before a real sendMessage adapter is installed.
+    return status === "connected" ? "limited" : status;
   },
 };
