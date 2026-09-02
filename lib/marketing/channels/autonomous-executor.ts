@@ -25,6 +25,7 @@ type ChannelJob = {
   channel: string;
   status: string;
   scheduled_at: string | null;
+  payload: unknown;
 };
 
 export async function runGovernedChannelWorker({ maxJobs = 2 }: { maxJobs?: number } = {}) {
@@ -35,7 +36,7 @@ export async function runGovernedChannelWorker({ maxJobs = 2 }: { maxJobs?: numb
   const db = createAdminClient();
   const { data, error } = await db
     .from("marketing_channel_jobs")
-    .select("id,channel,status,scheduled_at")
+    .select("id,channel,status,scheduled_at,payload")
     .in("status", ["approved", "scheduled"])
     .order("created_at", { ascending: true })
     .limit(Math.max(1, Math.min(maxJobs, 5)));
@@ -47,7 +48,13 @@ export async function runGovernedChannelWorker({ maxJobs = 2 }: { maxJobs?: numb
 
   for (const row of (data ?? []) as ChannelJob[]) {
     try {
+      const payload = asRecord(row.payload);
+
       if (row.channel === "email") {
+        if (payload.kind !== "outreach_email") {
+          skipped.push({ id: row.id, channel: row.channel, reason: "email_job_requires_supported_outreach_payload" });
+          continue;
+        }
         if (row.status === "scheduled") {
           const dueAt = row.scheduled_at ? Date.parse(row.scheduled_at) : Number.NaN;
           if (!Number.isFinite(dueAt) || dueAt > Date.now()) {
@@ -56,9 +63,13 @@ export async function runGovernedChannelWorker({ maxJobs = 2 }: { maxJobs?: numb
           }
         }
         await executeMarketingEmailJob(row.id);
-      } else {
+      } else if (row.channel === "buffer") {
         await executeMarketingChannelJob(row.id, row.status === "scheduled" ? "schedule" : "publish_now");
+      } else {
+        skipped.push({ id: row.id, channel: row.channel, reason: "channel_not_enabled_for_autonomous_execution" });
+        continue;
       }
+
       executed.push({ id: row.id, channel: row.channel, status: row.status });
     } catch (error) {
       const reason = error instanceof Error ? error.message.slice(0, 160) : "channel_execution_failed";
