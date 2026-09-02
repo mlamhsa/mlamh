@@ -14,6 +14,14 @@ type ClaimedTask = {
   max_retries: number;
 };
 
+type ClaimableTask = ClaimedTask & {
+  status: string;
+  scheduled_at: string | null;
+  approval_level: string;
+  approval_status: string;
+  source: string | null;
+};
+
 function outputContract(taskType: string) {
   if (taskType === "content_strategy") {
     return " In addition, return content_items with up to 3 production-ready Arabic-first organic social drafts. Each item must contain: title, hook, caption, cta, content_type, channel (instagram or facebook), objective. Use only facts supplied in context and never imply a campaign was published.";
@@ -87,13 +95,8 @@ async function setAgentFailed(agentId: string, terminal: boolean, now: string) {
   await db.from("marketing_agents").update({ status: "error", current_task_id: null, tasks_failed: (data?.tasks_failed ?? 0) + 1, updated_at: now }).eq("id", agentId);
 }
 
-export async function runNextMarketingTask(workerId: string) {
+async function executeClaimedMarketingTask(task: ClaimedTask) {
   const db = createAdminClient();
-  const { data, error } = await db.rpc("claim_next_marketing_task", { p_worker_id: workerId });
-  if (error) throw new Error(`[claim_next_marketing_task] ${error.message}`);
-  const task = (data?.[0] ?? null) as ClaimedTask | null;
-  if (!task) return null;
-
   try {
     if (task.agent_id) await db.from("marketing_agents").update({ status: "working", current_task_id: task.id, updated_at: new Date().toISOString() }).eq("id", task.agent_id);
 
@@ -143,7 +146,7 @@ export async function runNextMarketingTask(workerId: string) {
       locked_at: null,
       locked_by: null,
       updated_at: now,
-    }).eq("id", task.id);
+    }).eq("id", task.id).eq("status", "running");
     if (completionError) throw new Error(`[marketing_task.complete] ${completionError.message}`);
 
     if (task.agent_id) await setAgentCompleted(task.agent_id, now);
@@ -162,9 +165,53 @@ export async function runNextMarketingTask(workerId: string) {
     const nextRetry = task.retry_count + 1;
     const terminal = nextRetry > task.max_retries;
     const now = new Date().toISOString();
-    await db.from("marketing_tasks").update({ status: terminal ? "failed" : "queued", retry_count: nextRetry, failed_at: terminal ? now : null, locked_at: null, locked_by: null, updated_at: now }).eq("id", task.id);
+    await db.from("marketing_tasks").update({ status: terminal ? "failed" : "queued", retry_count: nextRetry, failed_at: terminal ? now : null, locked_at: null, locked_by: null, updated_at: now }).eq("id", task.id).eq("status", "running");
     if (task.agent_id) await setAgentFailed(task.agent_id, terminal, now);
     await db.from("marketing_agent_activity").insert({ agent_id: task.agent_id, task_id: task.id, action: terminal ? "task_failed" : "task_retry_queued", reason: task.objective ?? task.title, channel: task.channel ?? "internal", error: message, result: { retry_count: nextRetry, max_retries: task.max_retries } });
     return { taskId: task.id, status: terminal ? "failed" as const : "retry_queued" as const, error: message };
   }
+}
+
+export async function runMarketingTaskById(taskId: number, workerId: string, requiredSource?: string) {
+  const db = createAdminClient();
+  const { data: candidate, error: readError } = await db
+    .from("marketing_tasks")
+    .select("id,agent_id,task_type,title,objective,input,channel,retry_count,max_retries,status,scheduled_at,approval_level,approval_status,source")
+    .eq("id", taskId)
+    .maybeSingle();
+  if (readError) throw new Error(`[marketing_task.read] ${readError.message}`);
+  if (!candidate) return null;
+
+  const task = candidate as ClaimableTask;
+  if (requiredSource && task.source !== requiredSource) return null;
+  if (!["queued", "scheduled"].includes(task.status)) return null;
+  if (task.scheduled_at && Date.parse(task.scheduled_at) > Date.now()) return null;
+  if (task.retry_count > task.max_retries) return null;
+  const governed = task.approval_level === "auto"
+    ? task.approval_status === "not_required"
+    : task.approval_status === "approved";
+  if (!governed) return null;
+
+  const now = new Date().toISOString();
+  const { data: claimed, error: claimError } = await db
+    .from("marketing_tasks")
+    .update({ status: "running", started_at: now, locked_at: now, locked_by: workerId, updated_at: now })
+    .eq("id", task.id)
+    .in("status", ["queued", "scheduled"])
+    .is("locked_at", null)
+    .select("id,agent_id,task_type,title,objective,input,channel,retry_count,max_retries")
+    .maybeSingle();
+  if (claimError) throw new Error(`[marketing_task.claim] ${claimError.message}`);
+  if (!claimed) return null;
+
+  return executeClaimedMarketingTask(claimed as ClaimedTask);
+}
+
+export async function runNextMarketingTask(workerId: string) {
+  const db = createAdminClient();
+  const { data, error } = await db.rpc("claim_next_marketing_task", { p_worker_id: workerId });
+  if (error) throw new Error(`[claim_next_marketing_task] ${error.message}`);
+  const task = (data?.[0] ?? null) as ClaimedTask | null;
+  if (!task) return null;
+  return executeClaimedMarketingTask(task);
 }
