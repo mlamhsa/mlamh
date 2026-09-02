@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { runGovernedChannelWorker } from "@/lib/marketing/channels/autonomous-executor";
-import { runNextMarketingTask } from "@/lib/marketing/tasks/runner";
+import { runMarketingTaskById } from "@/lib/marketing/tasks/runner";
 
 type DailyMission = {
   agentId: string;
@@ -50,21 +50,39 @@ export async function seedDailyMarketingCycle(now = new Date()) {
   return { day, seeded: data?.length ?? 0 };
 }
 
+async function getRunnableDailyTaskIds(day: string, limit: number) {
+  const db = createAdminClient();
+  const safeLimit = Math.max(1, Math.min(limit, 8));
+  const { data, error } = await db
+    .from("marketing_tasks")
+    .select("id")
+    .eq("source", "autonomous_orchestrator")
+    .contains("metadata", { day })
+    .in("status", ["queued", "scheduled"])
+    .lte("retry_count", 3)
+    .order("id", { ascending: true })
+    .limit(safeLimit);
+  if (error) throw new Error(`[marketing_orchestrator.queue] ${error.message}`);
+  return (data ?? []).map((row) => row.id as number);
+}
+
 export async function runAutonomousMarketingCycle({ maxTasks = 3, maxChannelJobs = 2 }: { maxTasks?: number; maxChannelJobs?: number } = {}) {
   const seeded = await seedDailyMarketingCycle();
   const executed: Array<{ taskId: number; status: string; error?: string }> = [];
-  for (let index = 0; index < maxTasks; index += 1) {
-    const result = await runNextMarketingTask(`autonomous-marketing-${seeded.day}`);
-    if (!result) break;
-    executed.push(result);
+  const taskIds = await getRunnableDailyTaskIds(seeded.day, maxTasks);
+
+  for (const taskId of taskIds) {
+    const result = await runMarketingTaskById(taskId, `autonomous-marketing-${seeded.day}`, "autonomous_orchestrator");
+    if (result) executed.push(result);
   }
 
   const channels = await runGovernedChannelWorker({ maxJobs: maxChannelJobs });
+  const remaining = await getRunnableDailyTaskIds(seeded.day, 1);
 
   return {
     ...seeded,
     executed,
     channels,
-    remainingForNextTick: executed.length === maxTasks,
+    remainingForNextTick: remaining.length > 0,
   };
 }
