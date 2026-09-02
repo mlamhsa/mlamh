@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { trackOpportunityViewAction } from "@/lib/actions/track-opportunity-view";
+import { trackTikTokBrowserEvent } from "@/lib/tiktok/browser";
 
 type OpportunityViewTrackerProps = {
   opportunityId: number;
@@ -64,6 +65,11 @@ export default function OpportunityViewTracker({
        * لا نمنع تسجيل المشاهدة.
        */
     }
+
+    trackTikTokBrowserEvent("ViewContent", {
+      content_id: String(opportunityId),
+      content_name: `opportunity:${opportunityId}`,
+    });
 
     void trackOpportunityViewAction({
       opportunityId,
