@@ -11,30 +11,38 @@ const TYPES = {
     accepted: new Set(["actor", "actress", "extra"]),
     ar: {
       title: "فرص تمثيل في السعودية | كاستينج ومطلوب ممثلين | ملامح",
-      description: "اكتشف فرص التمثيل والكاستينج ومطلوب ممثلين وممثلات في السعودية. تصفح الفرص الحقيقية المنشورة وتقدم لها عبر ملامح.",
+      description: "اكتشف فرص التمثيل والكاستينج وتجارب الأداء ومشاريع مطلوب ممثلين وممثلات لها في السعودية. تصفح الفرص المنشورة وتقدم عبر ملامح.",
       h1: "فرص تمثيل وكاستينج في السعودية",
-      intro: "فرص تمثيل وتجارب أداء ومشاريع تبحث عن ممثلين وممثلات وكومبارس في السعودية.",
+      intro: "تصفح فرص التمثيل وتجارب الأداء والمشاريع التي تبحث عن ممثلين وممثلات وكومبارس في السعودية، من الإعلانات والمحتوى التجاري إلى الإنتاج المرئي.",
+      secondaryTitle: "تبحث عن فرص مطلوب ممثلين أو تجارب أداء؟",
+      secondaryBody: "تجمع ملامح الفرص المنشورة في مكان واحد لتستطيع مراجعة المدينة والمتطلبات والمقابل ثم التقديم من ملفك المهني بدل الاعتماد على إعلانات متفرقة.",
     },
     en: {
       title: "Acting Opportunities & Casting Calls in Saudi Arabia | MLAMH",
-      description: "Discover acting opportunities and casting calls for actors, actresses and extras in Saudi Arabia on MLAMH.",
+      description: "Discover acting jobs, auditions and casting calls for actors, actresses and extras in Saudi Arabia and apply through MLAMH.",
       h1: "Acting Opportunities & Casting Calls in Saudi Arabia",
-      intro: "Browse real acting and casting opportunities for actors, actresses and extras across Saudi Arabia.",
+      intro: "Browse acting jobs, auditions and casting calls for actors, actresses and extras across Saudi Arabia, including commercials and screen productions.",
+      secondaryTitle: "Looking for acting jobs or auditions?",
+      secondaryBody: "MLAMH brings published opportunities into one place so you can review requirements, location and compensation before applying with your professional profile.",
     },
   },
   modeling: {
     accepted: new Set(["model"]),
     ar: {
       title: "فرص مودل في السعودية | مطلوب مودلز للتصوير والإعلانات | ملامح",
-      description: "اكتشف فرص مودل ومطلوب مودلز للتصوير والإعلانات في السعودية. تصفح الفرص المنشورة وتقدم مباشرة عبر ملامح.",
+      description: "اكتشف فرص مودل ووظائف تصوير ومشاريع مطلوب مودلز لها للإعلانات والمحتوى التجاري في السعودية، وتقدم للفرص المنشورة عبر ملامح.",
       h1: "فرص مودل وتصوير في السعودية",
-      intro: "فرص حقيقية للمودلز في التصوير والإعلانات والمشاريع التجارية داخل السعودية.",
+      intro: "تصفح فرص المودل والتصوير الإعلاني والمشاريع التي تبحث عن مودلز في السعودية، مع تفاصيل تساعدك على معرفة متطلبات كل فرصة قبل التقديم.",
+      secondaryTitle: "تبحث عن مطلوب مودل أو فرص تصوير إعلانات؟",
+      secondaryBody: "بدل متابعة إعلانات متفرقة، استعرض فرص المودل والتصوير المنشورة على ملامح وتقدم للفرص المناسبة من خلال ملفك المهني.",
     },
     en: {
-      title: "Modeling Jobs & Opportunities in Saudi Arabia | MLAMH",
+      title: "Modeling Jobs & Photo Shoot Opportunities in Saudi Arabia | MLAMH",
       description: "Discover modeling jobs, commercial shoots and model opportunities in Saudi Arabia and apply through MLAMH.",
-      h1: "Modeling Jobs & Opportunities in Saudi Arabia",
-      intro: "Browse real modeling, commercial and photo shoot opportunities across Saudi Arabia.",
+      h1: "Modeling Jobs & Photo Shoot Opportunities in Saudi Arabia",
+      intro: "Browse modeling jobs, commercial shoots and projects looking for models across Saudi Arabia, with clear opportunity details before you apply.",
+      secondaryTitle: "Looking for modeling jobs or commercial shoots?",
+      secondaryBody: "Browse published modeling and photo shoot opportunities on MLAMH and apply to relevant projects using your professional profile.",
     },
   },
 } as const;
@@ -106,9 +114,10 @@ export default async function OpportunityTypePage({ params }: { params: Promise<
           <div className="grid gap-4 md:grid-cols-2">
             {matches.map((item) => {
               const city = isArabic ? item.city_ar || item.city_en : item.city_en || item.city_ar;
+              const title = isArabic ? item.title : item.title_en || item.title;
               return (
                 <Link key={item.id} href={`/${locale}/opportunities/${item.slug}`} className="rounded-2xl border border-zinc-200 bg-white p-5 transition hover:border-zinc-400">
-                  <h3 className="font-semibold text-zinc-950">{item.title}</h3>
+                  <h3 className="font-semibold text-zinc-950">{title}</h3>
                   <p className="mt-2 text-sm text-zinc-600">{city || (isArabic ? "السعودية" : "Saudi Arabia")}</p>
                 </Link>
               );
@@ -122,6 +131,19 @@ export default async function OpportunityTypePage({ params }: { params: Promise<
           <Link href={`/${locale}/opportunities`} className="mt-4 inline-block font-medium underline">{isArabic ? "عرض جميع الفرص" : "View all opportunities"}</Link>
         </section>
       )}
+
+      <section className="mt-10 rounded-2xl border border-zinc-200 bg-zinc-50 p-6 sm:p-8">
+        <h2 className="text-xl font-semibold text-zinc-950">{copy.secondaryTitle}</h2>
+        <p className="mt-3 max-w-3xl text-sm leading-7 text-zinc-600">{copy.secondaryBody}</p>
+        <div className="mt-5 flex flex-wrap gap-3 text-sm font-medium">
+          <Link href={`/${locale}/talent/category/${type === "acting" ? "actor" : "model"}`} className="underline underline-offset-4">
+            {type === "acting" ? (isArabic ? "استعرض الممثلين في السعودية" : "Browse actors in Saudi Arabia") : (isArabic ? "استعرض مودلز في السعودية" : "Browse models in Saudi Arabia")}
+          </Link>
+          <Link href={`/${locale}/guides/${type === "acting" ? "casting-auditions-saudi-arabia" : "how-to-start-modeling-saudi-arabia"}`} className="underline underline-offset-4">
+            {type === "acting" ? (isArabic ? "دليل الكاستينج وتجارب الأداء" : "Casting and auditions guide") : (isArabic ? "دليل البدء كمودل" : "How to start modeling")}
+          </Link>
+        </div>
+      </section>
     </main>
   );
 }
