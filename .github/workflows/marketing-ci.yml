@@ -1,6 +1,7 @@
 name: Marketing CI
 
 # Preview validation trigger for TikTok integration branch.
+# Trigger a fresh Vercel Preview after plan/rate-limit recovery.
 on:
   push:
     branches:
