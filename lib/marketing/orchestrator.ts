@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { runGovernedChannelWorker } from "@/lib/marketing/channels/autonomous-executor";
 import { runNextMarketingTask } from "@/lib/marketing/tasks/runner";
 
 type DailyMission = {
@@ -49,7 +50,7 @@ export async function seedDailyMarketingCycle(now = new Date()) {
   return { day, seeded: data?.length ?? 0 };
 }
 
-export async function runAutonomousMarketingCycle({ maxTasks = 3 }: { maxTasks?: number } = {}) {
+export async function runAutonomousMarketingCycle({ maxTasks = 3, maxChannelJobs = 2 }: { maxTasks?: number; maxChannelJobs?: number } = {}) {
   const seeded = await seedDailyMarketingCycle();
   const executed: Array<{ taskId: number; status: string; error?: string }> = [];
   for (let index = 0; index < maxTasks; index += 1) {
@@ -57,5 +58,13 @@ export async function runAutonomousMarketingCycle({ maxTasks = 3 }: { maxTasks?:
     if (!result) break;
     executed.push(result);
   }
-  return { ...seeded, executed, remainingForNextTick: executed.length === maxTasks };
+
+  const channels = await runGovernedChannelWorker({ maxJobs: maxChannelJobs });
+
+  return {
+    ...seeded,
+    executed,
+    channels,
+    remainingForNextTick: executed.length === maxTasks,
+  };
 }
