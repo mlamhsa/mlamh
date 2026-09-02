@@ -7,6 +7,7 @@ export const META_SECRET_NAMES = {
   facebookLongLivedUserToken: "META_LONG_LIVED_USER_ACCESS_TOKEN",
   facebookPageTokens: "META_PAGE_ACCESS_TOKENS_JSON",
   instagramLongLivedToken: "META_INSTAGRAM_LONG_LIVED_ACCESS_TOKEN",
+  whatsappAccessToken: "META_WHATSAPP_ACCESS_TOKEN",
 } as const;
 
 type FetchLike = typeof fetch;
