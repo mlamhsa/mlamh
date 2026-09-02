@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendTikTokServerEvent } from "@/lib/tiktok/events-api";
 
 export type AnalyticsEventType =
   | "signup"
@@ -66,4 +67,12 @@ export async function trackEvent({
       code: error.code,
     });
   }
+
+  await sendTikTokServerEvent({
+    type,
+    target,
+    targetId,
+    actorId,
+    metadata,
+  });
 }
