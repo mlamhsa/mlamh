@@ -11,6 +11,9 @@ type BufferChannel = { id: string; name: string | null; displayName: string | nu
 type GraphQLError = { message?: string };
 type GraphQLResponse<T> = { data?: T; errors?: GraphQLError[] };
 type BufferTarget = "instagram" | "facebook";
+type BufferCreatePostPayload =
+  | { __typename: "PostActionSuccess"; post: { id: string } }
+  | { __typename: string; message?: string };
 
 export type BufferConnectionTestResult = {
   ok: boolean;
@@ -55,6 +58,11 @@ async function bufferGraphQL<T>(apiKey: string, query: string, variables?: Recor
 
 function stringValue(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function safeMutationMessage(value: unknown) {
+  const message = stringValue(value);
+  return message ? message.slice(0, 240) : "Buffer rejected the post mutation.";
 }
 
 export class BufferServerAdapter implements MarketingChannelAdapter {
@@ -125,17 +133,32 @@ export class BufferServerAdapter implements MarketingChannelAdapter {
     if (!text && assets.length === 0) return { ok: false, errorCode: "empty_content", errorMessage: "Buffer publish content is empty." };
 
     try {
-      const data = await bufferGraphQL<{ createPost: { post: { id: string } } }>(apiKey, `mutation MLAMHBufferCreatePost($input: CreatePostInput!) { createPost(input: $input) { post { id } } }`, {
+      const scheduled = Boolean(input.scheduledAt);
+      const data = await bufferGraphQL<{ createPost: BufferCreatePostPayload }>(apiKey, `mutation MLAMHBufferCreatePost($input: CreatePostInput!) {
+        createPost(input: $input) {
+          __typename
+          ... on PostActionSuccess { post { id } }
+          ... on MutationError { message }
+        }
+      }`, {
         input: {
           channelId,
           text,
-          media: assets.map((url) => ({ url })),
-          ...(input.scheduledAt ? { scheduledAt: input.scheduledAt } : {}),
+          schedulingType: "automatic",
+          mode: scheduled ? "customScheduled" : "shareNow",
+          assets: assets.map((url) => ({ image: { url } })),
+          ...(scheduled ? { dueAt: input.scheduledAt } : {}),
         },
-      }, input.scheduledAt ? "schedule request" : "publish request");
-      const externalId = stringValue(data.createPost?.post?.id);
+      }, scheduled ? "schedule request" : "publish request");
+
+      const payload = data.createPost;
+      if (!("post" in payload)) {
+        return { ok: false, errorCode: "buffer_mutation_error", errorMessage: safeMutationMessage("message" in payload ? payload.message : null) };
+      }
+
+      const externalId = stringValue(payload.post?.id);
       if (!externalId) return { ok: false, errorCode: "missing_external_id", errorMessage: "Buffer accepted the request but did not return a post id." };
-      return { ok: true, externalId, metadata: { provider: "buffer", target, channel_id: channelId, mode: input.scheduledAt ? "schedule" : "publish_now" } };
+      return { ok: true, externalId, metadata: { provider: "buffer", target, channel_id: channelId, mode: scheduled ? "schedule" : "publish_now" } };
     } catch (error) {
       return { ok: false, errorCode: "buffer_api_error", errorMessage: error instanceof Error ? error.message : "Buffer publishing request failed." };
     }
