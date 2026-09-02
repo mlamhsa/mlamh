@@ -2,14 +2,57 @@ import type { Metadata } from "next";
 
 import { CastingRequestForm } from "@/components/casting/CastingRequestForm";
 
+const SITE_URL = (
+  process.env.NEXT_PUBLIC_SITE_URL || "https://mlamh.net"
+).replace(/\/$/, "");
+
 export async function generateMetadata({ params }: { params: Promise<{ locale?: string }> }): Promise<Metadata> {
   const { locale = "ar" } = await params;
   const isArabic = locale !== "en";
+  const normalizedLocale = isArabic ? "ar" : "en";
+  const canonicalUrl = `${SITE_URL}/${normalizedLocale}/casting`;
+  const arUrl = `${SITE_URL}/ar/casting`;
+  const enUrl = `${SITE_URL}/en/casting`;
+  const title = isArabic
+    ? "إدارة الكاستينغ للمشاريع في السعودية | MLAMH Casting"
+    : "Managed Casting Service in Saudi Arabia | MLAMH Casting";
+  const description = isArabic
+    ? "خدمة احترافية للشركات وجهات الإنتاج والوكالات والعلامات لإدارة الكاستينغ واحتياج الممثلين والمودلز من الـ Brief حتى قائمة مرشحين منظمة."
+    : "A managed casting service for companies, production teams, agencies, and brands in Saudi Arabia, from brief intake to organized actor and model shortlists.";
+
   return {
-    title: isArabic ? "MLAMH Casting | إدارة الكاستينغ" : "MLAMH Casting | Managed Casting",
-    description: isArabic
-      ? "خدمة احترافية للجهات لإدارة احتياج الممثلين والمودلز من الـ Brief حتى الوصول إلى قائمة مرشحين منظمة."
-      : "A managed casting service for companies, from brief intake to organized actor and model shortlists.",
+    title,
+    description,
+    alternates: {
+      canonical: canonicalUrl,
+      languages: {
+        "ar-SA": arUrl,
+        en: enUrl,
+        "x-default": arUrl,
+      },
+    },
+    openGraph: {
+      type: "website",
+      locale: isArabic ? "ar_SA" : "en_US",
+      title,
+      description,
+      url: canonicalUrl,
+      siteName: isArabic ? "ملامح" : "MLAMH",
+      images: [
+        {
+          url: `${SITE_URL}/og-image.png`,
+          width: 1200,
+          height: 630,
+          alt: title,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [`${SITE_URL}/og-image.png`],
+    },
   };
 }
 
@@ -17,6 +60,46 @@ export default async function CastingPage({ params }: { params: Promise<{ locale
   const { locale: rawLocale = "ar" } = await params;
   const locale = rawLocale === "en" ? "en" : "ar";
   const isRtl = locale === "ar";
+  const pageUrl = `${SITE_URL}/${locale}/casting`;
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: isRtl ? "ملامح" : "MLAMH",
+        item: `${SITE_URL}/${locale}`,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: isRtl ? "إدارة الكاستينغ" : "Managed Casting",
+        item: pageUrl,
+      },
+    ],
+  };
+  const serviceJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Service",
+    "@id": `${pageUrl}#service`,
+    name: isRtl ? "خدمة إدارة الكاستينغ من ملامح" : "MLAMH Managed Casting Service",
+    description: isRtl
+      ? "إدارة احتياج الممثلين والمودلز للشركات وجهات الإنتاج والوكالات والعلامات من الـ Brief حتى القائمة المختصرة."
+      : "Managed actor and model casting for companies, production teams, agencies, and brands from brief to shortlist.",
+    provider: {
+      "@type": "Organization",
+      "@id": `${SITE_URL}/#organization`,
+      name: "MLAMH",
+      alternateName: "ملامح",
+      url: SITE_URL,
+    },
+    areaServed: {
+      "@type": "Country",
+      name: "Saudi Arabia",
+    },
+    url: pageUrl,
+  };
 
   const steps = isRtl
     ? [
@@ -46,6 +129,14 @@ export default async function CastingPage({ params }: { params: Promise<{ locale
 
   return (
     <main dir={isRtl ? "rtl" : "ltr"} className="min-h-screen bg-black px-5 pb-24 pt-28 text-white sm:px-8 lg:px-10 lg:pt-36">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(serviceJsonLd) }}
+      />
       <div className="mx-auto max-w-7xl">
         <section className="relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-[radial-gradient(circle_at_top_right,rgba(201,169,98,0.16),transparent_42%),linear-gradient(135deg,rgba(255,255,255,0.05),rgba(255,255,255,0.015))] px-6 py-12 sm:px-10 sm:py-16 lg:px-16 lg:py-20">
           <div className="max-w-4xl">
@@ -54,12 +145,12 @@ export default async function CastingPage({ params }: { params: Promise<{ locale
               <span className="rounded-full border border-gold/25 bg-gold/10 px-3 py-1 text-[11px] text-gold">Managed Casting</span>
             </div>
             <h1 className="mt-6 text-4xl font-light leading-tight sm:text-5xl lg:text-7xl">
-              {isRtl ? "من الـ Brief إلى قائمة المرشحين." : "From brief to shortlist."}
+              {isRtl ? "إدارة كاستينغ منظمة من الـ Brief إلى قائمة المرشحين." : "Managed casting from brief to shortlist."}
             </h1>
             <p className="mt-6 max-w-3xl text-sm leading-8 text-white/60 sm:text-base">
               {isRtl
-                ? "MLAMH Casting خدمة مخصصة للشركات وجهات الإنتاج والوكالات والعلامات التي تريد إدارة احتياج الممثلين والمودلز بشكل أكثر تنظيمًا. نساعد في تجهيز العملية، جمع الطلبات، والفرز وصولًا إلى Shortlist قابلة للمراجعة."
-                : "MLAMH Casting is a managed service for companies, production teams, agencies, and brands that need a more organized way to source actors and models. We help structure the casting, collect applications, screen candidates, and prepare a review-ready shortlist."}
+                ? "MLAMH Casting خدمة مخصصة للشركات وجهات الإنتاج والوكالات والعلامات في السعودية التي تريد إدارة احتياج الممثلين والمودلز بشكل أكثر تنظيمًا. نساعد في تجهيز العملية، جمع الطلبات، والفرز وصولًا إلى Shortlist قابلة للمراجعة."
+                : "MLAMH Casting is a managed service for companies, production teams, agencies, and brands in Saudi Arabia that need a more organized way to source actors and models. We help structure the casting, collect applications, screen candidates, and prepare a review-ready shortlist."}
             </p>
             <a href="#casting-brief" className="mt-8 inline-flex min-h-12 items-center justify-center rounded-xl bg-gold px-6 py-3 text-sm font-medium text-black transition hover:brightness-110">
               {isRtl ? "أرسل الـ Brief" : "Send a casting brief"}

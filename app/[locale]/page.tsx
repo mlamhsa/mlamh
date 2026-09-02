@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { Agencies } from "@/components/Agencies";
@@ -16,11 +17,64 @@ import { ValuePropsCMS } from "@/lib/cms/ValuePropsCMS";
 import { isValidLocale, type Locale } from "@/lib/i18n";
 import { getPublicTalents } from "@/lib/supabase/public-talents";
 
-export default async function HomePage({
-  params,
-}: {
+const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://mlamh.net").replace(/\/$/, "");
+
+type HomePageProps = {
   params: Promise<{ locale: string }>;
-}) {
+};
+
+export async function generateMetadata({ params }: HomePageProps): Promise<Metadata> {
+  const { locale: localeParam } = await params;
+  if (!isValidLocale(localeParam)) return {};
+
+  const locale = localeParam as Locale;
+  const isArabic = locale === "ar";
+  const title = isArabic
+    ? "ملامح | منصة المواهب وفرص الكاستينغ في السعودية"
+    : "MLAMH | Talent Platform & Casting Opportunities in Saudi Arabia";
+  const description = isArabic
+    ? "اكتشف ممثلين ومودلز وفرص تمثيل وكاستينغ في السعودية عبر ملامح، المنصة التي تربط المواهب بالشركات والوكالات وجهات الإنتاج."
+    : "Discover actors, models, casting calls and creative opportunities in Saudi Arabia on MLAMH, connecting talent with companies, agencies and production teams.";
+  const canonical = `${SITE_URL}/${locale}`;
+
+  return {
+    title,
+    description,
+    alternates: {
+      canonical,
+      languages: {
+        "ar-SA": `${SITE_URL}/ar`,
+        en: `${SITE_URL}/en`,
+        "x-default": `${SITE_URL}/ar`,
+      },
+    },
+    openGraph: {
+      title,
+      description,
+      url: canonical,
+      siteName: "MLAMH | ملامح",
+      type: "website",
+      locale: isArabic ? "ar_SA" : "en_US",
+      images: [
+        {
+          url: `${SITE_URL}/og-image.png`,
+          width: 1200,
+          height: 630,
+          alt: isArabic ? "ملامح - منصة المواهب وفرص الكاستينغ" : "MLAMH - Talent Platform & Casting Opportunities",
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [`${SITE_URL}/og-image.png`],
+    },
+    robots: { index: true, follow: true },
+  };
+}
+
+export default async function HomePage({ params }: HomePageProps) {
   const { locale: localeParam } = await params;
 
   if (!isValidLocale(localeParam)) {
@@ -38,7 +92,7 @@ export default async function HomePage({
     HomepageCMS.getPublicHero(locale),
     ValuePropsCMS.getPublicValueProps(locale),
   ]);
-  
+
   const talents = talentResult.talents;
 
   return (
@@ -47,7 +101,7 @@ export default async function HomePage({
       className="relative z-[2] min-h-screen bg-background"
     >
       <HomeScrollReset />
-  
+
       {/* Mobile application home */}
       <div className="lg:hidden">
         <MobileHome

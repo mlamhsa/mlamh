@@ -1,19 +1,51 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://mlamh.net").replace(/\/$/, "");
+
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ locale?: string }>;
 }): Promise<Metadata> {
-  const { locale = "ar" } = await params;
+  const { locale: rawLocale = "ar" } = await params;
+  const locale = rawLocale === "en" ? "en" : "ar";
   const isArabic = locale === "ar";
+  const title = isArabic
+    ? "منصة اكتشاف المواهب للشركات في السعودية | ملامح"
+    : "Talent Discovery Platform for Companies in Saudi Arabia | MLAMH";
+  const description = isArabic
+    ? "اكتشف ممثلين ومودلز، انشر فرص الكاستينغ، وأدر طلبات التقديم عبر ملامح للشركات والوكالات وجهات الإنتاج في السعودية."
+    : "Discover actors and models, publish casting opportunities, and manage applications through MLAMH for companies, agencies, and production teams in Saudi Arabia.";
+  const canonical = `${SITE_URL}/${locale}/publishers`;
 
   return {
-    title: isArabic ? "ملامح للشركات | ملامح" : "MLAMH for Companies",
-    description: isArabic
-      ? "اكتشف المواهب المناسبة، انشر الفرص، وأدر طلبات التقديم عبر منصة ملامح."
-      : "Discover talent, publish opportunities, and manage applications through MLAMH.",
+    title,
+    description,
+    alternates: {
+      canonical,
+      languages: {
+        "ar-SA": `${SITE_URL}/ar/publishers`,
+        en: `${SITE_URL}/en/publishers`,
+        "x-default": `${SITE_URL}/ar/publishers`,
+      },
+    },
+    openGraph: {
+      title,
+      description,
+      url: canonical,
+      siteName: "MLAMH | ملامح",
+      type: "website",
+      locale: isArabic ? "ar_SA" : "en_US",
+      images: [`${SITE_URL}/og-image.png`],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [`${SITE_URL}/og-image.png`],
+    },
+    robots: { index: true, follow: true },
   };
 }
 
@@ -22,8 +54,41 @@ export default async function PublishersPage({
 }: {
   params: Promise<{ locale?: string }>;
 }) {
-  const { locale = "ar" } = await params;
+  const { locale: rawLocale = "ar" } = await params;
+  const locale = rawLocale === "en" ? "en" : "ar";
   const isRtl = locale === "ar";
+  const pageUrl = `${SITE_URL}/${locale}/publishers`;
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: isRtl ? "ملامح" : "MLAMH",
+        item: `${SITE_URL}/${locale}`,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: isRtl ? "ملامح للشركات" : "MLAMH for Companies",
+        item: pageUrl,
+      },
+    ],
+  };
+  const webPageJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "@id": `${pageUrl}#webpage`,
+    url: pageUrl,
+    name: isRtl ? "منصة اكتشاف المواهب للشركات في السعودية" : "Talent Discovery Platform for Companies in Saudi Arabia",
+    description: isRtl
+      ? "صفحة ملامح للشركات والوكالات وجهات الإنتاج لاكتشاف المواهب ونشر الفرص وإدارة طلبات التقديم."
+      : "MLAMH for companies, agencies and production teams to discover talent, publish opportunities and manage applications.",
+    isPartOf: { "@id": `${SITE_URL}/#website` },
+    about: { "@id": `${SITE_URL}/#organization` },
+    inLanguage: isRtl ? "ar-SA" : "en",
+  };
 
   const benefits = [
     {
@@ -88,6 +153,15 @@ export default async function PublishersPage({
       dir={isRtl ? "rtl" : "ltr"}
       className="min-h-screen bg-background px-5 pb-24 pt-36 text-white sm:px-8 lg:px-10"
     >
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageJsonLd) }}
+      />
+
       <div className="mx-auto max-w-7xl">
         <section className="relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-[radial-gradient(circle_at_top_right,rgba(201,169,98,0.15),transparent_42%),linear-gradient(135deg,rgba(255,255,255,0.05),rgba(255,255,255,0.015))] px-6 py-12 sm:px-10 sm:py-16 lg:px-16 lg:py-20">
           <div className="pointer-events-none absolute inset-x-16 bottom-0 h-px bg-gradient-to-r from-transparent via-gold/50 to-transparent" />
@@ -105,14 +179,14 @@ export default async function PublishersPage({
 
             <h1 className="mt-5 text-4xl font-light leading-tight sm:text-5xl lg:text-6xl">
               {isRtl
-                ? "اكتشف المواهب المناسبة لمشروعك"
-                : "Discover the right talent for your project"}
+                ? "اكتشف الممثلين والمودلز المناسبين لمشروعك"
+                : "Discover the right actors and models for your project"}
             </h1>
 
             <p className="mt-6 max-w-3xl text-sm leading-8 text-white/60 sm:text-base">
               {isRtl
-                ? "تساعد ملامح الشركات وجهات الإنتاج والوكالات على اكتشاف المواهب، نشر الفرص، استقبال الطلبات، وإدارة عملية الاختيار في تجربة احترافية ومنظمة."
-                : "MLAMH helps companies, production teams, and agencies discover talent, publish opportunities, receive applications, and manage selection through a professional experience."}
+                ? "تساعد ملامح الشركات وجهات الإنتاج والوكالات على اكتشاف المواهب، نشر فرص الكاستينغ، استقبال الطلبات، وإدارة عملية الاختيار في تجربة احترافية ومنظمة."
+                : "MLAMH helps companies, production teams, and agencies discover actors and models, publish casting opportunities, receive applications, and manage selection through a professional experience."}
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
@@ -263,12 +337,20 @@ export default async function PublishersPage({
               : "Create your company account, publish opportunities, and begin receiving talent applications."}
           </p>
 
-          <Link
-            href={`/${locale}/publisher-register`}
-            className="mt-7 inline-flex min-h-14 items-center justify-center rounded-full bg-gold px-9 text-sm font-medium text-black transition hover:bg-gold-soft"
-          >
-            {isRtl ? "ابدأ الآن" : "Get Started"}
-          </Link>
+          <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <Link
+              href={`/${locale}/publisher-register`}
+              className="inline-flex min-h-14 items-center justify-center rounded-full bg-gold px-9 text-sm font-medium text-black transition hover:bg-gold-soft"
+            >
+              {isRtl ? "ابدأ الآن" : "Get Started"}
+            </Link>
+            <Link
+              href={`/${locale}/casting`}
+              className="inline-flex min-h-14 items-center justify-center rounded-full border border-gold/35 px-9 text-sm text-gold transition hover:bg-gold/10"
+            >
+              {isRtl ? "خدمة إدارة الكاستينغ" : "Managed Casting Service"}
+            </Link>
+          </div>
         </section>
       </div>
     </main>

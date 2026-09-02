@@ -33,6 +33,7 @@ export function PublicTalentCard({
 
   const displayName =
     name || (isRtl ? "موهبة غير مسماة" : "Unnamed Talent");
+  const imageAlt = [displayName, category, city].filter(Boolean).join(" — ");
 
   const placeholderInitials = displayName
     .trim()
@@ -59,7 +60,7 @@ export function PublicTalentCard({
         {talent.image_url ? (
           <Image
             src={talent.image_url}
-            alt={displayName}
+            alt={imageAlt}
             fill
             priority={Boolean(talent.featured)}
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 340px"
