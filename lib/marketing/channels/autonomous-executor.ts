@@ -26,7 +26,7 @@ export async function runGovernedChannelWorker({ maxJobs = 2 }: { maxJobs?: numb
 
   const safeMax = Math.max(1, Math.min(maxJobs, 5));
   const db = createAdminClient();
-  const { data, error } = await db
+  let query = db
     .from("marketing_channel_jobs")
     .select("id,channel,status,scheduled_at,payload")
     .in("status", ["approved", "scheduled"])
@@ -34,6 +34,11 @@ export async function runGovernedChannelWorker({ maxJobs = 2 }: { maxJobs?: numb
     .order("created_at", { ascending: true })
     .limit(safeMax * 5);
 
+  if (!executionSettings.productionEnabled) {
+    query = query.contains("payload", { test_mode: true });
+  }
+
+  const { data, error } = await query;
   if (error) throw new Error(`[marketing_channel_worker.read] ${error.message}`);
 
   const executed: Array<{ id: number; channel: string; status: string }> = [];
