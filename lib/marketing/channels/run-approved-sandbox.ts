@@ -27,7 +27,7 @@ export async function runApprovedSandboxJobsForApproval(approvalId: number) {
     .from("marketing_channel_jobs")
     .select("id,channel,status,payload")
     .eq("approval_id", approvalId)
-    .eq("status", "approved")
+    .in("status", ["approved", "failed"])
     .contains("payload", { test_mode: true })
     .order("created_at", { ascending: true });
 
