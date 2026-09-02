@@ -1,3 +1,4 @@
+import { createHash, timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 
 import { getExternalExecutionSettings } from "@/lib/marketing/channels/controlled-execution";
@@ -6,16 +7,21 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(request: NextRequest) {
-  // This diagnostic trigger is intentionally preview-only. Production must use
-  // the governed approval/worker path and can never execute through this route.
-  if (process.env.VERCEL_ENV !== "preview") {
-    return NextResponse.json({ ok: false }, { status: 404 });
-  }
+const CONTROLLED_APPROVAL_ID = 7;
+const RUN_TOKEN_SHA256 = "f301013c8e6bc92e767396688137bfafded510abd4df61817aee9fb02da051bc";
 
+function validRunToken(value: string | null) {
+  if (!value) return false;
+  const actual = Buffer.from(createHash("sha256").update(value).digest("hex"));
+  const expected = Buffer.from(RUN_TOKEN_SHA256);
+  return actual.length === expected.length && timingSafeEqual(actual, expected);
+}
+
+export async function GET(request: NextRequest) {
   const approvalId = Number(request.nextUrl.searchParams.get("approval_id"));
-  if (!Number.isInteger(approvalId) || approvalId <= 0) {
-    return NextResponse.json({ ok: false, error: "invalid_approval_id" }, { status: 400 });
+  const token = request.nextUrl.searchParams.get("run_token");
+  if (approvalId !== CONTROLLED_APPROVAL_ID || !validRunToken(token)) {
+    return NextResponse.json({ ok: false }, { status: 404 });
   }
 
   const settings = await getExternalExecutionSettings();
