@@ -74,7 +74,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const availableCategories = new Set(
     talents
-      .map((talent) => talent.category_slug || talent.primary_role)
+      .map((talent) => talent.category_slug?.trim())
       .filter((value): value is string => value === "actor" || value === "model"),
   );
 
