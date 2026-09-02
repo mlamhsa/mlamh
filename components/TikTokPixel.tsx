@@ -1,18 +1,16 @@
 "use client";
 
 import Script from "next/script";
-import { usePathname, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useRef } from "react";
+import { usePathname } from "next/navigation";
+import { useEffect, useRef } from "react";
 
 import { isTikTokPixelEnabled, trackTikTokPageView } from "@/lib/tiktok/browser";
 
 export default function TikTokPixel() {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const didMount = useRef(false);
   const pixelId = process.env.NEXT_PUBLIC_TIKTOK_PIXEL_ID;
   const enabled = isTikTokPixelEnabled() && Boolean(pixelId);
-  const search = useMemo(() => searchParams.toString(), [searchParams]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -23,7 +21,7 @@ export default function TikTokPixel() {
     }
 
     trackTikTokPageView();
-  }, [enabled, pathname, search]);
+  }, [enabled, pathname]);
 
   if (!enabled || !pixelId) return null;
 
@@ -36,7 +34,7 @@ export default function TikTokPixel() {
   ttq.setAndDefer=function(t,e){t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}};
   for(var i=0;i<ttq.methods.length;i++)ttq.setAndDefer(ttq,ttq.methods[i]);
   ttq.instance=function(t){for(var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n]);return e};
-  ttq.load=function(e,n){var r="https://analytics.tiktok.com/i18n/pixel/events.js",o=n&&n.partner;ttq._i=ttq._i||{},ttq._i[e]=[],ttq._i[e]._u=r,ttq._t=ttq._t||{},ttq._t[e]=+new Date,ttq._o=ttq._o||{},ttq._o[e]=n||{};n=document.createElement("script");n.type="text/javascript";n.async=!0;n.src=r+"?sdkid="+e+"&lib="+t;e=document.getElementsByTagName("script")[0];e.parentNode.insertBefore(n,e)};
+  ttq.load=function(e,n){var r="https://analytics.tiktok.com/i18n/pixel/events.js";ttq._i=ttq._i||{},ttq._i[e]=[],ttq._i[e]._u=r,ttq._t=ttq._t||{},ttq._t[e]=+new Date,ttq._o=ttq._o||{},ttq._o[e]=n||{};n=document.createElement("script");n.type="text/javascript";n.async=!0;n.src=r+"?sdkid="+e+"&lib="+t;e=document.getElementsByTagName("script")[0];e.parentNode.insertBefore(n,e)};
   ttq.load(${JSON.stringify(pixelId)});
   ttq.page();
 }(window, document, 'ttq');`}
