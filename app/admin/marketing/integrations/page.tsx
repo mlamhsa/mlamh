@@ -171,6 +171,9 @@ export default async function MarketingIntegrationsPage({ searchParams }: PagePr
           const metaFacebookName = item.provider === "meta" ? metaFacebookAccount(configuration) : null;
           const metaInstagramName = item.provider === "meta" ? metaInstagramAccount(configuration) : null;
           const metaConnected = item.provider === "meta" && item.status === "connected" && metaFacebookConnected && metaInstagramConnected;
+          const whatsappPhone = item.provider === "whatsapp" ? configurationValue(configuration, "display_phone_number") : null;
+          const whatsappWabaId = item.provider === "whatsapp" ? configurationValue(configuration, "waba_id") : null;
+          const whatsappPhoneNumberId = item.provider === "whatsapp" ? configurationValue(configuration, "phone_number_id") : null;
 
           return (
             <AdminCard key={item.id} className="p-5">
@@ -249,6 +252,27 @@ export default async function MarketingIntegrationsPage({ searchParams }: PagePr
                     <div>{isArabic ? "الإرسال" : "Sending"}<div className="mt-1 text-white/65">{item.status === "connected" ? (externalExecutionEnabled ? "governed / enabled" : "connected / kill switch off") : "blocked"}</div></div>
                   </div>
                   <p className="mt-3 text-[11px] leading-5 text-amber-200/70">{isArabic ? "نجاح الاتصال لا يرسل أي بريد تلقائيًا. أول Outreach ما زال يحتاج Approval، وSend now مستقل، والبوابة العامة تمنع التنفيذ عندما تكون معطلة." : "Connecting never sends email automatically. First outreach still requires approval, Send now is separate, and the global gate blocks execution while disabled."}</p>
+                </div>
+              ) : null}
+
+              {item.provider === "whatsapp" ? (
+                <div className="mt-4 rounded-xl border border-white/[0.07] bg-black/20 p-4">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-xs font-medium text-white/70">WhatsApp Business Platform · Embedded Signup</p>
+                      <p className="mt-1 text-[11px] leading-5 text-white/35">{isArabic ? "المسار الرسمي عبر Meta مع Coexistence للحفاظ على الرقم داخل WhatsApp Business App. لا يوجد إدخال Access Token يدويًا." : "Official Meta flow with Coexistence to keep the number in the WhatsApp Business app. No manual access-token entry."}</p>
+                    </div>
+                    <a href={`/admin/marketing/integrations/whatsapp${lang ? `?lang=${encodeURIComponent(lang)}` : ""}`} className="rounded-lg border border-gold/35 bg-gold/10 px-4 py-2 text-center text-xs text-gold">
+                      {item.status === "connected" ? (isArabic ? "إدارة اتصال WhatsApp" : "Manage WhatsApp") : (isArabic ? "ربط WhatsApp" : "Connect WhatsApp")}
+                    </a>
+                  </div>
+                  <div className="mt-4 grid gap-2 text-[11px] text-white/40 sm:grid-cols-2">
+                    <div>{isArabic ? "الرقم" : "Number"}<div className="mt-1 break-all text-white/65">{whatsappPhone ?? "—"}</div></div>
+                    <div>WABA ID<div className="mt-1 break-all text-white/65">{whatsappWabaId ?? "—"}</div></div>
+                    <div>Phone Number ID<div className="mt-1 break-all text-white/65">{whatsappPhoneNumberId ?? "—"}</div></div>
+                    <div>{isArabic ? "الإرسال" : "Sending"}<div className="mt-1 text-white/65">{item.status === "connected" ? (externalExecutionEnabled ? "governed / enabled" : "connected / kill switch off") : "blocked"}</div></div>
+                  </div>
+                  <p className="mt-3 text-[11px] leading-5 text-amber-200/70">{isArabic ? "الربط وحده لا يرسل رسائل. كل إرسال خارجي يحتاج Approval صالحًا، اتصالًا send-ready، وبوابة التنفيذ العامة مفعلة." : "Connecting alone never sends messages. Every external send requires a valid approval, a send-ready connection, and the global execution gate enabled."}</p>
                 </div>
               ) : null}
 
