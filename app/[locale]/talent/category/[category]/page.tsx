@@ -21,6 +21,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const item = getTalentCategoryBySlug(category);
   if (!item) return {};
 
+  const { talents } = await getPublicTalents({ category, pageSize: 1 });
+  const hasPublishedTalent = talents.length > 0;
   const isArabic = locale === "ar";
   const label = isArabic ? item.ar : item.en;
   const title = isArabic
@@ -42,8 +44,23 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         "x-default": `${SITE_URL}/ar/talent/category/${category}`,
       },
     },
-    openGraph: { title, description, url: canonical, type: "website", siteName: "MLAMH" },
-    robots: { index: true, follow: true },
+    openGraph: {
+      title,
+      description,
+      url: canonical,
+      type: "website",
+      siteName: "MLAMH",
+      images: [`${SITE_URL}/og-image.png`],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [`${SITE_URL}/og-image.png`],
+    },
+    robots: hasPublishedTalent
+      ? { index: true, follow: true }
+      : { index: false, follow: true },
   };
 }
 
@@ -58,18 +75,49 @@ export default async function TalentCategoryPage({ params }: PageProps) {
   const { talents } = await getPublicTalents({ category, pageSize: 48 });
   const isArabic = locale === "ar";
   const label = isArabic ? item.ar : item.en;
+  const canonical = `${SITE_URL}/${locale}/talent/category/${category}`;
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: isArabic ? "ملامح" : "MLAMH",
+        item: `${SITE_URL}/${locale}`,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: isArabic ? "المواهب" : "Talents",
+        item: `${SITE_URL}/${locale}/talent`,
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: isArabic ? `${label} في السعودية` : `${label}s in Saudi Arabia`,
+        item: canonical,
+      },
+    ],
+  };
 
   return (
-    <TalentSeoLanding
-      locale={locale}
-      eyebrow={isArabic ? "دليل المواهب" : "TALENT DIRECTORY"}
-      title={isArabic ? `${label} في السعودية` : `${label}s in Saudi Arabia`}
-      description={
-        isArabic
-          ? `استعرض ملفات ${label} المنشورة والمعتمدة على ملامح وابحث عن الوجوه المناسبة للإعلانات والإنتاج والكاستينج.`
-          : `Browse approved ${label.toLowerCase()} profiles on MLAMH for casting, advertising and production projects.`
-      }
-      talents={talents}
-    />
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
+      <TalentSeoLanding
+        locale={locale}
+        eyebrow={isArabic ? "دليل المواهب" : "TALENT DIRECTORY"}
+        title={isArabic ? `${label} في السعودية` : `${label}s in Saudi Arabia`}
+        description={
+          isArabic
+            ? `استعرض ملفات ${label} المنشورة والمعتمدة على ملامح وابحث عن الوجوه المناسبة للإعلانات والإنتاج والكاستينج.`
+            : `Browse approved ${label.toLowerCase()} profiles on MLAMH for casting, advertising and production projects.`
+        }
+        talents={talents}
+      />
+    </>
   );
 }
