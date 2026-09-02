@@ -24,6 +24,8 @@ export function TalentSeoLanding({
     { href: `/${locale}/talent/city/riyadh`, label: isRtl ? "ممثلون ومودلز في الرياض" : "Actors & Models in Riyadh" },
     { href: `/${locale}/opportunities/type/acting`, label: isRtl ? "فرص تمثيل وكاستينج" : "Acting & casting opportunities" },
     { href: `/${locale}/opportunities/type/modeling`, label: isRtl ? "فرص مودل وتصوير" : "Modeling & photo shoot opportunities" },
+    { href: `/${locale}/guides`, label: isRtl ? "دليل التمثيل والمودل" : "Acting & modeling guides" },
+    { href: `/${locale}/casting`, label: isRtl ? "إدارة الكاستينغ للشركات" : "Managed casting for companies" },
   ];
 
   return (
