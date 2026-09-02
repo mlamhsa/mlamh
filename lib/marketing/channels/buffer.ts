@@ -152,7 +152,7 @@ export class BufferServerAdapter implements MarketingChannelAdapter {
       }, scheduled ? "schedule request" : "publish request");
 
       const payload = data.createPost;
-      if (payload.__typename !== "PostActionSuccess") {
+      if (!("post" in payload)) {
         return { ok: false, errorCode: "buffer_mutation_error", errorMessage: safeMutationMessage("message" in payload ? payload.message : null) };
       }
 
