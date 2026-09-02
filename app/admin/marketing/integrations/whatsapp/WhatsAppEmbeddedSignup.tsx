@@ -88,7 +88,7 @@ export function WhatsAppEmbeddedSignup({ appId, configurationId, isArabic }: { a
     window.addEventListener("message", receiveMessage);
 
     window.fbAsyncInit = () => {
-      window.FB?.init({ appId, autoLogAppEvents: true, xfbml: true, version: "v24.0" });
+      window.FB?.init({ appId, autoLogAppEvents: true, xfbml: true, version: "v26.0" });
       setSdkReady(true);
     };
     if (window.FB) {
