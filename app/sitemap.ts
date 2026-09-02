@@ -31,6 +31,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.9,
     },
     {
+      url: `${SITE_URL}/${locale}/casting`,
+      changeFrequency: "weekly",
+      priority: 0.85,
+    },
+    {
       url: `${SITE_URL}/${locale}/publishers`,
       changeFrequency: "weekly",
       priority: 0.8,
@@ -67,6 +72,35 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       })),
     );
 
+  const availableCategories = new Set(
+    talents
+      .map((talent) => talent.category_slug?.trim())
+      .filter((value): value is string => value === "actor" || value === "model"),
+  );
+
+  const categoryRoutes: MetadataRoute.Sitemap = Array.from(availableCategories).flatMap(
+    (category) =>
+      locales.map((locale) => ({
+        url: `${SITE_URL}/${locale}/talent/category/${category}`,
+        changeFrequency: "daily" as const,
+        priority: 0.85,
+      })),
+  );
+
+  const availableCities = new Set(
+    talents
+      .map((talent) => talent.city_slug?.trim())
+      .filter((value): value is string => Boolean(value)),
+  );
+
+  const cityRoutes: MetadataRoute.Sitemap = Array.from(availableCities).flatMap((city) =>
+    locales.map((locale) => ({
+      url: `${SITE_URL}/${locale}/talent/city/${city}`,
+      changeFrequency: "daily" as const,
+      priority: 0.75,
+    })),
+  );
+
   const opportunityRoutes: MetadataRoute.Sitemap = opportunities
     .filter((opportunity) => Boolean(opportunity.slug))
     .flatMap((opportunity) =>
@@ -80,6 +114,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   return [
     ...staticRoutes,
     ...talentRoutes,
+    ...categoryRoutes,
+    ...cityRoutes,
     ...opportunityRoutes,
   ];
 }
