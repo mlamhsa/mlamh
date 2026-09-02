@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireMarketingAdminAccess } from "@/lib/auth/require-marketing-admin";
 import { getMarketingChannelAdapter } from "@/lib/marketing/channels/adapters";
 import { buildEmailOutreachIdempotencyKey } from "@/lib/marketing/channels/email-executor";
+import { runApprovedSandboxJobsForApproval } from "@/lib/marketing/channels/run-approved-sandbox";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 type ApprovalDecision = "approved" | "rejected" | "cancelled" | "scheduled";
@@ -147,7 +148,7 @@ async function applyApprovalSideEffects({ approvalId, task, proposedAction, deci
           status: decision === "scheduled" ? "scheduled" : "approved",
           scheduled_at: decision === "scheduled" ? executeAfter : null,
           idempotency_key: idempotencyKey,
-          payload: { kind: "outreach_email", outreach_id: outreachId, lead_id: task.lead_id, recipient: { email: recipientEmail }, subject, text },
+          payload: { kind: "outreach_email", outreach_id: outreachId, lead_id: task.lead_id, recipient: { email: recipientEmail }, subject, text, test_mode: input.test_mode === true },
           result: {},
           updated_at: now,
         }, { onConflict: "idempotency_key" });
@@ -191,7 +192,11 @@ async function decideApproval(formData: FormData, decision: ApprovalDecision) {
   }
 
   await applyApprovalSideEffects({ approvalId, task: task as TaskRow, proposedAction, decision, executeAfter });
-  await db.from("marketing_agent_activity").insert({ task_id: approval.task_id, action: `approval_${decision}`, reason: decisionNote, channel: approval.channel ?? "internal", approval_status: decision, result: { approval_id: approvalId, decided_by: user.id, auto_execute: false, external_reply: externalReply, delivery_channels: externalReply ? toRecord(proposedAction).delivery_channels : undefined } });
+  let sandboxExecuted: number[] = [];
+  if (decision === "approved" && toRecord(task.input).test_mode === true) {
+    sandboxExecuted = await runApprovedSandboxJobsForApproval(approvalId);
+  }
+  await db.from("marketing_agent_activity").insert({ task_id: approval.task_id, action: `approval_${decision}`, reason: decisionNote, channel: approval.channel ?? "internal", approval_status: decision, result: { approval_id: approvalId, decided_by: user.id, auto_execute: sandboxExecuted.length > 0, sandbox_executed_job_ids: sandboxExecuted, external_reply: externalReply, delivery_channels: externalReply ? toRecord(proposedAction).delivery_channels : undefined } });
   revalidateMarketingApprovalViews();
 }
 
