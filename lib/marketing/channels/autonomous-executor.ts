@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 
+import { getExternalExecutionSettings } from "./controlled-execution";
 import { executeMarketingChannelJob } from "./executor";
 import { executeMarketingEmailJob } from "./email-executor";
 
@@ -7,17 +8,6 @@ function asRecord(value: unknown) {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
-}
-
-async function externalExecutionEnabled() {
-  const db = createAdminClient();
-  const { data, error } = await db
-    .from("marketing_settings")
-    .select("value")
-    .eq("key", "external_execution_enabled")
-    .maybeSingle();
-  if (error || !data) return false;
-  return asRecord(data.value).enabled === true;
 }
 
 type ChannelJob = {
@@ -29,8 +19,9 @@ type ChannelJob = {
 };
 
 export async function runGovernedChannelWorker({ maxJobs = 2 }: { maxJobs?: number } = {}) {
-  if (!(await externalExecutionEnabled())) {
-    return { enabled: false, executed: [], skipped: [] };
+  const executionSettings = await getExternalExecutionSettings();
+  if (!executionSettings.productionEnabled && !executionSettings.testMode.enabled) {
+    return { enabled: false, mode: "disabled", executed: [], skipped: [] };
   }
 
   const safeMax = Math.max(1, Math.min(maxJobs, 5));
@@ -53,6 +44,10 @@ export async function runGovernedChannelWorker({ maxJobs = 2 }: { maxJobs?: numb
 
     try {
       const payload = asRecord(row.payload);
+      if (!executionSettings.productionEnabled && payload.test_mode !== true) {
+        skipped.push({ id: row.id, channel: row.channel, reason: "production_execution_disabled_non_test_job" });
+        continue;
+      }
 
       if (row.channel === "email") {
         if (payload.kind !== "outreach_email") {
@@ -78,5 +73,10 @@ export async function runGovernedChannelWorker({ maxJobs = 2 }: { maxJobs?: numb
     }
   }
 
-  return { enabled: true, executed, skipped };
+  return {
+    enabled: true,
+    mode: executionSettings.productionEnabled ? "production" : "test",
+    executed,
+    skipped,
+  };
 }
