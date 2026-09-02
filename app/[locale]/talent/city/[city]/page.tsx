@@ -43,8 +43,23 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         "x-default": `${SITE_URL}/ar/talent/city/${city}`,
       },
     },
-    openGraph: { title, description, url: canonical, type: "website", siteName: "MLAMH" },
-    robots: { index: hasPublishedSupply, follow: true },
+    openGraph: {
+      title,
+      description,
+      url: canonical,
+      type: "website",
+      siteName: "MLAMH",
+      images: [`${SITE_URL}/og-image.png`],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [`${SITE_URL}/og-image.png`],
+    },
+    robots: hasPublishedSupply
+      ? { index: true, follow: true }
+      : { index: false, follow: true },
   };
 }
 
@@ -59,18 +74,49 @@ export default async function TalentCityPage({ params }: PageProps) {
   const { talents } = await getPublicTalents({ city, pageSize: 48 });
   const isArabic = locale === "ar";
   const label = isArabic ? item.ar : item.en;
+  const canonical = `${SITE_URL}/${locale}/talent/city/${city}`;
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: isArabic ? "ملامح" : "MLAMH",
+        item: `${SITE_URL}/${locale}`,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: isArabic ? "المواهب" : "Talents",
+        item: `${SITE_URL}/${locale}/talent`,
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: isArabic ? `ممثلون ومودلز في ${label}` : `Actors & Models in ${label}`,
+        item: canonical,
+      },
+    ],
+  };
 
   return (
-    <TalentSeoLanding
-      locale={locale}
-      eyebrow={isArabic ? "مواهب حسب المدينة" : "TALENTS BY CITY"}
-      title={isArabic ? `ممثلون ومودلز في ${label}` : `Actors & Models in ${label}`}
-      description={
-        isArabic
-          ? `استعرض ملفات الممثلين والمودلز المنشورة في ${label} واختر المواهب المناسبة لمشروع الكاستينج أو التصوير أو الإعلان.`
-          : `Browse published actors and models in ${label} and find talent for casting, shoots, advertising and production projects.`
-      }
-      talents={talents}
-    />
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
+      <TalentSeoLanding
+        locale={locale}
+        eyebrow={isArabic ? "مواهب حسب المدينة" : "TALENTS BY CITY"}
+        title={isArabic ? `ممثلون ومودلز في ${label}` : `Actors & Models in ${label}`}
+        description={
+          isArabic
+            ? `استعرض ملفات الممثلين والمودلز المنشورة في ${label} واختر المواهب المناسبة لمشروع الكاستينج أو التصوير أو الإعلان.`
+            : `Browse published actors and models in ${label} and find talent for casting, shoots, advertising and production projects.`
+        }
+        talents={talents}
+      />
+    </>
   );
 }
