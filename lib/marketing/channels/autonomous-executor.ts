@@ -33,13 +33,15 @@ export async function runGovernedChannelWorker({ maxJobs = 2 }: { maxJobs?: numb
     return { enabled: false, executed: [], skipped: [] };
   }
 
+  const safeMax = Math.max(1, Math.min(maxJobs, 5));
   const db = createAdminClient();
   const { data, error } = await db
     .from("marketing_channel_jobs")
     .select("id,channel,status,scheduled_at,payload")
     .in("status", ["approved", "scheduled"])
+    .in("channel", ["email", "buffer"])
     .order("created_at", { ascending: true })
-    .limit(Math.max(1, Math.min(maxJobs, 5)));
+    .limit(safeMax * 5);
 
   if (error) throw new Error(`[marketing_channel_worker.read] ${error.message}`);
 
@@ -47,6 +49,8 @@ export async function runGovernedChannelWorker({ maxJobs = 2 }: { maxJobs?: numb
   const skipped: Array<{ id: number; channel: string; reason: string }> = [];
 
   for (const row of (data ?? []) as ChannelJob[]) {
+    if (executed.length >= safeMax) break;
+
     try {
       const payload = asRecord(row.payload);
 
@@ -63,11 +67,8 @@ export async function runGovernedChannelWorker({ maxJobs = 2 }: { maxJobs?: numb
           }
         }
         await executeMarketingEmailJob(row.id);
-      } else if (row.channel === "buffer") {
-        await executeMarketingChannelJob(row.id, row.status === "scheduled" ? "schedule" : "publish_now");
       } else {
-        skipped.push({ id: row.id, channel: row.channel, reason: "channel_not_enabled_for_autonomous_execution" });
-        continue;
+        await executeMarketingChannelJob(row.id, row.status === "scheduled" ? "schedule" : "publish_now");
       }
 
       executed.push({ id: row.id, channel: row.channel, status: row.status });
