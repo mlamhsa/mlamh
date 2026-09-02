@@ -22,6 +22,13 @@ function talentLabel(type: string | null | undefined, language: DanaClientLangua
   return "talent";
 }
 
+function localizedCity(city: string | null | undefined, language: DanaClientLanguage) {
+  if (!city) return null;
+  if (language === "ar" && city.trim().toLowerCase() === "jeddah") return "جدة";
+  if (language === "ar" && city.trim().toLowerCase() === "riyadh") return "الرياض";
+  return city;
+}
+
 export function buildDanaExecutiveSummary(input: {
   language: DanaClientLanguage;
   talentType?: string | null;
@@ -32,28 +39,30 @@ export function buildDanaExecutiveSummary(input: {
   compensation?: string | null;
   matchCount: number;
   supplyMissing: number;
+  alternativesRequested?: boolean;
 }) {
   const count = input.talentCount ?? 1;
+  const city = localizedCity(input.city, input.language);
   if (input.language === "ar") {
     const parts = [
-      `العميل يطلب ${count} ${talentLabel(input.talentType, "ar")}${input.city ? ` في ${input.city}` : ""}.`,
-      input.recurring ? "التعاون مستمر/متكرر." : "الطلب لمشروع محدد.",
-      input.socialContent ? "الاستخدام يشمل محتوى وتصوير سوشيال/فيديو." : null,
+      `العميل يطلب ${count} ${talentLabel(input.talentType, "ar")}${city ? ` في ${city}` : ""}.`,
+      input.recurring ? "التعاون شهري ومستمر." : "الطلب لمشروع محدد.",
+      input.socialContent ? "الاستخدام يشمل تصوير المنتجات ومحتوى السوشيال والفيديو." : null,
       input.compensation ? `المقابل المذكور: ${input.compensation}.` : "المقابل يحتاج تأكيدًا مع العميل.",
-      input.supplyMissing === 0
-        ? `Dana وجدت ${input.matchCount} موهبة قابلة للإرسال لهذا الـBrief.`
-        : `المتاح حاليًا ${input.matchCount} ويوجد عجز ${input.supplyMissing} موهبة.`
+      input.matchCount > 0 ? `وجدت Dana ${input.matchCount} موهبة مطابقة وقابلة للترشيح حاليًا.` : "لا توجد موهبة مطابقة قابلة للترشيح حاليًا.",
+      input.alternativesRequested && input.matchCount <= count ? "العميل طلب بدائل للمقارنة، ولا توجد بدائل إضافية مطابقة جاهزة حاليًا؛ نحتاج استكمال الترشيحات." : null,
+      input.supplyMissing > 0 ? `يوجد عجز أساسي قدره ${input.supplyMissing} موهبة عن العدد المطلوب.` : null,
     ].filter(Boolean);
     return parts.join(" ");
   }
   const parts = [
-    `The client is requesting ${count} ${talentLabel(input.talentType, "en")}${input.city ? ` in ${input.city}` : ""}.`,
-    input.recurring ? "The engagement is recurring." : "The request is for a specific project.",
-    input.socialContent ? "The work includes social/video content." : null,
+    `The client is requesting ${count} ${talentLabel(input.talentType, "en")}${city ? ` in ${city}` : ""}.`,
+    input.recurring ? "The engagement is monthly and recurring." : "The request is for a specific project.",
+    input.socialContent ? "The work includes product shoots, social content and video." : null,
     input.compensation ? `Stated compensation: ${input.compensation}.` : "Compensation still needs confirmation.",
-    input.supplyMissing === 0
-      ? `Dana found ${input.matchCount} sendable talent profile(s) for this brief.`
-      : `${input.matchCount} profile(s) are currently sendable, with a supply gap of ${input.supplyMissing}.`
+    input.matchCount > 0 ? `Dana found ${input.matchCount} matching, sendable talent profile(s).` : "No matching sendable talent is currently available.",
+    input.alternativesRequested && input.matchCount <= count ? "The client requested alternatives for comparison; no additional matching alternatives are ready yet, so the shortlist needs to be expanded." : null,
+    input.supplyMissing > 0 ? `The core requested count has a supply gap of ${input.supplyMissing}.` : null,
   ].filter(Boolean);
   return parts.join(" ");
 }
@@ -65,23 +74,31 @@ export function buildDanaChannelDrafts(input: {
   city?: string | null;
   matchNames: string[];
   supplyMissing: number;
+  alternativesRequested?: boolean;
 }) {
   const firstName = input.matchNames[0] ?? null;
+  const city = localizedCity(input.city, input.language);
   if (input.language === "ar") {
-    const email = input.supplyMissing === 0 && firstName
-      ? `مرحبًا ${input.senderName ?? ""}،\n\nشكرًا لتواصلكم مع ملامح ومشاركة تفاصيل احتياجكم. راجعنا الطلب، ولدينا موهبة مناسبة وقابلة للترشيح حاليًا: ${firstName}${input.city ? ` في ${input.city}` : ""}.\n\nيمكننا الانتقال للخطوة التالية وتأكيد التفاصيل النهائية قبل التواصل مع الموهبة. إذا كان لديكم أي متطلبات إضافية مثل العمر، المقاسات، الخبرة أو موعد التصوير، أرسلوها لنا لنحدّث الترشيح.\n\nفريق ملامح | الشراكات والكاستنج`
-      : `مرحبًا ${input.senderName ?? ""}،\n\nشكرًا لتواصلكم مع ملامح ومشاركة تفاصيل احتياجكم. راجعنا الطلب ونقوم حاليًا باستكمال قائمة المواهب المناسبة بدل إرسال ترشيحات غير مطابقة. سنشارككم الخيارات المؤهلة فور اكتمالها، ويمكنكم أيضًا إرسال أي متطلبات إضافية تساعدنا في تضييق نطاق الترشيح.\n\nفريق ملامح | الشراكات والكاستنج`;
-    const whatsapp = input.supplyMissing === 0 && firstName
-      ? `مرحبًا ${input.senderName ?? ""}، معكم فريق ملامح. راجعنا طلبكم ولدينا ترشيح مناسب حاليًا: ${firstName}${input.city ? ` – ${input.city}` : ""}. إذا لديكم متطلبات إضافية أو موعد محدد للتصوير أرسلوها لنا ونكمل معكم الخطوة التالية.`
-      : `مرحبًا ${input.senderName ?? ""}، معكم فريق ملامح. استلمنا وراجعنا طلبكم، ونعمل على استكمال الترشيحات المناسبة بدل إرسال ملفات غير مطابقة. إذا لديكم متطلبات إضافية أرسلوها لنا وسنضيفها للـBrief.`;
+    const alternatives = input.alternativesRequested && firstName
+      ? " كما طلبتم بدائل للمقارنة، سنستكمل ترشيح مودلز إضافيات مطابقات في جدة بدل إرسال ملفات غير مناسبة."
+      : "";
+    const email = firstName
+      ? `مرحبًا ${input.senderName ?? ""}،\n\nشكرًا لتواصلكم مع ملامح. راجعنا احتياجكم للتعاون الشهري المستمر في تصوير المنتجات والعبايات ومحتوى السوشيال والفيديو. لدينا حاليًا ترشيح مطابق وقابل للتقديم: ${firstName}${city ? ` في ${city}` : ""}.${alternatives}\n\nسنؤكد معكم التفاصيل النهائية وموعد التصوير قبل التواصل مع الموهبة. وإذا كانت لديكم متطلبات إضافية مثل العمر أو المقاسات أو الخبرة، أرسلوها لنا لنحدّث قائمة الترشيحات.\n\nفريق ملامح | الشراكات والكاستنج`
+      : `مرحبًا ${input.senderName ?? ""}،\n\nشكرًا لتواصلكم مع ملامح. راجعنا احتياجكم، ونعمل حاليًا على استكمال قائمة المواهب المطابقة بدل إرسال ملفات غير مناسبة. سنشارككم الخيارات المؤهلة فور اكتمالها، ويمكنكم إرسال أي متطلبات إضافية لتحديث قائمة الترشيحات.\n\nفريق ملامح | الشراكات والكاستنج`;
+    const whatsapp = firstName
+      ? `مرحبًا ${input.senderName ?? ""}، معكم فريق ملامح. راجعنا طلبكم للتعاون الشهري ولدينا حاليًا ترشيح مطابق: ${firstName}${city ? ` – ${city}` : ""}.${input.alternativesRequested ? " وبما أنكم طلبتم بدائل للمقارنة، سنستكمل ترشيحات إضافية مطابقة بدل إرسال ملفات غير مناسبة." : ""} إذا لديكم موعد محدد للتصوير أو متطلبات إضافية أرسلوها لنا ونكمل معكم الخطوة التالية.`
+      : `مرحبًا ${input.senderName ?? ""}، معكم فريق ملامح. استلمنا وراجعنا طلبكم، ونعمل على استكمال الترشيحات المطابقة بدل إرسال ملفات غير مناسبة. إذا لديكم متطلبات إضافية أرسلوها لنا وسنضيفها لمتطلبات الطلب.`;
     return { email, whatsapp };
   }
 
-  const email = input.supplyMissing === 0 && firstName
-    ? `Hello ${input.senderName ?? ""},\n\nThank you for contacting MLAMH and sharing your casting requirements. We reviewed the brief and currently have a suitable, sendable profile: ${firstName}${input.city ? ` in ${input.city}` : ""}.\n\nWe can move to the next step and confirm any final details before talent outreach. If you have additional requirements such as age range, measurements, experience, or shoot date, please send them and we will refine the shortlist.\n\nMLAMH Team | Partnerships & Casting`
-    : `Hello ${input.senderName ?? ""},\n\nThank you for contacting MLAMH and sharing your requirements. We reviewed the brief and are currently completing the suitable shortlist rather than sending profiles that do not meet your criteria. Please share any additional requirements and we will include them in the brief.\n\nMLAMH Team | Partnerships & Casting`;
-  const whatsapp = input.supplyMissing === 0 && firstName
-    ? `Hello ${input.senderName ?? ""}, this is the MLAMH team. We reviewed your request and currently have a suitable profile: ${firstName}${input.city ? ` – ${input.city}` : ""}. Send us any additional requirements or the shoot date and we can move to the next step.`
-    : `Hello ${input.senderName ?? ""}, this is the MLAMH team. We reviewed your request and are completing the suitable shortlist rather than sending mismatched profiles. Send any additional requirements and we will add them to the brief.`;
+  const alternatives = input.alternativesRequested && firstName
+    ? " As requested, we will continue building additional matching alternatives for comparison rather than sending unsuitable profiles."
+    : "";
+  const email = firstName
+    ? `Hello ${input.senderName ?? ""},\n\nThank you for contacting MLAMH. We reviewed your recurring monthly requirement for product shoots, social content and video. We currently have a matching, sendable profile: ${firstName}${city ? ` in ${city}` : ""}.${alternatives}\n\nWe can confirm the final details and shoot date before talent outreach. If you have additional requirements such as age range, measurements or experience, please send them and we will refine the shortlist.\n\nMLAMH Team | Partnerships & Casting`
+    : `Hello ${input.senderName ?? ""},\n\nThank you for contacting MLAMH. We reviewed your requirements and are completing the matching shortlist rather than sending unsuitable profiles. Please share any additional requirements and we will use them to refine the shortlist.\n\nMLAMH Team | Partnerships & Casting`;
+  const whatsapp = firstName
+    ? `Hello ${input.senderName ?? ""}, this is the MLAMH team. We reviewed your recurring request and currently have a matching profile: ${firstName}${city ? ` – ${city}` : ""}.${input.alternativesRequested ? " We will also continue building additional matching alternatives for comparison." : ""} Send us the shoot date or any additional requirements and we can move to the next step.`
+    : `Hello ${input.senderName ?? ""}, this is the MLAMH team. We reviewed your request and are completing the matching shortlist rather than sending unsuitable profiles. Send any additional requirements and we will add them to the request.`;
   return { email, whatsapp };
 }
