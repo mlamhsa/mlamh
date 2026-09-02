@@ -8,7 +8,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 export const dynamic = "force-dynamic";
 
 const CONTROLLED_APPROVAL_ID = 7;
-const RUN_TOKEN_SHA256 = "f301013c8e6bc92e767396688137bfafded510abd4df61817aee9fb02da051bc";
+const RUN_TOKEN_SHA256 = "60124844b4aba7848f53fb42a3b3bbd08ef5b3fefebdac74bf85bf4b38cb2fd0";
 
 function validRunToken(value: string | null) {
   if (!value) return false;
