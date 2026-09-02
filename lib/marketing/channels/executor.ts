@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getMarketingChannelAdapter } from "./adapters";
+import { evaluateControlledExecution, getExternalExecutionSettings } from "./controlled-execution";
 import { evaluateChannelExecutionPolicy } from "./execution-policy";
 
 function safeExecutionError(error: unknown) {
@@ -8,36 +9,48 @@ function safeExecutionError(error: unknown) {
   return message.slice(0, 500);
 }
 
-async function getExternalExecutionEnabled() {
-  const db = createAdminClient();
-  const { data, error } = await db.from("marketing_settings").select("value").eq("key", "external_execution_enabled").maybeSingle();
-  if (error || !data) return false;
-  const value = data.value as { enabled?: unknown } | null;
-  return value?.enabled === true;
-}
-
 export async function executeMarketingChannelJob(jobId: number, mode: "publish_now" | "schedule" = "publish_now") {
   const db = createAdminClient();
   const { data: job, error } = await db.from("marketing_channel_jobs").select("id,content_id,task_id,approval_id,channel,status,scheduled_at,payload,retry_count,idempotency_key,external_post_id").eq("id", jobId).single();
   if (error || !job) throw new Error("Marketing channel job not found.");
 
+  const payload = (job.payload ?? {}) as Record<string, unknown>;
+  const target = typeof payload.target === "string" ? payload.target : undefined;
+  const executionSettings = await getExternalExecutionSettings();
+  const controlledExecution = job.channel === "buffer"
+    ? evaluateControlledExecution({
+        channel: "buffer",
+        productionEnabled: executionSettings.productionEnabled,
+        testModeRequested: payload.test_mode === true,
+        testMode: executionSettings.testMode,
+        bufferTarget: target,
+      })
+    : executionSettings.productionEnabled
+      ? { allowed: true as const, mode: "production" as const }
+      : { allowed: false as const, reason: "external_execution_disabled" };
+
   const { data: approval } = job.approval_id
     ? await db.from("marketing_approvals").select("id,status,task_id").eq("id", job.approval_id).maybeSingle()
     : { data: null };
-  const externalExecutionEnabled = await getExternalExecutionEnabled();
   const policy = evaluateChannelExecutionPolicy({
     jobStatus: job.status,
     approvalId: job.approval_id,
     approvalStatus: approval?.status ?? null,
     approvalTaskMatches: Boolean(approval && approval.task_id === job.task_id),
-    externalExecutionEnabled,
+    externalExecutionEnabled: controlledExecution.allowed,
     idempotencyKey: job.idempotency_key,
     externalPostId: job.external_post_id,
     mode,
     scheduledAt: job.scheduled_at,
   });
-  if (!policy.allowed) throw new Error(`Channel execution blocked: ${policy.reason}.`);
+  if (!policy.allowed) {
+    const reason = !controlledExecution.allowed && policy.reason === "external_execution_disabled"
+      ? controlledExecution.reason
+      : policy.reason;
+    throw new Error(`Channel execution blocked: ${reason}.`);
+  }
   if (policy.duplicate) return { ok: true, externalId: job.external_post_id ?? undefined, metadata: { duplicate_prevented: true } };
+  if (!controlledExecution.allowed) throw new Error(`Channel execution blocked: ${controlledExecution.reason}.`);
 
   const adapter = getMarketingChannelAdapter(job.channel);
   if (!adapter?.publish) throw new Error(`No publishing adapter configured for ${job.channel}.`);
@@ -54,13 +67,28 @@ export async function executeMarketingChannelJob(jobId: number, mode: "publish_n
   }
 
   try {
-    const payload = (job.payload ?? {}) as Record<string, unknown>;
-    const target = typeof payload.target === "string" ? payload.target : undefined;
-    const result = await adapter.publish({ contentId: job.content_id, text: typeof payload.text === "string" ? payload.text : undefined, assetUrls: Array.isArray(payload.asset_urls) ? payload.asset_urls.filter((value): value is string => typeof value === "string") : undefined, scheduledAt: mode === "schedule" ? job.scheduled_at : null, idempotencyKey: job.idempotency_key, target, metadata: { target, mode } });
+    const result = await adapter.publish({
+      contentId: job.content_id,
+      text: typeof payload.text === "string" ? payload.text : undefined,
+      assetUrls: Array.isArray(payload.asset_urls) ? payload.asset_urls.filter((value): value is string => typeof value === "string") : undefined,
+      scheduledAt: mode === "schedule" ? job.scheduled_at : null,
+      idempotencyKey: job.idempotency_key,
+      target,
+      metadata: { target, mode, execution_mode: controlledExecution.mode },
+    });
     if (!result.ok) throw new Error(result.errorMessage ?? result.errorCode ?? "Channel publish failed.");
     const now = new Date().toISOString();
-    await db.from("marketing_channel_jobs").update({ status: "published", published_at: now, external_post_id: result.externalId ?? null, result: result.metadata ?? {}, last_error: null, updated_at: now }).eq("id", job.id);
-    await db.from("marketing_content").update({ status: "published", published_at: now, external_post_id: result.externalId ?? null, updated_at: now }).eq("id", job.content_id);
+    await db.from("marketing_channel_jobs").update({
+      status: "published",
+      published_at: now,
+      external_post_id: result.externalId ?? null,
+      result: { ...(result.metadata ?? {}), execution_mode: controlledExecution.mode },
+      last_error: null,
+      updated_at: now,
+    }).eq("id", job.id);
+    if (controlledExecution.mode === "production") {
+      await db.from("marketing_content").update({ status: "published", published_at: now, external_post_id: result.externalId ?? null, updated_at: now }).eq("id", job.content_id);
+    }
     return result;
   } catch (executionError) {
     const message = safeExecutionError(executionError);
