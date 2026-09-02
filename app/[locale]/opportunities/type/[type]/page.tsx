@@ -104,12 +104,15 @@ export default async function OpportunityTypePage({ params }: { params: Promise<
         <section>
           <h2 className="mb-5 text-xl font-semibold text-zinc-950">{isArabic ? `الفرص المتاحة (${matches.length})` : `Available opportunities (${matches.length})`}</h2>
           <div className="grid gap-4 md:grid-cols-2">
-            {matches.map((item) => (
-              <Link key={item.id} href={`/${locale}/opportunities/${item.slug}`} className="rounded-2xl border border-zinc-200 bg-white p-5 transition hover:border-zinc-400">
-                <h3 className="font-semibold text-zinc-950">{item.title}</h3>
-                <p className="mt-2 text-sm text-zinc-600">{item.city || (isArabic ? "السعودية" : "Saudi Arabia")}</p>
-              </Link>
-            ))}
+            {matches.map((item) => {
+              const city = isArabic ? item.city_ar || item.city_en : item.city_en || item.city_ar;
+              return (
+                <Link key={item.id} href={`/${locale}/opportunities/${item.slug}`} className="rounded-2xl border border-zinc-200 bg-white p-5 transition hover:border-zinc-400">
+                  <h3 className="font-semibold text-zinc-950">{item.title}</h3>
+                  <p className="mt-2 text-sm text-zinc-600">{city || (isArabic ? "السعودية" : "Saudi Arabia")}</p>
+                </Link>
+              );
+            })}
           </div>
         </section>
       ) : (
