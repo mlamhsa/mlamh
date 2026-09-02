@@ -8,6 +8,8 @@ type SourceTask = {
   title: string;
 };
 
+type SocialTarget = "instagram" | "facebook";
+
 function record(value: unknown) {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -23,54 +25,148 @@ function numberValue(value: unknown) {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
+async function ensureSocialPublishingApproval({
+  task,
+  contentId,
+  title,
+  caption,
+  cta,
+  target,
+}: {
+  task: SourceTask;
+  contentId: number;
+  title: string;
+  caption: string;
+  cta: string | null;
+  target: SocialTarget;
+}) {
+  const db = createAdminClient();
+  const idempotencyKey = `buffer-publish-content-${contentId}-${target}`;
+  const { data: existingTask } = await db
+    .from("marketing_tasks")
+    .select("id")
+    .eq("idempotency_key", idempotencyKey)
+    .maybeSingle();
+
+  if (!existingTask?.id) {
+    await createMarketingTask({
+      agentId: task.agent_id ?? "reem",
+      taskType: "social_publish",
+      title: `Approve ${target} publishing: ${title}`,
+      objective: `Review the AI-prepared ${target} content before external publishing. Approval creates a governed Buffer job only.`,
+      channel: "buffer",
+      approvalLevel: "approval_required",
+      contentId,
+      source: "autonomous_materializer",
+      input: {
+        content_id: contentId,
+        provider: "buffer",
+        target,
+        text: caption,
+        cta,
+        asset_urls: [],
+        source_task_id: task.id,
+      },
+      metadata: { source_task_id: task.id, autonomous: true },
+      idempotencyKey,
+    });
+  }
+
+  const { data: approvalTask } = await db
+    .from("marketing_tasks")
+    .select("id")
+    .eq("idempotency_key", idempotencyKey)
+    .maybeSingle();
+  if (!approvalTask?.id) return false;
+
+  const { data: approval } = await db
+    .from("marketing_approvals")
+    .select("id")
+    .eq("task_id", approvalTask.id)
+    .maybeSingle();
+  return Boolean(approval?.id);
+}
+
 async function materializeContentStrategy(task: SourceTask, output: Record<string, unknown>) {
   const items = Array.isArray(output.content_items) ? output.content_items.slice(0, 3) : [];
   if (!items.length) return { contentCreated: 0, outreachCreated: 0, approvalsCreated: 0 };
 
   const db = createAdminClient();
-  const { count: existing } = await db
+  const { data: existingRows } = await db
     .from("marketing_content")
-    .select("id", { count: "exact", head: true })
+    .select("id,title,caption,cta,channel,status")
     .contains("metadata", { source_task_id: task.id });
-  if ((existing ?? 0) > 0) return { contentCreated: 0, outreachCreated: 0, approvalsCreated: 0 };
 
-  const rows = items.flatMap((raw, index) => {
-    const item = record(raw);
-    const title = text(item.title);
-    const caption = text(item.caption);
-    const channel = text(item.channel);
-    if (!title || !caption || (channel !== "instagram" && channel !== "facebook")) return [];
+  let contentRows = existingRows ?? [];
+  let contentCreated = 0;
+  if (!contentRows.length) {
+    const rows = items.flatMap((raw, index) => {
+      const item = record(raw);
+      const title = text(item.title);
+      const caption = text(item.caption);
+      const channel = text(item.channel);
+      if (!title || !caption || (channel !== "instagram" && channel !== "facebook")) return [];
 
-    return [{
-      title,
-      hook: text(item.hook),
-      caption,
-      body: text(item.body),
-      cta: text(item.cta),
-      content_type: text(item.content_type) ?? "feed",
-      channel,
-      objective: text(item.objective) ?? "organic_growth",
-      audience: record(item.audience),
-      agent_id: task.agent_id ?? "reem",
-      language: "ar",
-      status: "draft",
-      asset_references: [],
-      utm: {},
-      metrics: {},
-      metadata: {
-        source: "marketing_ai",
-        source_task_id: task.id,
-        source_task_type: task.task_type,
-        source_item_index: index,
-        autonomous: true,
-      },
-    }];
-  });
+      return [{
+        title,
+        hook: text(item.hook),
+        caption,
+        body: text(item.body),
+        cta: text(item.cta),
+        content_type: text(item.content_type) ?? "feed",
+        channel,
+        objective: text(item.objective) ?? "organic_growth",
+        audience: record(item.audience),
+        agent_id: task.agent_id ?? "reem",
+        language: "ar",
+        status: "draft",
+        asset_references: [],
+        utm: {},
+        metrics: {},
+        metadata: {
+          source: "marketing_ai",
+          source_task_id: task.id,
+          source_task_type: task.task_type,
+          source_item_index: index,
+          autonomous: true,
+        },
+      }];
+    });
 
-  if (!rows.length) return { contentCreated: 0, outreachCreated: 0, approvalsCreated: 0 };
-  const { error } = await db.from("marketing_content").insert(rows);
-  if (error) throw new Error(`[marketing_materialize.content] ${error.message}`);
-  return { contentCreated: rows.length, outreachCreated: 0, approvalsCreated: 0 };
+    if (!rows.length) return { contentCreated: 0, outreachCreated: 0, approvalsCreated: 0 };
+    const { data: inserted, error } = await db
+      .from("marketing_content")
+      .insert(rows)
+      .select("id,title,caption,cta,channel,status");
+    if (error) throw new Error(`[marketing_materialize.content] ${error.message}`);
+    contentRows = inserted ?? [];
+    contentCreated = contentRows.length;
+  }
+
+  let approvalsCreated = 0;
+  for (const content of contentRows) {
+    const target = content.channel as SocialTarget;
+    if (target !== "instagram" && target !== "facebook") continue;
+    const approved = await ensureSocialPublishingApproval({
+      task,
+      contentId: content.id,
+      title: content.title ?? `content #${content.id}`,
+      caption: content.caption ?? "",
+      cta: content.cta ?? null,
+      target,
+    });
+    if (approved) {
+      approvalsCreated += 1;
+      if (content.status !== "approval") {
+        await db
+          .from("marketing_content")
+          .update({ status: "approval", updated_at: new Date().toISOString() })
+          .eq("id", content.id);
+      }
+    }
+  }
+
+  return { contentCreated, outreachCreated: 0, approvalsCreated };
 }
 
 async function ensureOutreachApproval({
