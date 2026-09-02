@@ -147,6 +147,9 @@ export class BufferServerAdapter implements MarketingChannelAdapter {
           schedulingType: "automatic",
           mode: scheduled ? "customScheduled" : "shareNow",
           assets: assets.map((url) => ({ image: { url } })),
+          metadata: target === "facebook"
+            ? { facebook: { type: "post" } }
+            : { instagram: { type: "post", shouldShareToFeed: true } },
           ...(scheduled ? { dueAt: input.scheduledAt } : {}),
         },
       }, scheduled ? "schedule request" : "publish request");
