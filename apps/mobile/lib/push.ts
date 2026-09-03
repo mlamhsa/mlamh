@@ -9,6 +9,7 @@ import { supabase } from "@/lib/supabase";
 
 const API_BASE_URL = (process.env.EXPO_PUBLIC_API_BASE_URL ?? "https://mlamh.net").replace(/\/$/, "");
 const PUSH_TOKEN_STORAGE_KEY = "mlamh.push.expo-token";
+const ALLOWED_PUSH_ORIGINS = ["https://mlamh.net/", "https://www.mlamh.net/"];
 
 export type PushPreparationResult =
   | { ok: true; token: string }
@@ -85,6 +86,7 @@ export async function syncExistingPushRegistration(locale: AppLocale) {
 }
 
 export async function unregisterPushToken(expoPushToken: string) {
+  if (Platform.OS === "web") return true;
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.access_token) return false;
   const response = await fetch(`${API_BASE_URL}/api/mobile/devices`, {
@@ -101,12 +103,15 @@ export async function unregisterPushToken(expoPushToken: string) {
 }
 
 export async function unregisterCurrentPushToken() {
+  if (Platform.OS === "web") return true;
   const token = await Storage.getItem(PUSH_TOKEN_STORAGE_KEY);
   if (!token) return true;
   return unregisterPushToken(token);
 }
 
 export function startPushSessionLifecycle(locale: AppLocale) {
+  if (Platform.OS === "web") return () => undefined;
+
   let active = true;
   void supabase.auth.getSession().then(({ data }) => {
     if (active && data.session) void syncExistingPushRegistration(locale);
@@ -136,7 +141,12 @@ export function installPushDeepLinkObserver(onUrl: (url: string) => void) {
 
   const redirect = (notification: Notifications.Notification) => {
     const url = notification.request.content.data?.url;
-    if (typeof url === "string" && (url.startsWith("/") || url.startsWith("https://mlamh.net/"))) onUrl(url);
+    if (
+      typeof url === "string" &&
+      (url.startsWith("/") || ALLOWED_PUSH_ORIGINS.some((origin) => url.startsWith(origin)))
+    ) {
+      onUrl(url);
+    }
   };
 
   const lastResponse = Notifications.getLastNotificationResponse();
