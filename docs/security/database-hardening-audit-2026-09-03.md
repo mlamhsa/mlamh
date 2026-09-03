@@ -2,83 +2,65 @@
 
 ## Scope
 
-Read-only security and performance review after the Multi-Country Foundation production milestone.
-
-No production DDL or DML is authorized or executed by this audit.
+Security and performance review after the Multi-Country Foundation production milestone, followed by the explicitly approved minimal P0/P1 production hardening patch.
 
 ## Production baseline
 
 - Project: `ozieysztwlispglupuox`
-- Main baseline: `0dc46d9d7cd07a2fe14dad7b1b93e9b67f1e06a6`
+- Main baseline at audit start: `0dc46d9d7cd07a2fe14dad7b1b93e9b67f1e06a6`
 - Multi-Country Foundation is already merged and deployed.
 - Saudi Arabia remains the only active operational market.
 
-## Priority model
+## P0/P1 production hardening — VERIFIED
 
-### P0 — Security boundary
+Applied production migration:
 
-1. `public.expire_featured_talents()`
-   - `SECURITY DEFINER`
-   - currently executable by `anon`, `authenticated`, and `service_role`
-   - no application-code reference found on the default branch
-   - no active `pg_cron` job references it
-   - recommended target: revoke `PUBLIC`, `anon`, and `authenticated`; grant only to trusted server/admin execution path if still required
+- `20260903072241_harden_privileged_functions_p0_p1`
 
-2. `public.is_conversation_participant(bigint)`
-   - `SECURITY DEFINER`
-   - currently executable by `anon`, `authenticated`, and `service_role`
-   - required by RLS policies on `messages`, `message_attachments`, and `storage.objects`
-   - recommended target: keep `authenticated` execution because RLS depends on it; revoke `anon` and `PUBLIC`; keep explicit `service_role` only if required
-   - preserve the current authorization predicate and verify message read/insert + attachment read/upload/delete after any privilege change
+Verified outcomes:
 
-3. `public.increment_talent_view(bigint)`
-   - `SECURITY DEFINER`
-   - currently executable by `anon`, `authenticated`, and `service_role`
-   - no application-code reference found on the default branch
-   - increments a public counter with no caller-specific anti-abuse guard
-   - recommended target: do not blindly revoke until the public talent-view flow is traced end-to-end; if retained as public RPC, redesign with rate/duplicate-abuse protection and least-privilege execution
+- `public.expire_featured_talents()` is no longer executable by `anon` or `authenticated`; `service_role` remains allowed.
+- `public.is_conversation_participant(bigint)` is no longer executable by `anon`; `authenticated` remains allowed because message, attachment, and storage RLS policies depend on it.
+- `public.set_contact_requests_updated_at()`, `public.set_updated_at()`, `public.claim_next_marketing_task(text)`, and `public.sync_marketing_agent_from_task()` now have fixed `search_path=public`.
+- trigger-only functions are no longer directly executable by `anon` or `authenticated`; `service_role` remains allowed.
+- `claim_next_marketing_task(text)` remains service-role only.
+- authenticated execution of `is_conversation_participant(-1)` was verified inside a rolled-back transaction and returned `false`, confirming the RLS helper remains callable without changing data.
+- no legacy data backfill, non-Saudi activation, or payment behavior change occurred.
 
-## P1 — Function hardening
+Post-migration Security Advisor results:
 
-Supabase advisor reports mutable `search_path` on:
+- the targeted mutable-`search_path` warnings are cleared.
+- the `expire_featured_talents()` public/authenticated SECURITY DEFINER warnings are cleared.
+- `increment_talent_view(bigint)` remains intentionally open pending anti-abuse redesign.
+- `is_conversation_participant(bigint)` still produces an authenticated SECURITY DEFINER warning by design because RLS currently requires authenticated execution.
+- Supabase Auth leaked-password protection remains disabled and is a separate configuration task.
 
-- `public.set_contact_requests_updated_at()`
-- `public.set_updated_at()`
-- `public.claim_next_marketing_task(text)`
-- `public.sync_marketing_agent_from_task()`
+## Remaining P0/P1 decision
 
-Recommended target:
+### `public.increment_talent_view(bigint)`
 
-- set a fixed `search_path` for each function
-- schema-qualify referenced relations
-- keep trigger functions non-publicly executable where direct RPC execution is unnecessary
-- preserve `claim_next_marketing_task(text)` as service-role only; current grants already show `anon=false`, `authenticated=false`, `service_role=true`
+Current state:
 
-## P1 — Auth hardening
+- `SECURITY DEFINER`
+- executable by `anon`, `authenticated`, and `service_role`
+- increments a public counter without caller-specific anti-abuse protection
 
-Supabase Auth leaked-password protection is currently disabled.
-
-Recommended target:
-
-- enable leaked-password protection in Auth settings
-- verify current password policy and recovery flow after enabling
-
-This is a configuration change and should be handled separately from SQL migrations.
+Do not blindly revoke until the public talent-view flow is traced end-to-end. Preferred next step is an anti-abuse redesign with least-privilege execution and rate/duplicate protection.
 
 ## RLS / Data API exposure findings
 
-Current advisor count:
+Audit snapshot:
 
-- 60 public tables have RLS enabled with no policy
-- 51 of those still have at least one `anon` or `authenticated` table grant
-- 9 are effectively service-role-only because `anon` and `authenticated` have no table privileges
+- 60 public tables have RLS enabled with no policy.
+- 51 of those still have at least one `anon` or `authenticated` table grant.
+- 9 are effectively service-role-only because `anon` and `authenticated` have no table privileges.
 
-Important interpretation:
+Interpretation:
 
 - `RLS enabled + no policy` is fail-closed for client roles; it is not automatically a data leak.
-- The 9 service-role-only tables include the new market/payment foundation surfaces and are intentionally closed.
-- The 51 older tables with broad client grants remain row-blocked by RLS, but their grants are wider than necessary. Reduce grants only after confirming whether any client-side flows depend on direct Data API access.
-- Do not create permissive RLS policies merely to silence the advisor.
+- the 9 service-role-only tables include the new market/payment foundation surfaces and are intentionally closed.
+- the 51 older tables with broad client grants remain row-blocked by RLS, but their grants are wider than necessary. Reduce grants only after confirming whether client-side flows depend on direct Data API access.
+- do not create permissive RLS policies merely to silence the advisor.
 
 Verified service-role-only examples:
 
@@ -133,39 +115,23 @@ Recommended target:
 
 Many indexes are reported unused. No index should be dropped solely because of the current advisor snapshot; the platform is young and some access paths have not accumulated enough usage yet.
 
-## Safe remediation sequence
+## Next safe remediation sequence
 
-1. Trace all RPC usage and policy dependencies.
-2. Prepare a dedicated hardening migration, but do not apply it to production without explicit approval.
-3. P0 first:
-   - restrict `expire_featured_talents`
-   - restrict `is_conversation_participant` to the roles actually required by RLS
-   - decide the intended public contract for `increment_talent_view`
-4. P1 functions:
-   - immutable/fixed search paths
-   - explicit function grants
-5. Re-run Supabase security advisors.
-6. Run regression tests covering messaging, attachments, public talent pages, admin operations, and Marketing Hub task claiming.
-7. Only then address grant cleanup, RLS performance, and missing indexes in separate reviewable batches.
-8. Keep index removal deferred until there is enough production evidence.
-
-## Production gates
-
-Before any production hardening DDL:
-
-- explicit user approval is required
-- migration must be reviewed against the current production schema and migration ledger
-- no unrelated feature change
-- no non-Saudi market activation
-- no payment behavior change
-- no legacy data backfill
+1. Trace and redesign `increment_talent_view(bigint)` anti-abuse behavior.
+2. Review Auth leaked-password protection and enable it as a separate configuration change when appropriate.
+3. Review the 51 legacy broad client grants by actual application dependency; do not mass-revoke blindly.
+4. Batch RLS init-plan rewrites with regression tests.
+5. Prioritize missing covering indexes on core marketplace relations.
+6. Reconcile duplicate permissive policies only after exact role/action semantics are verified.
+7. Keep unused-index removal deferred until production evidence is sufficient.
 
 ## Current audit status
 
-- Security advisors: REVIEWED
+- Security advisors: REVIEWED + POST-MIGRATION RECHECKED
 - Performance advisors: REVIEWED
 - SECURITY DEFINER dependencies: REVIEWED
-- Data API grants sample + no-policy classification: REVIEWED
-- Production mutation: NOT PERFORMED
-- Hardening migration: NOT YET CREATED
-- Next milestone: prepare and review the minimal P0/P1 hardening patch before requesting production DDL approval
+- Data API grants classification: REVIEWED
+- Production P0/P1 hardening migration: APPLIED + VERIFIED
+- Repository migration file: RECORDED ON HARDENING BRANCH
+- Production deployment: NOT REQUIRED; no application code changed
+- Next milestone: `increment_talent_view` anti-abuse design + Auth/grant hardening review
