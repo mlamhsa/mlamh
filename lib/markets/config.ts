@@ -105,12 +105,15 @@ export function getMarketConfig(countryCode: CountryCode): MarketConfig {
   return MARKET_CONFIG[countryCode];
 }
 
+export function isMarketActive(countryCode: CountryCode): boolean {
+  return MARKET_CONFIG[countryCode].status === "active";
+}
+
 export function isMarketFeatureEnabled(
   countryCode: CountryCode,
   feature: MarketFeature,
 ): boolean {
-  const market = MARKET_CONFIG[countryCode];
-  return market.status === "active" && market.features[feature] === true;
+  return MARKET_CONFIG[countryCode].features[feature] === true;
 }
 
 export function resolveMarketCurrency(countryCode: CountryCode): string {
