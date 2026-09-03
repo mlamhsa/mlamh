@@ -210,7 +210,7 @@ export function toTalentSupplyBrief(brief: DanaBrief): TalentBrief {
   return {
     talent_count: brief.talentCount,
     talent_type: brief.talentType,
-    opportunity_country_code: brief.countryCode,
+    country_code: brief.countryCode,
     city: brief.city,
     requirements: brief.requirements,
   };
