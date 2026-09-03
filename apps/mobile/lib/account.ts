@@ -1,7 +1,7 @@
 import { supabase } from "@/lib/supabase";
 
 const API_BASE_URL = (process.env.EXPO_PUBLIC_API_BASE_URL ?? "https://mlamh.net").replace(/\/$/, "");
-const DEFAULT_MARKET = (process.env.EXPO_PUBLIC_DEFAULT_MARKET ?? "SA").trim().toUpperCase() || "SA";
+const DEFAULT_MARKET = process.env.EXPO_PUBLIC_DEFAULT_MARKET?.trim().toUpperCase() ?? "";
 
 export type MobileAccountContext = {
   type: "talent" | "publisher";
@@ -27,5 +27,7 @@ export async function getMobileAccountContext() {
 export async function resolveMobileMarket() {
   const account = await getMobileAccountContext().catch(() => null);
   const countryCode = account?.countryCode?.trim().toUpperCase();
-  return countryCode && /^[A-Z]{2}$/.test(countryCode) ? countryCode : DEFAULT_MARKET;
+  if (countryCode && /^[A-Z]{2}$/.test(countryCode)) return countryCode;
+  if (/^[A-Z]{2}$/.test(DEFAULT_MARKET)) return DEFAULT_MARKET;
+  throw new Error("Missing EXPO_PUBLIC_DEFAULT_MARKET for unauthenticated or unscoped mobile discovery.");
 }
