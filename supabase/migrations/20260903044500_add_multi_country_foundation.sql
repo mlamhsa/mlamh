@@ -2,10 +2,12 @@
 -- Additive only. This migration does not activate any non-Saudi market and does not backfill legacy rows.
 
 create table if not exists public.market_countries (
-  country_code text primary key,
+  country_code text primary key
+    check (country_code ~ '^[A-Z]{2}$'),
   name_ar text not null,
   name_en text not null,
-  default_currency text not null,
+  default_currency text not null
+    check (default_currency ~ '^[A-Z]{3}$'),
   market_status text not null default 'future'
     check (market_status in ('active', 'prepared', 'future')),
   talent_registration_enabled boolean not null default false,
@@ -24,34 +26,49 @@ create table if not exists public.market_countries (
 comment on table public.market_countries is
   'Country/market capability registry. Country presence does not imply market activation.';
 
-alter table public.market_countries enable row level security;
+insert into public.market_countries (
+  country_code, name_ar, name_en, default_currency, market_status,
+  talent_registration_enabled, publisher_registration_enabled,
+  opportunity_creation_enabled, applications_enabled,
+  public_talent_directory_enabled, public_opportunities_enabled,
+  search_enabled, payments_enabled, seo_indexing_enabled
+) values
+  ('SA','السعودية','Saudi Arabia','SAR','active',true,true,true,true,true,true,true,true,true),
+  ('AE','الإمارات','United Arab Emirates','AED','prepared',false,false,false,false,false,false,false,false,false),
+  ('EG','مصر','Egypt','EGP','prepared',false,false,false,false,false,false,false,false,false),
+  ('MA','المغرب','Morocco','MAD','prepared',false,false,false,false,false,false,false,false,false),
+  ('QA','قطر','Qatar','QAR','prepared',false,false,false,false,false,false,false,false,false),
+  ('JO','الأردن','Jordan','JOD','future',false,false,false,false,false,false,false,false,false),
+  ('LB','لبنان','Lebanon','LBP','future',false,false,false,false,false,false,false,false,false),
+  ('KW','الكويت','Kuwait','KWD','future',false,false,false,false,false,false,false,false,false)
+on conflict (country_code) do nothing;
 
--- No anon/authenticated policies are intentionally created here. Market configuration
--- remains server/admin controlled until an explicit read surface is approved.
+alter table public.market_countries enable row level security;
 revoke all on table public.market_countries from anon, authenticated;
+grant all on table public.market_countries to service_role;
 
 alter table public.talents
-  add column if not exists base_country_code text null;
+  add column if not exists base_country_code text null references public.market_countries(country_code);
 
 alter table public.publishers
-  add column if not exists country_code text null;
+  add column if not exists country_code text null references public.market_countries(country_code);
 
 alter table public.opportunities
-  add column if not exists country_code text null,
-  add column if not exists currency text null;
+  add column if not exists country_code text null references public.market_countries(country_code),
+  add column if not exists currency text null check (currency is null or currency ~ '^[A-Z]{3}$');
 
 alter table public.casting_projects
-  add column if not exists country_code text null;
+  add column if not exists country_code text null references public.market_countries(country_code);
 
 alter table public.marketing_briefs
-  add column if not exists country_code text null;
+  add column if not exists country_code text null references public.market_countries(country_code);
 
 alter table public.marketing_leads
-  add column if not exists country_code text null;
+  add column if not exists country_code text null references public.market_countries(country_code);
 
 create table if not exists public.talent_work_markets (
-  talent_id uuid not null references public.talents(id) on delete cascade,
-  country_code text not null,
+  talent_id bigint not null references public.talents(id) on delete cascade,
+  country_code text not null references public.market_countries(country_code),
   enabled boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -63,6 +80,7 @@ comment on table public.talent_work_markets is
 
 alter table public.talent_work_markets enable row level security;
 revoke all on table public.talent_work_markets from anon, authenticated;
+grant all on table public.talent_work_markets to service_role;
 
 -- Keep new country fields nullable during the compatibility window. Legacy rows continue
 -- to behave as Saudi data in application logic until a separately approved backfill.
