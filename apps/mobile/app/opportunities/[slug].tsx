@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 
+import { resolveMobileMarket } from "@/lib/account";
 import {
   applyToOpportunity,
   getPublicOpportunity,
@@ -42,7 +43,8 @@ export default function OpportunityDetailScreen() {
       }
 
       try {
-        const response = await getPublicOpportunity(slug, locale, "SA");
+        const market = await resolveMobileMarket();
+        const response = await getPublicOpportunity(slug, locale, market);
         if (active) setItem(response.item);
       } catch {
         if (active) setError(true);

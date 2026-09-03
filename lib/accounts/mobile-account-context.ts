@@ -16,12 +16,24 @@ export async function getMobileAccountContext(userId: string) {
   }
 
   let entityId: number | null = null;
+  let countryCode: string | null = null;
+
   if (profile.account_type === "talent") {
-    const { data } = await supabase.from("talents").select("id").eq("user_id", userId).maybeSingle();
+    const { data } = await supabase
+      .from("talents")
+      .select("id,base_country_code")
+      .eq("user_id", userId)
+      .maybeSingle();
     entityId = data?.id ? Number(data.id) : null;
+    countryCode = data?.base_country_code?.toUpperCase() ?? null;
   } else {
-    const { data } = await supabase.from("publishers").select("id").eq("profile_id", profile.id).maybeSingle();
+    const { data } = await supabase
+      .from("publishers")
+      .select("id,country_code")
+      .eq("profile_id", profile.id)
+      .maybeSingle();
     entityId = data?.id ? Number(data.id) : null;
+    countryCode = data?.country_code?.toUpperCase() ?? null;
   }
 
   return {
@@ -33,6 +45,7 @@ export async function getMobileAccountContext(userId: string) {
       status: profile.status ?? null,
       onboardingStatus: profile.onboarding_status ?? null,
       entityId,
+      countryCode,
     },
   };
 }

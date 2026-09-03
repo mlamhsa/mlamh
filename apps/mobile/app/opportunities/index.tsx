@@ -3,6 +3,7 @@ import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, Sty
 import { router } from "expo-router";
 
 import { AppTabBar } from "@/components/AppTabBar";
+import { resolveMobileMarket } from "@/lib/account";
 import { getNotifications, getPublicOpportunities, type MobileOpportunity } from "@/lib/api";
 import { getDeviceLocale, isRtlLocale } from "@/lib/i18n";
 import { darkTheme, lightTheme } from "@/lib/theme";
@@ -25,7 +26,11 @@ export default function OpportunitiesScreen() {
     refresh ? setRefreshing(true) : setLoading(true);
     setError(null);
     try {
-      const [response, notifications] = await Promise.all([getPublicOpportunities(locale, "SA"), getNotifications().catch(() => null)]);
+      const market = await resolveMobileMarket();
+      const [response, notifications] = await Promise.all([
+        getPublicOpportunities(locale, market),
+        getNotifications().catch(() => null),
+      ]);
       setItems(response.items);
       setUnreadCount(notifications?.unreadCount ?? 0);
     } catch {
