@@ -185,11 +185,7 @@ export async function applyToOpportunity(
     ok: true,
     code: "SUCCESS",
     applicationId: insertedApplication.id,
-    details: {
-      opportunityId: opportunity.id,
-      opportunitySlug: opportunity.slug,
-    },
-  } as ApplyOpportunityResult & {
-    details: { opportunityId: number; opportunitySlug: string | null };
+    opportunityId: opportunity.id,
+    opportunitySlug: opportunity.slug ?? null,
   };
 }
