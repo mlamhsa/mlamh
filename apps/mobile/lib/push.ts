@@ -4,11 +4,11 @@ import * as Notifications from "expo-notifications";
 import Storage from "expo-sqlite/kv-store";
 import { Platform } from "react-native";
 
-import { requireApiBaseUrl } from "@/lib/api";
+import { MOBILE_API_BASE_URL } from "@/lib/api-config";
 import type { AppLocale } from "@/lib/i18n";
 import { supabase } from "@/lib/supabase";
 
-const API_BASE_URL = requireApiBaseUrl();
+const API_BASE_URL = MOBILE_API_BASE_URL;
 const PUSH_TOKEN_STORAGE_KEY = "mlamh.push.expo-token";
 const ALLOWED_PUSH_ORIGINS = new Set(["https://mlamh.net", "https://www.mlamh.net"]);
 
@@ -38,18 +38,8 @@ async function registerTokenWithPlatform(expoPushToken: string, locale: AppLocal
   try {
     const response = await fetch(`${API_BASE_URL}/api/mobile/devices`, {
       method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({
-        expoPushToken,
-        platform: Platform.OS,
-        deviceId: null,
-        appVersion: Constants.expoConfig?.version ?? null,
-        locale,
-      }),
+      headers: { Accept: "application/json", "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ expoPushToken, platform: Platform.OS, deviceId: null, appVersion: Constants.expoConfig?.version ?? null, locale }),
     });
     if (!response.ok) return false;
     await Storage.setItem(PUSH_TOKEN_STORAGE_KEY, expoPushToken);
@@ -59,23 +49,14 @@ async function registerTokenWithPlatform(expoPushToken: string, locale: AppLocal
   }
 }
 
-export async function preparePushRegistration(
-  locale: AppLocale,
-  options: { requestPermission?: boolean } = {},
-): Promise<PushPreparationResult> {
+export async function preparePushRegistration(locale: AppLocale, options: { requestPermission?: boolean } = {}): Promise<PushPreparationResult> {
   if (Platform.OS !== "ios" && Platform.OS !== "android") return { ok: false, code: "UNSUPPORTED_PLATFORM" };
   if (!Device.isDevice) return { ok: false, code: "PHYSICAL_DEVICE_REQUIRED" };
   const projectId = getProjectId();
   if (!projectId) return { ok: false, code: "EAS_PROJECT_ID_MISSING" };
 
   try {
-    if (Platform.OS === "android") {
-      await Notifications.setNotificationChannelAsync("mlamh-updates", {
-        name: "MLAMH Updates",
-        importance: Notifications.AndroidImportance.HIGH,
-      });
-    }
-
+    if (Platform.OS === "android") await Notifications.setNotificationChannelAsync("mlamh-updates", { name: "MLAMH Updates", importance: Notifications.AndroidImportance.HIGH });
     const existing = await Notifications.getPermissionsAsync();
     let permission = existing;
     if (existing.status !== "granted") {
@@ -85,11 +66,8 @@ export async function preparePushRegistration(
     if (permission.status !== "granted") return { ok: false, code: "PERMISSION_DENIED" };
 
     let expoPushToken: string;
-    try {
-      expoPushToken = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
-    } catch {
-      return { ok: false, code: "TOKEN_FAILED" };
-    }
+    try { expoPushToken = (await Notifications.getExpoPushTokenAsync({ projectId })).data; }
+    catch { return { ok: false, code: "TOKEN_FAILED" }; }
 
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.access_token) return { ok: false, code: "UNAUTHENTICATED" };
@@ -100,9 +78,7 @@ export async function preparePushRegistration(
   }
 }
 
-export async function syncExistingPushRegistration(locale: AppLocale) {
-  return preparePushRegistration(locale, { requestPermission: false });
-}
+export async function syncExistingPushRegistration(locale: AppLocale) { return preparePushRegistration(locale, { requestPermission: false }); }
 
 export async function unregisterPushToken(expoPushToken: string) {
   if (Platform.OS === "web") return true;
@@ -111,11 +87,7 @@ export async function unregisterPushToken(expoPushToken: string) {
   try {
     const response = await fetch(`${API_BASE_URL}/api/mobile/devices`, {
       method: "DELETE",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${session.access_token}`,
-      },
+      headers: { Accept: "application/json", "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
       body: JSON.stringify({ expoPushToken }),
     });
     if (response.ok) await Storage.removeItem(PUSH_TOKEN_STORAGE_KEY);
@@ -134,39 +106,26 @@ export async function unregisterCurrentPushToken() {
 
 export function startPushSessionLifecycle(locale: AppLocale) {
   if (Platform.OS === "web") return () => undefined;
-
   let active = true;
-  void supabase.auth.getSession().then(({ data }) => {
-    if (active && data.session) void syncExistingPushRegistration(locale);
-  });
-
+  void supabase.auth.getSession().then(({ data }) => { if (active && data.session) void syncExistingPushRegistration(locale); });
   const { data } = supabase.auth.onAuthStateChange((event, session) => {
     if (!active || !session) return;
     if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") void syncExistingPushRegistration(locale);
   });
-
-  return () => {
-    active = false;
-    data.subscription.unsubscribe();
-  };
+  return () => { active = false; data.subscription.unsubscribe(); };
 }
 
 export async function signOutMobile() {
-  try {
-    await unregisterCurrentPushToken();
-  } finally {
-    await supabase.auth.signOut();
-  }
+  try { await unregisterCurrentPushToken(); }
+  finally { await supabase.auth.signOut(); }
 }
 
 export function installPushDeepLinkObserver(onUrl: (url: string) => void) {
   if (Platform.OS === "web") return () => undefined;
-
   const redirect = (notification: Notifications.Notification) => {
     const url = notification.request.content.data?.url;
     if (isSafePushUrl(url)) onUrl(url);
   };
-
   const lastResponse = Notifications.getLastNotificationResponse();
   if (lastResponse?.notification) redirect(lastResponse.notification);
   const subscription = Notifications.addNotificationResponseReceivedListener((response) => redirect(response.notification));
