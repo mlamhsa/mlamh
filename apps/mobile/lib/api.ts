@@ -6,7 +6,8 @@ export type MobileApplicationStatus = "pending" | "reviewing" | "shortlisted" | 
 export type MobileApplicationItem = { id: number | string; status: MobileApplicationStatus; createdAt: string | null; opportunity: { id: number | string; title: string | null; slug: string | null; city: string | null; opportunityType: string | null; status: string | null; createdAt: string | null } | null; conversationId: string | null };
 export type MobileMessage = { id: number | string; conversationId: number; senderUserId: string; body: string; readAt: string | null; createdAt: string; isMine: boolean };
 export type ConversationDetailResponse = { conversation: { id: number; opportunityId: number; opportunityTitle: string | null; partyName: string; status: string }; messages: MobileMessage[] };
-export type MobileNotification = { id: number | string; title: string; body: string | null; isRead: boolean; createdAt: string | null; category: "application" | "message" | "invitation" | "system"; referenceId: string | number | null; eventType: string | null };
+export type MobileNotificationTarget = { type: "conversation"; id: string | number } | { type: "opportunity"; id: string | number } | { type: "publisher_opportunity"; id: string | number } | { type: "talent_applications" } | { type: "none" };
+export type MobileNotification = { id: number | string; title: string; body: string | null; isRead: boolean; createdAt: string | null; category: "application" | "message" | "invitation" | "system"; referenceId: string | number | null; eventType: string | null; target: MobileNotificationTarget };
 export type MobileTalentProfile = { id: number; slug: string | null; displayName: string; category: string; city: string | null; imageUrl: string | null; gallery: string[]; bio: string | null; skills: string[]; languages: string[]; baseCountryCode: string | null; profileCompletion: number; availabilityStatus: string | null; verified: boolean; approvalStatus: string | null; profileStatus: string | null; published: boolean };
 
 type OpportunitiesResponse = { items: MobileOpportunity[]; market: string; locale: AppLocale };
@@ -22,14 +23,12 @@ export type GalleryFinalizeResult = { ok: true; url: string; gallery: string[] }
 export type GalleryPrimaryResult = { ok: true; url: string } | { ok: false; code: string };
 export type GalleryDeleteResult = { ok: true; gallery: string[]; primaryUrl: string | null } | { ok: false; code: string };
 
-export function requireApiBaseUrl() {
+function requireApiBaseUrl() {
   const configured = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
   if (!configured) throw new Error("Missing EXPO_PUBLIC_API_BASE_URL for this mobile environment.");
   let parsed: URL;
   try { parsed = new URL(configured); } catch { throw new Error("Invalid EXPO_PUBLIC_API_BASE_URL for this mobile environment."); }
-  if (parsed.protocol !== "https:" && !(parsed.protocol === "http:" && ["localhost", "127.0.0.1"].includes(parsed.hostname))) {
-    throw new Error("EXPO_PUBLIC_API_BASE_URL must use HTTPS except for localhost development.");
-  }
+  if (parsed.protocol !== "https:" && !(parsed.protocol === "http:" && ["localhost", "127.0.0.1"].includes(parsed.hostname))) throw new Error("EXPO_PUBLIC_API_BASE_URL must use HTTPS except for localhost development.");
   return configured.replace(/\/$/, "");
 }
 const API_BASE_URL = requireApiBaseUrl();

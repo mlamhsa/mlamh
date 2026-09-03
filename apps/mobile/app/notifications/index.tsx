@@ -3,19 +3,12 @@ import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Tex
 import { router } from "expo-router";
 
 import { AppTabBar } from "@/components/AppTabBar";
+import { PublisherTabBar } from "@/components/PublisherTabBar";
+import { getMobileAccountContext } from "@/lib/account";
 import { getNotifications, markNotificationRead, type MobileNotification } from "@/lib/api";
 import { getDeviceLocale, isRtlLocale } from "@/lib/i18n";
 import { useNotificationSync } from "@/lib/notifications-context";
 import { darkTheme, lightTheme } from "@/lib/theme";
-
-type NotificationTarget =
-  | { type: "conversation"; id: string | number }
-  | { type: "opportunity"; id: string | number }
-  | { type: "publisher_opportunity"; id: string | number }
-  | { type: "talent_applications" }
-  | { type: "none" };
-
-type TargetedNotification = MobileNotification & { target?: NotificationTarget };
 
 export default function NotificationsScreen() {
   const locale = getDeviceLocale();
@@ -24,6 +17,7 @@ export default function NotificationsScreen() {
   const { refresh: refreshBadge } = useNotificationSync();
   const [items, setItems] = useState<MobileNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [accountType, setAccountType] = useState<"talent" | "publisher">("talent");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,11 +26,13 @@ export default function NotificationsScreen() {
     refresh ? setRefreshing(true) : setLoading(true);
     setError(null);
     try {
-      const result = await getNotifications();
+      const [result, account] = await Promise.all([getNotifications(), getMobileAccountContext().catch(() => null)]);
       if (!result) {
         router.replace({ pathname: "/login", params: { next: "/notifications" } });
         return;
       }
+      if (account?.type === "publisher") setAccountType("publisher");
+      else setAccountType("talent");
       setItems(result.items);
       setUnreadCount(result.unreadCount);
       void refreshBadge();
@@ -60,17 +56,12 @@ export default function NotificationsScreen() {
       }
     }
 
-    const target = (item as TargetedNotification).target;
-    if (target?.type === "conversation") { router.push(`/conversations/${target.id}`); return; }
-    if (target?.type === "publisher_opportunity") { router.push(`/publisher/opportunities/${target.id}`); return; }
-    if (target?.type === "opportunity") { router.push(`/opportunities/${target.id}`); return; }
-    if (target?.type === "talent_applications") { router.push("/applications"); return; }
-    if (target?.type === "none") return;
-
-    // Compatibility fallback for notifications created before target contracts existed.
-    if (item.category === "message" && item.referenceId) { router.push(`/conversations/${item.referenceId}`); return; }
-    if (item.category === "application") { router.push("/applications"); return; }
-    if (item.category === "invitation" && item.referenceId) router.push(`/opportunities/${item.referenceId}`);
+    const target = item.target;
+    if (target.type === "conversation") { router.push(`/conversations/${target.id}`); return; }
+    if (target.type === "publisher_opportunity") { router.push(`/publisher/opportunities/${target.id}`); return; }
+    if (target.type === "opportunity") { router.push(`/opportunities/${target.id}`); return; }
+    if (target.type === "talent_applications") { router.push("/applications"); return; }
+    if (target.type === "none") return;
   }
 
   if (loading) return <View style={styles.centered}><ActivityIndicator size="large" color={theme.accent} /></View>;
@@ -81,11 +72,11 @@ export default function NotificationsScreen() {
       keyExtractor={(item) => String(item.id)}
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={theme.accent} />}
-      ListHeaderComponent={<View style={[styles.header, { direction: isRtlLocale(locale) ? "rtl" : "ltr" }]}><Text style={styles.eyebrow}>MLAMH</Text><View style={styles.titleRow}><Text style={styles.title}>{locale === "ar" ? "الإشعارات" : "Notifications"}</Text>{unreadCount > 0 ? <Text style={styles.unreadBadge}>{unreadCount}</Text> : null}</View><Text style={styles.subtitle}>{locale === "ar" ? "تابع تحديثات طلباتك ورسائلك من مكان واحد." : "Keep up with application and message updates in one place."}</Text></View>}
+      ListHeaderComponent={<View style={[styles.header, { direction: isRtlLocale(locale) ? "rtl" : "ltr" }]}><Text style={styles.eyebrow}>MLAMH</Text><View style={styles.titleRow}><Text style={styles.title}>{locale === "ar" ? "الإشعارات" : "Notifications"}</Text>{unreadCount > 0 ? <Text style={styles.unreadBadge}>{unreadCount}</Text> : null}</View><Text style={styles.subtitle}>{accountType === "publisher" ? (locale === "ar" ? "طلبات جديدة ورسائل وتحديثات فرصك في مكان واحد." : "New applications, messages and opportunity updates in one place.") : (locale === "ar" ? "تابع تحديثات طلباتك ورسائلك من مكان واحد." : "Keep up with application and message updates in one place.")}</Text></View>}
       ListEmptyComponent={<View style={styles.emptyState}><Text style={styles.emptyTitle}>{error ?? (locale === "ar" ? "لا توجد إشعارات جديدة." : "No notifications yet.")}</Text></View>}
-      renderItem={({ item }) => <Pressable onPress={() => void openNotification(item)} style={({ pressed }) => [styles.card, !item.isRead && styles.unreadCard, pressed && styles.pressed]}><View style={styles.cardTopRow}><Text style={styles.category}>{categoryLabel(item.category, locale)}</Text>{!item.isRead ? <View style={styles.dot} /> : null}</View><Text style={styles.cardTitle}>{item.title}</Text>{item.body ? <Text style={styles.body}>{item.body}</Text> : null}</Pressable>}
+      renderItem={({ item }) => <Pressable accessibilityRole="button" onPress={() => void openNotification(item)} style={({ pressed }) => [styles.card, !item.isRead && styles.unreadCard, pressed && styles.pressed]}><View style={styles.cardTopRow}><Text style={styles.category}>{categoryLabel(item.category, locale)}</Text>{!item.isRead ? <View style={styles.dot} /> : null}</View><Text style={styles.cardTitle}>{item.title}</Text>{item.body ? <Text style={styles.body}>{item.body}</Text> : null}</Pressable>}
     />
-    <AppTabBar active="notifications" locale={locale} theme={theme} notificationCount={unreadCount} />
+    {accountType === "publisher" ? <PublisherTabBar active="notifications" locale={locale} theme={theme} notificationCount={unreadCount} /> : <AppTabBar active="notifications" locale={locale} theme={theme} notificationCount={unreadCount} />}
   </View>;
 }
 
