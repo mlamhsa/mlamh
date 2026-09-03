@@ -9,6 +9,18 @@ function safeExecutionError(error: unknown) {
   return message.slice(0, 500);
 }
 
+export function sanitizeSocialCopy(value: unknown) {
+  if (typeof value !== "string") return undefined;
+  const cleaned = value
+    .replace(/\\r\\n|\\n|\\r/g, "\n")
+    .replace(/\\([.!?,،؛:])/g, "$1")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n[ \t]+/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  return cleaned || undefined;
+}
+
 export async function executeMarketingChannelJob(jobId: number, mode: "publish_now" | "schedule" = "publish_now") {
   const db = createAdminClient();
   const { data: job, error } = await db.from("marketing_channel_jobs").select("id,content_id,task_id,approval_id,channel,status,scheduled_at,payload,retry_count,idempotency_key,external_post_id").eq("id", jobId).single();
@@ -69,7 +81,7 @@ export async function executeMarketingChannelJob(jobId: number, mode: "publish_n
   try {
     const result = await adapter.publish({
       contentId: job.content_id,
-      text: typeof payload.text === "string" ? payload.text : undefined,
+      text: sanitizeSocialCopy(payload.text),
       assetUrls: Array.isArray(payload.asset_urls) ? payload.asset_urls.filter((value): value is string => typeof value === "string") : undefined,
       scheduledAt: mode === "schedule" ? job.scheduled_at : null,
       idempotencyKey: job.idempotency_key,
