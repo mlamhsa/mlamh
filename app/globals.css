@@ -418,6 +418,26 @@ option:hover {
   animation: mlamh-spin 700ms linear infinite;
 }
 
+.mlamh-skeleton {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.mlamh-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.09),
+    transparent
+  );
+  animation: mlamh-skeleton-shimmer 1.35s ease-in-out infinite;
+}
+
 @keyframes mlamh-route-progress {
   0% { transform: translateX(-110%); }
   55% { width: 56%; }
@@ -427,6 +447,10 @@ option:hover {
 @keyframes mlamh-feedback-in {
   from { opacity: 0; transform: translate(-50%, 8px) scale(0.97); }
   to { opacity: 1; transform: translate(-50%, 0) scale(1); }
+}
+
+@keyframes mlamh-skeleton-shimmer {
+  100% { transform: translateX(100%); }
 }
 
 @keyframes mlamh-spin {
@@ -440,7 +464,8 @@ option:hover {
 
   .mlamh-route-progress > span,
   .mlamh-loading-spinner,
-  .mlamh-loading-pill {
+  .mlamh-loading-pill,
+  .mlamh-skeleton::after {
     animation-duration: 1ms !important;
     animation-iteration-count: 1 !important;
   }
