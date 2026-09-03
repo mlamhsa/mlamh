@@ -355,8 +355,7 @@ export async function getPublishedTalentBySlug(
   slug: string,
   countryCode: CountryCode = DEFAULT_PUBLIC_MARKET,
 ): Promise<Talent | null> {
-  const candidate = await getPublishedTalentCandidateBySlug(slug, countryCode);
-  return candidate ? toPublicTalent(candidate) : null;
+  return getPublishedTalentBySlugForViewer(slug, countryCode);
 }
 
 export async function getPublishedTalentBySlugForViewer(
