@@ -23,8 +23,12 @@ export default function WelcomeScreen() {
       const account = await getMobileAccountContext();
       if (!active) return;
       if (account?.type === "publisher") { router.replace("/publisher"); return; }
-      if (account?.type === "talent") { router.replace("/opportunities"); return; }
-      setChecking(false);
+      if (account?.type === "talent") {
+        if (account.onboardingStatus !== "completed" || !account.entityId) { router.replace("/onboarding"); return; }
+        router.replace("/opportunities");
+        return;
+      }
+      router.replace("/onboarding");
     })();
     return () => { active = false; };
   }, []);
@@ -38,12 +42,13 @@ export default function WelcomeScreen() {
         <Text style={styles.headline}>{text.headline}</Text>
         <Text style={styles.subheadline}>{text.subheadline}</Text>
         <View style={styles.actions}>
-          <Pressable style={styles.primaryButton} onPress={() => router.push("/opportunities")}><Text style={styles.primaryButtonText}>{text.discover}</Text></Pressable>
-          <Pressable style={styles.secondaryButton} onPress={() => router.push("/login")}><Text style={styles.secondaryButtonText}>{text.signIn}</Text></Pressable>
+          <Pressable style={styles.primaryButton} onPress={() => router.push("/signup")}><Text style={styles.primaryButtonText}>{locale === "ar" ? "انضم كموهبة" : "Join as talent"}</Text></Pressable>
+          <Pressable style={styles.secondaryButton} onPress={() => router.push("/opportunities")}><Text style={styles.secondaryButtonText}>{text.discover}</Text></Pressable>
+          <Pressable style={styles.textButton} onPress={() => router.push("/login")}><Text style={styles.textButtonText}>{text.signIn}</Text></Pressable>
         </View>
       </View>
     </View>
   );
 }
 
-function createStyles(theme: typeof lightTheme | typeof darkTheme) { return StyleSheet.create({ screen: { flex: 1, backgroundColor: theme.background, justifyContent: "flex-end" }, centered: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: theme.background }, content: { paddingHorizontal: 28, paddingBottom: 54, gap: 18 }, brand: { color: theme.accent, fontSize: 18, letterSpacing: 2, fontWeight: "600" }, headline: { color: theme.text, fontSize: 42, lineHeight: 50, fontWeight: "300" }, subheadline: { color: theme.muted, fontSize: 17, lineHeight: 28, maxWidth: 420 }, actions: { gap: 12, marginTop: 18 }, primaryButton: { backgroundColor: theme.accent, borderRadius: 18, paddingVertical: 16, alignItems: "center" }, primaryButtonText: { color: "#181818", fontSize: 16, fontWeight: "600" }, secondaryButton: { borderWidth: 1, borderColor: theme.border, borderRadius: 18, paddingVertical: 16, alignItems: "center" }, secondaryButtonText: { color: theme.text, fontSize: 16, fontWeight: "500" } }); }
+function createStyles(theme: typeof lightTheme | typeof darkTheme) { return StyleSheet.create({ screen: { flex: 1, backgroundColor: theme.background, justifyContent: "flex-end" }, centered: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: theme.background }, content: { paddingHorizontal: 28, paddingBottom: 54, gap: 18 }, brand: { color: theme.accent, fontSize: 18, letterSpacing: 2, fontWeight: "600" }, headline: { color: theme.text, fontSize: 42, lineHeight: 50, fontWeight: "300" }, subheadline: { color: theme.muted, fontSize: 17, lineHeight: 28, maxWidth: 420 }, actions: { gap: 11, marginTop: 18 }, primaryButton: { backgroundColor: theme.accent, borderRadius: 18, paddingVertical: 16, alignItems: "center" }, primaryButtonText: { color: "#181818", fontSize: 16, fontWeight: "700" }, secondaryButton: { borderWidth: 1, borderColor: theme.border, borderRadius: 18, paddingVertical: 16, alignItems: "center" }, secondaryButtonText: { color: theme.text, fontSize: 16, fontWeight: "500" }, textButton: { paddingVertical: 9, alignItems: "center" }, textButtonText: { color: theme.muted, fontSize: 14, fontWeight: "600" } }); }
