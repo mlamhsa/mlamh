@@ -19,12 +19,7 @@ export type MobileOpportunity = {
   createdAt: string;
 };
 
-export type MobileApplicationStatus =
-  | "pending"
-  | "reviewing"
-  | "shortlisted"
-  | "accepted"
-  | "rejected";
+export type MobileApplicationStatus = "pending" | "reviewing" | "shortlisted" | "accepted" | "rejected";
 
 export type MobileApplicationItem = {
   id: number | string;
@@ -63,71 +58,43 @@ export type ConversationDetailResponse = {
   messages: MobileMessage[];
 };
 
-type OpportunitiesResponse = {
-  items: MobileOpportunity[];
-  market: string;
-  locale: AppLocale;
+export type MobileNotification = {
+  id: number | string;
+  title: string;
+  body: string | null;
+  isRead: boolean;
+  createdAt: string | null;
+  category: "application" | "message" | "invitation" | "system";
+  referenceId: string | number | null;
+  eventType: string | null;
 };
 
-type OpportunityDetailResponse = {
-  item: MobileOpportunity;
-  market: string;
-  locale: AppLocale;
-};
-
+type OpportunitiesResponse = { items: MobileOpportunity[]; market: string; locale: AppLocale };
+type OpportunityDetailResponse = { item: MobileOpportunity; market: string; locale: AppLocale };
 export type ApplicationsResponse =
-  | {
-      ok: true;
-      items: MobileApplicationItem[];
-      counts: Record<MobileApplicationStatus | "total", number>;
-    }
+  | { ok: true; items: MobileApplicationItem[]; counts: Record<MobileApplicationStatus | "total", number> }
   | { ok: false; code: string };
-
+export type NotificationsResponse = { items: MobileNotification[]; unreadCount: number };
 export type ApplyResult =
-  | {
-      ok: true;
-      code: "SUCCESS";
-      applicationId: number | string;
-      opportunityId: number;
-      opportunitySlug: string | null;
-    }
-  | {
-      ok: false;
-      code: string;
-      details?: Record<string, unknown>;
-    };
-
-export type SendMessageResult =
-  | { ok: true; message: MobileMessage }
-  | { ok: false; code: string };
+  | { ok: true; code: "SUCCESS"; applicationId: number | string; opportunityId: number; opportunitySlug: string | null }
+  | { ok: false; code: string; details?: Record<string, unknown> };
+export type SendMessageResult = { ok: true; message: MobileMessage } | { ok: false; code: string };
 
 const API_BASE_URL = (process.env.EXPO_PUBLIC_API_BASE_URL ?? "https://mlamh.net").replace(/\/$/, "");
 
 async function getAccessToken() {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  const { data: { session } } = await supabase.auth.getSession();
   return session?.access_token ?? null;
 }
 
 export async function getPublicOpportunities(locale: AppLocale, market = "SA"): Promise<OpportunitiesResponse> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/opportunities?market=${encodeURIComponent(market)}&locale=${locale}`,
-    { headers: { Accept: "application/json" } },
-  );
+  const response = await fetch(`${API_BASE_URL}/api/opportunities?market=${encodeURIComponent(market)}&locale=${locale}`, { headers: { Accept: "application/json" } });
   if (!response.ok) throw new Error(`OPPORTUNITIES_REQUEST_FAILED:${response.status}`);
   return (await response.json()) as OpportunitiesResponse;
 }
 
-export async function getPublicOpportunity(
-  identifier: string,
-  locale: AppLocale,
-  market = "SA",
-): Promise<OpportunityDetailResponse> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/opportunities/${encodeURIComponent(identifier)}?market=${encodeURIComponent(market)}&locale=${locale}`,
-    { headers: { Accept: "application/json" } },
-  );
+export async function getPublicOpportunity(identifier: string, locale: AppLocale, market = "SA"): Promise<OpportunityDetailResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/opportunities/${encodeURIComponent(identifier)}?market=${encodeURIComponent(market)}&locale=${locale}`, { headers: { Accept: "application/json" } });
   if (!response.ok) throw new Error(`OPPORTUNITY_REQUEST_FAILED:${response.status}`);
   return (await response.json()) as OpportunityDetailResponse;
 }
@@ -135,41 +102,21 @@ export async function getPublicOpportunity(
 export async function applyToOpportunity(opportunityId: number): Promise<ApplyResult> {
   const accessToken = await getAccessToken();
   if (!accessToken) return { ok: false, code: "UNAUTHENTICATED" };
-
-  const response = await fetch(`${API_BASE_URL}/api/opportunities/${opportunityId}/apply`, {
-    method: "POST",
-    headers: { Accept: "application/json", Authorization: `Bearer ${accessToken}` },
-  });
-
-  try {
-    return (await response.json()) as ApplyResult;
-  } catch {
-    return { ok: false, code: "REQUEST_FAILED" };
-  }
+  const response = await fetch(`${API_BASE_URL}/api/opportunities/${opportunityId}/apply`, { method: "POST", headers: { Accept: "application/json", Authorization: `Bearer ${accessToken}` } });
+  try { return (await response.json()) as ApplyResult; } catch { return { ok: false, code: "REQUEST_FAILED" }; }
 }
 
 export async function getMyApplications(locale: AppLocale): Promise<ApplicationsResponse> {
   const accessToken = await getAccessToken();
   if (!accessToken) return { ok: false, code: "UNAUTHENTICATED" };
-
-  const response = await fetch(`${API_BASE_URL}/api/applications/mine?locale=${locale}`, {
-    headers: { Accept: "application/json", Authorization: `Bearer ${accessToken}` },
-  });
-
-  try {
-    return (await response.json()) as ApplicationsResponse;
-  } catch {
-    return { ok: false, code: "REQUEST_FAILED" };
-  }
+  const response = await fetch(`${API_BASE_URL}/api/applications/mine?locale=${locale}`, { headers: { Accept: "application/json", Authorization: `Bearer ${accessToken}` } });
+  try { return (await response.json()) as ApplicationsResponse; } catch { return { ok: false, code: "REQUEST_FAILED" }; }
 }
 
 export async function getConversation(conversationId: string): Promise<ConversationDetailResponse | null> {
   const accessToken = await getAccessToken();
   if (!accessToken) return null;
-
-  const response = await fetch(`${API_BASE_URL}/api/conversations/${encodeURIComponent(conversationId)}`, {
-    headers: { Accept: "application/json", Authorization: `Bearer ${accessToken}` },
-  });
+  const response = await fetch(`${API_BASE_URL}/api/conversations/${encodeURIComponent(conversationId)}`, { headers: { Accept: "application/json", Authorization: `Bearer ${accessToken}` } });
   if (!response.ok) return null;
   return (await response.json()) as ConversationDetailResponse;
 }
@@ -177,20 +124,28 @@ export async function getConversation(conversationId: string): Promise<Conversat
 export async function sendMessage(conversationId: string, body: string): Promise<SendMessageResult> {
   const accessToken = await getAccessToken();
   if (!accessToken) return { ok: false, code: "UNAUTHENTICATED" };
-
   const response = await fetch(`${API_BASE_URL}/api/conversations/${encodeURIComponent(conversationId)}`, {
     method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${accessToken}`,
-    },
+    headers: { Accept: "application/json", "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
     body: JSON.stringify({ body }),
   });
+  try { return (await response.json()) as SendMessageResult; } catch { return { ok: false, code: "REQUEST_FAILED" }; }
+}
 
-  try {
-    return (await response.json()) as SendMessageResult;
-  } catch {
-    return { ok: false, code: "REQUEST_FAILED" };
-  }
+export async function getNotifications(): Promise<NotificationsResponse | null> {
+  const accessToken = await getAccessToken();
+  if (!accessToken) return null;
+  const response = await fetch(`${API_BASE_URL}/api/notifications`, { headers: { Accept: "application/json", Authorization: `Bearer ${accessToken}` } });
+  if (!response.ok) return null;
+  return (await response.json()) as NotificationsResponse;
+}
+
+export async function markNotificationRead(notificationId: number | string) {
+  const accessToken = await getAccessToken();
+  if (!accessToken) return false;
+  const response = await fetch(`${API_BASE_URL}/api/notifications/${encodeURIComponent(String(notificationId))}/read`, {
+    method: "POST",
+    headers: { Accept: "application/json", Authorization: `Bearer ${accessToken}` },
+  });
+  return response.ok;
 }
