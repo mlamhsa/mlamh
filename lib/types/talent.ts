@@ -1,3 +1,5 @@
+import type { CountryCode } from "@/lib/markets/countries";
+
 export type Talent = {
   id: number;
   user_id?: string | null;
@@ -39,6 +41,9 @@ export type Talent = {
 
   is_verified?: boolean | null;
   verified_by?: string | null;
+
+  base_country_code?: CountryCode | null;
+  work_market_codes?: CountryCode[] | null;
 
   city_en?: string | null;
   city_ar?: string | null;

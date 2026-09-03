@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 
+import { canIndexMarket } from "@/lib/markets/seo";
 import { getPublishedTalents } from "@/lib/supabase/public-talents";
 import { getPublishedOpportunities } from "@/lib/supabase/opportunities";
 import { locales } from "@/lib/i18n";
@@ -8,6 +9,8 @@ const SITE_URL = (
   process.env.NEXT_PUBLIC_SITE_URL || "https://mlamh.net"
 ).replace(/\/$/, "");
 
+const SEO_MARKET = "SA" as const;
+
 const GUIDE_SLUGS = [
   "how-to-start-acting-saudi-arabia",
   "how-to-start-modeling-saudi-arabia",
@@ -15,9 +18,13 @@ const GUIDE_SLUGS = [
 ] as const;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  if (!canIndexMarket(SEO_MARKET)) {
+    return [];
+  }
+
   const [talents, opportunities] = await Promise.all([
-    getPublishedTalents().catch(() => []),
-    getPublishedOpportunities().catch(() => []),
+    getPublishedTalents(SEO_MARKET).catch(() => []),
+    getPublishedOpportunities(SEO_MARKET).catch(() => []),
   ]);
 
   const staticRoutes: MetadataRoute.Sitemap = locales.flatMap((locale) => [

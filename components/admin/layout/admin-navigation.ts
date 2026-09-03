@@ -6,6 +6,7 @@ import {
   ClipboardList,
   CreditCard,
   FileClock,
+  Globe2,
   Headphones,
   LayoutDashboard,
   Megaphone,
@@ -175,6 +176,12 @@ export const adminNavigation: AdminNavigationGroup[] = [
     titleAr: "النظام",
     titleEn: "System",
     items: [
+      {
+        labelAr: "الأسواق",
+        labelEn: "Markets",
+        href: "/admin/markets",
+        icon: Globe2,
+      },
       {
         labelAr: "المشرفون والصلاحيات",
         labelEn: "Admins & Roles",
