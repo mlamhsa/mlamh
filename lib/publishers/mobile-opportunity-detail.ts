@@ -1,6 +1,7 @@
 import { canTransitionApplicationStatus, isApplicationStatus, normalizeApplicationStatus, shouldCreateConversation } from "@/lib/applications/status-rules";
 import { createApplicationStatusNotification } from "@/lib/notifications/application-status-notification";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { signTalentMediaReference } from "@/lib/talents/talent-media-signing";
 
 export type PublisherApplicant = {
   applicationId: number;
@@ -61,6 +62,21 @@ export async function getPublisherOpportunityDetail(userId: string, opportunityI
   const conversationMap = new Map((conversationsResult.data ?? []).map((conversation) => [Number(conversation.application_id), Number(conversation.id)]));
   const localized = (ar: string | null | undefined, en: string | null | undefined, fallback = "") => locale === "ar" ? (ar || en || fallback) : (en || ar || fallback);
 
+  const applicants = await Promise.all((applications ?? []).map(async (application) => {
+    const talent = talentMap.get(application.talent_id);
+    return {
+      applicationId: application.id,
+      talentId: application.talent_id,
+      name: talent ? localized(talent.display_name_ar || talent.name_ar, talent.display_name_en || talent.name_en, locale === "ar" ? "موهبة" : "Talent") : (locale === "ar" ? "موهبة" : "Talent"),
+      imageUrl: talent ? await signTalentMediaReference(talent.image_url, admin) : null,
+      category: talent ? localized(talent.category_ar, talent.category_en) || null : null,
+      city: talent ? localized(talent.city_ar, talent.city_en) || null : null,
+      status: normalizeApplicationStatus(application.status),
+      createdAt: application.created_at ?? null,
+      conversationId: conversationMap.get(Number(application.id)) ?? null,
+    };
+  }));
+
   return {
     opportunity: {
       id: opportunity.id,
@@ -76,20 +92,7 @@ export async function getPublisherOpportunityDetail(userId: string, opportunityI
       published: Boolean(opportunity.published),
       createdAt: opportunity.created_at ?? null,
     },
-    applicants: (applications ?? []).map((application) => {
-      const talent = talentMap.get(application.talent_id);
-      return {
-        applicationId: application.id,
-        talentId: application.talent_id,
-        name: talent ? localized(talent.display_name_ar || talent.name_ar, talent.display_name_en || talent.name_en, locale === "ar" ? "موهبة" : "Talent") : (locale === "ar" ? "موهبة" : "Talent"),
-        imageUrl: talent?.image_url ?? null,
-        category: talent ? localized(talent.category_ar, talent.category_en) || null : null,
-        city: talent ? localized(talent.city_ar, talent.city_en) || null : null,
-        status: normalizeApplicationStatus(application.status),
-        createdAt: application.created_at ?? null,
-        conversationId: conversationMap.get(Number(application.id)) ?? null,
-      };
-    }),
+    applicants,
   };
 }
 

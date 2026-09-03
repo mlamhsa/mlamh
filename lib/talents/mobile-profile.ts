@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { signTalentMediaReference, signTalentMediaReferences } from "@/lib/talents/talent-media-signing";
 
 export type MobileTalentProfile = {
   id: number;
@@ -28,7 +29,7 @@ export async function getMobileTalentProfile({ userId, locale }: { userId: strin
   const supabase = createAdminClient();
   const [{ data: profile, error: profileError }, { data: talent, error: talentError }] = await Promise.all([
     supabase.from("profiles").select("account_type,approval_status,status").eq("user_id", userId).maybeSingle(),
-    supabase.from("talents").select("id,slug,name_ar,name_en,display_name_ar,display_name_en,category_ar,category_en,image_url,gallery_images,photos,full_body_photos,bio_ar,bio_en,skills,languages,base_country_code,profile_completion,availability_status,verified,is_verified,status,published").eq("user_id", userId).maybeSingle(),
+    supabase.from("talents").select("id,slug,name_ar,name_en,display_name_ar,display_name_en,category_ar,category_en,image_url,gallery_images,photos,full_body_photos,bio_ar,bio_en,skills,languages,base_country_code,profile_completion,availability_status,verified,is_verified,status,published,city_ar,city_en").eq("user_id", userId).maybeSingle(),
   ]);
 
   if (profileError || talentError) return { ok: false as const, code: "PROFILE_LOOKUP_FAILED" as const };
@@ -39,16 +40,20 @@ export async function getMobileTalentProfile({ userId, locale }: { userId: strin
     : talent.display_name_en || talent.name_en || talent.display_name_ar || talent.name_ar;
   const category = locale === "ar" ? talent.category_ar || talent.category_en : talent.category_en || talent.category_ar;
   const bio = locale === "ar" ? talent.bio_ar || talent.bio_en : talent.bio_en || talent.bio_ar;
-  const gallery = [...compactStrings(talent.gallery_images), ...compactStrings(talent.photos), ...compactStrings(talent.full_body_photos)];
+  const galleryRefs = [...new Set([...compactStrings(talent.gallery_images), ...compactStrings(talent.photos), ...compactStrings(talent.full_body_photos)])].slice(0, 12);
+  const [signedPrimary, signedGallery] = await Promise.all([
+    signTalentMediaReference(talent.image_url, supabase),
+    signTalentMediaReferences(galleryRefs, supabase),
+  ]);
 
   const item: MobileTalentProfile = {
     id: Number(talent.id),
     slug: talent.slug ?? null,
     displayName: displayName || "MLAMH Talent",
     category: category || "Talent",
-    city: null,
-    imageUrl: talent.image_url || gallery[0] || null,
-    gallery: [...new Set(gallery)].slice(0, 12),
+    city: locale === "ar" ? talent.city_ar || talent.city_en || null : talent.city_en || talent.city_ar || null,
+    imageUrl: signedPrimary || signedGallery[0] || null,
+    gallery: signedGallery,
     bio: bio || null,
     skills: compactStrings(talent.skills).slice(0, 12),
     languages: compactStrings(talent.languages).slice(0, 8),
@@ -61,7 +66,5 @@ export async function getMobileTalentProfile({ userId, locale }: { userId: strin
     published: Boolean(talent.published),
   };
 
-  const { data: cityRow } = await supabase.from("talents").select("city_ar,city_en").eq("id", talent.id).maybeSingle();
-  item.city = locale === "ar" ? cityRow?.city_ar || cityRow?.city_en || null : cityRow?.city_en || cityRow?.city_ar || null;
   return { ok: true as const, item };
 }
