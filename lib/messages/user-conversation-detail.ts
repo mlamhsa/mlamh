@@ -1,3 +1,4 @@
+import { isRestrictedAccountStatus } from "@/lib/accounts/account-rules";
 import type { ConversationDetailResponse, MobileMessage, SendMessageResult } from "@/lib/messages/message-contract";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -8,20 +9,23 @@ type Context = { role: "talent" | "publisher"; admin: ReturnType<typeof createAd
 async function getContext(userId: string, conversationId: number): Promise<Context | null> {
   if (!Number.isInteger(conversationId) || conversationId <= 0) return null;
   const admin = createAdminClient();
-  const { data: profile } = await admin.from("profiles").select("id,account_type").eq("user_id", userId).maybeSingle();
-  if (!profile) return null;
+  const { data: profile } = await admin.from("profiles").select("id,account_type,approval_status,status").eq("user_id", userId).maybeSingle();
+  if (!profile || profile.approval_status !== "approved" || isRestrictedAccountStatus(profile.status)) return null;
+
   if (profile.account_type === "talent") {
-    const { data: talent } = await admin.from("talents").select("id").eq("user_id", userId).maybeSingle();
-    if (!talent) return null;
+    const { data: talent } = await admin.from("talents").select("id,status").eq("user_id", userId).maybeSingle();
+    if (!talent || isRestrictedAccountStatus(talent.status)) return null;
     const { data: conversation } = await admin.from("conversations").select("id,opportunity_id,publisher_id,talent_id,conversation_type,status").eq("id", conversationId).eq("talent_id", talent.id).maybeSingle();
     return conversation ? { role: "talent", admin, conversation } : null;
   }
+
   if (profile.account_type === "publisher") {
-    const { data: publisher } = await admin.from("publishers").select("id").eq("profile_id", profile.id).maybeSingle();
-    if (!publisher) return null;
-    const { data: conversation } = await admin.from("conversations").select("id,opportunity_id,publisher_id,talent_id,conversation_type,status").eq("id", conversationId).eq("publisher_id", publisher.id).maybeSingle();
+    const { data: publisher } = await admin.from("publishers").select("id,status").eq("profile_id", profile.id).maybeSingle();
+    if (!publisher || isRestrictedAccountStatus(publisher.status)) return null;
+    const { data: conversation } = await admin.from("conversations").select("id,opportunity_id,publisher_id,talent_id,conversation_type,status").eq("id", conversationId).eq("publisher_id", publisher.id).eq("conversation_type", "publisher_talent").maybeSingle();
     return conversation ? { role: "publisher", admin, conversation } : null;
   }
+
   return null;
 }
 
