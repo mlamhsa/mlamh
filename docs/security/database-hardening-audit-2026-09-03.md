@@ -2,7 +2,7 @@
 
 ## Scope
 
-Security and performance review after the Multi-Country Foundation production milestone, followed by the explicitly approved minimal P0/P1 production hardening patch.
+Security and performance review after the Multi-Country Foundation production milestone, followed by the explicitly approved minimal P0/P1 production hardening patches.
 
 ## Production baseline
 
@@ -13,39 +13,31 @@ Security and performance review after the Multi-Country Foundation production mi
 
 ## P0/P1 production hardening — VERIFIED
 
-Applied production migration:
+Applied production migrations:
 
 - `20260903072241_harden_privileged_functions_p0_p1`
+- `20260903074118_harden_increment_talent_view_rpc`
 
 Verified outcomes:
 
 - `public.expire_featured_talents()` is no longer executable by `anon` or `authenticated`; `service_role` remains allowed.
 - `public.is_conversation_participant(bigint)` is no longer executable by `anon`; `authenticated` remains allowed because message, attachment, and storage RLS policies depend on it.
-- `public.set_contact_requests_updated_at()`, `public.set_updated_at()`, `public.claim_next_marketing_task(text)`, and `public.sync_marketing_agent_from_task()` now have fixed `search_path=public`.
+- `public.set_contact_requests_updated_at()`, `public.set_updated_at()`, `public.claim_next_marketing_task(text)`, and `public.sync_marketing_agent_from_task()` have fixed `search_path=public`.
 - trigger-only functions are no longer directly executable by `anon` or `authenticated`; `service_role` remains allowed.
 - `claim_next_marketing_task(text)` remains service-role only.
-- authenticated execution of `is_conversation_participant(-1)` was verified inside a rolled-back transaction and returned `false`, confirming the RLS helper remains callable without changing data.
+- `public.increment_talent_view(bigint)` is now `SECURITY INVOKER`, keeps `search_path=public`, is not executable by `PUBLIC`, `anon`, or `authenticated`, and remains executable by `service_role` only.
+- the current talent profile page calls the view counter through `createAdminClient()`, which uses `SUPABASE_SERVICE_ROLE_KEY`, so the public talent-view flow remains compatible with the new execution boundary.
+- a production verification transaction confirmed `service_role` can increment a real talent counter (`37 → 38`), and the forced rollback restored the stored value to `37`, leaving no test view behind.
+- authenticated execution of `is_conversation_participant(-1)` was previously verified inside a rolled-back transaction and returned `false`, confirming the RLS helper remains callable without changing data.
 - no legacy data backfill, non-Saudi activation, or payment behavior change occurred.
 
 Post-migration Security Advisor results:
 
 - the targeted mutable-`search_path` warnings are cleared.
 - the `expire_featured_talents()` public/authenticated SECURITY DEFINER warnings are cleared.
-- `increment_talent_view(bigint)` remains intentionally open pending anti-abuse redesign.
+- the `increment_talent_view(bigint)` SECURITY DEFINER/client-execution warning is cleared.
 - `is_conversation_participant(bigint)` still produces an authenticated SECURITY DEFINER warning by design because RLS currently requires authenticated execution.
 - Supabase Auth leaked-password protection remains disabled and is a separate configuration task.
-
-## Remaining P0/P1 decision
-
-### `public.increment_talent_view(bigint)`
-
-Current state:
-
-- `SECURITY DEFINER`
-- executable by `anon`, `authenticated`, and `service_role`
-- increments a public counter without caller-specific anti-abuse protection
-
-Do not blindly revoke until the public talent-view flow is traced end-to-end. Preferred next step is an anti-abuse redesign with least-privilege execution and rate/duplicate protection.
 
 ## RLS / Data API exposure findings
 
@@ -117,21 +109,21 @@ Many indexes are reported unused. No index should be dropped solely because of t
 
 ## Next safe remediation sequence
 
-1. Trace and redesign `increment_talent_view(bigint)` anti-abuse behavior.
-2. Review Auth leaked-password protection and enable it as a separate configuration change when appropriate.
-3. Review the 51 legacy broad client grants by actual application dependency; do not mass-revoke blindly.
-4. Batch RLS init-plan rewrites with regression tests.
-5. Prioritize missing covering indexes on core marketplace relations.
-6. Reconcile duplicate permissive policies only after exact role/action semantics are verified.
-7. Keep unused-index removal deferred until production evidence is sufficient.
+1. Review Supabase Auth leaked-password protection and enable it as a separate configuration change when appropriate.
+2. Review the 51 legacy broad client grants by actual application dependency; do not mass-revoke blindly.
+3. Batch RLS init-plan rewrites with regression tests.
+4. Prioritize missing covering indexes on core marketplace relations.
+5. Reconcile duplicate permissive policies only after exact role/action semantics are verified.
+6. Keep unused-index removal deferred until production evidence is sufficient.
 
 ## Current audit status
 
 - Security advisors: REVIEWED + POST-MIGRATION RECHECKED
 - Performance advisors: REVIEWED
 - SECURITY DEFINER dependencies: REVIEWED
+- `increment_talent_view` runtime path: TRACED + HARDENED + VERIFIED
 - Data API grants classification: REVIEWED
-- Production P0/P1 hardening migration: APPLIED + VERIFIED
-- Repository migration file: RECORDED ON HARDENING BRANCH
+- Production P0/P1 hardening migrations: APPLIED + VERIFIED
+- Repository migration files: RECORDED ON HARDENING BRANCH
 - Production deployment: NOT REQUIRED; no application code changed
-- Next milestone: `increment_talent_view` anti-abuse design + Auth/grant hardening review
+- Next milestone: Auth leaked-password protection + legacy grant/RLS performance review
