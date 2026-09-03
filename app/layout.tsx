@@ -4,6 +4,8 @@ import {
   Noto_Sans_Arabic,
 } from "next/font/google";
 import type { Metadata } from "next";
+import { Suspense } from "react";
+import GlobalInteractionFeedback from "@/components/GlobalInteractionFeedback";
 import MarketingAttributionTracker from "@/components/MarketingAttributionTracker";
 import { defaultLocale } from "@/lib/i18n";
 import "./globals.css";
@@ -117,6 +119,9 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationStructuredData) }}
         />
         <MarketingAttributionTracker />
+        <Suspense fallback={null}>
+          <GlobalInteractionFeedback />
+        </Suspense>
         {children}
       </body>
     </html>

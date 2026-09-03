@@ -1,3 +1,7 @@
+"use client";
+
+import { useFormStatus } from "react-dom";
+
 type AdminActionButtonVariant =
   | "default"
   | "gold"
@@ -17,14 +21,36 @@ const variants: Record<AdminActionButtonVariant, string> = {
   muted: "border-zinc-500/25 bg-zinc-500/[0.05] text-zinc-300 hover:border-zinc-400/40 hover:bg-zinc-500/[0.1]",
 };
 
-export function AdminActionButton({ children, variant = "default", type = "button" }: { children: React.ReactNode; variant?: AdminActionButtonVariant; type?: "button" | "submit"; }) {
+export function AdminActionButton({
+  children,
+  variant = "default",
+  type = "button",
+  pendingLabel,
+}: {
+  children: React.ReactNode;
+  variant?: AdminActionButtonVariant;
+  type?: "button" | "submit";
+  pendingLabel?: string;
+}) {
+  const { pending } = useFormStatus();
+  const showPending = type === "submit" && pending;
+  const defaultPendingLabel =
+    typeof document !== "undefined" && document.documentElement.dir === "rtl"
+      ? "جاري التنفيذ…"
+      : "Processing…";
+
   return (
     <button
       type={type}
+      disabled={showPending}
+      aria-busy={showPending || undefined}
       className={`group relative inline-flex min-h-11 select-none items-center justify-center overflow-hidden rounded-xl border px-5 py-2.5 text-[11px] font-medium tracking-[0.08em] outline-none transition-all duration-200 ease-out hover:-translate-y-0.5 active:translate-y-[1px] active:scale-[0.985] active:shadow-none focus-visible:ring-2 focus-visible:ring-gold/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black disabled:pointer-events-none disabled:translate-y-0 disabled:opacity-45 ${variants[variant]}`}
     >
       <span className="pointer-events-none absolute inset-0 translate-x-[-120%] bg-gradient-to-r from-transparent via-white/[0.07] to-transparent transition-transform duration-500 group-hover:translate-x-[120%]" />
-      <span className="relative">{children}</span>
+      <span className="relative inline-flex items-center gap-2">
+        {showPending ? <span className="mlamh-loading-spinner" aria-hidden="true" /> : null}
+        <span>{showPending ? pendingLabel ?? defaultPendingLabel : children}</span>
+      </span>
     </button>
   );
 }
