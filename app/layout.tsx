@@ -7,6 +7,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import GlobalInteractionFeedback from "@/components/GlobalInteractionFeedback";
 import MarketingAttributionTracker from "@/components/MarketingAttributionTracker";
+import { FeedbackProvider } from "@/components/ui/FeedbackProvider";
 import { defaultLocale } from "@/lib/i18n";
 import "./globals.css";
 
@@ -118,11 +119,13 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationStructuredData) }}
         />
-        <MarketingAttributionTracker />
-        <Suspense fallback={null}>
-          <GlobalInteractionFeedback />
-        </Suspense>
-        {children}
+        <FeedbackProvider>
+          <MarketingAttributionTracker />
+          <Suspense fallback={null}>
+            <GlobalInteractionFeedback />
+          </Suspense>
+          {children}
+        </FeedbackProvider>
       </body>
     </html>
   );
