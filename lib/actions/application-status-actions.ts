@@ -11,6 +11,7 @@ import {
   normalizeApplicationStatus,
   shouldCreateConversation,
 } from "@/lib/applications/status-rules";
+import { createApplicationStatusNotification } from "@/lib/notifications/application-status-notification";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -22,23 +23,6 @@ type AcceptedApplicationContext = {
   publisherId: string | number;
   talentId: string | number;
 };
-
-function getNotificationMessage(
-  status: ApplicationStatus,
-  opportunityTitle?: string | null,
-) {
-  const title = opportunityTitle ? `: ${opportunityTitle}` : "";
-
-  const messages: Record<ApplicationStatus, string> = {
-    pending: `Your application is pending${title}`,
-    reviewing: `Your application is under review${title}`,
-    shortlisted: `You have been shortlisted for the opportunity${title}`,
-    accepted: `Your application has been accepted${title}. You can now start a conversation with the company.`,
-    rejected: `Your application has been rejected${title}`,
-  };
-
-  return messages[status];
-}
 
 async function logStatusChange(
   adminClient: AdminClient,
@@ -288,12 +272,12 @@ export async function updateApplicationStatusAction(
 
   const { data: talent, error: talentError } = await adminClient
     .from("talents")
-    .select("id, user_id")
+    .select("id")
     .eq("id", application.talent_id)
     .maybeSingle();
 
-  if (talentError || !talent?.user_id) {
-    throw new Error("Talent user account not found.");
+  if (talentError || !talent) {
+    throw new Error("Talent account not found.");
   }
 
   const now = new Date().toISOString();
@@ -338,23 +322,20 @@ export async function updateApplicationStatusAction(
   }
 
   if (isFinalApplicationStatus(status)) {
-    const { error: notificationError } = await adminClient
-      .from("notifications")
-      .insert({
-        user_id: talent.user_id,
-        type: "application_status",
-        message: getNotificationMessage(status, opportunity.title),
-        reference_id: application.opportunity_id,
-        read: false,
-        created_at: now,
-      });
+    const notificationResult = await createApplicationStatusNotification({
+      status,
+      talentId: talent.id,
+      applicationId: application.id,
+      opportunityId: application.opportunity_id,
+      opportunityTitle: opportunity.title,
+      actorUserId: user.id,
+    });
 
-    if (notificationError) {
-      console.error("Failed to create notification:", {
-        message: notificationError.message,
-        details: notificationError.details,
-        hint: notificationError.hint,
-        code: notificationError.code,
+    if (!notificationResult.ok) {
+      console.error("Failed to create application status notification:", {
+        code: notificationResult.code,
+        applicationId: application.id,
+        status,
       });
     }
   }
