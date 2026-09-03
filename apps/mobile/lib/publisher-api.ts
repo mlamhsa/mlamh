@@ -1,7 +1,18 @@
 import type { AppLocale } from "@/lib/i18n";
 import { supabase } from "@/lib/supabase";
 
-const API_BASE_URL = (process.env.EXPO_PUBLIC_API_BASE_URL ?? "https://mlamh.net").replace(/\/$/, "");
+function requireApiBaseUrl() {
+  const configured = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
+  if (!configured) throw new Error("Missing EXPO_PUBLIC_API_BASE_URL for this mobile environment.");
+  let parsed: URL;
+  try { parsed = new URL(configured); } catch { throw new Error("Invalid EXPO_PUBLIC_API_BASE_URL for this mobile environment."); }
+  if (parsed.protocol !== "https:" && !(parsed.protocol === "http:" && ["localhost", "127.0.0.1"].includes(parsed.hostname))) {
+    throw new Error("EXPO_PUBLIC_API_BASE_URL must use HTTPS except for localhost development.");
+  }
+  return configured.replace(/\/$/, "");
+}
+
+const API_BASE_URL = requireApiBaseUrl();
 
 export type MobilePublisherOpportunity = {
   id: number;
@@ -93,6 +104,22 @@ export type PublisherApplicantStatusResult =
   | { ok: true; status: string; conversationId: number | null }
   | { ok: false; code: string };
 
+export type PublisherOpportunityAction = "edit" | "publish" | "close" | "archive";
+export type PublisherOpportunityManageInput = {
+  action: PublisherOpportunityAction;
+  title?: string;
+  description?: string;
+  opportunityType?: "actor" | "model";
+  city?: string;
+  compensationType?: "fixed" | "negotiable" | "unpaid";
+  budget?: string;
+  countryCode?: string;
+  currency?: string;
+};
+export type PublisherOpportunityManageResult =
+  | { ok: true; item: { id: number; status: string | null; published: boolean } }
+  | { ok: false; code: string };
+
 async function accessToken() {
   const { data: { session } } = await supabase.auth.getSession();
   return session?.access_token ?? null;
@@ -116,11 +143,8 @@ export async function createPublisherOpportunityDraft(input: CreateOpportunityDr
     headers: { Accept: "application/json", "Content-Type": "application/json", Authorization: `Bearer ${token}` },
     body: JSON.stringify(input),
   });
-  try {
-    return (await response.json()) as CreateOpportunityDraftResult;
-  } catch {
-    return { ok: false, code: "REQUEST_FAILED" };
-  }
+  try { return (await response.json()) as CreateOpportunityDraftResult; }
+  catch { return { ok: false, code: "REQUEST_FAILED" }; }
 }
 
 export async function getPublisherConversations(): Promise<ConversationsResponse | null> {
@@ -145,11 +169,7 @@ export async function getPublisherOpportunity(opportunityId: number, locale: App
   return { opportunity: payload.opportunity, applicants: payload.applicants };
 }
 
-export async function updatePublisherApplicantStatus(
-  opportunityId: number,
-  applicationId: number,
-  status: "accepted" | "rejected" | "shortlisted",
-): Promise<PublisherApplicantStatusResult> {
+export async function updatePublisherApplicantStatus(opportunityId: number, applicationId: number, status: "accepted" | "rejected" | "shortlisted"): Promise<PublisherApplicantStatusResult> {
   const token = await accessToken();
   if (!token) return { ok: false, code: "UNAUTHENTICATED" };
   const response = await fetch(`${API_BASE_URL}/api/publisher/opportunities/${opportunityId}`, {
@@ -157,9 +177,18 @@ export async function updatePublisherApplicantStatus(
     headers: { Accept: "application/json", "Content-Type": "application/json", Authorization: `Bearer ${token}` },
     body: JSON.stringify({ applicationId, status }),
   });
-  try {
-    return (await response.json()) as PublisherApplicantStatusResult;
-  } catch {
-    return { ok: false, code: "REQUEST_FAILED" };
-  }
+  try { return (await response.json()) as PublisherApplicantStatusResult; }
+  catch { return { ok: false, code: "REQUEST_FAILED" }; }
+}
+
+export async function managePublisherOpportunity(opportunityId: number, input: PublisherOpportunityManageInput): Promise<PublisherOpportunityManageResult> {
+  const token = await accessToken();
+  if (!token) return { ok: false, code: "UNAUTHENTICATED" };
+  const response = await fetch(`${API_BASE_URL}/api/publisher/opportunities/${opportunityId}`, {
+    method: "PATCH",
+    headers: { Accept: "application/json", "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify(input),
+  });
+  try { return (await response.json()) as PublisherOpportunityManageResult; }
+  catch { return { ok: false, code: "REQUEST_FAILED" }; }
 }
