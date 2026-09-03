@@ -1,6 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import {
+  isApplicationWindowClosed,
+  isOpportunityAvailable,
+  isRestrictedAccountStatus,
+  isValidOpportunityId,
+} from "@/lib/applications/apply-rules";
 import { trackEvent } from "@/lib/events/track-event";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -16,30 +22,14 @@ export type ApplyResult = {
   message: string;
 };
 
-const RESTRICTED_ACCOUNT_STATUSES = new Set([
-  "suspended",
-  "blocked",
-  "banned",
-  "disabled",
-]);
-
 export async function applyToOpportunityAction(
   _prevState: ApplyResult | null,
   formData: FormData,
 ): Promise<ApplyResult> {
-  const opportunityId = Number(
-    formData.get("opportunity_id"),
-  );
+  const opportunityId = Number(formData.get("opportunity_id"));
+  const locale = formData.get("locale") === "en" ? "en" : "ar";
 
-  const locale =
-    formData.get("locale") === "en"
-      ? "en"
-      : "ar";
-
-  if (
-    !Number.isInteger(opportunityId) ||
-    opportunityId <= 0
-  ) {
+  if (!isValidOpportunityId(opportunityId)) {
     return {
       status: "error",
       message:
@@ -49,8 +39,7 @@ export async function applyToOpportunityAction(
     };
   }
 
-  const authClient =
-    await createServerSupabaseClient();
+  const authClient = await createServerSupabaseClient();
   const adminClient = createAdminClient();
 
   const {
@@ -77,21 +66,18 @@ export async function applyToOpportunityAction(
       logged_in: true,
     },
   });
-  
+
   const {
     data: profile,
     error: profileError,
   } = await adminClient
-  .from("profiles")
-.select("account_type, status, approval_status, phone")
-  .eq("user_id", user.id)
-  .maybeSingle();
+    .from("profiles")
+    .select("account_type, status, approval_status, phone")
+    .eq("user_id", user.id)
+    .maybeSingle();
 
   if (profileError) {
-    console.error(
-      "Apply opportunity profile lookup error:",
-      profileError,
-    );
+    console.error("Apply opportunity profile lookup error:", profileError);
 
     return {
       status: "error",
@@ -102,10 +88,7 @@ export async function applyToOpportunityAction(
     };
   }
 
-  if (
-    !profile ||
-    profile.account_type !== "talent"
-  ) {
+  if (!profile || profile.account_type !== "talent") {
     return {
       status: "not_talent",
       message:
@@ -115,11 +98,7 @@ export async function applyToOpportunityAction(
     };
   }
 
-  if (
-    RESTRICTED_ACCOUNT_STATUSES.has(
-      profile.status ?? "",
-    )
-  ) {
+  if (isRestrictedAccountStatus(profile.status)) {
     return {
       status: "unauthorized",
       message:
@@ -166,10 +145,7 @@ export async function applyToOpportunityAction(
     .maybeSingle();
 
   if (talentError) {
-    console.error(
-      "Apply opportunity talent lookup error:",
-      talentError,
-    );
+    console.error("Apply opportunity talent lookup error:", talentError);
 
     return {
       status: "error",
@@ -190,30 +166,21 @@ export async function applyToOpportunityAction(
     };
   }
 
-  const profileReadiness =
-  getTalentProfileReadiness({
+  const profileReadiness = getTalentProfileReadiness({
     ...talent,
     phone: profile.phone,
   });
 
   if (!profileReadiness.isReady) {
-    console.log(
-      "[Talent profile readiness]",
-      {
-        talentId: talent.id,
-        primaryRole: talent.primary_role,
-        missingRequirements:
-          profileReadiness.missingRequirements,
-      },
-    );
-    const missingLabels =
-      profileReadiness.missingRequirements
-        .map((requirement) =>
-          locale === "ar"
-            ? requirement.ar
-            : requirement.en,
-        )
-        .join(locale === "ar" ? "، " : ", ");
+    console.log("[Talent profile readiness]", {
+      talentId: talent.id,
+      primaryRole: talent.primary_role,
+      missingRequirements: profileReadiness.missingRequirements,
+    });
+
+    const missingLabels = profileReadiness.missingRequirements
+      .map((requirement) => (locale === "ar" ? requirement.ar : requirement.en))
+      .join(locale === "ar" ? "، " : ", ");
 
     return {
       status: "not_talent",
@@ -234,10 +201,7 @@ export async function applyToOpportunityAction(
     .maybeSingle();
 
   if (opportunityError) {
-    console.error(
-      "Apply opportunity lookup error:",
-      opportunityError,
-    );
+    console.error("Apply opportunity lookup error:", opportunityError);
 
     return {
       status: "error",
@@ -248,13 +212,7 @@ export async function applyToOpportunityAction(
     };
   }
 
-  const isAvailable =
-    opportunity &&
-    opportunity.published === true &&
-    (opportunity.status === "open" ||
-      opportunity.status === "published");
-
-  if (!isAvailable) {
+  if (!isOpportunityAvailable(opportunity)) {
     return {
       status: "error",
       message:
@@ -265,37 +223,20 @@ export async function applyToOpportunityAction(
   }
 
   if (
-    opportunity.created_at &&
-    opportunity.application_days
+    isApplicationWindowClosed({
+      createdAt: opportunity.created_at,
+      applicationDays: opportunity.application_days,
+    })
   ) {
-    const createdAt = new Date(
-      opportunity.created_at,
-    );
-  
-    const applicationDeadline =
-      new Date(createdAt);
-  
-    applicationDeadline.setDate(
-      applicationDeadline.getDate() +
-        opportunity.application_days,
-    );
-  
-    if (
-      !Number.isNaN(
-        applicationDeadline.getTime(),
-      ) &&
-      new Date() > applicationDeadline
-    ) {
-      return {
-        status: "error",
-        message:
-          locale === "ar"
-            ? "انتهت مدة استقبال الطلبات لهذه الفرصة."
-            : "The application period for this opportunity has ended.",
-      };
-    }
+    return {
+      status: "error",
+      message:
+        locale === "ar"
+          ? "انتهت مدة استقبال الطلبات لهذه الفرصة."
+          : "The application period for this opportunity has ended.",
+    };
   }
-  
+
   const {
     data: existingApplication,
     error: existingApplicationError,
@@ -307,10 +248,7 @@ export async function applyToOpportunityAction(
     .maybeSingle();
 
   if (existingApplicationError) {
-    console.error(
-      "Existing application lookup error:",
-      existingApplicationError,
-    );
+    console.error("Existing application lookup error:", existingApplicationError);
 
     return {
       status: "error",
@@ -343,7 +281,7 @@ export async function applyToOpportunityAction(
     })
     .select("id")
     .single();
-  
+
   if (insertError) {
     if (insertError.code === "23505") {
       return {
@@ -354,12 +292,9 @@ export async function applyToOpportunityAction(
             : "You have already applied to this opportunity.",
       };
     }
-  
-    console.error(
-      "Apply opportunity insert error:",
-      insertError,
-    );
-  
+
+    console.error("Apply opportunity insert error:", insertError);
+
     return {
       status: "error",
       message:
@@ -368,7 +303,7 @@ export async function applyToOpportunityAction(
           : "Something went wrong while applying. Please try again.",
     };
   }
-  
+
   await trackEvent({
     type: "application_submitted",
     target: "application",
@@ -382,26 +317,14 @@ export async function applyToOpportunityAction(
   });
 
   if (opportunity.slug) {
-    revalidatePath(
-      `/${locale}/opportunities/${opportunity.slug}`,
-    );
+    revalidatePath(`/${locale}/opportunities/${opportunity.slug}`);
   }
 
-  revalidatePath(
-    `/${locale}/talent-dashboard/applications`,
-  );
-  revalidatePath(
-    `/${locale}/talent-dashboard`,
-  );
+  revalidatePath(`/${locale}/talent-dashboard/applications`);
+  revalidatePath(`/${locale}/talent-dashboard`);
+  revalidatePath(`/admin/opportunities/${opportunity.id}`);
+  revalidatePath("/admin/opportunity-applications");
 
-  revalidatePath(
-    `/admin/opportunities/${opportunity.id}`,
-  );
-  
-  revalidatePath(
-    "/admin/opportunity-applications",
-  );
-  
   return {
     status: "success",
     message:
