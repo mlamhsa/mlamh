@@ -343,3 +343,105 @@ option:hover {
   background: #c9a962 !important;
   color: #000 !important;
 }
+
+/* ---------- Global interaction feedback ---------- */
+
+:where(a[href], button, [role="button"], summary, input[type="button"], input[type="submit"]):not(:disabled) {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+:where(a[href], button, [role="button"], summary, input[type="button"], input[type="submit"]):not(:disabled):active {
+  transform: translateY(1px) scale(0.985);
+  filter: brightness(1.08);
+}
+
+:where(input, textarea, select):focus-visible {
+  outline: none;
+  border-color: rgba(201, 169, 98, 0.58) !important;
+  box-shadow:
+    0 0 0 3px rgba(201, 169, 98, 0.09),
+    0 10px 30px rgba(0, 0, 0, 0.18);
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.mlamh-route-progress {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 10050;
+  height: 2px;
+  overflow: hidden;
+  pointer-events: none;
+  background: rgba(201, 169, 98, 0.08);
+}
+
+.mlamh-route-progress > span {
+  display: block;
+  height: 100%;
+  width: 42%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, var(--gold-soft), #f4dfa6, var(--gold));
+  box-shadow: 0 0 18px rgba(212, 175, 106, 0.45);
+  animation: mlamh-route-progress 1.05s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.mlamh-loading-pill {
+  position: fixed;
+  z-index: 10051;
+  left: 50%;
+  bottom: max(1.25rem, env(safe-area-inset-bottom));
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 42px;
+  transform: translateX(-50%);
+  border: 1px solid rgba(201, 169, 98, 0.2);
+  border-radius: 999px;
+  padding: 0.65rem 1rem;
+  color: rgba(255, 255, 255, 0.84);
+  background: rgba(8, 8, 8, 0.88);
+  box-shadow: 0 14px 44px rgba(0, 0, 0, 0.45), 0 0 28px rgba(201, 169, 98, 0.06);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  font-size: 0.78rem;
+  pointer-events: none;
+  animation: mlamh-feedback-in 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.mlamh-loading-spinner {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 15px;
+  border: 1.5px solid rgba(201, 169, 98, 0.2);
+  border-top-color: var(--gold-soft);
+  border-radius: 999px;
+  animation: mlamh-spin 700ms linear infinite;
+}
+
+@keyframes mlamh-route-progress {
+  0% { transform: translateX(-110%); }
+  55% { width: 56%; }
+  100% { transform: translateX(260%); }
+}
+
+@keyframes mlamh-feedback-in {
+  from { opacity: 0; transform: translate(-50%, 8px) scale(0.97); }
+  to { opacity: 1; transform: translate(-50%, 0) scale(1); }
+}
+
+@keyframes mlamh-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(a[href], button, [role="button"], summary, input[type="button"], input[type="submit"]):not(:disabled):active {
+    transform: none;
+  }
+
+  .mlamh-route-progress > span,
+  .mlamh-loading-spinner,
+  .mlamh-loading-pill {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
