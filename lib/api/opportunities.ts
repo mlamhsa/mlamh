@@ -1,15 +1,16 @@
-export type Opportunity = {
-    id: string;
-    title: string;
-    type: "casting" | "commercial" | "film" | "fashion";
-    company: string;
-    location: string;
-    description?: string;
-    createdAt: string;
-    featured?: boolean;
-  };
-  
-  // TEMP (until DB connected)
-  export async function getOpportunities(): Promise<Opportunity[]> {
-    return [];
-  }
+import type { CountryCode } from "@/lib/markets/countries";
+import {
+  getPublicOpportunities,
+  type PublicOpportunitiesInput,
+} from "@/lib/opportunities/public-read";
+
+export type { PublicOpportunity, PublicOpportunitiesResponse } from "@/lib/opportunities/public-contract";
+
+export async function getOpportunities(
+  input: PublicOpportunitiesInput = {
+    countryCode: "SA" satisfies CountryCode,
+    locale: "ar",
+  },
+) {
+  return getPublicOpportunities(input);
+}
