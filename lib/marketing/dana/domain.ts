@@ -1,5 +1,6 @@
 import { createHash } from "crypto";
 
+import type { CountryCode } from "../../markets/countries.ts";
 import {
   calculateTalentSupplyGap,
   type BriefTalent,
@@ -7,6 +8,10 @@ import {
   type TalentSupplyEvaluation,
   type TalentSupplyGap,
 } from "../../talent/supply.ts";
+import {
+  normalizeInternationalPhone,
+  parseDanaLocation,
+} from "./location.ts";
 
 export const DANA_AGENT = {
   id: "dana",
@@ -53,6 +58,7 @@ export type DanaBrief = {
   projectType: string | null;
   talentType: "actor" | "model" | "mixed" | null;
   talentCount: number | null;
+  countryCode: CountryCode | null;
   city: string | null;
   requirements: Record<string, unknown>;
   compensation: string | null;
@@ -117,13 +123,7 @@ export function normalizeEmail(value?: string | null) {
 }
 
 export function normalizePhone(value?: string | null) {
-  const raw = (value ?? "").replace(/[^\d+]/g, "");
-  if (!raw) return "";
-  const digits = raw.replace(/\D/g, "");
-  if (digits.startsWith("00966")) return `+${digits.slice(2)}`;
-  if (digits.startsWith("966")) return `+${digits}`;
-  if (digits.startsWith("05") && digits.length === 10) return `+966${digits.slice(1)}`;
-  return raw.startsWith("+") ? `+${digits}` : digits;
+  return normalizeInternationalPhone(value);
 }
 
 export function classifyCommercialInquiry(input: CommercialInquiry): CommercialClassification {
@@ -141,19 +141,6 @@ export function classifyCommercialInquiry(input: CommercialInquiry): CommercialC
   return { commercial: false, intent: "normal_support", confidence: 0.9, signals: [] };
 }
 
-function extractCity(text: string) {
-  const cities: Array<[string, string[]]> = [
-    ["Jeddah", ["جدة", "jeddah"]],
-    ["Riyadh", ["الرياض", "riyadh"]],
-    ["Dammam", ["الدمام", "dammam"]],
-    ["Khobar", ["الخبر", "khobar"]],
-    ["Makkah", ["مكة", "makkah", "mecca"]],
-    ["Madinah", ["المدينة", "madinah", "medina"]],
-  ];
-  const normalized = normalizeText(text);
-  return cities.find(([, aliases]) => aliases.some((alias) => normalized.includes(normalizeText(alias))))?.[0] ?? null;
-}
-
 function extractTalentType(text: string): DanaBrief["talentType"] {
   const normalized = normalizeText(text);
   const model = ["مودل", "عارضة", "عارض", "model"].some((term) => normalized.includes(normalizeText(term)));
@@ -167,7 +154,7 @@ function extractTalentType(text: string): DanaBrief["talentType"] {
 export function buildDanaBrief(input: CommercialInquiry): DanaBrief {
   const text = `${input.subject ?? ""} ${input.message}`;
   const talentType = extractTalentType(text);
-  const city = extractCity(text);
+  const location = parseDanaLocation(text);
   const recurring = /(شهري|شهريا|monthly|recurring|متكرر)/i.test(text);
   const socialContent = /(ريلز|reels|social|سوشيال|فيديو|video)/i.test(text);
   const female = /(انثى|أنثى|نسائي|female|woman|women|عارضة|ممثلة)/i.test(text);
@@ -186,10 +173,11 @@ export function buildDanaBrief(input: CommercialInquiry): DanaBrief {
     projectType: socialContent ? "social_content" : "casting",
     talentType,
     talentCount,
-    city,
+    countryCode: location.countryCode,
+    city: location.city,
     requirements,
     compensation,
-    status: talentType && city ? "complete" : "partial",
+    status: talentType && location.city ? "complete" : "partial",
   };
 }
 
@@ -198,6 +186,7 @@ function contextSignature(input: CommercialInquiry, classification: CommercialCl
   const context = [
     classification.intent,
     brief.talentType ?? "unknown-role",
+    brief.countryCode ?? "unknown-country",
     brief.city ?? "unknown-city",
     brief.requirements.recurring ? "recurring" : "one-off",
     brief.requirements.social_content ? "social-content" : "general-project",
@@ -221,6 +210,7 @@ export function toTalentSupplyBrief(brief: DanaBrief): TalentBrief {
   return {
     talent_count: brief.talentCount,
     talent_type: brief.talentType,
+    opportunity_country_code: brief.countryCode,
     city: brief.city,
     requirements: brief.requirements,
   };
@@ -251,6 +241,7 @@ export function buildQualifiedTalentShortlist(
       let score = 50;
       const reasons = ["qualified", "sendable_for_brief"];
       if (brief.talentType) reasons.push(`role:${brief.talentType}`);
+      if (brief.countryCode) reasons.push(`market:${brief.countryCode}`);
       if (brief.city) {
         score += 30;
         reasons.push(`city:${brief.city}`);
