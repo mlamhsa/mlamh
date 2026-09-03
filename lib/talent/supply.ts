@@ -6,7 +6,7 @@ import {
 import {
   evaluateTalentMarketEligibility,
 } from "../markets/eligibility.ts";
-import type { CountryCode } from "../markets/countries.ts";
+import { isCountryCode, type CountryCode } from "../markets/countries.ts";
 
 export type TalentBrief = {
   talent_count?: number | null;
@@ -113,7 +113,6 @@ function valuesEqual(actual: unknown, expected: unknown) {
     const actualValues = actual.map(text).filter(Boolean);
     return expected.map(text).filter(Boolean).every((value) => actualValues.includes(value));
   }
-
   if (typeof expected === "boolean") return actual === expected;
   return text(actual) === text(expected);
 }
@@ -149,16 +148,12 @@ function getTalentCity(talent: BriefTalent) {
 }
 
 function getBriefCountryCode(brief: TalentBrief): CountryCode {
-  const direct = brief.country_code;
-  if (direct) return direct;
+  if (brief.country_code) return brief.country_code;
   const fromRequirements = brief.requirements?.country_code;
   if (typeof fromRequirements === "string") {
     const normalized = fromRequirements.trim().toUpperCase();
-    if (["SA", "AE", "EG", "MA", "QA", "JO", "LB", "KW"].includes(normalized)) {
-      return normalized as CountryCode;
-    }
+    if (isCountryCode(normalized)) return normalized;
   }
-  // Compatibility window: existing briefs/opportunities are Saudi unless explicitly tagged otherwise.
   return "SA";
 }
 
@@ -217,17 +212,8 @@ export function evaluateTalentForBrief(
   if (availabilityRequired) {
     const actualAvailability = text(talent.availability_status);
     if (!actualAvailability) reasons.push("missing_required_availability");
-    else if (
-      requiredAvailability.length > 0 &&
-      !requiredAvailability.includes(actualAvailability)
-    ) {
-      reasons.push("availability_mismatch");
-    } else if (
-      requiredAvailability.length === 0 &&
-      ["unavailable", "busy"].includes(actualAvailability)
-    ) {
-      reasons.push("availability_mismatch");
-    }
+    else if (requiredAvailability.length > 0 && !requiredAvailability.includes(actualAvailability)) reasons.push("availability_mismatch");
+    else if (requiredAvailability.length === 0 && ["unavailable", "busy"].includes(actualAvailability)) reasons.push("availability_mismatch");
   }
 
   const requirements = brief.requirements ?? {};
@@ -263,7 +249,6 @@ export function evaluateTalentSupplyForBrief(
         reasons: qualification.reasons.map((reason) => `not_qualified:${reason}`),
       };
     }
-
     const briefEvaluation = evaluateTalentForBrief(talent, brief);
     return {
       talent,
@@ -276,12 +261,8 @@ export function evaluateTalentSupplyForBrief(
 
   return {
     candidatePool,
-    qualifiedTalents: evaluations
-      .filter(({ qualification }) => qualification.qualified)
-      .map(({ talent }) => talent),
-    sendableTalents: evaluations
-      .filter(({ sendable }) => sendable)
-      .map(({ talent }) => talent),
+    qualifiedTalents: evaluations.filter(({ qualification }) => qualification.qualified).map(({ talent }) => talent),
+    sendableTalents: evaluations.filter(({ sendable }) => sendable).map(({ talent }) => talent),
     evaluations,
   };
 }
@@ -295,14 +276,8 @@ export function calculateTalentSupplyGap(
   const available = supply.sendableTalents.length;
   const missing = Math.max(0, needed - available);
   const reasons = missing > 0
-    ? Array.from(
-        new Set([
-          "insufficient_matches",
-          ...supply.evaluations.flatMap((evaluation) => evaluation.reasons),
-        ]),
-      )
+    ? Array.from(new Set(["insufficient_matches", ...supply.evaluations.flatMap((evaluation) => evaluation.reasons)]))
     : [];
-
   return { needed, available, missing, reasons };
 }
 
@@ -313,13 +288,15 @@ async function getTalentCandidatePool(): Promise<BriefTalent[]> {
     .from("talents")
     .select("*")
     .eq("published", true);
-
   if (error) throw new Error(`[getQualifiedTalents] ${error.message}`);
 
   const talents = (talentRows ?? []) as BriefTalent[];
   const userIds = talents
     .map((talent) => (typeof talent.user_id === "string" ? talent.user_id : null))
     .filter((value): value is string => Boolean(value));
+  const talentIds = talents
+    .map((talent) => Number(talent.id))
+    .filter((value) => Number.isInteger(value) && value > 0);
 
   const profileByUserId = new Map<string, { approval_status?: string | null; status?: string | null }>();
   if (userIds.length > 0) {
@@ -327,26 +304,43 @@ async function getTalentCandidatePool(): Promise<BriefTalent[]> {
       .from("profiles")
       .select("user_id, approval_status, status")
       .in("user_id", userIds);
-
     if (profileError) throw new Error(`[getQualifiedTalents:profiles] ${profileError.message}`);
     for (const profile of profiles ?? []) profileByUserId.set(profile.user_id, profile);
   }
 
+  const workMarketsByTalentId = new Map<number, CountryCode[]>();
+  if (talentIds.length > 0) {
+    const { data: workMarkets, error: workMarketError } = await supabase
+      .from("talent_work_markets")
+      .select("talent_id, country_code")
+      .in("talent_id", talentIds);
+    if (workMarketError) throw new Error(`[getQualifiedTalents:work-markets] ${workMarketError.message}`);
+
+    for (const row of workMarkets ?? []) {
+      const talentId = Number(row.talent_id);
+      const countryCode = typeof row.country_code === "string" ? row.country_code.toUpperCase() : "";
+      if (!Number.isInteger(talentId) || !isCountryCode(countryCode)) continue;
+      const current = workMarketsByTalentId.get(talentId) ?? [];
+      if (!current.includes(countryCode)) current.push(countryCode);
+      workMarketsByTalentId.set(talentId, current);
+    }
+  }
+
   return talents.map((talent) => {
-      const profile = talent.user_id ? profileByUserId.get(String(talent.user_id)) : undefined;
-      return {
-        ...talent,
-        profile_approval_status: profile?.approval_status,
-        profile_status: profile?.status,
-      } satisfies BriefTalent;
-    });
+    const profile = talent.user_id ? profileByUserId.get(String(talent.user_id)) : undefined;
+    const talentId = Number(talent.id);
+    return {
+      ...talent,
+      work_market_codes: Number.isInteger(talentId) ? workMarketsByTalentId.get(talentId) ?? [] : [],
+      profile_approval_status: profile?.approval_status,
+      profile_status: profile?.status,
+    } satisfies BriefTalent;
+  });
 }
 
 export async function getQualifiedTalents(): Promise<BriefTalent[]> {
   const candidatePool = await getTalentCandidatePool();
-  return candidatePool.filter(
-    (talent) => evaluateTalentQualification(talent).qualified,
-  );
+  return candidatePool.filter((talent) => evaluateTalentQualification(talent).qualified);
 }
 
 export async function getTalentSupplyForBrief(
