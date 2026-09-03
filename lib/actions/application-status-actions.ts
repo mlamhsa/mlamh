@@ -2,19 +2,17 @@
 
 import { revalidatePath } from "next/cache";
 
+import {
+  type ApplicationStatus,
+  canTransitionApplicationStatus,
+  isApplicationStatus,
+  isFinalApplicationStatus,
+  normalizeApplicationStatus,
+  shouldCreateConversation,
+} from "@/lib/applications/status-rules";
+import { isRestrictedAccountStatus } from "@/lib/applications/apply-rules";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-
-const ALLOWED_APPLICATION_STATUSES = [
-  "pending",
-  "reviewing",
-  "shortlisted",
-  "accepted",
-  "rejected",
-] as const;
-
-type ApplicationStatus =
-  (typeof ALLOWED_APPLICATION_STATUSES)[number];
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
@@ -24,22 +22,6 @@ type AcceptedApplicationContext = {
   publisherId: string | number;
   talentId: string | number;
 };
-
-function isValidApplicationStatus(
-  status: string,
-): status is ApplicationStatus {
-  return ALLOWED_APPLICATION_STATUSES.includes(
-    status as ApplicationStatus,
-  );
-}
-
-function normalizeApplicationStatus(
-  status: string | null | undefined,
-): ApplicationStatus {
-  return status && isValidApplicationStatus(status)
-    ? status
-    : "pending";
-}
 
 function getNotificationMessage(
   status: ApplicationStatus,
@@ -57,22 +39,6 @@ function getNotificationMessage(
 
   return messages[status];
 }
-
-/*
- * MVP flow:
- * Every non-final application can be accepted or rejected directly.
- * Reviewing and shortlisted remain supported for old test data only.
- */
-const validTransitions: Record<
-  ApplicationStatus,
-  ApplicationStatus[]
-> = {
-  pending: ["accepted", "rejected"],
-  reviewing: ["accepted", "rejected"],
-  shortlisted: ["accepted", "rejected"],
-  accepted: [],
-  rejected: [],
-};
 
 async function logStatusChange(
   adminClient: AdminClient,
@@ -128,12 +94,7 @@ async function ensureAcceptedConversation(
   adminClient: AdminClient,
   context: AcceptedApplicationContext,
 ) {
-  const {
-    applicationId,
-    opportunityId,
-    publisherId,
-    talentId,
-  } = context;
+  const { applicationId, opportunityId, publisherId, talentId } = context;
 
   const { data: existingConversation, error: lookupError } =
     await adminClient
@@ -193,9 +154,7 @@ async function ensureAcceptedConversation(
   );
 }
 
-function revalidateApplicationPaths(
-  opportunityId: string | number,
-) {
+function revalidateApplicationPaths(opportunityId: string | number) {
   const paths = [
     "/ar/publisher-dashboard/applicants",
     "/en/publisher-dashboard/applicants",
@@ -232,7 +191,7 @@ export async function updateApplicationStatusAction(
     throw new Error("Application ID is required.");
   }
 
-  if (!isValidApplicationStatus(status)) {
+  if (!isApplicationStatus(status)) {
     throw new Error("Invalid application status.");
   }
 
@@ -248,62 +207,53 @@ export async function updateApplicationStatusAction(
     throw new Error("Unauthorized.");
   }
 
-  const { data: profile, error: profileError } =
-  await adminClient
+  const { data: profile, error: profileError } = await adminClient
     .from("profiles")
     .select("id, account_type, approval_status, status")
     .eq("user_id", user.id)
     .maybeSingle();
 
-if (profileError || !profile) {
-  throw new Error("Profile not found.");
-}
+  if (profileError || !profile) {
+    throw new Error("Profile not found.");
+  }
 
-if (profile.account_type !== "publisher") {
-  throw new Error("Publisher access required.");
-}
+  if (profile.account_type !== "publisher") {
+    throw new Error("Publisher access required.");
+  }
 
-if (profile.approval_status !== "approved") {
-  throw new Error("Publisher account is not approved.");
-}
+  if (profile.approval_status !== "approved") {
+    throw new Error("Publisher account is not approved.");
+  }
 
-if (
-  profile.status === "suspended" ||
-  profile.status === "blocked" ||
-  profile.status === "banned" ||
-  profile.status === "disabled"
-) {
-  throw new Error("Publisher account is not active.");
-}
+  if (isRestrictedAccountStatus(profile.status)) {
+    throw new Error("Publisher account is not active.");
+  }
 
-  const { data: publisher, error: publisherError } =
-    await adminClient
-      .from("publishers")
-      .select("id")
-      .eq("profile_id", profile.id)
-      .maybeSingle();
+  const { data: publisher, error: publisherError } = await adminClient
+    .from("publishers")
+    .select("id")
+    .eq("profile_id", profile.id)
+    .maybeSingle();
 
   if (publisherError || !publisher) {
     throw new Error("Publisher account not found.");
   }
 
-  const { data: application, error: applicationError } =
-    await adminClient
-      .from("opportunity_applications")
-      .select("id, opportunity_id, talent_id, status")
-      .eq("id", applicationId)
-      .maybeSingle();
+  const { data: application, error: applicationError } = await adminClient
+    .from("opportunity_applications")
+    .select("id, opportunity_id, talent_id, status")
+    .eq("id", applicationId)
+    .maybeSingle();
 
   if (applicationError || !application) {
     throw new Error("Application not found.");
   }
 
-  const { data: opportunity, error: opportunityError } =
-    await adminClient
-      .from("opportunities")
-      .select("id, title, publisher_id")
-      .eq("id", application.opportunity_id)
-      .maybeSingle();
+  const { data: opportunity, error: opportunityError } = await adminClient
+    .from("opportunities")
+    .select("id, title, publisher_id")
+    .eq("id", application.opportunity_id)
+    .maybeSingle();
 
   if (opportunityError || !opportunity) {
     throw new Error("Opportunity not found.");
@@ -313,12 +263,10 @@ if (
     throw new Error("Access denied.");
   }
 
-  const currentStatus = normalizeApplicationStatus(
-    application.status,
-  );
+  const currentStatus = normalizeApplicationStatus(application.status);
 
   if (currentStatus === status) {
-    if (status === "accepted") {
+    if (shouldCreateConversation(status)) {
       await ensureAcceptedConversation(adminClient, {
         applicationId: application.id,
         opportunityId: application.opportunity_id,
@@ -332,18 +280,17 @@ if (
     return;
   }
 
-  if (!validTransitions[currentStatus].includes(status)) {
+  if (!canTransitionApplicationStatus(currentStatus, status)) {
     throw new Error(
       `Invalid status transition: ${currentStatus} → ${status}.`,
     );
   }
 
-  const { data: talent, error: talentError } =
-    await adminClient
-      .from("talents")
-      .select("id, user_id")
-      .eq("id", application.talent_id)
-      .maybeSingle();
+  const { data: talent, error: talentError } = await adminClient
+    .from("talents")
+    .select("id, user_id")
+    .eq("id", application.talent_id)
+    .maybeSingle();
 
   if (talentError || !talent?.user_id) {
     throw new Error("Talent user account not found.");
@@ -351,10 +298,7 @@ if (
 
   const now = new Date().toISOString();
 
-  const {
-    data: updatedApplication,
-    error: updateError,
-  } = await adminClient
+  const { data: updatedApplication, error: updateError } = await adminClient
     .from("opportunity_applications")
     .update({
       status,
@@ -365,11 +309,11 @@ if (
     .eq("status", application.status)
     .select("id")
     .maybeSingle();
-  
+
   if (updateError) {
     throw new Error(updateError.message);
   }
-  
+
   if (!updatedApplication) {
     throw new Error(
       "Application status changed before the update could complete.",
@@ -384,7 +328,7 @@ if (
     user.id,
   );
 
-  if (status === "accepted") {
+  if (shouldCreateConversation(status)) {
     await ensureAcceptedConversation(adminClient, {
       applicationId: application.id,
       opportunityId: application.opportunity_id,
@@ -393,16 +337,13 @@ if (
     });
   }
 
-  if (["accepted", "rejected"].includes(status)) {
+  if (isFinalApplicationStatus(status)) {
     const { error: notificationError } = await adminClient
       .from("notifications")
       .insert({
         user_id: talent.user_id,
         type: "application_status",
-        message: getNotificationMessage(
-          status,
-          opportunity.title,
-        ),
+        message: getNotificationMessage(status, opportunity.title),
         reference_id: application.opportunity_id,
         read: false,
         created_at: now,
@@ -418,11 +359,7 @@ if (
     }
   }
 
-  await updateEngagement(
-    adminClient,
-    application.talent_id,
-    status,
-  );
+  await updateEngagement(adminClient, application.talent_id, status);
 
   revalidateApplicationPaths(application.opportunity_id);
 }
