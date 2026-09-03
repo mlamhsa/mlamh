@@ -6,6 +6,7 @@ on:
       - feat/zoho-mail-marketing
       - feat/buffer-approval-channel-jobs
       - feat/meta-marketing-hub
+      - feat/multi-country-foundation
   pull_request:
     branches: [main, feat/zoho-mail-marketing]
   workflow_dispatch:
