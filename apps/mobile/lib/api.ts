@@ -22,7 +22,17 @@ export type GalleryFinalizeResult = { ok: true; url: string; gallery: string[] }
 export type GalleryPrimaryResult = { ok: true; url: string } | { ok: false; code: string };
 export type GalleryDeleteResult = { ok: true; gallery: string[]; primaryUrl: string | null } | { ok: false; code: string };
 
-const API_BASE_URL = (process.env.EXPO_PUBLIC_API_BASE_URL ?? "https://mlamh.net").replace(/\/$/, "");
+function requireApiBaseUrl() {
+  const configured = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
+  if (!configured) throw new Error("Missing EXPO_PUBLIC_API_BASE_URL for this mobile environment.");
+  let parsed: URL;
+  try { parsed = new URL(configured); } catch { throw new Error("Invalid EXPO_PUBLIC_API_BASE_URL for this mobile environment."); }
+  if (parsed.protocol !== "https:" && !(parsed.protocol === "http:" && ["localhost", "127.0.0.1"].includes(parsed.hostname))) {
+    throw new Error("EXPO_PUBLIC_API_BASE_URL must use HTTPS except for localhost development.");
+  }
+  return configured.replace(/\/$/, "");
+}
+const API_BASE_URL = requireApiBaseUrl();
 async function getAccessToken() { const { data: { session } } = await supabase.auth.getSession(); return session?.access_token ?? null; }
 async function authHeaders() { const accessToken = await getAccessToken(); return accessToken ? { Accept: "application/json", Authorization: `Bearer ${accessToken}` } : null; }
 export async function getPublicOpportunities(locale: AppLocale, market: string): Promise<OpportunitiesResponse> { const response = await fetch(`${API_BASE_URL}/api/opportunities?market=${encodeURIComponent(market)}&locale=${locale}`, { headers: { Accept: "application/json" } }); if (!response.ok) throw new Error(`OPPORTUNITIES_REQUEST_FAILED:${response.status}`); return (await response.json()) as OpportunitiesResponse; }
