@@ -1,10 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { isRestrictedAccountStatus } from "@/lib/accounts/account-rules";
 import {
   isApplicationWindowClosed,
   isOpportunityAvailable,
-  isRestrictedAccountStatus,
   isValidOpportunityId,
 } from "@/lib/applications/apply-rules";
 import { trackEvent } from "@/lib/events/track-event";
