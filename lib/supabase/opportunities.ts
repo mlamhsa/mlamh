@@ -115,21 +115,21 @@ export async function getPublishedOpportunitiesByPublisher(
     .filter((opportunity) =>
       canExposePublicRecord(opportunity, countryCode, "publicOpportunities"),
     )
-    .map((opportunity) => ({
+    .map((opportunity): PublisherInviteOpportunity => ({
       id: opportunity.id,
       title:
         locale === "en"
           ? opportunity.title_en?.trim() || opportunity.title
           : opportunity.title,
-      title_en: opportunity.title_en,
+      title_en: opportunity.title_en ?? null,
       slug: opportunity.slug,
-      opportunity_type: opportunity.opportunity_type,
-      city_ar: opportunity.city_ar,
-      city_en: opportunity.city_en,
+      opportunity_type: opportunity.opportunity_type ?? null,
+      city_ar: opportunity.city_ar ?? null,
+      city_en: opportunity.city_en ?? null,
       status: opportunity.status,
       published: opportunity.published,
       created_at: opportunity.created_at,
-      country_code: opportunity.country_code,
+      country_code: opportunity.country_code ?? null,
     }));
 }
 
