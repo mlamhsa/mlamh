@@ -132,6 +132,8 @@ export async function signOutMobile() {
 }
 
 export function installPushDeepLinkObserver(onUrl: (url: string) => void) {
+  if (Platform.OS === "web") return () => undefined;
+
   const redirect = (notification: Notifications.Notification) => {
     const url = notification.request.content.data?.url;
     if (typeof url === "string" && (url.startsWith("/") || url.startsWith("https://mlamh.net/"))) onUrl(url);
