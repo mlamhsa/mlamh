@@ -8,52 +8,48 @@ type TabKey = "discover" | "applications" | "notifications" | "profile";
 type Theme = typeof lightTheme | typeof darkTheme;
 
 const tabs: Array<{ key: TabKey; path: "/opportunities" | "/applications" | "/notifications" | "/profile"; ar: string; en: string; glyph: string }> = [
-  { key: "discover", path: "/opportunities", ar: "الفرص", en: "Discover", glyph: "⌕" },
-  { key: "applications", path: "/applications", ar: "طلباتي", en: "Applications", glyph: "✓" },
+  { key: "discover", path: "/opportunities", ar: "الرئيسية", en: "Home", glyph: "⌂" },
+  { key: "applications", path: "/applications", ar: "طلباتي", en: "Applications", glyph: "▣" },
   { key: "notifications", path: "/notifications", ar: "التنبيهات", en: "Alerts", glyph: "•" },
-  { key: "profile", path: "/profile", ar: "ملفي", en: "Profile", glyph: "◯" },
+  { key: "profile", path: "/profile", ar: "حسابي", en: "Profile", glyph: "○" },
 ];
 
 export function AppTabBar({ active, locale, theme, notificationCount = 0 }: { active: TabKey; locale: AppLocale; theme: Theme; notificationCount?: number }) {
   const styles = createStyles(theme);
-
   return (
-    <View style={styles.shell}>
-      {tabs.map((tab) => {
-        const selected = tab.key === active;
-        return (
-          <Pressable key={tab.key} style={styles.tab} onPress={() => router.replace(tab.path)} accessibilityRole="tab" accessibilityState={{ selected }}>
-            <View style={styles.glyphWrap}>
-              <Text style={[styles.glyph, selected && styles.selected]}>{tab.glyph}</Text>
-              {tab.key === "notifications" && notificationCount > 0 ? (
-                <View style={styles.badge}><Text style={styles.badgeText}>{notificationCount > 99 ? "99+" : notificationCount}</Text></View>
-              ) : null}
-            </View>
-            <Text numberOfLines={1} style={[styles.label, selected && styles.selected]}>{locale === "ar" ? tab.ar : tab.en}</Text>
-          </Pressable>
-        );
-      })}
+    <View style={styles.outer}>
+      <View style={styles.shell}>
+        {tabs.map((tab) => {
+          const selected = tab.key === active;
+          return (
+            <Pressable key={tab.key} style={styles.tab} onPress={() => router.replace(tab.path)} accessibilityRole="tab" accessibilityState={{ selected }}>
+              <View style={[styles.iconWrap, selected && styles.iconWrapSelected]}>
+                <Text style={[styles.glyph, selected && styles.glyphSelected]}>{tab.glyph}</Text>
+                {tab.key === "notifications" && notificationCount > 0 ? <View style={styles.badge}><Text style={styles.badgeText}>{notificationCount > 99 ? "99+" : notificationCount}</Text></View> : null}
+              </View>
+              <Text numberOfLines={1} style={[styles.label, selected && styles.labelSelected]}>{locale === "ar" ? tab.ar : tab.en}</Text>
+              {selected ? <View style={styles.activeDot} /> : null}
+            </Pressable>
+          );
+        })}
+      </View>
     </View>
   );
 }
 
 function createStyles(theme: Theme) {
   return StyleSheet.create({
-    shell: {
-      flexDirection: "row",
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: theme.border,
-      backgroundColor: theme.surface,
-      paddingTop: 8,
-      paddingBottom: 18,
-      paddingHorizontal: 8,
-    },
-    tab: { flex: 1, alignItems: "center", justifyContent: "center", gap: 4, minHeight: 48 },
-    glyphWrap: { minWidth: 28, minHeight: 22, alignItems: "center", justifyContent: "center" },
-    glyph: { color: theme.muted, fontSize: 20, lineHeight: 22, fontWeight: "500" },
+    outer: { backgroundColor: theme.background, paddingHorizontal: 12, paddingBottom: 10 },
+    shell: { flexDirection: "row", borderWidth: 1, borderColor: theme.border, borderRadius: 28, backgroundColor: theme.surface, paddingHorizontal: 7, paddingTop: 8, paddingBottom: 9 },
+    tab: { flex: 1, alignItems: "center", justifyContent: "center", gap: 3, minHeight: 56 },
+    iconWrap: { width: 36, height: 30, borderRadius: 15, alignItems: "center", justifyContent: "center" },
+    iconWrapSelected: { backgroundColor: theme.accent },
+    glyph: { color: theme.muted, fontSize: 19, lineHeight: 20, fontWeight: "500" },
+    glyphSelected: { color: "#181818", fontWeight: "800" },
     label: { color: theme.muted, fontSize: 10, fontWeight: "600" },
-    selected: { color: theme.accent },
-    badge: { position: "absolute", top: -5, right: -10, minWidth: 17, height: 17, borderRadius: 9, paddingHorizontal: 4, alignItems: "center", justifyContent: "center", backgroundColor: theme.accent },
+    labelSelected: { color: theme.accent },
+    activeDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: theme.accent, marginTop: 1 },
+    badge: { position: "absolute", top: -5, right: -11, minWidth: 17, height: 17, borderRadius: 9, paddingHorizontal: 4, alignItems: "center", justifyContent: "center", backgroundColor: theme.accent },
     badgeText: { color: "#181818", fontSize: 9, fontWeight: "800" },
   });
 }
