@@ -13,8 +13,8 @@ on:
       - ".github/workflows/mobile-ci.yml"
 
 jobs:
-  typecheck:
-    name: Expo TypeScript
+  validate:
+    name: Expo Validation
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -32,6 +32,9 @@ jobs:
 
       - name: Install dependencies
         run: npm install --no-audit --no-fund
+
+      - name: Expo Doctor
+        run: npx expo-doctor
 
       - name: Typecheck
         run: npm run typecheck
