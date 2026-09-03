@@ -19,6 +19,50 @@ export type MobileOpportunity = {
   createdAt: string;
 };
 
+export type MobileApplicationStatus =
+  | "pending"
+  | "reviewing"
+  | "shortlisted"
+  | "accepted"
+  | "rejected";
+
+export type MobileApplicationItem = {
+  id: number | string;
+  status: MobileApplicationStatus;
+  createdAt: string | null;
+  opportunity: {
+    id: number | string;
+    title: string | null;
+    slug: string | null;
+    city: string | null;
+    opportunityType: string | null;
+    status: string | null;
+    createdAt: string | null;
+  } | null;
+  conversationId: string | null;
+};
+
+export type MobileMessage = {
+  id: number | string;
+  conversationId: number;
+  senderUserId: string;
+  body: string;
+  readAt: string | null;
+  createdAt: string;
+  isMine: boolean;
+};
+
+export type ConversationDetailResponse = {
+  conversation: {
+    id: number;
+    opportunityId: number;
+    opportunityTitle: string | null;
+    partyName: string;
+    status: string;
+  };
+  messages: MobileMessage[];
+};
+
 type OpportunitiesResponse = {
   items: MobileOpportunity[];
   market: string;
@@ -31,6 +75,14 @@ type OpportunityDetailResponse = {
   locale: AppLocale;
 };
 
+export type ApplicationsResponse =
+  | {
+      ok: true;
+      items: MobileApplicationItem[];
+      counts: Record<MobileApplicationStatus | "total", number>;
+    }
+  | { ok: false; code: string };
+
 export type ApplyResult =
   | {
       ok: true;
@@ -41,36 +93,29 @@ export type ApplyResult =
     }
   | {
       ok: false;
-      code:
-        | "UNAUTHENTICATED"
-        | "INVALID_OPPORTUNITY"
-        | "NOT_TALENT"
-        | "ACCOUNT_RESTRICTED"
-        | "TALENT_NOT_APPROVED"
-        | "PROFILE_INCOMPLETE"
-        | "OPPORTUNITY_NOT_AVAILABLE"
-        | "APPLICATION_WINDOW_CLOSED"
-        | "ALREADY_APPLIED"
-        | "REQUEST_FAILED"
-        | string;
+      code: string;
       details?: Record<string, unknown>;
     };
 
+export type SendMessageResult =
+  | { ok: true; message: MobileMessage }
+  | { ok: false; code: string };
+
 const API_BASE_URL = (process.env.EXPO_PUBLIC_API_BASE_URL ?? "https://mlamh.net").replace(/\/$/, "");
 
-export async function getPublicOpportunities(
-  locale: AppLocale,
-  market = "SA",
-): Promise<OpportunitiesResponse> {
+async function getAccessToken() {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  return session?.access_token ?? null;
+}
+
+export async function getPublicOpportunities(locale: AppLocale, market = "SA"): Promise<OpportunitiesResponse> {
   const response = await fetch(
     `${API_BASE_URL}/api/opportunities?market=${encodeURIComponent(market)}&locale=${locale}`,
     { headers: { Accept: "application/json" } },
   );
-
-  if (!response.ok) {
-    throw new Error(`OPPORTUNITIES_REQUEST_FAILED:${response.status}`);
-  }
-
+  if (!response.ok) throw new Error(`OPPORTUNITIES_REQUEST_FAILED:${response.status}`);
   return (await response.json()) as OpportunitiesResponse;
 }
 
@@ -83,41 +128,69 @@ export async function getPublicOpportunity(
     `${API_BASE_URL}/api/opportunities/${encodeURIComponent(identifier)}?market=${encodeURIComponent(market)}&locale=${locale}`,
     { headers: { Accept: "application/json" } },
   );
-
-  if (!response.ok) {
-    throw new Error(`OPPORTUNITY_REQUEST_FAILED:${response.status}`);
-  }
-
+  if (!response.ok) throw new Error(`OPPORTUNITY_REQUEST_FAILED:${response.status}`);
   return (await response.json()) as OpportunityDetailResponse;
 }
 
 export async function applyToOpportunity(opportunityId: number): Promise<ApplyResult> {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  if (!session?.access_token) {
-    return { ok: false, code: "UNAUTHENTICATED" };
-  }
+  const accessToken = await getAccessToken();
+  if (!accessToken) return { ok: false, code: "UNAUTHENTICATED" };
 
   const response = await fetch(`${API_BASE_URL}/api/opportunities/${opportunityId}/apply`, {
     method: "POST",
-    headers: {
-      Accept: "application/json",
-      Authorization: `Bearer ${session.access_token}`,
-    },
+    headers: { Accept: "application/json", Authorization: `Bearer ${accessToken}` },
   });
 
-  let result: ApplyResult;
   try {
-    result = (await response.json()) as ApplyResult;
+    return (await response.json()) as ApplyResult;
   } catch {
     return { ok: false, code: "REQUEST_FAILED" };
   }
+}
 
-  if (!response.ok && result.ok) {
+export async function getMyApplications(locale: AppLocale): Promise<ApplicationsResponse> {
+  const accessToken = await getAccessToken();
+  if (!accessToken) return { ok: false, code: "UNAUTHENTICATED" };
+
+  const response = await fetch(`${API_BASE_URL}/api/applications/mine?locale=${locale}`, {
+    headers: { Accept: "application/json", Authorization: `Bearer ${accessToken}` },
+  });
+
+  try {
+    return (await response.json()) as ApplicationsResponse;
+  } catch {
     return { ok: false, code: "REQUEST_FAILED" };
   }
+}
 
-  return result;
+export async function getConversation(conversationId: string): Promise<ConversationDetailResponse | null> {
+  const accessToken = await getAccessToken();
+  if (!accessToken) return null;
+
+  const response = await fetch(`${API_BASE_URL}/api/conversations/${encodeURIComponent(conversationId)}`, {
+    headers: { Accept: "application/json", Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) return null;
+  return (await response.json()) as ConversationDetailResponse;
+}
+
+export async function sendMessage(conversationId: string, body: string): Promise<SendMessageResult> {
+  const accessToken = await getAccessToken();
+  if (!accessToken) return { ok: false, code: "UNAUTHENTICATED" };
+
+  const response = await fetch(`${API_BASE_URL}/api/conversations/${encodeURIComponent(conversationId)}`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ body }),
+  });
+
+  try {
+    return (await response.json()) as SendMessageResult;
+  } catch {
+    return { ok: false, code: "REQUEST_FAILED" };
+  }
 }
