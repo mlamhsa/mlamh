@@ -122,8 +122,6 @@ async function getOrCreatePublisherConversation(
 
   if (!error && created) return { ok: true as const, id: Number(created.id) };
 
-  // application_id is UNIQUE. If two decisions race, the winner may have created
-  // the conversation after our first lookup; resolve that row instead of failing.
   if (error?.code === "23505") {
     const { data: raced, error: racedError } = await admin.from("conversations").select("id").eq("application_id", applicationId).maybeSingle();
     if (!racedError && raced) return { ok: true as const, id: Number(raced.id) };
@@ -151,7 +149,7 @@ export async function updatePublisherApplicationStatus(userId: string, opportuni
     if (error) return { ok: false as const, code: "UPDATE_FAILED" };
     if (!updated) return { ok: false as const, code: "STALE_APPLICATION" };
 
-    if (status === "accepted" || status === "rejected") {
+    if (status === "shortlisted" || status === "accepted" || status === "rejected") {
       await createApplicationStatusNotification({ status, talentId: application.talent_id, applicationId: application.id, opportunityId, opportunityTitle: opportunity.title, actorUserId: userId });
     }
   }

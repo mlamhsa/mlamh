@@ -1,10 +1,10 @@
 import type { ApplicationStatus } from "@/lib/applications/status-rules";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-type SupportedFinalStatus = Extract<ApplicationStatus, "accepted" | "rejected">;
+type SupportedNotificationStatus = Extract<ApplicationStatus, "shortlisted" | "accepted" | "rejected">;
 
 export async function createApplicationStatusNotification(input: {
-  status: SupportedFinalStatus;
+  status: SupportedNotificationStatus;
   talentId: string | number;
   applicationId: string | number;
   opportunityId: string | number;
@@ -14,13 +14,19 @@ export async function createApplicationStatusNotification(input: {
   const adminClient = createAdminClient();
   const title = input.status === "accepted"
     ? "Application accepted"
-    : "Application update";
+    : input.status === "shortlisted"
+      ? "Application shortlisted"
+      : "Application update";
   const body = input.status === "accepted"
     ? `Your application${input.opportunityTitle ? ` for ${input.opportunityTitle}` : ""} has been accepted.`
-    : `Your application${input.opportunityTitle ? ` for ${input.opportunityTitle}` : ""} was not selected.`;
+    : input.status === "shortlisted"
+      ? `Your application${input.opportunityTitle ? ` for ${input.opportunityTitle}` : ""} has been shortlisted.`
+      : `Your application${input.opportunityTitle ? ` for ${input.opportunityTitle}` : ""} was not selected.`;
   const eventType = input.status === "accepted"
     ? "application_accepted"
-    : "application_rejected";
+    : input.status === "shortlisted"
+      ? "application_shortlisted"
+      : "application_rejected";
 
   const { data: event, error: eventError } = await adminClient
     .from("events")

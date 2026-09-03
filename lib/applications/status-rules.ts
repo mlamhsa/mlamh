@@ -13,9 +13,9 @@ export type FinalApplicationStatus = Extract<
 >;
 
 const VALID_TRANSITIONS: Record<ApplicationStatus, readonly ApplicationStatus[]> = {
-  pending: ["accepted", "rejected"],
-  reviewing: ["accepted", "rejected"],
-  shortlisted: ["accepted", "rejected"],
+  pending: ["reviewing", "shortlisted", "accepted", "rejected"],
+  reviewing: ["shortlisted", "accepted", "rejected"],
+  shortlisted: ["reviewing", "accepted", "rejected"],
   accepted: [],
   rejected: [],
 };
