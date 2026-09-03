@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:marketing": "node --experimental-strip-types --test lib/marketing/channels/execution-policy.test.ts lib/marketing/channels/controlled-execution.test.ts lib/marketing/channels/zoho-mail.test.ts lib/marketing/credentials/infisical.test.ts lib/marketing/channels/meta.test.ts lib/marketing/channels/meta-instagram-facebook-login.test.ts lib/marketing/channels/meta-integration-state.test.ts lib/marketing/channels/meta-readonly.test.ts lib/marketing/dana/domain.test.ts lib/marketing/dana/client-response.test.ts lib/marketing/dana/workflow.test.ts lib/talent/qualification.test.ts lib/talent/supply.test.ts lib/markets/config.test.ts"
+    "test:marketing": "node --experimental-strip-types --test lib/marketing/channels/execution-policy.test.ts lib/marketing/channels/controlled-execution.test.ts lib/marketing/channels/zoho-mail.test.ts lib/marketing/credentials/infisical.test.ts lib/marketing/channels/meta.test.ts lib/marketing/channels/meta-instagram-facebook-login.test.ts lib/marketing/channels/meta-integration-state.test.ts lib/marketing/channels/meta-readonly.test.ts lib/marketing/dana/domain.test.ts lib/marketing/dana/client-response.test.ts lib/marketing/dana/workflow.test.ts lib/talent/qualification.test.ts lib/talent/supply.test.ts lib/markets/config.test.ts lib/markets/eligibility.test.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -22,7 +22,7 @@
     "qrcode": "^1.5.4",
     "react": "19.2.4",
     "react-day-picker": "^10.0.1",
-    "react-dom": "19.2.4"
+    "react-dom": "^19.2.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
