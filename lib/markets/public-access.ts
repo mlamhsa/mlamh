@@ -1,14 +1,24 @@
 import { isMarketFeatureEnabled, type MarketFeature } from "./config.ts";
 import type { CountryCode } from "./countries.ts";
 
-export type PublicMarketTaggedRecord = {
+export type PublicOpportunityMarketRecord = {
   country_code?: CountryCode | null;
 };
 
-export function resolveLegacyRecordCountry(
-  record: PublicMarketTaggedRecord,
+export type PublicTalentMarketRecord = {
+  base_country_code?: CountryCode | null;
+};
+
+export function resolveLegacyOpportunityCountry(
+  record: PublicOpportunityMarketRecord,
 ): CountryCode {
   return record.country_code ?? "SA";
+}
+
+export function resolveLegacyTalentBaseCountry(
+  record: PublicTalentMarketRecord,
+): CountryCode {
+  return record.base_country_code ?? "SA";
 }
 
 export function canExposePublicMarket(
@@ -18,18 +28,33 @@ export function canExposePublicMarket(
   return isMarketFeatureEnabled(countryCode, feature);
 }
 
-export function recordBelongsToPublicMarket(
-  record: PublicMarketTaggedRecord,
+export function opportunityBelongsToPublicMarket(
+  record: PublicOpportunityMarketRecord,
   countryCode: CountryCode,
 ): boolean {
-  return resolveLegacyRecordCountry(record) === countryCode;
+  return resolveLegacyOpportunityCountry(record) === countryCode;
+}
+
+export function talentBelongsToPublicMarket(
+  record: PublicTalentMarketRecord,
+  countryCode: CountryCode,
+): boolean {
+  return resolveLegacyTalentBaseCountry(record) === countryCode;
 }
 
 export function canExposePublicRecord(
-  record: PublicMarketTaggedRecord,
+  record: PublicOpportunityMarketRecord,
   countryCode: CountryCode,
-  feature: Extract<MarketFeature, "publicTalentDirectory" | "publicOpportunities">,
+  feature: "publicOpportunities",
 ): boolean {
   return canExposePublicMarket(countryCode, feature) &&
-    recordBelongsToPublicMarket(record, countryCode);
+    opportunityBelongsToPublicMarket(record, countryCode);
+}
+
+export function canExposePublicTalent(
+  record: PublicTalentMarketRecord,
+  countryCode: CountryCode,
+): boolean {
+  return canExposePublicMarket(countryCode, "publicTalentDirectory") &&
+    talentBelongsToPublicMarket(record, countryCode);
 }
