@@ -5,6 +5,33 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 type PageProps = { searchParams: Promise<{ lang?: string }> };
+type RuleValue = Record<string, unknown> | unknown[] | string | number | boolean | null;
+
+function humanize(value: unknown, isArabic: boolean) {
+  if (value === null || value === undefined || value === "") return isArabic ? "غير محدد" : "Not specified";
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return String(value);
+  if (Array.isArray(value)) return value.map((item) => humanize(item, isArabic)).join(" · ");
+  if (typeof value === "object") {
+    return Object.entries(value as Record<string, unknown>)
+      .slice(0, 4)
+      .map(([key, item]) => `${key.replaceAll("_", " ")}: ${humanize(item, isArabic)}`)
+      .join(" · ");
+  }
+  return String(value);
+}
+
+function statusLabel(value: string | null, isArabic: boolean) {
+  const normalized = (value ?? "").toLowerCase();
+  if (!isArabic) return value || "Unknown";
+  return ({ active: "نشطة", enabled: "مفعلة", paused: "متوقفة مؤقتًا", disabled: "معطلة", draft: "مسودة" } as Record<string, string>)[normalized] ?? value ?? "غير محدد";
+}
+
+function statusClass(value: string | null) {
+  const normalized = (value ?? "").toLowerCase();
+  if (["active", "enabled"].includes(normalized)) return "border-emerald-300/20 bg-emerald-300/10 text-emerald-200";
+  if (["paused", "draft"].includes(normalized)) return "border-amber-300/20 bg-amber-300/10 text-amber-200";
+  return "border-white/10 bg-white/[0.04] text-white/50";
+}
 
 export default async function AutomationPage({ searchParams }: PageProps) {
   await requireAdminAccess();
@@ -13,9 +40,54 @@ export default async function AutomationPage({ searchParams }: PageProps) {
   const db = createAdminClient();
   const { data, error } = await db.from("marketing_automation_rules").select("id,name,event_name,conditions,actions,delay_seconds,status,created_at").order("created_at", { ascending: false }).limit(100);
   const rows = data ?? [];
+  const activeCount = rows.filter((item) => ["active", "enabled"].includes((item.status ?? "").toLowerCase())).length;
+  const delayedCount = rows.filter((item) => Number(item.delay_seconds ?? 0) > 0).length;
+
   return <AdminPageContainer>
-    <AdminPageHeader title={isArabic ? "قواعد الأتمتة" : "Automation Rules"} description={isArabic ? "Event-driven rules: WHEN + IF + THEN مع تأخير اختياري، بدون Giant Cron." : "Event-driven rules: WHEN + IF + THEN with optional delay, without a giant cron."} />
+    <AdminPageHeader title={isArabic ? "مركز الأتمتة" : "Automation Center"} description={isArabic ? "ما الذي يعمل تلقائيًا، متى يبدأ، وما الإجراء الذي سينفذه — مع التفاصيل التقنية عند الحاجة فقط." : "See what runs automatically, what triggers it, and what it will do — with technical details available only when needed."} />
     {error ? <AdminCard className="mb-5 p-5 text-sm text-amber-200">{isArabic ? "قواعد الأتمتة غير مفعلة بعد." : "Automation rule storage is not active yet."}</AdminCard> : null}
-    <div className="grid gap-4">{rows.length === 0 ? <AdminCard className="p-6 text-sm text-white/40">{isArabic ? "لا توجد قواعد نشطة حاليًا." : "No active rules yet."}</AdminCard> : rows.map((item) => <AdminCard key={item.id} className="p-5"><div className="flex items-start justify-between gap-4"><div><div className="text-base text-white">{item.name}</div><div className="mt-1 text-xs text-white/40">WHEN {item.event_name} · WAIT {item.delay_seconds}s</div></div><span className="text-xs text-gold">{item.status}</span></div><div className="mt-4 grid gap-3 text-xs text-white/45 md:grid-cols-2"><div className="rounded-xl border border-white/[0.07] bg-black/20 p-3">IF<br/><span className="text-white/65">{JSON.stringify(item.conditions)}</span></div><div className="rounded-xl border border-white/[0.07] bg-black/20 p-3">THEN<br/><span className="text-white/65">{JSON.stringify(item.actions)}</span></div></div></AdminCard>)}</div>
+
+    <div className="mb-5 grid gap-3 sm:grid-cols-3">
+      <AdminCard className="p-4"><div className="text-xs text-white/40">{isArabic ? "إجمالي القواعد" : "Total rules"}</div><div className="mt-2 text-2xl font-semibold text-white">{rows.length}</div></AdminCard>
+      <AdminCard className="p-4"><div className="text-xs text-white/40">{isArabic ? "تعمل الآن" : "Running now"}</div><div className="mt-2 text-2xl font-semibold text-emerald-200">{activeCount}</div></AdminCard>
+      <AdminCard className="p-4"><div className="text-xs text-white/40">{isArabic ? "بها تأخير مقصود" : "Uses delay"}</div><div className="mt-2 text-2xl font-semibold text-gold">{delayedCount}</div></AdminCard>
+    </div>
+
+    <div className="grid gap-4">{rows.length === 0 ? <AdminCard className="p-6 text-sm text-white/40">{isArabic ? "لا توجد قواعد أتمتة مسجلة حاليًا." : "No automation rules are recorded yet."}</AdminCard> : rows.map((item) => {
+      const conditions = item.conditions as RuleValue;
+      const actions = item.actions as RuleValue;
+      const delay = Number(item.delay_seconds ?? 0);
+      return <AdminCard key={item.id} className="p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0">
+            <div className="text-base font-medium text-white">{item.name}</div>
+            <div className="mt-2 flex flex-wrap gap-2 text-xs text-white/50">
+              <span className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1">{isArabic ? "يبدأ عند" : "Starts when"}: <span className="text-white/75">{item.event_name}</span></span>
+              <span className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1">{delay > 0 ? (isArabic ? `ينتظر ${delay} ثانية` : `Waits ${delay}s`) : (isArabic ? "بدون تأخير" : "No delay")}</span>
+            </div>
+          </div>
+          <span className={`w-fit rounded-full border px-2.5 py-1 text-xs ${statusClass(item.status)}`}>{statusLabel(item.status, isArabic)}</span>
+        </div>
+
+        <div className="mt-5 grid gap-3 lg:grid-cols-2">
+          <div className="rounded-2xl border border-white/[0.07] bg-black/20 p-4">
+            <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-white/35">{isArabic ? "الشروط" : "Conditions"}</div>
+            <div className="mt-2 text-sm leading-6 text-white/70">{humanize(conditions, isArabic)}</div>
+          </div>
+          <div className="rounded-2xl border border-gold/15 bg-gold/[0.04] p-4">
+            <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-gold/60">{isArabic ? "الإجراء المتوقع" : "Expected action"}</div>
+            <div className="mt-2 text-sm leading-6 text-white/80">{humanize(actions, isArabic)}</div>
+          </div>
+        </div>
+
+        <details className="mt-4 rounded-xl border border-white/[0.06] bg-black/10 px-4 py-3 text-xs text-white/40">
+          <summary className="cursor-pointer select-none text-white/45">{isArabic ? "عرض التفاصيل التقنية" : "Show technical details"}</summary>
+          <div className="mt-3 grid gap-3 lg:grid-cols-2">
+            <pre className="overflow-auto whitespace-pre-wrap break-words rounded-lg bg-black/20 p-3 text-[11px] text-white/45">{JSON.stringify(item.conditions, null, 2)}</pre>
+            <pre className="overflow-auto whitespace-pre-wrap break-words rounded-lg bg-black/20 p-3 text-[11px] text-white/45">{JSON.stringify(item.actions, null, 2)}</pre>
+          </div>
+        </details>
+      </AdminCard>;
+    })}</div>
   </AdminPageContainer>;
 }
