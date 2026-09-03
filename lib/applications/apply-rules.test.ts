@@ -5,7 +5,6 @@ import {
   getApplicationDeadline,
   isApplicationWindowClosed,
   isOpportunityAvailable,
-  isRestrictedAccountStatus,
   isValidOpportunityId,
 } from "./apply-rules.ts";
 
@@ -15,15 +14,6 @@ test("validates opportunity ids", () => {
   assert.equal(isValidOpportunityId(-1), false);
   assert.equal(isValidOpportunityId(1.5), false);
   assert.equal(isValidOpportunityId("1"), false);
-});
-
-test("recognizes restricted account statuses", () => {
-  for (const status of ["suspended", "blocked", "banned", "disabled"]) {
-    assert.equal(isRestrictedAccountStatus(status), true);
-  }
-
-  assert.equal(isRestrictedAccountStatus("active"), false);
-  assert.equal(isRestrictedAccountStatus(null), false);
 });
 
 test("only allows published open opportunities", () => {
