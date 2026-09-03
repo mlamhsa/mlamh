@@ -7,6 +7,10 @@ export const APPLICATION_STATUSES = [
 ] as const;
 
 export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
+export type FinalApplicationStatus = Extract<
+  ApplicationStatus,
+  "accepted" | "rejected"
+>;
 
 const VALID_TRANSITIONS: Record<ApplicationStatus, readonly ApplicationStatus[]> = {
   pending: ["accepted", "rejected"],
@@ -37,6 +41,8 @@ export function shouldCreateConversation(status: ApplicationStatus) {
   return status === "accepted";
 }
 
-export function isFinalApplicationStatus(status: ApplicationStatus) {
+export function isFinalApplicationStatus(
+  status: ApplicationStatus,
+): status is FinalApplicationStatus {
   return status === "accepted" || status === "rejected";
 }
