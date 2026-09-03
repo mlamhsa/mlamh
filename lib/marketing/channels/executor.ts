@@ -2,23 +2,12 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getMarketingChannelAdapter } from "./adapters";
 import { evaluateControlledExecution, getExternalExecutionSettings } from "./controlled-execution";
 import { evaluateChannelExecutionPolicy } from "./execution-policy";
+import { sanitizeSocialCopy } from "./social-copy";
 
 function safeExecutionError(error: unknown) {
   const message = error instanceof Error ? error.message : "Channel execution failed.";
   if (/token|bearer|authorization|api[_ -]?key|secret/i.test(message)) return "Channel provider authentication or configuration failed.";
   return message.slice(0, 500);
-}
-
-export function sanitizeSocialCopy(value: unknown) {
-  if (typeof value !== "string") return undefined;
-  const cleaned = value
-    .replace(/\\r\\n|\\n|\\r/g, "\n")
-    .replace(/\\([.!?,،؛:])/g, "$1")
-    .replace(/[ \t]+\n/g, "\n")
-    .replace(/\n[ \t]+/g, "\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-  return cleaned || undefined;
 }
 
 export async function executeMarketingChannelJob(jobId: number, mode: "publish_now" | "schedule" = "publish_now") {
