@@ -22,7 +22,7 @@ export type GalleryFinalizeResult = { ok: true; url: string; gallery: string[] }
 export type GalleryPrimaryResult = { ok: true; url: string } | { ok: false; code: string };
 export type GalleryDeleteResult = { ok: true; gallery: string[]; primaryUrl: string | null } | { ok: false; code: string };
 
-function requireApiBaseUrl() {
+export function requireApiBaseUrl() {
   const configured = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
   if (!configured) throw new Error("Missing EXPO_PUBLIC_API_BASE_URL for this mobile environment.");
   let parsed: URL;
