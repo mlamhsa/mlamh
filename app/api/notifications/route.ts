@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getRequestUser } from "@/lib/auth/request-user";
-import { getTalentNotifications } from "@/lib/notifications/talent-notifications";
+import { getUserNotifications } from "@/lib/notifications/user-notifications";
 
 export async function GET(request: Request) {
   const auth = await getRequestUser(request);
@@ -13,6 +13,6 @@ export async function GET(request: Request) {
     );
   }
 
-  const data = await getTalentNotifications(auth.user.id);
+  const data = await getUserNotifications(auth.user.id);
   return NextResponse.json(data);
 }
