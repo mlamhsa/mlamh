@@ -3,12 +3,17 @@ import {
   type TalentQualificationEvaluation,
   type TalentQualificationInput,
 } from "./qualification.ts";
+import {
+  evaluateTalentMarketEligibility,
+} from "../markets/eligibility.ts";
+import type { CountryCode } from "../markets/countries.ts";
 
 export type TalentBrief = {
   talent_count?: number | null;
   needed?: number | null;
   talent_type?: string | null;
   role?: string | null;
+  country_code?: CountryCode | null;
   city?: string | null;
   city_required?: boolean | null;
   city_flexible?: boolean | null;
@@ -21,6 +26,8 @@ export type TalentBrief = {
 
 export type BriefTalent = TalentQualificationInput & {
   user_id?: string | null;
+  base_country_code?: CountryCode | null;
+  work_market_codes?: CountryCode[] | null;
   gender?: string | null;
   availability_status?: string | null;
   nationality?: string | null;
@@ -141,6 +148,20 @@ function getTalentCity(talent: BriefTalent) {
   return text(talent.city_slug) || text(talent.city_en) || text(talent.city_ar);
 }
 
+function getBriefCountryCode(brief: TalentBrief): CountryCode {
+  const direct = brief.country_code;
+  if (direct) return direct;
+  const fromRequirements = brief.requirements?.country_code;
+  if (typeof fromRequirements === "string") {
+    const normalized = fromRequirements.trim().toUpperCase();
+    if (["SA", "AE", "EG", "MA", "QA", "JO", "LB", "KW"].includes(normalized)) {
+      return normalized as CountryCode;
+    }
+  }
+  // Compatibility window: existing briefs/opportunities are Saudi unless explicitly tagged otherwise.
+  return "SA";
+}
+
 export function evaluateTalentForBrief(
   talent: BriefTalent,
   brief: TalentBrief,
@@ -151,6 +172,16 @@ export function evaluateTalentForBrief(
   if (!qualification.qualified) {
     reasons.push(...qualification.reasons.map((reason) => `not_qualified:${reason}`));
   }
+
+  const briefCountryCode = getBriefCountryCode(brief);
+  const marketEligibility = evaluateTalentMarketEligibility(
+    {
+      baseCountryCode: talent.base_country_code,
+      workMarketCodes: talent.work_market_codes,
+    },
+    briefCountryCode,
+  );
+  if (!marketEligibility.eligible) reasons.push("market_mismatch");
 
   const requiredRole = getRoleRequirement(brief);
   if (requiredRole && requiredRole !== "mixed") {
