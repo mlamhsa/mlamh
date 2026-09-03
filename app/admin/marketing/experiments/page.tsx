@@ -19,6 +19,18 @@ function statusClass(value: string | null) {
   return "border-white/10 bg-white/[0.04] text-white/55";
 }
 
+function resultSummary(value: unknown, isArabic: boolean): string {
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (Array.isArray(value)) return value.slice(0, 4).map((item) => resultSummary(item, isArabic)).join(" · ");
+  if (value && typeof value === "object") {
+    const entries = Object.entries(value as Record<string, unknown>).slice(0, 4);
+    if (entries.length === 0) return isArabic ? "تم تسجيل نتيجة بدون ملخص نصي." : "A result was recorded without a text summary.";
+    return entries.map(([key, item]) => `${key.replaceAll("_", " ")}: ${resultSummary(item, isArabic)}`).join(" · ");
+  }
+  return isArabic ? "تم تسجيل نتيجة بدون ملخص نصي." : "A result was recorded without a text summary.";
+}
+
 export default async function ExperimentsPage({ searchParams }: PageProps) {
   await requireAdminAccess();
   const { lang } = await searchParams;
@@ -50,7 +62,7 @@ export default async function ExperimentsPage({ searchParams }: PageProps) {
         <div className="rounded-xl border border-gold/15 bg-gold/[0.035] p-3"><div className="text-[10px] uppercase tracking-[0.14em] text-gold/50">{isArabic ? "الفائز" : "Winner"}</div><div className="mt-1 text-sm text-white/80">{item.winner ?? (isArabic ? "لم يُحسم بعد" : "Not decided yet")}</div></div>
         <div className="rounded-xl border border-white/[0.07] bg-black/20 p-3"><div className="text-[10px] uppercase tracking-[0.14em] text-white/30">{isArabic ? "الفترة" : "Window"}</div><div className="mt-1 text-xs leading-5 text-white/60">{item.start_at ? new Date(item.start_at).toLocaleDateString(isArabic ? "ar-SA" : "en-US") : "—"} → {item.end_at ? new Date(item.end_at).toLocaleDateString(isArabic ? "ar-SA" : "en-US") : "—"}</div></div>
       </div>
-      {item.result ? <div className="mt-4 rounded-2xl border border-emerald-300/10 bg-emerald-300/[0.035] p-4"><div className="text-[10px] uppercase tracking-[0.14em] text-emerald-200/50">{isArabic ? "النتيجة" : "Result"}</div><div className="mt-2 text-sm leading-6 text-white/70">{typeof item.result === "string" ? item.result : JSON.stringify(item.result)}</div></div> : null}
+      {item.result ? <div className="mt-4 rounded-2xl border border-emerald-300/10 bg-emerald-300/[0.035] p-4"><div className="text-[10px] uppercase tracking-[0.14em] text-emerald-200/50">{isArabic ? "النتيجة" : "Result"}</div><div className="mt-2 text-sm leading-6 text-white/70">{resultSummary(item.result, isArabic)}</div>{typeof item.result === "object" ? <details className="mt-3 text-xs text-white/35"><summary className="cursor-pointer select-none">{isArabic ? "عرض التفاصيل التقنية" : "Show technical details"}</summary><pre className="mt-2 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-black/20 p-3 text-[11px] text-white/40">{JSON.stringify(item.result, null, 2)}</pre></details> : null}</div> : null}
     </AdminCard>)}</div>
   </AdminPageContainer>;
 }
