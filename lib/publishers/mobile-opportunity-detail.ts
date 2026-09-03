@@ -58,6 +58,7 @@ export async function getPublisherOpportunityDetail(userId: string, opportunityI
     admin.from("conversations").select("id,application_id").eq("opportunity_id", opportunityId),
   ]);
   if (talentsResult.error) throw new Error(`[getPublisherOpportunityDetail] ${talentsResult.error.message}`);
+  if (conversationsResult.error) throw new Error(`[getPublisherOpportunityDetail] ${conversationsResult.error.message}`);
   const talentMap = new Map((talentsResult.data ?? []).map((talent) => [talent.id, talent]));
   const conversationMap = new Map((conversationsResult.data ?? []).map((conversation) => [Number(conversation.application_id), Number(conversation.id)]));
   const localized = (ar: string | null | undefined, en: string | null | undefined, fallback = "") => locale === "ar" ? (ar || en || fallback) : (en || ar || fallback);
@@ -96,6 +97,41 @@ export async function getPublisherOpportunityDetail(userId: string, opportunityI
   };
 }
 
+async function getOrCreatePublisherConversation(
+  admin: ReturnType<typeof createAdminClient>,
+  publisherId: number,
+  opportunityId: number,
+  applicationId: number,
+  talentId: number,
+) {
+  const { data: existing, error: existingError } = await admin.from("conversations").select("id").eq("application_id", applicationId).maybeSingle();
+  if (existingError) return { ok: false as const, code: "CONVERSATION_FAILED" as const };
+  if (existing) return { ok: true as const, id: Number(existing.id) };
+
+  const now = new Date().toISOString();
+  const { data: created, error } = await admin.from("conversations").insert({
+    application_id: applicationId,
+    opportunity_id: opportunityId,
+    publisher_id: publisherId,
+    talent_id: talentId,
+    conversation_type: "publisher_talent",
+    status: "active",
+    created_at: now,
+    updated_at: now,
+  }).select("id").single();
+
+  if (!error && created) return { ok: true as const, id: Number(created.id) };
+
+  // application_id is UNIQUE. If two decisions race, the winner may have created
+  // the conversation after our first lookup; resolve that row instead of failing.
+  if (error?.code === "23505") {
+    const { data: raced, error: racedError } = await admin.from("conversations").select("id").eq("application_id", applicationId).maybeSingle();
+    if (!racedError && raced) return { ok: true as const, id: Number(raced.id) };
+  }
+
+  return { ok: false as const, code: "CONVERSATION_FAILED" as const };
+}
+
 export async function updatePublisherApplicationStatus(userId: string, opportunityId: number, applicationId: number, rawStatus: unknown) {
   const status = typeof rawStatus === "string" ? rawStatus : "";
   if (!isApplicationStatus(status)) return { ok: false as const, code: "INVALID_STATUS" };
@@ -114,8 +150,7 @@ export async function updatePublisherApplicationStatus(userId: string, opportuni
     const { data: updated, error } = await admin.from("opportunity_applications").update({ status, updated_at: now }).eq("id", application.id).eq("status", application.status).select("id").maybeSingle();
     if (error) return { ok: false as const, code: "UPDATE_FAILED" };
     if (!updated) return { ok: false as const, code: "STALE_APPLICATION" };
-    await admin.from("application_status_logs").insert({ application_id: application.id, old_status: currentStatus, new_status: status, changed_by: userId, created_at: now });
-    await admin.from("talent_engagement_score").upsert({ talent_id: application.talent_id, last_status: status, updated_at: now });
+
     if (status === "accepted" || status === "rejected") {
       await createApplicationStatusNotification({ status, talentId: application.talent_id, applicationId: application.id, opportunityId, opportunityTitle: opportunity.title, actorUserId: userId });
     }
@@ -123,14 +158,9 @@ export async function updatePublisherApplicationStatus(userId: string, opportuni
 
   let conversationId: number | null = null;
   if (shouldCreateConversation(status)) {
-    const { data: existing } = await admin.from("conversations").select("id").eq("application_id", application.id).maybeSingle();
-    if (existing) conversationId = Number(existing.id);
-    else {
-      const now = new Date().toISOString();
-      const { data: created, error } = await admin.from("conversations").insert({ application_id: application.id, opportunity_id: opportunityId, publisher_id: publisher.id, talent_id: application.talent_id, status: "active", created_at: now, updated_at: now }).select("id").single();
-      if (error || !created) return { ok: false as const, code: "CONVERSATION_FAILED" };
-      conversationId = Number(created.id);
-    }
+    const conversation = await getOrCreatePublisherConversation(admin, Number(publisher.id), opportunityId, Number(application.id), Number(application.talent_id));
+    if (!conversation.ok) return conversation;
+    conversationId = conversation.id;
   }
 
   return { ok: true as const, status, conversationId };
