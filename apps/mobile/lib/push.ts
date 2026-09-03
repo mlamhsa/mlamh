@@ -4,12 +4,13 @@ import * as Notifications from "expo-notifications";
 import Storage from "expo-sqlite/kv-store";
 import { Platform } from "react-native";
 
+import { requireApiBaseUrl } from "@/lib/api";
 import type { AppLocale } from "@/lib/i18n";
 import { supabase } from "@/lib/supabase";
 
-const API_BASE_URL = (process.env.EXPO_PUBLIC_API_BASE_URL ?? "https://mlamh.net").replace(/\/$/, "");
+const API_BASE_URL = requireApiBaseUrl();
 const PUSH_TOKEN_STORAGE_KEY = "mlamh.push.expo-token";
-const ALLOWED_PUSH_ORIGINS = ["https://mlamh.net/", "https://www.mlamh.net/"];
+const ALLOWED_PUSH_ORIGINS = new Set(["https://mlamh.net", "https://www.mlamh.net"]);
 
 export type PushPreparationResult =
   | { ok: true; token: string }
@@ -19,29 +20,43 @@ function getProjectId() {
   return Constants.easConfig?.projectId ?? Constants.expoConfig?.extra?.eas?.projectId ?? null;
 }
 
+function isSafePushUrl(rawUrl: unknown): rawUrl is string {
+  if (typeof rawUrl !== "string" || rawUrl.length === 0 || rawUrl.length > 2048) return false;
+  if (rawUrl.startsWith("//")) return false;
+  if (rawUrl.startsWith("/")) return true;
+  try {
+    const parsed = new URL(rawUrl);
+    return parsed.protocol === "https:" && ALLOWED_PUSH_ORIGINS.has(parsed.origin);
+  } catch {
+    return false;
+  }
+}
+
 async function registerTokenWithPlatform(expoPushToken: string, locale: AppLocale) {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.access_token) return false;
-
-  const response = await fetch(`${API_BASE_URL}/api/mobile/devices`, {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${session.access_token}`,
-    },
-    body: JSON.stringify({
-      expoPushToken,
-      platform: Platform.OS,
-      deviceId: null,
-      appVersion: Constants.expoConfig?.version ?? null,
-      locale,
-    }),
-  });
-
-  if (!response.ok) return false;
-  await Storage.setItem(PUSH_TOKEN_STORAGE_KEY, expoPushToken);
-  return true;
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/mobile/devices`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({
+        expoPushToken,
+        platform: Platform.OS,
+        deviceId: null,
+        appVersion: Constants.expoConfig?.version ?? null,
+        locale,
+      }),
+    });
+    if (!response.ok) return false;
+    await Storage.setItem(PUSH_TOKEN_STORAGE_KEY, expoPushToken);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function preparePushRegistration(
@@ -53,32 +68,36 @@ export async function preparePushRegistration(
   const projectId = getProjectId();
   if (!projectId) return { ok: false, code: "EAS_PROJECT_ID_MISSING" };
 
-  if (Platform.OS === "android") {
-    await Notifications.setNotificationChannelAsync("mlamh-updates", {
-      name: "MLAMH Updates",
-      importance: Notifications.AndroidImportance.HIGH,
-    });
-  }
-
-  const existing = await Notifications.getPermissionsAsync();
-  let permission = existing;
-  if (existing.status !== "granted") {
-    if (options.requestPermission === false) return { ok: false, code: "PERMISSION_NOT_GRANTED" };
-    permission = await Notifications.requestPermissionsAsync();
-  }
-  if (permission.status !== "granted") return { ok: false, code: "PERMISSION_DENIED" };
-
-  let expoPushToken: string;
   try {
-    expoPushToken = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+    if (Platform.OS === "android") {
+      await Notifications.setNotificationChannelAsync("mlamh-updates", {
+        name: "MLAMH Updates",
+        importance: Notifications.AndroidImportance.HIGH,
+      });
+    }
+
+    const existing = await Notifications.getPermissionsAsync();
+    let permission = existing;
+    if (existing.status !== "granted") {
+      if (options.requestPermission === false) return { ok: false, code: "PERMISSION_NOT_GRANTED" };
+      permission = await Notifications.requestPermissionsAsync();
+    }
+    if (permission.status !== "granted") return { ok: false, code: "PERMISSION_DENIED" };
+
+    let expoPushToken: string;
+    try {
+      expoPushToken = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+    } catch {
+      return { ok: false, code: "TOKEN_FAILED" };
+    }
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) return { ok: false, code: "UNAUTHENTICATED" };
+    if (!(await registerTokenWithPlatform(expoPushToken, locale))) return { ok: false, code: "REGISTER_FAILED" };
+    return { ok: true, token: expoPushToken };
   } catch {
     return { ok: false, code: "TOKEN_FAILED" };
   }
-
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.access_token) return { ok: false, code: "UNAUTHENTICATED" };
-  if (!(await registerTokenWithPlatform(expoPushToken, locale))) return { ok: false, code: "REGISTER_FAILED" };
-  return { ok: true, token: expoPushToken };
 }
 
 export async function syncExistingPushRegistration(locale: AppLocale) {
@@ -89,17 +108,21 @@ export async function unregisterPushToken(expoPushToken: string) {
   if (Platform.OS === "web") return true;
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.access_token) return false;
-  const response = await fetch(`${API_BASE_URL}/api/mobile/devices`, {
-    method: "DELETE",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${session.access_token}`,
-    },
-    body: JSON.stringify({ expoPushToken }),
-  });
-  if (response.ok) await Storage.removeItem(PUSH_TOKEN_STORAGE_KEY);
-  return response.ok;
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/mobile/devices`, {
+      method: "DELETE",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ expoPushToken }),
+    });
+    if (response.ok) await Storage.removeItem(PUSH_TOKEN_STORAGE_KEY);
+    return response.ok;
+  } catch {
+    return false;
+  }
 }
 
 export async function unregisterCurrentPushToken() {
@@ -141,12 +164,7 @@ export function installPushDeepLinkObserver(onUrl: (url: string) => void) {
 
   const redirect = (notification: Notifications.Notification) => {
     const url = notification.request.content.data?.url;
-    if (
-      typeof url === "string" &&
-      (url.startsWith("/") || ALLOWED_PUSH_ORIGINS.some((origin) => url.startsWith(origin)))
-    ) {
-      onUrl(url);
-    }
+    if (isSafePushUrl(url)) onUrl(url);
   };
 
   const lastResponse = Notifications.getLastNotificationResponse();
