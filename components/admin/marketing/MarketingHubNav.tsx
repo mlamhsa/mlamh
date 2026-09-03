@@ -1,44 +1,75 @@
 "use client";
 
+import { ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 
 import { getAdminLanguage, withAdminLanguage } from "@/lib/admin/i18n";
-import { marketingHubNavigation } from "@/lib/marketing/navigation";
+import { marketingHubNavigation, marketingHubNavigationGroups } from "@/lib/marketing/navigation";
+
+function isItemActive(pathname: string, href: string) {
+  return pathname === href || (href !== "/admin/marketing" && pathname.startsWith(`${href}/`));
+}
 
 export function MarketingHubNav() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const language = getAdminLanguage(searchParams.get("lang"));
   const isArabic = language === "ar";
+  const overview = marketingHubNavigation.find((item) => item.key === "overview")!;
 
   return (
-    <nav
-      aria-label={isArabic ? "أقسام مركز التسويق" : "Marketing Hub sections"}
-      className="mb-8 overflow-x-auto rounded-[1.35rem] border border-white/[0.09] bg-gradient-to-b from-white/[0.045] to-white/[0.02] p-2 shadow-[0_14px_45px_rgba(0,0,0,0.18)] ring-1 ring-inset ring-white/[0.015]"
-    >
-      <div className="flex min-w-max gap-1.5">
-        {marketingHubNavigation.map((item) => {
-          const active =
-            pathname === item.href ||
-            (item.href !== "/admin/marketing" && pathname.startsWith(`${item.href}/`));
-          const Icon = item.icon;
+    <nav aria-label={isArabic ? "أقسام مركز التسويق" : "Marketing Hub sections"} className="relative z-30 mb-8 rounded-[1.35rem] border border-white/[0.09] bg-gradient-to-b from-white/[0.045] to-white/[0.02] p-2 shadow-[0_14px_45px_rgba(0,0,0,0.18)] ring-1 ring-inset ring-white/[0.015]">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <Link
+          href={withAdminLanguage(overview.href, language)}
+          aria-current={isItemActive(pathname, overview.href) ? "page" : undefined}
+          className={`inline-flex min-h-11 items-center gap-2 rounded-xl border px-3.5 py-2 text-xs transition-all ${isItemActive(pathname, overview.href) ? "border-gold/30 bg-gold/[0.11] text-gold" : "border-transparent text-white/55 hover:border-white/[0.1] hover:bg-white/[0.05] hover:text-white"}`}
+        >
+          <overview.icon className="h-4 w-4" aria-hidden="true" />
+          <span>{isArabic ? overview.labelAr : overview.labelEn}</span>
+        </Link>
+
+        <span className="mx-1 hidden h-6 w-px bg-white/[0.08] sm:block" />
+
+        {marketingHubNavigationGroups.map((group) => {
+          const items = group.itemKeys.map((key) => marketingHubNavigation.find((item) => item.key === key)).filter(Boolean) as typeof marketingHubNavigation;
+          const active = items.some((item) => isItemActive(pathname, item.href));
+          const GroupIcon = group.icon;
 
           return (
-            <Link
-              key={item.key}
-              href={withAdminLanguage(item.href, language)}
-              aria-current={active ? "page" : undefined}
-              className={`group relative inline-flex min-h-11 select-none items-center gap-2 overflow-hidden rounded-xl border px-3.5 py-2 text-xs outline-none transition-all duration-200 ease-out hover:-translate-y-0.5 active:translate-y-[1px] active:scale-[0.985] focus-visible:ring-2 focus-visible:ring-gold/35 ${
-                active
-                  ? "border-gold/30 bg-gold/[0.11] text-gold shadow-[0_8px_28px_rgba(212,175,55,0.08)]"
-                  : "border-transparent text-white/45 hover:border-white/[0.1] hover:bg-white/[0.05] hover:text-white"
-              }`}
-            >
-              {active ? <span className="absolute inset-x-3 bottom-0 h-px bg-gradient-to-r from-transparent via-gold/80 to-transparent" /> : null}
-              <Icon className={`h-4 w-4 shrink-0 transition-transform duration-200 ${active ? "scale-105" : "group-hover:scale-105"}`} aria-hidden="true" />
-              <span className="relative">{isArabic ? item.labelAr : item.labelEn}</span>
-            </Link>
+            <details key={group.key} className="group relative">
+              <summary className={`flex min-h-11 cursor-pointer list-none select-none items-center gap-2 rounded-xl border px-3.5 py-2 text-xs outline-none transition-all marker:hidden [&::-webkit-details-marker]:hidden ${active ? "border-gold/25 bg-gold/[0.08] text-gold" : "border-transparent text-white/45 hover:border-white/[0.1] hover:bg-white/[0.05] hover:text-white"}`}>
+                <GroupIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span>{isArabic ? group.labelAr : group.labelEn}</span>
+                <ChevronDown className="h-3.5 w-3.5 text-white/30 transition-transform group-open:rotate-180" aria-hidden="true" />
+              </summary>
+
+              <div className="absolute start-1/2 top-full z-50 mt-2 w-[min(19rem,calc(100vw-3rem))] -translate-x-1/2 rounded-2xl border border-white/[0.1] bg-[#101010]/95 p-2 shadow-2xl backdrop-blur-xl rtl:translate-x-1/2">
+                <div className="mb-2 px-2 pt-1">
+                  <p className="text-[9px] uppercase tracking-[0.2em] text-gold/45">{isArabic ? group.labelAr : group.labelEn}</p>
+                </div>
+                <div className="grid gap-1">
+                  {items.map((item) => {
+                    const itemActive = isItemActive(pathname, item.href);
+                    const ItemIcon = item.icon;
+                    return (
+                      <Link
+                        key={item.key}
+                        href={withAdminLanguage(item.href, language)}
+                        aria-current={itemActive ? "page" : undefined}
+                        className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 text-xs transition ${itemActive ? "border-gold/20 bg-gold/[0.08] text-gold" : "border-transparent text-white/55 hover:border-white/[0.08] hover:bg-white/[0.04] hover:text-white"}`}
+                      >
+                        <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border ${itemActive ? "border-gold/20 bg-gold/[0.08]" : "border-white/[0.07] bg-white/[0.025]"}`}>
+                          <ItemIcon className="h-4 w-4" aria-hidden="true" />
+                        </span>
+                        <span className="min-w-0 truncate">{isArabic ? item.labelAr : item.labelEn}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            </details>
           );
         })}
       </div>
