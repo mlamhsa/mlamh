@@ -38,7 +38,7 @@ export default async function MarketingAiTeamPage({searchParams}:PageProps){
   db.from("marketing_approvals").select("id",{count:"exact",head:true}).eq("status","pending"),
   db.from("marketing_agent_activity").select("id,agent_id,task_id,action,reason,channel,error,result,created_at").order("created_at",{ascending:false}).limit(12)
  ]);
- if(error) console.error("[MarketingAiTeamPage]",error); const team=(agents??[]) as Agent[]; const activity=(activityResult.data??[]) as Activity[]; const names=new Map(team.map(a=>[a.id,a.name]);
+ if(error) console.error("[MarketingAiTeamPage]",error); const team=(agents??[]) as Agent[]; const activity=(activityResult.data??[]) as Activity[]; const names=new Map(team.map(a=>[a.id,a.name]));
  const totalCompleted=team.reduce((sum,a)=>sum+(a.tasks_completed??0),0); const totalFailed=team.reduce((sum,a)=>sum+(a.tasks_failed??0),0); const working=team.filter(a=>a.status==="working").length;
  return <AdminPageContainer><MarketingLiveRefresh intervalMs={5000}/><AdminPageHeader eyebrow={ar?"MLAMH · غرفة عمليات الفريق":"MLAMH · TEAM OPERATIONS"} title={ar?"فريق التسويق بالذكاء الاصطناعي":"AI Marketing Team"} description={ar?"اعرف من يعمل الآن، ماذا أنجز الفريق، وما الذي ينتظر قرارًا — دون الدخول في تفاصيل تقنية غير ضرورية.":"See who is working, what the team delivered, and what needs a decision without unnecessary technical noise."}/>
  {error?<AdminCard className="mb-5 border border-amber-300/15 bg-amber-300/[0.035] p-5 text-sm text-amber-100/80">{ar?"تعذر تحميل حالة الفريق الآن.":"Could not load team state."}</AdminCard>:null}
