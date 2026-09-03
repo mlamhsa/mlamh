@@ -1,151 +1,30 @@
 import type { AppLocale } from "@/lib/i18n";
 import { supabase } from "@/lib/supabase";
 
-export type MobileOpportunity = {
-  id: number;
-  title: string;
-  slug: string;
-  description: string;
-  opportunityType: string;
-  countryCode: string | null;
-  currency: string | null;
-  city: string | null;
-  compensationType: "fixed" | "negotiable" | "unpaid" | null;
-  budget: string | null;
-  companyName: string;
-  featured: boolean;
-  managedByMlamh: boolean;
-  expiresAt: string | null;
-  createdAt: string;
-};
-
+export type MobileOpportunity = { id: number; title: string; slug: string; description: string; opportunityType: string; countryCode: string | null; currency: string | null; city: string | null; compensationType: "fixed" | "negotiable" | "unpaid" | null; budget: string | null; companyName: string; featured: boolean; managedByMlamh: boolean; expiresAt: string | null; createdAt: string };
 export type MobileApplicationStatus = "pending" | "reviewing" | "shortlisted" | "accepted" | "rejected";
-
-export type MobileApplicationItem = {
-  id: number | string;
-  status: MobileApplicationStatus;
-  createdAt: string | null;
-  opportunity: {
-    id: number | string;
-    title: string | null;
-    slug: string | null;
-    city: string | null;
-    opportunityType: string | null;
-    status: string | null;
-    createdAt: string | null;
-  } | null;
-  conversationId: string | null;
-};
-
-export type MobileMessage = {
-  id: number | string;
-  conversationId: number;
-  senderUserId: string;
-  body: string;
-  readAt: string | null;
-  createdAt: string;
-  isMine: boolean;
-};
-
-export type ConversationDetailResponse = {
-  conversation: {
-    id: number;
-    opportunityId: number;
-    opportunityTitle: string | null;
-    partyName: string;
-    status: string;
-  };
-  messages: MobileMessage[];
-};
-
-export type MobileNotification = {
-  id: number | string;
-  title: string;
-  body: string | null;
-  isRead: boolean;
-  createdAt: string | null;
-  category: "application" | "message" | "invitation" | "system";
-  referenceId: string | number | null;
-  eventType: string | null;
-};
+export type MobileApplicationItem = { id: number | string; status: MobileApplicationStatus; createdAt: string | null; opportunity: { id: number | string; title: string | null; slug: string | null; city: string | null; opportunityType: string | null; status: string | null; createdAt: string | null } | null; conversationId: string | null };
+export type MobileMessage = { id: number | string; conversationId: number; senderUserId: string; body: string; readAt: string | null; createdAt: string; isMine: boolean };
+export type ConversationDetailResponse = { conversation: { id: number; opportunityId: number; opportunityTitle: string | null; partyName: string; status: string }; messages: MobileMessage[] };
+export type MobileNotification = { id: number | string; title: string; body: string | null; isRead: boolean; createdAt: string | null; category: "application" | "message" | "invitation" | "system"; referenceId: string | number | null; eventType: string | null };
+export type MobileTalentProfile = { id: number; slug: string | null; displayName: string; category: string; city: string | null; imageUrl: string | null; gallery: string[]; bio: string | null; skills: string[]; languages: string[]; baseCountryCode: string | null; profileCompletion: number; availabilityStatus: string | null; verified: boolean; approvalStatus: string | null; profileStatus: string | null; published: boolean };
 
 type OpportunitiesResponse = { items: MobileOpportunity[]; market: string; locale: AppLocale };
 type OpportunityDetailResponse = { item: MobileOpportunity; market: string; locale: AppLocale };
-export type ApplicationsResponse =
-  | { ok: true; items: MobileApplicationItem[]; counts: Record<MobileApplicationStatus | "total", number> }
-  | { ok: false; code: string };
+export type ApplicationsResponse = { ok: true; items: MobileApplicationItem[]; counts: Record<MobileApplicationStatus | "total", number> } | { ok: false; code: string };
 export type NotificationsResponse = { items: MobileNotification[]; unreadCount: number };
-export type ApplyResult =
-  | { ok: true; code: "SUCCESS"; applicationId: number | string; opportunityId: number; opportunitySlug: string | null }
-  | { ok: false; code: string; details?: Record<string, unknown> };
+export type ApplyResult = { ok: true; code: "SUCCESS"; applicationId: number | string; opportunityId: number; opportunitySlug: string | null } | { ok: false; code: string; details?: Record<string, unknown> };
 export type SendMessageResult = { ok: true; message: MobileMessage } | { ok: false; code: string };
+export type TalentProfileResponse = { ok: true; item: MobileTalentProfile } | { ok: false; code: string };
 
 const API_BASE_URL = (process.env.EXPO_PUBLIC_API_BASE_URL ?? "https://mlamh.net").replace(/\/$/, "");
-
-async function getAccessToken() {
-  const { data: { session } } = await supabase.auth.getSession();
-  return session?.access_token ?? null;
-}
-
-export async function getPublicOpportunities(locale: AppLocale, market = "SA"): Promise<OpportunitiesResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/opportunities?market=${encodeURIComponent(market)}&locale=${locale}`, { headers: { Accept: "application/json" } });
-  if (!response.ok) throw new Error(`OPPORTUNITIES_REQUEST_FAILED:${response.status}`);
-  return (await response.json()) as OpportunitiesResponse;
-}
-
-export async function getPublicOpportunity(identifier: string, locale: AppLocale, market = "SA"): Promise<OpportunityDetailResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/opportunities/${encodeURIComponent(identifier)}?market=${encodeURIComponent(market)}&locale=${locale}`, { headers: { Accept: "application/json" } });
-  if (!response.ok) throw new Error(`OPPORTUNITY_REQUEST_FAILED:${response.status}`);
-  return (await response.json()) as OpportunityDetailResponse;
-}
-
-export async function applyToOpportunity(opportunityId: number): Promise<ApplyResult> {
-  const accessToken = await getAccessToken();
-  if (!accessToken) return { ok: false, code: "UNAUTHENTICATED" };
-  const response = await fetch(`${API_BASE_URL}/api/opportunities/${opportunityId}/apply`, { method: "POST", headers: { Accept: "application/json", Authorization: `Bearer ${accessToken}` } });
-  try { return (await response.json()) as ApplyResult; } catch { return { ok: false, code: "REQUEST_FAILED" }; }
-}
-
-export async function getMyApplications(locale: AppLocale): Promise<ApplicationsResponse> {
-  const accessToken = await getAccessToken();
-  if (!accessToken) return { ok: false, code: "UNAUTHENTICATED" };
-  const response = await fetch(`${API_BASE_URL}/api/applications/mine?locale=${locale}`, { headers: { Accept: "application/json", Authorization: `Bearer ${accessToken}` } });
-  try { return (await response.json()) as ApplicationsResponse; } catch { return { ok: false, code: "REQUEST_FAILED" }; }
-}
-
-export async function getConversation(conversationId: string): Promise<ConversationDetailResponse | null> {
-  const accessToken = await getAccessToken();
-  if (!accessToken) return null;
-  const response = await fetch(`${API_BASE_URL}/api/conversations/${encodeURIComponent(conversationId)}`, { headers: { Accept: "application/json", Authorization: `Bearer ${accessToken}` } });
-  if (!response.ok) return null;
-  return (await response.json()) as ConversationDetailResponse;
-}
-
-export async function sendMessage(conversationId: string, body: string): Promise<SendMessageResult> {
-  const accessToken = await getAccessToken();
-  if (!accessToken) return { ok: false, code: "UNAUTHENTICATED" };
-  const response = await fetch(`${API_BASE_URL}/api/conversations/${encodeURIComponent(conversationId)}`, {
-    method: "POST",
-    headers: { Accept: "application/json", "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
-    body: JSON.stringify({ body }),
-  });
-  try { return (await response.json()) as SendMessageResult; } catch { return { ok: false, code: "REQUEST_FAILED" }; }
-}
-
-export async function getNotifications(): Promise<NotificationsResponse | null> {
-  const accessToken = await getAccessToken();
-  if (!accessToken) return null;
-  const response = await fetch(`${API_BASE_URL}/api/notifications`, { headers: { Accept: "application/json", Authorization: `Bearer ${accessToken}` } });
-  if (!response.ok) return null;
-  return (await response.json()) as NotificationsResponse;
-}
-
-export async function markNotificationRead(notificationId: number | string) {
-  const accessToken = await getAccessToken();
-  if (!accessToken) return false;
-  const response = await fetch(`${API_BASE_URL}/api/notifications/${encodeURIComponent(String(notificationId))}/read`, {
-    method: "POST",
-    headers: { Accept: "application/json", Authorization: `Bearer ${accessToken}` },
-  });
-  return response.ok;
-}
+async function getAccessToken() { const { data: { session } } = await supabase.auth.getSession(); return session?.access_token ?? null; }
+export async function getPublicOpportunities(locale: AppLocale, market = "SA"): Promise<OpportunitiesResponse> { const response = await fetch(`${API_BASE_URL}/api/opportunities?market=${encodeURIComponent(market)}&locale=${locale}`, { headers: { Accept: "application/json" } }); if (!response.ok) throw new Error(`OPPORTUNITIES_REQUEST_FAILED:${response.status}`); return (await response.json()) as OpportunitiesResponse; }
+export async function getPublicOpportunity(identifier: string, locale: AppLocale, market = "SA"): Promise<OpportunityDetailResponse> { const response = await fetch(`${API_BASE_URL}/api/opportunities/${encodeURIComponent(identifier)}?market=${encodeURIComponent(market)}&locale=${locale}`, { headers: { Accept: "application/json" } }); if (!response.ok) throw new Error(`OPPORTUNITY_REQUEST_FAILED:${response.status}`); return (await response.json()) as OpportunityDetailResponse; }
+export async function applyToOpportunity(opportunityId: number): Promise<ApplyResult> { const accessToken = await getAccessToken(); if (!accessToken) return { ok: false, code: "UNAUTHENTICATED" }; const response = await fetch(`${API_BASE_URL}/api/opportunities/${opportunityId}/apply`, { method: "POST", headers: { Accept: "application/json", Authorization: `Bearer ${accessToken}` } }); try { return (await response.json()) as ApplyResult; } catch { return { ok: false, code: "REQUEST_FAILED" }; } }
+export async function getMyApplications(locale: AppLocale): Promise<ApplicationsResponse> { const accessToken = await getAccessToken(); if (!accessToken) return { ok: false, code: "UNAUTHENTICATED" }; const response = await fetch(`${API_BASE_URL}/api/applications/mine?locale=${locale}`, { headers: { Accept: "application/json", Authorization: `Bearer ${accessToken}` } }); try { return (await response.json()) as ApplicationsResponse; } catch { return { ok: false, code: "REQUEST_FAILED" }; } }
+export async function getTalentProfile(locale: AppLocale): Promise<TalentProfileResponse> { const accessToken = await getAccessToken(); if (!accessToken) return { ok: false, code: "UNAUTHENTICATED" }; const response = await fetch(`${API_BASE_URL}/api/talent/me?locale=${locale}`, { headers: { Accept: "application/json", Authorization: `Bearer ${accessToken}` } }); try { return (await response.json()) as TalentProfileResponse; } catch { return { ok: false, code: "REQUEST_FAILED" }; } }
+export async function getConversation(conversationId: string): Promise<ConversationDetailResponse | null> { const accessToken = await getAccessToken(); if (!accessToken) return null; const response = await fetch(`${API_BASE_URL}/api/conversations/${encodeURIComponent(conversationId)}`, { headers: { Accept: "application/json", Authorization: `Bearer ${accessToken}` } }); if (!response.ok) return null; return (await response.json()) as ConversationDetailResponse; }
+export async function sendMessage(conversationId: string, body: string): Promise<SendMessageResult> { const accessToken = await getAccessToken(); if (!accessToken) return { ok: false, code: "UNAUTHENTICATED" }; const response = await fetch(`${API_BASE_URL}/api/conversations/${encodeURIComponent(conversationId)}`, { method: "POST", headers: { Accept: "application/json", "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` }, body: JSON.stringify({ body }) }); try { return (await response.json()) as SendMessageResult; } catch { return { ok: false, code: "REQUEST_FAILED" }; } }
+export async function getNotifications(): Promise<NotificationsResponse | null> { const accessToken = await getAccessToken(); if (!accessToken) return null; const response = await fetch(`${API_BASE_URL}/api/notifications`, { headers: { Accept: "application/json", Authorization: `Bearer ${accessToken}` } }); if (!response.ok) return null; return (await response.json()) as NotificationsResponse; }
+export async function markNotificationRead(notificationId: number | string) { const accessToken = await getAccessToken(); if (!accessToken) return false; const response = await fetch(`${API_BASE_URL}/api/notifications/${encodeURIComponent(String(notificationId))}/read`, { method: "POST", headers: { Accept: "application/json", Authorization: `Bearer ${accessToken}` } }); return response.ok; }
