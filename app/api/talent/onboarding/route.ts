@@ -19,7 +19,7 @@ export async function POST(request: Request) {
   const result = await completeMobileTalentOnboarding(
     auth.user.id,
     auth.user.email,
-    auth.user.user_metadata as Record<string, unknown> | null | undefined,
+    auth.user.metadata,
     payload.talentType,
   );
 

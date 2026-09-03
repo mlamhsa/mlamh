@@ -6,6 +6,7 @@ export type RequestUserResult =
       user: {
         id: string;
         email: string | null;
+        metadata: Record<string, unknown>;
       };
       accessToken: string;
     }
@@ -24,6 +25,11 @@ function getBearerToken(request: Request) {
   }
 
   return token;
+}
+
+function normalizeUserMetadata(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return value as Record<string, unknown>;
 }
 
 export async function getRequestUser(
@@ -64,6 +70,7 @@ export async function getRequestUser(
     user: {
       id: user.id,
       email: user.email ?? null,
+      metadata: normalizeUserMetadata(user.user_metadata),
     },
     accessToken,
   };
