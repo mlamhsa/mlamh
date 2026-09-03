@@ -16,6 +16,13 @@ test("normalizes double-escaped line breaks from stored JSON payloads", () => {
   );
 });
 
+test("normalizes escaped Windows line breaks", () => {
+  assert.equal(
+    sanitizeSocialCopy("فرصة جديدة\\r\\nقدّم الآن"),
+    "فرصة جديدة\nقدّم الآن",
+  );
+});
+
 test("cleans escaped punctuation and excessive blank lines", () => {
   assert.equal(
     sanitizeSocialCopy("فرصتك جاهزة\\!\\n\\n\\n  سجّل الآن"),
