@@ -20,7 +20,10 @@ export function evaluateChannelExecutionPolicy(input: ChannelExecutionPolicyInpu
   if (input.jobStatus === "published" || input.externalPostId) return { allowed: true, duplicate: true };
   if (!["approved", "scheduled", "failed"].includes(input.jobStatus)) return { allowed: false, reason: "invalid_job_status" };
   if (!input.approvalTaskMatches || !input.approvalStatus || !["approved", "scheduled"].includes(input.approvalStatus)) return { allowed: false, reason: "invalid_approval" };
-  if (input.mode === "schedule" && (input.approvalStatus !== "scheduled" || !input.scheduledAt)) return { allowed: false, reason: "invalid_schedule_approval" };
+  if (input.mode === "schedule") {
+    if (input.approvalStatus !== "scheduled" || !input.scheduledAt) return { allowed: false, reason: "invalid_schedule_approval" };
+    if (!Number.isFinite(Date.parse(input.scheduledAt))) return { allowed: false, reason: "invalid_schedule_time" };
+  }
   if (input.mode === "publish_now" && input.approvalStatus !== "approved") return { allowed: false, reason: "publish_now_not_approved" };
   if (!input.externalExecutionEnabled) return { allowed: false, reason: "external_execution_disabled" };
   return { allowed: true, duplicate: false };
