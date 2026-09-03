@@ -47,6 +47,11 @@ alter table public.market_countries enable row level security;
 revoke all on table public.market_countries from anon, authenticated;
 grant all on table public.market_countries to service_role;
 
+drop trigger if exists market_countries_set_updated_at on public.market_countries;
+create trigger market_countries_set_updated_at
+before update on public.market_countries
+for each row execute function public.set_updated_at();
+
 alter table public.talents
   add column if not exists base_country_code text null references public.market_countries(country_code);
 
@@ -69,18 +74,22 @@ alter table public.marketing_leads
 create table if not exists public.talent_work_markets (
   talent_id bigint not null references public.talents(id) on delete cascade,
   country_code text not null references public.market_countries(country_code),
-  enabled boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   primary key (talent_id, country_code)
 );
 
 comment on table public.talent_work_markets is
-  'Markets where a talent is willing/eligible to accept opportunities; separate from nationality and base location.';
+  'Markets where a talent is willing/eligible to accept opportunities; row existence means enabled and is separate from nationality and base location.';
 
 alter table public.talent_work_markets enable row level security;
 revoke all on table public.talent_work_markets from anon, authenticated;
 grant all on table public.talent_work_markets to service_role;
+
+drop trigger if exists talent_work_markets_set_updated_at on public.talent_work_markets;
+create trigger talent_work_markets_set_updated_at
+before update on public.talent_work_markets
+for each row execute function public.set_updated_at();
 
 -- Keep new country fields nullable during the compatibility window. Legacy rows continue
 -- to behave as Saudi data in application logic until a separately approved backfill.
@@ -97,6 +106,5 @@ create index if not exists idx_marketing_briefs_country_code
   on public.marketing_briefs(country_code);
 create index if not exists idx_marketing_leads_country_code
   on public.marketing_leads(country_code);
-create index if not exists idx_talent_work_markets_country_enabled
-  on public.talent_work_markets(country_code, enabled)
-  where enabled = true;
+create index if not exists idx_talent_work_markets_country_code
+  on public.talent_work_markets(country_code);
