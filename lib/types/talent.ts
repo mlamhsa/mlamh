@@ -112,6 +112,9 @@ export type Talent = {
 
   last_activity?: string | null;
 
+  // Server-side access marker. Public projections always set this to false.
+  private_access_granted?: boolean;
+
   // Analytics / Ranking
   profile_completion?: number | null;
   profile_views?: number | null;
