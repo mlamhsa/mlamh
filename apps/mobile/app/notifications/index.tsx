@@ -8,6 +8,15 @@ import { getDeviceLocale, isRtlLocale } from "@/lib/i18n";
 import { useNotificationSync } from "@/lib/notifications-context";
 import { darkTheme, lightTheme } from "@/lib/theme";
 
+type NotificationTarget =
+  | { type: "conversation"; id: string | number }
+  | { type: "opportunity"; id: string | number }
+  | { type: "publisher_opportunity"; id: string | number }
+  | { type: "talent_applications" }
+  | { type: "none" };
+
+type TargetedNotification = MobileNotification & { target?: NotificationTarget };
+
 export default function NotificationsScreen() {
   const locale = getDeviceLocale();
   const theme = useColorScheme() === "dark" ? darkTheme : lightTheme;
@@ -50,6 +59,15 @@ export default function NotificationsScreen() {
         void refreshBadge();
       }
     }
+
+    const target = (item as TargetedNotification).target;
+    if (target?.type === "conversation") { router.push(`/conversations/${target.id}`); return; }
+    if (target?.type === "publisher_opportunity") { router.push(`/publisher/opportunities/${target.id}`); return; }
+    if (target?.type === "opportunity") { router.push(`/opportunities/${target.id}`); return; }
+    if (target?.type === "talent_applications") { router.push("/applications"); return; }
+    if (target?.type === "none") return;
+
+    // Compatibility fallback for notifications created before target contracts existed.
     if (item.category === "message" && item.referenceId) { router.push(`/conversations/${item.referenceId}`); return; }
     if (item.category === "application") { router.push("/applications"); return; }
     if (item.category === "invitation" && item.referenceId) router.push(`/opportunities/${item.referenceId}`);
