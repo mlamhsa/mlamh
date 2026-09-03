@@ -130,3 +130,42 @@ test("qualified supply stays distinct from sendable supply", () => {
     supply.evaluations[2].reasons.includes("not_qualified:missing_image"),
   );
 });
+
+test("legacy talent remains eligible for Saudi briefs only", () => {
+  assert.equal(
+    evaluateTalentForBrief(qualified, { country_code: "SA", city: "jeddah" }).sendable,
+    true,
+  );
+
+  const uae = evaluateTalentForBrief(qualified, {
+    country_code: "AE",
+    city: "jeddah",
+    city_flexible: true,
+  });
+  assert.equal(uae.sendable, false);
+  assert.ok(uae.reasons.includes("market_mismatch"));
+});
+
+test("cross-border talent is sendable only when opportunity market is explicitly allowed", () => {
+  const egyptBased = {
+    ...qualified,
+    base_country_code: "EG" as const,
+    work_market_codes: ["SA"] as const,
+    city_slug: "cairo",
+  };
+
+  const sa = evaluateTalentForBrief(egyptBased, {
+    country_code: "SA",
+    city: "riyadh",
+    city_flexible: true,
+  });
+  assert.equal(sa.sendable, true);
+
+  const ae = evaluateTalentForBrief(egyptBased, {
+    country_code: "AE",
+    city: "dubai",
+    city_flexible: true,
+  });
+  assert.equal(ae.sendable, false);
+  assert.ok(ae.reasons.includes("market_mismatch"));
+});
