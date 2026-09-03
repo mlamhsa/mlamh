@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 type PageProps = { searchParams: Promise<{ lang?: string }> };
 type RuleValue = Record<string, unknown> | unknown[] | string | number | boolean | null;
 
-function humanize(value: unknown, isArabic: boolean) {
+function humanize(value: unknown, isArabic: boolean): string {
   if (value === null || value === undefined || value === "") return isArabic ? "غير محدد" : "Not specified";
   if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return String(value);
   if (Array.isArray(value)) return value.map((item) => humanize(item, isArabic)).join(" · ");
