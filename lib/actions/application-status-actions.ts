@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { isRestrictedAccountStatus } from "@/lib/accounts/account-rules";
 import {
   type ApplicationStatus,
   canTransitionApplicationStatus,
@@ -10,7 +11,6 @@ import {
   normalizeApplicationStatus,
   shouldCreateConversation,
 } from "@/lib/applications/status-rules";
-import { isRestrictedAccountStatus } from "@/lib/applications/apply-rules";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
