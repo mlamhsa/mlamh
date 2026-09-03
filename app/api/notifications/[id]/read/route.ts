@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getRequestUser } from "@/lib/auth/request-user";
-import { markTalentNotificationRead } from "@/lib/notifications/talent-notifications";
+import { markUserNotificationRead } from "@/lib/notifications/user-notifications";
 
 export async function POST(
   request: Request,
@@ -26,7 +26,7 @@ export async function POST(
     );
   }
 
-  const result = await markTalentNotificationRead(auth.user.id, notificationId);
+  const result = await markUserNotificationRead(auth.user.id, notificationId);
 
   if (!result.ok) {
     return NextResponse.json(result, {
