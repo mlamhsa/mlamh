@@ -120,7 +120,7 @@ export async function applyToOpportunity(
     return { ok: false, code: "OPPORTUNITY_LOOKUP_FAILED" };
   }
 
-  if (!isOpportunityAvailable(opportunity)) {
+  if (!opportunity || !isOpportunityAvailable(opportunity)) {
     return { ok: false, code: "OPPORTUNITY_NOT_AVAILABLE" };
   }
 
