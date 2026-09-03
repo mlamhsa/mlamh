@@ -1,8 +1,11 @@
 import { isRestrictedAccountStatus } from "@/lib/accounts/account-rules";
+import { createEvent, EVENT_TARGETS, EVENT_TYPES } from "@/lib/events";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const ALLOWED_TYPES = new Set(["actor", "model"]);
 const ALLOWED_COMPENSATION = new Set(["fixed", "negotiable", "unpaid"]);
+const EDITABLE_STATUSES = new Set(["draft", "open", "needs_changes", "closed"]);
+const SUBMITTABLE_STATUSES = new Set(["draft", "open", "needs_changes", "closed"]);
 export const PUBLISHER_OPPORTUNITY_ACTIONS = ["edit", "publish", "close", "archive"] as const;
 export type PublisherOpportunityAction = (typeof PUBLISHER_OPPORTUNITY_ACTIONS)[number];
 
@@ -20,9 +23,13 @@ async function getPublisherContext(userId: string) {
   const { data: profile, error: profileError } = await admin.from("profiles").select("id,account_type,approval_status,status").eq("user_id", userId).maybeSingle();
   if (profileError || !profile || profile.account_type !== "publisher") return null;
   if (profile.approval_status !== "approved" || isRestrictedAccountStatus(profile.status)) return null;
-  const { data: publisher, error: publisherError } = await admin.from("publishers").select("id,country_code,status").eq("profile_id", profile.id).maybeSingle();
+  const { data: publisher, error: publisherError } = await admin.from("publishers").select("id,country_code,status,publisher_type,verified,verification_status").eq("profile_id", profile.id).maybeSingle();
   if (publisherError || !publisher || isRestrictedAccountStatus(publisher.status)) return null;
   return { admin, publisher };
+}
+
+function isVerifiedPublisher(publisher: { publisher_type: string | null; verified: boolean | null; verification_status: string | null }) {
+  return publisher.publisher_type === "individual" || (publisher.verified === true && publisher.verification_status === "verified");
 }
 
 export async function manageMobilePublisherOpportunity(userId: string, opportunityId: number, input: Record<string, unknown>) {
@@ -41,13 +48,34 @@ export async function manageMobilePublisherOpportunity(userId: string, opportuni
   const now = new Date().toISOString();
 
   if (input.action === "publish") {
+    if (!isVerifiedPublisher(publisher)) return { ok: false as const, code: "PUBLISHER_NOT_VERIFIED" as const };
     if (existing.status === "archived") return { ok: false as const, code: "ARCHIVED" as const };
+    if (existing.status === "published" || existing.published) return { ok: false as const, code: "ALREADY_PUBLISHED" as const };
+    if (existing.status === "pending_review") return { ok: false as const, code: "ALREADY_PENDING_REVIEW" as const };
+    if (existing.status === "rejected") return { ok: false as const, code: "REJECTED" as const };
+    if (!SUBMITTABLE_STATUSES.has(String(existing.status ?? "draft"))) return { ok: false as const, code: "INVALID_STATE" as const };
     if (cleanText(existing.title, 140).length < 4 || cleanText(existing.description, 5000).length < 20) return { ok: false as const, code: "INCOMPLETE_OPPORTUNITY" as const };
     if (!ALLOWED_TYPES.has(String(existing.opportunity_type ?? ""))) return { ok: false as const, code: "INVALID_OPPORTUNITY_TYPE" as const };
     const countryCode = cleanText(existing.country_code || publisher.country_code, 2).toUpperCase();
     if (!/^[A-Z]{2}$/.test(countryCode)) return { ok: false as const, code: "MISSING_COUNTRY" as const };
-    const { data, error } = await admin.from("opportunities").update({ published: true, status: "published", country_code: countryCode, updated_at: now }).eq("id", opportunityId).eq("publisher_id", publisher.id).select("id,status,published").single();
+    const currency = cleanText(existing.currency, 3).toUpperCase();
+    if (currency && !/^[A-Z]{3}$/.test(currency)) return { ok: false as const, code: "INVALID_CURRENCY" as const };
+
+    const { data, error } = await admin.from("opportunities").update({ published: false, status: "pending_review", country_code: countryCode, updated_at: now }).eq("id", opportunityId).eq("publisher_id", publisher.id).select("id,status,published").single();
     if (error || !data) return { ok: false as const, code: "UPDATE_FAILED" as const };
+
+    try {
+      await createEvent({
+        type: EVENT_TYPES.opportunity_pending_review,
+        target: EVENT_TARGETS.ADMIN,
+        targetId: "admin",
+        actorId: publisher.id,
+        metadata: { opportunityId, publisherId: publisher.id, title: existing.title, countryCode, source: "mobile" },
+      });
+    } catch (eventError) {
+      console.error("[manageMobilePublisherOpportunity submit event]", eventError);
+    }
+
     return { ok: true as const, item: { id: Number(data.id), status: data.status, published: Boolean(data.published) } };
   }
 
@@ -59,6 +87,8 @@ export async function manageMobilePublisherOpportunity(userId: string, opportuni
   }
 
   if (existing.status === "archived") return { ok: false as const, code: "ARCHIVED" as const };
+  if (!EDITABLE_STATUSES.has(String(existing.status ?? "draft"))) return { ok: false as const, code: "EDIT_LOCKED" as const };
+
   const patch: Record<string, unknown> = { updated_at: now };
   let changed = false;
 

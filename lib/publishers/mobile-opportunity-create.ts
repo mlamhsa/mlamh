@@ -1,5 +1,6 @@
-import { createAdminClient } from "@/lib/supabase/admin";
 import { isRestrictedAccountStatus } from "@/lib/accounts/account-rules";
+import { createSlug } from "@/lib/services/localization";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 const ALLOWED_TYPES = new Set(["actor", "model"]);
 const ALLOWED_COMPENSATION = new Set(["fixed", "negotiable", "unpaid"]);
@@ -22,6 +23,11 @@ export async function createMobilePublisherOpportunityDraft(userId: string, inpu
   if (!ALLOWED_TYPES.has(opportunityType)) return { ok: false as const, code: "INVALID_OPPORTUNITY_TYPE" as const };
   if (!ALLOWED_COMPENSATION.has(compensationType)) return { ok: false as const, code: "INVALID_COMPENSATION" as const };
 
+  const requestedCountryCode = cleanText(input.countryCode, 2).toUpperCase();
+  const requestedCurrency = cleanText(input.currency, 3).toUpperCase();
+  if (requestedCountryCode && !/^[A-Z]{2}$/.test(requestedCountryCode)) return { ok: false as const, code: "INVALID_COUNTRY" as const };
+  if (requestedCurrency && !/^[A-Z]{3}$/.test(requestedCurrency)) return { ok: false as const, code: "INVALID_CURRENCY" as const };
+
   const supabase = createAdminClient();
   const { data: profile, error: profileError } = await supabase.from("profiles").select("id,account_type,approval_status,status").eq("user_id", userId).maybeSingle();
   if (profileError) return { ok: false as const, code: "PUBLISHER_LOOKUP_FAILED" as const };
@@ -29,30 +35,34 @@ export async function createMobilePublisherOpportunityDraft(userId: string, inpu
   if (profile.approval_status !== "approved") return { ok: false as const, code: "PUBLISHER_NOT_APPROVED" as const };
   if (isRestrictedAccountStatus(profile.status)) return { ok: false as const, code: "ACCOUNT_RESTRICTED" as const };
 
-  const { data: publisher, error: publisherError } = await supabase.from("publishers").select("id,company_name,contact_name,country_code,status").eq("profile_id", profile.id).maybeSingle();
+  const { data: publisher, error: publisherError } = await supabase.from("publishers").select("id,company_name,contact_name,country_code,status,publisher_type,verified,verification_status").eq("profile_id", profile.id).maybeSingle();
   if (publisherError) return { ok: false as const, code: "PUBLISHER_LOOKUP_FAILED" as const };
   if (!publisher) return { ok: false as const, code: "PUBLISHER_NOT_FOUND" as const };
   if (isRestrictedAccountStatus(publisher.status)) return { ok: false as const, code: "ACCOUNT_RESTRICTED" as const };
+  const organizationRequiresVerification = publisher.publisher_type !== "individual";
+  if (organizationRequiresVerification && !(publisher.verified === true && publisher.verification_status === "verified")) {
+    return { ok: false as const, code: "PUBLISHER_NOT_VERIFIED" as const };
+  }
 
   const companyName = publisher.company_name || publisher.contact_name || "MLAMH Publisher";
-  const requestedCountryCode = cleanText(input.countryCode, 2).toUpperCase();
-  const requestedCurrency = cleanText(input.currency, 3).toUpperCase();
   const countryCode = requestedCountryCode || publisher.country_code || null;
   const currency = requestedCurrency || null;
 
   const { data: opportunity, error: insertError } = await supabase.from("opportunities").insert({
     title,
     description,
+    slug: createSlug(title),
     opportunity_type: opportunityType,
     city_ar: city || null,
     city_en: city || null,
     company_name: companyName,
     publisher_id: publisher.id,
-    status: "open",
+    status: "draft",
     published: false,
     posting_mode: "project",
     compensation_type: compensationType,
-    budget: budget || null,
+    budget: compensationType === "unpaid" ? null : budget || null,
+    application_days: 30,
     country_code: countryCode,
     currency,
     managed_by_mlamh: false,
