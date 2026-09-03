@@ -1,10 +1,3 @@
-const RESTRICTED_ACCOUNT_STATUSES = new Set([
-  "suspended",
-  "blocked",
-  "banned",
-  "disabled",
-]);
-
 export type OpportunityApplicationWindow = {
   published: boolean;
   status: string | null;
@@ -14,10 +7,6 @@ export type OpportunityApplicationWindow = {
 
 export function isValidOpportunityId(value: unknown): value is number {
   return Number.isInteger(value) && Number(value) > 0;
-}
-
-export function isRestrictedAccountStatus(status: string | null | undefined) {
-  return RESTRICTED_ACCOUNT_STATUSES.has(status ?? "");
 }
 
 export function isOpportunityAvailable(
