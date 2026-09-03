@@ -2,6 +2,7 @@ import type {
   MarkNotificationReadResult,
   MobileNotification,
   NotificationCategory,
+  NotificationTarget,
   NotificationsResponse,
 } from "@/lib/notifications/notification-contract";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -12,6 +13,15 @@ function getCategory(eventType: string | null): NotificationCategory {
   if (value.includes("invite")) return "invitation";
   if (value.includes("application")) return "application";
   return "system";
+}
+
+function readMetadataId(
+  metadata: Record<string, unknown> | null,
+  key: string,
+): string | number | null {
+  if (!metadata) return null;
+  const value = metadata[key];
+  return typeof value === "string" || typeof value === "number" ? value : null;
 }
 
 function getReferenceId(metadata: Record<string, unknown> | null) {
@@ -31,6 +41,23 @@ function getReferenceId(metadata: Record<string, unknown> | null) {
   }
 
   return null;
+}
+
+function getTarget(
+  category: NotificationCategory,
+  metadata: Record<string, unknown> | null,
+): NotificationTarget {
+  const conversationId = readMetadataId(metadata, "conversation_id");
+  const opportunityId = readMetadataId(metadata, "opportunity_id");
+
+  if (category === "message" && conversationId !== null) {
+    return { type: "conversation", id: conversationId };
+  }
+  if (category === "application") return { type: "talent_applications" };
+  if (category === "invitation" && opportunityId !== null) {
+    return { type: "opportunity", id: opportunityId };
+  }
+  return { type: "none" };
 }
 
 export async function getTalentNotifications(
@@ -75,6 +102,7 @@ export async function getTalentNotifications(
     const event = Array.isArray(row.events) ? row.events[0] : row.events;
     const eventType = event?.event_type ?? null;
     const metadata = (event?.metadata ?? null) as Record<string, unknown> | null;
+    const category = getCategory(eventType);
 
     return {
       id: row.id,
@@ -82,9 +110,10 @@ export async function getTalentNotifications(
       body: row.body ?? null,
       isRead: row.is_read === true,
       createdAt: row.created_at ?? null,
-      category: getCategory(eventType),
+      category,
       referenceId: getReferenceId(metadata),
       eventType,
+      target: getTarget(category, metadata),
     };
   });
 
