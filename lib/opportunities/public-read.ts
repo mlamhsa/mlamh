@@ -4,7 +4,10 @@ import {
   canExposePublicRecord,
 } from "@/lib/markets/public-access";
 import { compareFeaturedThenNewest } from "@/lib/opportunities/featured";
-import type { PublicOpportunitiesResponse } from "@/lib/opportunities/public-contract";
+import type {
+  PublicOpportunitiesResponse,
+  PublicOpportunity,
+} from "@/lib/opportunities/public-contract";
 import {
   toPublicOpportunity,
   type PublicOpportunityRow,
@@ -12,10 +15,16 @@ import {
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const PUBLISHED_STATUSES = ["published", "open"] as const;
+const PUBLIC_OPPORTUNITY_SELECT =
+  "id,title,title_en,slug,description,description_en,opportunity_type,country_code,currency,city_slug,city_ar,city_en,required_gender,min_age,max_age,compensation_type,budget,company_name,featured,featured_until,managed_by_mlamh,expires_at,created_at,published,status";
 
 export type PublicOpportunitiesInput = {
   countryCode: CountryCode;
   locale: "ar" | "en";
+};
+
+export type PublicOpportunityDetailInput = PublicOpportunitiesInput & {
+  identifier: string;
 };
 
 function applyMarketFilter<T extends { or: Function; eq: Function }>(
@@ -39,9 +48,7 @@ export async function getPublicOpportunities(
   const supabase = createAdminClient();
   let query = supabase
     .from("opportunities")
-    .select(
-      "id,title,title_en,slug,description,description_en,opportunity_type,country_code,currency,city_slug,city_ar,city_en,required_gender,min_age,max_age,compensation_type,budget,company_name,featured,featured_until,managed_by_mlamh,expires_at,created_at,published,status",
-    )
+    .select(PUBLIC_OPPORTUNITY_SELECT)
     .eq("published", true)
     .in("status", [...PUBLISHED_STATUSES]);
 
@@ -65,4 +72,50 @@ export async function getPublicOpportunities(
     .map((row) => toPublicOpportunity(row, locale));
 
   return { items, market: countryCode, locale };
+}
+
+export async function getPublicOpportunityByIdentifier(
+  input: PublicOpportunityDetailInput,
+): Promise<PublicOpportunity | null> {
+  const { countryCode, locale, identifier } = input;
+  const normalizedIdentifier = identifier.trim();
+
+  if (
+    !normalizedIdentifier ||
+    !canExposePublicMarket(countryCode, "publicOpportunities")
+  ) {
+    return null;
+  }
+
+  const supabase = createAdminClient();
+  let query = supabase
+    .from("opportunities")
+    .select(PUBLIC_OPPORTUNITY_SELECT)
+    .eq("published", true)
+    .in("status", [...PUBLISHED_STATUSES]);
+
+  query = applyMarketFilter(query, countryCode);
+
+  const numericId = Number(normalizedIdentifier);
+  query =
+    Number.isInteger(numericId) && numericId > 0
+      ? query.eq("id", numericId)
+      : query.eq("slug", normalizedIdentifier);
+
+  const { data, error } = await query.maybeSingle();
+
+  if (error) {
+    console.error("[getPublicOpportunityByIdentifier]", error);
+    return null;
+  }
+
+  const row = data as PublicOpportunityRow | null;
+  if (
+    !row ||
+    !canExposePublicRecord(row, countryCode, "publicOpportunities")
+  ) {
+    return null;
+  }
+
+  return toPublicOpportunity(row, locale);
 }

@@ -24,6 +24,12 @@ type OpportunitiesResponse = {
   locale: AppLocale;
 };
 
+type OpportunityDetailResponse = {
+  item: MobileOpportunity;
+  market: string;
+  locale: AppLocale;
+};
+
 const API_BASE_URL = (process.env.EXPO_PUBLIC_API_BASE_URL ?? "https://mlamh.net").replace(/\/$/, "");
 
 export async function getPublicOpportunities(
@@ -40,4 +46,21 @@ export async function getPublicOpportunities(
   }
 
   return (await response.json()) as OpportunitiesResponse;
+}
+
+export async function getPublicOpportunity(
+  identifier: string,
+  locale: AppLocale,
+  market = "SA",
+): Promise<OpportunityDetailResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/opportunities/${encodeURIComponent(identifier)}?market=${encodeURIComponent(market)}&locale=${locale}`,
+    { headers: { Accept: "application/json" } },
+  );
+
+  if (!response.ok) {
+    throw new Error(`OPPORTUNITY_REQUEST_FAILED:${response.status}`);
+  }
+
+  return (await response.json()) as OpportunityDetailResponse;
 }

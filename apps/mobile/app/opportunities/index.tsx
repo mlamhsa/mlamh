@@ -9,6 +9,7 @@ import {
   View,
   useColorScheme,
 } from "react-native";
+import { router } from "expo-router";
 
 import { getPublicOpportunities, type MobileOpportunity } from "@/lib/api";
 import { getDeviceLocale, isRtlLocale } from "@/lib/i18n";
@@ -91,7 +92,14 @@ export default function OpportunitiesScreen() {
           )
         }
         renderItem={({ item }) => (
-          <View style={[styles.card, item.featured && styles.featuredCard]}>
+          <Pressable
+            onPress={() => router.push(`/opportunities/${item.slug}`)}
+            style={({ pressed }) => [
+              styles.card,
+              item.featured && styles.featuredCard,
+              pressed && styles.cardPressed,
+            ]}
+          >
             <View style={styles.cardTopRow}>
               <Text style={styles.type}>{item.opportunityType.replaceAll("_", " ")}</Text>
               {item.featured ? (
@@ -104,15 +112,13 @@ export default function OpportunitiesScreen() {
 
             <View style={styles.metaRow}>
               {item.city ? <Text style={styles.meta}>{item.city}</Text> : null}
-              {item.compensationType ? (
-                <Text style={styles.meta}>{item.compensationType}</Text>
-              ) : null}
+              {item.compensationType ? <Text style={styles.meta}>{item.compensationType}</Text> : null}
             </View>
 
             <Text numberOfLines={3} style={styles.description}>
               {item.description}
             </Text>
-          </View>
+          </Pressable>
         )}
       />
     </View>
@@ -130,6 +136,7 @@ function createStyles(theme: typeof lightTheme | typeof darkTheme) {
     subtitle: { color: theme.muted, fontSize: 15, lineHeight: 24, maxWidth: 560 },
     card: { borderRadius: 24, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, padding: 20, gap: 10 },
     featuredCard: { borderColor: theme.accent },
+    cardPressed: { opacity: 0.78, transform: [{ scale: 0.995 }] },
     cardTopRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
     type: { color: theme.muted, fontSize: 11, textTransform: "uppercase", letterSpacing: 1.2 },
     featuredBadge: { color: theme.accent, fontSize: 11, fontWeight: "700" },
