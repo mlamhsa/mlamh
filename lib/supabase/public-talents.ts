@@ -5,6 +5,12 @@ import {
   canExposePublicTalent,
 } from "@/lib/markets/public-access";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
+import {
+  canViewTalentPrivateContent,
+  grantTalentPrivateContent,
+  hideTalentPrivateContent,
+} from "@/lib/talent/public-profile-access";
 import {
   isTalentPubliclyVisible,
   type TalentQualificationInput,
@@ -122,6 +128,28 @@ function applyTalentMarketFilter<T extends { or: Function; eq: Function }>(
     : query.eq("base_country_code", countryCode)) as T;
 }
 
+function toPublicTalent(candidate: PublicTalentCandidate): Talent {
+  const {
+    profile_approval_status: _profileApprovalStatus,
+    profile_status: _profileStatus,
+    primary_role: _primaryRole,
+    ...talent
+  } = candidate;
+
+  return hideTalentPrivateContent(talent as Talent);
+}
+
+function toPrivateTalent(candidate: PublicTalentCandidate): Talent {
+  const {
+    profile_approval_status: _profileApprovalStatus,
+    profile_status: _profileStatus,
+    primary_role: _primaryRole,
+    ...talent
+  } = candidate;
+
+  return grantTalentPrivateContent(talent as Talent);
+}
+
 async function attachProfileApprovalContext(talents: Talent[]): Promise<PublicTalentCandidate[]> {
   if (talents.length === 0) return [];
   const supabase = createAdminClient();
@@ -176,13 +204,13 @@ async function getVisiblePublishedCandidates({
   city,
   countryCode = DEFAULT_PUBLIC_MARKET,
   collectAll = false,
-}: VisiblePublishedCandidateOptions = {}): Promise<{ talents: PublicTalentCandidate[]; total: number }> {
+}: VisiblePublishedCandidateOptions = {}): Promise<{ talents: Talent[]; total: number }> {
   if (!canExposePublicMarket(countryCode, "publicTalentDirectory")) return { talents: [], total: 0 };
 
   const supabase = createAdminClient();
   const targetFrom = (page - 1) * pageSize;
   const targetTo = targetFrom + pageSize;
-  const talents: PublicTalentCandidate[] = [];
+  const talents: Talent[] = [];
   let total = 0;
   let offset = 0;
 
@@ -214,7 +242,9 @@ async function getVisiblePublishedCandidates({
         !matchesCity(candidate, city)
       ) continue;
 
-      if (collectAll || (total >= targetFrom && total < targetTo)) talents.push(candidate);
+      if (collectAll || (total >= targetFrom && total < targetTo)) {
+        talents.push(toPublicTalent(candidate));
+      }
       total += 1;
     }
 
@@ -225,13 +255,32 @@ async function getVisiblePublishedCandidates({
   return { talents, total };
 }
 
-async function qualifySingleTalent(
+async function qualifySingleTalentCandidate(
   talent: Talent | null,
   countryCode: CountryCode = DEFAULT_PUBLIC_MARKET,
-): Promise<Talent | null> {
+): Promise<PublicTalentCandidate | null> {
   if (!talent || !canExposePublicTalent(talent, countryCode)) return null;
   const [candidate] = await attachProfileApprovalContext([talent]);
   return candidate && passesPublicTalentVisibilityPolicy(candidate) ? candidate : null;
+}
+
+async function getPublishedTalentCandidateBySlug(
+  slug: string,
+  countryCode: CountryCode = DEFAULT_PUBLIC_MARKET,
+): Promise<PublicTalentCandidate | null> {
+  if (!canExposePublicMarket(countryCode, "publicTalentDirectory")) return null;
+
+  const normalizedSlug = normalizeSlug(slug);
+  const supabase = createAdminClient();
+  let query = supabase
+    .from("talents")
+    .select("*")
+    .eq("slug", normalizedSlug)
+    .eq("published", true);
+  query = applyTalentMarketFilter(query, countryCode);
+  const { data, error } = await query.maybeSingle();
+  if (error) throw new Error(`[getPublishedTalentBySlug] ${error.message}`);
+  return qualifySingleTalentCandidate(data as Talent | null, countryCode);
 }
 
 export async function getPublicTalents({
@@ -253,7 +302,7 @@ export async function getPublicTalents({
   }
 
   const cacheKey = [
-    "public-talents-v7",
+    "public-talents-v8",
     countryCode,
     safePage,
     safePageSize,
@@ -287,7 +336,7 @@ export async function getPublishedTalentById(
 ): Promise<Talent | null> {
   if (!canExposePublicMarket(countryCode, "publicTalentDirectory")) return null;
 
-  return getCachedValue(`published-talent:v6:${countryCode}:id:${id}`, async () => {
+  return getCachedValue(`published-talent:v7:${countryCode}:id:${id}`, async () => {
     const supabase = createAdminClient();
     let query = supabase
       .from("talents")
@@ -297,7 +346,8 @@ export async function getPublishedTalentById(
     query = applyTalentMarketFilter(query, countryCode);
     const { data, error } = await query.maybeSingle();
     if (error) throw new Error(`[getPublishedTalentById] ${error.message}`);
-    return qualifySingleTalent(data as Talent | null, countryCode);
+    const candidate = await qualifySingleTalentCandidate(data as Talent | null, countryCode);
+    return candidate ? toPublicTalent(candidate) : null;
   });
 }
 
@@ -305,19 +355,55 @@ export async function getPublishedTalentBySlug(
   slug: string,
   countryCode: CountryCode = DEFAULT_PUBLIC_MARKET,
 ): Promise<Talent | null> {
-  if (!canExposePublicMarket(countryCode, "publicTalentDirectory")) return null;
+  const candidate = await getPublishedTalentCandidateBySlug(slug, countryCode);
+  return candidate ? toPublicTalent(candidate) : null;
+}
 
-  const normalizedSlug = normalizeSlug(slug);
-  const supabase = createAdminClient();
-  let query = supabase
-    .from("talents")
-    .select("*")
-    .eq("slug", normalizedSlug)
-    .eq("published", true);
-  query = applyTalentMarketFilter(query, countryCode);
-  const { data, error } = await query.maybeSingle();
-  if (error) throw new Error(`[getPublishedTalentBySlug] ${error.message}`);
-  return qualifySingleTalent(data as Talent | null, countryCode);
+export async function getPublishedTalentBySlugForViewer(
+  slug: string,
+  countryCode: CountryCode = DEFAULT_PUBLIC_MARKET,
+): Promise<Talent | null> {
+  const candidate = await getPublishedTalentCandidateBySlug(slug, countryCode);
+  if (!candidate) return null;
+
+  const authClient = await createServerSupabaseClient();
+  const {
+    data: { user },
+    error: authError,
+  } = await authClient.auth.getUser();
+
+  if (authError || !user) {
+    return toPublicTalent(candidate);
+  }
+
+  if (candidate.user_id && candidate.user_id === user.id) {
+    return toPrivateTalent(candidate);
+  }
+
+  const adminClient = createAdminClient();
+  const { data: profile, error: profileError } = await adminClient
+    .from("profiles")
+    .select("account_type, approval_status, status")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (profileError || !profile) {
+    return toPublicTalent(candidate);
+  }
+
+  const canViewPrivateContent = canViewTalentPrivateContent(
+    {
+      userId: user.id,
+      accountType: profile.account_type,
+      approvalStatus: profile.approval_status,
+      profileStatus: profile.status,
+    },
+    candidate.user_id,
+  );
+
+  return canViewPrivateContent
+    ? toPrivateTalent(candidate)
+    : toPublicTalent(candidate);
 }
 
 export async function getPublishedTalents(
@@ -325,7 +411,7 @@ export async function getPublishedTalents(
 ): Promise<Talent[]> {
   if (!canExposePublicMarket(countryCode, "publicTalentDirectory")) return [];
 
-  return getCachedValue(`published-talents:v7:${countryCode}:all`, async () => {
+  return getCachedValue(`published-talents:v8:${countryCode}:all`, async () => {
     const { talents } = await getVisiblePublishedCandidates({ collectAll: true, countryCode });
     return talents;
   });
