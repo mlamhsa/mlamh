@@ -42,10 +42,10 @@ test("Dana extracts country and city from a UAE commercial brief", () => {
   assert.equal(brief.status, "complete");
 });
 
-test("Dana passes country context into Qualified Supply", () => {
+test("Dana passes canonical country context into Qualified Supply", () => {
   const brief = buildDanaBrief(inquiry("نحتاج مودل أنثى في دبي لتصوير محتوى"));
   const supplyBrief = toTalentSupplyBrief(brief);
-  assert.equal(supplyBrief.opportunity_country_code, "AE");
+  assert.equal(supplyBrief.country_code, "AE");
   assert.equal(supplyBrief.city, "Dubai");
 });
 
@@ -91,5 +91,5 @@ test("legacy Saudi Dana brief continues to resolve Saudi market", () => {
   const brief = buildDanaBrief(inquiry("نحتاج مودل أنثى في جدة لتصوير محتوى"));
   assert.equal(brief.countryCode, "SA");
   assert.equal(brief.city, "Jeddah");
-  assert.equal(toTalentSupplyBrief(brief).opportunity_country_code, "SA");
+  assert.equal(toTalentSupplyBrief(brief).country_code, "SA");
 });
