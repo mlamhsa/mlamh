@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { sanitizeSocialCopy } from "./social-copy";
+import { sanitizeSocialCopy } from "./social-copy.ts";
 
 test("normalizes single-escaped line breaks", () => {
   assert.equal(
