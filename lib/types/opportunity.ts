@@ -1,3 +1,5 @@
+import type { CountryCode } from "@/lib/markets/countries";
+
 export type Opportunity = {
   id: number;
 
@@ -9,6 +11,9 @@ export type Opportunity = {
   description_en?: string | null;
 
   opportunity_type: string;
+
+  country_code?: CountryCode | null;
+  currency?: string | null;
 
   city_slug?: string | null;
   city_ar?: string | null;
