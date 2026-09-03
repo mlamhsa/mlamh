@@ -39,16 +39,21 @@ function localizeOpportunity(
   opportunity: Opportunity,
   locale: "ar" | "en",
 ): Opportunity {
-  if (locale !== "en") {
-    return opportunity;
-  }
-
+  if (locale !== "en") return opportunity;
   return {
     ...opportunity,
     title: opportunity.title_en?.trim() || opportunity.title,
-    description:
-      opportunity.description_en?.trim() || opportunity.description,
+    description: opportunity.description_en?.trim() || opportunity.description,
   };
+}
+
+function applyOpportunityMarketFilter<T extends { or: Function; eq: Function }>(
+  query: T,
+  countryCode: CountryCode,
+): T {
+  return (countryCode === "SA"
+    ? query.or("country_code.eq.SA,country_code.is.null")
+    : query.eq("country_code", countryCode)) as T;
 }
 
 export async function getPublishedOpportunities(
@@ -58,24 +63,21 @@ export async function getPublishedOpportunities(
 
   const supabase = createAdminClient();
   const locale = await getOpportunityLocale();
-
-  const { data, error } = await supabase
+  let query = supabase
     .from("opportunities")
     .select("*")
     .eq("published", true)
-    .in("status", [...PUBLISHED_STATUSES])
-    .order("created_at", { ascending: false });
+    .in("status", [...PUBLISHED_STATUSES]);
+  query = applyOpportunityMarketFilter(query, countryCode);
 
+  const { data, error } = await query.order("created_at", { ascending: false });
   if (error) {
     console.error("[getPublishedOpportunities]", error);
     return [];
   }
 
-  const opportunities = ((data ?? []) as Opportunity[]).filter((opportunity) =>
-    canExposePublicRecord(opportunity, countryCode, "publicOpportunities"),
-  );
-
-  return opportunities
+  return ((data ?? []) as Opportunity[])
+    .filter((opportunity) => canExposePublicRecord(opportunity, countryCode, "publicOpportunities"))
     .map((opportunity) => localizeOpportunity(opportunity, locale))
     .sort(compareFeaturedThenNewest);
 }
@@ -84,43 +86,30 @@ export async function getPublishedOpportunitiesByPublisher(
   publisherId: number,
   countryCode: CountryCode = DEFAULT_PUBLIC_MARKET,
 ): Promise<PublisherInviteOpportunity[]> {
-  if (!Number.isInteger(publisherId) || publisherId <= 0) {
-    return [];
-  }
+  if (!Number.isInteger(publisherId) || publisherId <= 0) return [];
   if (!canExposePublicMarket(countryCode, "publicOpportunities")) return [];
 
   const supabase = createAdminClient();
   const locale = await getOpportunityLocale();
-
-  // select("*") is intentional during the compatibility window: production does
-  // not have country_code until the reviewed migration is explicitly applied.
-  const { data, error } = await supabase
+  let query = supabase
     .from("opportunities")
     .select("*")
     .eq("publisher_id", publisherId)
     .eq("published", true)
-    .in("status", [...PUBLISHED_STATUSES])
-    .order("created_at", { ascending: false });
+    .in("status", [...PUBLISHED_STATUSES]);
+  query = applyOpportunityMarketFilter(query, countryCode);
 
+  const { data, error } = await query.order("created_at", { ascending: false });
   if (error) {
-    console.error(
-      "[getPublishedOpportunitiesByPublisher]",
-      error,
-    );
-
+    console.error("[getPublishedOpportunitiesByPublisher]", error);
     return [];
   }
 
   return ((data ?? []) as Opportunity[])
-    .filter((opportunity) =>
-      canExposePublicRecord(opportunity, countryCode, "publicOpportunities"),
-    )
+    .filter((opportunity) => canExposePublicRecord(opportunity, countryCode, "publicOpportunities"))
     .map((opportunity): PublisherInviteOpportunity => ({
       id: opportunity.id,
-      title:
-        locale === "en"
-          ? opportunity.title_en?.trim() || opportunity.title
-          : opportunity.title,
+      title: locale === "en" ? opportunity.title_en?.trim() || opportunity.title : opportunity.title,
       title_en: opportunity.title_en ?? null,
       slug: opportunity.slug,
       opportunity_type: opportunity.opportunity_type ?? null,
@@ -141,29 +130,23 @@ export async function getOpportunityBySlug(
 
   const supabase = createAdminClient();
   const locale = await getOpportunityLocale();
-
-  const { data, error } = await supabase
+  let query = supabase
     .from("opportunities")
     .select("*")
     .eq("slug", slug)
     .eq("published", true)
-    .in("status", [...PUBLISHED_STATUSES])
-    .maybeSingle();
+    .in("status", [...PUBLISHED_STATUSES]);
+  query = applyOpportunityMarketFilter(query, countryCode);
 
+  const { data, error } = await query.maybeSingle();
   if (error) {
     console.error("[getOpportunityBySlug]", error);
     return null;
   }
-
-  if (!data) {
-    return null;
-  }
+  if (!data) return null;
 
   const opportunity = data as Opportunity;
-  if (!canExposePublicRecord(opportunity, countryCode, "publicOpportunities")) {
-    return null;
-  }
-
+  if (!canExposePublicRecord(opportunity, countryCode, "publicOpportunities")) return null;
   return localizeOpportunity(opportunity, locale);
 }
 
@@ -182,26 +165,19 @@ export async function getPublishedOpportunityByIdentifier(
     .select("*")
     .eq("published", true)
     .in("status", [...PUBLISHED_STATUSES]);
+  query = applyOpportunityMarketFilter(query, countryCode);
 
-  if (/^\d+$/.test(value)) {
-    query = query.eq("id", Number(value));
-  } else {
-    query = query.eq("slug", value);
-  }
+  if (/^\d+$/.test(value)) query = query.eq("id", Number(value));
+  else query = query.eq("slug", value);
 
   const { data, error } = await query.maybeSingle();
-
   if (error) {
     console.error("[getPublishedOpportunityByIdentifier]", error);
     return null;
   }
-
   if (!data) return null;
 
   const opportunity = data as Opportunity;
-  if (!canExposePublicRecord(opportunity, countryCode, "publicOpportunities")) {
-    return null;
-  }
-
+  if (!canExposePublicRecord(opportunity, countryCode, "publicOpportunities")) return null;
   return localizeOpportunity(opportunity, locale);
 }
