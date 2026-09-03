@@ -20,6 +20,8 @@ export type ApplyOpportunityResult =
       ok: true;
       code: "SUCCESS";
       applicationId: number | string;
+      opportunityId: number;
+      opportunitySlug: string | null;
     }
   | {
       ok: false;
