@@ -6,10 +6,29 @@ import { createAdminClient } from "@/lib/supabase/admin";
 export const dynamic = "force-dynamic";
 type PageProps = { searchParams: Promise<{ lang?: string }> };
 
+const entityAr: Record<string, string> = {
+  lead: "عميل محتمل",
+  content: "محتوى",
+  campaign: "حملة",
+  task: "مهمة",
+  approval: "اعتماد",
+  brief: "موجز",
+  talent: "موهبة",
+  publisher: "ناشر",
+  opportunity: "فرصة",
+  conversation: "محادثة",
+};
+
 function channelLabel(value: string | null, isArabic: boolean) {
   if (!value) return isArabic ? "داخلي" : "Internal";
   if (!isArabic) return value;
   return ({ facebook: "فيسبوك", instagram: "إنستغرام", email: "البريد", buffer: "Buffer", internal: "داخلي", whatsapp: "واتساب" } as Record<string, string>)[value.toLowerCase()] ?? value;
+}
+
+function entityLabel(value: string | null, isArabic: boolean) {
+  if (!value) return null;
+  if (!isArabic) return value.replaceAll("_", " ");
+  return entityAr[value.toLowerCase()] ?? value.replaceAll("_", " ");
 }
 
 function stateLabel(hasError: boolean, approvalStatus: string | null, isArabic: boolean) {
@@ -24,19 +43,20 @@ export default async function MarketingActivityPage({ searchParams }: PageProps)
   const { lang } = await searchParams;
   const isArabic = getAdminLanguage(lang) === "ar";
   const db = createAdminClient();
-  const { data, error } = await db
-    .from("marketing_agent_activity")
-    .select("id,agent_id,task_id,action,reason,entity_type,entity_id,channel,approval_status,error,created_at")
-    .order("created_at", { ascending: false })
-    .limit(150);
+  const [activityResult, agentsResult] = await Promise.all([
+    db.from("marketing_agent_activity").select("id,agent_id,task_id,action,reason,entity_type,entity_id,channel,approval_status,error,created_at").order("created_at", { ascending: false }).limit(150),
+    db.from("marketing_agents").select("id,name").eq("is_active", true),
+  ]);
+  const { data, error } = activityResult;
   const activity = data ?? [];
+  const agentNames = new Map((agentsResult.data ?? []).map((agent) => [agent.id, agent.name]));
   const errorCount = activity.filter((item) => Boolean(item.error)).length;
   const approvalCount = activity.filter((item) => (item.approval_status ?? "").toLowerCase() === "pending").length;
   const channels = new Set(activity.map((item) => item.channel).filter(Boolean)).size;
 
   return (
     <AdminPageContainer>
-      <AdminPageHeader title={isArabic ? "سجل تحركات فريق AI" : "AI Team Activity"} description={isArabic ? "ملخص تنفيذي لما فعله الفريق، لماذا فعله، وأي تحرك يحتاج انتباهك." : "An executive view of what the team did, why it did it, and which moves need your attention."} />
+      <AdminPageHeader title={isArabic ? "سجل تحركات فريق AI" : "AI Team Activity"} description={isArabic ? "ملخص تنفيذي لما فعله الفريق، لماذا فعله، وأي تحرك يحتاج انتباهك — بأسماء واضحة بدل المعرفات التقنية." : "An executive view of what the team did, why it did it, and which moves need attention, using clear ownership instead of technical IDs."} />
       {error ? <AdminCard className="mb-5 p-5 text-sm text-amber-200">{isArabic ? "سجل Marketing Hub غير مفعّل في قاعدة البيانات بعد." : "Marketing Hub activity storage is not active in the database yet."}</AdminCard> : null}
 
       <div className="mb-5 grid gap-3 sm:grid-cols-3">
@@ -48,6 +68,7 @@ export default async function MarketingActivityPage({ searchParams }: PageProps)
       <div className="grid gap-3">
         {activity.length === 0 ? <AdminCard className="p-6 text-sm text-white/40">{isArabic ? "لا يوجد نشاط حقيقي مسجل حتى الآن." : "No real AI activity recorded yet."}</AdminCard> : activity.map((item) => {
           const needsAttention = Boolean(item.error) || (item.approval_status ?? "").toLowerCase() === "pending";
+          const owner = item.agent_id ? agentNames.get(item.agent_id) ?? (isArabic ? "عضو فريق AI" : "AI team member") : (isArabic ? "النظام" : "System");
           return <AdminCard key={item.id} className="p-5">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0 flex-1">
@@ -64,14 +85,15 @@ export default async function MarketingActivityPage({ searchParams }: PageProps)
             </div>
 
             <div className="mt-4 flex flex-wrap gap-2 text-[11px] text-white/40">
-              <span className="rounded-lg border border-white/[0.06] bg-black/20 px-2.5 py-1.5">{isArabic ? "المنفذ" : "Agent"}: <span className="text-white/65">{item.agent_id ?? (isArabic ? "النظام" : "System")}</span></span>
+              <span className="rounded-lg border border-white/[0.06] bg-black/20 px-2.5 py-1.5">{isArabic ? "المنفذ" : "Owner"}: <span className="text-white/65">{owner}</span></span>
               {item.task_id ? <span className="rounded-lg border border-white/[0.06] bg-black/20 px-2.5 py-1.5">{isArabic ? "المهمة" : "Task"}: <span className="text-white/65">#{item.task_id}</span></span> : null}
-              {item.entity_type ? <span className="rounded-lg border border-white/[0.06] bg-black/20 px-2.5 py-1.5">{isArabic ? "مرتبط بـ" : "Linked to"}: <span className="text-white/65">{item.entity_type}</span></span> : null}
+              {item.entity_type ? <span className="rounded-lg border border-white/[0.06] bg-black/20 px-2.5 py-1.5">{isArabic ? "مرتبط بـ" : "Linked to"}: <span className="text-white/65">{entityLabel(item.entity_type, isArabic)}</span></span> : null}
             </div>
 
-            {item.error || item.entity_id ? <details className="mt-4 rounded-xl border border-white/[0.06] bg-black/10 px-4 py-3 text-xs text-white/40">
+            {item.error || item.entity_id || item.agent_id ? <details className="mt-4 rounded-xl border border-white/[0.06] bg-black/10 px-4 py-3 text-xs text-white/40">
               <summary className="cursor-pointer select-none text-white/45">{isArabic ? "عرض التفاصيل التقنية" : "Show technical details"}</summary>
               <div className="mt-3 grid gap-2 text-[11px] leading-5 text-white/45">
+                {item.agent_id ? <div>agent_id: {item.agent_id}</div> : null}
                 {item.entity_id ? <div>entity_id: {item.entity_id}</div> : null}
                 {item.error ? <div className="text-red-200/70">error: {item.error}</div> : null}
               </div>

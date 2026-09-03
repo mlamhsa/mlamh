@@ -7,6 +7,36 @@ export const dynamic = "force-dynamic";
 type PageProps = { searchParams: Promise<{ lang?: string }> };
 type RuleValue = Record<string, unknown> | unknown[] | string | number | boolean | null;
 
+const keyAr: Record<string, string> = {
+  channel: "القناة",
+  channels: "القنوات",
+  status: "الحالة",
+  priority: "الأولوية",
+  content_type: "نوع المحتوى",
+  approval_status: "حالة الاعتماد",
+  event_name: "الحدث",
+  target: "الوجهة",
+  action: "الإجراء",
+  delay_seconds: "التأخير",
+};
+
+const eventAr: Record<string, string> = {
+  lead_created: "عند إنشاء عميل محتمل",
+  lead_qualified: "عند تأهيل عميل محتمل",
+  opportunity_created: "عند إنشاء فرصة",
+  opportunity_published: "عند نشر فرصة",
+  content_approved: "عند اعتماد المحتوى",
+  approval_granted: "عند منح الاعتماد",
+  application_received: "عند وصول طلب جديد",
+  task_completed: "عند اكتمال مهمة",
+  schedule_reached: "عند حلول الموعد المجدول",
+};
+
+function humanizeKey(key: string, isArabic: boolean) {
+  if (!isArabic) return key.replaceAll("_", " ");
+  return keyAr[key] ?? key.replaceAll("_", " ");
+}
+
 function humanize(value: unknown, isArabic: boolean): string {
   if (value === null || value === undefined || value === "") return isArabic ? "غير محدد" : "Not specified";
   if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return String(value);
@@ -14,10 +44,29 @@ function humanize(value: unknown, isArabic: boolean): string {
   if (typeof value === "object") {
     return Object.entries(value as Record<string, unknown>)
       .slice(0, 4)
-      .map(([key, item]) => `${key.replaceAll("_", " ")}: ${humanize(item, isArabic)}`)
+      .map(([key, item]) => `${humanizeKey(key, isArabic)}: ${humanize(item, isArabic)}`)
       .join(" · ");
   }
   return String(value);
+}
+
+function eventLabel(value: string | null, isArabic: boolean) {
+  if (!value) return isArabic ? "حدث غير محدد" : "Unspecified event";
+  if (!isArabic) return value.replaceAll("_", " ");
+  return eventAr[value.toLowerCase()] ?? value.replaceAll("_", " ");
+}
+
+function delayLabel(seconds: number, isArabic: boolean) {
+  if (seconds <= 0) return isArabic ? "يعمل مباشرة" : "Runs immediately";
+  if (seconds % 3600 === 0) {
+    const hours = seconds / 3600;
+    return isArabic ? `بعد ${hours} ${hours === 1 ? "ساعة" : "ساعات"}` : `After ${hours}h`;
+  }
+  if (seconds % 60 === 0) {
+    const minutes = seconds / 60;
+    return isArabic ? `بعد ${minutes} ${minutes === 1 ? "دقيقة" : "دقائق"}` : `After ${minutes}m`;
+  }
+  return isArabic ? `بعد ${seconds} ثانية` : `After ${seconds}s`;
 }
 
 function statusLabel(value: string | null, isArabic: boolean) {
@@ -44,13 +93,13 @@ export default async function AutomationPage({ searchParams }: PageProps) {
   const delayedCount = rows.filter((item) => Number(item.delay_seconds ?? 0) > 0).length;
 
   return <AdminPageContainer>
-    <AdminPageHeader title={isArabic ? "مركز الأتمتة" : "Automation Center"} description={isArabic ? "ما الذي يعمل تلقائيًا، متى يبدأ، وما الإجراء الذي سينفذه — مع التفاصيل التقنية عند الحاجة فقط." : "See what runs automatically, what triggers it, and what it will do — with technical details available only when needed."} />
+    <AdminPageHeader title={isArabic ? "مركز الأتمتة" : "Automation Center"} description={isArabic ? "اعرف ما يعمل تلقائيًا، ما الذي يشغّله، وما النتيجة المتوقعة — مع إبقاء التفاصيل التقنية خارج الواجهة الرئيسية." : "See what runs automatically, what triggers it, and the expected outcome while keeping technical details out of the primary view."} />
     {error ? <AdminCard className="mb-5 p-5 text-sm text-amber-200">{isArabic ? "قواعد الأتمتة غير مفعلة بعد." : "Automation rule storage is not active yet."}</AdminCard> : null}
 
     <div className="mb-5 grid gap-3 sm:grid-cols-3">
       <AdminCard className="p-4"><div className="text-xs text-white/40">{isArabic ? "إجمالي القواعد" : "Total rules"}</div><div className="mt-2 text-2xl font-semibold text-white">{rows.length}</div></AdminCard>
       <AdminCard className="p-4"><div className="text-xs text-white/40">{isArabic ? "تعمل الآن" : "Running now"}</div><div className="mt-2 text-2xl font-semibold text-emerald-200">{activeCount}</div></AdminCard>
-      <AdminCard className="p-4"><div className="text-xs text-white/40">{isArabic ? "بها تأخير مقصود" : "Uses delay"}</div><div className="mt-2 text-2xl font-semibold text-gold">{delayedCount}</div></AdminCard>
+      <AdminCard className="p-4"><div className="text-xs text-white/40">{isArabic ? "بها انتظار مقصود" : "Uses delay"}</div><div className="mt-2 text-2xl font-semibold text-gold">{delayedCount}</div></AdminCard>
     </div>
 
     <div className="grid gap-4">{rows.length === 0 ? <AdminCard className="p-6 text-sm text-white/40">{isArabic ? "لا توجد قواعد أتمتة مسجلة حاليًا." : "No automation rules are recorded yet."}</AdminCard> : rows.map((item) => {
@@ -62,21 +111,21 @@ export default async function AutomationPage({ searchParams }: PageProps) {
           <div className="min-w-0">
             <div className="text-base font-medium text-white">{item.name}</div>
             <div className="mt-2 flex flex-wrap gap-2 text-xs text-white/50">
-              <span className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1">{isArabic ? "يبدأ عند" : "Starts when"}: <span className="text-white/75">{item.event_name}</span></span>
-              <span className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1">{delay > 0 ? (isArabic ? `ينتظر ${delay} ثانية` : `Waits ${delay}s`) : (isArabic ? "بدون تأخير" : "No delay")}</span>
+              <span className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1">{eventLabel(item.event_name, isArabic)}</span>
+              <span className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1">{delayLabel(delay, isArabic)}</span>
             </div>
           </div>
           <span className={`w-fit rounded-full border px-2.5 py-1 text-xs ${statusClass(item.status)}`}>{statusLabel(item.status, isArabic)}</span>
         </div>
 
         <div className="mt-5 grid gap-3 lg:grid-cols-2">
-          <div className="rounded-2xl border border-white/[0.07] bg-black/20 p-4">
-            <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-white/35">{isArabic ? "الشروط" : "Conditions"}</div>
-            <div className="mt-2 text-sm leading-6 text-white/70">{humanize(conditions, isArabic)}</div>
-          </div>
           <div className="rounded-2xl border border-gold/15 bg-gold/[0.04] p-4">
-            <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-gold/60">{isArabic ? "الإجراء المتوقع" : "Expected action"}</div>
+            <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-gold/60">{isArabic ? "ماذا سيحدث" : "What happens"}</div>
             <div className="mt-2 text-sm leading-6 text-white/80">{humanize(actions, isArabic)}</div>
+          </div>
+          <div className="rounded-2xl border border-white/[0.07] bg-black/20 p-4">
+            <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-white/35">{isArabic ? "متى ينطبق" : "When it applies"}</div>
+            <div className="mt-2 text-sm leading-6 text-white/70">{humanize(conditions, isArabic)}</div>
           </div>
         </div>
 
