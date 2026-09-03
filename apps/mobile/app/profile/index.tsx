@@ -1,98 +1,33 @@
-import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View, useColorScheme } from "react-native";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ActivityIndicator, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, useColorScheme } from "react-native";
 import { router } from "expo-router";
-import type { User } from "@supabase/supabase-js";
 
 import { AppTabBar } from "@/components/AppTabBar";
+import { getNotifications, getTalentProfile, type MobileTalentProfile } from "@/lib/api";
 import { getDeviceLocale, isRtlLocale } from "@/lib/i18n";
 import { supabase } from "@/lib/supabase";
 import { darkTheme, lightTheme } from "@/lib/theme";
 
 export default function ProfileScreen() {
-  const locale = getDeviceLocale();
-  const theme = useColorScheme() === "dark" ? darkTheme : lightTheme;
-  const styles = useMemo(() => createStyles(theme), [theme]);
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [signingOut, setSigningOut] = useState(false);
-
-  useEffect(() => {
-    let mounted = true;
-    void supabase.auth.getUser().then(({ data }) => {
-      if (mounted) {
-        setUser(data.user ?? null);
-        setLoading(false);
-      }
-    });
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => setUser(session?.user ?? null));
-    return () => { mounted = false; data.subscription.unsubscribe(); };
-  }, []);
-
-  async function signOut() {
-    setSigningOut(true);
-    await supabase.auth.signOut();
-    setSigningOut(false);
-    router.replace("/");
-  }
-
+  const locale = getDeviceLocale(); const theme = useColorScheme() === "dark" ? darkTheme : lightTheme; const styles = useMemo(() => createStyles(theme), [theme]);
+  const [profile, setProfile] = useState<MobileTalentProfile | null>(null); const [unreadCount, setUnreadCount] = useState(0); const [loading, setLoading] = useState(true); const [refreshing, setRefreshing] = useState(false); const [error, setError] = useState<string | null>(null); const [signingOut, setSigningOut] = useState(false);
+  const load = useCallback(async (refresh = false) => { refresh ? setRefreshing(true) : setLoading(true); setError(null); const [result, notifications] = await Promise.all([getTalentProfile(locale), getNotifications().catch(() => null)]); setUnreadCount(notifications?.unreadCount ?? 0); if (!result.ok) { if (result.code === "UNAUTHENTICATED") { router.replace({ pathname: "/login", params: { next: "/profile" } }); return; } setError(locale === "ar" ? "تعذر تحميل ملف الموهبة." : "Unable to load your talent profile."); } else setProfile(result.item); setLoading(false); setRefreshing(false); }, [locale]);
+  useEffect(() => { void load(); }, [load]);
+  async function signOut() { setSigningOut(true); await supabase.auth.signOut(); setSigningOut(false); router.replace("/"); }
   if (loading) return <View style={styles.centered}><ActivityIndicator size="large" color={theme.accent} /></View>;
 
-  return (
-    <View style={styles.screen}>
-      <View style={[styles.content, { direction: isRtlLocale(locale) ? "rtl" : "ltr" }]}>
-        <Text style={styles.eyebrow}>MLAMH</Text>
-        <Text style={styles.title}>{locale === "ar" ? "ملفي" : "Profile"}</Text>
-        {user ? (
-          <>
-            <View style={styles.identityCard}>
-              <View style={styles.avatar}><Text style={styles.avatarText}>{(user.email?.[0] ?? "M").toUpperCase()}</Text></View>
-              <View style={styles.identityText}>
-                <Text style={styles.identityTitle}>{locale === "ar" ? "حساب الموهبة" : "Talent account"}</Text>
-                <Text style={styles.email}>{user.email}</Text>
-              </View>
-            </View>
-            <View style={styles.portfolioCard}>
-              <Text style={styles.sectionTitle}>{locale === "ar" ? "مساحة ملف الموهبة" : "Talent portfolio"}</Text>
-              <Text style={styles.body}>{locale === "ar" ? "هذه هي نقطة الانطلاق لملفك الاحترافي: الصور، النبذة، المهارات، الأسواق والتوفر ستُربط هنا بالبيانات الحالية للمنصة." : "This is the foundation for your professional portfolio: media, bio, skills, work markets and availability will connect here to the platform data."}</Text>
-            </View>
-            <Pressable style={styles.secondaryButton} disabled={signingOut} onPress={() => void signOut()}>
-              <Text style={styles.secondaryButtonText}>{signingOut ? (locale === "ar" ? "جارٍ تسجيل الخروج…" : "Signing out…") : (locale === "ar" ? "تسجيل الخروج" : "Sign out")}</Text>
-            </Pressable>
-          </>
-        ) : (
-          <View style={styles.portfolioCard}>
-            <Text style={styles.sectionTitle}>{locale === "ar" ? "سجّل الدخول لإدارة ملفك" : "Sign in to manage your profile"}</Text>
-            <Text style={styles.body}>{locale === "ar" ? "تابع طلباتك، المحادثات والتنبيهات من حساب واحد." : "Keep applications, conversations and alerts connected to one account."}</Text>
-            <Pressable style={styles.primaryButton} onPress={() => router.push({ pathname: "/login", params: { next: "/profile" } })}>
-              <Text style={styles.primaryButtonText}>{locale === "ar" ? "تسجيل الدخول" : "Sign in"}</Text>
-            </Pressable>
-          </View>
-        )}
-      </View>
-      <AppTabBar active="profile" locale={locale} theme={theme} />
-    </View>
-  );
+  return <View style={styles.screen}><ScrollView contentContainerStyle={[styles.content, { direction: isRtlLocale(locale) ? "rtl" : "ltr" }]} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={theme.accent} />}>
+    <View style={styles.brandRow}><View><Text style={styles.eyebrow}>MLAMH</Text><Text style={styles.title}>{locale === "ar" ? "ملفي" : "Profile"}</Text></View><View style={styles.brandMark}><Text style={styles.brandMarkText}>م</Text></View></View>
+    {error || !profile ? <View style={styles.card}><Text style={styles.sectionTitle}>{error ?? (locale === "ar" ? "ملف الموهبة غير متاح." : "Talent profile unavailable.")}</Text></View> : <>
+      <View style={styles.heroCard}>{profile.imageUrl ? <Image source={{ uri: profile.imageUrl }} style={styles.heroImage} resizeMode="cover" /> : <View style={styles.heroPlaceholder}><Text style={styles.heroInitial}>{profile.displayName.slice(0, 1)}</Text></View>}<View style={styles.heroShade} /><View style={styles.heroContent}><View style={styles.pillRow}><Text style={styles.goldPill}>{profile.category}</Text>{profile.verified ? <Text style={styles.darkPill}>{locale === "ar" ? "موثّق" : "Verified"}</Text> : null}</View><Text style={styles.heroName}>{profile.displayName}</Text><Text style={styles.heroMeta}>{[profile.city, profile.baseCountryCode].filter(Boolean).join(" · ")}</Text></View></View>
+      <View style={styles.progressCard}><View style={styles.progressTop}><Text style={styles.sectionTitle}>{locale === "ar" ? "جاهزية ملفك" : "Profile readiness"}</Text><Text style={styles.progressValue}>{profile.profileCompletion}%</Text></View><View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${profile.profileCompletion}%` }]} /></View><Text style={styles.body}>{profile.approvalStatus === "approved" ? (locale === "ar" ? "ملفك معتمد وجاهز للتقديم على الفرص المناسبة." : "Your profile is approved and ready for matching opportunities.") : (locale === "ar" ? "أكمل ملفك ليكون جاهزًا للمراجعة والظهور للجهات." : "Complete your portfolio so it is ready for review and discovery.")}</Text></View>
+      {profile.bio ? <View style={styles.card}><Text style={styles.sectionTitle}>{locale === "ar" ? "نبذة" : "About"}</Text><Text style={styles.body}>{profile.bio}</Text></View> : null}
+      {profile.gallery.length ? <View style={styles.section}><Text style={styles.sectionTitle}>{locale === "ar" ? "الأعمال والصور" : "Portfolio"}</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.galleryRow}>{profile.gallery.map((uri, index) => <Image key={`${uri}-${index}`} source={{ uri }} style={styles.galleryImage} resizeMode="cover" />)}</ScrollView></View> : null}
+      {profile.skills.length ? <View style={styles.card}><Text style={styles.sectionTitle}>{locale === "ar" ? "المهارات" : "Skills"}</Text><View style={styles.chips}>{profile.skills.map((skill) => <Text key={skill} style={styles.chip}>{skill}</Text>)}</View></View> : null}
+      <View style={styles.card}><Text style={styles.sectionTitle}>{locale === "ar" ? "حالة العمل" : "Work status"}</Text><View style={styles.infoRow}><Text style={styles.infoLabel}>{locale === "ar" ? "التوفر" : "Availability"}</Text><Text style={styles.infoValue}>{profile.availabilityStatus ?? (locale === "ar" ? "غير محدد" : "Not set")}</Text></View><View style={styles.infoRow}><Text style={styles.infoLabel}>{locale === "ar" ? "الظهور" : "Visibility"}</Text><Text style={styles.infoValue}>{profile.published ? (locale === "ar" ? "ظاهر" : "Published") : (locale === "ar" ? "غير منشور" : "Private")}</Text></View></View>
+      <Pressable style={styles.secondaryButton} disabled={signingOut} onPress={() => void signOut()}><Text style={styles.secondaryButtonText}>{signingOut ? (locale === "ar" ? "جارٍ تسجيل الخروج…" : "Signing out…") : (locale === "ar" ? "تسجيل الخروج" : "Sign out")}</Text></Pressable>
+    </>}
+  </ScrollView><AppTabBar active="profile" locale={locale} theme={theme} notificationCount={unreadCount} /></View>;
 }
 
-function createStyles(theme: typeof lightTheme | typeof darkTheme) {
-  return StyleSheet.create({
-    screen: { flex: 1, backgroundColor: theme.background },
-    centered: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: theme.background },
-    content: { flex: 1, paddingHorizontal: 20, paddingTop: 64, gap: 16 },
-    eyebrow: { color: theme.accent, fontSize: 12, fontWeight: "700", letterSpacing: 2.2 },
-    title: { color: theme.text, fontSize: 38, fontWeight: "300", marginBottom: 6 },
-    identityCard: { flexDirection: "row", alignItems: "center", gap: 14, padding: 18, borderWidth: 1, borderColor: theme.border, borderRadius: 24, backgroundColor: theme.surface },
-    avatar: { width: 54, height: 54, borderRadius: 27, backgroundColor: theme.accent, alignItems: "center", justifyContent: "center" },
-    avatarText: { color: "#181818", fontSize: 22, fontWeight: "700" },
-    identityText: { flex: 1, gap: 4 },
-    identityTitle: { color: theme.text, fontSize: 17, fontWeight: "600" },
-    email: { color: theme.muted, fontSize: 13 },
-    portfolioCard: { gap: 12, padding: 20, borderWidth: 1, borderColor: theme.border, borderRadius: 24, backgroundColor: theme.surface },
-    sectionTitle: { color: theme.text, fontSize: 20, fontWeight: "500" },
-    body: { color: theme.muted, fontSize: 14, lineHeight: 23 },
-    primaryButton: { marginTop: 6, backgroundColor: theme.accent, borderRadius: 16, paddingVertical: 14, alignItems: "center" },
-    primaryButtonText: { color: "#181818", fontSize: 14, fontWeight: "700" },
-    secondaryButton: { borderWidth: 1, borderColor: theme.border, borderRadius: 16, paddingVertical: 14, alignItems: "center" },
-    secondaryButtonText: { color: theme.text, fontSize: 14, fontWeight: "600" },
-  });
-}
+function createStyles(theme: typeof lightTheme | typeof darkTheme) { return StyleSheet.create({ screen: { flex: 1, backgroundColor: theme.background }, centered: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: theme.background }, content: { paddingHorizontal: 18, paddingTop: 58, paddingBottom: 30, gap: 16 }, brandRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, eyebrow: { color: theme.accent, fontSize: 12, fontWeight: "700", letterSpacing: 2.2 }, title: { color: theme.text, fontSize: 38, fontWeight: "300" }, brandMark: { width: 46, height: 46, borderRadius: 23, borderWidth: 1, borderColor: theme.accent, alignItems: "center", justifyContent: "center", backgroundColor: theme.surface }, brandMarkText: { color: theme.accent, fontSize: 24, fontWeight: "500" }, heroCard: { minHeight: 420, borderRadius: 30, overflow: "hidden", borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, justifyContent: "flex-end" }, heroImage: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined }, heroPlaceholder: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center", backgroundColor: theme.surface }, heroInitial: { color: theme.accent, fontSize: 90, fontWeight: "200" }, heroShade: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.28)" }, heroContent: { padding: 22, gap: 8 }, pillRow: { flexDirection: "row", gap: 8, flexWrap: "wrap" }, goldPill: { color: "#181818", backgroundColor: theme.accent, borderRadius: 14, overflow: "hidden", paddingHorizontal: 11, paddingVertical: 6, fontSize: 11, fontWeight: "700" }, darkPill: { color: "#F5F1E8", backgroundColor: "rgba(20,20,20,0.72)", borderRadius: 14, overflow: "hidden", paddingHorizontal: 11, paddingVertical: 6, fontSize: 11 }, heroName: { color: "#FFFFFF", fontSize: 34, fontWeight: "500" }, heroMeta: { color: "rgba(255,255,255,0.72)", fontSize: 14 }, progressCard: { gap: 12, padding: 20, borderWidth: 1, borderColor: theme.border, borderRadius: 24, backgroundColor: theme.surface }, progressTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" }, progressValue: { color: theme.accent, fontSize: 22, fontWeight: "600" }, progressTrack: { height: 7, borderRadius: 4, overflow: "hidden", backgroundColor: theme.border }, progressFill: { height: 7, borderRadius: 4, backgroundColor: theme.accent }, card: { gap: 12, padding: 20, borderWidth: 1, borderColor: theme.border, borderRadius: 24, backgroundColor: theme.surface }, section: { gap: 12 }, sectionTitle: { color: theme.text, fontSize: 20, fontWeight: "500" }, body: { color: theme.muted, fontSize: 14, lineHeight: 23 }, galleryRow: { gap: 10 }, galleryImage: { width: 145, height: 190, borderRadius: 22, backgroundColor: theme.surface }, chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 }, chip: { color: theme.text, borderWidth: 1, borderColor: theme.border, borderRadius: 15, overflow: "hidden", paddingHorizontal: 12, paddingVertical: 7, fontSize: 12 }, infoRow: { flexDirection: "row", justifyContent: "space-between", gap: 18 }, infoLabel: { color: theme.muted, fontSize: 13 }, infoValue: { color: theme.text, fontSize: 13, fontWeight: "600" }, secondaryButton: { borderWidth: 1, borderColor: "rgba(239,68,68,0.45)", borderRadius: 18, paddingVertical: 15, alignItems: "center" }, secondaryButtonText: { color: "#EF8B8B", fontSize: 14, fontWeight: "600" } }); }
