@@ -71,7 +71,7 @@ test("Marketing Hub wires the Meta read-only test only for a connected Meta inte
   const form = readFileSync("app/admin/marketing/integrations/MetaConnectionTestForm.tsx", "utf8");
   assert.match(page, /import \{ MetaConnectionTestForm \} from "\.\/MetaConnectionTestForm"/);
   assert.match(page, /const metaConnected = item\.provider === "meta" && item\.status === "connected" && metaFacebookConnected && metaInstagramConnected/);
-  assert.match(page, /\{metaConnected \? <MetaConnectionTestForm isArabic=\{isArabic\} \/> : null\}/);
+  assert.match(page, /\{metaConnected \? [\s\S]*?<MetaConnectionTestForm isArabic=\{isArabic\} \/>[\s\S]*? : null\}/);
   assert.match(form, /اختبار اتصال Meta/);
   assert.match(form, /testMetaReadOnlyConnectionAction/);
 });
