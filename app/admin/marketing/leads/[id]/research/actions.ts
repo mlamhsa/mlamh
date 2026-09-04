@@ -30,7 +30,9 @@ function validLinkedIn(value: unknown) {
   if (!raw) return null;
   try {
     const url = new URL(raw);
-    return url.hostname.toLowerCase().replace(/^www\./, "") === "linkedin.com" ? url.toString() : null;
+    const host = url.hostname.toLowerCase().replace(/^www\./, "");
+    const isPersonProfile = /^\/in\/[^/]+\/?$/i.test(url.pathname);
+    return host === "linkedin.com" && isPersonProfile ? url.toString() : null;
   } catch {
     return null;
   }
@@ -50,7 +52,9 @@ function candidateFromOutput(output: unknown, leadId: number, candidateIndex: nu
   const selected = record(matching[candidateIndex]);
   const candidate = record(selected.candidate_contact);
   const sourceEvidence = Array.isArray(selected.source_evidence)
-    ? selected.source_evidence.map(record).filter((row) => validHttpUrl(row.url))
+    ? selected.source_evidence
+        .map(record)
+        .filter((row) => validHttpUrl(row.url) && text(row.claim))
     : [];
   const providerSources = Array.isArray(value.web_sources)
     ? value.web_sources.map(record).filter((row) => validHttpUrl(row.url))
@@ -91,8 +95,9 @@ export async function approveLeadResearchCandidateAction(formData: FormData) {
 
   const candidate = candidateFromOutput(task.output, leadId, candidateIndex);
   if (!candidate.name) throw new Error("A sourced contact name is required before approval.");
-  if (!candidate.email && !candidate.linkedinUrl) throw new Error("A sourced business email or LinkedIn profile is required before approval.");
-  if (candidate.evidenceUrls.length === 0) throw new Error("Source evidence is required before a researched contact can become outreach-ready.");
+  if (!candidate.role) throw new Error("A sourced professional role/title is required before approval.");
+  if (!candidate.email && !candidate.linkedinUrl) throw new Error("A sourced business email or personal LinkedIn profile is required before approval.");
+  if (candidate.sourceEvidence.length === 0) throw new Error("Claim-level source evidence is required before a researched contact can become outreach-ready.");
 
   const now = new Date().toISOString();
   const metadata = {
@@ -160,7 +165,8 @@ export async function approveLeadResearchCandidateAction(formData: FormData) {
       contact_id: contactId,
       reviewed_by: user.id,
       source_count: candidate.evidenceUrls.length,
-      outreach_ready: Boolean(candidate.name && (finalLinkedin || finalEmail)),
+      claim_evidence_count: candidate.sourceEvidence.length,
+      outreach_ready: Boolean(candidate.name && candidate.role && (finalLinkedin || finalEmail)),
       existing_verified_fields_preserved: true,
     },
   });
