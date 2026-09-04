@@ -55,7 +55,7 @@ function talentLabel(value: unknown, count = 1) {
   return count > 1 ? "مودلز" : "مودل";
 }
 
-function extractRequirementText(value: unknown) {
+function extractRequirementText(value: unknown): string {
   if (typeof value === "string") return value.trim();
   if (Array.isArray(value)) {
     return value
