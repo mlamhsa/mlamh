@@ -7,9 +7,18 @@ const appConfig = JSON.parse(fs.readFileSync(path.join(root, "app.json"), "utf8"
 const easConfig = JSON.parse(fs.readFileSync(path.join(root, "eas.json"), "utf8"));
 const expo = appConfig.expo ?? {};
 const errors = [];
+const strict = process.argv.includes("--strict");
 
 function requireValue(condition, message) {
   if (!condition) errors.push(message);
+}
+
+function requireLocalAsset(assetPath, label) {
+  requireValue(typeof assetPath === "string" && assetPath.trim().length > 0, `${label} must be configured.`);
+  if (typeof assetPath !== "string" || !assetPath.trim()) return;
+  const resolved = path.resolve(root, assetPath);
+  requireValue(resolved.startsWith(`${root}${path.sep}`), `${label} must reference a local app asset.`);
+  requireValue(fs.existsSync(resolved), `${label} does not exist: ${assetPath}.`);
 }
 
 requireValue(expo.slug === "mlamh", "Expo slug must remain 'mlamh'.");
@@ -31,7 +40,7 @@ for (const profile of ["development", "preview", "production"]) {
   requireValue(Boolean(easConfig.build?.[profile]), `Missing EAS build profile: ${profile}.`);
 }
 
-if (process.argv.includes("--strict")) {
+if (strict) {
   const requiredEnvironment = [
     "EXPO_PUBLIC_SUPABASE_URL",
     "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
@@ -50,6 +59,10 @@ if (process.argv.includes("--strict")) {
       errors.push("EXPO_PUBLIC_API_BASE_URL must be a valid absolute URL.");
     }
   }
+
+  // Store/internal native builds must never ship with Expo placeholder artwork.
+  requireLocalAsset(expo.icon, "App icon");
+  requireLocalAsset(expo.android?.adaptiveIcon?.foregroundImage, "Android adaptive icon foreground");
 }
 
 if (errors.length) {
@@ -58,4 +71,4 @@ if (errors.length) {
   process.exit(1);
 }
 
-console.log(`MLAMH Mobile release preflight passed${process.argv.includes("--strict") ? " (strict)" : ""}.`);
+console.log(`MLAMH Mobile release preflight passed${strict ? " (strict)" : ""}.`);
