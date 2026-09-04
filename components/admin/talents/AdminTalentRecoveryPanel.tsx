@@ -72,8 +72,8 @@ export function AdminTalentRecoveryPanel(props: Props) {
           </h2>
           <p className="mt-3 max-w-2xl text-sm leading-7 text-white/40">
             {ar
-              ? "يعتمد هذا القسم على نفس قواعد الجاهزية والتذكيرات الآلية الموجودة في ملامح، ويعرض ما يحتاجه الملف بدون إنشاء مسار موازٍ."
-              : "This panel uses MLAMH's existing readiness and recovery rules without creating a parallel workflow."}
+              ? "التذكيرات الآلية هي المسار الأساسي: بعد 24 ساعة، ثم 72 ساعة، ثم 7 أيام إذا بقي الملف في حالة تحتاج استعادة. زر الإرسال اليدوي أدناه مخصص فقط للتدخل الاستثنائي."
+              : "Automatic reminders are the primary path: after 24 hours, then 72 hours, then 7 days while the profile still needs recovery. The manual button below is only for exceptional intervention."}
           </p>
         </div>
         {canRemind ? (
@@ -84,7 +84,7 @@ export function AdminTalentRecoveryPanel(props: Props) {
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-gold/25 bg-gold/[0.07] px-5 text-sm text-gold transition hover:bg-gold hover:text-black disabled:cursor-wait disabled:opacity-50"
           >
             <Mail className="h-4 w-4" />
-            {pending ? (ar ? "جارٍ الإرسال..." : "Sending...") : ar ? "إرسال تذكير الآن" : "Send reminder now"}
+            {pending ? (ar ? "جارٍ الإرسال..." : "Sending...") : ar ? "إرسال يدوي الآن" : "Send manually now"}
           </button>
         ) : null}
       </div>
@@ -154,7 +154,7 @@ export function AdminTalentRecoveryPanel(props: Props) {
 
       <div className="mt-4 flex items-center gap-2 text-[11px] text-white/25">
         <RefreshCcw className="h-3.5 w-3.5" />
-        {ar ? "التذكير اليدوي يُسجل في نفس سجل أحداث الاستعادة المستخدم للتذكيرات الآلية." : "Manual reminders are recorded in the same recovery event history as automatic reminders."}
+        {ar ? "الآلي هو المسار الافتراضي، وأي تذكير يدوي يُسجل في نفس سجل الأحداث لمنع تكرار المتابعة بدون أثر." : "Automatic recovery is the default path, and any manual reminder is recorded in the same event history."}
       </div>
     </section>
   );
