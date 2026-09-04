@@ -37,6 +37,31 @@ export async function createMarketingTask(input: CreateMarketingTaskInput) {
   const approvalLevel = input.approvalLevel ?? getDefaultApprovalLevel(input.taskType);
   const status = input.scheduledAt ? "scheduled" : approvalLevel === "auto" ? "queued" : "waiting_approval";
   const approvalStatus = approvalLevel === "auto" ? "not_required" : "pending";
+  const idempotencyKey = input.idempotencyKey?.trim() || null;
+
+  if (idempotencyKey) {
+    const { data: existingTask } = await db
+      .from("marketing_tasks")
+      .select("*")
+      .eq("idempotency_key", idempotencyKey)
+      .in("status", ["queued", "scheduled", "running", "waiting_approval"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (existingTask) {
+      await db.from("marketing_agent_activity").insert({
+        agent_id: input.agentId ?? existingTask.agent_id ?? null,
+        task_id: existingTask.id,
+        action: "deduplicated",
+        reason: `Skipped duplicate open task: ${input.title}`,
+        channel: input.channel ?? existingTask.channel ?? "internal",
+        approval_status: existingTask.approval_status ?? "not_required",
+        result: { status: existingTask.status, idempotency_key: idempotencyKey },
+      });
+      return existingTask;
+    }
+  }
 
   const { data: task, error } = await db.from("marketing_tasks").insert({
     agent_id: input.agentId ?? null,
@@ -57,7 +82,7 @@ export async function createMarketingTask(input: CreateMarketingTaskInput) {
     content_id: input.contentId ?? null,
     conversation_id: input.conversationId ?? null,
     metadata: input.metadata ?? {},
-    idempotency_key: input.idempotencyKey ?? null,
+    idempotency_key: idempotencyKey,
     max_retries: Math.max(0, Math.min(20, input.maxRetries ?? 3)),
   }).select("*").single();
 
