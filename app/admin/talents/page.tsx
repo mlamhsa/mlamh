@@ -1,6 +1,5 @@
 import Image from "next/image";
 import Link from "next/link";
-
 import {
   CheckCircle2,
   ChevronLeft,
@@ -17,18 +16,13 @@ import {
   getAdminLanguage,
   withAdminLanguage,
 } from "@/lib/admin/i18n";
-
 import { requireAdminAccess } from "@/lib/auth/require-admin";
-
-import {
-  TalentService,
-} from "@/lib/services/talents/TalentService";
-
 import {
   type AdminTalentFilter,
 } from "@/lib/repositories/talents/TalentRepository";
-
+import { TalentService } from "@/lib/services/talents/TalentService";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getTalentProfileReadiness } from "@/lib/talent/profile-review-readiness";
 
 type PageProps = {
   searchParams: Promise<{
@@ -55,19 +49,9 @@ type ProfileApprovalRow = {
 
 const PAGE_SIZE = 12;
 
-function parsePage(
-  value: string | undefined,
-) {
+function parsePage(value: string | undefined) {
   const page = Number(value);
-
-  if (
-    !Number.isInteger(page) ||
-    page <= 0
-  ) {
-    return 1;
-  }
-
-  return page;
+  return Number.isInteger(page) && page > 0 ? page : 1;
 }
 
 function parseFilter(
@@ -98,44 +82,13 @@ function buildAdminTalentsUrl({
   search?: string;
   review?: string;
 }) {
-  const params =
-    new URLSearchParams();
+  const params = new URLSearchParams();
+  params.set("lang", language);
 
-  params.set(
-    "lang",
-    language,
-  );
-
-  if (
-    page &&
-    page > 1
-  ) {
-    params.set(
-      "page",
-      String(page),
-    );
-  }
-
-  if (status) {
-    params.set(
-      "status",
-      status,
-    );
-  }
-
-  if (review) {
-    params.set(
-      "review",
-      review,
-    );
-  }
-
-  if (search?.trim()) {
-    params.set(
-      "search",
-      search.trim(),
-    );
-  }
+  if (page && page > 1) params.set("page", String(page));
+  if (status) params.set("status", status);
+  if (review) params.set("review", review);
+  if (search?.trim()) params.set("search", search.trim());
 
   return `/admin/talents?${params.toString()}`;
 }
@@ -147,45 +100,31 @@ function getApprovalConfig(
   switch (status) {
     case "pending":
       return {
-        label: isArabic
-          ? "قيد المراجعة"
-          : "Under review",
+        label: isArabic ? "قيد المراجعة" : "Under review",
         className:
           "border-amber-400/20 bg-amber-400/[0.08] text-amber-300",
       };
-
     case "approved":
       return {
-        label: isArabic
-          ? "معتمد"
-          : "Approved",
+        label: isArabic ? "معتمد" : "Approved",
         className:
           "border-emerald-400/20 bg-emerald-400/[0.08] text-emerald-300",
       };
-
     case "changes_requested":
       return {
-        label: isArabic
-          ? "مطلوب تعديل"
-          : "Changes requested",
+        label: isArabic ? "مطلوب تعديل" : "Changes requested",
         className:
           "border-orange-400/20 bg-orange-400/[0.08] text-orange-300",
       };
-
     case "rejected":
       return {
-        label: isArabic
-          ? "مرفوض"
-          : "Rejected",
+        label: isArabic ? "مرفوض" : "Rejected",
         className:
           "border-red-400/20 bg-red-400/[0.08] text-red-300",
       };
-
     default:
       return {
-        label: isArabic
-          ? "لم يرسل للمراجعة"
-          : "Not submitted",
+        label: isArabic ? "لم يرسل للمراجعة" : "Not submitted",
         className:
           "border-white/10 bg-white/[0.04] text-white/40",
       };
@@ -197,60 +136,32 @@ export default async function AdminTalentsPage({
 }: PageProps) {
   await requireAdminAccess();
 
-  const resolvedSearchParams =
-    await searchParams;
-
-  const language =
-    getAdminLanguage(
-      resolvedSearchParams.lang,
-    );
-
-  const isArabic =
-    language === "ar";
-
-  const page =
-    parsePage(
-      resolvedSearchParams.page,
-    );
-
-  const status =
-    parseFilter(
-      resolvedSearchParams.status,
-    );
-
-  const search =
-    resolvedSearchParams.search?.trim() ??
-    "";
-
-    const review =
+  const resolvedSearchParams = await searchParams;
+  const language = getAdminLanguage(resolvedSearchParams.lang);
+  const isArabic = language === "ar";
+  const page = parsePage(resolvedSearchParams.page);
+  const status = parseFilter(resolvedSearchParams.status);
+  const search = resolvedSearchParams.search?.trim() ?? "";
+  const review =
     resolvedSearchParams.review === "pending"
       ? "pending"
       : undefined;
 
-      const [
-        talentsResult,
-        stats,
-        pendingReviewResult,
-      ] = await Promise.all([
-        TalentService.getAdminTalents({
-          page,
-          pageSize: PAGE_SIZE,
-          status,
-          search,
-          approvalStatus: review,
-        }),
-      
-        TalentService.getAdminStats(),
-      
-        createAdminClient()
-          .from("profiles")
-          .select("id", {
-            count: "exact",
-            head: true,
-          })
-          .eq("account_type", "talent")
-          .eq("approval_status", "pending"),
-      ]);
+  const [talentsResult, stats, pendingReviewResult] = await Promise.all([
+    TalentService.getAdminTalents({
+      page,
+      pageSize: PAGE_SIZE,
+      status,
+      search,
+      approvalStatus: review,
+    }),
+    TalentService.getAdminStats(),
+    createAdminClient()
+      .from("profiles")
+      .select("id", { count: "exact", head: true })
+      .eq("account_type", "talent")
+      .eq("approval_status", "pending"),
+  ]);
 
   const {
     talents,
@@ -259,77 +170,43 @@ export default async function AdminTalentsPage({
     currentPage,
   } = talentsResult;
 
-  /*
-   * approval_status لا يأتي من talents.
-   * مصدره الرئيسي profiles.
-   */
   const userIds = [
     ...new Set(
       talents
-        .map(
-          (talent) =>
-            talent.user_id,
-        )
+        .map((talent) => talent.user_id)
         .filter(
-          (
-            userId,
-          ): userId is string =>
-            typeof userId === "string" &&
-            userId.length > 0,
+          (userId): userId is string =>
+            typeof userId === "string" && userId.length > 0,
         ),
     ),
   ];
 
-  const adminClient =
-    createAdminClient();
+  const adminClient = createAdminClient();
+  let approvalRows: ProfileApprovalRow[] = [];
 
-  let approvalRows:
-    ProfileApprovalRow[] = [];
-
-  if (
-    userIds.length > 0
-  ) {
-    const {
-      data,
-      error,
-    } = await adminClient
+  if (userIds.length > 0) {
+    const { data, error } = await adminClient
       .from("profiles")
-      .select(`
-        user_id,
-        approval_status
-      `)
-      .in(
-        "user_id",
-        userIds,
-      );
+      .select("user_id, approval_status")
+      .in("user_id", userIds);
 
     if (error) {
-      console.error(
-        "[AdminTalentsPage approval statuses]",
-        error,
-      );
+      console.error("[AdminTalentsPage approval statuses]", error);
     } else {
-      approvalRows =
-        (data ??
-          []) as ProfileApprovalRow[];
+      approvalRows = (data ?? []) as ProfileApprovalRow[];
     }
   }
 
-  const approvalByUserId =
-    new Map(
-      approvalRows.map(
-        (profile) => [
-          profile.user_id,
-          profile.approval_status ??
-            "not_submitted",
-        ],
-      ),
-    );
+  const approvalByUserId = new Map(
+    approvalRows.map((profile) => [
+      profile.user_id,
+      profile.approval_status ?? "not_submitted",
+    ]),
+  );
 
-    const pendingReviewCount =
-    pendingReviewResult.error
-      ? 0
-      : pendingReviewResult.count ?? 0;
+  const pendingReviewCount = pendingReviewResult.error
+    ? 0
+    : pendingReviewResult.count ?? 0;
 
   const filters: {
     value: AdminTalentFilter | "";
@@ -338,69 +215,49 @@ export default async function AdminTalentsPage({
   }[] = [
     {
       value: "",
-      label: isArabic
-        ? "الكل"
-        : "All",
+      label: isArabic ? "الكل" : "All",
       count: stats.total,
     },
     {
       value: "published",
-      label: isArabic
-        ? "منشورة"
-        : "Published",
+      label: isArabic ? "منشورة" : "Published",
       count: stats.published,
     },
     {
       value: "unpublished",
-      label: isArabic
-        ? "غير منشورة"
-        : "Unpublished",
+      label: isArabic ? "غير منشورة" : "Unpublished",
       count: stats.unpublished,
     },
     {
       value: "active",
-      label: isArabic
-        ? "نشطة"
-        : "Active",
+      label: isArabic ? "نشطة" : "Active",
       count: stats.active,
     },
     {
       value: "suspended",
-      label: isArabic
-        ? "موقوفة"
-        : "Suspended",
+      label: isArabic ? "موقوفة" : "Suspended",
       count: stats.suspended,
     },
   ];
 
   return (
     <div
-      dir={
-        isArabic
-          ? "rtl"
-          : "ltr"
-      }
+      dir={isArabic ? "rtl" : "ltr"}
       className="min-h-screen px-4 py-6 sm:px-6 lg:px-8"
     >
       <div className="mx-auto max-w-7xl">
-        {/* Header */}
         <section className="rounded-3xl border border-white/[0.08] bg-white/[0.02] p-5 sm:p-6">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <div className="flex items-center gap-2 text-gold">
                 <Users className="h-4 w-4" />
-
                 <p className="text-[10px] uppercase tracking-[0.25em]">
-                  {isArabic
-                    ? "إدارة الحسابات"
-                    : "Account Management"}
+                  {isArabic ? "إدارة الحسابات" : "Account Management"}
                 </p>
               </div>
 
               <h1 className="mt-3 text-3xl font-light text-white sm:text-4xl">
-                {isArabic
-                  ? "المواهب"
-                  : "Talents"}
+                {isArabic ? "المواهب" : "Talents"}
               </h1>
 
               <p className="mt-2 max-w-2xl text-sm leading-7 text-white/40">
@@ -411,121 +268,82 @@ export default async function AdminTalentsPage({
             </div>
 
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-  <Link
-    href={buildAdminTalentsUrl({
-      language,
-      search,
-    })}
-    className={`group rounded-2xl border px-4 py-3 transition ${
-      !status
-        ? "border-gold/30 bg-gold/[0.08]"
-        : "border-white/[0.08] bg-black/20 hover:border-gold/25 hover:bg-gold/[0.04]"
-    }`}
-  >
-    <p
-      className={`text-[10px] transition ${
-        !status
-          ? "text-gold"
-          : "text-white/30 group-hover:text-gold/70"
-      }`}
-    >
-      {isArabic
-        ? "إجمالي المواهب"
-        : "Total talents"}
-    </p>
+              <Link
+                href={buildAdminTalentsUrl({ language, search })}
+                className={`group rounded-2xl border px-4 py-3 transition ${
+                  !status && !review
+                    ? "border-gold/30 bg-gold/[0.08]"
+                    : "border-white/[0.08] bg-black/20 hover:border-gold/25 hover:bg-gold/[0.04]"
+                }`}
+              >
+                <p className="text-[10px] text-white/30 group-hover:text-gold/70">
+                  {isArabic ? "إجمالي المواهب" : "Total talents"}
+                </p>
+                <p className="mt-1 text-2xl font-light text-white">
+                  {stats.total}
+                </p>
+              </Link>
 
-    <p className="mt-1 text-2xl font-light text-white">
-      {stats.total}
-    </p>
-  </Link>
+              <Link
+                href={buildAdminTalentsUrl({
+                  language,
+                  status: "published",
+                  search,
+                })}
+                className={`group rounded-2xl border px-4 py-3 transition ${
+                  status === "published"
+                    ? "border-emerald-400/35 bg-emerald-400/[0.09]"
+                    : "border-emerald-400/15 bg-emerald-400/[0.04] hover:border-emerald-400/35 hover:bg-emerald-400/[0.08]"
+                }`}
+              >
+                <p className="text-[10px] text-white/30 group-hover:text-emerald-300/70">
+                  {isArabic ? "منشورة" : "Published"}
+                </p>
+                <p className="mt-1 text-2xl font-light text-emerald-300">
+                  {stats.published}
+                </p>
+              </Link>
 
-  <Link
-    href={buildAdminTalentsUrl({
-      language,
-      status: "published",
-      search,
-    })}
-    className={`group rounded-2xl border px-4 py-3 transition ${
-      status === "published"
-        ? "border-emerald-400/35 bg-emerald-400/[0.09]"
-        : "border-emerald-400/15 bg-emerald-400/[0.04] hover:border-emerald-400/35 hover:bg-emerald-400/[0.08]"
-    }`}
-  >
-    <p className="text-[10px] text-white/30 transition group-hover:text-emerald-300/70">
-      {isArabic
-        ? "منشورة"
-        : "Published"}
-    </p>
+              <Link
+                href={buildAdminTalentsUrl({
+                  language,
+                  review: "pending",
+                  search,
+                })}
+                className={`group rounded-2xl border px-4 py-3 transition ${
+                  review === "pending"
+                    ? "border-amber-400/35 bg-amber-400/[0.09]"
+                    : "border-amber-400/15 bg-amber-400/[0.04] hover:border-amber-400/35 hover:bg-amber-400/[0.08]"
+                }`}
+              >
+                <p className="text-[10px] text-white/30 group-hover:text-amber-300/70">
+                  {isArabic ? "قيد المراجعة" : "Under review"}
+                </p>
+                <p className="mt-1 text-2xl font-light text-amber-300">
+                  {pendingReviewCount}
+                </p>
+              </Link>
+            </div>
+          </div>
+        </section>
 
-    <p className="mt-1 text-2xl font-light text-emerald-300">
-      {stats.published}
-    </p>
-  </Link>
-
-  <Link
-  href={buildAdminTalentsUrl({
-    language,
-    review: "pending",
-    search,
-  })}
-  className={`group rounded-2xl border px-4 py-3 transition ${
-    review === "pending"
-      ? "border-amber-400/35 bg-amber-400/[0.09]"
-      : "border-amber-400/15 bg-amber-400/[0.04] hover:border-amber-400/35 hover:bg-amber-400/[0.08]"
-  }`}
->
-    <p className="text-[10px] text-white/30 transition group-hover:text-amber-300/70">
-      {isArabic
-        ? "قيد المراجعة"
-        : "Under review"}
-    </p>
-
-    <p className="mt-1 text-2xl font-light text-amber-300">
-      {pendingReviewCount}
-    </p>
-    </Link>
-  </div>
-</div>
-</section>
-
-        {/* Search */}
         <section className="mt-6 rounded-3xl border border-white/[0.08] bg-white/[0.02] p-4 sm:p-5">
-          <form
-            method="get"
-            className="flex flex-col gap-3 sm:flex-row"
-          >
-            <input
-              type="hidden"
-              name="lang"
-              value={language}
-            />
-
+          <form method="get" className="flex flex-col gap-3 sm:flex-row">
+            <input type="hidden" name="lang" value={language} />
             {status ? (
-              <input
-                type="hidden"
-                name="status"
-                value={status}
-              />
+              <input type="hidden" name="status" value={status} />
             ) : null}
-
-{review ? (
-  <input
-    type="hidden"
-    name="review"
-    value={review}
-  />
-) : null}
+            {review ? (
+              <input type="hidden" name="review" value={review} />
+            ) : null}
 
             <div className="relative flex-1">
               <Search
                 aria-hidden="true"
                 className={`absolute top-1/2 h-4 w-4 -translate-y-1/2 text-white/25 ${
-                  isArabic
-                    ? "right-4"
-                    : "left-4"
+                  isArabic ? "right-4" : "left-4"
                 }`}
               />
-
               <input
                 type="search"
                 name="search"
@@ -536,9 +354,7 @@ export default async function AdminTalentsPage({
                     : "Search name, category, city, or phone..."
                 }
                 className={`min-h-12 w-full rounded-2xl border border-white/[0.08] bg-black/20 text-sm text-white outline-none transition placeholder:text-white/20 focus:border-gold/30 ${
-                  isArabic
-                    ? "pr-11 pl-4"
-                    : "pl-11 pr-4"
+                  isArabic ? "pr-11 pl-4" : "pl-11 pr-4"
                 }`}
               />
             </div>
@@ -547,85 +363,58 @@ export default async function AdminTalentsPage({
               type="submit"
               className="min-h-12 rounded-2xl border border-gold/25 bg-gold/[0.07] px-6 text-sm text-gold transition hover:bg-gold hover:text-black"
             >
-              {isArabic
-                ? "بحث"
-                : "Search"}
+              {isArabic ? "بحث" : "Search"}
             </button>
           </form>
         </section>
 
-        {/* Filters */}
         <div className="mt-5 flex flex-wrap gap-2">
-          {filters.map(
-            (filter) => {
-              const active =
-                status ===
-                (filter.value ||
-                  undefined);
+          {filters.map((filter) => {
+            const active =
+              !review && status === (filter.value || undefined);
 
-              return (
-                <Link
-                  key={
-                    filter.value ||
-                    "all"
-                  }
-                  href={buildAdminTalentsUrl({
-                    language,
-                    status:
-                      filter.value ||
-                      undefined,
-                    search,
-                  })}
-                  className={`inline-flex min-h-10 items-center gap-2 rounded-full border px-4 text-xs transition ${
-                    active
-                      ? "border-gold/30 bg-gold/[0.12] text-gold"
-                      : "border-white/[0.08] bg-white/[0.02] text-white/40 hover:border-gold/20 hover:text-gold"
-                  }`}
-                >
-                  {filter.label}
-
-                  {typeof filter.count ===
-                  "number" ? (
-                    <span className="rounded-full bg-black/25 px-2 py-0.5 text-[10px]">
-                      {
-                        filter.count
-                      }
-                    </span>
-                  ) : null}
-                </Link>
-              );
-            },
-          )}
+            return (
+              <Link
+                key={filter.value || "all"}
+                href={buildAdminTalentsUrl({
+                  language,
+                  status: filter.value || undefined,
+                  search,
+                })}
+                className={`inline-flex min-h-10 items-center gap-2 rounded-full border px-4 text-xs transition ${
+                  active
+                    ? "border-gold/30 bg-gold/[0.12] text-gold"
+                    : "border-white/[0.08] bg-white/[0.02] text-white/40 hover:border-gold/20 hover:text-gold"
+                }`}
+              >
+                {filter.label}
+                {typeof filter.count === "number" ? (
+                  <span className="rounded-full bg-black/25 px-2 py-0.5 text-[10px]">
+                    {filter.count}
+                  </span>
+                ) : null}
+              </Link>
+            );
+          })}
         </div>
 
-        {/* Results header */}
         <div className="mt-7 flex items-center justify-between gap-4">
           <div>
             <h2 className="text-xl font-light text-white">
-              {isArabic
-                ? "ملفات المواهب"
-                : "Talent profiles"}
+              {isArabic ? "ملفات المواهب" : "Talent profiles"}
             </h2>
-
             <p className="mt-1 text-xs text-white/30">
-              {isArabic
-                ? `${total} موهبة`
-                : `${total} talents`}
+              {isArabic ? `${total} موهبة` : `${total} talents`}
             </p>
           </div>
         </div>
 
-        {/* Talents */}
         {talents.length === 0 ? (
           <div className="mt-5 rounded-3xl border border-white/[0.08] bg-white/[0.02] px-6 py-16 text-center">
             <Users className="mx-auto h-9 w-9 text-white/15" />
-
             <h3 className="mt-4 text-lg font-light text-white/60">
-              {isArabic
-                ? "لا توجد مواهب مطابقة"
-                : "No matching talents"}
+              {isArabic ? "لا توجد مواهب مطابقة" : "No matching talents"}
             </h3>
-
             <p className="mt-2 text-sm text-white/30">
               {isArabic
                 ? "غيّر البحث أو الفلتر وحاول مرة أخرى."
@@ -634,224 +423,226 @@ export default async function AdminTalentsPage({
           </div>
         ) : (
           <div className="mt-5 grid gap-4 lg:grid-cols-2">
-            {talents.map(
-              (talent) => {
-                const primaryName =
-                  (
-                    isArabic
-                      ? talent.name_ar ||
-                        talent.name_en
-                      : talent.name_en ||
-                        talent.name_ar
-                  )?.trim() ||
-                  (isArabic
-                    ? "موهبة بدون اسم"
-                    : "Unnamed talent");
+            {talents.map((talent) => {
+              const primaryName =
+                (
+                  isArabic
+                    ? talent.name_ar || talent.name_en
+                    : talent.name_en || talent.name_ar
+                )?.trim() ||
+                (isArabic ? "موهبة بدون اسم" : "Unnamed talent");
 
-                const category =
-                  (
-                    isArabic
-                      ? talent.category_ar ||
-                        talent.category_en
-                      : talent.category_en ||
-                        talent.category_ar
-                  )?.trim() ||
-                  "—";
+              const category =
+                (
+                  isArabic
+                    ? talent.category_ar || talent.category_en
+                    : talent.category_en || talent.category_ar
+                )?.trim() || "—";
 
-                const city =
-                  (
-                    isArabic
-                      ? talent.city_ar ||
-                        talent.city_en
-                      : talent.city_en ||
-                        talent.city_ar
-                  )?.trim() ||
-                  "—";
+              const city =
+                (
+                  isArabic
+                    ? talent.city_ar || talent.city_en
+                    : talent.city_en || talent.city_ar
+                )?.trim() || "—";
 
-                const approvalStatus =
-                  talent.user_id
-                    ? approvalByUserId.get(
-                        talent.user_id,
-                      ) ??
-                      "not_submitted"
-                    : "not_submitted";
+              const approvalStatus = talent.user_id
+                ? approvalByUserId.get(talent.user_id) ?? "not_submitted"
+                : "not_submitted";
 
-                const approval =
-                  getApprovalConfig(
-                    approvalStatus,
-                    isArabic,
-                  );
+              const readiness =
+                approvalStatus === "not_submitted"
+                  ? getTalentProfileReadiness({
+                      ...talent,
+                      phone:
+                        talent.account_phone ?? talent.whatsapp ?? null,
+                    })
+                  : null;
 
-                return (
-                  <Link
-                    key={talent.id}
-                    href={withAdminLanguage(
-                      `/admin/talents/${talent.id}`,
-                      language,
-                    )}
-                    className="group overflow-hidden rounded-3xl border border-white/[0.08] bg-white/[0.02] transition hover:border-gold/20 hover:bg-white/[0.035]"
-                  >
-                    <div className="flex min-h-[180px]">
-                      <div className="relative w-32 shrink-0 bg-black/30 sm:w-40">
-                        {talent.image_url ? (
-                          <Image
-                            src={
-                              talent.image_url
-                            }
-                            alt={
-                              primaryName
-                            }
-                            fill
-                            sizes="160px"
-                            className="object-cover"
-                          />
-                        ) : (
-                          <div className="flex h-full items-center justify-center">
-                            <Users className="h-9 w-9 text-white/15" />
-                          </div>
-                        )}
-                      </div>
+              const approval =
+                approvalStatus === "not_submitted" && readiness
+                  ? readiness.isReady
+                    ? {
+                        label: isArabic
+                          ? "جاهز ولم يرسل"
+                          : "Ready, not submitted",
+                        className:
+                          "border-sky-400/20 bg-sky-400/[0.08] text-sky-300",
+                      }
+                    : {
+                        label: isArabic ? "غير مكتمل" : "Incomplete",
+                        className:
+                          "border-amber-400/20 bg-amber-400/[0.08] text-amber-200",
+                      }
+                  : getApprovalConfig(approvalStatus, isArabic);
 
-                      <div className="min-w-0 flex-1 p-4 sm:p-5">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <h3 className="truncate text-lg font-medium text-white/85 transition group-hover:text-gold">
-                              {
-                                primaryName
-                              }
-                            </h3>
+              const missingRequirements =
+                approvalStatus === "not_submitted" && readiness && !readiness.isReady
+                  ? readiness.missingRequirements
+                  : [];
 
-                            <p className="mt-1 truncate text-xs text-white/35">
-                              {category}
-                              {" · "}
-                              {city}
-                            </p>
-                          </div>
+              const visibleMissing = missingRequirements.slice(0, 2);
+              const extraMissingCount = Math.max(
+                missingRequirements.length - visibleMissing.length,
+                0,
+              );
 
-                          <span
-                            className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] ${approval.className}`}
-                          >
-                            {
-                              approval.label
-                            }
-                          </span>
+              return (
+                <Link
+                  key={talent.id}
+                  href={withAdminLanguage(
+                    `/admin/talents/${talent.id}`,
+                    language,
+                  )}
+                  className="group overflow-hidden rounded-3xl border border-white/[0.08] bg-white/[0.02] transition hover:border-gold/20 hover:bg-white/[0.035]"
+                >
+                  <div className="flex min-h-[180px]">
+                    <div className="relative w-32 shrink-0 bg-black/30 sm:w-40">
+                      {talent.image_url ? (
+                        <Image
+                          src={talent.image_url}
+                          alt={primaryName}
+                          fill
+                          sizes="160px"
+                          className="object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full items-center justify-center">
+                          <Users className="h-9 w-9 text-white/15" />
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="min-w-0 flex-1 p-4 sm:p-5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <h3 className="truncate text-lg font-medium text-white/85 transition group-hover:text-gold">
+                            {primaryName}
+                          </h3>
+                          <p className="mt-1 truncate text-xs text-white/35">
+                            {category} · {city}
+                          </p>
                         </div>
 
-                        <div className="mt-4 flex flex-wrap gap-2">
-                          <span
-                            className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] ${
-                              talent.status ===
-                              "suspended"
-                                ? "border-red-400/20 bg-red-400/[0.07] text-red-300"
-                                : "border-emerald-400/20 bg-emerald-400/[0.07] text-emerald-300"
-                            }`}
-                          >
-                            {talent.status ===
-                            "suspended" ? (
-                              <CircleOff className="h-3 w-3" />
-                            ) : (
-                              <CheckCircle2 className="h-3 w-3" />
-                            )}
+                        <span
+                          className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] ${approval.className}`}
+                        >
+                          {approval.label}
+                        </span>
+                      </div>
 
-                            {talent.status ===
-                            "suspended"
-                              ? isArabic
-                                ? "موقوف"
-                                : "Suspended"
-                              : isArabic
-                                ? "نشط"
-                                : "Active"}
+                      {visibleMissing.length > 0 ? (
+                        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                          <span className="text-[10px] text-amber-200/55">
+                            {isArabic ? "ناقص:" : "Missing:"}
                           </span>
-
-                          <span
-                            className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] ${
-                              talent.published
-                                ? "border-emerald-400/20 bg-emerald-400/[0.07] text-emerald-300"
-                                : "border-white/10 bg-white/[0.03] text-white/35"
-                            }`}
-                          >
-                            <Eye className="h-3 w-3" />
-
-                            {talent.published
-                              ? isArabic
-                                ? "منشور"
-                                : "Published"
-                              : isArabic
-                                ? "غير منشور"
-                                : "Unpublished"}
-                          </span>
-
-                          {talent.verified ? (
-                            <span className="inline-flex items-center gap-1 rounded-full border border-sky-400/20 bg-sky-400/[0.07] px-2.5 py-1 text-[10px] text-sky-300">
-                              <ShieldCheck className="h-3 w-3" />
-
-                              {isArabic
-                                ? "موثّق"
-                                : "Verified"}
+                          {visibleMissing.map((item) => (
+                            <span
+                              key={item.key}
+                              className="rounded-full border border-amber-300/10 bg-amber-300/[0.04] px-2 py-1 text-[10px] text-amber-100/70"
+                            >
+                              {isArabic ? item.ar : item.en}
+                            </span>
+                          ))}
+                          {extraMissingCount > 0 ? (
+                            <span className="text-[10px] text-white/30">
+                              +{extraMissingCount}
                             </span>
                           ) : null}
                         </div>
+                      ) : null}
 
-                        <div className="mt-5 flex items-center justify-between gap-3 border-t border-white/[0.06] pt-4">
-                          <span className="inline-flex items-center gap-1.5 text-[11px] text-white/30">
-                            <Eye className="h-3.5 w-3.5" />
-
-                            {Number(
-                              talent.views ??
-                                0,
-                            ).toLocaleString(
-                              isArabic
-                                ? "ar-SA"
-                                : "en-US",
-                            )}
-                          </span>
-
-                          {approvalStatus ===
-                          "pending" ? (
-                            <span className="inline-flex items-center gap-1.5 text-xs text-amber-300">
-                              <Clock3 className="h-3.5 w-3.5" />
-
-                              {isArabic
-                                ? "يحتاج مراجعة"
-                                : "Needs review"}
-                            </span>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] ${
+                            talent.status === "suspended"
+                              ? "border-red-400/20 bg-red-400/[0.07] text-red-300"
+                              : "border-emerald-400/20 bg-emerald-400/[0.07] text-emerald-300"
+                          }`}
+                        >
+                          {talent.status === "suspended" ? (
+                            <CircleOff className="h-3 w-3" />
                           ) : (
-                            <span className="text-xs text-gold/70">
-                              {isArabic
-                                ? "عرض الملف"
-                                : "View profile"}
-                            </span>
+                            <CheckCircle2 className="h-3 w-3" />
                           )}
-                        </div>
+                          {talent.status === "suspended"
+                            ? isArabic
+                              ? "موقوف"
+                              : "Suspended"
+                            : isArabic
+                              ? "نشط"
+                              : "Active"}
+                        </span>
+
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] ${
+                            talent.published
+                              ? "border-emerald-400/20 bg-emerald-400/[0.07] text-emerald-300"
+                              : "border-white/10 bg-white/[0.03] text-white/35"
+                          }`}
+                        >
+                          <Eye className="h-3 w-3" />
+                          {talent.published
+                            ? isArabic
+                              ? "منشور"
+                              : "Published"
+                            : isArabic
+                              ? "غير منشور"
+                              : "Unpublished"}
+                        </span>
+
+                        {talent.verified ? (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-sky-400/20 bg-sky-400/[0.07] px-2.5 py-1 text-[10px] text-sky-300">
+                            <ShieldCheck className="h-3 w-3" />
+                            {isArabic ? "موثّق" : "Verified"}
+                          </span>
+                        ) : null}
+                      </div>
+
+                      <div className="mt-5 flex items-center justify-between gap-3 border-t border-white/[0.06] pt-4">
+                        <span className="inline-flex items-center gap-1.5 text-[11px] text-white/30">
+                          <Eye className="h-3.5 w-3.5" />
+                          {Number(talent.views ?? 0).toLocaleString(
+                            isArabic ? "ar-SA" : "en-US",
+                          )}
+                        </span>
+
+                        {approvalStatus === "pending" ? (
+                          <span className="inline-flex items-center gap-1.5 text-xs text-amber-300">
+                            <Clock3 className="h-3.5 w-3.5" />
+                            {isArabic ? "يحتاج مراجعة" : "Needs review"}
+                          </span>
+                        ) : approvalStatus === "not_submitted" && readiness?.isReady ? (
+                          <span className="text-xs text-sky-300/80">
+                            {isArabic ? "جاهز للإرسال" : "Ready to submit"}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gold/70">
+                            {isArabic ? "عرض الملف" : "View profile"}
+                          </span>
+                        )}
                       </div>
                     </div>
-                  </Link>
-                );
-              },
-            )}
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         )}
 
-        {/* Pagination */}
         {totalPages > 1 ? (
           <div className="mt-8 flex items-center justify-center gap-3">
             {currentPage > 1 ? (
               <Link
                 href={buildAdminTalentsUrl({
                   language,
-                  page:
-                    currentPage -
-                    1,
+                  page: currentPage - 1,
                   status,
                   search,
                   review,
                 })}
                 className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/[0.08] text-white/45 transition hover:border-gold/25 hover:text-gold"
-                aria-label={
-                  isArabic
-                    ? "الصفحة السابقة"
-                    : "Previous page"
-                }
+                aria-label={isArabic ? "الصفحة السابقة" : "Previous page"}
               >
                 {isArabic ? (
                   <ChevronRight className="h-4 w-4" />
@@ -867,24 +658,17 @@ export default async function AdminTalentsPage({
                 : `Page ${currentPage} of ${totalPages}`}
             </span>
 
-            {currentPage <
-            totalPages ? (
+            {currentPage < totalPages ? (
               <Link
-              href={buildAdminTalentsUrl({
-                language,
-                page:
-                  currentPage +
-                  1,
-                status,
-                search,
-                review,
-              })}
+                href={buildAdminTalentsUrl({
+                  language,
+                  page: currentPage + 1,
+                  status,
+                  search,
+                  review,
+                })}
                 className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/[0.08] text-white/45 transition hover:border-gold/25 hover:text-gold"
-                aria-label={
-                  isArabic
-                    ? "الصفحة التالية"
-                    : "Next page"
-                }
+                aria-label={isArabic ? "الصفحة التالية" : "Next page"}
               >
                 {isArabic ? (
                   <ChevronLeft className="h-4 w-4" />
