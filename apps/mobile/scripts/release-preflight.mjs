@@ -23,6 +23,7 @@ function requireLocalAsset(assetPath, label) {
   requireValue(fs.existsSync(resolved), `${label} does not exist: ${assetPath}.`);
 }
 
+requireValue(fs.existsSync(path.join(root, "package-lock.json")), "Mobile package-lock.json must be committed for reproducible EAS builds.");
 requireValue(expo.slug === "mlamh", "Expo slug must remain 'mlamh'.");
 requireValue(expo.scheme === "mlamh", "Custom URL scheme must remain 'mlamh'.");
 requireValue(expo.ios?.bundleIdentifier === "net.mlamh.app", "iOS bundleIdentifier must be net.mlamh.app.");
@@ -73,7 +74,14 @@ if (strict) {
     "EXPO_PUBLIC_DEFAULT_MARKET",
     "EXPO_PUBLIC_EAS_PROJECT_ID",
   ];
-  for (const key of requiredEnvironment) requireValue(Boolean(process.env[key]?.trim()), `Missing required build environment variable: ${key}.`);
+  const previewEnvironment = easConfig.build?.preview?.env ?? {};
+  for (const key of requiredEnvironment) {
+    const runtimeValue = process.env[key]?.trim();
+    const previewValue = typeof previewEnvironment[key] === "string" ? previewEnvironment[key].trim() : "";
+    requireValue(Boolean(runtimeValue), `Missing required build environment variable: ${key}.`);
+    requireValue(Boolean(previewValue), `Missing required preview EAS environment value: ${key}.`);
+    if (runtimeValue && previewValue) requireValue(runtimeValue === previewValue, `Preview EAS environment value must match CI for ${key}.`);
+  }
 
   const apiBase = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
   if (apiBase) {
@@ -89,7 +97,10 @@ if (strict) {
   if (market) requireValue(/^[A-Z]{2}$/.test(market), "EXPO_PUBLIC_DEFAULT_MARKET must be an ISO 3166-1 alpha-2 country code.");
 
   const projectId = process.env.EXPO_PUBLIC_EAS_PROJECT_ID?.trim();
-  if (projectId) requireValue(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(projectId), "EXPO_PUBLIC_EAS_PROJECT_ID must be a valid UUID.");
+  if (projectId) {
+    requireValue(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(projectId), "EXPO_PUBLIC_EAS_PROJECT_ID must be a valid UUID.");
+    requireValue(expo.extra?.eas?.projectId === projectId, "app.json EAS project linkage must match EXPO_PUBLIC_EAS_PROJECT_ID.");
+  }
 
   requireLocalAsset(expo.icon, "App icon");
   requireLocalAsset(expo.android?.adaptiveIcon?.foregroundImage, "Android adaptive icon foreground");
