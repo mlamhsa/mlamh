@@ -18,15 +18,46 @@ type RecoveryEvent = {
   metadata: Record<string, unknown> | null;
 };
 
-function isGoogleProviderAvatar(value: unknown) {
-  if (typeof value !== "string" || !value.trim()) return false;
+function normalizeUrl(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function isGoogleHostedAvatar(value: unknown) {
+  const url = normalizeUrl(value);
+  if (!url) return false;
 
   try {
-    const hostname = new URL(value).hostname.toLowerCase();
+    const hostname = new URL(url).hostname.toLowerCase();
     return hostname === "googleusercontent.com" || hostname.endsWith(".googleusercontent.com");
   } catch {
     return false;
   }
+}
+
+function authUserUsesGoogleProvider(user: {
+  app_metadata?: Record<string, unknown>;
+  identities?: Array<{ provider?: string | null }> | null;
+}) {
+  const appProvider =
+    typeof user.app_metadata?.provider === "string"
+      ? user.app_metadata.provider.toLowerCase()
+      : "";
+
+  const appProviders = Array.isArray(user.app_metadata?.providers)
+    ? user.app_metadata.providers
+        .filter((provider): provider is string => typeof provider === "string")
+        .map((provider) => provider.toLowerCase())
+    : [];
+
+  const identityProviders = (user.identities ?? [])
+    .map((identity) => identity.provider?.toLowerCase() ?? "")
+    .filter(Boolean);
+
+  return (
+    appProvider === "google" ||
+    appProviders.includes("google") ||
+    identityProviders.includes("google")
+  );
 }
 
 export default async function AdminTalentPage(props: PageProps) {
@@ -45,9 +76,28 @@ export default async function AdminTalentPage(props: PageProps) {
     phone: talent.account_phone ?? talent.whatsapp ?? null,
   });
   const profileCompletion = TalentProfileService.calculateCompletion(talent);
-  const providerAvatarDetected = isGoogleProviderAvatar(talent.image_url);
 
   const adminClient = createAdminClient();
+
+  let providerAvatarDetected = isGoogleHostedAvatar(talent.image_url);
+
+  if (talent.user_id && talent.image_url) {
+    const { data: authLookup, error: authLookupError } =
+      await adminClient.auth.admin.getUserById(talent.user_id);
+
+    if (authLookupError) {
+      console.error("[AdminTalentPage.authAvatarSource]", authLookupError);
+    } else if (authLookup.user && authUserUsesGoogleProvider(authLookup.user)) {
+      const currentImage = normalizeUrl(talent.image_url);
+      const avatarUrl = normalizeUrl(authLookup.user.user_metadata?.avatar_url);
+      const pictureUrl = normalizeUrl(authLookup.user.user_metadata?.picture);
+
+      providerAvatarDetected =
+        providerAvatarDetected ||
+        (!!currentImage && (currentImage === avatarUrl || currentImage === pictureUrl));
+    }
+  }
+
   const { data: reminderData, error: reminderError } = await adminClient
     .from("events")
     .select("created_at,metadata")
