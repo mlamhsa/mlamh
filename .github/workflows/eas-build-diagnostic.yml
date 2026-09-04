@@ -1,0 +1,28 @@
+name: EAS Build Diagnostic
+
+on:
+  push:
+    branches:
+      - feat/mobile-platform-phase0
+    paths:
+      - ".github/workflows/eas-build-diagnostic.yml"
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.0"
+      - name: Inspect failed EAS build
+        shell: bash
+        run: |
+          npx eas-cli@latest build:view 302e0d14-fec4-4462-b668-12715c9f8f95 --json | tee /tmp/eas-build.json
