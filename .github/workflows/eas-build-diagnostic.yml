@@ -7,31 +7,61 @@ on:
     paths:
       - ".github/workflows/eas-build-diagnostic.yml"
 
+permissions:
+  contents: write
+
 jobs:
-  inspect:
+  repair:
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: apps/mobile
-    env:
-      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: feat/mobile-platform-phase0
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: "22.13.0"
       - name: Install mobile dependencies
         run: npm ci --include=dev --no-audit --no-fund
-      - name: Inspect failed EAS build and phase logs
+      - name: Normalize PNG encoding without changing pixels
         shell: bash
         run: |
-          npx eas-cli@latest build:view 302e0d14-fec4-4462-b668-12715c9f8f95 --json > /tmp/eas-build.json
-          cat /tmp/eas-build.json
-          node -e 'const fs=require("fs"); const j=JSON.parse(fs.readFileSync("/tmp/eas-build.json","utf8")); for (const u of j.logFiles||[]) console.log(u)' > /tmp/eas-log-urls.txt
-          while IFS= read -r url; do
-            echo "===== EAS PHASE LOG ====="
-            curl --compressed --fail --silent --show-error "$url"
-            echo
-          done < /tmp/eas-log-urls.txt
+          python3 -m pip install --user --quiet Pillow
+          python3 <<'PY'
+          from PIL import Image
+          from pathlib import Path
+
+          path = Path('assets/app-icon.png')
+          image = Image.open(path)
+          image.load()
+          print(f'Original icon: format={image.format} mode={image.mode} size={image.size}')
+          if image.size != (1024, 1024):
+              raise SystemExit(f'Expected 1024x1024 app icon, got {image.size}')
+          normalized = image.convert('RGBA')
+          out = path.with_suffix('.normalized.png')
+          normalized.save(out, format='PNG', optimize=False, compress_level=6)
+          out.replace(path)
+          verify = Image.open(path)
+          verify.load()
+          print(f'Normalized icon: format={verify.format} mode={verify.mode} size={verify.size}')
+          PY
+      - name: Validate Expo Android prebuild exactly
+        run: npx expo prebuild --clean --no-install --platform android
+      - name: Commit normalized icon
+        working-directory: .
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git reset --hard HEAD -- apps/mobile/package.json >/dev/null 2>&1 || true
+          git add apps/mobile/assets/app-icon.png
+          if git diff --cached --quiet; then
+            echo "No icon bytes changed."
+            exit 1
+          fi
+          git commit -m "fix(mobile): normalize app icon PNG for Expo prebuild"
+          git push origin HEAD:feat/mobile-platform-phase0
