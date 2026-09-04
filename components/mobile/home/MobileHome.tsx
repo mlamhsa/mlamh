@@ -1,3 +1,4 @@
+import { MobileCastingBriefCTA } from "@/components/mobile/home/MobileCastingBriefCTA";
 import { MobileFinalCTA } from "@/components/mobile/home/MobileFinalCTA";
 import { MobileFooter } from "@/components/mobile/home/MobileFooter";
 import { MobileHero } from "@/components/mobile/home/MobileHero";
@@ -25,6 +26,8 @@ export function MobileHome({
   return (
     <>
       <MobileHero locale={locale} />
+
+      <MobileCastingBriefCTA locale={locale} />
 
       <MobileQuickAccess locale={locale} />
 
