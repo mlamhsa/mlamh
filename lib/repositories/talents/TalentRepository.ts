@@ -1,4 +1,5 @@
 import { BaseRepository } from "@/lib/repositories/base/BaseRepository";
+import { getTalentProfileDataQualityIssues } from "@/lib/talent/profile-data-quality";
 import { getTalentProfileReadiness } from "@/lib/talent/profile-review-readiness";
 import type { Talent } from "@/lib/types/talent";
 
@@ -11,7 +12,8 @@ export type AdminTalentFilter =
 export type AdminTalentOperationalFilter =
   | "incomplete"
   | "ready_not_submitted"
-  | "changes_requested";
+  | "changes_requested"
+  | "data_quality";
 
 export type AdminTalent = Talent & {
   views: number;
@@ -128,6 +130,10 @@ function isReadyNotSubmitted(talent: AdminTalent) {
   }).isReady;
 }
 
+function hasDataQualityIssues(talent: AdminTalent) {
+  return getTalentProfileDataQualityIssues(talent).length > 0;
+}
+
 export class TalentRepository extends BaseRepository {
   static async getAdminTalents({
     page,
@@ -218,7 +224,7 @@ export class TalentRepository extends BaseRepository {
           "approval_status.is.null,approval_status.eq.not_submitted",
         )
         .not("account_created_at", "is", null);
-    } else if (approvalStatus) {
+    } else if (!operationalFilter && approvalStatus) {
       query =
         query.eq(
           "approval_status",
@@ -250,7 +256,11 @@ export class TalentRepository extends BaseRepository {
         );
     }
 
-    if (operationalFilter === "incomplete" || operationalFilter === "ready_not_submitted") {
+    if (
+      operationalFilter === "incomplete" ||
+      operationalFilter === "ready_not_submitted" ||
+      operationalFilter === "data_quality"
+    ) {
       const { data, error } = await query.order("id", { ascending: false });
 
       if (error) {
@@ -263,6 +273,10 @@ export class TalentRepository extends BaseRepository {
         .map((row) => normalizeAdminTalent(row));
 
       const matchingTalents = candidates.filter((talent) => {
+        if (operationalFilter === "data_quality") {
+          return hasDataQualityIssues(talent);
+        }
+
         const ready = isReadyNotSubmitted(talent);
         return operationalFilter === "ready_not_submitted" ? ready : !ready;
       });
@@ -339,7 +353,7 @@ export class TalentRepository extends BaseRepository {
   static async getAdminOperationalStats() {
     const adminClient = this.client();
 
-    const [notSubmittedResult, changesRequestedResult] = await Promise.all([
+    const [notSubmittedResult, changesRequestedResult, dataQualityResult] = await Promise.all([
       adminClient
         .from("admin_talent_profiles")
         .select("*")
@@ -349,6 +363,9 @@ export class TalentRepository extends BaseRepository {
         .from("admin_talent_profiles")
         .select("id", { count: "exact", head: true })
         .eq("approval_status", "changes_requested"),
+      adminClient
+        .from("admin_talent_profiles")
+        .select("*"),
     ]);
 
     if (notSubmittedResult.error) {
@@ -363,6 +380,12 @@ export class TalentRepository extends BaseRepository {
       );
     }
 
+    if (dataQualityResult.error) {
+      throw new Error(
+        `[TalentRepository.getAdminOperationalStats.dataQuality] ${dataQualityResult.error.message}`,
+      );
+    }
+
     let incomplete = 0;
     let readyNotSubmitted = 0;
 
@@ -374,10 +397,18 @@ export class TalentRepository extends BaseRepository {
       }
     }
 
+    let dataQuality = 0;
+    for (const row of (dataQualityResult.data ?? []) as AdminTalentViewRow[]) {
+      if (hasDataQualityIssues(normalizeAdminTalent(row))) {
+        dataQuality += 1;
+      }
+    }
+
     return {
       incomplete,
       readyNotSubmitted,
       changesRequested: changesRequestedResult.count ?? 0,
+      dataQuality,
     };
   }
 
