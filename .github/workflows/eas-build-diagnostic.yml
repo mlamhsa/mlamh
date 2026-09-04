@@ -24,7 +24,14 @@ jobs:
           node-version: "22.13.0"
       - name: Install mobile dependencies
         run: npm ci --include=dev --no-audit --no-fund
-      - name: Inspect failed EAS build
+      - name: Inspect failed EAS build and phase logs
         shell: bash
         run: |
-          npx eas-cli@latest build:view 302e0d14-fec4-4462-b668-12715c9f8f95 --json | tee /tmp/eas-build.json
+          npx eas-cli@latest build:view 302e0d14-fec4-4462-b668-12715c9f8f95 --json > /tmp/eas-build.json
+          cat /tmp/eas-build.json
+          node -e 'const fs=require("fs"); const j=JSON.parse(fs.readFileSync("/tmp/eas-build.json","utf8")); for (const u of j.logFiles||[]) console.log(u)' > /tmp/eas-log-urls.txt
+          while IFS= read -r url; do
+            echo "===== EAS PHASE LOG ====="
+            curl --fail --silent --show-error "$url"
+            echo
+          done < /tmp/eas-log-urls.txt
