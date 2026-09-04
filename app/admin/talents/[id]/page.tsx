@@ -18,6 +18,17 @@ type RecoveryEvent = {
   metadata: Record<string, unknown> | null;
 };
 
+function isGoogleProviderAvatar(value: unknown) {
+  if (typeof value !== "string" || !value.trim()) return false;
+
+  try {
+    const hostname = new URL(value).hostname.toLowerCase();
+    return hostname === "googleusercontent.com" || hostname.endsWith(".googleusercontent.com");
+  } catch {
+    return false;
+  }
+}
+
 export default async function AdminTalentPage(props: PageProps) {
   await requireAdminAccess();
 
@@ -34,6 +45,7 @@ export default async function AdminTalentPage(props: PageProps) {
     phone: talent.account_phone ?? talent.whatsapp ?? null,
   });
   const profileCompletion = TalentProfileService.calculateCompletion(talent);
+  const providerAvatarDetected = isGoogleProviderAvatar(talent.image_url);
 
   const adminClient = createAdminClient();
   const { data: reminderData, error: reminderError } = await adminClient
@@ -68,6 +80,7 @@ export default async function AdminTalentPage(props: PageProps) {
             reminderCount={reminders.length}
             lastReminderAt={lastReminder?.created_at ?? null}
             lastReminderKind={String(lastReminder?.metadata?.recovery_kind ?? "") || null}
+            providerAvatarDetected={providerAvatarDetected}
           />
         </div>
       </div>
