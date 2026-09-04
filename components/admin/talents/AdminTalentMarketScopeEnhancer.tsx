@@ -2,12 +2,6 @@
 
 import { useEffect } from "react";
 
-import { NATIONALITIES } from "@/lib/data/nationalities";
-
-function normalizeCode(value: unknown) {
-  return typeof value === "string" ? value.trim().toUpperCase() : "";
-}
-
 export function AdminTalentMarketScopeEnhancer() {
   useEffect(() => {
     const isArabic = document.documentElement.lang === "ar" ||
@@ -18,8 +12,9 @@ export function AdminTalentMarketScopeEnhancer() {
     );
 
     if (countrySelect) {
-      const selectedCode = normalizeCode(countrySelect.value);
-      const placeholder = countrySelect.options[0]?.textContent || "—";
+      const selectedCode = countrySelect.value.trim().toUpperCase();
+      const placeholder = countrySelect.options[0]?.textContent ||
+        (isArabic ? "اختر الدولة" : "Choose country");
 
       countrySelect.replaceChildren();
 
@@ -28,21 +23,11 @@ export function AdminTalentMarketScopeEnhancer() {
       emptyOption.textContent = placeholder;
       countrySelect.appendChild(emptyOption);
 
-      const sortedCountries = [...NATIONALITIES]
-        .sort((a, b) =>
-          (isArabic ? a.countryAr : a.countryEn).localeCompare(
-            isArabic ? b.countryAr : b.countryEn,
-            isArabic ? "ar" : "en",
-          ),
-        );
-
-      for (const country of sortedCountries) {
-        const option = document.createElement("option");
-        option.value = country.code;
-        option.textContent = isArabic ? country.countryAr : country.countryEn;
-        option.selected = normalizeCode(country.code) === selectedCode;
-        countrySelect.appendChild(option);
-      }
+      const saOption = document.createElement("option");
+      saOption.value = "SA";
+      saOption.textContent = isArabic ? "السعودية" : "Saudi Arabia";
+      saOption.selected = selectedCode === "SA";
+      countrySelect.appendChild(saOption);
     }
 
     const locationSection = document.getElementById("location");
@@ -58,14 +43,18 @@ export function AdminTalentMarketScopeEnhancer() {
 
       if (description instanceof HTMLElement) {
         description.textContent = isArabic
-          ? "المدينة داخل السعودية، ودولة الإقامة والجنسية متاحتان من قوائم عالمية موحدة. أسواق العمل مخفية مؤقتًا حتى تفعيل التوسع خارج السعودية."
-          : "Saudi city, residence country, and nationality use controlled global lists. Work markets are temporarily hidden until expansion outside Saudi Arabia is activated.";
+          ? "السوق الحالي هو السعودية؛ لذلك تظهر السعودية فقط كدولة إقامة وتظهر المدن السعودية فقط. الجنسية مستقلة وتبقى متاحة من القائمة العالمية. أسواق العمل مخفية مؤقتًا حتى تفعيل أسواق جديدة."
+          : "Saudi Arabia is the active market, so only Saudi Arabia is shown as the residence country and only Saudi cities are shown. Nationality remains independent and globally selectable. Work markets stay hidden until new markets are activated.";
       }
     }
 
-    const locationNavLink = document.querySelector<HTMLAnchorElement>('a[href="#location"] span');
+    const locationNavLink = document.querySelector<HTMLAnchorElement>(
+      'a[href="#location"] span',
+    );
     if (locationNavLink) {
-      locationNavLink.textContent = isArabic ? "الموقع والجنسية" : "Location & nationality";
+      locationNavLink.textContent = isArabic
+        ? "الموقع والجنسية"
+        : "Location & nationality";
     }
 
     const workMarketInputs = Array.from(
@@ -73,7 +62,9 @@ export function AdminTalentMarketScopeEnhancer() {
     );
 
     if (workMarketInputs.length > 0) {
-      const workMarketsContainer = workMarketInputs[0].closest("div.md\\:col-span-2");
+      const workMarketsContainer = workMarketInputs[0].closest(
+        "div.md\\:col-span-2",
+      );
 
       if (workMarketsContainer instanceof HTMLElement) {
         workMarketsContainer.hidden = true;
