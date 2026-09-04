@@ -22,5 +22,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22.13.0"
+      - name: Install mobile dependencies
+        run: npm ci --include=dev --no-audit --no-fund
       - name: Read EAS build status
         run: npx eas-cli@latest build:view a5d05971-ffdb-4454-998f-aeb84013743e --json
