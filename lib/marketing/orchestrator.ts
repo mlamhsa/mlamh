@@ -56,29 +56,57 @@ function contactRole(contact: ContactRow | null) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
+function record(value: unknown) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
 async function cleanStaleAutonomousTasks(now = new Date()) {
   const db = createAdminClient();
-  const cutoff = new Date(now.getTime() - 36 * 60 * 60 * 1000).toISOString();
-  const { data: stale, error } = await db
+  const ageCutoffMs = now.getTime() - 36 * 60 * 60 * 1000;
+  const slaGraceMs = 24 * 60 * 60 * 1000;
+  const { data: candidates, error } = await db
     .from("marketing_tasks")
-    .select("id,agent_id,title,status,channel,created_at")
+    .select("id,agent_id,title,status,channel,created_at,metadata")
     .eq("source", "autonomous_orchestrator")
     .in("status", ["queued", "scheduled"])
-    .lt("created_at", cutoff)
-    .limit(100);
+    .order("created_at", { ascending: true })
+    .limit(200);
   if (error) throw new Error(`[marketing_orchestrator.stale.read] ${error.message}`);
-  if (!stale?.length) return { staleCancelled: 0 };
 
-  const ids = stale.map((task) => task.id);
+  const stale = (candidates ?? []).filter((task) => {
+    const createdMs = new Date(task.created_at).getTime();
+    const contract = record(record(task.metadata).operational_contract);
+    const dueAt = typeof contract.due_at === "string" ? new Date(contract.due_at).getTime() : NaN;
+    const staleByAge = Number.isFinite(createdMs) && createdMs < ageCutoffMs;
+    const staleBySla = Number.isFinite(dueAt) && dueAt + slaGraceMs < now.getTime();
+    return staleByAge || staleBySla;
+  });
+  if (!stale.length) return { staleCancelled: 0 };
+
   const cancelledAt = now.toISOString();
-  const { error: cancelError } = await db.from("marketing_tasks").update({
-    status: "cancelled",
-    locked_at: null,
-    locked_by: null,
-    updated_at: cancelledAt,
-    metadata: { stale_cleanup: true, stale_cleanup_at: cancelledAt },
-  }).in("id", ids).in("status", ["queued", "scheduled"]);
-  if (cancelError) throw new Error(`[marketing_orchestrator.stale.cancel] ${cancelError.message}`);
+  for (const task of stale) {
+    const metadata = record(task.metadata);
+    const { error: cancelError } = await db.from("marketing_tasks").update({
+      status: "cancelled",
+      locked_at: null,
+      locked_by: null,
+      updated_at: cancelledAt,
+      metadata: {
+        ...metadata,
+        stale_cleanup: true,
+        stale_cleanup_at: cancelledAt,
+        stale_cleanup_reason: "open_autonomous_task_exceeded_age_or_sla_grace",
+      },
+    }).eq("id", task.id).in("status", ["queued", "scheduled"]);
+    if (cancelError) throw new Error(`[marketing_orchestrator.stale.cancel:${task.id}] ${cancelError.message}`);
+
+    if (task.agent_id) {
+      await db.from("marketing_agents").update({ status: "idle", current_task_id: null, updated_at: cancelledAt })
+        .eq("id", task.agent_id)
+        .eq("current_task_id", task.id)
+        .in("status", ["scheduled"]);
+    }
+  }
 
   await db.from("marketing_agent_activity").insert(stale.map((task) => ({
     agent_id: task.agent_id,
@@ -86,13 +114,8 @@ async function cleanStaleAutonomousTasks(now = new Date()) {
     action: "stale_task_cancelled",
     reason: `Cancelled stale autonomous task: ${task.title}`,
     channel: task.channel ?? "internal",
-    result: { previous_status: task.status, cutoff, cancelled_at: cancelledAt },
+    result: { previous_status: task.status, cancelled_at: cancelledAt, preserved_operational_contract: true },
   })));
-
-  const affectedAgents = [...new Set(stale.map((task) => task.agent_id).filter((id): id is string => Boolean(id)))];
-  if (affectedAgents.length) {
-    await db.from("marketing_agents").update({ status: "idle", current_task_id: null, updated_at: cancelledAt }).in("id", affectedAgents).in("status", ["scheduled"]);
-  }
 
   return { staleCancelled: stale.length };
 }
