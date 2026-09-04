@@ -29,12 +29,10 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "net.mlamh.app",
-      "buildNumber": "1",
-      "associatedDomains": ["applinks:mlamh.net"]
+      "associatedDomains": ["applinks:mlamh.net", "applinks:www.mlamh.net"]
     },
     "android": {
       "package": "net.mlamh.app",
-      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#2E2E2E"
       },
@@ -42,7 +40,10 @@
         {
           "action": "VIEW",
           "autoVerify": true,
-          "data": [{ "scheme": "https", "host": "mlamh.net" }],
+          "data": [
+            { "scheme": "https", "host": "mlamh.net" },
+            { "scheme": "https", "host": "www.mlamh.net" }
+          ],
           "category": ["BROWSABLE", "DEFAULT"]
         }
       ]
