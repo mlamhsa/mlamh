@@ -18,6 +18,11 @@ export type MarketingAIResponse = {
   metadata?: Record<string, unknown>;
 };
 
+export interface MarketingAIProvider {
+  readonly id: string;
+  generate(request: MarketingAIRequest): Promise<MarketingAIResponse>;
+}
+
 type ResponseAnnotation = {
   type?: string;
   url?: string;
