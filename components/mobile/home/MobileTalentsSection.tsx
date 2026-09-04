@@ -26,15 +26,46 @@ export function MobileTalentsSection({
   const isArabic = locale === "ar";
   const DirectionArrow = isArabic ? ArrowLeft : ArrowRight;
 
+  const featuredTalents = talents.filter((talent) => talent.featured);
+  const regularTalents = talents.filter((talent) => !talent.featured);
+  const hasFeaturedTalents = featuredTalents.length > 0;
+  const visibleTalents = hasFeaturedTalents ? featuredTalents : regularTalents;
+
+  if (visibleTalents.length === 0) {
+    return null;
+  }
+
+  const eyebrow = hasFeaturedTalents
+    ? isArabic
+      ? "مواهب مميزة"
+      : "FEATURED TALENT"
+    : isArabic
+      ? "أحدث المواهب"
+      : "LATEST TALENT";
+
+  const title = hasFeaturedTalents
+    ? isArabic
+      ? "مواهب مميزة تستحق الاكتشاف"
+      : "Featured talent worth discovering"
+    : isArabic
+      ? "وجوه جديدة على ملامح"
+      : "New faces on MLAMH";
+
+  const description = hasFeaturedTalents
+    ? isArabic
+      ? "مواهب لديها ميزة مفعلة حاليًا وتظهر بشكل مميز على ملامح."
+      : "Talent with an active featured benefit currently highlighted on MLAMH."
+    : isArabic
+      ? "اكتشف أحدث الملفات المهنية المنشورة على ملامح."
+      : "Discover the latest professional profiles published on MLAMH.";
+
   return (
     <section
       dir={isArabic ? "rtl" : "ltr"}
       className="relative overflow-hidden pb-11 pt-2"
     >
-      {/* Ambient layer */}
       <div className="pointer-events-none absolute -end-28 top-8 h-64 w-64 rounded-full bg-gold/[0.035] blur-[100px]" />
 
-      {/* Section header */}
       <div className="relative px-4">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
@@ -46,22 +77,16 @@ export function MobileTalentsSection({
               />
 
               <span className="text-[11px] font-medium text-gold/80">
-                {isArabic
-                  ? "مختارات ملامح"
-                  : "MLAMH SELECTIONS"}
+                {eyebrow}
               </span>
             </div>
 
-            <h2 className="mt-2 max-w-[16rem] text-[1.55rem] font-semibold leading-[1.22] text-white">
-              {isArabic
-                ? "مواهب تستحق الاكتشاف"
-                : "Talent worth discovering"}
+            <h2 className="mt-2 max-w-[17rem] text-[1.55rem] font-semibold leading-[1.22] text-white">
+              {title}
             </h2>
 
             <p className="mt-2 max-w-[18rem] text-[13px] leading-6 text-white/38">
-              {isArabic
-                ? "اكتشف وجوهًا جديدة وملفات مهنية جاهزة للفرصة المناسبة."
-                : "Discover new faces and professional profiles ready for the right opportunity."}
+              {description}
             </p>
           </div>
 
@@ -77,18 +102,16 @@ export function MobileTalentsSection({
           </Link>
         </div>
 
-        {/* Editorial divider */}
         <div className="mt-5 flex items-center gap-3">
           <div className="h-px flex-1 bg-white/[0.07]" />
           <div className="h-px w-12 bg-gold/35" />
         </div>
       </div>
 
-      {/* Talent content */}
       <div className="relative mt-5">
         <MobileTalentShowcase
           locale={locale}
-          talents={talents}
+          talents={visibleTalents}
         />
       </div>
     </section>
