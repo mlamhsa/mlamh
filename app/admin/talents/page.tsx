@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import {
+  AlertTriangle,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -23,6 +24,7 @@ import {
 } from "@/lib/repositories/talents/TalentRepository";
 import { TalentService } from "@/lib/services/talents/TalentService";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getTalentProfileDataQualityIssues } from "@/lib/talent/profile-data-quality";
 import { getTalentProfileReadiness } from "@/lib/talent/profile-review-readiness";
 
 type PageProps = {
@@ -77,7 +79,8 @@ function parseOperationalFilter(
   if (
     value === "incomplete" ||
     value === "ready_not_submitted" ||
-    value === "changes_requested"
+    value === "changes_requested" ||
+    value === "data_quality"
   ) {
     return value;
   }
@@ -287,6 +290,11 @@ export default async function AdminTalentsPage({
       label: isArabic ? "مطلوب تعديل" : "Changes requested",
       count: operationalStats.changesRequested,
     },
+    {
+      value: "data_quality",
+      label: isArabic ? "مشاكل بيانات" : "Data issues",
+      count: operationalStats.dataQuality,
+    },
   ];
 
   return (
@@ -452,11 +460,12 @@ export default async function AdminTalentsPage({
 
         <div className="mt-4 rounded-2xl border border-white/[0.06] bg-white/[0.015] p-3">
           <p className="mb-2 px-1 text-[10px] uppercase tracking-[0.18em] text-white/25">
-            {isArabic ? "متابعة الاستكمال" : "Completion operations"}
+            {isArabic ? "متابعة الاستكمال والجودة" : "Completion & quality operations"}
           </p>
           <div className="flex flex-wrap gap-2">
             {operationalFilters.map((filter) => {
               const active = ops === filter.value;
+              const isQuality = filter.value === "data_quality";
 
               return (
                 <Link
@@ -469,10 +478,15 @@ export default async function AdminTalentsPage({
                   })}
                   className={`inline-flex min-h-10 items-center gap-2 rounded-full border px-4 text-xs transition ${
                     active
-                      ? "border-sky-400/30 bg-sky-400/[0.10] text-sky-200"
-                      : "border-white/[0.08] bg-black/15 text-white/40 hover:border-sky-400/20 hover:text-sky-200"
+                      ? isQuality
+                        ? "border-rose-400/30 bg-rose-400/[0.10] text-rose-200"
+                        : "border-sky-400/30 bg-sky-400/[0.10] text-sky-200"
+                      : isQuality
+                        ? "border-white/[0.08] bg-black/15 text-white/40 hover:border-rose-400/20 hover:text-rose-200"
+                        : "border-white/[0.08] bg-black/15 text-white/40 hover:border-sky-400/20 hover:text-sky-200"
                   }`}
                 >
+                  {isQuality ? <AlertTriangle className="h-3.5 w-3.5" /> : null}
                   {filter.label}
                   <span className="rounded-full bg-black/25 px-2 py-0.5 text-[10px]">
                     {filter.count}
@@ -572,6 +586,13 @@ export default async function AdminTalentsPage({
                 0,
               );
 
+              const dataQualityIssues = getTalentProfileDataQualityIssues(talent);
+              const visibleQualityIssues = dataQualityIssues.slice(0, 2);
+              const extraQualityIssueCount = Math.max(
+                dataQualityIssues.length - visibleQualityIssues.length,
+                0,
+              );
+
               return (
                 <Link
                   key={talent.id}
@@ -637,6 +658,28 @@ export default async function AdminTalentsPage({
                         </div>
                       ) : null}
 
+                      {visibleQualityIssues.length > 0 ? (
+                        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                          <span className="inline-flex items-center gap-1 text-[10px] text-rose-200/70">
+                            <AlertTriangle className="h-3 w-3" />
+                            {isArabic ? "مشاكل بيانات:" : "Data issues:"}
+                          </span>
+                          {visibleQualityIssues.map((issue) => (
+                            <span
+                              key={issue.key}
+                              className="rounded-full border border-rose-300/10 bg-rose-300/[0.04] px-2 py-1 text-[10px] text-rose-100/75"
+                            >
+                              {isArabic ? issue.ar : issue.en}
+                            </span>
+                          ))}
+                          {extraQualityIssueCount > 0 ? (
+                            <span className="text-[10px] text-white/30">
+                              +{extraQualityIssueCount}
+                            </span>
+                          ) : null}
+                        </div>
+                      ) : null}
+
                       <div className="mt-4 flex flex-wrap gap-2">
                         <span
                           className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] ${
@@ -696,6 +739,11 @@ export default async function AdminTalentsPage({
                           <span className="inline-flex items-center gap-1.5 text-xs text-amber-300">
                             <Clock3 className="h-3.5 w-3.5" />
                             {isArabic ? "يحتاج مراجعة" : "Needs review"}
+                          </span>
+                        ) : dataQualityIssues.length > 0 ? (
+                          <span className="inline-flex items-center gap-1.5 text-xs text-rose-300/85">
+                            <AlertTriangle className="h-3.5 w-3.5" />
+                            {isArabic ? "يحتاج تصحيح بيانات" : "Needs data correction"}
                           </span>
                         ) : approvalStatus === "not_submitted" && readiness?.isReady ? (
                           <span className="text-xs text-sky-300/80">
