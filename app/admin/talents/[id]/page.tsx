@@ -27,6 +27,8 @@ type ProfileRow = {
   updated_at: string | null;
 };
 
+type ProfileLinkageState = "linked" | "missing_profile" | "missing_user" | "unavailable";
+
 const MIN_REVIEW_COMPLETION = 35;
 
 function normalizeUrl(value: unknown) {
@@ -156,31 +158,49 @@ export default async function AdminTalentPage(props: PageProps) {
   const reminders = (reminderData ?? []) as RecoveryEvent[];
   const lastReminder = reminders[0] ?? null;
   const profile = (profileData ?? null) as ProfileRow | null;
-  const approvalStatus = String(
-    profile?.approval_status ?? talent.approval_status ?? "not_submitted",
-  );
-  const recoveryKind = getRecoveryKind({
-    approvalStatus,
-    isReady: readiness.isReady,
-    profileCompletion,
-  });
+  const profileLinkageState: ProfileLinkageState = !talent.user_id
+    ? "missing_user"
+    : profileError
+      ? "unavailable"
+      : profile
+        ? "linked"
+        : "missing_profile";
+
+  // A legacy talent row without its canonical `profiles` row must not be treated
+  // as a normal not-submitted recovery case. Doing so would advertise automatic
+  // reminders that the cron cannot actually send. Keep the legacy record intact
+  // and surface the linkage problem to admins instead of mutating production data.
+  const approvalStatus = profile
+    ? String(profile.approval_status ?? "not_submitted")
+    : String(talent.approval_status ?? "not_submitted");
+  const recoveryKind = profileLinkageState === "linked"
+    ? getRecoveryKind({
+        approvalStatus,
+        isReady: readiness.isReady,
+        profileCompletion,
+      })
+    : null;
 
   let automaticReminderState:
     | "scheduled"
     | "due"
     | "completed"
     | "not_applicable"
-    | "unavailable" = recoveryKind ? "unavailable" : "not_applicable";
+    | "unavailable" = profileLinkageState === "linked"
+      ? recoveryKind
+        ? "unavailable"
+        : "not_applicable"
+      : "unavailable";
   let nextAutomaticReminderAt: string | null = null;
 
-  if (recoveryKind) {
+  if (recoveryKind && profile) {
     const remindersForKind = reminders.filter(
       (event) => String(event.metadata?.recovery_kind ?? "") === recoveryKind,
     );
     const lastReminderForKind = remindersForKind[0]?.created_at ?? null;
 
     let changeRequestedAt: string | null = null;
-    if (recoveryKind === "changes_requested" && profile?.id) {
+    if (recoveryKind === "changes_requested") {
       const { data: latestReview, error: latestReviewError } = await adminClient
         .from("profile_review_history")
         .select("created_at")
@@ -200,10 +220,10 @@ export default async function AdminTalentPage(props: PageProps) {
 
     const anchorCreatedAt =
       recoveryKind === "changes_requested"
-        ? changeRequestedAt ?? profile?.updated_at ?? profile?.created_at ?? talent.created_at
+        ? changeRequestedAt ?? profile.updated_at ?? profile.created_at ?? talent.created_at
         : recoveryKind === "ready_not_submitted"
-          ? profile?.updated_at ?? profile?.created_at ?? talent.created_at
-          : talent.created_at ?? profile?.created_at;
+          ? profile.updated_at ?? profile.created_at ?? talent.created_at
+          : talent.created_at ?? profile.created_at;
 
     if (anchorCreatedAt) {
       const nextReminder = getNextTalentProfileRecoveryReminder({
@@ -232,6 +252,7 @@ export default async function AdminTalentPage(props: PageProps) {
             talentId={talent.id}
             language={language}
             approvalStatus={approvalStatus}
+            profileLinkageState={profileLinkageState}
             profileCompletion={profileCompletion}
             isReady={readiness.isReady}
             missingRequirements={readiness.missingRequirements.map((item) => ({
