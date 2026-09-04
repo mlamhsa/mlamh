@@ -259,7 +259,10 @@ export function getSelectedCity(
   };
 }
 
-export function getSelectedNationality(formData: FormData) {
+export function getSelectedNationality(
+  formData: FormData,
+  existingValue?: string | null,
+) {
   const nationalitySlug = requiredStringValue(
     formData,
     "nationality_slug",
@@ -269,11 +272,22 @@ export function getSelectedNationality(formData: FormData) {
     (item) => item.slug.toLowerCase() === nationalitySlug,
   );
 
-  if (!nationality) {
-    throw new Error("Invalid nationality selected.");
+  if (nationality) {
+    return {
+      slug: nationality.slug,
+      isLegacy: false,
+    };
   }
 
-  return nationality;
+  const normalizedExisting = (existingValue ?? "").trim().toLowerCase();
+  if (normalizedExisting && normalizedExisting === nationalitySlug) {
+    return {
+      slug: existingValue!.trim(),
+      isLegacy: true,
+    };
+  }
+
+  throw new Error("Invalid nationality selected.");
 }
 
 export function getSelectedCategory(
