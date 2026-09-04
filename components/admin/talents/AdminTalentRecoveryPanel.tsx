@@ -8,6 +8,7 @@ import { sendTalentRecoveryReminderAction } from "@/lib/actions/send-talent-reco
 import type { TalentProfileRecoveryKind } from "@/lib/talent/send-profile-recovery-reminder";
 
 type MissingRequirement = { key: string; label: string };
+type DataQualityIssue = { key: string; label: string };
 type ProfileLinkageState = "linked" | "missing_profile" | "missing_user" | "unavailable";
 
 type Props = {
@@ -18,6 +19,7 @@ type Props = {
   profileCompletion: number;
   isReady: boolean;
   missingRequirements: MissingRequirement[];
+  dataQualityIssues: DataQualityIssue[];
   reminderCount: number;
   lastReminderAt: string | null;
   lastReminderKind: string | null;
@@ -232,6 +234,34 @@ export function AdminTalentRecoveryPanel(props: Props) {
                   ? "هذه الصورة جاءت من بيانات تسجيل الدخول القديمة وليست بالضرورة صورة مهنية رفعها المستخدم داخل ملامح. راجع جودتها، وإذا كانت غير مناسبة استخدم «طلب تعديل» واختر سبب جودة الصورة الرئيسية."
                   : "This image came from legacy sign-in metadata and may not be a professional photo uploaded in MLAMH. Review its quality; if unsuitable, use Request changes and choose the main photo quality reason."}
               </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {props.dataQualityIssues.length > 0 ? (
+        <div className="mt-5 rounded-2xl border border-amber-400/20 bg-amber-400/[0.05] p-4">
+          <div className="flex items-start gap-3 text-amber-100">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <div>
+              <p className="text-sm font-medium">
+                {ar ? "تنبيه جودة البيانات" : "Data quality warning"}
+              </p>
+              <p className="mt-1 text-xs leading-6 text-amber-100/65">
+                {ar
+                  ? "توجد قياسات صفرية أو سالبة محفوظة في هذا الملف. لم يتم تعديلها تلقائيًا؛ راجعها مع الموهبة قبل الاعتماد."
+                  : "This profile contains zero or negative saved measurements. Nothing was changed automatically; review them with the talent before approval."}
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {props.dataQualityIssues.map((issue) => (
+                  <span
+                    key={issue.key}
+                    className="rounded-full border border-amber-300/15 bg-black/15 px-3 py-1.5 text-xs text-amber-100/80"
+                  >
+                    {issue.label}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
         </div>
