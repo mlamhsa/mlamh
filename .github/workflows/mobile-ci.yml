@@ -90,6 +90,9 @@ jobs:
       - name: Release preflight
         run: npm run release:preflight
 
+      - name: Android native prebuild
+        run: npx expo prebuild --clean --no-install --platform android
+
       - name: Mobile backend contract tests
         working-directory: .
         run: npm run test:mobile
