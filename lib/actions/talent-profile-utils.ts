@@ -263,11 +263,18 @@ export function getSelectedNationality(
   formData: FormData,
   existingValue?: string | null,
 ) {
-  const nationalitySlug = requiredStringValue(
-    formData,
-    "nationality_slug",
-  ).toLowerCase();
+  const rawNationality = stringValue(formData, "nationality_slug");
 
+  // Incomplete profiles are allowed to autosave before nationality is chosen.
+  // Readiness still requires nationality before review submission.
+  if (!rawNationality) {
+    return {
+      slug: null,
+      isLegacy: false,
+    };
+  }
+
+  const nationalitySlug = rawNationality.toLowerCase();
   const nationality = NATIONALITIES.find(
     (item) => item.slug.toLowerCase() === nationalitySlug,
   );
