@@ -166,6 +166,97 @@ export async function markLinkedInOutreachSentAction(formData: FormData) {
   revalidatePath("/admin/marketing/leads");
 }
 
+export async function recordLinkedInReplyAction(formData: FormData) {
+  await requireMarketingAdminAccess("marketing.manage");
+  const outreachId = Number(formData.get("outreach_id"));
+  if (!Number.isInteger(outreachId) || outreachId <= 0) throw new Error("Invalid outreach id.");
+
+  const outcome = String(formData.get("outcome") ?? "").trim();
+  if (!["interested", "not_now", "not_interested"].includes(outcome)) {
+    throw new Error("Invalid LinkedIn reply outcome.");
+  }
+
+  const db = createAdminClient();
+  const { data: outreach, error } = await db
+    .from("marketing_outreach")
+    .select("id,lead_id,channel,send_status,reply_status,metadata")
+    .eq("id", outreachId)
+    .single();
+  if (error || !outreach) throw new Error("Outreach not found.");
+  if (outreach.channel !== "linkedin") throw new Error("This action is only available for LinkedIn outreach.");
+  if (outreach.send_status !== "sent") throw new Error("LinkedIn outreach must be sent before recording a reply.");
+
+  const now = new Date();
+  const metadata = outreach.metadata && typeof outreach.metadata === "object" && !Array.isArray(outreach.metadata)
+    ? outreach.metadata as Record<string, unknown>
+    : {};
+  const replyStatus = outcome === "interested" ? "qualified" : outcome === "not_interested" ? "not_interested" : "replied";
+
+  const { error: outreachError } = await db.from("marketing_outreach").update({
+    reply_status: replyStatus,
+    outcome,
+    next_follow_up_at: null,
+    metadata: {
+      ...metadata,
+      reply_recorded_manually: true,
+      reply_recorded_at: now.toISOString(),
+    },
+    updated_at: now.toISOString(),
+  }).eq("id", outreachId);
+  if (outreachError) throw new Error(`[record LinkedIn reply] ${outreachError.message}`);
+
+  const { error: cancelError } = await db.from("marketing_followups").update({
+    status: "cancelled",
+    updated_at: now.toISOString(),
+    next_action: "Cancelled because a LinkedIn reply was recorded.",
+  }).eq("lead_id", outreach.lead_id).eq("channel", "linkedin").in("status", ["scheduled", "due"]);
+  if (cancelError) throw new Error(`[cancel LinkedIn follow-ups] ${cancelError.message}`);
+
+  if (outcome === "interested") {
+    const { error: leadError } = await db.from("marketing_leads").update({
+      stage: "qualified",
+      brief_status: "requested",
+      next_action_at: now.toISOString(),
+      updated_at: now.toISOString(),
+    }).eq("id", outreach.lead_id);
+    if (leadError) throw new Error(`[qualify LinkedIn lead] ${leadError.message}`);
+  } else if (outcome === "not_now") {
+    const followUpAt = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+    const { error: leadError } = await db.from("marketing_leads").update({
+      stage: "replied",
+      next_action_at: followUpAt.toISOString(),
+      updated_at: now.toISOString(),
+    }).eq("id", outreach.lead_id);
+    if (leadError) throw new Error(`[defer LinkedIn lead] ${leadError.message}`);
+
+    const { error: followUpError } = await db.from("marketing_followups").insert({
+      lead_id: outreach.lead_id,
+      follow_up_at: followUpAt.toISOString(),
+      reason: "LinkedIn contact replied: not now",
+      channel: "linkedin",
+      owner: typeof metadata.sender_profile === "string" ? metadata.sender_profile : "sawsan",
+      sequence_step: 2,
+      status: "scheduled",
+      previous_contact_at: now.toISOString(),
+      next_action: "Revisit the conversation after the contact asked for more time.",
+      metadata: { source_outreach_id: outreachId, reply_outcome: outcome },
+    });
+    if (followUpError) throw new Error(`[defer LinkedIn follow-up] ${followUpError.message}`);
+  } else {
+    const { error: leadError } = await db.from("marketing_leads").update({
+      stage: "lost",
+      next_action_at: null,
+      updated_at: now.toISOString(),
+    }).eq("id", outreach.lead_id);
+    if (leadError) throw new Error(`[close LinkedIn lead] ${leadError.message}`);
+  }
+
+  revalidatePath("/admin/marketing/outreach");
+  revalidatePath("/admin/marketing/follow-ups");
+  revalidatePath("/admin/marketing/leads");
+  revalidatePath("/admin/marketing/briefs");
+}
+
 export async function sendApprovedOutreachNowAction(formData: FormData) {
   await requireMarketingAdminAccess("marketing.manage");
   const outreachId = Number(formData.get("outreach_id"));
