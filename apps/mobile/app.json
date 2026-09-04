@@ -29,10 +29,12 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "net.mlamh.app",
+      "buildNumber": "1",
       "associatedDomains": ["applinks:mlamh.net", "applinks:www.mlamh.net"]
     },
     "android": {
       "package": "net.mlamh.app",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#2E2E2E"
       },
