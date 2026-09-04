@@ -7,11 +7,8 @@ on:
     paths:
       - ".github/workflows/eas-build-diagnostic.yml"
 
-permissions:
-  contents: write
-
 jobs:
-  repair:
+  inspect-png:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -21,47 +18,48 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: feat/mobile-platform-phase0
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22.13.0"
-      - name: Install mobile dependencies
-        run: npm ci --include=dev --no-audit --no-fund
-      - name: Normalize PNG encoding without changing pixels
+      - name: Inspect PNG structure
         shell: bash
         run: |
-          python3 -m pip install --user --quiet Pillow
           python3 <<'PY'
-          from PIL import Image
+          import struct, zlib
+          from collections import Counter
           from pathlib import Path
 
-          path = Path('assets/app-icon.png')
-          image = Image.open(path)
-          image.load()
-          print(f'Original icon: format={image.format} mode={image.mode} size={image.size}')
-          if image.size != (1024, 1024):
-              raise SystemExit(f'Expected 1024x1024 app icon, got {image.size}')
-          normalized = image.convert('RGBA')
-          out = path.with_suffix('.normalized.png')
-          normalized.save(out, format='PNG', optimize=False, compress_level=6)
-          out.replace(path)
-          verify = Image.open(path)
-          verify.load()
-          print(f'Normalized icon: format={verify.format} mode={verify.mode} size={verify.size}')
+          p = Path('assets/app-icon.png')
+          data = p.read_bytes()
+          assert data[:8] == b'\x89PNG\r\n\x1a\n', 'Not a PNG signature'
+          pos = 8
+          idat = []
+          width = height = bit_depth = color_type = interlace = None
+          chunks = []
+          while pos < len(data):
+              length = struct.unpack('>I', data[pos:pos+4])[0]
+              typ = data[pos+4:pos+8]
+              payload = data[pos+8:pos+8+length]
+              chunks.append((typ.decode('ascii', 'replace'), length))
+              if typ == b'IHDR':
+                  width, height, bit_depth, color_type, comp, filt, interlace = struct.unpack('>IIBBBBB', payload)
+              elif typ == b'IDAT':
+                  idat.append(payload)
+              pos += 12 + length
+              if typ == b'IEND': break
+          print('size_bytes=', len(data))
+          print('IHDR=', width, height, bit_depth, color_type, 'interlace=', interlace)
+          print('chunks=', chunks)
+          raw = zlib.decompress(b''.join(idat))
+          print('decompressed_bytes=', len(raw))
+          channels = {0:1,2:3,3:1,4:2,6:4}[color_type]
+          bpp = channels * bit_depth // 8
+          stride = width * bpp
+          expected = height * (stride + 1)
+          print('bpp=', bpp, 'stride=', stride, 'expected=', expected)
+          filters = [raw[y*(stride+1)] for y in range(height) if y*(stride+1) < len(raw)]
+          counts = Counter(filters)
+          print('filter_counts=', sorted(counts.items()))
+          invalid = [(i,f) for i,f in enumerate(filters) if f > 4]
+          print('invalid_count=', len(invalid))
+          print('first_invalid=', invalid[:30])
+          if len(raw) != expected:
+              print('LENGTH_MISMATCH')
           PY
-      - name: Validate Expo Android prebuild exactly
-        run: npx expo prebuild --clean --no-install --platform android
-      - name: Commit normalized icon
-        working-directory: .
-        shell: bash
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git reset --hard HEAD -- apps/mobile/package.json >/dev/null 2>&1 || true
-          git add apps/mobile/assets/app-icon.png
-          if git diff --cached --quiet; then
-            echo "No icon bytes changed."
-            exit 1
-          fi
-          git commit -m "fix(mobile): normalize app icon PNG for Expo prebuild"
-          git push origin HEAD:feat/mobile-platform-phase0
