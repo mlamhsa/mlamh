@@ -41,6 +41,13 @@ jobs:
           cache: npm
           cache-dependency-path: apps/mobile/package-lock.json
 
+      - name: Resolve build platform
+        shell: bash
+        run: |
+          platform="${{ github.event.inputs.platform }}"
+          if [ -z "$platform" ]; then platform="android"; fi
+          echo "BUILD_PLATFORM=$platform" >> "$GITHUB_ENV"
+
       - name: Load persisted EAS project linkage
         shell: bash
         run: |
@@ -61,9 +68,14 @@ jobs:
       - name: Release preflight strict
         run: npm run release:preflight:strict
 
-      - name: Start internal EAS build
+      - name: Validate Android native prebuild
+        if: env.BUILD_PLATFORM == 'android'
         shell: bash
         run: |
-          platform="${{ github.event.inputs.platform }}"
-          if [ -z "$platform" ]; then platform="android"; fi
-          npx eas-cli@latest build --platform "$platform" --profile preview --non-interactive --no-wait
+          npx expo prebuild --clean --no-install --platform android
+          rm -rf android
+          git restore package.json
+
+      - name: Start internal EAS build
+        shell: bash
+        run: npx eas-cli@latest build --platform "$BUILD_PLATFORM" --profile preview --non-interactive --no-wait
