@@ -3,16 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { SAUDI_CITIES } from "@/lib/data/saudi-cities";
+import { COUNTRY_CODES, isCountryCode } from "@/lib/markets/countries";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 async function requireAdminUser() {
   const authClient = await createServerSupabaseClient();
-  const {
-    data: { user },
-    error,
-  } = await authClient.auth.getUser();
-
+  const { data: { user }, error } = await authClient.auth.getUser();
   if (error || !user) throw new Error("Unauthorized");
 
   const adminClient = createAdminClient();
@@ -54,39 +52,46 @@ function nullableBooleanValue(formData: FormData, key: string) {
 }
 
 function arrayValue(formData: FormData, key: string) {
-  const raw = stringValue(formData, key);
-  if (!raw) return [];
-
-  return Array.from(
-    new Set(
-      raw
-        .split(/[,،\n]/)
-        .map((item) => item.trim())
-        .filter(Boolean),
-    ),
-  );
+  const values = formData.getAll(key).flatMap((value) => {
+    if (typeof value !== "string") return [];
+    return value.split(/[,،\n]/).map((item) => item.trim()).filter(Boolean);
+  });
+  return Array.from(new Set(values));
 }
 
 function createSlug(value: string, id: number) {
-  const base = value
-    .toLowerCase()
-    .trim()
-    .replace(/['’]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-
+  const base = value.toLowerCase().trim().replace(/['’]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
   return base ? `${base}-${id}` : `talent-${id}`;
 }
 
 function getAvailabilityStatus(formData: FormData) {
   const value = stringValue(formData, "availability_status");
-  const allowed = [
-    "available_now",
-    "available_this_week",
-    "available_next_month",
-    "unavailable",
-  ];
+  const allowed = ["available_now", "available_this_week", "available_next_month", "unavailable"];
   return allowed.includes(value) ? value : "available_now";
+}
+
+function getPrimaryRole(formData: FormData): "actor" | "model" | null {
+  const value = stringValue(formData, "primary_role");
+  return value === "actor" || value === "model" ? value : null;
+}
+
+function getGender(formData: FormData) {
+  const value = stringValue(formData, "gender");
+  return value === "male" || value === "female" ? value : null;
+}
+
+function getBaseCountryCode(formData: FormData) {
+  const value = stringValue(formData, "base_country_code");
+  return isCountryCode(value) ? value : null;
+}
+
+function getWorkMarketCodes(formData: FormData) {
+  return arrayValue(formData, "work_market_codes").filter((value) => COUNTRY_CODES.includes(value as (typeof COUNTRY_CODES)[number]));
+}
+
+function getCity(formData: FormData) {
+  const slug = stringValue(formData, "city_slug");
+  return SAUDI_CITIES.find((city) => city.slug === slug) ?? null;
 }
 
 export async function updateTalentAction(formData: FormData): Promise<void> {
@@ -100,6 +105,8 @@ export async function updateTalentAction(formData: FormData): Promise<void> {
   const verified = booleanValue(formData, "verified");
   const currentVerifiedAt = nullableStringValue(formData, "current_verified_at");
   const language = stringValue(formData, "return_lang") === "en" ? "en" : "ar";
+  const primaryRole = getPrimaryRole(formData);
+  const city = getCity(formData);
 
   const payload = {
     slug,
@@ -107,17 +114,20 @@ export async function updateTalentAction(formData: FormData): Promise<void> {
     name_ar: stringValue(formData, "name_ar"),
     display_name_en: nullableStringValue(formData, "display_name_en"),
     display_name_ar: nullableStringValue(formData, "display_name_ar"),
-    category_en: stringValue(formData, "category_en"),
-    category_ar: stringValue(formData, "category_ar"),
 
-    city_en: nullableStringValue(formData, "city_en"),
-    city_ar: nullableStringValue(formData, "city_ar"),
-    city_slug: nullableStringValue(formData, "city_slug"),
-    base_country_code: nullableStringValue(formData, "base_country_code"),
-    work_market_codes: arrayValue(formData, "work_market_codes"),
+    primary_role: primaryRole,
+    category_slug: primaryRole,
+    category_en: primaryRole === "actor" ? "Actor" : primaryRole === "model" ? "Model" : "",
+    category_ar: primaryRole === "actor" ? "ممثل" : primaryRole === "model" ? "مودل" : "",
+
+    city_en: city?.en ?? null,
+    city_ar: city?.ar ?? null,
+    city_slug: city?.slug ?? null,
+    base_country_code: getBaseCountryCode(formData),
+    work_market_codes: getWorkMarketCodes(formData),
     nationality: nullableStringValue(formData, "nationality"),
     nationality_slug: nullableStringValue(formData, "nationality_slug"),
-    gender: nullableStringValue(formData, "gender"),
+    gender: getGender(formData),
     date_of_birth: nullableStringValue(formData, "date_of_birth"),
     age: nullableNumberValue(formData, "age"),
 
@@ -172,7 +182,6 @@ export async function updateTalentAction(formData: FormData): Promise<void> {
 
   const supabase = createAdminClient();
   const { error } = await supabase.from("talents").update(payload).eq("id", id);
-
   if (error) throw new Error(`[updateTalentAction] ${error.message}`);
 
   revalidatePath("/admin");
