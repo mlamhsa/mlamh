@@ -21,6 +21,103 @@ function asRecord(value: unknown) {
     : {};
 }
 
+function cleanText(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function projectLabel(value: unknown) {
+  const key = cleanText(value).toLowerCase();
+  const labels: Record<string, string> = {
+    social_content: "محتوى سوشيال ميديا",
+    social_media: "محتوى سوشيال ميديا",
+    commercial_casting: "إعلان تجاري",
+    commercial_production: "إنتاج تجاري",
+    advertising_campaign: "حملة إعلانية",
+    campaign: "حملة إعلانية",
+    photoshoot: "جلسة تصوير",
+    photo_shoot: "جلسة تصوير",
+    video: "إنتاج فيديو",
+    video_production: "إنتاج فيديو",
+    event: "فعالية",
+    event_casting: "فعالية",
+    fashion: "تصوير أزياء",
+    ecommerce: "تصوير متجر إلكتروني",
+    e_commerce: "تصوير متجر إلكتروني",
+    partnership: "مشروع شراكة",
+  };
+  return labels[key] ?? "مشروع إعلاني أو إنتاجي";
+}
+
+function talentLabel(value: unknown, count = 1) {
+  const key = cleanText(value).toLowerCase();
+  if (key === "actor") return count > 1 ? "ممثلين" : "ممثل";
+  if (key === "mixed") return count > 1 ? "ممثلين ومودلز" : "ممثل أو مودل";
+  return count > 1 ? "مودلز" : "مودل";
+}
+
+function extractRequirementText(value: unknown): string {
+  if (typeof value === "string") return value.trim();
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => extractRequirementText(item))
+      .filter(Boolean)
+      .join("، ");
+  }
+  const record = asRecord(value);
+  const preferredKeys = [
+    "text",
+    "description",
+    "details",
+    "notes",
+    "requirements",
+    "skills",
+    "experience",
+    "look",
+    "appearance",
+    "wardrobe",
+  ];
+  const parts: string[] = [];
+  for (const key of preferredKeys) {
+    const text = extractRequirementText(record[key]);
+    if (text && !parts.includes(text)) parts.push(text);
+  }
+  return parts.join("، ");
+}
+
+function buildOpportunityCopy(args: {
+  projectType: unknown;
+  talentType: unknown;
+  talentCount: unknown;
+  cityAr: string;
+  requirements: unknown;
+  locationNotes: unknown;
+  shootDate: unknown;
+  timeWindow: unknown;
+  compensation: unknown;
+}) {
+  const count = typeof args.talentCount === "number" && args.talentCount > 0 ? args.talentCount : 1;
+  const project = projectLabel(args.projectType);
+  const talent = talentLabel(args.talentType, count);
+  const citySuffix = args.cityAr ? ` في ${args.cityAr}` : "";
+  const title = `مطلوب ${talent} لـ${project}${citySuffix}`;
+
+  const intro = `تبحث الجهة عن ${count > 1 ? `${count} ${talent}` : talent} للمشاركة في ${project}${citySuffix}.`;
+  const requirements = extractRequirementText(args.requirements);
+  const details = [
+    requirements ? `المتطلبات: ${requirements}` : "",
+    cleanText(args.locationNotes) ? `موقع أو تفاصيل العمل: ${cleanText(args.locationNotes)}` : "",
+    cleanText(args.shootDate) ? `تاريخ العمل: ${cleanText(args.shootDate)}` : "",
+    cleanText(args.timeWindow) ? `الفترة الزمنية: ${cleanText(args.timeWindow)}` : "",
+    cleanText(args.compensation) ? `المقابل: ${cleanText(args.compensation)}` : "",
+  ].filter(Boolean);
+
+  const closing = "يرجى التقديم عبر ملامح بملف موهبة مكتمل ومحدث. سيتم التواصل مع المرشحين المناسبين بعد مراجعة الطلبات.";
+  return {
+    title,
+    description: [intro, ...details, closing].join("\n\n"),
+  };
+}
+
 export default async function AdminCreateOpportunityPage({ searchParams }: PageProps) {
   await requireAdminAccess();
   const { brief_id: briefIdRaw } = await searchParams;
@@ -72,14 +169,17 @@ export default async function AdminCreateOpportunityPage({ searchParams }: PageP
       const matchedCity = SAUDI_CITIES.find((city) =>
         [city.slug, city.ar, city.en].some((value) => value.toLowerCase() === cityText),
       );
-      const requirements = asRecord(brief.requirements);
-      const requirementText = typeof requirements.text === "string" ? requirements.text.trim() : "";
-      const descriptionParts = [
-        requirementText,
-        brief.location_notes ? `ملاحظات الموقع: ${brief.location_notes}` : "",
-        brief.time_window ? `الفترة الزمنية: ${brief.time_window}` : "",
-        brief.compensation ? `المقابل: ${brief.compensation}` : "",
-      ].filter(Boolean);
+      const copy = buildOpportunityCopy({
+        projectType: brief.project_type,
+        talentType: brief.talent_type,
+        talentCount: brief.talent_count,
+        cityAr: matchedCity?.ar ?? cleanText(brief.city),
+        requirements: brief.requirements,
+        locationNotes: brief.location_notes,
+        shootDate: brief.shoot_date,
+        timeWindow: brief.time_window,
+        compensation: brief.compensation,
+      });
       const hasBudget = typeof brief.budget === "number" && brief.budget > 0;
 
       initialValues = {
@@ -90,8 +190,8 @@ export default async function AdminCreateOpportunityPage({ searchParams }: PageP
         contactName,
         contactPhone,
         contactEmail,
-        title: brief.project_type ? `فرصة ${brief.project_type}` : "",
-        description: descriptionParts.join("\n\n"),
+        title: copy.title,
+        description: copy.description,
         opportunityType: brief.talent_type === "actor" ? "actor" : "model",
         citySlug: matchedCity?.slug ?? "",
         requiredCount: typeof brief.talent_count === "number" ? brief.talent_count : null,
@@ -117,7 +217,7 @@ export default async function AdminCreateOpportunityPage({ searchParams }: PageP
 
             <p className="mt-2 max-w-2xl text-sm leading-6 text-white/50">
               {briefReady
-                ? "تم تحميل البريف المكتمل. راجع البيانات قبل الحفظ أو النشر؛ عند الإنشاء سيتم ربط الفرصة بالبريف والـLead تلقائيًا."
+                ? "تم تحميل البريف وصياغة عنوان ووصف مناسبين للفرصة تلقائيًا من بياناته. راجع البيانات قبل الحفظ أو النشر؛ عند الإنشاء سيتم ربط الفرصة بالبريف والـLead تلقائيًا."
                 : "اكتب عنوان ووصف الفرصة بالعربية فقط، وستقوم ملامح بإنشاء النسخة الإنجليزية تلقائيًا عند الحفظ أو النشر."}
             </p>
           </div>
