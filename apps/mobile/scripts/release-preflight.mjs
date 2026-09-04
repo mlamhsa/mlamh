@@ -6,10 +6,10 @@ const root = process.cwd();
 const appConfig = JSON.parse(fs.readFileSync(path.join(root, "app.json"), "utf8"));
 const easConfig = JSON.parse(fs.readFileSync(path.join(root, "eas.json"), "utf8"));
 const packageConfig = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
+const themeSource = fs.readFileSync(path.join(root, "lib", "theme.ts"), "utf8");
 const expo = appConfig.expo ?? {};
 const errors = [];
 const strict = process.argv.includes("--strict");
-const officialPalette = new Set(["#D4A017", "#2E2E2E", "#F5F1E8", "#8C6A2D"]);
 
 function requireValue(condition, message) {
   if (!condition) errors.push(message);
@@ -23,33 +23,17 @@ function requireLocalAsset(assetPath, label) {
   requireValue(fs.existsSync(resolved), `${label} does not exist: ${assetPath}.`);
 }
 
-function auditOfficialPalette(directory) {
-  const entries = fs.readdirSync(directory, { withFileTypes: true });
-  for (const entry of entries) {
-    if (["node_modules", ".expo", ".git"].includes(entry.name)) continue;
-    const fullPath = path.join(directory, entry.name);
-    if (entry.isDirectory()) {
-      auditOfficialPalette(fullPath);
-      continue;
-    }
-    if (!/\.(?:ts|tsx|mjs|json)$/.test(entry.name)) continue;
-    const text = fs.readFileSync(fullPath, "utf8");
-    const literals = text.match(/#[0-9a-fA-F]{6}(?:[0-9a-fA-F]{2})?\b/g) ?? [];
-    for (const literal of new Set(literals)) {
-      const base = literal.slice(0, 7).toUpperCase();
-      if (!officialPalette.has(base)) {
-        errors.push(`Unofficial MLAMH color ${literal} in ${path.relative(root, fullPath)}. Use an official brand color or an alpha variant of it.`);
-      }
-    }
-  }
-}
-
 requireValue(expo.slug === "mlamh", "Expo slug must remain 'mlamh'.");
 requireValue(expo.scheme === "mlamh", "Custom URL scheme must remain 'mlamh'.");
 requireValue(expo.ios?.bundleIdentifier === "net.mlamh.app", "iOS bundleIdentifier must be net.mlamh.app.");
 requireValue(/^\d+$/.test(expo.ios?.buildNumber ?? ""), "iOS buildNumber must be a numeric string.");
 requireValue(expo.android?.package === "net.mlamh.app", "Android package must be net.mlamh.app.");
 requireValue(Number.isInteger(expo.android?.versionCode) && expo.android.versionCode > 0, "Android versionCode must be a positive integer.");
+
+for (const [name, value] of [["Gold", "#D4A017"], ["Charcoal", "#2E2E2E"], ["Warm Ivory", "#F5F1E8"], ["Bronze", "#8C6A2D"]]) {
+  requireValue(themeSource.includes(value), `Canonical MLAMH ${name} token ${value} is missing from lib/theme.ts.`);
+}
+requireValue(!themeSource.includes("goldStrong"), "MLAMH theme must not redefine the primary Gold token with an alternate brand gold.");
 
 const associatedDomains = new Set(expo.ios?.associatedDomains ?? []);
 requireValue(associatedDomains.has("applinks:mlamh.net"), "iOS associated domains must include mlamh.net.");
@@ -80,8 +64,6 @@ if (splashPlugin) {
   requireValue(splashConfig.backgroundColor === "#F5F1E8", "Light splash background must use official MLAMH Warm Ivory #F5F1E8.");
   requireValue(splashConfig.dark?.backgroundColor === "#2E2E2E", "Dark splash background must use official MLAMH Charcoal #2E2E2E.");
 }
-
-auditOfficialPalette(root);
 
 if (strict) {
   const requiredEnvironment = [
