@@ -5,6 +5,18 @@ import { revalidatePath } from "next/cache";
 import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+function revalidateEntitlementSurfaces(targetType: string | null, targetId: string | null) {
+  revalidatePath("/admin/entitlements");
+
+  if (targetType === "talent" && targetId) {
+    revalidatePath(`/admin/talents/${targetId}`);
+    revalidatePath("/ar");
+    revalidatePath("/en");
+    revalidatePath("/ar/talent");
+    revalidatePath("/en/talent");
+  }
+}
+
 export async function revokeEntitlement(formData: FormData) {
   await requireAdminAccess();
 
@@ -34,8 +46,5 @@ export async function revokeEntitlement(formData: FormData) {
     if (updateError) throw new Error(`Unable to revoke entitlement: ${updateError.message}`);
   }
 
-  revalidatePath("/admin/entitlements");
-  if (entitlement.target_type === "talent" && entitlement.target_id) {
-    revalidatePath(`/admin/talents/${entitlement.target_id}`);
-  }
+  revalidateEntitlementSurfaces(entitlement.target_type, entitlement.target_id);
 }
