@@ -27,11 +27,13 @@ export function AdminNationalityFieldEnhancer() {
     const sync = () => {
       const match = findNationality(input.value);
       codeInput!.value = match?.code ?? "";
-      if (input.value.trim() && !match) {
-        input.setCustomValidity(isArabic ? "اختر الجنسية من القائمة." : "Choose a nationality from the list.");
-      } else {
-        input.setCustomValidity("");
-      }
+      input.setCustomValidity(
+        input.value.trim() && !match
+          ? isArabic
+            ? "اختر الجنسية من القائمة."
+            : "Choose a nationality from the list."
+          : "",
+      );
     };
 
     sync();
@@ -42,8 +44,6 @@ export function AdminNationalityFieldEnhancer() {
       input.removeEventListener("change", sync);
     };
   }, []);
-
-  const isArabic = true;
 
   return (
     <datalist id={DATALIST_ID}>
