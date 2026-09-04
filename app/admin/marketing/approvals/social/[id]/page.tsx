@@ -41,6 +41,12 @@ function targetLabel(target: string, isArabic: boolean) {
   return target || (isArabic ? "غير محدد" : "Not set");
 }
 
+function visualRequired(target: string, contentType: string | null | undefined) {
+  if (target === "instagram") return true;
+  if (target === "facebook") return ["reel", "story", "carousel", "video"].includes((contentType ?? "").toLowerCase());
+  return false;
+}
+
 export default async function SocialApprovalReviewPage({ params, searchParams }: PageProps) {
   await requireAdminAccess();
   const [{ id: idParam }, { lang }] = await Promise.all([params, searchParams]);
@@ -62,7 +68,7 @@ export default async function SocialApprovalReviewPage({ params, searchParams }:
   const provider = stringValue(action.provider) || approval.channel || "buffer";
   const caption = stringValue(action.text) || stringValue(action.caption) || stringValue(action.content);
   const cta = stringValue(action.cta);
-  const assetUrls = stringArray(action.asset_urls);
+  const actionAssetUrls = stringArray(action.asset_urls);
   const testMode = action.test_mode === true;
   const contentId = Number(action.content_id);
 
@@ -74,6 +80,20 @@ export default async function SocialApprovalReviewPage({ params, searchParams }:
         .maybeSingle()
     : { data: null };
 
+  const contentAssetUrls = stringArray(content?.asset_references);
+  const assetUrls = [...new Set([...actionAssetUrls, ...contentAssetUrls])];
+  const { data: creatives } = Number.isInteger(contentId) && contentId > 0
+    ? await db.from("marketing_creatives").select("id,platform,status,storage_path,preview_path,aspect_ratio,type").eq("content_id", contentId).order("created_at", { ascending: false })
+    : { data: [] };
+  const relevantCreatives = (creatives ?? []).filter((creative) => {
+    const platform = (creative.platform ?? "").toLowerCase();
+    return !platform || platform === target || platform === "buffer" || platform === "social";
+  });
+  const readyCreative = relevantCreatives.find((creative) => ["ready", "approved", "published"].includes((creative.status ?? "").toLowerCase()) && Boolean(creative.storage_path?.trim() || creative.preview_path?.trim()));
+  const needsVisual = visualRequired(target, content?.content_type);
+  const publishableVisualAttached = assetUrls.length > 0;
+  const blockedByCreative = needsVisual && !publishableVisualAttached;
+
   const displayCaption = caption || content?.caption || content?.body || "";
   const displayCta = cta || content?.cta || "";
   const displayTitle = content?.title || (isArabic ? "منشور اجتماعي جاهز للمراجعة" : "Social post ready for review");
@@ -83,8 +103,8 @@ export default async function SocialApprovalReviewPage({ params, searchParams }:
       <AdminPageHeader
         title={isArabic ? "مراجعة المنشور قبل الاعتماد" : "Review post before approval"}
         description={isArabic
-          ? "هذه المعاينة تعرض نفس المحتوى والأصول التي ستُرسل إلى القناة عند اعتمادك."
-          : "This preview shows the same content and assets that will be sent to the channel after approval."}
+          ? "هذه المعاينة تعرض نفس المحتوى والأصول التي ستُرسل إلى القناة عند اعتمادك. لا يمكن اعتماد قناة بصرية بدون أصل صالح للنشر."
+          : "This preview shows the same content and assets that will be sent to the channel. Visual channels cannot be approved without a publishable asset."}
       />
 
       <div className="mb-5 flex flex-wrap gap-2 text-xs">
@@ -102,6 +122,7 @@ export default async function SocialApprovalReviewPage({ params, searchParams }:
         <span className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-white/60">
           {isArabic ? "الحالة" : "Status"}: {approval.status}
         </span>
+        {blockedByCreative ? <span className="rounded-full border border-amber-300/25 bg-amber-300/[0.08] px-3 py-1.5 text-amber-100">{isArabic ? "محظور · بانتظار التصميم" : "Blocked · Waiting for creative"}</span> : null}
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,.85fr)]">
@@ -132,8 +153,9 @@ export default async function SocialApprovalReviewPage({ params, searchParams }:
                 ))}
               </div>
             ) : (
-              <div className="rounded-2xl border border-amber-300/15 bg-amber-300/[0.035] p-5 text-sm text-amber-100/70">
-                {isArabic ? "لا توجد صورة مرتبطة بهذا المنشور." : "No image is attached to this post."}
+              <div className={`rounded-2xl border p-5 text-sm ${needsVisual ? "border-amber-300/20 bg-amber-300/[0.05] text-amber-100" : "border-white/[0.08] bg-white/[0.025] text-white/50"}`}>
+                <p className="font-medium">{needsVisual ? (isArabic ? "لا يمكن اعتماد هذا المنشور بدون تصميم" : "This post cannot be approved without a creative") : (isArabic ? "لا توجد صورة مرتبطة، وهذه القناة/الصيغة لا تفرض أصلًا بصريًا." : "No image is attached; this channel/format does not require one.")}</p>
+                {needsVisual ? <p className="mt-2 text-xs leading-6 opacity-70">{readyCreative ? (isArabic ? "يوجد Creative في المكتبة لكنه لم يُرفق بعد كأصل قابل للنشر. يجب ربطه بالمحتوى قبل الاعتماد." : "A creative exists in the library but is not attached as a publishable asset yet. Attach it to the content before approval.") : (isArabic ? "يجب أن تنجز Sarah التصميم المناسب للقناة ثم يتم إرفاقه بالمحتوى قبل أن يظهر زر الاعتماد." : "Sarah must complete the channel-ready creative and attach it to the content before approval becomes available.")}</p> : null}
               </div>
             )}
 
@@ -159,13 +181,17 @@ export default async function SocialApprovalReviewPage({ params, searchParams }:
           <AdminCard className="p-5">
             <p className="text-xs font-medium text-white/75">{isArabic ? "قبل أن تعتمد" : "Before you approve"}</p>
             <p className="mt-3 text-sm leading-7 text-white/50">
-              {testMode
+              {blockedByCreative
                 ? isArabic
-                  ? "هذا اختبار على قناة MLAMH المملوكة لنا. التشغيل الخارجي العام يبقى معطلاً، لكن الضغط على اعتماد سيشغّل هذا الـSandbox Job فورًا."
-                  : "This is a test on an MLAMH-owned channel. General external execution remains disabled, but approving will immediately run this sandbox job."
-                : isArabic
-                  ? "اعتماد هذا القرار يسمح للنظام بإنشاء مهمة النشر المحكومة للقناة المحددة."
-                  : "Approving this decision allows the system to create the governed publishing job for the selected channel."}
+                  ? "القرار مقفل لأن هذه القناة تحتاج أصلًا بصريًا صالحًا للنشر. أكمل التصميم واربطه بالمحتوى ثم ارجع للاعتماد."
+                  : "This decision is locked because the channel requires a publishable visual. Complete and attach the creative, then return to approval."
+                : testMode
+                  ? isArabic
+                    ? "هذا اختبار على قناة MLAMH المملوكة لنا. التشغيل الخارجي العام يبقى معطلاً، لكن الضغط على اعتماد سيشغّل هذا الـSandbox Job فورًا."
+                    : "This is a test on an MLAMH-owned channel. General external execution remains disabled, but approving will immediately run this sandbox job."
+                  : isArabic
+                    ? "اعتماد هذا القرار يسمح للنظام بإنشاء مهمة النشر المحكومة للقناة المحددة."
+                    : "Approving this decision allows the system to create the governed publishing job for the selected channel."}
             </p>
             <div className="mt-4 rounded-xl border border-white/[0.06] bg-black/20 p-3 text-xs leading-6 text-white/40">
               <p>{isArabic ? "السبب الداخلي" : "Internal reason"}: {approval.reason || "—"}</p>
@@ -176,30 +202,32 @@ export default async function SocialApprovalReviewPage({ params, searchParams }:
 
           {approval.status === "pending" ? (
             <AdminCard className="space-y-3 p-5">
-              <form action={approveMarketingApproval}>
-                <input type="hidden" name="approval_id" value={approval.id} />
-                <button className="w-full rounded-xl border border-gold/30 bg-gold/10 px-4 py-3 text-sm font-medium text-gold transition hover:bg-gold/15">
-                  {isArabic ? "اعتماد ونشر الاختبار" : "Approve & run test"}
-                </button>
-              </form>
+              {blockedByCreative ? <div className="rounded-xl border border-amber-300/20 bg-amber-300/[0.05] px-4 py-3 text-sm text-amber-100/80">{isArabic ? "بانتظار Creative صالح للنشر — الاعتماد والجدولة غير متاحين الآن." : "Waiting for a publishable creative — approval and scheduling are unavailable."}</div> : <>
+                <form action={approveMarketingApproval}>
+                  <input type="hidden" name="approval_id" value={approval.id} />
+                  <button className="w-full rounded-xl border border-gold/30 bg-gold/10 px-4 py-3 text-sm font-medium text-gold transition hover:bg-gold/15">
+                    {testMode ? (isArabic ? "اعتماد ونشر الاختبار" : "Approve & run test") : (isArabic ? "اعتماد" : "Approve")}
+                  </button>
+                </form>
+
+                <form action={scheduleMarketingApproval} className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                  <input type="hidden" name="approval_id" value={approval.id} />
+                  <input
+                    type="datetime-local"
+                    name="execute_after"
+                    required
+                    className="min-w-0 rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white/70 outline-none focus:border-gold/30"
+                  />
+                  <button className="rounded-xl border border-white/10 px-4 py-2.5 text-xs text-white/65">
+                    {isArabic ? "اعتماد وجدولة" : "Approve & schedule"}
+                  </button>
+                </form>
+              </>}
 
               <form action={rejectMarketingApproval}>
                 <input type="hidden" name="approval_id" value={approval.id} />
                 <button className="w-full rounded-xl border border-red-400/20 bg-red-400/[0.04] px-4 py-3 text-sm text-red-200/80 transition hover:bg-red-400/[0.08]">
                   {isArabic ? "رفض" : "Reject"}
-                </button>
-              </form>
-
-              <form action={scheduleMarketingApproval} className="grid gap-2 sm:grid-cols-[1fr_auto]">
-                <input type="hidden" name="approval_id" value={approval.id} />
-                <input
-                  type="datetime-local"
-                  name="execute_after"
-                  required
-                  className="min-w-0 rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white/70 outline-none focus:border-gold/30"
-                />
-                <button className="rounded-xl border border-white/10 px-4 py-2.5 text-xs text-white/65">
-                  {isArabic ? "اعتماد وجدولة" : "Approve & schedule"}
                 </button>
               </form>
             </AdminCard>
