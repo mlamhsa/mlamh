@@ -23,21 +23,8 @@ import {
   Workflow,
 } from "lucide-react";
 
-export type MarketingHubNavItem = {
-  key: string;
-  labelAr: string;
-  labelEn: string;
-  href: string;
-  icon: typeof Megaphone;
-};
-
-export type MarketingHubNavGroup = {
-  key: string;
-  labelAr: string;
-  labelEn: string;
-  icon: typeof Megaphone;
-  itemKeys: string[];
-};
+export type MarketingHubNavItem = { key: string; labelAr: string; labelEn: string; href: string; icon: typeof Megaphone };
+export type MarketingHubNavGroup = { key: string; labelAr: string; labelEn: string; icon: typeof Megaphone; itemKeys: string[] };
 
 export const marketingHubNavigation: MarketingHubNavItem[] = [
   { key: "overview", labelAr: "مركز القيادة", labelEn: "Command", href: "/admin/marketing", icon: BarChart3 },
@@ -66,29 +53,12 @@ export const marketingHubNavigation: MarketingHubNavItem[] = [
 
 export const marketingHubNavigationGroups: MarketingHubNavGroup[] = [
   { key: "decisions", labelAr: "قراراتي", labelEn: "Decisions", icon: CheckCheck, itemKeys: ["approvals", "inbox"] },
-  { key: "growth", labelAr: "النمو", labelEn: "Growth", icon: Target, itemKeys: ["leads", "briefs", "talent-growth", "opportunity-growth"] },
+  { key: "growth", labelAr: "النمو", labelEn: "Growth", icon: Target, itemKeys: ["leads", "outreach", "follow-ups", "briefs", "talent-growth", "opportunity-growth"] },
   { key: "content-work", labelAr: "المحتوى", labelEn: "Content", icon: Megaphone, itemKeys: ["content", "creative", "social", "campaigns"] },
-  { key: "operations", labelAr: "الفريق والتنفيذ", labelEn: "Operations", icon: Workflow, itemKeys: ["ai-team", "tasks", "outreach", "follow-ups", "automation", "activity"] },
+  { key: "operations", labelAr: "الفريق والتنفيذ", labelEn: "Operations", icon: Workflow, itemKeys: ["ai-team", "tasks", "automation", "activity"] },
   { key: "insights", labelAr: "القياس والإعداد", labelEn: "Insights & Setup", icon: Settings2, itemKeys: ["analytics", "experiments", "integrations", "knowledge", "settings"] },
 ];
 
 export const marketingHubCoreEntities = [
-  "marketing_agents",
-  "marketing_tasks",
-  "marketing_agent_activity",
-  "marketing_approvals",
-  "marketing_leads",
-  "marketing_contacts",
-  "marketing_briefs",
-  "marketing_content",
-  "marketing_creatives",
-  "marketing_campaigns",
-  "marketing_outreach",
-  "marketing_followups",
-  "marketing_automation_rules",
-  "marketing_events",
-  "marketing_experiments",
-  "marketing_integrations",
-  "marketing_alerts",
-  "marketing_playbooks",
+  "marketing_agents", "marketing_tasks", "marketing_agent_activity", "marketing_approvals", "marketing_leads", "marketing_contacts", "marketing_briefs", "marketing_content", "marketing_creatives", "marketing_campaigns", "marketing_outreach", "marketing_followups", "marketing_automation_rules", "marketing_events", "marketing_experiments", "marketing_integrations", "marketing_alerts", "marketing_playbooks",
 ] as const;

@@ -1,4 +1,4 @@
-import { AdminCard, AdminPageContainer, AdminPageHeader } from "@/components/admin/ui";
+import { AdminBadge, AdminCard, AdminPageContainer, AdminPageHeader } from "@/components/admin/ui";
 import { getAdminLanguage } from "@/lib/admin/i18n";
 import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -6,81 +6,14 @@ import { createAdminClient } from "@/lib/supabase/admin";
 export const dynamic = "force-dynamic";
 type PageProps = { searchParams: Promise<{ lang?: string }> };
 type RuleValue = Record<string, unknown> | unknown[] | string | number | boolean | null;
-
-const keyAr: Record<string, string> = {
-  channel: "القناة",
-  channels: "القنوات",
-  status: "الحالة",
-  priority: "الأولوية",
-  content_type: "نوع المحتوى",
-  approval_status: "حالة الاعتماد",
-  event_name: "الحدث",
-  target: "الوجهة",
-  action: "الإجراء",
-  delay_seconds: "التأخير",
-};
-
-const eventAr: Record<string, string> = {
-  lead_created: "عند إنشاء عميل محتمل",
-  lead_qualified: "عند تأهيل عميل محتمل",
-  opportunity_created: "عند إنشاء فرصة",
-  opportunity_published: "عند نشر فرصة",
-  content_approved: "عند اعتماد المحتوى",
-  approval_granted: "عند منح الاعتماد",
-  application_received: "عند وصول طلب جديد",
-  task_completed: "عند اكتمال مهمة",
-  schedule_reached: "عند حلول الموعد المجدول",
-};
-
-function humanizeKey(key: string, isArabic: boolean) {
-  if (!isArabic) return key.replaceAll("_", " ");
-  return keyAr[key] ?? key.replaceAll("_", " ");
-}
-
-function humanize(value: unknown, isArabic: boolean): string {
-  if (value === null || value === undefined || value === "") return isArabic ? "غير محدد" : "Not specified";
-  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return String(value);
-  if (Array.isArray(value)) return value.map((item) => humanize(item, isArabic)).join(" · ");
-  if (typeof value === "object") {
-    return Object.entries(value as Record<string, unknown>)
-      .slice(0, 4)
-      .map(([key, item]) => `${humanizeKey(key, isArabic)}: ${humanize(item, isArabic)}`)
-      .join(" · ");
-  }
-  return String(value);
-}
-
-function eventLabel(value: string | null, isArabic: boolean) {
-  if (!value) return isArabic ? "حدث غير محدد" : "Unspecified event";
-  if (!isArabic) return value.replaceAll("_", " ");
-  return eventAr[value.toLowerCase()] ?? value.replaceAll("_", " ");
-}
-
-function delayLabel(seconds: number, isArabic: boolean) {
-  if (seconds <= 0) return isArabic ? "يعمل مباشرة" : "Runs immediately";
-  if (seconds % 3600 === 0) {
-    const hours = seconds / 3600;
-    return isArabic ? `بعد ${hours} ${hours === 1 ? "ساعة" : "ساعات"}` : `After ${hours}h`;
-  }
-  if (seconds % 60 === 0) {
-    const minutes = seconds / 60;
-    return isArabic ? `بعد ${minutes} ${minutes === 1 ? "دقيقة" : "دقائق"}` : `After ${minutes}m`;
-  }
-  return isArabic ? `بعد ${seconds} ثانية` : `After ${seconds}s`;
-}
-
-function statusLabel(value: string | null, isArabic: boolean) {
-  const normalized = (value ?? "").toLowerCase();
-  if (!isArabic) return value || "Unknown";
-  return ({ active: "نشطة", enabled: "مفعلة", paused: "متوقفة مؤقتًا", disabled: "معطلة", draft: "مسودة" } as Record<string, string>)[normalized] ?? value ?? "غير محدد";
-}
-
-function statusClass(value: string | null) {
-  const normalized = (value ?? "").toLowerCase();
-  if (["active", "enabled"].includes(normalized)) return "border-emerald-300/20 bg-emerald-300/10 text-emerald-200";
-  if (["paused", "draft"].includes(normalized)) return "border-amber-300/20 bg-amber-300/10 text-amber-200";
-  return "border-white/10 bg-white/[0.04] text-white/50";
-}
+const keyAr: Record<string, string> = { channel: "القناة", channels: "القنوات", status: "الحالة", priority: "الأولوية", content_type: "نوع المحتوى", approval_status: "حالة الاعتماد", event_name: "الحدث", target: "الوجهة", action: "الإجراء", delay_seconds: "التأخير" };
+const eventAr: Record<string, string> = { lead_created: "عند إنشاء عميل محتمل", lead_qualified: "عند تأهيل عميل محتمل", opportunity_created: "عند إنشاء فرصة", opportunity_published: "عند نشر فرصة", content_approved: "عند اعتماد المحتوى", approval_granted: "عند منح الاعتماد", application_received: "عند وصول طلب جديد", task_completed: "عند اكتمال مهمة", schedule_reached: "عند حلول الموعد المجدول" };
+function humanizeKey(key: string, isArabic: boolean) { if (!isArabic) return key.replaceAll("_", " "); return keyAr[key] ?? key.replaceAll("_", " "); }
+function humanize(value: unknown, isArabic: boolean): string { if (value === null || value === undefined || value === "") return isArabic ? "غير محدد" : "Not specified"; if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return String(value); if (Array.isArray(value)) return value.map((item) => humanize(item, isArabic)).join(" · "); if (typeof value === "object") return Object.entries(value as Record<string, unknown>).slice(0, 4).map(([key, item]) => `${humanizeKey(key, isArabic)}: ${humanize(item, isArabic)}`).join(" · "); return String(value); }
+function eventLabel(value: string | null, isArabic: boolean) { if (!value) return isArabic ? "حدث غير محدد" : "Unspecified event"; if (!isArabic) return value.replaceAll("_", " "); return eventAr[value.toLowerCase()] ?? value.replaceAll("_", " "); }
+function delayLabel(seconds: number, isArabic: boolean) { if (seconds <= 0) return isArabic ? "يعمل مباشرة" : "Runs immediately"; if (seconds % 3600 === 0) { const hours = seconds / 3600; return isArabic ? `بعد ${hours} ${hours === 1 ? "ساعة" : "ساعات"}` : `After ${hours}h`; } if (seconds % 60 === 0) { const minutes = seconds / 60; return isArabic ? `بعد ${minutes} ${minutes === 1 ? "دقيقة" : "دقائق"}` : `After ${minutes}m`; } return isArabic ? `بعد ${seconds} ثانية` : `After ${seconds}s`; }
+function statusLabel(value: string | null, isArabic: boolean) { const normalized = (value ?? "").toLowerCase(); if (!isArabic) return value || "Unknown"; return ({ active: "نشطة", enabled: "مفعلة", paused: "متوقفة مؤقتًا", disabled: "معطلة", draft: "مسودة" } as Record<string, string>)[normalized] ?? value ?? "غير محدد"; }
+function statusClass(value: string | null) { const normalized = (value ?? "").toLowerCase(); if (["active", "enabled"].includes(normalized)) return "border-emerald-300/20 bg-emerald-300/10 text-emerald-200"; if (["paused", "draft"].includes(normalized)) return "border-amber-300/20 bg-amber-300/10 text-amber-200"; return "border-white/10 bg-white/[0.04] text-white/50"; }
 
 export default async function AutomationPage({ searchParams }: PageProps) {
   await requireAdminAccess();
@@ -93,50 +26,10 @@ export default async function AutomationPage({ searchParams }: PageProps) {
   const delayedCount = rows.filter((item) => Number(item.delay_seconds ?? 0) > 0).length;
 
   return <AdminPageContainer>
-    <AdminPageHeader title={isArabic ? "مركز الأتمتة" : "Automation Center"} description={isArabic ? "اعرف ما يعمل تلقائيًا، ما الذي يشغّله، وما النتيجة المتوقعة — مع إبقاء التفاصيل التقنية خارج الواجهة الرئيسية." : "See what runs automatically, what triggers it, and the expected outcome while keeping technical details out of the primary view."} />
+    <AdminPageHeader title={isArabic ? "مركز الأتمتة" : "Automation Center"} description={isArabic ? "شاشة مراقبة وحوكمة: اعرف ما يعمل تلقائيًا ولماذا، بدون تعديل قواعد حساسة مباشرة من الواجهة التشغيلية." : "Observability and governance: see what runs automatically and why, without editing sensitive rules directly from the operational UI."} />
+    <AdminCard className="mb-5 border-gold/15 bg-gold/[0.04] p-5"><div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between"><div><div className="flex flex-wrap gap-2"><AdminBadge variant="gold">{isArabic ? "وضع مراقبة" : "OBSERVABILITY MODE"}</AdminBadge><AdminBadge variant="muted">{activeCount} {isArabic ? "نشطة" : "active"}</AdminBadge></div><p className="mt-3 max-w-3xl text-sm leading-6 text-white/50">{isArabic ? "هذه الشاشة مقصودة للمراقبة وليس لتغيير القواعد. تعديل الأتمتة يؤثر في التنفيذ الآلي، لذلك يبقى عبر مسار تطوير/اعتماد مضبوط بدل مفتاح مباشر قد يغيّر سلوك النظام بالخطأ." : "This screen is intentionally read-only. Automation rule changes affect system behavior, so they remain governed through a controlled development/approval path rather than direct production toggles."}</p></div></div></AdminCard>
     {error ? <AdminCard className="mb-5 p-5 text-sm text-amber-200">{isArabic ? "قواعد الأتمتة غير مفعلة بعد." : "Automation rule storage is not active yet."}</AdminCard> : null}
-
-    <div className="mb-5 grid gap-3 sm:grid-cols-3">
-      <AdminCard className="p-4"><div className="text-xs text-white/40">{isArabic ? "إجمالي القواعد" : "Total rules"}</div><div className="mt-2 text-2xl font-semibold text-white">{rows.length}</div></AdminCard>
-      <AdminCard className="p-4"><div className="text-xs text-white/40">{isArabic ? "تعمل الآن" : "Running now"}</div><div className="mt-2 text-2xl font-semibold text-emerald-200">{activeCount}</div></AdminCard>
-      <AdminCard className="p-4"><div className="text-xs text-white/40">{isArabic ? "بها انتظار مقصود" : "Uses delay"}</div><div className="mt-2 text-2xl font-semibold text-gold">{delayedCount}</div></AdminCard>
-    </div>
-
-    <div className="grid gap-4">{rows.length === 0 ? <AdminCard className="p-6 text-sm text-white/40">{isArabic ? "لا توجد قواعد أتمتة مسجلة حاليًا." : "No automation rules are recorded yet."}</AdminCard> : rows.map((item) => {
-      const conditions = item.conditions as RuleValue;
-      const actions = item.actions as RuleValue;
-      const delay = Number(item.delay_seconds ?? 0);
-      return <AdminCard key={item.id} className="p-5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="min-w-0">
-            <div className="text-base font-medium text-white">{item.name}</div>
-            <div className="mt-2 flex flex-wrap gap-2 text-xs text-white/50">
-              <span className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1">{eventLabel(item.event_name, isArabic)}</span>
-              <span className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1">{delayLabel(delay, isArabic)}</span>
-            </div>
-          </div>
-          <span className={`w-fit rounded-full border px-2.5 py-1 text-xs ${statusClass(item.status)}`}>{statusLabel(item.status, isArabic)}</span>
-        </div>
-
-        <div className="mt-5 grid gap-3 lg:grid-cols-2">
-          <div className="rounded-2xl border border-gold/15 bg-gold/[0.04] p-4">
-            <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-gold/60">{isArabic ? "ماذا سيحدث" : "What happens"}</div>
-            <div className="mt-2 text-sm leading-6 text-white/80">{humanize(actions, isArabic)}</div>
-          </div>
-          <div className="rounded-2xl border border-white/[0.07] bg-black/20 p-4">
-            <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-white/35">{isArabic ? "متى ينطبق" : "When it applies"}</div>
-            <div className="mt-2 text-sm leading-6 text-white/70">{humanize(conditions, isArabic)}</div>
-          </div>
-        </div>
-
-        <details className="mt-4 rounded-xl border border-white/[0.06] bg-black/10 px-4 py-3 text-xs text-white/40">
-          <summary className="cursor-pointer select-none text-white/45">{isArabic ? "عرض التفاصيل التقنية" : "Show technical details"}</summary>
-          <div className="mt-3 grid gap-3 lg:grid-cols-2">
-            <pre className="overflow-auto whitespace-pre-wrap break-words rounded-lg bg-black/20 p-3 text-[11px] text-white/45">{JSON.stringify(item.conditions, null, 2)}</pre>
-            <pre className="overflow-auto whitespace-pre-wrap break-words rounded-lg bg-black/20 p-3 text-[11px] text-white/45">{JSON.stringify(item.actions, null, 2)}</pre>
-          </div>
-        </details>
-      </AdminCard>;
-    })}</div>
+    <div className="mb-5 grid gap-3 sm:grid-cols-3"><AdminCard className="p-4"><div className="text-xs text-white/40">{isArabic ? "إجمالي القواعد" : "Total rules"}</div><div className="mt-2 text-2xl font-semibold text-white">{rows.length}</div></AdminCard><AdminCard className="p-4"><div className="text-xs text-white/40">{isArabic ? "تعمل الآن" : "Running now"}</div><div className="mt-2 text-2xl font-semibold text-emerald-200">{activeCount}</div></AdminCard><AdminCard className="p-4"><div className="text-xs text-white/40">{isArabic ? "بها انتظار مقصود" : "Uses delay"}</div><div className="mt-2 text-2xl font-semibold text-gold">{delayedCount}</div></AdminCard></div>
+    <div className="grid gap-4">{rows.length === 0 ? <AdminCard className="p-6 text-sm text-white/40">{isArabic ? "لا توجد قواعد أتمتة مسجلة حاليًا." : "No automation rules are recorded yet."}</AdminCard> : rows.map((item) => { const conditions = item.conditions as RuleValue; const actions = item.actions as RuleValue; const delay = Number(item.delay_seconds ?? 0); return <AdminCard key={item.id} className="p-5"><div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"><div className="min-w-0"><div className="text-base font-medium text-white">{item.name}</div><div className="mt-2 flex flex-wrap gap-2 text-xs text-white/50"><span className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1">{eventLabel(item.event_name, isArabic)}</span><span className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1">{delayLabel(delay, isArabic)}</span></div></div><span className={`w-fit rounded-full border px-2.5 py-1 text-xs ${statusClass(item.status)}`}>{statusLabel(item.status, isArabic)}</span></div><div className="mt-5 grid gap-3 lg:grid-cols-2"><div className="rounded-2xl border border-gold/15 bg-gold/[0.04] p-4"><div className="text-[11px] font-medium uppercase tracking-[0.14em] text-gold/60">{isArabic ? "ماذا سيحدث" : "What happens"}</div><div className="mt-2 text-sm leading-6 text-white/80">{humanize(actions, isArabic)}</div></div><div className="rounded-2xl border border-white/[0.07] bg-black/20 p-4"><div className="text-[11px] font-medium uppercase tracking-[0.14em] text-white/35">{isArabic ? "متى ينطبق" : "When it applies"}</div><div className="mt-2 text-sm leading-6 text-white/70">{humanize(conditions, isArabic)}</div></div></div><details className="mt-4 rounded-xl border border-white/[0.06] bg-black/10 px-4 py-3 text-xs text-white/40"><summary className="cursor-pointer select-none text-white/45">{isArabic ? "عرض التفاصيل التقنية" : "Show technical details"}</summary><div className="mt-3 grid gap-3 lg:grid-cols-2"><pre className="overflow-auto whitespace-pre-wrap break-words rounded-lg bg-black/20 p-3 text-[11px] text-white/45">{JSON.stringify(item.conditions, null, 2)}</pre><pre className="overflow-auto whitespace-pre-wrap break-words rounded-lg bg-black/20 p-3 text-[11px] text-white/45">{JSON.stringify(item.actions, null, 2)}</pre></div></details></AdminCard>; })}</div>
   </AdminPageContainer>;
 }

@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { AdminCard, AdminGrid, AdminPageContainer, AdminPageHeader, AdminStatCard } from "@/components/admin/ui";
 import { getAdminLanguage } from "@/lib/admin/i18n";
 import { requireAdminAccess } from "@/lib/auth/require-admin";
@@ -13,10 +15,12 @@ function stageLabel(value: string, isArabic: boolean) {
     new: "جديد",
     discovered: "مكتشف",
     contacted: "تم التواصل",
+    replied: "تم الرد",
     engaged: "متفاعل",
     qualified: "مؤهل",
     brief_requested: "بانتظار البريف",
     brief_received: "البريف مستلم",
+    opportunity: "تحول إلى فرصة",
     opportunity_created: "تحول إلى فرصة",
     won: "تم كسبه",
     lost: "مغلق",
@@ -27,7 +31,13 @@ function stageLabel(value: string, isArabic: boolean) {
 function briefLabel(value: string | null, isArabic: boolean) {
   if (!value) return "—";
   if (!isArabic) return value.replaceAll("_", " ");
-  const labels: Record<string, string> = { missing: "غير موجود", requested: "مطلوب", partial: "جزئي", complete: "مكتمل" };
+  const labels: Record<string, string> = {
+    not_requested: "غير مطلوب",
+    missing: "غير موجود",
+    requested: "مطلوب",
+    partial: "جزئي",
+    complete: "مكتمل",
+  };
   return labels[value] ?? value.replaceAll("_", " ");
 }
 
@@ -50,7 +60,7 @@ export default async function MarketingLeadsPage({ searchParams }: PageProps) {
     <AdminPageHeader
       eyebrow={isArabic ? "MLAMH · نمو الطلب" : "MLAMH · DEMAND GROWTH"}
       title={isArabic ? "العملاء المحتملون" : "Demand Leads"}
-      description={isArabic ? "تابع الجهات التي يمكن أن تتحول إلى فرص حقيقية على ملامح، وما الخطوة التالية لكل جهة." : "Track organizations that can convert into real MLAMH opportunities and the next action for each one."}
+      description={isArabic ? "تابع الجهات التي يمكن أن تتحول إلى فرص حقيقية على ملامح، وافتح مساحة عمل كل عميل لإدارة التواصل والبريف والمتابعة من مسار واحد." : "Track organizations that can convert into real MLAMH opportunities and open each lead workspace to manage outreach, briefs, and follow-ups in one flow."}
     />
 
     {error ? <AdminCard className="mb-5 border border-amber-300/15 bg-amber-300/[0.035] p-5 text-sm text-amber-100/80">{isArabic ? "بيانات العملاء المحتملين غير متاحة حاليًا." : "Lead data is currently unavailable."}</AdminCard> : null}
@@ -92,12 +102,13 @@ export default async function MarketingLeadsPage({ searchParams }: PageProps) {
 
     <AdminCard className="overflow-hidden">
       <div className="flex items-center justify-between border-b border-white/[0.07] p-5"><div><p className="text-[10px] uppercase tracking-[0.22em] text-gold/60">{isArabic ? "خط الطلب" : "DEMAND PIPELINE"}</p><h2 className="mt-1 text-lg text-white">{isArabic ? "من يحتاج متابعة الآن؟" : "Who needs attention now?"}</h2></div><span className="text-xs tabular-nums text-white/30">{leads.length}</span></div>
-      <div className="divide-y divide-white/[0.07]">{leads.length === 0 ? <div className="p-8 text-center text-sm text-white/40">{isArabic ? "لا توجد جهات في مسار الطلب حتى الآن." : "No demand leads yet."}</div> : leads.map((lead) => <div key={lead.id} className="grid gap-4 px-5 py-4 transition hover:bg-white/[0.02] lg:grid-cols-[1.5fr_.8fr_.7fr_.6fr_.8fr] lg:items-center">
-        <div><div className="text-sm font-medium text-white">{lead.organization}</div><div className="mt-1 text-xs text-white/35">{lead.city ?? "—"} · {lead.opportunity_type ?? (isArabic ? "نوع غير محدد" : "Type not set")}</div>{lead.demand_signal ? <p className="mt-2 line-clamp-1 text-xs text-white/30">{lead.demand_signal}</p> : null}</div>
+      <div className="divide-y divide-white/[0.07]">{leads.length === 0 ? <div className="p-8 text-center text-sm text-white/40">{isArabic ? "لا توجد جهات في مسار الطلب حتى الآن." : "No demand leads yet."}</div> : leads.map((lead) => <div key={lead.id} className="grid gap-4 px-5 py-4 transition hover:bg-white/[0.02] lg:grid-cols-[1.45fr_.72fr_.7fr_.55fr_.72fr_auto] lg:items-center">
+        <div><Link href={`/admin/marketing/leads/${lead.id}?lang=${language}`} className="group/link inline-flex items-center gap-2 text-sm font-medium text-white hover:text-gold"><span>{lead.organization}</span><span className="text-[10px] text-gold/0 transition group-hover/link:text-gold/70">↗</span></Link><div className="mt-1 text-xs text-white/35">{lead.city ?? "—"} · {lead.opportunity_type ?? (isArabic ? "نوع غير محدد" : "Type not set")}</div>{lead.demand_signal ? <p className="mt-2 line-clamp-1 text-xs text-white/30">{lead.demand_signal}</p> : null}</div>
         <div><p className="text-[9px] uppercase tracking-[0.14em] text-white/25">{isArabic ? "المرحلة" : "Stage"}</p><p className="mt-1 text-xs text-white/65">{stageLabel(lead.stage, isArabic)}</p></div>
         <div><p className="text-[9px] uppercase tracking-[0.14em] text-white/25">{isArabic ? "المسؤول" : "Owner"}</p><p className="mt-1 text-xs text-white/65">{lead.owner ?? "—"}</p><p className="mt-1 text-[10px] text-white/30">{lead.channel ?? lead.source ?? "—"}</p></div>
         <div><p className="text-[9px] uppercase tracking-[0.14em] text-white/25">{isArabic ? "الأولوية" : "Score"}</p><p className={`mt-1 text-lg ${Number(lead.lead_score ?? 0) >= 70 ? "text-gold" : "text-white/70"}`}>{lead.lead_score ?? "—"}<span className="text-xs text-white/25">/100</span></p></div>
         <div><p className="text-[9px] uppercase tracking-[0.14em] text-white/25">{isArabic ? "البريف" : "Brief"}</p><p className="mt-1 text-xs text-white/65">{briefLabel(lead.brief_status, isArabic)}</p>{lead.next_action_at ? <p className="mt-2 text-[10px] text-gold/60">{isArabic ? "متابعة مجدولة" : "Follow-up scheduled"}</p> : null}</div>
+        <Link href={`/admin/marketing/leads/${lead.id}?lang=${language}`} className="rounded-lg border border-gold/20 bg-gold/[0.06] px-3 py-2 text-center text-[11px] font-medium text-gold transition hover:border-gold/35 hover:bg-gold/[0.1]">{isArabic ? "فتح العميل" : "Open lead"}</Link>
       </div>)}</div>
     </AdminCard>
   </AdminPageContainer>;
