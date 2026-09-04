@@ -38,3 +38,6 @@ jobs:
 
       - name: Typecheck
         run: npm run typecheck
+
+      - name: Release preflight
+        run: npm run release:preflight
