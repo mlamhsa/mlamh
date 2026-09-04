@@ -1,3 +1,4 @@
+import { isRestrictedAccountStatus } from "@/lib/accounts/account-rules";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type MobilePublisherOpportunity = {
@@ -21,6 +22,7 @@ export async function getMobilePublisherDashboard({ userId, locale }: { userId: 
 
   if (profileError) return { ok: false as const, code: "PUBLISHER_LOOKUP_FAILED" as const };
   if (!profile || profile.account_type !== "publisher") return { ok: false as const, code: "NOT_PUBLISHER" as const };
+  if (isRestrictedAccountStatus(profile.status)) return { ok: false as const, code: "ACCOUNT_RESTRICTED" as const };
 
   const { data: publisher, error: publisherError } = await supabase
     .from("publishers")
@@ -30,6 +32,7 @@ export async function getMobilePublisherDashboard({ userId, locale }: { userId: 
 
   if (publisherError) return { ok: false as const, code: "PUBLISHER_LOOKUP_FAILED" as const };
   if (!publisher) return { ok: false as const, code: "PUBLISHER_NOT_FOUND" as const };
+  if (isRestrictedAccountStatus(publisher.status)) return { ok: false as const, code: "ACCOUNT_RESTRICTED" as const };
 
   const { data: opportunities, error: opportunitiesError } = await supabase
     .from("opportunities")
