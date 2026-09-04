@@ -37,54 +37,33 @@ async function routeIncomingUrl(url: string) {
 export function ErrorBoundary({ retry }: ErrorBoundaryProps) {
   const locale = getDeviceLocale();
   const isArabic = locale === "ar";
-  return (
-    <View style={errorStyles.screen} accessibilityRole="alert">
-      <Text style={errorStyles.brand}>MLAMH</Text>
-      <Text style={errorStyles.title}>{isArabic ? "حدث خطأ غير متوقع" : "Something went wrong"}</Text>
-      <Text style={errorStyles.body}>{isArabic ? "لم نفقد بياناتك. حاول إعادة تحميل هذه الشاشة." : "Your data is safe. Try loading this screen again."}</Text>
-      <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "إعادة المحاولة" : "Try again"} style={errorStyles.button} onPress={retry}>
-        <Text style={errorStyles.buttonText}>{isArabic ? "إعادة المحاولة" : "Try again"}</Text>
-      </Pressable>
-    </View>
-  );
+  return <View style={errorStyles.screen} accessibilityRole="alert">
+    <Text style={errorStyles.brand}>MLAMH</Text>
+    <Text style={errorStyles.title}>{isArabic ? "حدث خطأ غير متوقع" : "Something went wrong"}</Text>
+    <Text style={errorStyles.body}>{isArabic ? "لم نفقد بياناتك. حاول إعادة تحميل هذه الشاشة." : "Your data is safe. Try loading this screen again."}</Text>
+    <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "إعادة المحاولة" : "Try again"} style={errorStyles.button} onPress={retry}><Text style={errorStyles.buttonText}>{isArabic ? "إعادة المحاولة" : "Try again"}</Text></Pressable>
+  </View>;
 }
 
 export default function RootLayout() {
   useEffect(() => startAuthSessionLifecycle(), []);
   useEffect(() => startPushSessionLifecycle(getDeviceLocale()), []);
-
   useEffect(() => {
     let active = true;
-    const openUrl = (url: string) => {
-      if (active) void routeIncomingUrl(url);
-    };
-
-    void Linking.getInitialURL().then((url) => {
-      if (url) openUrl(url);
-    });
+    const openUrl = (url: string) => { if (active) void routeIncomingUrl(url); };
+    void Linking.getInitialURL().then((url) => { if (url) openUrl(url); });
     const linkingSubscription = Linking.addEventListener("url", ({ url }) => openUrl(url));
     const removePushObserver = installPushDeepLinkObserver(openUrl);
-
-    return () => {
-      active = false;
-      linkingSubscription.remove();
-      removePushObserver();
-    };
+    return () => { active = false; linkingSubscription.remove(); removePushObserver(); };
   }, []);
-
-  return (
-    <NotificationSyncProvider>
-      <StatusBar style="auto" />
-      <Stack screenOptions={{ headerShown: false }} />
-    </NotificationSyncProvider>
-  );
+  return <NotificationSyncProvider><StatusBar style="auto" /><Stack screenOptions={{ headerShown: false }} /></NotificationSyncProvider>;
 }
 
 const errorStyles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#181818", alignItems: "center", justifyContent: "center", paddingHorizontal: 28, gap: 14 },
+  screen: { flex: 1, backgroundColor: "#2E2E2E", alignItems: "center", justifyContent: "center", paddingHorizontal: 28, gap: 14 },
   brand: { color: "#D4A017", fontSize: 13, fontWeight: "800", letterSpacing: 2.4 },
   title: { color: "#F5F1E8", fontSize: 28, fontWeight: "700", textAlign: "center" },
-  body: { color: "#B7B1A5", fontSize: 15, lineHeight: 23, textAlign: "center", maxWidth: 360 },
+  body: { color: "#F5F1E8B8", fontSize: 15, lineHeight: 23, textAlign: "center", maxWidth: 360 },
   button: { marginTop: 8, minHeight: 48, minWidth: 160, borderRadius: 24, backgroundColor: "#D4A017", alignItems: "center", justifyContent: "center", paddingHorizontal: 22 },
-  buttonText: { color: "#181818", fontSize: 14, fontWeight: "800" },
+  buttonText: { color: "#2E2E2E", fontSize: 14, fontWeight: "800" },
 });
