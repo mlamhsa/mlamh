@@ -1,0 +1,78 @@
+name: Mobile Lockfile Bootstrap
+
+on:
+  push:
+    branches:
+      - feat/mobile-platform-phase0
+    paths:
+      - ".github/workflows/mobile-lockfile-bootstrap.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  bootstrap:
+    name: Generate and validate mobile lockfile
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+    env:
+      EXPO_PUBLIC_SUPABASE_URL: https://ozieysztwlispglupuox.supabase.co
+      EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_8fHyfoV7YWfed4yRhu_BOw_BtzOId8g
+      EXPO_PUBLIC_API_BASE_URL: https://mlamh.net
+      EXPO_PUBLIC_DEFAULT_MARKET: SA
+      EXPO_PUBLIC_EAS_PROJECT_ID: ca757cb1-e91c-4e8c-a3a9-6cee885e483a
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: feat/mobile-platform-phase0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.0"
+
+      - name: Persist EAS project linkage
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const path = 'app.json';
+          const app = JSON.parse(fs.readFileSync(path, 'utf8'));
+          app.expo ??= {};
+          app.expo.extra ??= {};
+          app.expo.extra.eas ??= {};
+          app.expo.extra.eas.projectId = process.env.EXPO_PUBLIC_EAS_PROJECT_ID;
+          fs.writeFileSync(path, JSON.stringify(app, null, 2) + '\n');
+          NODE
+
+      - name: Generate package lock
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+
+      - name: Verify reproducible install
+        run: npm ci --include=dev --no-audit --no-fund
+
+      - name: Expo Doctor
+        run: npx expo-doctor
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Strict release preflight
+        run: npm run release:preflight:strict
+
+      - name: Commit deterministic build metadata
+        working-directory: .
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/mobile/package-lock.json apps/mobile/app.json
+          if git diff --cached --quiet; then
+            echo "No mobile build metadata changes to commit."
+            exit 0
+          fi
+          git commit -m "ci(mobile): persist deterministic EAS build metadata"
+          git push origin HEAD:feat/mobile-platform-phase0
