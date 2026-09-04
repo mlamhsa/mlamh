@@ -6,10 +6,44 @@ on:
       - feat/mobile-platform-phase0
     paths:
       - "apps/mobile/**"
+      - "app/api/account/**"
+      - "app/api/applications/**"
+      - "app/api/conversations/**"
+      - "app/api/mobile/**"
+      - "app/api/notifications/**"
+      - "app/api/opportunities/**"
+      - "app/api/publisher/**"
+      - "app/api/talent/**"
+      - "lib/accounts/**"
+      - "lib/applications/**"
+      - "lib/messages/**"
+      - "lib/mobile/**"
+      - "lib/notifications/**"
+      - "lib/opportunities/**"
+      - "lib/publishers/**"
+      - "lib/talents/**"
+      - "package.json"
       - ".github/workflows/mobile-ci.yml"
   pull_request:
     paths:
       - "apps/mobile/**"
+      - "app/api/account/**"
+      - "app/api/applications/**"
+      - "app/api/conversations/**"
+      - "app/api/mobile/**"
+      - "app/api/notifications/**"
+      - "app/api/opportunities/**"
+      - "app/api/publisher/**"
+      - "app/api/talent/**"
+      - "lib/accounts/**"
+      - "lib/applications/**"
+      - "lib/messages/**"
+      - "lib/mobile/**"
+      - "lib/notifications/**"
+      - "lib/opportunities/**"
+      - "lib/publishers/**"
+      - "lib/talents/**"
+      - "package.json"
       - ".github/workflows/mobile-ci.yml"
 
 jobs:
@@ -41,3 +75,7 @@ jobs:
 
       - name: Release preflight
         run: npm run release:preflight
+
+      - name: Mobile backend contract tests
+        working-directory: .
+        run: npm run test:mobile
