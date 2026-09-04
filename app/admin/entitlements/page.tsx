@@ -8,6 +8,7 @@ import {
   WalletCards,
 } from "lucide-react";
 
+import AdminEntitlementActions from "@/components/admin/entitlements/AdminEntitlementActions";
 import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { minorToMajorAmount } from "@/lib/payments/money";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -184,7 +185,15 @@ export default async function AdminEntitlementsPage({searchParams}:PageProps){
                       <Info label={isArabic?"الدفع":"Payment"} value={resolved.payment?money(resolved.payment.amount_minor,resolved.payment.currency,locale):"—"} strong={Boolean(resolved.payment)}/>
                     </div>
 
-                    <p className="mt-3 truncate font-mono text-[10px] text-white/25" title={row.user_id}>{row.user_id}</p>
+                    <div className="mt-3 flex items-center justify-between gap-3 border-t border-white/[0.07] pt-3">
+                      <p className="min-w-0 truncate font-mono text-[10px] text-white/25" title={row.user_id}>{row.user_id}</p>
+                      <AdminEntitlementActions
+                        entitlementId={row.id}
+                        locale={locale}
+                        compact
+                        mode={resolved.active?"revoke":"reactivate"}
+                      />
+                    </div>
                   </article>
                 );
               })}
@@ -201,6 +210,7 @@ export default async function AdminEntitlementsPage({searchParams}:PageProps){
                     <th className="px-5 py-4 text-start">{isArabic?"الانتهاء":"Expires"}</th>
                     <th className="px-5 py-4 text-start">{isArabic?"المتبقي":"Remaining"}</th>
                     <th className="px-5 py-4 text-start">{isArabic?"الدفع":"Payment"}</th>
+                    <th className="px-5 py-4 text-start">{isArabic?"الإجراء":"Action"}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/[0.07]">
@@ -220,6 +230,14 @@ export default async function AdminEntitlementsPage({searchParams}:PageProps){
                         <td className="whitespace-nowrap px-5 py-5 text-xs text-white/50">{formatDate(row.expires_at,locale)}</td>
                         <td className="whitespace-nowrap px-5 py-5 text-xs text-white/60">{resolved.days==null?"—":resolved.active?(isArabic?`${resolved.days} يوم`:`${resolved.days} day${resolved.days===1?"":"s"}`):(isArabic?"انتهت":"Expired")}</td>
                         <td className="px-5 py-5">{resolved.payment?<div className="flex items-start gap-2"><CreditCard className="mt-0.5 h-4 w-4 text-white/30"/><div><p className="text-xs text-white/70">{money(resolved.payment.amount_minor,resolved.payment.currency,locale)}</p><p className="mt-1 text-[10px] text-white/30">#{resolved.payment.id} · {resolved.payment.status}</p></div></div>:<span className="text-xs text-white/30">—</span>}</td>
+                        <td className="whitespace-nowrap px-5 py-5">
+                          <AdminEntitlementActions
+                            entitlementId={row.id}
+                            locale={locale}
+                            compact
+                            mode={resolved.active?"revoke":"reactivate"}
+                          />
+                        </td>
                       </tr>
                     );
                   })}
