@@ -59,7 +59,7 @@ jobs:
           if [ -n "$EXPO_PUBLIC_EAS_PROJECT_ID" ]; then
             npx eas-cli@latest project:init --id "$EXPO_PUBLIC_EAS_PROJECT_ID" --force --non-interactive
           else
-            npx eas-cli@latest project:init --account mlamhsa --force --json --non-interactive > /tmp/eas-init.json
+            npx eas-cli@latest project:init --account mlamhco --force --json --non-interactive > /tmp/eas-init.json
             project_id=$(node -e 'const fs=require("fs"); const value=JSON.parse(fs.readFileSync("/tmp/eas-init.json","utf8")); const id=value?.id ?? value?.project?.id ?? value?.projectId; if (!id) process.exit(1); process.stdout.write(id)')
             echo "EXPO_PUBLIC_EAS_PROJECT_ID=$project_id" >> "$GITHUB_ENV"
           fi
