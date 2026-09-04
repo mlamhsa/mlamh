@@ -24,6 +24,7 @@ export default function OpportunityDetailScreen() {
   const params = useLocalSearchParams<{ slug?: string | string[] }>();
   const slug = Array.isArray(params.slug) ? params.slug[0] : params.slug;
   const locale = getDeviceLocale();
+  const isArabic = locale === "ar";
   const theme = useColorScheme() === "dark" ? darkTheme : lightTheme;
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [item, setItem] = useState<MobileOpportunity | null>(null);
@@ -31,6 +32,7 @@ export default function OpportunityDetailScreen() {
   const [error, setError] = useState(false);
   const [applyLoading, setApplyLoading] = useState(false);
   const [applyResult, setApplyResult] = useState<ApplyResult | null>(null);
+  const [applyError, setApplyError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -45,7 +47,10 @@ export default function OpportunityDetailScreen() {
       try {
         const market = await resolveMobileMarket();
         const response = await getPublicOpportunity(slug, locale, market);
-        if (active) setItem(response.item);
+        if (active) {
+          setItem(response.item);
+          setError(false);
+        }
       } catch {
         if (active) setError(true);
       } finally {
@@ -64,6 +69,7 @@ export default function OpportunityDetailScreen() {
 
     setApplyLoading(true);
     setApplyResult(null);
+    setApplyError(null);
     try {
       const result = await applyToOpportunity(item.id);
 
@@ -76,6 +82,8 @@ export default function OpportunityDetailScreen() {
       }
 
       setApplyResult(result);
+    } catch {
+      setApplyError(isArabic ? "تعذر التقديم الآن. تحقق من الاتصال وحاول مرة أخرى." : "Unable to apply right now. Check your connection and try again.");
     } finally {
       setApplyLoading(false);
     }
@@ -84,7 +92,7 @@ export default function OpportunityDetailScreen() {
   function getApplyMessage(result: ApplyResult | null) {
     if (!result) return null;
     if (result.ok) {
-      return locale === "ar" ? "تم تقديم طلبك بنجاح." : "Your application was submitted successfully.";
+      return isArabic ? "تم تقديم طلبك بنجاح." : "Your application was submitted successfully.";
     }
 
     const messages: Record<string, { ar: string; en: string }> = {
@@ -102,13 +110,13 @@ export default function OpportunityDetailScreen() {
       en: "Unable to complete your application. Please try again.",
     };
 
-    return locale === "ar" ? message.ar : message.en;
+    return isArabic ? message.ar : message.en;
   }
 
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color={theme.accent} />
+        <ActivityIndicator accessibilityLabel={isArabic ? "جارٍ تحميل الفرصة" : "Loading opportunity"} size="large" color={theme.accent} />
       </View>
     );
   }
@@ -116,11 +124,11 @@ export default function OpportunityDetailScreen() {
   if (error || !item) {
     return (
       <View style={styles.centered}>
-        <Text style={styles.errorText}>
-          {locale === "ar" ? "تعذر فتح هذه الفرصة." : "Unable to open this opportunity."}
+        <Text accessibilityRole="alert" style={styles.errorText}>
+          {isArabic ? "تعذر فتح هذه الفرصة." : "Unable to open this opportunity."}
         </Text>
-        <Pressable style={styles.secondaryButton} onPress={() => router.back()}>
-          <Text style={styles.secondaryButtonText}>{locale === "ar" ? "رجوع" : "Back"}</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "رجوع" : "Back"} style={styles.secondaryButton} onPress={() => router.back()}>
+          <Text style={styles.secondaryButtonText}>{isArabic ? "رجوع" : "Back"}</Text>
         </Pressable>
       </View>
     );
@@ -128,51 +136,54 @@ export default function OpportunityDetailScreen() {
 
   const compensation =
     item.compensationType === "unpaid"
-      ? locale === "ar" ? "غير مدفوعة" : "Unpaid"
+      ? isArabic ? "غير مدفوعة" : "Unpaid"
       : item.budget && item.currency
         ? `${item.budget} ${item.currency}`
         : item.compensationType ?? null;
-  const applyMessage = getApplyMessage(applyResult);
+  const applyMessage = applyError ?? getApplyMessage(applyResult);
   const applied = applyResult?.ok === true || (!applyResult?.ok && applyResult?.code === "ALREADY_APPLIED");
 
   return (
     <View style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
         <View style={[styles.header, { direction: isRtlLocale(locale) ? "rtl" : "ltr" }]}>
-          <Pressable onPress={() => router.back()} hitSlop={12}>
-            <Text style={styles.back}>{locale === "ar" ? "رجوع" : "Back"}</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "رجوع" : "Back"} onPress={() => router.back()} hitSlop={12}>
+            <Text style={styles.back}>{isArabic ? "رجوع" : "Back"}</Text>
           </Pressable>
           <Text style={styles.type}>{item.opportunityType.replaceAll("_", " ")}</Text>
-          <Text style={styles.title}>{item.title}</Text>
+          <Text accessibilityRole="header" style={styles.title}>{item.title}</Text>
           <Text style={styles.company}>{item.companyName}</Text>
         </View>
 
         <View style={styles.infoGrid}>
           {item.city ? (
             <View style={styles.infoCard}>
-              <Text style={styles.infoLabel}>{locale === "ar" ? "الموقع" : "Location"}</Text>
+              <Text style={styles.infoLabel}>{isArabic ? "الموقع" : "Location"}</Text>
               <Text style={styles.infoValue}>{item.city}</Text>
             </View>
           ) : null}
           {compensation ? (
             <View style={styles.infoCard}>
-              <Text style={styles.infoLabel}>{locale === "ar" ? "المقابل" : "Compensation"}</Text>
+              <Text style={styles.infoLabel}>{isArabic ? "المقابل" : "Compensation"}</Text>
               <Text style={styles.infoValue}>{compensation}</Text>
             </View>
           ) : null}
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{locale === "ar" ? "عن الفرصة" : "About the opportunity"}</Text>
+          <Text accessibilityRole="header" style={styles.sectionTitle}>{isArabic ? "عن الفرصة" : "About the opportunity"}</Text>
           <Text style={styles.description}>{item.description}</Text>
         </View>
       </ScrollView>
 
       <View style={styles.ctaBar}>
         {applyMessage ? (
-          <Text style={[styles.applyMessage, applied && styles.applySuccess]}>{applyMessage}</Text>
+          <Text accessibilityRole={applyError ? "alert" : undefined} accessibilityLiveRegion="polite" style={[styles.applyMessage, applied && styles.applySuccess]}>{applyMessage}</Text>
         ) : null}
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={applied ? (isArabic ? "تم التقديم" : "Applied") : (isArabic ? "التقديم على الفرصة" : "Apply to opportunity")}
+          accessibilityState={{ disabled: applyLoading || applied, busy: applyLoading }}
           disabled={applyLoading || applied}
           style={({ pressed }) => [
             styles.primaryButton,
@@ -182,10 +193,10 @@ export default function OpportunityDetailScreen() {
         >
           <Text style={styles.primaryButtonText}>
             {applyLoading
-              ? locale === "ar" ? "جارٍ التقديم..." : "Applying..."
+              ? isArabic ? "جارٍ التقديم..." : "Applying..."
               : applied
-                ? locale === "ar" ? "تم التقديم" : "Applied"
-                : locale === "ar" ? "التقديم على الفرصة" : "Apply to opportunity"}
+                ? isArabic ? "تم التقديم" : "Applied"
+                : isArabic ? "التقديم على الفرصة" : "Apply to opportunity"}
           </Text>
         </Pressable>
       </View>
@@ -199,7 +210,7 @@ function createStyles(theme: typeof lightTheme | typeof darkTheme) {
     centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 18, padding: 24, backgroundColor: theme.background },
     content: { paddingHorizontal: 22, paddingTop: 62, paddingBottom: 164, gap: 24 },
     header: { gap: 10 },
-    back: { color: theme.accent, fontSize: 14, fontWeight: "600" },
+    back: { color: theme.accent, fontSize: 14, fontWeight: "600", paddingVertical: 8 },
     type: { color: theme.muted, fontSize: 11, textTransform: "uppercase", letterSpacing: 1.3, marginTop: 8 },
     title: { color: theme.text, fontSize: 38, lineHeight: 46, fontWeight: "300" },
     company: { color: theme.accent, fontSize: 16, fontWeight: "600" },
@@ -213,10 +224,10 @@ function createStyles(theme: typeof lightTheme | typeof darkTheme) {
     ctaBar: { position: "absolute", left: 0, right: 0, bottom: 0, gap: 8, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 28, backgroundColor: theme.background, borderTopWidth: 1, borderTopColor: theme.border },
     applyMessage: { color: theme.muted, fontSize: 13, textAlign: "center" },
     applySuccess: { color: theme.accent, fontWeight: "600" },
-    primaryButton: { backgroundColor: theme.accent, borderRadius: 18, paddingVertical: 16, alignItems: "center" },
+    primaryButton: { backgroundColor: theme.accent, borderRadius: 18, minHeight: 52, paddingVertical: 16, alignItems: "center", justifyContent: "center" },
     primaryButtonText: { color: "#181818", fontSize: 16, fontWeight: "700" },
     buttonDisabled: { opacity: 0.6 },
-    secondaryButton: { borderWidth: 1, borderColor: theme.border, borderRadius: 16, paddingHorizontal: 20, paddingVertical: 12 },
+    secondaryButton: { borderWidth: 1, borderColor: theme.border, borderRadius: 16, minHeight: 48, paddingHorizontal: 20, paddingVertical: 12, justifyContent: "center" },
     secondaryButtonText: { color: theme.text, fontWeight: "600" },
     errorText: { color: theme.text, fontSize: 18, textAlign: "center" },
   });
