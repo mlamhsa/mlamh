@@ -3,6 +3,10 @@
     {
       "path": "/api/marketing/orchestrator",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/incomplete-registration-reminders",
+      "schedule": "15 * * * *"
     }
   ]
 }
