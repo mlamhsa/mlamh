@@ -44,7 +44,10 @@
       "supportsTablet": false,
       "bundleIdentifier": "net.mlamh.app",
       "buildNumber": "1",
-      "associatedDomains": ["applinks:mlamh.net", "applinks:www.mlamh.net"]
+      "associatedDomains": [
+        "applinks:mlamh.net",
+        "applinks:www.mlamh.net"
+      ]
     },
     "android": {
       "package": "net.mlamh.app",
@@ -58,15 +61,29 @@
           "action": "VIEW",
           "autoVerify": true,
           "data": [
-            { "scheme": "https", "host": "mlamh.net" },
-            { "scheme": "https", "host": "www.mlamh.net" }
+            {
+              "scheme": "https",
+              "host": "mlamh.net"
+            },
+            {
+              "scheme": "https",
+              "host": "www.mlamh.net"
+            }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "ca757cb1-e91c-4e8c-a3a9-6cee885e483a"
+      }
     }
   }
 }
