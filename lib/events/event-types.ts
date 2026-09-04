@@ -20,6 +20,8 @@ export const EVENT_TYPES = {
   talent_approved: "talent_approved",
   talent_changes_requested: "talent_changes_requested",
   talent_rejected: "talent_rejected",
+  talent_profile_recovery_reminder_sent:
+  "talent_profile_recovery_reminder_sent",
 
   /*
    * Publisher review workflow
