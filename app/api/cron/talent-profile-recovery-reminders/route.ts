@@ -21,43 +21,7 @@ export const dynamic = "force-dynamic";
 
 const MIN_REVIEW_COMPLETION = 35;
 
-const TALENT_SELECT = [
-  "id",
-  "user_id",
-  "created_at",
-  "updated_at",
-  "name_ar",
-  "name_en",
-  "image_url",
-  "primary_role",
-  "city_slug",
-  "city_ar",
-  "city_en",
-  "gender",
-  "nationality",
-  "nationality_slug",
-  "date_of_birth",
-  "bio_ar",
-  "bio_en",
-  "languages",
-  "dialects",
-  "skills",
-  "availability_status",
-  "portfolio_url",
-  "showreel_url",
-  "gallery_images",
-  "acting_age_min",
-  "acting_age_max",
-  "modeling_types",
-  "height_cm",
-  "shoe_size",
-  "hair_color",
-  "eye_color",
-  "chest_size",
-  "waist_size",
-  "hip_size",
-  "previous_work",
-].join(", ");
+const TALENT_SELECT = "id, user_id, created_at, updated_at, name_ar, name_en, image_url, primary_role, city_slug, city_ar, city_en, gender, nationality, nationality_slug, date_of_birth, bio_ar, bio_en, languages, dialects, skills, availability_status, portfolio_url, showreel_url, gallery_images, acting_age_min, acting_age_max, modeling_types, height_cm, shoe_size, hair_color, eye_color, chest_size, waist_size, hip_size, previous_work" as const;
 
 type ProfileRow = {
   id: string | number;
@@ -237,7 +201,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const talents = (talentData ?? []) as TalentRow[];
+  const talents = (talentData ?? []) as unknown as TalentRow[];
   const talentByUserId = new Map(
     talents
       .filter((talent) => Boolean(talent.user_id))
@@ -400,7 +364,8 @@ export async function GET(request: NextRequest) {
       continue;
     }
 
-    const currentTalent = currentTalentResult.data as TalentRow;
+    const currentTalent =
+      currentTalentResult.data as unknown as TalentRow;
     const currentApprovalStatus = normalizeApprovalStatus(
       currentProfileResult.data.approval_status,
     );
