@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { getNationalityByCode } from "@/lib/data/nationalities";
 import { SAUDI_CITIES } from "@/lib/data/saudi-cities";
 import { COUNTRY_CODES, isCountryCode } from "@/lib/markets/countries";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -64,6 +65,10 @@ function createSlug(value: string, id: number) {
   return base ? `${base}-${id}` : `talent-${id}`;
 }
 
+function createValueSlug(value: string) {
+  return value.toLowerCase().trim().replace(/['’]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+}
+
 function getAvailabilityStatus(formData: FormData) {
   const value = stringValue(formData, "availability_status");
   const allowed = ["available_now", "available_this_week", "available_next_month", "unavailable"];
@@ -94,6 +99,16 @@ function getCity(formData: FormData) {
   return SAUDI_CITIES.find((city) => city.slug === slug) ?? null;
 }
 
+function getNationality(formData: FormData) {
+  const code = stringValue(formData, "nationality_code");
+  const nationality = getNationalityByCode(code);
+  if (!nationality) return null;
+  return {
+    value: nationality.en,
+    slug: createValueSlug(nationality.en),
+  };
+}
+
 export async function updateTalentAction(formData: FormData): Promise<void> {
   await requireAdminUser();
 
@@ -107,6 +122,7 @@ export async function updateTalentAction(formData: FormData): Promise<void> {
   const language = stringValue(formData, "return_lang") === "en" ? "en" : "ar";
   const primaryRole = getPrimaryRole(formData);
   const city = getCity(formData);
+  const nationality = getNationality(formData);
 
   const payload = {
     slug,
@@ -125,8 +141,8 @@ export async function updateTalentAction(formData: FormData): Promise<void> {
     city_slug: city?.slug ?? null,
     base_country_code: getBaseCountryCode(formData),
     work_market_codes: getWorkMarketCodes(formData),
-    nationality: nullableStringValue(formData, "nationality"),
-    nationality_slug: nullableStringValue(formData, "nationality_slug"),
+    nationality: nationality?.value ?? null,
+    nationality_slug: nationality?.slug ?? null,
     gender: getGender(formData),
     date_of_birth: nullableStringValue(formData, "date_of_birth"),
     age: nullableNumberValue(formData, "age"),
