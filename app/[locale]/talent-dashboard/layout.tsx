@@ -1,4 +1,5 @@
 import { TalentFeaturedEntryPoint } from "@/components/payments/TalentFeaturedEntryPoint";
+import { TalentProfileEditorEnhancer } from "@/components/talent-dashboard/TalentProfileEditorEnhancer";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export default async function TalentDashboardLayout({
@@ -16,6 +17,7 @@ export default async function TalentDashboardLayout({
 
   return (
     <>
+      <TalentProfileEditorEnhancer />
       {user ? (
         <TalentFeaturedEntryPoint locale={locale} userId={user.id} />
       ) : null}

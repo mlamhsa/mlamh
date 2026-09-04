@@ -5,6 +5,7 @@ import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { TalentProfileService } from "@/lib/services/talent/TalentProfileService";
 import { TalentService } from "@/lib/services/talents/TalentService";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getTalentProfileDataQualityIssues } from "@/lib/talent/profile-data-quality";
 import { getTalentProfileReadiness } from "@/lib/talent/profile-review-readiness";
 import { getNextTalentProfileRecoveryReminder } from "@/lib/talent/profile-recovery-schedule";
 import type { TalentProfileRecoveryKind } from "@/lib/talent/send-profile-recovery-reminder";
@@ -106,6 +107,7 @@ export default async function AdminTalentPage(props: PageProps) {
     phone: talent.account_phone ?? talent.whatsapp ?? null,
   });
   const profileCompletion = TalentProfileService.calculateCompletion(talent);
+  const dataQualityIssues = getTalentProfileDataQualityIssues(talent);
 
   const adminClient = createAdminClient();
 
@@ -166,10 +168,6 @@ export default async function AdminTalentPage(props: PageProps) {
         ? "linked"
         : "missing_profile";
 
-  // A legacy talent row without its canonical `profiles` row must not be treated
-  // as a normal not-submitted recovery case. Doing so would advertise automatic
-  // reminders that the cron cannot actually send. Keep the legacy record intact
-  // and surface the linkage problem to admins instead of mutating production data.
   const approvalStatus = profile
     ? String(profile.approval_status ?? "not_submitted")
     : String(talent.approval_status ?? "not_submitted");
@@ -258,6 +256,10 @@ export default async function AdminTalentPage(props: PageProps) {
             missingRequirements={readiness.missingRequirements.map((item) => ({
               key: item.key,
               label: language === "ar" ? item.ar : item.en,
+            }))}
+            dataQualityIssues={dataQualityIssues.map((issue) => ({
+              key: issue.key,
+              label: language === "ar" ? issue.ar : issue.en,
             }))}
             reminderCount={reminders.length}
             lastReminderAt={lastReminder?.created_at ?? null}
