@@ -44,6 +44,9 @@
       "supportsTablet": false,
       "bundleIdentifier": "net.mlamh.app",
       "buildNumber": "1",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      },
       "associatedDomains": [
         "applinks:mlamh.net",
         "applinks:www.mlamh.net"
