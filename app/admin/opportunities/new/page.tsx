@@ -103,7 +103,7 @@ function buildOpportunityCopy(args: {
   const project = projectLabel(args.projectType);
   const talent = talentLabel(args.talentType, count);
   const citySuffix = args.cityAr ? ` في ${args.cityAr}` : "";
-  const title = `مطلوب ${talent} لـ${project}${citySuffix}`;
+  const title = `مطلوب ${talent} ل${project}${citySuffix}`;
 
   const intro = `تبحث الجهة عن ${count > 1 ? `${count} ${talent}` : talent} للمشاركة في ${project}${citySuffix}.`;
   const requirements = extractRequirementText(args.requirements);
