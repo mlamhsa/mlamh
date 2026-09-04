@@ -56,6 +56,47 @@ function contactRole(contact: ContactRow | null) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
+async function cleanStaleAutonomousTasks(now = new Date()) {
+  const db = createAdminClient();
+  const cutoff = new Date(now.getTime() - 36 * 60 * 60 * 1000).toISOString();
+  const { data: stale, error } = await db
+    .from("marketing_tasks")
+    .select("id,agent_id,title,status,channel,created_at")
+    .eq("source", "autonomous_orchestrator")
+    .in("status", ["queued", "scheduled"])
+    .lt("created_at", cutoff)
+    .limit(100);
+  if (error) throw new Error(`[marketing_orchestrator.stale.read] ${error.message}`);
+  if (!stale?.length) return { staleCancelled: 0 };
+
+  const ids = stale.map((task) => task.id);
+  const cancelledAt = now.toISOString();
+  const { error: cancelError } = await db.from("marketing_tasks").update({
+    status: "cancelled",
+    locked_at: null,
+    locked_by: null,
+    updated_at: cancelledAt,
+    metadata: { stale_cleanup: true, stale_cleanup_at: cancelledAt },
+  }).in("id", ids).in("status", ["queued", "scheduled"]);
+  if (cancelError) throw new Error(`[marketing_orchestrator.stale.cancel] ${cancelError.message}`);
+
+  await db.from("marketing_agent_activity").insert(stale.map((task) => ({
+    agent_id: task.agent_id,
+    task_id: task.id,
+    action: "stale_task_cancelled",
+    reason: `Cancelled stale autonomous task: ${task.title}`,
+    channel: task.channel ?? "internal",
+    result: { previous_status: task.status, cutoff, cancelled_at: cancelledAt },
+  })));
+
+  const affectedAgents = [...new Set(stale.map((task) => task.agent_id).filter((id): id is string => Boolean(id)))];
+  if (affectedAgents.length) {
+    await db.from("marketing_agents").update({ status: "idle", current_task_id: null, updated_at: cancelledAt }).in("id", affectedAgents).in("status", ["scheduled"]);
+  }
+
+  return { staleCancelled: stale.length };
+}
+
 async function seedLeadPreparationTasks(day: string) {
   const db = createAdminClient();
   const { data: leadData, error } = await db
@@ -154,6 +195,7 @@ async function seedLeadPreparationTasks(day: string) {
 export async function seedDailyMarketingCycle(now = new Date()) {
   const db = createAdminClient();
   const day = riyadhDayKey(now);
+  const staleCleanup = await cleanStaleAutonomousTasks(now);
   const { data: activeAgents } = await db.from("marketing_agents").select("id").eq("is_active", true);
   const active = new Set((activeAgents ?? []).map((agent) => agent.id));
   const rows = DAILY_MISSIONS.filter((mission) => active.has(mission.agentId)).map((mission) => ({
@@ -188,7 +230,7 @@ export async function seedDailyMarketingCycle(now = new Date()) {
   }
 
   const leadPreparation = await seedLeadPreparationTasks(day);
-  return { day, seeded: created.length, ...leadPreparation };
+  return { day, seeded: created.length, ...staleCleanup, ...leadPreparation };
 }
 
 async function getRunnableDailyTasks(day: string, limit = 8) {
