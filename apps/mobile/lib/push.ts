@@ -14,7 +14,7 @@ const ALLOWED_PUSH_ORIGINS = new Set(["https://mlamh.net", "https://www.mlamh.ne
 
 export type PushPreparationResult =
   | { ok: true; token: string }
-  | { ok: false; code: "UNSUPPORTED_PLATFORM" | "PHYSICAL_DEVICE_REQUIRED" | "EAS_PROJECT_ID_MISSING" | "PERMISSION_NOT_GRANTED" | "PERMISSION_DENIED" | "UNAUTHENTICATED" | "TOKEN_FAILED" | "REGISTER_FAILED" };
+  | { ok: false; code: "UNSUPPORTED_PLATFORM" | "PHYSICAL_DEVICE_REQUIRED" | "EAS_PROJECT_ID_MISSING" | "PERMISSION_NOT_GRANTED" | "PERMISSION_DENIED" | "UNAUTHENTICATED" | "TOKEN_FAILED" | "REGISTER_FAILED" | "SERVICE_UNAVAILABLE" };
 
 function getProjectId() {
   const configured = process.env.EXPO_PUBLIC_EAS_PROJECT_ID?.trim();
@@ -33,20 +33,23 @@ function isSafePushUrl(rawUrl: unknown): rawUrl is string {
   }
 }
 
-async function registerTokenWithPlatform(expoPushToken: string, locale: AppLocale) {
+type PlatformRegistrationResult = "ok" | "unavailable" | "failed" | "unauthenticated";
+
+async function registerTokenWithPlatform(expoPushToken: string, locale: AppLocale): Promise<PlatformRegistrationResult> {
   const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.access_token) return false;
+  if (!session?.access_token) return "unauthenticated";
   try {
     const response = await fetch(`${API_BASE_URL}/api/mobile/devices`, {
       method: "POST",
       headers: { Accept: "application/json", "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
       body: JSON.stringify({ expoPushToken, platform: Platform.OS, deviceId: null, appVersion: Constants.expoConfig?.version ?? null, locale }),
     });
-    if (!response.ok) return false;
+    if (response.status === 503) return "unavailable";
+    if (!response.ok) return "failed";
     await Storage.setItem(PUSH_TOKEN_STORAGE_KEY, expoPushToken);
-    return true;
+    return "ok";
   } catch {
-    return false;
+    return "failed";
   }
 }
 
@@ -70,9 +73,10 @@ export async function preparePushRegistration(locale: AppLocale, options: { requ
     try { expoPushToken = (await Notifications.getExpoPushTokenAsync({ projectId })).data; }
     catch { return { ok: false, code: "TOKEN_FAILED" }; }
 
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.access_token) return { ok: false, code: "UNAUTHENTICATED" };
-    if (!(await registerTokenWithPlatform(expoPushToken, locale))) return { ok: false, code: "REGISTER_FAILED" };
+    const registration = await registerTokenWithPlatform(expoPushToken, locale);
+    if (registration === "unauthenticated") return { ok: false, code: "UNAUTHENTICATED" };
+    if (registration === "unavailable") return { ok: false, code: "SERVICE_UNAVAILABLE" };
+    if (registration !== "ok") return { ok: false, code: "REGISTER_FAILED" };
     return { ok: true, token: expoPushToken };
   } catch {
     return { ok: false, code: "TOKEN_FAILED" };
@@ -92,7 +96,7 @@ export async function unregisterPushToken(expoPushToken: string) {
       body: JSON.stringify({ expoPushToken }),
     });
     if (response.ok) await Storage.removeItem(PUSH_TOKEN_STORAGE_KEY);
-    return response.ok;
+    return response.ok || response.status === 503;
   } catch {
     return false;
   }
