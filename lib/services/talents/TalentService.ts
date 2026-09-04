@@ -3,6 +3,7 @@ import { BaseService } from "@/lib/services/base/BaseService";
 import {
   TalentRepository,
   type AdminTalentFilter,
+  type AdminTalentOperationalFilter,
 } from "@/lib/repositories/talents/TalentRepository";
 
 export class TalentService extends BaseService {
@@ -12,12 +13,14 @@ export class TalentService extends BaseService {
     status,
     search,
     approvalStatus,
+    operationalFilter,
   }: {
     page: number;
     pageSize: number;
     status?: AdminTalentFilter;
     search?: string;
     approvalStatus?: string;
+    operationalFilter?: AdminTalentOperationalFilter;
   }) {
     this.assert(
       page > 0,
@@ -35,6 +38,7 @@ export class TalentService extends BaseService {
       status,
       search,
       approvalStatus,
+      operationalFilter,
     });
   }
 
@@ -53,6 +57,10 @@ export class TalentService extends BaseService {
 
   static async getAdminStats() {
     return TalentRepository.getAdminStats();
+  }
+
+  static async getAdminOperationalStats() {
+    return TalentRepository.getAdminOperationalStats();
   }
 
   static async getTopViewed(
