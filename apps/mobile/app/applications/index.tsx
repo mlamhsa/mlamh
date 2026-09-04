@@ -165,7 +165,7 @@ function createStyles(theme: typeof lightTheme | typeof darkTheme) {
     statusLabel: { color: theme.accent, fontSize: 11, fontWeight: "900" },
     dateLabel: { color: theme.muted, fontSize: 9, marginTop: 2 },
     cityLabel: { color: theme.muted, fontSize: 10 },
-    cardTitle: { color: theme.text, fontSize: 20, lineHeight: 27, fontWeight: "750" },
+    cardTitle: { color: theme.text, fontSize: 20, lineHeight: 27, fontWeight: "700" },
     metaRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" },
     metaChip: { color: theme.text, backgroundColor: theme.chip, borderRadius: 11, overflow: "hidden", paddingHorizontal: 9, paddingVertical: 5, fontSize: 9, fontWeight: "700" },
     acceptedHint: { color: theme.accent, fontSize: 10, fontWeight: "800" },
