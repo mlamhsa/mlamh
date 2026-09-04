@@ -5,6 +5,7 @@ import process from "node:process";
 const root = process.cwd();
 const appConfig = JSON.parse(fs.readFileSync(path.join(root, "app.json"), "utf8"));
 const easConfig = JSON.parse(fs.readFileSync(path.join(root, "eas.json"), "utf8"));
+const packageConfig = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
 const expo = appConfig.expo ?? {};
 const errors = [];
 const strict = process.argv.includes("--strict");
@@ -46,6 +47,18 @@ requireValue(easConfig.build?.preview?.android?.buildType === "apk", "Preview An
 requireValue(easConfig.build?.preview?.channel === "preview", "Preview build must use the preview update channel.");
 requireValue(easConfig.build?.production?.channel === "production", "Production build must use the production update channel.");
 
+if (easConfig.build?.development?.developmentClient === true) {
+  requireValue(Boolean(packageConfig.dependencies?.["expo-dev-client"]), "Development Client builds require expo-dev-client in dependencies.");
+}
+
+requireValue(expo.android?.adaptiveIcon?.backgroundColor === "#2E2E2E", "Android adaptive icon background must use official MLAMH Charcoal #2E2E2E.");
+const splashPlugin = (expo.plugins ?? []).find((plugin) => Array.isArray(plugin) && plugin[0] === "expo-splash-screen");
+if (splashPlugin) {
+  const splashConfig = splashPlugin[1] ?? {};
+  requireValue(splashConfig.backgroundColor === "#F5F1E8", "Light splash background must use official MLAMH Warm Ivory #F5F1E8.");
+  requireValue(splashConfig.dark?.backgroundColor === "#2E2E2E", "Dark splash background must use official MLAMH Charcoal #2E2E2E.");
+}
+
 if (strict) {
   const requiredEnvironment = [
     "EXPO_PUBLIC_SUPABASE_URL",
@@ -72,9 +85,9 @@ if (strict) {
   const projectId = process.env.EXPO_PUBLIC_EAS_PROJECT_ID?.trim();
   if (projectId) requireValue(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(projectId), "EXPO_PUBLIC_EAS_PROJECT_ID must be a valid UUID.");
 
-  // Store/internal native builds must never ship with Expo placeholder artwork.
   requireLocalAsset(expo.icon, "App icon");
   requireLocalAsset(expo.android?.adaptiveIcon?.foregroundImage, "Android adaptive icon foreground");
+  if (splashPlugin) requireLocalAsset(splashPlugin[1]?.image, "Splash image");
 }
 
 if (errors.length) {
