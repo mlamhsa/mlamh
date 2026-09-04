@@ -115,6 +115,8 @@ export default async function HomePage({ params }: HomePageProps) {
       <div className="hidden lg:block">
         <Hero locale={locale} data={hero} />
 
+        <CastingBriefCTA locale={locale} />
+
         <ValueProps locale={locale} data={valueProps} />
 
         <HowItWorks locale={locale} />
@@ -124,8 +126,6 @@ export default async function HomePage({ params }: HomePageProps) {
         <Opportunities locale={locale} />
 
         <Agencies locale={locale} />
-
-        <CastingBriefCTA locale={locale} />
 
         <FinalCTA locale={locale} />
 
