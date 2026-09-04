@@ -20,6 +20,7 @@ type ClaimableTask = ClaimedTask & {
   approval_level: string;
   approval_status: string;
   source: string | null;
+  parent_task_id: number | null;
 };
 
 function asRecord(value: unknown) {
@@ -46,7 +47,7 @@ function outputContract(taskType: string) {
     return " In addition, return outreach_drafts with up to 3 review-ready first-touch drafts. Each item must contain: lead_id, channel (linkedin or email), message, and subject when channel=email. Use only lead_id values supplied in lead_candidates. Use the verified contact name/role only when supplied. Prefer LinkedIn when linkedin_available=true. The sender for LinkedIn is Sawsan Ahdadi, Business Development at MLAMH. Never claim a prior relationship and never claim the draft was sent.";
   }
   if (taskType === "lead_enrichment") {
-    return " In addition, return lead_research with up to 5 items. Each item must contain: lead_id, readiness_status, missing_fields, verified_signals, recommended_contact_titles, research_queries, remaining_gaps. Never invent a person, title, email, phone number, LinkedIn URL, website, relationship, or source. If a verified field is unavailable, put it in remaining_gaps.";
+    return " In addition, return lead_research with up to 5 items. Each item must contain: lead_id, readiness_status, candidate_contact {name, role, public_business_email, public_linkedin_url, company_website}, source_evidence [{url,title,claim}], confidence, missing_fields, verified_signals, remaining_gaps. Use public professional/business sources only. Never invent a person, title, email, phone number, LinkedIn URL, website, relationship, or source. A candidate field without source evidence must be null. The result is research for human review and must never be described as an approved MLAMH contact.";
   }
   return "";
 }
@@ -159,8 +160,8 @@ async function getMlamhGrounding(taskType: string, currentTaskId: number) {
     team_context: teamContext,
     decision_queue: { pending_approvals: safe(approvals) },
     integrations: integrations.error ? [] : integrations.data ?? [],
-    privacy_rule: "Direct recipient email addresses, phone numbers and LinkedIn URLs are withheld from AI context. The AI may use only supplied verified contact name/role and channel-availability flags. Final delivery details are resolved server-side from MLAMH records after approval.",
-    data_rule: "Use only supplied MLAMH facts and metrics. If a metric or contact field is null or absent, explicitly say data is unavailable. Never invent traffic, conversion, CRM, pricing, revenue, campaign, lead, contact person, contact URL, or attribution data.",
+    privacy_rule: "Direct recipient email addresses, phone numbers and LinkedIn URLs stored in MLAMH are withheld from ordinary AI context. For lead_enrichment only, public professional/business data may be researched using sanctioned web search and must remain review-gated before becoming a verified MLAMH contact. Final delivery details are resolved server-side after approval.",
+    data_rule: "Use supplied MLAMH facts and explicitly sourced public research only. If a metric or contact field is null or absent, explicitly say data is unavailable. Never invent traffic, conversion, CRM, pricing, revenue, campaign, lead, contact person, contact URL, or attribution data.",
   };
 }
 
@@ -180,7 +181,47 @@ async function setAgentFailed(agentId: string, terminal: boolean, now: string) {
   await db.from("marketing_agents").update({ status: "error", current_task_id: null, tasks_failed: (data?.tasks_failed ?? 0) + 1, updated_at: now }).eq("id", agentId);
 }
 
+async function dependencyState(taskId: number) {
+  const db = createAdminClient();
+  const { data: task, error } = await db.from("marketing_tasks").select("parent_task_id").eq("id", taskId).maybeSingle();
+  if (error || !task?.parent_task_id) return { ready: true as const, parentTaskId: null, parentStatus: null };
+  const { data: parent, error: parentError } = await db.from("marketing_tasks").select("id,status").eq("id", task.parent_task_id).maybeSingle();
+  if (parentError || !parent) return { ready: false as const, terminal: true as const, parentTaskId: task.parent_task_id, parentStatus: "missing" };
+  if (parent.status === "completed") return { ready: true as const, parentTaskId: parent.id, parentStatus: parent.status };
+  if (["failed", "cancelled"].includes(parent.status)) return { ready: false as const, terminal: true as const, parentTaskId: parent.id, parentStatus: parent.status };
+  return { ready: false as const, terminal: false as const, parentTaskId: parent.id, parentStatus: parent.status };
+}
+
+async function releaseClaimForDependency(task: ClaimedTask, state: { terminal: boolean; parentTaskId: number | null; parentStatus: string | null }) {
+  const db = createAdminClient();
+  const now = new Date().toISOString();
+  const nextStatus = state.terminal ? "cancelled" : "queued";
+  await db.from("marketing_tasks").update({
+    status: nextStatus,
+    locked_at: null,
+    locked_by: null,
+    updated_at: now,
+  }).eq("id", task.id).eq("status", "running");
+  if (task.agent_id) {
+    await db.from("marketing_agents").update({ status: "idle", current_task_id: null, updated_at: now })
+      .eq("id", task.agent_id)
+      .eq("current_task_id", task.id);
+  }
+  await db.from("marketing_agent_activity").insert({
+    agent_id: task.agent_id,
+    task_id: task.id,
+    action: state.terminal ? "dependency_cancelled" : "dependency_blocked",
+    reason: state.terminal ? "Parent task failed/cancelled/missing; dependent work was cancelled." : "Parent task is not completed; dependent work remains queued.",
+    channel: task.channel ?? "internal",
+    result: { parent_task_id: state.parentTaskId, parent_status: state.parentStatus, next_status: nextStatus },
+  });
+  return { taskId: task.id, status: state.terminal ? "cancelled" as const : "dependency_blocked" as const };
+}
+
 async function executeClaimedMarketingTask(task: ClaimedTask) {
+  const dependency = await dependencyState(task.id);
+  if (!dependency.ready) return releaseClaimForDependency(task, dependency);
+
   const db = createAdminClient();
   try {
     if (task.agent_id) await db.from("marketing_agents").update({ status: "working", current_task_id: task.id, updated_at: new Date().toISOString() }).eq("id", task.agent_id);
@@ -193,7 +234,7 @@ async function executeClaimedMarketingTask(task: ClaimedTask) {
       messages: [
         {
           role: "system",
-          content: `You are an internal AI operator inside MLAMH (ملامح), a Talent & Opportunities Platform. You are not a generic B2B marketing SaaS. Analyze only the live MLAMH context supplied with the task. Separate observed facts from recommendations and never invent unavailable metrics or named leads. Use team_context as concise handoff context from teammates when it is relevant, but do not blindly repeat it. Prioritize marketplace liquidity: qualified talent supply, publisher demand, opportunities, applications, conversion, retention, revenue readiness, and defensibility. Never make prices, contracts, partnerships, ad-spend, legal commitments, guarantees, or CEO-only decisions. Never claim that content, email, LinkedIn outreach, or any external action was executed unless the supplied task context contains a recorded execution result. For contact research, missing data is an acceptable outcome; fabricated contact data is never acceptable. Return concise operational JSON with: executive_summary, observed_signals, priorities, recommended_next_actions, data_gaps, decisions_needed.${outputContract(task.task_type)} Never expose hidden chain-of-thought.`,
+          content: `You are an internal AI operator inside MLAMH (ملامح), a Talent & Opportunities Platform. You are not a generic B2B marketing SaaS. Analyze only the live MLAMH context supplied with the task, plus sanctioned public web research when the task is lead_enrichment. Separate observed facts from recommendations and never invent unavailable metrics or named leads. Use team_context as concise handoff context from teammates when it is relevant, but do not blindly repeat it. Prioritize marketplace liquidity: qualified talent supply, publisher demand, opportunities, applications, conversion, retention, revenue readiness, and defensibility. Never make prices, contracts, partnerships, ad-spend, legal commitments, guarantees, or CEO-only decisions. Never claim that content, email, LinkedIn outreach, or any external action was executed unless the supplied task context contains a recorded execution result. For contact research, missing data is an acceptable outcome; fabricated contact data is never acceptable. Return concise operational JSON with: executive_summary, observed_signals, priorities, recommended_next_actions, data_gaps, decisions_needed.${outputContract(task.task_type)} Never expose hidden chain-of-thought.`,
         },
         {
           role: "user",
@@ -224,6 +265,7 @@ async function executeClaimedMarketingTask(task: ClaimedTask) {
         provider: response.provider,
         model: response.model ?? null,
         usage: response.usage ?? {},
+        provider_metadata: response.metadata ?? {},
         grounded_at: now,
         materialized,
       },
@@ -241,7 +283,7 @@ async function executeClaimedMarketingTask(task: ClaimedTask) {
       action: "task_completed",
       reason: task.objective ?? task.title,
       channel: task.channel ?? "internal",
-      result: { provider: response.provider, model: response.model ?? null, grounded: true, materialized },
+      result: { provider: response.provider, model: response.model ?? null, grounded: true, materialized, provider_metadata: response.metadata ?? {} },
     });
 
     return { taskId: task.id, status: "completed" as const };
@@ -261,7 +303,7 @@ export async function runMarketingTaskById(taskId: number, workerId: string, req
   const db = createAdminClient();
   const { data: candidate, error: readError } = await db
     .from("marketing_tasks")
-    .select("id,agent_id,task_type,title,objective,input,channel,retry_count,max_retries,status,scheduled_at,approval_level,approval_status,source")
+    .select("id,agent_id,task_type,title,objective,input,channel,retry_count,max_retries,status,scheduled_at,approval_level,approval_status,source,parent_task_id")
     .eq("id", taskId)
     .maybeSingle();
   if (readError) throw new Error(`[marketing_task.read] ${readError.message}`);
@@ -276,6 +318,18 @@ export async function runMarketingTaskById(taskId: number, workerId: string, req
     ? task.approval_status === "not_required"
     : task.approval_status === "approved";
   if (!governed) return null;
+
+  if (task.parent_task_id) {
+    const dependency = await dependencyState(task.id);
+    if (!dependency.ready) {
+      if (dependency.terminal) {
+        const now = new Date().toISOString();
+        await db.from("marketing_tasks").update({ status: "cancelled", updated_at: now }).eq("id", task.id).in("status", ["queued", "scheduled"]);
+        await db.from("marketing_agent_activity").insert({ agent_id: task.agent_id, task_id: task.id, action: "dependency_cancelled", reason: "Parent task failed/cancelled/missing before claim.", channel: task.channel ?? "internal", result: { parent_task_id: dependency.parentTaskId, parent_status: dependency.parentStatus } });
+      }
+      return null;
+    }
+  }
 
   const now = new Date().toISOString();
   const { data: claimed, error: claimError } = await db
