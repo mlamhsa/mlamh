@@ -44,7 +44,7 @@ const intentData = (expo.android?.intentFilters ?? []).flatMap((filter) => filte
 requireValue(intentData.some((item) => item.scheme === "https" && item.host === "mlamh.net"), "Android App Links must include https://mlamh.net.");
 requireValue(intentData.some((item) => item.scheme === "https" && item.host === "www.mlamh.net"), "Android App Links must include https://www.mlamh.net.");
 
-for (const profile of ["development", "preview", "production"]) {
+for (const profile of ["development", "preview", "testflight", "production"]) {
   requireValue(Boolean(easConfig.build?.[profile]), `Missing EAS build profile: ${profile}.`);
   requireValue(Boolean(easConfig.build?.[profile]?.environment), `EAS build profile '${profile}' must bind to an environment.`);
 }
@@ -52,6 +52,8 @@ requireValue(easConfig.build?.development?.distribution === "internal", "Develop
 requireValue(easConfig.build?.preview?.distribution === "internal", "Preview build must use internal distribution.");
 requireValue(easConfig.build?.preview?.android?.buildType === "apk", "Preview Android build must produce an APK for internal QA.");
 requireValue(easConfig.build?.preview?.channel === "preview", "Preview build must use the preview update channel.");
+requireValue(easConfig.build?.testflight?.distribution === "store", "TestFlight build must use App Store distribution signing.");
+requireValue(easConfig.build?.testflight?.environment === "preview", "TestFlight build must use the preview environment until release approval.");
 requireValue(easConfig.build?.production?.channel === "production", "Production build must use the production update channel.");
 
 if (easConfig.build?.development?.developmentClient === true) {
@@ -75,12 +77,16 @@ if (strict) {
     "EXPO_PUBLIC_EAS_PROJECT_ID",
   ];
   const previewEnvironment = easConfig.build?.preview?.env ?? {};
+  const testflightEnvironment = easConfig.build?.testflight?.env ?? {};
   for (const key of requiredEnvironment) {
     const runtimeValue = process.env[key]?.trim();
     const previewValue = typeof previewEnvironment[key] === "string" ? previewEnvironment[key].trim() : "";
+    const testflightValue = typeof testflightEnvironment[key] === "string" ? testflightEnvironment[key].trim() : "";
     requireValue(Boolean(runtimeValue), `Missing required build environment variable: ${key}.`);
     requireValue(Boolean(previewValue), `Missing required preview EAS environment value: ${key}.`);
+    requireValue(Boolean(testflightValue), `Missing required TestFlight EAS environment value: ${key}.`);
     if (runtimeValue && previewValue) requireValue(runtimeValue === previewValue, `Preview EAS environment value must match CI for ${key}.`);
+    if (runtimeValue && testflightValue) requireValue(runtimeValue === testflightValue, `TestFlight EAS environment value must match CI for ${key}.`);
   }
 
   const apiBase = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
