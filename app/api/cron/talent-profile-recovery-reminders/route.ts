@@ -21,20 +21,22 @@ export const dynamic = "force-dynamic";
 
 const MIN_REVIEW_COMPLETION = 35;
 
-const TALENT_SELECT = "id, user_id, created_at, updated_at, name_ar, name_en, image_url, primary_role, city_slug, city_ar, city_en, gender, nationality, nationality_slug, date_of_birth, bio_ar, bio_en, languages, dialects, skills, availability_status, portfolio_url, showreel_url, gallery_images, acting_age_min, acting_age_max, modeling_types, height_cm, shoe_size, hair_color, eye_color, chest_size, waist_size, hip_size, previous_work" as const;
+// `talents` has no `updated_at` column. Selecting it made the entire recovery
+// cron fail before any automatic reminder could be classified or sent.
+const TALENT_SELECT = "id, user_id, created_at, name_ar, name_en, image_url, primary_role, city_slug, city_ar, city_en, gender, nationality, nationality_slug, date_of_birth, bio_ar, bio_en, languages, dialects, skills, availability_status, portfolio_url, showreel_url, gallery_images, acting_age_min, acting_age_max, modeling_types, height_cm, shoe_size, hair_color, eye_color, chest_size, waist_size, hip_size, previous_work" as const;
 
 type ProfileRow = {
   id: string | number;
   user_id: string;
   approval_status: string | null;
   created_at: string | null;
+  updated_at: string | null;
 };
 
 type TalentRow = {
   id: string | number;
   user_id: string | null;
   created_at: string | null;
-  updated_at: string | null;
   name_ar: string | null;
   name_en: string | null;
   image_url: string | null;
@@ -157,7 +159,7 @@ export async function GET(request: NextRequest) {
   const { data: profileData, error: profileError } =
     await adminClient
       .from("profiles")
-      .select("id, user_id, approval_status, created_at")
+      .select("id, user_id, approval_status, created_at, updated_at")
       .eq("account_type", "talent")
       .or(
         "approval_status.is.null,approval_status.eq.not_submitted,approval_status.eq.changes_requested",
@@ -308,9 +310,9 @@ export async function GET(request: NextRequest) {
 
     const anchorCreatedAt =
       kind === "changes_requested"
-        ? review?.created_at ?? profile.created_at ?? talent.created_at
+        ? review?.created_at ?? profile.updated_at ?? profile.created_at ?? talent.created_at
         : kind === "ready_not_submitted"
-          ? talent.updated_at ?? talent.created_at ?? profile.created_at
+          ? profile.updated_at ?? profile.created_at ?? talent.created_at
           : talent.created_at ?? profile.created_at;
 
     if (!anchorCreatedAt) {

@@ -5,7 +5,6 @@ import { redirect } from "next/navigation";
 
 import { getNationalityByCode } from "@/lib/data/nationalities";
 import { SAUDI_CITIES } from "@/lib/data/saudi-cities";
-import { COUNTRY_CODES, isCountryCode } from "@/lib/markets/countries";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -85,27 +84,80 @@ function getGender(formData: FormData) {
   return value === "male" || value === "female" ? value : null;
 }
 
-function getBaseCountryCode(formData: FormData) {
-  const value = stringValue(formData, "base_country_code");
-  return isCountryCode(value) ? value : null;
+function getBaseCountryCode(formData: FormData, existing: unknown) {
+  const value = stringValue(formData, "base_country_code").toUpperCase();
+  if (!value) {
+    return typeof existing === "string" && existing.trim()
+      ? existing.trim().toUpperCase()
+      : null;
+  }
+
+  const country = getNationalityByCode(value);
+  return country?.code ?? (
+    typeof existing === "string" && existing.trim()
+      ? existing.trim().toUpperCase()
+      : null
+  );
 }
 
-function getWorkMarketCodes(formData: FormData) {
-  return arrayValue(formData, "work_market_codes").filter((value) => COUNTRY_CODES.includes(value as (typeof COUNTRY_CODES)[number]));
-}
-
-function getCity(formData: FormData) {
+function getCity(formData: FormData, existing: {
+  city_slug?: unknown;
+  city_ar?: unknown;
+  city_en?: unknown;
+}) {
   const slug = stringValue(formData, "city_slug");
-  return SAUDI_CITIES.find((city) => city.slug === slug) ?? null;
+  const selected = SAUDI_CITIES.find((city) => city.slug === slug);
+
+  if (selected) {
+    return {
+      slug: selected.slug,
+      ar: selected.ar,
+      en: selected.en,
+    };
+  }
+
+  // If an older record contains a city that is not currently editable in the
+  // Saudi-only UI, keep it untouched rather than wiping it during an unrelated
+  // admin save.
+  const existingSlug = typeof existing.city_slug === "string"
+    ? existing.city_slug.trim()
+    : "";
+
+  return {
+    slug: existingSlug || null,
+    ar: typeof existing.city_ar === "string" && existing.city_ar.trim()
+      ? existing.city_ar.trim()
+      : null,
+    en: typeof existing.city_en === "string" && existing.city_en.trim()
+      ? existing.city_en.trim()
+      : null,
+  };
 }
 
-function getNationality(formData: FormData) {
+function getNationality(formData: FormData, existing: {
+  nationality?: unknown;
+  nationality_slug?: unknown;
+}) {
   const code = stringValue(formData, "nationality_code");
   const nationality = getNationalityByCode(code);
-  if (!nationality) return null;
+
+  if (nationality) {
+    return {
+      value: nationality.en,
+      slug: createValueSlug(nationality.en),
+    };
+  }
+
+  // Preserve legacy values that do not yet map exactly to the global registry.
+  // They can be normalized later only when the admin explicitly selects a
+  // nationality from the controlled list.
   return {
-    value: nationality.en,
-    slug: createValueSlug(nationality.en),
+    value: typeof existing.nationality === "string" && existing.nationality.trim()
+      ? existing.nationality.trim()
+      : null,
+    slug: typeof existing.nationality_slug === "string" && existing.nationality_slug.trim()
+      ? existing.nationality_slug.trim()
+      : null,
   };
 }
 
@@ -115,14 +167,25 @@ export async function updateTalentAction(formData: FormData): Promise<void> {
   const id = nullableNumberValue(formData, "id");
   if (!id) throw new Error("Invalid talent id");
 
+  const supabase = createAdminClient();
+  const { data: currentTalent, error: currentTalentError } = await supabase
+    .from("talents")
+    .select("base_country_code,city_slug,city_ar,city_en,nationality,nationality_slug")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (currentTalentError) {
+    throw new Error(`[updateTalentAction.currentTalent] ${currentTalentError.message}`);
+  }
+
   const nameEn = stringValue(formData, "name_en");
   const slug = createSlug(nameEn, id);
   const verified = booleanValue(formData, "verified");
   const currentVerifiedAt = nullableStringValue(formData, "current_verified_at");
   const language = stringValue(formData, "return_lang") === "en" ? "en" : "ar";
   const primaryRole = getPrimaryRole(formData);
-  const city = getCity(formData);
-  const nationality = getNationality(formData);
+  const city = getCity(formData, currentTalent ?? {});
+  const nationality = getNationality(formData, currentTalent ?? {});
 
   const payload = {
     slug,
@@ -136,13 +199,12 @@ export async function updateTalentAction(formData: FormData): Promise<void> {
     category_en: primaryRole === "actor" ? "Actor" : primaryRole === "model" ? "Model" : "",
     category_ar: primaryRole === "actor" ? "ممثل" : primaryRole === "model" ? "مودل" : "",
 
-    city_en: city?.en ?? null,
-    city_ar: city?.ar ?? null,
-    city_slug: city?.slug ?? null,
-    base_country_code: getBaseCountryCode(formData),
-    work_market_codes: getWorkMarketCodes(formData),
-    nationality: nationality?.value ?? null,
-    nationality_slug: nationality?.slug ?? null,
+    city_en: city.en,
+    city_ar: city.ar,
+    city_slug: city.slug,
+    base_country_code: getBaseCountryCode(formData, currentTalent?.base_country_code),
+    nationality: nationality.value,
+    nationality_slug: nationality.slug,
     gender: getGender(formData),
     date_of_birth: nullableStringValue(formData, "date_of_birth"),
     age: nullableNumberValue(formData, "age"),
@@ -196,7 +258,6 @@ export async function updateTalentAction(formData: FormData): Promise<void> {
     verified_at: verified ? currentVerifiedAt || new Date().toISOString() : null,
   };
 
-  const supabase = createAdminClient();
   const { error } = await supabase.from("talents").update(payload).eq("id", id);
   if (error) throw new Error(`[updateTalentAction] ${error.message}`);
 

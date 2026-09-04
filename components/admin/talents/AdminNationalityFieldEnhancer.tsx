@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
-import { NATIONALITIES, findNationality } from "@/lib/data/nationalities";
 
-const DATALIST_ID = "mlamh-admin-nationalities";
+import { NATIONALITIES, findNationality } from "@/lib/data/nationalities";
 
 export function AdminNationalityFieldEnhancer() {
   useEffect(() => {
@@ -12,9 +11,8 @@ export function AdminNationalityFieldEnhancer() {
     if (!form || !input) return;
 
     const isArabic = new URLSearchParams(window.location.search).get("lang") !== "en";
-    input.setAttribute("list", DATALIST_ID);
-    input.setAttribute("autocomplete", "off");
-    input.placeholder = isArabic ? "ابحث: سعودي، مغربي، مصري..." : "Search: Saudi, Moroccan, Egyptian...";
+    const legacyValue = input.value.trim();
+    const currentNationality = findNationality(legacyValue);
 
     let codeInput = form.querySelector<HTMLInputElement>('input[name="nationality_code"]');
     if (!codeInput) {
@@ -24,35 +22,62 @@ export function AdminNationalityFieldEnhancer() {
       form.appendChild(codeInput);
     }
 
-    const sync = () => {
-      const match = findNationality(input.value);
-      codeInput!.value = match?.code ?? "";
-      input.setCustomValidity(
-        input.value.trim() && !match
-          ? isArabic
-            ? "اختر الجنسية من القائمة."
-            : "Choose a nationality from the list."
-          : "",
-      );
-    };
+    const select = document.createElement("select");
+    select.name = "nationality_selector";
+    select.className = input.className;
+    select.setAttribute("aria-label", isArabic ? "الجنسية" : "Nationality");
 
-    sync();
-    input.addEventListener("input", sync);
-    input.addEventListener("change", sync);
-    return () => {
-      input.removeEventListener("input", sync);
-      input.removeEventListener("change", sync);
-    };
+    const emptyOption = document.createElement("option");
+    emptyOption.value = "";
+    emptyOption.textContent = isArabic ? "اختر الجنسية" : "Choose nationality";
+    select.appendChild(emptyOption);
+
+    // Some early records may contain a free-text nationality that does not map
+    // exactly to the canonical registry. Show that value instead of making the
+    // admin think the record is blank. Leaving it selected keeps nationality_code
+    // empty, so the server preserves the legacy value until an explicit choice.
+    if (legacyValue && !currentNationality) {
+      const legacyOption = document.createElement("option");
+      legacyOption.value = "";
+      legacyOption.textContent = isArabic
+        ? `القيمة الحالية: ${legacyValue}`
+        : `Current value: ${legacyValue}`;
+      legacyOption.selected = true;
+      select.appendChild(legacyOption);
+    }
+
+    const sortedNationalities = [...NATIONALITIES].sort((a, b) =>
+      (isArabic ? a.ar : a.en).localeCompare(
+        isArabic ? b.ar : b.en,
+        isArabic ? "ar" : "en",
+      ),
+    );
+
+    for (const item of sortedNationalities) {
+      const option = document.createElement("option");
+      option.value = item.code;
+      option.textContent = isArabic
+        ? `${item.ar} — ${item.countryAr}`
+        : `${item.en} — ${item.countryEn}`;
+      option.selected = currentNationality?.code === item.code;
+      select.appendChild(option);
+    }
+
+    codeInput.value = currentNationality?.code ?? "";
+
+    select.addEventListener("change", () => {
+      codeInput!.value = select.value;
+    });
+
+    const hint = input.parentElement?.querySelector("span.mt-1\\.5");
+    if (hint) {
+      hint.textContent = isArabic
+        ? "اختر الجنسية من القائمة العالمية. الجنسية مستقلة عن دولة الإقامة، وأي قيمة قديمة غير مطابقة تُحفظ حتى تختار بديلًا صراحة."
+        : "Choose from the global nationality list. Nationality is separate from residence country, and unmatched legacy values are preserved until you explicitly replace them.";
+    }
+
+    input.replaceWith(select);
   }, []);
 
-  return (
-    <datalist id={DATALIST_ID}>
-      {NATIONALITIES.map((item) => (
-        <option key={item.code} value={item.ar} label={`${item.en} — ${item.countryEn}`} />
-      ))}
-      {NATIONALITIES.map((item) => (
-        <option key={`${item.code}-en`} value={item.en} label={`${item.ar} — ${item.countryAr}`} />
-      ))}
-    </datalist>
-  );
+  return null;
 }
