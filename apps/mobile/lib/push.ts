@@ -17,7 +17,8 @@ export type PushPreparationResult =
   | { ok: false; code: "UNSUPPORTED_PLATFORM" | "PHYSICAL_DEVICE_REQUIRED" | "EAS_PROJECT_ID_MISSING" | "PERMISSION_NOT_GRANTED" | "PERMISSION_DENIED" | "UNAUTHENTICATED" | "TOKEN_FAILED" | "REGISTER_FAILED" };
 
 function getProjectId() {
-  return Constants.easConfig?.projectId ?? Constants.expoConfig?.extra?.eas?.projectId ?? null;
+  const configured = process.env.EXPO_PUBLIC_EAS_PROJECT_ID?.trim();
+  return Constants.easConfig?.projectId ?? Constants.expoConfig?.extra?.eas?.projectId ?? configured ?? null;
 }
 
 function isSafePushUrl(rawUrl: unknown): rawUrl is string {
