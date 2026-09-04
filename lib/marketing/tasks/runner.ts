@@ -30,12 +30,23 @@ function asText(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
+function contactRole(metadata: unknown) {
+  const value = asRecord(metadata);
+  return asText(value.job_title) ?? asText(value.role) ?? asText(value.title);
+}
+
 function outputContract(taskType: string) {
   if (taskType === "content_strategy") {
     return " In addition, return content_items with up to 3 production-ready Arabic-first organic social drafts. Each item must contain: title, hook, caption, cta, content_type, channel (instagram or facebook), objective. Use only facts supplied in context and never imply a campaign was published.";
   }
   if (taskType === "outbound_email") {
     return " In addition, return outreach_drafts with up to 3 professional first-contact email drafts. Each item must contain: lead_id, subject, message. Use only lead_id values supplied in lead_candidates. Do not invent contact names, claims, pricing, partnerships, discounts or prior relationships. The message is a draft only and must not claim it was sent.";
+  }
+  if (taskType === "outreach_preparation") {
+    return " In addition, return outreach_drafts with up to 3 review-ready first-touch drafts. Each item must contain: lead_id, channel (linkedin or email), message, and subject when channel=email. Use only lead_id values supplied in lead_candidates. Use the verified contact name/role only when supplied. Prefer LinkedIn when linkedin_available=true. The sender for LinkedIn is Sawsan Ahdadi, Business Development at MLAMH. Never claim a prior relationship and never claim the draft was sent.";
+  }
+  if (taskType === "lead_enrichment") {
+    return " In addition, return lead_research with up to 5 items. Each item must contain: lead_id, readiness_status, missing_fields, verified_signals, recommended_contact_titles, research_queries, remaining_gaps. Never invent a person, title, email, phone number, LinkedIn URL, website, relationship, or source. If a verified field is unavailable, put it in remaining_gaps.";
   }
   return "";
 }
@@ -68,10 +79,55 @@ async function getTeamContext(currentTaskId: number) {
   });
 }
 
+async function getLeadCandidates(taskType: string) {
+  const supported = new Set(["outbound_email", "acquisition_plan", "lead_enrichment", "outreach_preparation"]);
+  if (!supported.has(taskType)) return [];
+
+  const db = createAdminClient();
+  const { data: leads } = await db
+    .from("marketing_leads")
+    .select("id,organization,contact_id,city,demand_signal,opportunity_type,lead_score,stage,source,channel,notes")
+    .in("stage", ["new", "qualified"])
+    .order("lead_score", { ascending: false })
+    .limit(8);
+  const rows = leads ?? [];
+  const contactIds = [...new Set(rows.map((lead) => lead.contact_id).filter((id): id is number => typeof id === "number"))];
+  const { data: contacts } = contactIds.length
+    ? await db.from("marketing_contacts").select("id,contact_name,email,linkedin_url,website,metadata").in("id", contactIds)
+    : { data: [] };
+  const contactMap = new Map((contacts ?? []).map((contact) => [contact.id, contact]));
+
+  return rows.map((lead) => {
+    const contact = lead.contact_id ? contactMap.get(lead.contact_id) : null;
+    const name = asText(contact?.contact_name);
+    const role = contactRole(contact?.metadata);
+    return {
+      id: lead.id,
+      organization: lead.organization,
+      city: lead.city,
+      demand_signal: lead.demand_signal,
+      opportunity_type: lead.opportunity_type,
+      lead_score: lead.lead_score,
+      stage: lead.stage,
+      source: lead.source,
+      preferred_channel: lead.channel,
+      notes: lead.notes,
+      contact: {
+        name,
+        role,
+        linkedin_available: Boolean(asText(contact?.linkedin_url)),
+        email_available: Boolean(asText(contact?.email)),
+        website_available: Boolean(asText(contact?.website)),
+        outreach_ready: Boolean(name && (asText(contact?.linkedin_url) || asText(contact?.email))),
+      },
+    };
+  });
+}
+
 async function getMlamhGrounding(taskType: string, currentTaskId: number) {
   const db = createAdminClient();
   const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-  const [talents, completedProfiles, publishers, opportunities, publishedOpportunities, applications, approvals, integrations, recentPublicOpportunities, teamContext] = await Promise.all([
+  const [talents, completedProfiles, publishers, opportunities, publishedOpportunities, applications, approvals, integrations, recentPublicOpportunities, teamContext, leadCandidates] = await Promise.all([
     db.from("profiles").select("id", { count: "exact", head: true }).eq("account_type", "talent").gte("created_at", since),
     db.from("profiles").select("id", { count: "exact", head: true }).eq("account_type", "talent").not("profile_completed_at", "is", null).gte("profile_completed_at", since),
     db.from("profiles").select("id", { count: "exact", head: true }).eq("account_type", "publisher").gte("created_at", since),
@@ -82,19 +138,10 @@ async function getMlamhGrounding(taskType: string, currentTaskId: number) {
     db.from("marketing_integrations").select("provider,status").order("provider"),
     db.from("opportunities").select("id,title,city_ar,opportunity_type,slug").eq("published", true).order("created_at", { ascending: false }).limit(5),
     getTeamContext(currentTaskId),
+    getLeadCandidates(taskType),
   ]);
 
   const safe = (row: { count: number | null; error: unknown }) => row.error ? null : row.count ?? 0;
-  let leadCandidates: Array<Record<string, unknown>> = [];
-  if (taskType === "outbound_email" || taskType === "acquisition_plan") {
-    const { data } = await db
-      .from("marketing_leads")
-      .select("id,organization,city,demand_signal,opportunity_type,lead_score,stage")
-      .in("stage", ["new", "qualified"])
-      .order("lead_score", { ascending: false })
-      .limit(5);
-    leadCandidates = data ?? [];
-  }
 
   return {
     product: { name: "MLAMH | ملامح", category: "Talent & Opportunities Platform" },
@@ -112,8 +159,8 @@ async function getMlamhGrounding(taskType: string, currentTaskId: number) {
     team_context: teamContext,
     decision_queue: { pending_approvals: safe(approvals) },
     integrations: integrations.error ? [] : integrations.data ?? [],
-    privacy_rule: "Lead contact email addresses and phone numbers are intentionally withheld from AI context. Use only the supplied lead ID and organization-level context. Team context contains only safe summaries and recommendations from completed internal tasks, never hidden reasoning or outreach recipient details.",
-    data_rule: "Use only supplied MLAMH facts and metrics. If a metric is null or absent, explicitly say data is unavailable. Never invent traffic, conversion, CRM, pricing, revenue, campaign, lead, or attribution data.",
+    privacy_rule: "Direct recipient email addresses, phone numbers and LinkedIn URLs are withheld from AI context. The AI may use only supplied verified contact name/role and channel-availability flags. Final delivery details are resolved server-side from MLAMH records after approval.",
+    data_rule: "Use only supplied MLAMH facts and metrics. If a metric or contact field is null or absent, explicitly say data is unavailable. Never invent traffic, conversion, CRM, pricing, revenue, campaign, lead, contact person, contact URL, or attribution data.",
   };
 }
 
@@ -146,7 +193,7 @@ async function executeClaimedMarketingTask(task: ClaimedTask) {
       messages: [
         {
           role: "system",
-          content: `You are an internal AI operator inside MLAMH (ملامح), a Talent & Opportunities Platform. You are not a generic B2B marketing SaaS. Analyze only the live MLAMH context supplied with the task. Separate observed facts from recommendations and never invent unavailable metrics or named leads. Use team_context as concise handoff context from teammates when it is relevant, but do not blindly repeat it. Prioritize marketplace liquidity: qualified talent supply, publisher demand, opportunities, applications, conversion, retention, revenue readiness, and defensibility. Never make prices, contracts, partnerships, ad-spend, legal commitments, guarantees, or CEO-only decisions. Never claim that content, email, or any external action was executed unless the supplied task context contains a recorded execution result. Return concise operational JSON with: executive_summary, observed_signals, priorities, recommended_next_actions, data_gaps, decisions_needed.${outputContract(task.task_type)} Never expose hidden chain-of-thought.`,
+          content: `You are an internal AI operator inside MLAMH (ملامح), a Talent & Opportunities Platform. You are not a generic B2B marketing SaaS. Analyze only the live MLAMH context supplied with the task. Separate observed facts from recommendations and never invent unavailable metrics or named leads. Use team_context as concise handoff context from teammates when it is relevant, but do not blindly repeat it. Prioritize marketplace liquidity: qualified talent supply, publisher demand, opportunities, applications, conversion, retention, revenue readiness, and defensibility. Never make prices, contracts, partnerships, ad-spend, legal commitments, guarantees, or CEO-only decisions. Never claim that content, email, LinkedIn outreach, or any external action was executed unless the supplied task context contains a recorded execution result. For contact research, missing data is an acceptable outcome; fabricated contact data is never acceptable. Return concise operational JSON with: executive_summary, observed_signals, priorities, recommended_next_actions, data_gaps, decisions_needed.${outputContract(task.task_type)} Never expose hidden chain-of-thought.`,
         },
         {
           role: "user",
