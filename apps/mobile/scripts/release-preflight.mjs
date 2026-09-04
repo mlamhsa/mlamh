@@ -9,6 +9,7 @@ const packageConfig = JSON.parse(fs.readFileSync(path.join(root, "package.json")
 const expo = appConfig.expo ?? {};
 const errors = [];
 const strict = process.argv.includes("--strict");
+const officialPalette = new Set(["#D4A017", "#2E2E2E", "#F5F1E8", "#8C6A2D"]);
 
 function requireValue(condition, message) {
   if (!condition) errors.push(message);
@@ -20,6 +21,27 @@ function requireLocalAsset(assetPath, label) {
   const resolved = path.resolve(root, assetPath);
   requireValue(resolved.startsWith(`${root}${path.sep}`), `${label} must reference a local app asset.`);
   requireValue(fs.existsSync(resolved), `${label} does not exist: ${assetPath}.`);
+}
+
+function auditOfficialPalette(directory) {
+  const entries = fs.readdirSync(directory, { withFileTypes: true });
+  for (const entry of entries) {
+    if (["node_modules", ".expo", ".git"].includes(entry.name)) continue;
+    const fullPath = path.join(directory, entry.name);
+    if (entry.isDirectory()) {
+      auditOfficialPalette(fullPath);
+      continue;
+    }
+    if (!/\.(?:ts|tsx|mjs|json)$/.test(entry.name)) continue;
+    const text = fs.readFileSync(fullPath, "utf8");
+    const literals = text.match(/#[0-9a-fA-F]{6}(?:[0-9a-fA-F]{2})?\b/g) ?? [];
+    for (const literal of new Set(literals)) {
+      const base = literal.slice(0, 7).toUpperCase();
+      if (!officialPalette.has(base)) {
+        errors.push(`Unofficial MLAMH color ${literal} in ${path.relative(root, fullPath)}. Use an official brand color or an alpha variant of it.`);
+      }
+    }
+  }
 }
 
 requireValue(expo.slug === "mlamh", "Expo slug must remain 'mlamh'.");
@@ -58,6 +80,8 @@ if (splashPlugin) {
   requireValue(splashConfig.backgroundColor === "#F5F1E8", "Light splash background must use official MLAMH Warm Ivory #F5F1E8.");
   requireValue(splashConfig.dark?.backgroundColor === "#2E2E2E", "Dark splash background must use official MLAMH Charcoal #2E2E2E.");
 }
+
+auditOfficialPalette(root);
 
 if (strict) {
   const requiredEnvironment = [
