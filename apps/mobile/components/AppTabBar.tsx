@@ -22,7 +22,19 @@ export function AppTabBar({ active, locale, theme, notificationCount = 0 }: { ac
 
   return <View style={styles.outer}><View style={styles.shell}>{tabs.map((tab) => {
     const selected = tab.key === active;
-    return <Pressable key={tab.key} style={styles.tab} onPress={() => router.replace(tab.path)} accessibilityRole="tab" accessibilityState={{ selected }}><View style={[styles.iconWrap, selected && styles.iconWrapSelected]}><Text style={[styles.glyph, selected && styles.glyphSelected]}>{tab.glyph}</Text>{tab.key === "notifications" && badgeCount > 0 ? <View style={styles.badge}><Text style={styles.badgeText}>{badgeCount > 99 ? "99+" : badgeCount}</Text></View> : null}</View><Text numberOfLines={1} style={[styles.label, selected && styles.labelSelected]}>{locale === "ar" ? tab.ar : tab.en}</Text>{selected ? <View style={styles.activeDot} /> : null}</Pressable>;
+    const label = locale === "ar" ? tab.ar : tab.en;
+    const accessibilityLabel = tab.key === "notifications" && badgeCount > 0
+      ? `${label}, ${badgeCount > 99 ? "99+" : badgeCount}`
+      : label;
+    return <Pressable
+      key={tab.key}
+      style={styles.tab}
+      onPress={() => router.replace(tab.path)}
+      accessibilityRole="tab"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ selected }}
+      hitSlop={6}
+    ><View style={[styles.iconWrap, selected && styles.iconWrapSelected]}><Text accessible={false} style={[styles.glyph, selected && styles.glyphSelected]}>{tab.glyph}</Text>{tab.key === "notifications" && badgeCount > 0 ? <View importantForAccessibility="no-hide-descendants" style={styles.badge}><Text style={styles.badgeText}>{badgeCount > 99 ? "99+" : badgeCount}</Text></View> : null}</View><Text numberOfLines={1} style={[styles.label, selected && styles.labelSelected]}>{label}</Text>{selected ? <View importantForAccessibility="no-hide-descendants" style={styles.activeDot} /> : null}</Pressable>;
   })}</View></View>;
 }
 

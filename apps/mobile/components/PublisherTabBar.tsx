@@ -19,7 +19,17 @@ export function PublisherTabBar({ active, locale, theme, unreadCount = 0, notifi
   return <View style={styles.outer}><View style={styles.shell}>{tabs.map((tab) => {
     const selected = active === tab.key;
     const badgeCount = tab.key === "messages" ? unreadCount : tab.key === "notifications" ? notificationCount : 0;
-    return <Pressable key={tab.key} accessibilityRole="tab" accessibilityState={{ selected }} style={styles.tab} onPress={() => router.replace(tab.path)}><Text style={[styles.label, selected && styles.selected]}>{locale === "ar" ? tab.ar : tab.en}</Text>{badgeCount > 0 ? <View style={styles.badge}><Text style={styles.badgeText}>{badgeCount > 99 ? "99+" : badgeCount}</Text></View> : null}{selected ? <View style={styles.dot} /> : null}</Pressable>;
+    const label = locale === "ar" ? tab.ar : tab.en;
+    const accessibilityLabel = badgeCount > 0 ? `${label}, ${badgeCount > 99 ? "99+" : badgeCount}` : label;
+    return <Pressable
+      key={tab.key}
+      accessibilityRole="tab"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ selected }}
+      hitSlop={6}
+      style={styles.tab}
+      onPress={() => router.replace(tab.path)}
+    ><Text style={[styles.label, selected && styles.selected]}>{label}</Text>{badgeCount > 0 ? <View importantForAccessibility="no-hide-descendants" style={styles.badge}><Text style={styles.badgeText}>{badgeCount > 99 ? "99+" : badgeCount}</Text></View> : null}{selected ? <View importantForAccessibility="no-hide-descendants" style={styles.dot} /> : null}</Pressable>;
   })}</View></View>;
 }
 
