@@ -17,7 +17,9 @@ function record(value: unknown) {
 }
 
 function text(value: unknown) {
-  return typeof value === "string" && value.trim() ? value.trim() : null;
+  return typeof value === "string" && value.trim()
+    ? value.trim().replace(/\\n/g, "\n")
+    : null;
 }
 
 function numberValue(value: unknown) {
@@ -25,7 +27,7 @@ function numberValue(value: unknown) {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
-async function ensureSocialPublishingApproval({
+async function ensureCreativeProductionTask({
   task,
   contentId,
   title,
@@ -41,55 +43,55 @@ async function ensureSocialPublishingApproval({
   target: SocialTarget;
 }) {
   const db = createAdminClient();
-  const idempotencyKey = `buffer-publish-content-${contentId}-${target}`;
+  const idempotencyKey = `creative-production-content-${contentId}-${target}`;
   const { data: existingTask } = await db
     .from("marketing_tasks")
     .select("id")
     .eq("idempotency_key", idempotencyKey)
     .maybeSingle();
 
-  if (!existingTask?.id) {
-    await createMarketingTask({
-      agentId: task.agent_id ?? "reem",
-      taskType: "social_publish",
-      title: `Approve ${target} publishing: ${title}`,
-      objective: `Review the AI-prepared ${target} content before external publishing. Approval creates a governed Buffer job only.`,
-      channel: "buffer",
-      approvalLevel: "approval_required",
-      contentId,
-      source: "autonomous_materializer",
-      input: {
-        content_id: contentId,
-        provider: "buffer",
-        target,
-        text: caption,
-        cta,
-        asset_urls: [],
-        source_task_id: task.id,
+  if (existingTask?.id) return false;
+
+  await createMarketingTask({
+    agentId: "sarah",
+    taskType: "creative_brief",
+    title: `Creative production: ${title}`,
+    objective: `Prepare a production-ready ${target} visual for this MLAMH social post. The visual must follow MLAMH brand identity and must be completed before any social publishing approval is created.`,
+    channel: target,
+    approvalLevel: "auto",
+    contentId,
+    parentTaskId: task.id,
+    source: "autonomous_materializer",
+    input: {
+      content_id: contentId,
+      target,
+      caption,
+      cta,
+      required_asset: true,
+      brand: {
+        primary: "#D4A017",
+        dark: "#2E2E2E",
+        light: "#F5F1E8",
+        accent: "#8C6A2D",
       },
-      metadata: { source_task_id: task.id, autonomous: true },
-      idempotencyKey,
-    });
-  }
+      publishing_gate: "creative_required",
+    },
+    metadata: {
+      source_task_id: task.id,
+      autonomous: true,
+      creative_gate: true,
+    },
+    idempotencyKey,
+  });
 
-  const { data: approvalTask } = await db
-    .from("marketing_tasks")
-    .select("id")
-    .eq("idempotency_key", idempotencyKey)
-    .maybeSingle();
-  if (!approvalTask?.id) return false;
-
-  const { data: approval } = await db
-    .from("marketing_approvals")
-    .select("id")
-    .eq("task_id", approvalTask.id)
-    .maybeSingle();
-  return Boolean(approval?.id);
+  return true;
 }
 
 async function materializeContentStrategy(task: SourceTask, output: Record<string, unknown>) {
   const items = Array.isArray(output.content_items) ? output.content_items.slice(0, 3) : [];
-  if (!items.length) return { contentCreated: 0, outreachCreated: 0, approvalsCreated: 0 };
+  if (!items.length) {
+    return { contentCreated: 0, outreachCreated: 0, approvalsCreated: 0, creativeTasksCreated: 0 };
+  }
 
   const db = createAdminClient();
   const { data: existingRows } = await db
@@ -107,14 +109,20 @@ async function materializeContentStrategy(task: SourceTask, output: Record<strin
       const channel = text(item.channel);
       if (!title || !caption || (channel !== "instagram" && channel !== "facebook")) return [];
 
+      const target = channel as SocialTarget;
+      const rawCta = text(item.cta);
+      const cta = target === "instagram"
+        ? (rawCta?.replace(/https?:\/\/\S+|(?:www\.)?mlamh\.net\/?/gi, "").trim() || "سجّل من الرابط في البايو")
+        : rawCta;
+
       return [{
         title,
         hook: text(item.hook),
         caption,
         body: text(item.body),
-        cta: text(item.cta),
+        cta,
         content_type: text(item.content_type) ?? "feed",
-        channel,
+        channel: target,
         objective: text(item.objective) ?? "organic_growth",
         audience: record(item.audience),
         agent_id: task.agent_id ?? "reem",
@@ -129,11 +137,15 @@ async function materializeContentStrategy(task: SourceTask, output: Record<strin
           source_task_type: task.task_type,
           source_item_index: index,
           autonomous: true,
+          creative_required: true,
         },
       }];
     });
 
-    if (!rows.length) return { contentCreated: 0, outreachCreated: 0, approvalsCreated: 0 };
+    if (!rows.length) {
+      return { contentCreated: 0, outreachCreated: 0, approvalsCreated: 0, creativeTasksCreated: 0 };
+    }
+
     const { data: inserted, error } = await db
       .from("marketing_content")
       .insert(rows)
@@ -143,11 +155,12 @@ async function materializeContentStrategy(task: SourceTask, output: Record<strin
     contentCreated = contentRows.length;
   }
 
-  let approvalsCreated = 0;
+  let creativeTasksCreated = 0;
   for (const content of contentRows) {
     const target = content.channel as SocialTarget;
     if (target !== "instagram" && target !== "facebook") continue;
-    const approved = await ensureSocialPublishingApproval({
+
+    const created = await ensureCreativeProductionTask({
       task,
       contentId: content.id,
       title: content.title ?? `content #${content.id}`,
@@ -155,18 +168,22 @@ async function materializeContentStrategy(task: SourceTask, output: Record<strin
       cta: content.cta ?? null,
       target,
     });
-    if (approved) {
-      approvalsCreated += 1;
-      if (content.status !== "approval") {
-        await db
-          .from("marketing_content")
-          .update({ status: "approval", updated_at: new Date().toISOString() })
-          .eq("id", content.id);
-      }
+    if (created) creativeTasksCreated += 1;
+
+    if (content.status !== "draft") {
+      await db
+        .from("marketing_content")
+        .update({ status: "draft", updated_at: new Date().toISOString() })
+        .eq("id", content.id);
     }
   }
 
-  return { contentCreated, outreachCreated: 0, approvalsCreated };
+  return {
+    contentCreated,
+    outreachCreated: 0,
+    approvalsCreated: 0,
+    creativeTasksCreated,
+  };
 }
 
 async function ensureOutreachApproval({
@@ -300,7 +317,9 @@ async function materializeOutboundEmail(task: SourceTask, output: Record<string,
         })
         .select("id")
         .single();
-      if (outreachError || !outreach) throw new Error(`[marketing_materialize.outreach] ${outreachError?.message ?? "insert failed"}`);
+      if (outreachError || !outreach) {
+        throw new Error(`[marketing_materialize.outreach] ${outreachError?.message ?? "insert failed"}`);
+      }
       outreachId = outreach.id;
       outreachCreated += 1;
     }
