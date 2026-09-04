@@ -6,5 +6,5 @@ const RESTRICTED_ACCOUNT_STATUSES = new Set([
 ]);
 
 export function isRestrictedAccountStatus(status: string | null | undefined) {
-  return RESTRICTED_ACCOUNT_STATUSES.has(status ?? "");
+  return RESTRICTED_ACCOUNT_STATUSES.has(status?.trim().toLowerCase() ?? "");
 }
