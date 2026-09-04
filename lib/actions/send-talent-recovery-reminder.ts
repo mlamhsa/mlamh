@@ -11,7 +11,10 @@ import { calculateProfileCompletion } from "@/lib/utils/profile-completion";
 
 const MIN_REVIEW_COMPLETION = 35;
 
-const TALENT_SELECT = "id,user_id,created_at,updated_at,name_ar,name_en,image_url,primary_role,city_slug,city_ar,city_en,gender,nationality,nationality_slug,date_of_birth,bio_ar,bio_en,languages,dialects,skills,availability_status,portfolio_url,showreel_url,gallery_images,acting_age_min,acting_age_max,modeling_types,height_cm,shoe_size,hair_color,eye_color,chest_size,waist_size,hip_size,previous_work" as const;
+// Keep this select aligned with the real `talents` table schema. The table
+// does not have `updated_at`; selecting it makes the whole query fail before
+// the reminder workflow can resolve the linked account.
+const TALENT_SELECT = "id,user_id,created_at,name_ar,name_en,image_url,primary_role,city_slug,city_ar,city_en,gender,nationality,nationality_slug,date_of_birth,bio_ar,bio_en,languages,dialects,skills,availability_status,portfolio_url,showreel_url,gallery_images,acting_age_min,acting_age_max,modeling_types,height_cm,shoe_size,hair_color,eye_color,chest_size,waist_size,hip_size,previous_work" as const;
 
 type ActionResult = {
   success: boolean;
