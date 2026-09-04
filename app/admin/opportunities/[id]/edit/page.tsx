@@ -12,7 +12,8 @@ type PageProps = { params: Promise<{ id: string }>; searchParams?: Promise<{ lan
 
 export default async function EditManagedOpportunityPage({ params, searchParams }: PageProps) {
   await requireAdminAccess();
-  const [{ id }, resolvedSearch] = await Promise.all([params, searchParams ?? Promise.resolve({})]);
+  const { id } = await params;
+  const resolvedSearch: { lang?: string } = searchParams ? await searchParams : {};
   const opportunityId = Number(id);
   if (!Number.isInteger(opportunityId) || opportunityId <= 0) notFound();
 
