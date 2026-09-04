@@ -2,6 +2,7 @@
   color: #fff;
   caret-color: #d4a017;
   color-scheme: dark;
+  -webkit-text-fill-color: #fff;
 }
 
 .darkField:-webkit-autofill,
@@ -14,6 +15,13 @@
   box-shadow: 0 0 0 1000px #090909 inset !important;
   border-color: rgba(255, 255, 255, 0.1) !important;
   transition: background-color 9999s ease-out 0s;
+}
+
+.darkField:-moz-autofill {
+  color: #fff !important;
+  -moz-text-fill-color: #fff !important;
+  box-shadow: 0 0 0 1000px #090909 inset !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
 }
 
 .darkField::selection {
