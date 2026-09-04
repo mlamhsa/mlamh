@@ -106,15 +106,22 @@ export async function approveLeadResearchCandidateAction(formData: FormData) {
   };
 
   let contactId = typeof lead.contact_id === "number" ? lead.contact_id : null;
+  let finalEmail = candidate.email;
+  let finalLinkedin = candidate.linkedinUrl;
   if (contactId) {
-    const { data: existingContact } = await db.from("marketing_contacts").select("metadata").eq("id", contactId).maybeSingle();
+    const { data: existingContact } = await db.from("marketing_contacts")
+      .select("contact_name,email,linkedin_url,website,metadata")
+      .eq("id", contactId)
+      .maybeSingle();
     const existingMetadata = record(existingContact?.metadata);
+    finalEmail = candidate.email ?? validBusinessEmail(existingContact?.email);
+    finalLinkedin = candidate.linkedinUrl ?? validLinkedIn(existingContact?.linkedin_url);
     const { error } = await db.from("marketing_contacts").update({
       organization_name: lead.organization,
-      contact_name: candidate.name,
-      email: candidate.email,
-      linkedin_url: candidate.linkedinUrl,
-      website: candidate.website,
+      contact_name: candidate.name ?? text(existingContact?.contact_name),
+      email: finalEmail,
+      linkedin_url: finalLinkedin,
+      website: candidate.website ?? validHttpUrl(existingContact?.website),
       city: lead.city,
       metadata: { ...existingMetadata, ...metadata },
       updated_at: now,
@@ -147,13 +154,14 @@ export async function approveLeadResearchCandidateAction(formData: FormData) {
     task_id: taskId,
     action: "lead_research_approved",
     reason: `Public contact research reviewed for ${lead.organization}`,
-    channel: candidate.linkedinUrl ? "linkedin" : "email",
+    channel: finalLinkedin ? "linkedin" : "email",
     result: {
       lead_id: leadId,
       contact_id: contactId,
       reviewed_by: user.id,
       source_count: candidate.evidenceUrls.length,
-      outreach_ready: true,
+      outreach_ready: Boolean(candidate.name && (finalLinkedin || finalEmail)),
+      existing_verified_fields_preserved: true,
     },
   });
 
