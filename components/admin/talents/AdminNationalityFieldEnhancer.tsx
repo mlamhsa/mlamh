@@ -14,7 +14,14 @@ export function AdminNationalityFieldEnhancer() {
     const isArabic = new URLSearchParams(window.location.search).get("lang") !== "en";
     input.setAttribute("list", DATALIST_ID);
     input.setAttribute("autocomplete", "off");
-    input.placeholder = isArabic ? "ابحث: سعودي، مغربي، مصري..." : "Search: Saudi, Moroccan, Egyptian...";
+    input.placeholder = isArabic ? "ابحث: باكستاني، هندي، سعودي..." : "Search: Pakistani, Indian, Saudi...";
+
+    const hint = input.parentElement?.querySelector("span.mt-1\\.5");
+    if (hint) {
+      hint.textContent = isArabic
+        ? "ابحث واختر الجنسية من القائمة العالمية المعتمدة. الجنسية مستقلة عن دولة الإقامة."
+        : "Search and choose from the global nationality list. Nationality is separate from residence country.";
+    }
 
     let codeInput = form.querySelector<HTMLInputElement>('input[name="nationality_code"]');
     if (!codeInput) {
