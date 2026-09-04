@@ -19,6 +19,7 @@ import {
 import { requireAdminAccess } from "@/lib/auth/require-admin";
 import {
   type AdminTalentFilter,
+  type AdminTalentOperationalFilter,
 } from "@/lib/repositories/talents/TalentRepository";
 import { TalentService } from "@/lib/services/talents/TalentService";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -31,6 +32,7 @@ type PageProps = {
     status?: string;
     search?: string;
     review?: string;
+    ops?: string;
   }>;
 };
 
@@ -69,18 +71,34 @@ function parseFilter(
   return undefined;
 }
 
+function parseOperationalFilter(
+  value: string | undefined,
+): AdminTalentOperationalFilter | undefined {
+  if (
+    value === "incomplete" ||
+    value === "ready_not_submitted" ||
+    value === "changes_requested"
+  ) {
+    return value;
+  }
+
+  return undefined;
+}
+
 function buildAdminTalentsUrl({
   language,
   page,
   status,
   search,
   review,
+  ops,
 }: {
   language: "ar" | "en";
   page?: number;
   status?: string;
   search?: string;
   review?: string;
+  ops?: string;
 }) {
   const params = new URLSearchParams();
   params.set("lang", language);
@@ -88,6 +106,7 @@ function buildAdminTalentsUrl({
   if (page && page > 1) params.set("page", String(page));
   if (status) params.set("status", status);
   if (review) params.set("review", review);
+  if (ops) params.set("ops", ops);
   if (search?.trim()) params.set("search", search.trim());
 
   return `/admin/talents?${params.toString()}`;
@@ -142,20 +161,28 @@ export default async function AdminTalentsPage({
   const page = parsePage(resolvedSearchParams.page);
   const status = parseFilter(resolvedSearchParams.status);
   const search = resolvedSearchParams.search?.trim() ?? "";
+  const ops = parseOperationalFilter(resolvedSearchParams.ops);
   const review =
-    resolvedSearchParams.review === "pending"
+    !ops && resolvedSearchParams.review === "pending"
       ? "pending"
       : undefined;
 
-  const [talentsResult, stats, pendingReviewResult] = await Promise.all([
+  const [
+    talentsResult,
+    stats,
+    operationalStats,
+    pendingReviewResult,
+  ] = await Promise.all([
     TalentService.getAdminTalents({
       page,
       pageSize: PAGE_SIZE,
       status,
       search,
       approvalStatus: review,
+      operationalFilter: ops,
     }),
     TalentService.getAdminStats(),
+    TalentService.getAdminOperationalStats(),
     createAdminClient()
       .from("profiles")
       .select("id", { count: "exact", head: true })
@@ -240,6 +267,28 @@ export default async function AdminTalentsPage({
     },
   ];
 
+  const operationalFilters: {
+    value: AdminTalentOperationalFilter;
+    label: string;
+    count: number;
+  }[] = [
+    {
+      value: "incomplete",
+      label: isArabic ? "غير مكتمل" : "Incomplete",
+      count: operationalStats.incomplete,
+    },
+    {
+      value: "ready_not_submitted",
+      label: isArabic ? "جاهز ولم يرسل" : "Ready, not submitted",
+      count: operationalStats.readyNotSubmitted,
+    },
+    {
+      value: "changes_requested",
+      label: isArabic ? "مطلوب تعديل" : "Changes requested",
+      count: operationalStats.changesRequested,
+    },
+  ];
+
   return (
     <div
       dir={isArabic ? "rtl" : "ltr"}
@@ -271,7 +320,7 @@ export default async function AdminTalentsPage({
               <Link
                 href={buildAdminTalentsUrl({ language, search })}
                 className={`group rounded-2xl border px-4 py-3 transition ${
-                  !status && !review
+                  !status && !review && !ops
                     ? "border-gold/30 bg-gold/[0.08]"
                     : "border-white/[0.08] bg-black/20 hover:border-gold/25 hover:bg-gold/[0.04]"
                 }`}
@@ -291,7 +340,7 @@ export default async function AdminTalentsPage({
                   search,
                 })}
                 className={`group rounded-2xl border px-4 py-3 transition ${
-                  status === "published"
+                  status === "published" && !review && !ops
                     ? "border-emerald-400/35 bg-emerald-400/[0.09]"
                     : "border-emerald-400/15 bg-emerald-400/[0.04] hover:border-emerald-400/35 hover:bg-emerald-400/[0.08]"
                 }`}
@@ -336,6 +385,9 @@ export default async function AdminTalentsPage({
             {review ? (
               <input type="hidden" name="review" value={review} />
             ) : null}
+            {ops ? (
+              <input type="hidden" name="ops" value={ops} />
+            ) : null}
 
             <div className="relative flex-1">
               <Search
@@ -371,7 +423,7 @@ export default async function AdminTalentsPage({
         <div className="mt-5 flex flex-wrap gap-2">
           {filters.map((filter) => {
             const active =
-              !review && status === (filter.value || undefined);
+              !review && !ops && status === (filter.value || undefined);
 
             return (
               <Link
@@ -396,6 +448,39 @@ export default async function AdminTalentsPage({
               </Link>
             );
           })}
+        </div>
+
+        <div className="mt-4 rounded-2xl border border-white/[0.06] bg-white/[0.015] p-3">
+          <p className="mb-2 px-1 text-[10px] uppercase tracking-[0.18em] text-white/25">
+            {isArabic ? "متابعة الاستكمال" : "Completion operations"}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {operationalFilters.map((filter) => {
+              const active = ops === filter.value;
+
+              return (
+                <Link
+                  key={filter.value}
+                  href={buildAdminTalentsUrl({
+                    language,
+                    status,
+                    search,
+                    ops: filter.value,
+                  })}
+                  className={`inline-flex min-h-10 items-center gap-2 rounded-full border px-4 text-xs transition ${
+                    active
+                      ? "border-sky-400/30 bg-sky-400/[0.10] text-sky-200"
+                      : "border-white/[0.08] bg-black/15 text-white/40 hover:border-sky-400/20 hover:text-sky-200"
+                  }`}
+                >
+                  {filter.label}
+                  <span className="rounded-full bg-black/25 px-2 py-0.5 text-[10px]">
+                    {filter.count}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
         </div>
 
         <div className="mt-7 flex items-center justify-between gap-4">
@@ -640,6 +725,7 @@ export default async function AdminTalentsPage({
                   status,
                   search,
                   review,
+                  ops,
                 })}
                 className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/[0.08] text-white/45 transition hover:border-gold/25 hover:text-gold"
                 aria-label={isArabic ? "الصفحة السابقة" : "Previous page"}
@@ -666,6 +752,7 @@ export default async function AdminTalentsPage({
                   status,
                   search,
                   review,
+                  ops,
                 })}
                 className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/[0.08] text-white/45 transition hover:border-gold/25 hover:text-gold"
                 aria-label={isArabic ? "الصفحة التالية" : "Next page"}

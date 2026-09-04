@@ -1,4 +1,5 @@
 import { BaseRepository } from "@/lib/repositories/base/BaseRepository";
+import { getTalentProfileReadiness } from "@/lib/talent/profile-review-readiness";
 import type { Talent } from "@/lib/types/talent";
 
 export type AdminTalentFilter =
@@ -6,6 +7,11 @@ export type AdminTalentFilter =
   | "unpublished"
   | "active"
   | "suspended";
+
+export type AdminTalentOperationalFilter =
+  | "incomplete"
+  | "ready_not_submitted"
+  | "changes_requested";
 
 export type AdminTalent = Talent & {
   views: number;
@@ -115,6 +121,13 @@ function normalizeAdminTalent(
   } as AdminTalent;
 }
 
+function isReadyNotSubmitted(talent: AdminTalent) {
+  return getTalentProfileReadiness({
+    ...talent,
+    phone: talent.account_phone ?? talent.whatsapp ?? null,
+  }).isReady;
+}
+
 export class TalentRepository extends BaseRepository {
   static async getAdminTalents({
     page,
@@ -122,12 +135,14 @@ export class TalentRepository extends BaseRepository {
     status,
     search,
     approvalStatus,
+    operationalFilter,
   }: {
     page: number;
     pageSize: number;
     status?: AdminTalentFilter;
     search?: string;
     approvalStatus?: string;
+    operationalFilter?: AdminTalentOperationalFilter;
   }) {
     const from =
       (page - 1) *
@@ -189,12 +204,21 @@ export class TalentRepository extends BaseRepository {
     }
 
     /*
-     * حالة مراجعة الملف.
-     *
-     * مثال:
-     * approvalStatus = "pending"
+     * حالة المراجعة المباشرة.
      */
-    if (approvalStatus) {
+    if (operationalFilter === "changes_requested") {
+      query = query.eq("approval_status", "changes_requested");
+    } else if (operationalFilter === "incomplete" || operationalFilter === "ready_not_submitted") {
+      // These two operational states are derived from canonical readiness, so
+      // first constrain to the canonical not-submitted workflow state and only
+      // then derive readiness before pagination below. Legacy talent rows that
+      // have no joined canonical profile are excluded from recovery filters.
+      query = query
+        .or(
+          "approval_status.is.null,approval_status.eq.not_submitted",
+        )
+        .not("account_created_at", "is", null);
+    } else if (approvalStatus) {
       query =
         query.eq(
           "approval_status",
@@ -224,6 +248,35 @@ export class TalentRepository extends BaseRepository {
             `account_phone.ilike.%${cleanSearch}%`,
           ].join(","),
         );
+    }
+
+    if (operationalFilter === "incomplete" || operationalFilter === "ready_not_submitted") {
+      const { data, error } = await query.order("id", { ascending: false });
+
+      if (error) {
+        throw new Error(
+          `[TalentRepository.getAdminTalents.operational] ${error.message}`,
+        );
+      }
+
+      const candidates = ((data ?? []) as AdminTalentViewRow[])
+        .map((row) => normalizeAdminTalent(row));
+
+      const matchingTalents = candidates.filter((talent) => {
+        const ready = isReadyNotSubmitted(talent);
+        return operationalFilter === "ready_not_submitted" ? ready : !ready;
+      });
+
+      const total = matchingTalents.length;
+      const talents = matchingTalents.slice(from, to + 1);
+
+      return {
+        talents,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / pageSize)),
+        currentPage: page,
+        pageSize,
+      };
     }
 
     const {
@@ -280,6 +333,51 @@ export class TalentRepository extends BaseRepository {
         page,
 
       pageSize,
+    };
+  }
+
+  static async getAdminOperationalStats() {
+    const adminClient = this.client();
+
+    const [notSubmittedResult, changesRequestedResult] = await Promise.all([
+      adminClient
+        .from("admin_talent_profiles")
+        .select("*")
+        .or("approval_status.is.null,approval_status.eq.not_submitted")
+        .not("account_created_at", "is", null),
+      adminClient
+        .from("admin_talent_profiles")
+        .select("id", { count: "exact", head: true })
+        .eq("approval_status", "changes_requested"),
+    ]);
+
+    if (notSubmittedResult.error) {
+      throw new Error(
+        `[TalentRepository.getAdminOperationalStats.notSubmitted] ${notSubmittedResult.error.message}`,
+      );
+    }
+
+    if (changesRequestedResult.error) {
+      throw new Error(
+        `[TalentRepository.getAdminOperationalStats.changesRequested] ${changesRequestedResult.error.message}`,
+      );
+    }
+
+    let incomplete = 0;
+    let readyNotSubmitted = 0;
+
+    for (const row of (notSubmittedResult.data ?? []) as AdminTalentViewRow[]) {
+      if (isReadyNotSubmitted(normalizeAdminTalent(row))) {
+        readyNotSubmitted += 1;
+      } else {
+        incomplete += 1;
+      }
+    }
+
+    return {
+      incomplete,
+      readyNotSubmitted,
+      changesRequested: changesRequestedResult.count ?? 0,
     };
   }
 
