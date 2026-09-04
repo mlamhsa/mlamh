@@ -42,23 +42,33 @@ export default async function MarketingAnalyticsPage({ searchParams }: PageProps
   const since = range.days ? new Date(Date.now() - range.days * 86400000).toISOString() : null;
   const db = createAdminClient();
 
-  function applyFilters<T extends { gte: (column: string, value: string) => T; eq: (column: string, value: string) => T }>(query: T) {
-    let filtered = query;
-    if (since) filtered = filtered.gte("occurred_at", since);
-    if (sourceFilter) filtered = filtered.eq("source", sourceFilter);
-    if (campaignFilter) filtered = filtered.eq("campaign", campaignFilter);
-    return filtered;
+  function eventQuery() {
+    let query = db.from("marketing_events")
+      .select("id,event_name,source,medium,campaign,content,entity_type,entity_id,occurred_at")
+      .order("occurred_at", { ascending: false })
+      .limit(2000);
+    if (since) query = query.gte("occurred_at", since);
+    if (sourceFilter) query = query.eq("source", sourceFilter);
+    if (campaignFilter) query = query.eq("campaign", campaignFilter);
+    return query;
   }
 
-  const eventQuery = applyFilters(db.from("marketing_events").select("id,event_name,source,medium,campaign,content,entity_type,entity_id,occurred_at").order("occurred_at", { ascending: false }).limit(2000));
-  const countQuery = (eventName: string) => applyFilters(db.from("marketing_events").select("id", { count: "exact", head: true }).eq("event_name", eventName));
+  function exactCountQuery(eventName: string) {
+    let query = db.from("marketing_events")
+      .select("id", { count: "exact", head: true })
+      .eq("event_name", eventName);
+    if (since) query = query.gte("occurred_at", since);
+    if (sourceFilter) query = query.eq("source", sourceFilter);
+    if (campaignFilter) query = query.eq("campaign", campaignFilter);
+    return query;
+  }
 
   const [eventsResult, visitsResult, registrationsResult, applicationsResult, briefsResult] = await Promise.all([
-    eventQuery,
-    countQuery("page_view"),
-    countQuery("registration_completed"),
-    countQuery("application_submitted"),
-    countQuery("brief_received"),
+    eventQuery(),
+    exactCountQuery("page_view"),
+    exactCountQuery("registration_completed"),
+    exactCountQuery("application_submitted"),
+    exactCountQuery("brief_received"),
   ]);
 
   const events = eventsResult.data ?? [];
