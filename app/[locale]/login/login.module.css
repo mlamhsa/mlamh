@@ -1,0 +1,22 @@
+.darkField {
+  color: #fff;
+  caret-color: #d4a017;
+  color-scheme: dark;
+}
+
+.darkField:-webkit-autofill,
+.darkField:-webkit-autofill:hover,
+.darkField:-webkit-autofill:focus,
+.darkField:-webkit-autofill:active {
+  -webkit-text-fill-color: #fff !important;
+  caret-color: #d4a017 !important;
+  -webkit-box-shadow: 0 0 0 1000px #090909 inset !important;
+  box-shadow: 0 0 0 1000px #090909 inset !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  transition: background-color 9999s ease-out 0s;
+}
+
+.darkField::selection {
+  background: rgba(212, 160, 23, 0.3);
+  color: #fff;
+}
