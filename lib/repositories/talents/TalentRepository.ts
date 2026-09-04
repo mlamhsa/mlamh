@@ -211,10 +211,13 @@ export class TalentRepository extends BaseRepository {
     } else if (operationalFilter === "incomplete" || operationalFilter === "ready_not_submitted") {
       // These two operational states are derived from canonical readiness, so
       // first constrain to the canonical not-submitted workflow state and only
-      // then derive readiness before pagination below.
-      query = query.or(
-        "approval_status.is.null,approval_status.eq.not_submitted",
-      );
+      // then derive readiness before pagination below. Legacy talent rows that
+      // have no joined canonical profile are excluded from recovery filters.
+      query = query
+        .or(
+          "approval_status.is.null,approval_status.eq.not_submitted",
+        )
+        .not("account_created_at", "is", null);
     } else if (approvalStatus) {
       query =
         query.eq(
@@ -340,7 +343,8 @@ export class TalentRepository extends BaseRepository {
       adminClient
         .from("admin_talent_profiles")
         .select("*")
-        .or("approval_status.is.null,approval_status.eq.not_submitted"),
+        .or("approval_status.is.null,approval_status.eq.not_submitted")
+        .not("account_created_at", "is", null),
       adminClient
         .from("admin_talent_profiles")
         .select("id", { count: "exact", head: true })

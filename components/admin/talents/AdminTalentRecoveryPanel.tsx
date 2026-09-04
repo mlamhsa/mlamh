@@ -8,11 +8,13 @@ import { sendTalentRecoveryReminderAction } from "@/lib/actions/send-talent-reco
 import type { TalentProfileRecoveryKind } from "@/lib/talent/send-profile-recovery-reminder";
 
 type MissingRequirement = { key: string; label: string };
+type ProfileLinkageState = "linked" | "missing_profile" | "missing_user" | "unavailable";
 
 type Props = {
   talentId: number;
   language: "ar" | "en";
   approvalStatus: string;
+  profileLinkageState: ProfileLinkageState;
   profileCompletion: number;
   isReady: boolean;
   missingRequirements: MissingRequirement[];
@@ -55,12 +57,23 @@ export function AdminTalentRecoveryPanel(props: Props) {
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState(false);
-  const canRemind = ["not_submitted", "changes_requested"].includes(props.approvalStatus);
+  const isLinked = props.profileLinkageState === "linked";
+  const canRemind = isLinked && ["not_submitted", "changes_requested"].includes(props.approvalStatus);
 
   const lastReminder = formatDate(props.lastReminderAt, ar) ?? (ar ? "لم يُرسل بعد" : "Not sent yet");
   const nextAutomaticReminder = formatDate(props.nextAutomaticReminderAt, ar);
 
   const automaticStatus = (() => {
+    if (!isLinked) {
+      return {
+        label: ar ? "متوقف بسبب مشكلة ربط" : "Paused by linkage issue",
+        helper: ar
+          ? "لن نرسل تذكيرات حتى يصبح سجل الحساب والملف مترابطًا بشكل صحيح."
+          : "Reminders stay disabled until the account and profile records are linked correctly.",
+        className: "text-orange-200",
+      };
+    }
+
     switch (props.automaticReminderState) {
       case "scheduled":
         return {
@@ -96,6 +109,25 @@ export function AdminTalentRecoveryPanel(props: Props) {
           helper: kindLabel(props.currentRecoveryKind, ar),
           className: "text-white/45",
         };
+    }
+  })();
+
+  const linkageWarning = (() => {
+    switch (props.profileLinkageState) {
+      case "missing_profile":
+        return ar
+          ? "هذا سجل موهبة قديم مرتبط بحساب تسجيل دخول، لكن لا يوجد له سجل Talent في جدول الحسابات Profiles. لن نُنشئ أو نربط البيانات تلقائيًا حتى تتم مراجعة الحالة؛ التذكيرات الآلية واليدوية متوقفة لهذا السجل."
+          : "This is a legacy talent record linked to an auth account, but its canonical Talent profile row is missing. No data will be created or linked automatically until reviewed; automatic and manual reminders are disabled for this record.";
+      case "missing_user":
+        return ar
+          ? "هذا سجل موهبة غير مرتبط بمعرّف مستخدم. يحتاج مراجعة ربط قبل تشغيل أي تذكير أو إجراء استعادة."
+          : "This talent record has no linked user id. Review the linkage before running any recovery reminder.";
+      case "unavailable":
+        return ar
+          ? "تعذر التحقق من ربط ملف الموهبة بحساب Profiles حاليًا. أوقفت التذكيرات احترازيًا حتى ينجح التحقق."
+          : "The talent-to-profile linkage could not be verified. Reminders are paused defensively until verification succeeds.";
+      default:
+        return null;
     }
   })();
 
@@ -141,6 +173,20 @@ export function AdminTalentRecoveryPanel(props: Props) {
           </button>
         ) : null}
       </div>
+
+      {linkageWarning ? (
+        <div className="mt-5 rounded-2xl border border-orange-400/20 bg-orange-400/[0.05] p-4">
+          <div className="flex items-start gap-3 text-orange-100">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <div>
+              <p className="text-sm font-medium">
+                {ar ? "حالة ربط قديمة تحتاج مراجعة" : "Legacy linkage needs review"}
+              </p>
+              <p className="mt-1 text-xs leading-6 text-orange-100/70">{linkageWarning}</p>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <div className="rounded-2xl border border-white/[0.08] bg-black/20 p-4">
