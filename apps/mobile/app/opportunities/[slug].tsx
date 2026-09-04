@@ -133,7 +133,7 @@ function createStyles(theme: typeof lightTheme | typeof darkTheme) {
     content: { paddingHorizontal: 12, paddingTop: 46, paddingBottom: 152, gap: 12 },
     topBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 6 },
     topActions: { flexDirection: "row", gap: 18 }, topIcon: { color: theme.text, fontSize: 28, lineHeight: 32 },
-    coverCard: { minHeight: 248, borderRadius: 28, overflow: "hidden", backgroundColor: theme.charcoal ?? "#2E2E2E", borderWidth: 1, borderColor: theme.border, padding: 18, justifyContent: "space-between" },
+    coverCard: { minHeight: 248, borderRadius: 28, overflow: "hidden", backgroundColor: "#2E2E2E", borderWidth: 1, borderColor: theme.border, padding: 18, justifyContent: "space-between" },
     coverGlow: { position: "absolute", width: 210, height: 210, borderRadius: 105, backgroundColor: "rgba(212,160,23,0.16)", right: -54, top: -50 },
     coverTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
     featuredBadge: { color: "#2E2E2E", backgroundColor: "#D4A017", borderRadius: 12, overflow: "hidden", paddingHorizontal: 10, paddingVertical: 6, fontSize: 11, fontWeight: "800" },
