@@ -9,13 +9,35 @@ type SourceType = "mlamh" | "client";
 type PublicSourceMode = "mlamh" | "client_name" | "mlamh_clients";
 type CompensationType = "fixed" | "negotiable" | "unpaid";
 
+type InitialValues = {
+  marketingBriefId?: number | null;
+  sourceType?: SourceType;
+  publicSourceMode?: PublicSourceMode;
+  clientCompanyName?: string;
+  contactName?: string;
+  contactPhone?: string;
+  contactEmail?: string;
+  title?: string;
+  description?: string;
+  opportunityType?: "actor" | "model";
+  citySlug?: string;
+  requiredCount?: number | null;
+  compensationType?: CompensationType;
+  budget?: number | string | null;
+  workDate?: string;
+  workDuration?: string;
+};
+
 const inputClass =
   "mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-[#c8a45d]/50";
 
-export default function AdminLocalizedOpportunityForm() {
-  const [sourceType, setSourceType] = useState<SourceType>("mlamh");
-  const [publicSourceMode, setPublicSourceMode] = useState<PublicSourceMode>("mlamh");
-  const [compensationType, setCompensationType] = useState<CompensationType>("fixed");
+export default function AdminLocalizedOpportunityForm({ initialValues = {} }: { initialValues?: InitialValues }) {
+  const initialSourceType = initialValues.sourceType ?? "mlamh";
+  const initialPublicSourceMode = initialValues.publicSourceMode ?? (initialSourceType === "client" ? "client_name" : "mlamh");
+  const initialCompensationType = initialValues.compensationType ?? "fixed";
+  const [sourceType, setSourceType] = useState<SourceType>(initialSourceType);
+  const [publicSourceMode, setPublicSourceMode] = useState<PublicSourceMode>(initialPublicSourceMode);
+  const [compensationType, setCompensationType] = useState<CompensationType>(initialCompensationType);
 
   function changeSource(next: SourceType) {
     setSourceType(next);
@@ -24,6 +46,7 @@ export default function AdminLocalizedOpportunityForm() {
 
   return (
     <form action={createAdminLocalizedOpportunityFormAction} className="grid gap-6">
+      {initialValues.marketingBriefId ? <input type="hidden" name="marketing_brief_id" value={initialValues.marketingBriefId} /> : null}
       <section className="rounded-[2rem] border border-white/10 bg-white/[0.025] p-6 md:p-8">
         <h2 className="text-xl font-semibold">مصدر الفرصة</h2>
         <p className="mt-2 text-sm text-white/40">اختر ما إذا كانت الفرصة من ملامح أو تتم إدارتها نيابة عن عميل.</p>
@@ -35,10 +58,10 @@ export default function AdminLocalizedOpportunityForm() {
         {sourceType === "client" ? (
           <div className="mt-7 border-t border-white/10 pt-7">
             <div className="grid gap-4 md:grid-cols-2">
-              <Field name="client_company_name" label="اسم الجهة / العميل" required />
-              <Field name="contact_name" label="اسم مسؤول العميل" />
-              <Field name="contact_phone" label="رقم التواصل" />
-              <Field name="contact_email" label="البريد الإلكتروني" type="email" />
+              <Field name="client_company_name" label="اسم الجهة / العميل" required defaultValue={initialValues.clientCompanyName} />
+              <Field name="contact_name" label="اسم مسؤول العميل" defaultValue={initialValues.contactName} />
+              <Field name="contact_phone" label="رقم التواصل" defaultValue={initialValues.contactPhone} />
+              <Field name="contact_email" label="البريد الإلكتروني" type="email" defaultValue={initialValues.contactEmail} />
             </div>
             <div className="mt-6">
               <p className="text-sm text-white/60">كيف تظهر الجهة للمستخدمين؟</p>
@@ -63,18 +86,18 @@ export default function AdminLocalizedOpportunityForm() {
           <span className="rounded-full border border-[#c8a45d]/25 bg-[#c8a45d]/10 px-3 py-1 text-xs text-[#d9bb7a]">ترجمة تلقائية للإنجليزية</span>
         </div>
         <div className="mt-6">
-          <Field name="title" label="عنوان الفرصة" required dir="rtl" />
-          <TextArea name="description" label="وصف الفرصة" required dir="rtl" />
+          <Field name="title" label="عنوان الفرصة" required dir="rtl" defaultValue={initialValues.title} />
+          <TextArea name="description" label="وصف الفرصة" required dir="rtl" defaultValue={initialValues.description} />
         </div>
       </section>
 
       <section className="rounded-[2rem] border border-white/10 bg-white/[0.025] p-6 md:p-8">
         <h2 className="text-xl font-semibold">بيانات الفرصة</h2>
         <div className="mt-6 grid gap-5 md:grid-cols-2">
-          <Select name="opportunity_type" label="نوع الفرصة"><option value="model">مودل</option><option value="actor">ممثل</option></Select>
-          <Select name="city_slug" label="المدينة" required><option value="">اختر المدينة</option>{SAUDI_CITIES.map((city) => <option key={city.slug} value={city.slug}>{city.ar} — {city.en}</option>)}</Select>
-          <Select name="required_gender" label="الجنس المطلوب"><option value="any">أي جنس</option><option value="male">ذكر</option><option value="female">أنثى</option></Select>
-          <Field name="required_count" label="العدد المطلوب" type="number" min="1" />
+          <Select name="opportunity_type" label="نوع الفرصة" defaultValue={initialValues.opportunityType ?? "model"}><option value="model">مودل</option><option value="actor">ممثل</option></Select>
+          <Select name="city_slug" label="المدينة" required defaultValue={initialValues.citySlug ?? ""}><option value="">اختر المدينة</option>{SAUDI_CITIES.map((city) => <option key={city.slug} value={city.slug}>{city.ar} — {city.en}</option>)}</Select>
+          <Select name="required_gender" label="الجنس المطلوب" defaultValue="any"><option value="any">أي جنس</option><option value="male">ذكر</option><option value="female">أنثى</option></Select>
+          <Field name="required_count" label="العدد المطلوب" type="number" min="1" defaultValue={initialValues.requiredCount ?? undefined} />
           <Field name="min_age" label="الحد الأدنى للعمر" type="number" min="0" max="100" />
           <Field name="max_age" label="الحد الأعلى للعمر" type="number" min="0" max="100" />
         </div>
@@ -84,17 +107,17 @@ export default function AdminLocalizedOpportunityForm() {
         <h2 className="text-xl font-semibold">المقابل</h2>
         <div className="mt-6 grid gap-5 md:grid-cols-2">
           <label className="block"><span className="text-sm text-white/60">نوع المقابل</span><select name="compensation_type" value={compensationType} onChange={(event) => setCompensationType(event.target.value as CompensationType)} className={inputClass}><option value="fixed">مبلغ ثابت</option><option value="negotiable">حسب الاتفاق</option><option value="unpaid">غير مدفوع</option></select></label>
-          {compensationType === "fixed" ? <Field name="budget" label="المبلغ بالريال" type="number" min="1" required /> : null}
+          {compensationType === "fixed" ? <Field name="budget" label="المبلغ بالريال" type="number" min="1" required defaultValue={initialValues.budget ?? undefined} /> : null}
         </div>
       </section>
 
       <section className="rounded-[2rem] border border-white/10 bg-white/[0.025] p-6 md:p-8">
         <h2 className="text-xl font-semibold">استقبال الطلبات والعمل</h2>
         <div className="mt-6 grid gap-5 md:grid-cols-2">
-          <Select name="application_days" label="مدة استقبال الطلبات" required><option value="3">3 أيام</option><option value="7">7 أيام</option><option value="14">14 يومًا</option><option value="30">30 يومًا</option></Select>
-          <Field name="work_date" label="تاريخ العمل" type="date" />
+          <Select name="application_days" label="مدة استقبال الطلبات" required defaultValue="7"><option value="3">3 أيام</option><option value="7">7 أيام</option><option value="14">14 يومًا</option><option value="30">30 يومًا</option></Select>
+          <Field name="work_date" label="تاريخ العمل" type="date" defaultValue={initialValues.workDate} />
           <Field name="work_time" label="وقت العمل" type="time" />
-          <Field name="work_duration" label="مدة العمل" placeholder="مثال: 4 ساعات" />
+          <Field name="work_duration" label="مدة العمل" placeholder="مثال: 4 ساعات" defaultValue={initialValues.workDuration} />
         </div>
       </section>
 
@@ -110,14 +133,14 @@ function Choice({ active, title, description, onClick }: { active: boolean; titl
   return <button type="button" onClick={onClick} className={`rounded-2xl border p-4 text-right transition ${active ? "border-[#c8a45d]/60 bg-[#c8a45d]/10" : "border-white/10 bg-black/20"}`}><span className="block text-sm font-medium">{title}</span><span className="mt-1 block text-xs text-white/35">{description}</span></button>;
 }
 
-function Field({ name, label, type = "text", placeholder, required = false, min, max, dir }: { name: string; label: string; type?: string; placeholder?: string; required?: boolean; min?: string; max?: string; dir?: "rtl" | "ltr" }) {
-  return <label className="block"><span className="text-sm text-white/60">{label}</span><input name={name} type={type} placeholder={placeholder} required={required} min={min} max={max} dir={dir} className={inputClass} /></label>;
+function Field({ name, label, type = "text", placeholder, required = false, min, max, dir, defaultValue }: { name: string; label: string; type?: string; placeholder?: string; required?: boolean; min?: string; max?: string; dir?: "rtl" | "ltr"; defaultValue?: string | number }) {
+  return <label className="block"><span className="text-sm text-white/60">{label}</span><input name={name} type={type} placeholder={placeholder} required={required} min={min} max={max} dir={dir} defaultValue={defaultValue} className={inputClass} /></label>;
 }
 
-function TextArea({ name, label, required, dir }: { name: string; label: string; required?: boolean; dir: "rtl" | "ltr" }) {
-  return <label className="mt-5 block"><span className="text-sm text-white/60">{label}</span><textarea name={name} required={required} rows={8} dir={dir} className={`${inputClass} whitespace-pre-wrap`} /></label>;
+function TextArea({ name, label, required, dir, defaultValue }: { name: string; label: string; required?: boolean; dir: "rtl" | "ltr"; defaultValue?: string }) {
+  return <label className="mt-5 block"><span className="text-sm text-white/60">{label}</span><textarea name={name} required={required} rows={8} dir={dir} defaultValue={defaultValue} className={`${inputClass} whitespace-pre-wrap`} /></label>;
 }
 
-function Select({ name, label, children, required }: { name: string; label: string; children: React.ReactNode; required?: boolean }) {
-  return <label className="block"><span className="text-sm text-white/60">{label}</span><select name={name} required={required} className={inputClass}>{children}</select></label>;
+function Select({ name, label, children, required, defaultValue }: { name: string; label: string; children: React.ReactNode; required?: boolean; defaultValue?: string }) {
+  return <label className="block"><span className="text-sm text-white/60">{label}</span><select name={name} required={required} defaultValue={defaultValue} className={inputClass}>{children}</select></label>;
 }
