@@ -3,6 +3,26 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { NATIONALITIES } from "@/lib/data/nationalities";
 
+function normalize(value: string | null | undefined) {
+  return (value ?? "").trim().toLowerCase();
+}
+
+function resolveNationalitySlug(value: string | null | undefined) {
+  const candidate = normalize(value);
+  if (!candidate) return "";
+
+  const match = NATIONALITIES.find((item) => {
+    return (
+      normalize(item.slug) === candidate ||
+      normalize(item.code) === candidate ||
+      normalize(item.ar) === candidate ||
+      normalize(item.en) === candidate
+    );
+  });
+
+  return match?.slug ?? "";
+}
+
 export function NationalityCombobox({
   defaultValue,
 }: {
@@ -12,7 +32,9 @@ export function NationalityCombobox({
 
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [selectedSlug, setSelectedSlug] = useState(defaultValue ?? "");
+  const [selectedSlug, setSelectedSlug] = useState(() =>
+    resolveNationalitySlug(defaultValue)
+  );
 
   const selectedNationality = NATIONALITIES.find(
     (item) => item.slug === selectedSlug
@@ -29,6 +51,9 @@ export function NationalityCombobox({
       (item) =>
         item.ar.includes(query.trim()) ||
         item.en.toLowerCase().includes(value) ||
+        item.countryAr.includes(query.trim()) ||
+        item.countryEn.toLowerCase().includes(value) ||
+        item.code.toLowerCase().includes(value) ||
         item.slug.toLowerCase().includes(value)
     );
   }, [query]);
@@ -62,9 +87,9 @@ export function NationalityCombobox({
         value={selectedSlug}
       />
 
-<label className="mb-2 block text-[10px] uppercase tracking-[0.3em] text-gray-muted">
-  الجنسية
-</label>
+      <label className="mb-2 block text-[10px] uppercase tracking-[0.3em] text-gray-muted">
+        الجنسية
+      </label>
 
       <button
         type="button"
@@ -89,7 +114,7 @@ export function NationalityCombobox({
               onChange={(event) =>
                 setQuery(event.target.value)
               }
-              placeholder="ابحث عن الجنسية..."
+              placeholder="ابحث عن الجنسية أو الدولة..."
               className="w-full rounded-xl border border-white/10 bg-black px-4 py-3 text-white outline-none"
             />
           </div>
