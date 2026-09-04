@@ -4,10 +4,11 @@ import { router } from "expo-router";
 import type { AppLocale } from "@/lib/i18n";
 import { darkTheme, lightTheme } from "@/lib/theme";
 
-type TabKey = "discover" | "applications" | "messages" | "profile";
+type TabKey = "discover" | "applications" | "messages" | "profile" | "notifications";
+type NavTabKey = Exclude<TabKey, "notifications">;
 type Theme = typeof lightTheme | typeof darkTheme;
 
-const tabs: Array<{ key: TabKey; path: "/opportunities" | "/applications" | "/messages" | "/profile"; ar: string; en: string; glyph: string }> = [
+const tabs: Array<{ key: NavTabKey; path: "/opportunities" | "/applications" | "/messages" | "/profile"; ar: string; en: string; glyph: string }> = [
   { key: "discover", path: "/opportunities", ar: "الرئيسية", en: "Home", glyph: "⌂" },
   { key: "applications", path: "/applications", ar: "طلباتي", en: "Applications", glyph: "⌕" },
   { key: "messages", path: "/messages", ar: "الرسائل", en: "Messages", glyph: "✉" },
