@@ -102,7 +102,7 @@ export async function AdminTalentEntitlementsPanel({ talentId, language }: Props
             <p className="text-[10px] uppercase tracking-[0.35em] text-gold">{ar ? "الحساب التجاري" : "Commercial account"}</p>
             <h2 className="mt-2 text-xl font-light text-white sm:text-2xl">{ar ? "الاشتراك والمزايا" : "Subscription & benefits"}</h2>
             <p className="mt-2 text-xs leading-6 text-white/45">
-              {ar ? "المزايا المدفوعة الحالية وسجلها محفوظان بشكل مستقل عن حالة الموهبة ونشر الملف." : "Paid benefits are tracked independently from talent account and publication status."}
+              {ar ? "يمكن إيقاف الميزة أو إعادة تفعيلها إداريًا، مع بقاء سجل الدفع والإيراد محفوظًا بشكل مستقل." : "Benefits can be revoked or administratively reactivated while payment and revenue history remain intact."}
             </p>
           </div>
           <Link href={`/admin/entitlements?lang=${language}`} className="rounded-full border border-white/10 px-4 py-2 text-xs text-white/60 transition hover:border-gold/30 hover:text-gold">
@@ -138,7 +138,11 @@ export async function AdminTalentEntitlementsPanel({ talentId, language }: Props
                         <p className={`mt-1 text-xs ${isActive ? "text-emerald-300" : row.revoked_at ? "text-red-300" : "text-white/40"}`}>{statusLabel}</p>
                       </div>
                     </div>
-                    {isActive ? <AdminEntitlementActions entitlementId={row.id} locale={language} /> : null}
+                    <AdminEntitlementActions
+                      entitlementId={row.id}
+                      locale={language}
+                      mode={isActive ? "revoke" : "reactivate"}
+                    />
                   </div>
 
                   <div className="mt-4 grid grid-cols-2 gap-3 text-xs sm:grid-cols-5">
@@ -154,11 +158,9 @@ export async function AdminTalentEntitlementsPanel({ talentId, language }: Props
           </div>
         )}
 
-        {activeRows.length > 0 ? (
-          <p className="mt-4 text-[11px] leading-5 text-white/35">
-            {ar ? "إيقاف الميزة لا يحذف عملية الدفع ولا يغيّر الإيراد التاريخي؛ يتم فقط إنهاء الاستحقاق فورًا." : "Revoking a benefit keeps payment and revenue history intact and only ends the entitlement immediately."}
-          </p>
-        ) : null}
+        <p className="mt-4 text-[11px] leading-5 text-white/35">
+          {ar ? "إيقاف الميزة لا يحذف عملية الدفع. إعادة التفعيل تبدأ من وقت تنفيذها وتستخدم مدة الاشتراك الأصلية، ولا تنشئ عملية دفع جديدة." : "Revoking keeps the payment record. Reactivation starts from the time it is performed, uses the original subscription duration, and does not create a new payment."}
+        </p>
       </div>
     </section>
   );
