@@ -27,6 +27,10 @@ export async function Footer({
       href: `/${locale}/opportunities`,
     },
     {
+      label: isRtl ? "إدارة الكاستينغ" : "Managed Casting",
+      href: `/${locale}/casting`,
+    },
+    {
       label: isRtl ? "الجهات" : "Organizations",
       href: `/${locale}/publishers`,
     },
@@ -48,6 +52,10 @@ export async function Footer({
     {
       label: isRtl ? "سياسة الاسترجاع" : "Refund Policy",
       href: `/${locale}/refund-policy`,
+    },
+    {
+      label: isRtl ? "الشكاوى والمقترحات" : "Complaints & Feedback",
+      href: `/${locale}/complaints`,
     },
   ];
 

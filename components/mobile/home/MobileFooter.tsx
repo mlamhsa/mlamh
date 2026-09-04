@@ -23,6 +23,10 @@ export function MobileFooter({
       href: `/${locale}/opportunities`,
     },
     {
+      label: isArabic ? "إدارة الكاستينغ" : "Managed Casting",
+      href: `/${locale}/casting`,
+    },
+    {
       label: isArabic ? "الجهات" : "Organizations",
       href: `/${locale}/publishers`,
     },
@@ -44,6 +48,10 @@ export function MobileFooter({
     {
       label: isArabic ? "سياسة الاسترجاع" : "Refund Policy",
       href: `/${locale}/refund-policy`,
+    },
+    {
+      label: isArabic ? "الشكاوى والمقترحات" : "Complaints & Feedback",
+      href: `/${locale}/complaints`,
     },
   ];
 

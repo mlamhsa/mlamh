@@ -6,6 +6,7 @@ import { FinalCTA } from "@/components/FinalCTA";
 import { Footer } from "@/components/Footer";
 import { Hero } from "@/components/Hero";
 import { HowItWorks } from "@/components/HowItWorks";
+import { CastingBriefCTA } from "@/components/home/CastingBriefCTA";
 import { HomeScrollReset } from "@/components/home/HomeScrollReset";
 import { ModelsShowcase } from "@/components/ModelsShowcase";
 import { MobileHome } from "@/components/mobile/home/MobileHome";
@@ -102,7 +103,7 @@ export default async function HomePage({ params }: HomePageProps) {
     >
       <HomeScrollReset />
 
-      {/* Mobile application home */}
+      {/* Mobile web home stays on its existing maintained flow. */}
       <div className="lg:hidden">
         <MobileHome
           locale={locale}
@@ -110,7 +111,7 @@ export default async function HomePage({ params }: HomePageProps) {
         />
       </div>
 
-      {/* Existing desktop website */}
+      {/* Desktop website */}
       <div className="hidden lg:block">
         <Hero locale={locale} data={hero} />
 
@@ -123,6 +124,8 @@ export default async function HomePage({ params }: HomePageProps) {
         <Opportunities locale={locale} />
 
         <Agencies locale={locale} />
+
+        <CastingBriefCTA locale={locale} />
 
         <FinalCTA locale={locale} />
 

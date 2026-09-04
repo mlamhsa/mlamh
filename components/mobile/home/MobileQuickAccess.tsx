@@ -4,6 +4,7 @@ import {
   ArrowRight,
   BriefcaseBusiness,
   Building2,
+  ClipboardList,
   UsersRound,
 } from "lucide-react";
 
@@ -54,7 +55,6 @@ export function MobileQuickAccess({
 
   return (
     <section className="px-4 pb-10 pt-1">
-      {/* Section heading */}
       <div className="mb-5 flex items-end justify-between gap-4">
         <div>
           <p className="text-[11px] font-medium tracking-wide text-gold/80">
@@ -71,7 +71,6 @@ export function MobileQuickAccess({
         </span>
       </div>
 
-      {/* Main discovery card */}
       <Link
         href={items[0].href}
         className="group relative block overflow-hidden rounded-[1.75rem] border border-white/[0.09] bg-gradient-to-br from-white/[0.065] via-white/[0.03] to-transparent p-5 shadow-[0_22px_60px_rgba(0,0,0,0.24)] transition active:scale-[0.99]"
@@ -104,7 +103,6 @@ export function MobileQuickAccess({
         </div>
       </Link>
 
-      {/* Secondary actions */}
       <div className="mt-3 grid grid-cols-2 gap-3">
         {items.slice(1).map((item) => {
           const Icon = item.icon;
@@ -145,6 +143,31 @@ export function MobileQuickAccess({
           );
         })}
       </div>
+
+      <Link
+        href={`/${locale}/casting#casting-brief`}
+        className="mt-3 flex min-h-[92px] items-center gap-4 rounded-[1.6rem] border border-gold/20 bg-gold/[0.055] px-4 py-4 transition active:scale-[0.99]"
+      >
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[1rem] border border-gold/20 bg-black/20 text-gold">
+          <ClipboardList size={21} strokeWidth={1.7} />
+        </span>
+
+        <div className="min-w-0 flex-1">
+          <p className="text-[9px] font-medium text-gold/65">
+            {isArabic ? "للشركات وصنّاع المشاريع" : "FOR PROJECT TEAMS"}
+          </p>
+          <h3 className="mt-1 text-[15px] font-semibold text-white">
+            {isArabic ? "أرسل Brief الكاستينغ" : "Send a casting brief"}
+          </h3>
+          <p className="mt-1 text-[11px] leading-5 text-white/35">
+            {isArabic
+              ? "أرسل احتياج المشروع وسنراجع النطاق قبل أي التزام."
+              : "Send your project requirements and we will review the scope before any commitment."}
+          </p>
+        </div>
+
+        <DirectionArrow size={16} className="shrink-0 text-gold/60" />
+      </Link>
     </section>
   );
 }

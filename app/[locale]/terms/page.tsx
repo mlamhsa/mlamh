@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 export async function generateMetadata({
   params,
@@ -9,12 +10,10 @@ export async function generateMetadata({
   const isArabic = locale === "ar";
 
   return {
-    title: isArabic
-      ? "الشروط والأحكام | ملامح"
-      : "Terms and Conditions | MLAMH",
+    title: isArabic ? "الشروط والأحكام | ملامح" : "Terms and Conditions | MLAMH",
     description: isArabic
-      ? "اطّلع على الشروط والأحكام المنظمة لاستخدام منصة ملامح وخدماتها."
-      : "Review the terms and conditions governing the use of MLAMH and its services.",
+      ? "الشروط والأحكام المنظمة لاستخدام ملامح وخدمات المواهب والفرص والكاستينغ."
+      : "Terms governing the use of MLAMH talent, opportunities, and casting services.",
   };
 }
 
@@ -28,372 +27,225 @@ export default async function TermsPage({
 
   const sections = [
     {
-      titleAr: "مقدمة",
-      titleEn: "Introduction",
-      contentAr: [
-        "تنظم هذه الشروط والأحكام استخدام منصة ملامح والخدمات والخصائص المتاحة من خلالها.",
-        "يعد دخول المستخدم إلى المنصة أو إنشاء حساب أو استخدام أي من خدماتها موافقة على الالتزام بهذه الشروط.",
-        "إذا لم يوافق المستخدم على هذه الشروط، فيجب عليه التوقف عن استخدام المنصة.",
+      ar: "الموافقة على الشروط",
+      en: "Acceptance of Terms",
+      arText: [
+        "تنظم هذه الشروط استخدام موقع ملامح (MLAMH) وحساباته وملفات المواهب والفرص وخدمات الكاستينغ والدعم والخصائص المرتبطة بها.",
+        "باستخدام المنصة أو إنشاء حساب أو إرسال طلب أو Brief، يوافق المستخدم على هذه الشروط وسياسة الخصوصية والسياسات المرتبطة بالخدمة التي يستخدمها.",
       ],
-      contentEn: [
-        "These terms and conditions govern the use of the MLAMH platform and the services and features available through it.",
-        "By accessing the platform, creating an account, or using any of its services, the user agrees to be bound by these terms.",
-        "If the user does not agree to these terms, they must stop using the platform.",
+      enText: [
+        "These terms govern the use of the MLAMH website, accounts, talent profiles, opportunities, managed casting, support, and related features.",
+        "By using the platform, creating an account, or submitting a request or brief, the user agrees to these terms, the Privacy Policy, and any policy applicable to the service used.",
       ],
     },
     {
-      titleAr: "التعريفات",
-      titleEn: "Definitions",
-      contentAr: [
-        "تشير كلمة «ملامح» أو «المنصة» إلى الموقع والخدمات الرقمية التابعة لملامح.",
-        "يشير «المستخدم» إلى كل شخص أو جهة تستخدم المنصة، بما في ذلك المواهب والشركات والوكالات وجهات الإنتاج.",
-        "تشير «الموهبة» إلى المستخدم الذي ينشئ ملفًا مهنيًا أو يتقدم إلى الفرص.",
-        "تشير «الجهة الناشرة» إلى الشركة أو الوكالة أو جهة الإنتاج أو أي جهة تنشر فرصة عبر المنصة.",
-        "تشير «الفرصة» إلى أي إعلان مهني أو مشروع أو عمل أو طلب مواهب يتم نشره عبر المنصة.",
+      ar: "الأهلية والحساب",
+      en: "Eligibility and Accounts",
+      arText: [
+        "يجب أن يكون المستخدم مؤهلًا نظاميًا لاستخدام الخدمة وإبرام الالتزامات الناتجة عنها. وإذا كان استخدام الخدمة يتطلب موافقة ولي أو وصي نظامي، فيجب الحصول عليها قبل الاستخدام.",
+        "يلتزم المستخدم بتقديم بيانات صحيحة وكاملة ومحدثة، وحماية وسيلة تسجيل الدخول، وعدم مشاركة كلمة المرور أو رموز الدخول مع الآخرين.",
+        "قد تدعم ملامح تسجيل الدخول بالبريد وكلمة المرور أو بواسطة مزود خارجي مثل Google. على المستخدم استخدام طريقة الدخول المرتبطة بحسابه أو اتباع مسار استعادة الوصول المتاح.",
       ],
-      contentEn: [
-        "“MLAMH” or “the platform” refers to the website and digital services operated under the MLAMH name.",
-        "“User” means any individual or organization using the platform, including talent, companies, agencies, and production entities.",
-        "“Talent” means a user who creates a professional profile or applies for opportunities.",
-        "“Publisher” means a company, agency, production entity, or other organization that publishes an opportunity through the platform.",
-        "“Opportunity” means any professional listing, project, work request, or talent requirement published through the platform.",
+      enText: [
+        "Users must be legally eligible to use the service and enter into resulting obligations. Where parental or guardian authorization is required, it must be obtained before use.",
+        "Users must provide accurate, complete, and current information and protect their sign-in method, passwords, and access codes.",
+        "MLAMH may support password sign-in and external providers such as Google. Users should use the sign-in method associated with their account or the available access-recovery flow.",
       ],
     },
     {
-      titleAr: "الأهلية لاستخدام المنصة",
-      titleEn: "Eligibility",
-      contentAr: [
-        "يجب أن يكون المستخدم مؤهلًا نظاميًا لاستخدام المنصة وإبرام الالتزامات الناتجة عن استخدامها.",
-        "إذا كان المستخدم دون السن النظامية المسموح بها، فيجب أن يتم استخدام المنصة بموافقة ولي الأمر أو الوصي النظامي عند الحاجة.",
-        "يحق لملامح رفض إنشاء حساب أو تعليق استخدامه إذا تبين عدم استيفاء متطلبات الأهلية.",
+      ar: "دور ملامح",
+      en: "MLAMH's Role",
+      arText: [
+        "ملامح منصة تقنية للمواهب والفرص وجهات النشر، وقد تقدم كذلك خدمات مدارة مثل إدارة الكاستينغ عندما يتم الاتفاق عليها صراحةً.",
+        "في الفرص التي تنشرها جهات مستقلة، لا تكون ملامح طرفًا في الاتفاق النهائي بين الموهبة والجهة الناشرة ما لم يُذكر خلاف ذلك بوضوح.",
+        "لا تضمن ملامح حصول أي مستخدم على فرصة أو عقد أو قبول، ولا تضمن نتيجة عملية اختيار أو كاستينغ.",
       ],
-      contentEn: [
-        "Users must be legally eligible to use the platform and enter into obligations arising from its use.",
-        "If a user is below the legally permitted age, use of the platform must be authorized by a parent or legal guardian where required.",
-        "MLAMH may refuse account creation or suspend access where eligibility requirements are not met.",
-      ],
-    },
-    {
-      titleAr: "إنشاء الحساب",
-      titleEn: "Account Registration",
-      contentAr: [
-        "يلتزم المستخدم بتقديم معلومات صحيحة وكاملة ومحدثة عند إنشاء الحساب أو تحديثه.",
-        "يتحمل المستخدم مسؤولية الحفاظ على سرية بيانات تسجيل الدخول وجميع الأنشطة التي تتم من خلال حسابه.",
-        "يجب إبلاغ ملامح فورًا عند الاشتباه في استخدام غير مصرح به للحساب.",
-        "لا يجوز إنشاء حساب باستخدام بيانات شخص أو جهة أخرى دون تفويض صحيح.",
-      ],
-      contentEn: [
-        "Users must provide accurate, complete, and current information when creating or updating an account.",
-        "Users are responsible for maintaining the confidentiality of their login credentials and for all activity carried out through their account.",
-        "MLAMH must be notified promptly if unauthorized account use is suspected.",
-        "Users may not create an account using another person’s or organization’s information without proper authorization.",
+      enText: [
+        "MLAMH is a technology platform for talent, opportunities, and publishers and may also provide managed services such as casting management when expressly agreed.",
+        "For opportunities published by independent organizations, MLAMH is not a party to the final agreement between talent and publisher unless expressly stated otherwise.",
+        "MLAMH does not guarantee any user an opportunity, contract, acceptance, or casting outcome.",
       ],
     },
     {
-      titleAr: "استخدام المنصة",
-      titleEn: "Use of the Platform",
-      contentAr: [
-        "يجب استخدام المنصة لأغراض مشروعة ومهنية ومتوافقة مع هذه الشروط.",
-        "لا يجوز استخدام المنصة للإساءة إلى الآخرين أو انتحال الهوية أو نشر محتوى مضلل أو احتيالي أو غير قانوني.",
-        "لا يجوز محاولة اختراق المنصة أو تعطيلها أو الوصول غير المصرح به إلى حسابات أو بيانات أو أنظمة أخرى.",
-        "لا يجوز استخدام أدوات آلية لجمع البيانات أو نسخ المحتوى أو إساءة استخدام وظائف المنصة دون إذن مكتوب.",
+      ar: "ملفات المواهب",
+      en: "Talent Profiles",
+      arText: [
+        "تتحمل الموهبة مسؤولية صحة بياناتها المهنية وصورها ومهاراتها وخبراتها وقياساتها ونماذج أعمالها وأي روابط تضيفها.",
+        "يجب أن يمتلك المستخدم الحقوق اللازمة لأي صورة أو فيديو أو محتوى يرفعه إلى ملامح.",
+        "قد تخضع الملفات للمراجعة قبل النشر أو التقديم، ويحق لملامح طلب تعديل أو تعليق أو إزالة محتوى مضلل أو مخالف أو غير مناسب لطبيعة المنصة.",
       ],
-      contentEn: [
-        "The platform must be used for lawful and professional purposes consistent with these terms.",
-        "Users may not harass others, impersonate another person, or publish misleading, fraudulent, or unlawful content.",
-        "Users may not attempt to compromise, disrupt, or gain unauthorized access to the platform, accounts, data, or other systems.",
-        "Automated tools may not be used to collect data, copy content, or misuse platform features without written permission.",
+      enText: [
+        "Talent users are responsible for the accuracy of professional details, photos, skills, experience, measurements, portfolio material, and submitted links.",
+        "Users must hold the necessary rights to any image, video, or content uploaded to MLAMH.",
+        "Profiles may be reviewed before publication or application access. MLAMH may request changes, suspend, or remove misleading, prohibited, or inappropriate content.",
       ],
     },
     {
-      titleAr: "ملفات المواهب",
-      titleEn: "Talent Profiles",
-      contentAr: [
-        "تتحمل الموهبة مسؤولية صحة المعلومات والمهارات والخبرات والصور ونماذج الأعمال التي تضيفها إلى ملفها.",
-        "يجب أن تمتلك الموهبة الحقوق اللازمة لاستخدام ونشر أي محتوى تضيفه إلى المنصة.",
-        "لا تضمن ملامح صحة جميع المعلومات الواردة في الملفات الشخصية، وعلى الجهات الناشرة التحقق من المعلومات قبل اتخاذ أي قرار.",
-        "يحق لملامح إزالة أي محتوى مخالف أو مضلل أو غير مناسب أو ينتهك حقوق الآخرين.",
+      ar: "الجهات والفرص",
+      en: "Publishers and Opportunities",
+      arText: [
+        "تتحمل الجهة الناشرة مسؤولية صحة معلوماتها وتفاصيل الفرصة ومتطلباتها ومواعيدها وموقعها والمقابل المالي أو الشروط المرتبطة بها.",
+        "يجب أن تكون الفرص حقيقية ومشروعة وواضحة، وألا تستخدم لجمع البيانات دون غرض مهني مشروع أو للإساءة أو الاحتيال أو التضليل.",
+        "يجوز لملامح مراجعة الفرص أو رفضها أو تعليقها أو حذفها عند وجود مخالفة أو مخاطر على المستخدمين أو المنصة.",
       ],
-      contentEn: [
-        "Talent users are responsible for the accuracy of the information, skills, experience, images, and portfolio materials added to their profiles.",
-        "Talent users must hold the necessary rights to use and publish any content uploaded to the platform.",
-        "MLAMH does not guarantee the accuracy of all profile information, and publishers should verify information before making decisions.",
-        "MLAMH may remove content that is misleading, inappropriate, unlawful, or infringes the rights of others.",
+      enText: [
+        "Publishers are responsible for the accuracy of their information and opportunity details, requirements, dates, location, compensation, and related terms.",
+        "Opportunities must be genuine, lawful, and clear and must not be used merely to harvest data or for abuse, fraud, or deception.",
+        "MLAMH may review, reject, suspend, or remove opportunities where there is a violation or risk to users or the platform.",
       ],
     },
     {
-      titleAr: "نشر الفرص",
-      titleEn: "Publishing Opportunities",
-      contentAr: [
-        "تتحمل الجهة الناشرة مسؤولية صحة تفاصيل الفرصة ومتطلباتها ومواعيدها وموقعها وأي معلومات مالية أو تعاقدية مرتبطة بها.",
-        "يجب أن تكون الفرص المنشورة مشروعة وحقيقية وواضحة، وألا تتضمن تضليلًا أو تمييزًا غير مشروع أو إساءة استخدام للمواهب.",
-        "لا يجوز نشر فرص وهمية أو استخدام المنصة لجمع البيانات دون وجود غرض مهني مشروع.",
-        "يحق لملامح مراجعة الفرص أو تعليقها أو حذفها إذا خالفت هذه الشروط أو الأنظمة المعمول بها.",
+      ar: "التقديم والتواصل",
+      en: "Applications and Communication",
+      arText: [
+        "تتيح ملامح للمواهب التقديم على الفرص وللجهات مراجعة الطلبات واتخاذ قراراتها وفق احتياجها.",
+        "قد تُفتح بعض قنوات التواصل أو المحتوى المقيد فقط بعد تحقق شروط الوصول المعتمدة في المنصة.",
+        "يتحمل الطرفان مسؤولية التحقق من الهوية والمتطلبات والتفاصيل المهنية والمالية قبل إبرام أي اتفاق خارج نطاق الخدمة التي تقدمها ملامح مباشرة.",
       ],
-      contentEn: [
-        "Publishers are responsible for the accuracy of opportunity details, requirements, deadlines, location, and any financial or contractual information.",
-        "Published opportunities must be lawful, genuine, and clear, and must not contain deception, unlawful discrimination, or misuse of talent.",
-        "Fake opportunities or listings intended only to collect data without a legitimate professional purpose are prohibited.",
-        "MLAMH may review, suspend, or remove opportunities that violate these terms or applicable laws.",
+      enText: [
+        "MLAMH allows talent to apply for opportunities and publishers to review applications and make decisions according to their needs.",
+        "Certain communication channels or restricted content may only become available after the platform's access conditions are satisfied.",
+        "Both parties are responsible for verifying identity, requirements, and professional and financial details before entering into any agreement outside services directly provided by MLAMH.",
       ],
     },
     {
-      titleAr: "طلبات التقديم",
-      titleEn: "Applications",
-      contentAr: [
-        "تتيح المنصة للمواهب التقديم على الفرص، وتتيح للجهات الناشرة مراجعة الطلبات وإدارتها.",
-        "لا تضمن ملامح قبول أي طلب أو حصول أي مستخدم على فرصة أو عقد أو مقابل مالي.",
-        "تتحمل الموهبة والجهة الناشرة مسؤولية أي تواصل أو تفاوض أو اتفاق يتم بينهما.",
-        "يجوز للجهة الناشرة قبول الطلب أو رفضه أو إغلاق الفرصة وفق احتياجها، مع الالتزام بالأنظمة والمتطلبات المنطبقة.",
+      ar: "خدمة إدارة الكاستينغ والـ Brief",
+      en: "Managed Casting and Briefs",
+      arText: [
+        "يمكن للشركات والوكالات وجهات الإنتاج والعلامات إرسال Brief إلى ملامح لطلب إدارة أو دعم عملية الكاستينغ.",
+        "إرسال الـ Brief وحده لا ينشئ التزامًا ماليًا. يتم أولًا مراجعة النطاق ثم توضيح الخدمة والتكلفة والتنفيذ عند انطباقها وقبل بدء أي عمل مدفوع.",
+        "قد تشمل الخدمة تجهيز نطاق الكاستينغ، استقبال الطلبات، البحث عن المواهب، الفرز أو إعداد قائمة مختصرة بحسب العرض المتفق عليه. القرار النهائي للعميل ما لم ينص الاتفاق على خلاف ذلك.",
       ],
-      contentEn: [
-        "The platform enables talent to apply for opportunities and allows publishers to review and manage applications.",
-        "MLAMH does not guarantee that any application will be accepted or that any user will receive an opportunity, contract, or payment.",
-        "Talent and publishers are responsible for any communication, negotiation, or agreement entered into between them.",
-        "Publishers may accept or reject applications or close opportunities according to their needs, subject to applicable laws and requirements.",
+      enText: [
+        "Companies, agencies, production teams, and brands may submit a brief to MLAMH for managed casting or casting support.",
+        "Submitting a brief alone does not create a payment obligation. MLAMH first reviews the scope and then communicates the service, price, and delivery terms where applicable before paid work starts.",
+        "The service may include casting setup, application intake, sourcing, screening, or shortlist preparation according to the agreed scope. Final selection remains with the client unless otherwise agreed.",
       ],
     },
     {
-      titleAr: "العلاقات والاتفاقات بين المستخدمين",
-      titleEn: "Agreements Between Users",
-      contentAr: [
-        "تعمل ملامح كمنصة تقنية لتسهيل الوصول والتواصل بين المواهب والجهات الناشرة.",
-        "لا تعد ملامح طرفًا في أي عقد أو اتفاق يتم بين المستخدمين، ما لم يتم النص على خلاف ذلك بشكل صريح.",
-        "يتحمل المستخدمون مسؤولية التحقق من الهوية والخبرة والأهلية والشروط المالية والتنفيذية قبل إبرام أي اتفاق.",
-        "أي نزاع ينشأ بين المستخدمين يتم التعامل معه بينهم مباشرة، مع احتفاظ ملامح بحق التعاون عند وجود طلب نظامي صحيح.",
+      ar: "الأسعار والمدفوعات",
+      en: "Prices and Payments",
+      arText: [
+        "إذا كانت خدمة مدفوعة متاحة، يجب أن يظهر للمستخدم أو يُقدم له وصف الخدمة وسعرها والرسوم أو الضرائب ذات الصلة وترتيبات الدفع والتنفيذ قبل تأكيد العملية بالقدر المنطبق على طبيعة الخدمة.",
+        "قد تتم معالجة الدفع عبر مزود دفع خارجي. يخضع نجاح العملية كذلك لأنظمة وسياسات مزود الدفع والبنك المصدر.",
+        "تخضع طلبات الإلغاء والاسترداد لسياسة الاسترجاع والاسترداد وللحقوق الإلزامية التي تقررها الأنظمة السعودية ذات الصلة.",
       ],
-      contentEn: [
-        "MLAMH operates as a technical platform that facilitates discovery and communication between talent and publishers.",
-        "MLAMH is not a party to contracts or agreements between users unless expressly stated otherwise.",
-        "Users are responsible for verifying identity, experience, eligibility, financial terms, and performance requirements before entering into an agreement.",
-        "Disputes between users must be handled directly between them, while MLAMH may cooperate where a valid legal request exists.",
+      enText: [
+        "Where a paid service is available, the service description, price, applicable fees or taxes, and payment/performance arrangements should be presented or provided before confirmation to the extent applicable to the service.",
+        "Payments may be processed through a third-party payment provider and are also subject to the payment provider and issuing bank's systems and rules.",
+        "Cancellation and refund requests are governed by the Refund & Cancellation Policy and any mandatory rights under applicable Saudi law.",
       ],
     },
     {
-      titleAr: "الرسوم والمدفوعات",
-      titleEn: "Fees and Payments",
-      contentAr: [
-        "قد تكون بعض خدمات المنصة مجانية، وقد تخضع خدمات أخرى لرسوم أو اشتراكات يتم توضيحها قبل استخدامها.",
-        "عند تطبيق رسوم، يلتزم المستخدم بسداد المبالغ وفق الأسعار والشروط المعروضة وقت الشراء أو الاشتراك.",
-        "ما لم يُذكر خلاف ذلك، فإن المبالغ المدفوعة لا تكون قابلة للاسترداد بعد تقديم الخدمة أو بدء فترة الاشتراك، مع مراعاة الحقوق النظامية للمستخدم.",
-        "لا تتحمل ملامح مسؤولية المدفوعات التي تتم مباشرة بين المواهب والجهات الناشرة خارج خدمات الدفع الرسمية للمنصة.",
+      ar: "الاستخدام المحظور",
+      en: "Prohibited Use",
+      arText: [
+        "يُحظر الاحتيال أو انتحال الهوية أو نشر محتوى غير مشروع أو مضلل أو مسيء، ومحاولة اختراق المنصة أو تعطيلها أو تجاوز قيود الوصول أو الوصول إلى بيانات لا يملك المستخدم صلاحية رؤيتها.",
+        "يُحظر جمع أو نسخ بيانات المستخدمين آليًا أو استخدام المنصة للبريد المزعج أو التسويق غير المصرح به أو أي غرض يتعارض مع الأنظمة أو حقوق الآخرين.",
       ],
-      contentEn: [
-        "Some platform services may be free, while others may be subject to fees or subscriptions disclosed before use.",
-        "Where fees apply, users must pay the amounts according to the prices and terms displayed at the time of purchase or subscription.",
-        "Unless otherwise stated, payments are non-refundable after a service has been provided or a subscription period has started, subject to users’ statutory rights.",
-        "MLAMH is not responsible for payments made directly between talent and publishers outside the platform’s official payment services.",
+      enText: [
+        "Fraud, impersonation, unlawful, misleading, or abusive content, attempts to compromise or disrupt the platform, bypass access controls, or access data without authorization are prohibited.",
+        "Automated harvesting or copying of user data, spam, unauthorized marketing, or any use contrary to law or the rights of others is prohibited.",
       ],
     },
     {
-      titleAr: "المحتوى وحقوق الملكية الفكرية",
-      titleEn: "Content and Intellectual Property",
-      contentAr: [
-        "تظل ملكية المحتوى الذي يرفعه المستخدم عائدة إليه أو إلى مالكه النظامي.",
-        "يمنح المستخدم ملامح ترخيصًا غير حصري لعرض المحتوى وتخزينه ومعالجته بالقدر اللازم لتشغيل المنصة وتقديم خدماتها.",
-        "تعود حقوق تصميم المنصة وشعارها وواجهاتها وبرمجياتها ومحتواها الأصلي إلى ملامح أو إلى أصحاب التراخيص المعنيين.",
-        "لا يجوز نسخ أو إعادة نشر أو استغلال أي جزء من المنصة تجاريًا دون إذن مكتوب.",
+      ar: "الملكية الفكرية",
+      en: "Intellectual Property",
+      arText: [
+        "تبقى حقوق المحتوى الذي يملكه المستخدم لصاحبه، ويمنح المستخدم ملامح الترخيص اللازم تقنيًا لتخزين المحتوى ومعالجته وعرضه وتشغيله ضمن وظائف المنصة بالقدر اللازم لتقديم الخدمة.",
+        "اسم ملامح وعلامتها وتصميماتها ومحتواها الأصلي والبرمجيات والمواد التي تملكها محمية، ولا يجوز نسخها أو استخدامها خارج المسموح دون إذن.",
       ],
-      contentEn: [
-        "Ownership of content uploaded by a user remains with that user or its lawful owner.",
-        "The user grants MLAMH a non-exclusive license to display, store, and process the content to the extent necessary to operate the platform and provide its services.",
-        "Rights in the platform design, logo, interfaces, software, and original content belong to MLAMH or the relevant licensors.",
-        "No part of the platform may be copied, republished, or commercially exploited without written permission.",
+      enText: [
+        "Users retain ownership of content they own and grant MLAMH the technical permission needed to store, process, display, and operate that content within platform features as necessary to provide the service.",
+        "MLAMH's name, brand, designs, original content, software, and owned materials are protected and may not be copied or used beyond permitted use without authorization.",
       ],
     },
     {
-      titleAr: "الخصوصية والبيانات",
-      titleEn: "Privacy and Data",
-      contentAr: [
-        "تخضع معالجة المعلومات الشخصية لسياسة الخصوصية المنشورة على المنصة.",
-        "يقر المستخدم بأن بعض معلوماته قد تظهر للمستخدمين الآخرين بحسب نوع الحساب وطبيعة الخدمة.",
-        "ينبغي للمستخدم مراجعة سياسة الخصوصية لفهم كيفية جمع البيانات واستخدامها والاحتفاظ بها.",
+      ar: "الخصوصية وحماية البيانات",
+      en: "Privacy and Data Protection",
+      arText: [
+        "تخضع معالجة البيانات الشخصية لسياسة الخصوصية في ملامح والمتطلبات النظامية المنطبقة في المملكة العربية السعودية.",
+        "على المستخدم عدم نشر بيانات شخصية للآخرين دون مسوغ أو إذن مناسب، وعدم استخدام البيانات التي يصل إليها عبر ملامح خارج الغرض المهني المسموح به.",
       ],
-      contentEn: [
-        "The handling of personal information is governed by the privacy policy published on the platform.",
-        "Users acknowledge that certain information may be visible to other users depending on account type and the nature of the service.",
-        "Users should review the privacy policy to understand how information is collected, used, and retained.",
+      enText: [
+        "Personal-data processing is governed by the MLAMH Privacy Policy and applicable requirements in Saudi Arabia.",
+        "Users must not publish another person's personal data without an appropriate basis or permission or use data accessed through MLAMH beyond the permitted professional purpose.",
       ],
     },
     {
-      titleAr: "التعليق وإنهاء الحساب",
-      titleEn: "Suspension and Termination",
-      contentAr: [
-        "يجوز للمستخدم التوقف عن استخدام المنصة أو طلب حذف حسابه وفق الوسائل المتاحة.",
-        "يحق لملامح تعليق الحساب أو تقييد الوصول أو إنهائه عند مخالفة هذه الشروط أو إساءة استخدام المنصة أو وجود مخاطر أمنية أو نظامية.",
-        "قد يتم حذف المحتوى المرتبط بالحساب أو الاحتفاظ ببعض السجلات عند الحاجة للوفاء بالتزامات نظامية أو حماية حقوق المنصة والمستخدمين.",
+      ar: "التعليق والإنهاء",
+      en: "Suspension and Termination",
+      arText: [
+        "يجوز لملامح تعليق أو تقييد أو إغلاق حساب أو محتوى عند مخالفة هذه الشروط أو وجود خطر أمني أو احتيال أو طلب نظامي صحيح أو لحماية المستخدمين والمنصة.",
+        "قد يتاح للمستخدم طلب حذف الحساب وفق سياسة الخصوصية، مع مراعاة السجلات التي يلزم الاحتفاظ بها نظامًا أو لحماية الحقوق وتسوية النزاعات.",
       ],
-      contentEn: [
-        "Users may stop using the platform or request account deletion through the available methods.",
-        "MLAMH may suspend, restrict, or terminate an account where these terms are violated, the platform is misused, or security or legal risks exist.",
-        "Account-related content may be deleted, while certain records may be retained where necessary to meet legal obligations or protect the rights of the platform and its users.",
+      enText: [
+        "MLAMH may suspend, restrict, or close an account or content for violations, security risk, fraud, a valid legal request, or to protect users and the platform.",
+        "Users may request account deletion under the Privacy Policy, subject to records that must be retained for legal obligations, rights protection, or dispute resolution.",
       ],
     },
     {
-      titleAr: "إخلاء المسؤولية",
-      titleEn: "Disclaimer",
-      contentAr: [
-        "تُقدم المنصة وخدماتها بالحالة المتاحة، وقد تتعرض للتوقف المؤقت أو الأخطاء أو أعمال الصيانة.",
-        "لا تضمن ملامح استمرار توفر جميع الخدمات دون انقطاع أو خلوها الكامل من الأخطاء.",
-        "لا تضمن ملامح صحة أو جودة أو ملاءمة المحتوى أو الفرص أو الملفات التي ينشرها المستخدمون.",
-        "يتحمل المستخدم مسؤولية قراراته المهنية والتعاقدية والمالية الناتجة عن استخدام المنصة.",
+      ar: "حدود المسؤولية",
+      en: "Limitation of Liability",
+      arText: [
+        "تُقدم المنصة والخصائص بحسب توافرها، وقد تتأثر بخدمات أو مزودين خارجيين. لا تضمن ملامح استمرار الخدمة دون انقطاع أو خلوها من جميع الأخطاء.",
+        "إلى الحد الذي يسمح به النظام، لا تتحمل ملامح مسؤولية اتفاقات مستقلة بين المستخدمين أو معلومات خاطئة يقدمها مستخدم آخر أو أضرار ناتجة عن استخدام مخالف لهذه الشروط.",
+        "لا تستبعد هذه الشروط أي مسؤولية أو حق لا يجوز استبعاده أو تقييده بموجب النظام.",
       ],
-      contentEn: [
-        "The platform and its services are provided on an available basis and may experience temporary interruptions, errors, or maintenance.",
-        "MLAMH does not guarantee uninterrupted availability or that all services will be entirely error-free.",
-        "MLAMH does not guarantee the accuracy, quality, or suitability of content, opportunities, or profiles published by users.",
-        "Users are responsible for professional, contractual, and financial decisions arising from use of the platform.",
+      enText: [
+        "The platform and features are provided subject to availability and may depend on third-party services. MLAMH does not guarantee uninterrupted or error-free operation.",
+        "To the extent permitted by law, MLAMH is not responsible for independent agreements between users, incorrect information supplied by another user, or harm resulting from use in violation of these terms.",
+        "Nothing in these terms excludes a liability or right that cannot lawfully be excluded or limited.",
       ],
     },
     {
-      titleAr: "حدود المسؤولية",
-      titleEn: "Limitation of Liability",
-      contentAr: [
-        "بالقدر الذي يسمح به النظام، لا تتحمل ملامح المسؤولية عن الأضرار غير المباشرة أو فقد الأرباح أو الفرص أو البيانات الناتجة عن استخدام المنصة أو تعذر استخدامها.",
-        "لا تتحمل ملامح مسؤولية تصرفات المستخدمين أو إخلالهم بالاتفاقات أو عدم تنفيذهم للالتزامات المتفق عليها بينهم.",
-        "لا يؤثر هذا البند في أي مسؤولية لا يجوز استبعادها أو تقييدها بموجب الأنظمة المنطبقة.",
+      ar: "القانون المنطبق والنزاعات",
+      en: "Governing Law and Disputes",
+      arText: [
+        "تخضع هذه الشروط للأنظمة المعمول بها في المملكة العربية السعودية. ويُسعى أولًا إلى حل أي شكوى أو نزاع متعلق بخدمة ملامح عبر قنوات الدعم، دون الإخلال بحق أي طرف في اللجوء إلى الجهة المختصة وفق النظام.",
       ],
-      contentEn: [
-        "To the extent permitted by law, MLAMH is not liable for indirect damages or loss of profits, opportunities, or data arising from use of or inability to use the platform.",
-        "MLAMH is not responsible for user conduct, breaches of agreements, or failure to perform obligations agreed between users.",
-        "Nothing in this section excludes or limits liability that cannot lawfully be excluded or limited.",
+      enText: [
+        "These terms are governed by the laws and regulations of the Kingdom of Saudi Arabia. Service-related complaints or disputes should first be raised through MLAMH support without limiting any party's right to approach the competent authority under applicable law.",
       ],
     },
     {
-      titleAr: "التعويض",
-      titleEn: "Indemnity",
-      contentAr: [
-        "يتحمل المستخدم المسؤولية عن الأضرار والمطالبات الناتجة عن مخالفته لهذه الشروط أو الأنظمة أو حقوق الآخرين.",
-        "يجوز لملامح مطالبة المستخدم بالتعويض عن الخسائر أو المصروفات المعقولة الناتجة مباشرة عن مخالفته، بالقدر الذي يسمح به النظام.",
+      ar: "تحديث الشروط",
+      en: "Changes to Terms",
+      arText: [
+        "قد نحدث هذه الشروط عند تطوير الخدمات أو تغير المتطلبات التشغيلية أو النظامية. ننشر النسخة المحدثة وتاريخها في هذه الصفحة، ونقدم إشعارًا إضافيًا إذا كان التغيير جوهريًا أو كان النظام يتطلب ذلك.",
       ],
-      contentEn: [
-        "Users are responsible for damages and claims arising from their violation of these terms, applicable laws, or the rights of others.",
-        "MLAMH may seek compensation for reasonable losses or expenses directly resulting from a user’s violation, to the extent permitted by law.",
-      ],
-    },
-    {
-      titleAr: "التعديلات على المنصة",
-      titleEn: "Platform Changes",
-      contentAr: [
-        "يحق لملامح تطوير المنصة أو تعديل خصائصها أو إضافة خدمات أو إيقاف بعضها بصورة مؤقتة أو دائمة.",
-        "قد تتغير بعض الوظائف أو المتطلبات أو حدود الاستخدام مع تطور المنصة.",
-        "سنسعى إلى إشعار المستخدمين بالتغييرات الجوهرية متى كان ذلك مناسبًا وممكنًا.",
-      ],
-      contentEn: [
-        "MLAMH may develop the platform, modify its features, add services, or temporarily or permanently discontinue certain services.",
-        "Functions, requirements, or usage limits may change as the platform develops.",
-        "We will seek to notify users of material changes where appropriate and reasonably possible.",
-      ],
-    },
-    {
-      titleAr: "تعديل الشروط",
-      titleEn: "Changes to These Terms",
-      contentAr: [
-        "يجوز تحديث هذه الشروط لتتوافق مع تطوير الخدمات أو تغير المتطلبات التشغيلية أو النظامية.",
-        "سيتم نشر النسخة المحدثة على هذه الصفحة مع توضيح تاريخ آخر تحديث.",
-        "يعد استمرار استخدام المنصة بعد نشر التعديلات قبولًا بالشروط المحدثة بالقدر الذي يسمح به النظام.",
-      ],
-      contentEn: [
-        "These terms may be updated to reflect service development or changes in operational or legal requirements.",
-        "The updated version will be published on this page together with the latest revision date.",
-        "Continued use of the platform after publication constitutes acceptance of the updated terms to the extent permitted by law.",
-      ],
-    },
-    {
-      titleAr: "الأنظمة والاختصاص",
-      titleEn: "Governing Law and Jurisdiction",
-      contentAr: [
-        "تخضع هذه الشروط للأنظمة المعمول بها في المملكة العربية السعودية.",
-        "تتم محاولة تسوية أي نزاع بصورة ودية أولًا، وإذا تعذر ذلك فيحال النزاع إلى الجهة القضائية المختصة في المملكة العربية السعودية.",
-      ],
-      contentEn: [
-        "These terms are governed by the applicable laws of the Kingdom of Saudi Arabia.",
-        "Any dispute should first be addressed through an amicable resolution. If this is not possible, the dispute will be referred to the competent judicial authority in the Kingdom of Saudi Arabia.",
-      ],
-    },
-    {
-      titleAr: "التواصل معنا",
-      titleEn: "Contact Us",
-      contentAr: [
-        "للاستفسارات المتعلقة بهذه الشروط والأحكام، يمكن التواصل معنا عبر البريد الإلكتروني: support@mlamh.com.",
-      ],
-      contentEn: [
-        "For questions relating to these terms and conditions, contact us at support@mlamh.com.",
+      enText: [
+        "We may update these terms as services or operational or legal requirements change. The updated version and date will be published here, with additional notice where a change is material or legally required.",
       ],
     },
   ];
 
   return (
-    <main
-      dir={isRtl ? "rtl" : "ltr"}
-      className="min-h-screen bg-background px-5 pb-24 pt-36 text-white sm:px-8 lg:px-10"
-    >
+    <main dir={isRtl ? "rtl" : "ltr"} className="min-h-screen bg-background px-5 pb-24 pt-36 text-white sm:px-8 lg:px-10">
       <div className="mx-auto max-w-5xl">
-        <section className="relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-[radial-gradient(circle_at_top_right,rgba(201,169,98,0.15),transparent_42%),linear-gradient(135deg,rgba(255,255,255,0.05),rgba(255,255,255,0.015))] px-6 py-12 sm:px-10 sm:py-16 lg:px-14">
-          <div className="relative max-w-3xl">
-            <p
-              className={`text-xs text-gold ${
-                isRtl
-                  ? "tracking-normal"
-                  : "uppercase tracking-[0.28em]"
-              }`}
-            >
-              {isRtl ? "قانوني" : "Legal"}
-            </p>
-
-            <h1 className="mt-5 text-4xl font-light leading-tight sm:text-5xl lg:text-6xl">
-              {isRtl ? "الشروط والأحكام" : "Terms and Conditions"}
-            </h1>
-
-            <p className="mt-6 max-w-2xl text-sm leading-8 text-white/60 sm:text-base">
-              {isRtl
-                ? "توضح هذه الشروط القواعد والالتزامات المنظمة لاستخدام منصة ملامح وخدماتها."
-                : "These terms explain the rules and obligations governing the use of MLAMH and its services."}
-            </p>
-
-            <p className="mt-5 text-xs text-white/35">
-              {isRtl
-                ? "آخر تحديث: يوليو 2026"
-                : "Last updated: July 2026"}
-            </p>
-          </div>
-        </section>
-
-        <section className="mt-8 rounded-[2rem] border border-gold/20 bg-gold/[0.035] p-6 sm:p-8">
-          <p className="text-sm leading-8 text-white/65">
+        <section className="rounded-[2.5rem] border border-white/10 bg-[radial-gradient(circle_at_top_right,rgba(201,169,98,0.15),transparent_42%),linear-gradient(135deg,rgba(255,255,255,0.05),rgba(255,255,255,0.015))] px-6 py-12 sm:px-10 sm:py-16 lg:px-14">
+          <p className="text-xs text-gold">{isRtl ? "قانوني" : "Legal"}</p>
+          <h1 className="mt-5 text-4xl font-light leading-tight sm:text-5xl lg:text-6xl">
+            {isRtl ? "الشروط والأحكام" : "Terms and Conditions"}
+          </h1>
+          <p className="mt-6 max-w-2xl text-sm leading-8 text-white/60 sm:text-base">
             {isRtl
-              ? "باستخدام منصة ملامح أو إنشاء حساب فيها، فإنك توافق على الالتزام بهذه الشروط والأحكام وسياسة الخصوصية."
-              : "By using MLAMH or creating an account, you agree to comply with these terms and conditions and the privacy policy."}
+              ? "توضح هذه الشروط قواعد استخدام ملامح، ومسؤوليات المواهب والجهات، وشروط الخدمات المدارة والمدفوعات عند توفرها."
+              : "These terms explain the rules for using MLAMH, the responsibilities of talent and publishers, and the terms for managed and paid services where available."}
           </p>
+          <p className="mt-5 text-xs text-white/35">{isRtl ? "آخر تحديث: سبتمبر 2026" : "Last updated: September 2026"}</p>
         </section>
 
         <div className="mt-8 space-y-5">
           {sections.map((section, index) => (
-            <section
-              key={section.titleEn}
-              className="rounded-[2rem] border border-white/10 bg-white/[0.025] p-6 sm:p-8"
-            >
+            <section key={section.en} className="rounded-[2rem] border border-white/10 bg-white/[0.025] p-6 sm:p-8">
               <div className="flex items-start gap-4">
-                <span className="mt-1 text-sm text-gold">
-                  {String(index + 1).padStart(2, "0")}
-                </span>
-
+                <span className="mt-1 text-sm text-gold">{String(index + 1).padStart(2, "0")}</span>
                 <div className="min-w-0 flex-1">
-                  <h2 className="text-2xl font-light text-white">
-                    {isRtl ? section.titleAr : section.titleEn}
-                  </h2>
-
+                  <h2 className="text-2xl font-light">{isRtl ? section.ar : section.en}</h2>
                   <div className="mt-4 space-y-4">
-                    {(isRtl
-                      ? section.contentAr
-                      : section.contentEn
-                    ).map((paragraph) => (
-                      <p
-                        key={paragraph}
-                        className="text-sm leading-8 text-white/55"
-                      >
-                        {paragraph}
-                      </p>
+                    {(isRtl ? section.arText : section.enText).map((paragraph) => (
+                      <p key={paragraph} className="text-sm leading-8 text-white/55">{paragraph}</p>
                     ))}
                   </div>
                 </div>
@@ -402,20 +254,23 @@ export default async function TermsPage({
           ))}
         </div>
 
-        <section className="mt-8 rounded-[2rem] border border-white/10 bg-white/[0.025] p-6 text-center sm:p-8">
-          <p className="text-sm leading-8 text-white/50">
-            {isRtl
-              ? "للاستفسارات المتعلقة بالشروط والأحكام:"
-              : "For terms-related inquiries:"}
-          </p>
-
-          <a
-            href="mailto:support@mlamh.com"
-            dir="ltr"
-            className="mt-3 inline-flex text-gold transition hover:text-gold-soft"
-          >
-            support@mlamh.com
-          </a>
+        <section className="mt-8 rounded-[2rem] border border-gold/20 bg-gold/[0.035] p-6 sm:p-8">
+          <h2 className="text-xl font-light">{isRtl ? "سياسات مرتبطة" : "Related Policies"}</h2>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <Link href={`/${locale}/privacy`} className="rounded-xl border border-white/10 px-4 py-3 text-sm text-gold">
+              {isRtl ? "سياسة الخصوصية" : "Privacy Policy"}
+            </Link>
+            <Link href={`/${locale}/refund-policy`} className="rounded-xl border border-white/10 px-4 py-3 text-sm text-gold">
+              {isRtl ? "سياسة الاسترجاع" : "Refund Policy"}
+            </Link>
+            <Link href={`/${locale}/complaints`} className="rounded-xl border border-white/10 px-4 py-3 text-sm text-gold">
+              {isRtl ? "الشكاوى والمقترحات" : "Complaints & Feedback"}
+            </Link>
+            <Link href={`/${locale}/contact`} className="rounded-xl bg-gold px-4 py-3 text-sm font-medium text-black">
+              {isRtl ? "الدعم والتواصل" : "Support & Contact"}
+            </Link>
+          </div>
+          <a href="mailto:hello@mlamh.net" className="mt-5 inline-flex text-sm text-white/50 transition hover:text-gold">hello@mlamh.net</a>
         </section>
       </div>
     </main>

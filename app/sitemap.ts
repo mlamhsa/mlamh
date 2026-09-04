@@ -38,6 +38,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/${locale}/contact`, changeFrequency: "monthly", priority: 0.5 },
     { url: `${SITE_URL}/${locale}/privacy`, changeFrequency: "yearly", priority: 0.3 },
     { url: `${SITE_URL}/${locale}/terms`, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${SITE_URL}/${locale}/refund-policy`, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${SITE_URL}/${locale}/complaints`, changeFrequency: "yearly", priority: 0.3 },
   ]);
 
   const guideRoutes: MetadataRoute.Sitemap = GUIDE_SLUGS.flatMap((slug) =>
