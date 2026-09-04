@@ -1,3 +1,4 @@
+import { isRestrictedAccountStatus } from "@/lib/accounts/account-rules";
 import { canTransitionApplicationStatus, isApplicationStatus, normalizeApplicationStatus, shouldCreateConversation } from "@/lib/applications/status-rules";
 import { createApplicationStatusNotification } from "@/lib/notifications/application-status-notification";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -36,9 +37,9 @@ export type PublisherOpportunityDetail = {
 async function publisherContext(userId: string) {
   const admin = createAdminClient();
   const { data: profile } = await admin.from("profiles").select("id,account_type,approval_status,status").eq("user_id", userId).maybeSingle();
-  if (!profile || profile.account_type !== "publisher" || profile.approval_status !== "approved" || ["suspended", "blocked", "inactive"].includes(String(profile.status ?? "").toLowerCase())) return null;
-  const { data: publisher } = await admin.from("publishers").select("id,company_name").eq("profile_id", profile.id).maybeSingle();
-  if (!publisher) return null;
+  if (!profile || profile.account_type !== "publisher" || profile.approval_status !== "approved" || isRestrictedAccountStatus(profile.status)) return null;
+  const { data: publisher } = await admin.from("publishers").select("id,company_name,status").eq("profile_id", profile.id).maybeSingle();
+  if (!publisher || isRestrictedAccountStatus(publisher.status)) return null;
   return { admin, publisher };
 }
 
