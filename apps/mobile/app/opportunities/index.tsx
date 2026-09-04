@@ -21,25 +21,28 @@ export default function OpportunitiesScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [market, setMarket] = useState("SA");
+  const isArabic = locale === "ar";
 
   const load = useCallback(async (refresh = false) => {
     refresh ? setRefreshing(true) : setLoading(true);
     setError(null);
     try {
-      const market = await resolveMobileMarket();
+      const resolvedMarket = await resolveMobileMarket();
+      setMarket(resolvedMarket);
       const [response, notifications] = await Promise.all([
-        getPublicOpportunities(locale, market),
+        getPublicOpportunities(locale, resolvedMarket),
         getNotifications().catch(() => null),
       ]);
       setItems(response.items);
       setUnreadCount(notifications?.unreadCount ?? 0);
     } catch {
-      setError(locale === "ar" ? "تعذر تحميل الفرص الآن." : "Unable to load opportunities right now.");
+      setError(isArabic ? "تعذر تحميل الفرص الآن." : "Unable to load opportunities right now.");
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [locale]);
+  }, [isArabic, locale]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -65,20 +68,31 @@ export default function OpportunitiesScreen() {
         keyExtractor={(item) => String(item.id)}
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={theme.accent} />}
-        ListHeaderComponent={<>
-          <View style={[styles.hero, { direction: isRtlLocale(locale) ? "rtl" : "ltr" }]}>
-            <View style={styles.brandRow}><Text style={styles.brand}>MLAMH</Text><Text style={styles.heroPill}>{locale === "ar" ? "منصة المواهب الإبداعية" : "Creative talent platform"}</Text></View>
-            <Text style={styles.heroTitle}>{locale === "ar" ? "اكتشف فرصتك القادمة" : "Discover your next opportunity"}</Text>
-            <Text style={styles.heroBody}>{locale === "ar" ? "فرص حقيقية للمواهب، من مكان واحد وبطريقة أسرع." : "Real opportunities for talent, all in one place and easier to discover."}</Text>
-            <View style={styles.searchBox}><TextInput value={query} onChangeText={setQuery} placeholder={locale === "ar" ? "ابحث عن فرصة، مدينة أو جهة…" : "Search opportunity, city or company…"} placeholderTextColor={theme.muted} style={styles.searchInput} /><Text style={styles.searchGlyph}>⌕</Text></View>
-            <View style={styles.filters}><FilterChip active={filter === "all"} label={locale === "ar" ? "الكل" : "All"} onPress={() => setFilter("all")} styles={styles} /><FilterChip active={filter === "actor"} label={locale === "ar" ? "تمثيل" : "Acting"} onPress={() => setFilter("actor")} styles={styles} /><FilterChip active={filter === "model"} label={locale === "ar" ? "مودل" : "Modeling"} onPress={() => setFilter("model")} styles={styles} /></View>
+        ListHeaderComponent={<View style={{ direction: isRtlLocale(locale) ? "rtl" : "ltr" }}>
+          <View style={styles.topBar}>
+            <View style={styles.marketRow}><Text style={styles.pin}>⌖</Text><Text style={styles.marketText}>{market === "SA" ? (isArabic ? "السعودية" : "Saudi Arabia") : market}</Text><Text style={styles.chevron}>⌄</Text></View>
+            <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "التنبيهات" : "Notifications"} onPress={() => router.push("/notifications")} style={styles.bellWrap}><Text style={styles.bell}>♧</Text>{unreadCount > 0 ? <View style={styles.notificationDot} /> : null}</Pressable>
           </View>
 
-          {featured.length > 0 ? <View style={styles.sectionBlock}><View style={styles.sectionHeader}><Text style={styles.sectionTitle}>{locale === "ar" ? "فرص مميزة" : "Featured opportunities"}</Text><Text style={styles.sectionHint}>{featured.length}</Text></View><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.featuredRow}>{featured.map((item) => <FeaturedCard key={item.id} item={item} locale={locale} styles={styles} />)}</ScrollView></View> : null}
+          <View style={styles.searchBox}>
+            <TextInput value={query} onChangeText={setQuery} placeholder={isArabic ? "ابحث عن فرص، مواهب، شركات..." : "Search opportunities, talent, companies..."} placeholderTextColor={theme.muted} style={styles.searchInput} />
+            <Text style={styles.searchGlyph}>⌕</Text>
+          </View>
 
-          <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>{locale === "ar" ? "أحدث الفرص" : "Latest opportunities"}</Text><Text style={styles.sectionHint}>{filtered.length}</Text></View>
-        </>}
-        ListEmptyComponent={<View style={styles.emptyState}><Text style={styles.emptyTitle}>{error ?? (locale === "ar" ? "لا توجد نتائج مطابقة حاليًا." : "No matching opportunities right now.")}</Text>{error ? <Pressable style={styles.retryButton} onPress={() => void load()}><Text style={styles.retryText}>{locale === "ar" ? "إعادة المحاولة" : "Try again"}</Text></Pressable> : null}</View>}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categories}>
+            <Category active={filter === "all"} label={isArabic ? "الكل" : "All"} glyph="⌘" onPress={() => setFilter("all")} styles={styles} />
+            <Category active={filter === "actor"} label={isArabic ? "تمثيل" : "Acting"} glyph="♙" onPress={() => setFilter("actor")} styles={styles} />
+            <Category active={filter === "model"} label={isArabic ? "عارضة أزياء" : "Modeling"} glyph="◇" onPress={() => setFilter("model")} styles={styles} />
+            <Category active={false} label={isArabic ? "تصوير" : "Photo"} glyph="◉" onPress={() => undefined} styles={styles} />
+            <Category active={false} label={isArabic ? "أخرى" : "Other"} glyph="✦" onPress={() => undefined} styles={styles} />
+          </ScrollView>
+
+          <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>{isArabic ? "فرص مميزة" : "Featured opportunities"}</Text><Text style={styles.sectionAction}>{isArabic ? "عرض الكل" : "View all"}</Text></View>
+          {featured.length > 0 ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.featuredRow}>{featured.map((item) => <FeaturedCard key={item.id} item={item} locale={locale} styles={styles} />)}</ScrollView> : <View style={styles.featuredPlaceholder}><Text style={styles.featuredTag}>{isArabic ? "مميز" : "Featured"}</Text><Text style={styles.placeholderTitle}>{isArabic ? "فرص مميزة تظهر هنا فور نشرها" : "Featured opportunities appear here"}</Text></View>}
+
+          <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>{isArabic ? "فرص جديدة" : "New opportunities"}</Text><Text style={styles.sectionAction}>{isArabic ? "عرض الكل" : "View all"}</Text></View>
+        </View>}
+        ListEmptyComponent={<View style={styles.emptyState}><Text style={styles.emptyTitle}>{error ?? (isArabic ? "لا توجد نتائج مطابقة حاليًا." : "No matching opportunities right now.")}</Text>{error ? <Pressable style={styles.retryButton} onPress={() => void load()}><Text style={styles.retryText}>{isArabic ? "إعادة المحاولة" : "Try again"}</Text></Pressable> : null}</View>}
         renderItem={({ item }) => <OpportunityCard item={item} locale={locale} styles={styles} />}
       />
       <AppTabBar active="discover" locale={locale} theme={theme} notificationCount={unreadCount} />
@@ -86,17 +100,46 @@ export default function OpportunitiesScreen() {
   );
 }
 
-function FilterChip({ active, label, onPress, styles }: { active: boolean; label: string; onPress: () => void; styles: ReturnType<typeof createStyles> }) { return <Pressable onPress={onPress} style={[styles.filterChip, active && styles.filterChipActive]}><Text style={[styles.filterText, active && styles.filterTextActive]}>{label}</Text></Pressable>; }
-function FeaturedCard({ item, locale, styles }: { item: MobileOpportunity; locale: "ar" | "en"; styles: ReturnType<typeof createStyles> }) { return <Pressable onPress={() => router.push(`/opportunities/${item.slug}`)} style={({ pressed }) => [styles.featuredCard, pressed && styles.pressed]}><Text style={styles.featuredTag}>{locale === "ar" ? "مميزة" : "Featured"}</Text><Text numberOfLines={2} style={styles.featuredTitle}>{item.title}</Text><Text style={styles.company}>{item.companyName}</Text><Text style={styles.meta}>{[item.city, item.opportunityType.replaceAll("_", " ")].filter(Boolean).join(" · ")}</Text></Pressable>; }
-function OpportunityCard({ item, locale, styles }: { item: MobileOpportunity; locale: "ar" | "en"; styles: ReturnType<typeof createStyles> }) { return <Pressable onPress={() => router.push(`/opportunities/${item.slug}`)} style={({ pressed }) => [styles.card, pressed && styles.pressed]}><View style={styles.cardTop}><Text style={styles.type}>{item.opportunityType.replaceAll("_", " ")}</Text>{item.city ? <Text style={styles.meta}>{item.city}</Text> : null}</View><Text style={styles.cardTitle}>{item.title}</Text><Text style={styles.company}>{item.companyName}</Text><Text numberOfLines={2} style={styles.description}>{item.description}</Text><Text style={styles.openLabel}>{locale === "ar" ? "عرض الفرصة ←" : "View opportunity →"}</Text></Pressable>; }
+function Category({ active, label, glyph, onPress, styles }: { active: boolean; label: string; glyph: string; onPress: () => void; styles: ReturnType<typeof createStyles> }) {
+  return <Pressable onPress={onPress} style={styles.category}><View style={[styles.categoryIcon, active && styles.categoryIconActive]}><Text style={[styles.categoryGlyph, active && styles.categoryGlyphActive]}>{glyph}</Text></View><Text style={[styles.categoryLabel, active && styles.categoryLabelActive]}>{label}</Text></Pressable>;
+}
+
+function FeaturedCard({ item, locale, styles }: { item: MobileOpportunity; locale: "ar" | "en"; styles: ReturnType<typeof createStyles> }) {
+  const isArabic = locale === "ar";
+  return <Pressable onPress={() => router.push(`/opportunities/${item.slug}`)} style={({ pressed }) => [styles.featuredCard, pressed && styles.pressed]}>
+    <View style={styles.featuredVisual}><View style={styles.featuredGlow} /><Text style={styles.featuredVisualGlyph}>✦</Text></View>
+    <View style={styles.featuredOverlay}><Text style={styles.featuredTag}>{isArabic ? "مميز" : "Featured"}</Text><Text numberOfLines={2} style={styles.featuredTitle}>{item.title}</Text><Text style={styles.featuredMeta}>{[item.city, item.countryCode].filter(Boolean).join("، ")}</Text><Text style={styles.featuredBudget}>{item.budget ?? (isArabic ? "حسب الاتفاق" : "By agreement")}</Text></View>
+    <View style={styles.bookmark}><Text style={styles.bookmarkGlyph}>⌑</Text></View>
+  </Pressable>;
+}
+
+function OpportunityCard({ item, locale, styles }: { item: MobileOpportunity; locale: "ar" | "en"; styles: ReturnType<typeof createStyles> }) {
+  const isArabic = locale === "ar";
+  return <Pressable onPress={() => router.push(`/opportunities/${item.slug}`)} style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
+    <View style={styles.cardVisual}><Text style={styles.cardVisualGlyph}>✦</Text></View>
+    <View style={styles.cardBody}><Text numberOfLines={2} style={styles.cardTitle}>{item.title}</Text><Text style={styles.company}>{item.companyName}</Text><Text style={styles.meta}>{[item.city, item.countryCode].filter(Boolean).join(" · ")}</Text><Text style={styles.openLabel}>{isArabic ? "عرض التفاصيل" : "View details"}</Text></View>
+  </Pressable>;
+}
 
 function createStyles(theme: typeof lightTheme | typeof darkTheme) {
   return StyleSheet.create({
-    screen: { flex: 1, backgroundColor: theme.background }, centered: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: theme.background }, content: { paddingHorizontal: 16, paddingTop: 18, paddingBottom: 24, gap: 13 },
-    hero: { marginTop: 30, borderRadius: 30, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, padding: 22, gap: 15 }, brandRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 }, brand: { color: theme.accent, fontSize: 14, fontWeight: "800", letterSpacing: 2.2 }, heroPill: { color: theme.accent, borderWidth: 1, borderColor: theme.accent, borderRadius: 16, overflow: "hidden", paddingHorizontal: 10, paddingVertical: 6, fontSize: 10 }, heroTitle: { color: theme.text, fontSize: 38, lineHeight: 46, fontWeight: "300" }, heroBody: { color: theme.muted, fontSize: 14, lineHeight: 23 },
-    searchBox: { flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: theme.border, borderRadius: 20, backgroundColor: theme.background, paddingHorizontal: 14 }, searchInput: { flex: 1, color: theme.text, fontSize: 14, paddingVertical: 15 }, searchGlyph: { color: theme.accent, fontSize: 24 }, filters: { flexDirection: "row", gap: 8, flexWrap: "wrap" }, filterChip: { borderWidth: 1, borderColor: theme.border, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 9 }, filterChipActive: { backgroundColor: theme.accent, borderColor: theme.accent }, filterText: { color: theme.muted, fontSize: 12, fontWeight: "600" }, filterTextActive: { color: "#181818" },
-    sectionBlock: { gap: 12, marginTop: 7 }, sectionHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 10 }, sectionTitle: { color: theme.text, fontSize: 21, fontWeight: "500" }, sectionHint: { color: theme.muted, fontSize: 12 }, featuredRow: { gap: 10 }, featuredCard: { width: 270, minHeight: 190, borderRadius: 25, borderWidth: 1, borderColor: theme.accent, backgroundColor: theme.surface, padding: 18, gap: 10, justifyContent: "flex-end" }, featuredTag: { alignSelf: "flex-start", color: "#181818", backgroundColor: theme.accent, borderRadius: 13, overflow: "hidden", paddingHorizontal: 9, paddingVertical: 5, fontSize: 10, fontWeight: "800" }, featuredTitle: { color: theme.text, fontSize: 23, lineHeight: 29, fontWeight: "500" },
-    card: { borderRadius: 24, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, padding: 18, gap: 9 }, cardTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 }, type: { color: theme.accent, fontSize: 11, textTransform: "uppercase", letterSpacing: 1.1 }, cardTitle: { color: theme.text, fontSize: 22, lineHeight: 29, fontWeight: "400" }, company: { color: theme.accent, fontSize: 13, fontWeight: "700" }, meta: { color: theme.muted, fontSize: 11 }, description: { color: theme.muted, fontSize: 13, lineHeight: 20 }, openLabel: { color: theme.text, fontSize: 12, fontWeight: "700", marginTop: 4 }, pressed: { opacity: 0.72, transform: [{ scale: 0.995 }] },
-    emptyState: { paddingVertical: 60, alignItems: "center", gap: 16 }, emptyTitle: { color: theme.text, fontSize: 17, textAlign: "center" }, retryButton: { borderRadius: 16, backgroundColor: theme.accent, paddingHorizontal: 20, paddingVertical: 12 }, retryText: { color: "#181818", fontWeight: "700" },
+    screen: { flex: 1, backgroundColor: theme.background },
+    centered: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: theme.background },
+    content: { paddingHorizontal: 14, paddingTop: 14, paddingBottom: 24, gap: 11 },
+    topBar: { marginTop: 30, minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+    marketRow: { flexDirection: "row", alignItems: "center", gap: 5 }, pin: { color: theme.text, fontSize: 18 }, marketText: { color: theme.text, fontSize: 13, fontWeight: "800" }, chevron: { color: theme.accent, fontSize: 14 },
+    bellWrap: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" }, bell: { color: theme.text, fontSize: 22 }, notificationDot: { position: "absolute", top: 7, right: 8, width: 7, height: 7, borderRadius: 4, backgroundColor: "#D04B4B" },
+    searchBox: { marginTop: 2, height: 44, flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: theme.border, borderRadius: 12, backgroundColor: theme.input, paddingHorizontal: 12 },
+    searchInput: { flex: 1, color: theme.text, fontSize: 12, paddingVertical: 10 }, searchGlyph: { color: theme.text, fontSize: 19 },
+    categories: { gap: 9, paddingTop: 13, paddingBottom: 8 },
+    category: { width: 62, alignItems: "center", gap: 6 }, categoryIcon: { width: 46, height: 46, borderRadius: 12, backgroundColor: theme.surfaceElevated, borderWidth: 1, borderColor: theme.border, alignItems: "center", justifyContent: "center" }, categoryIconActive: { backgroundColor: theme.accent, borderColor: theme.accent }, categoryGlyph: { color: theme.text, fontSize: 19 }, categoryGlyphActive: { color: "#111111" }, categoryLabel: { color: theme.text, fontSize: 9, fontWeight: "600", textAlign: "center" }, categoryLabelActive: { color: theme.text, fontWeight: "800" },
+    sectionHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 9, marginBottom: 2 }, sectionTitle: { color: theme.text, fontSize: 16, fontWeight: "800" }, sectionAction: { color: theme.accent, fontSize: 11, fontWeight: "700" },
+    featuredRow: { gap: 10, paddingBottom: 5 },
+    featuredCard: { width: 300, height: 245, borderRadius: 18, overflow: "hidden", backgroundColor: theme.surfaceElevated, borderWidth: 1, borderColor: theme.border },
+    featuredVisual: { flex: 1, backgroundColor: theme.surfaceElevated, alignItems: "center", justifyContent: "center", overflow: "hidden" }, featuredGlow: { position: "absolute", width: 210, height: 210, borderRadius: 105, backgroundColor: theme.accent, opacity: 0.09 }, featuredVisualGlyph: { color: theme.accent, opacity: 0.45, fontSize: 58 },
+    featuredOverlay: { position: "absolute", left: 0, right: 0, bottom: 0, padding: 14, paddingTop: 32, backgroundColor: "rgba(0,0,0,0.72)", gap: 4 }, featuredTag: { alignSelf: "flex-start", color: "#111111", backgroundColor: theme.accent, borderRadius: 8, overflow: "hidden", paddingHorizontal: 8, paddingVertical: 4, fontSize: 9, fontWeight: "900" }, featuredTitle: { color: "#FFFFFF", fontSize: 18, lineHeight: 23, fontWeight: "800" }, featuredMeta: { color: "#E9E0D3", fontSize: 10 }, featuredBudget: { color: "#FFFFFF", fontSize: 11, fontWeight: "700" }, bookmark: { position: "absolute", right: 12, bottom: 12, width: 32, height: 32, borderRadius: 8, borderWidth: 1, borderColor: "rgba(255,255,255,0.55)", alignItems: "center", justifyContent: "center" }, bookmarkGlyph: { color: "#FFFFFF", fontSize: 18 },
+    featuredPlaceholder: { minHeight: 145, borderRadius: 18, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surfaceElevated, padding: 16, justifyContent: "flex-end", gap: 8 }, placeholderTitle: { color: theme.text, fontSize: 17, lineHeight: 22, fontWeight: "700" },
+    card: { minHeight: 112, borderRadius: 15, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surfaceElevated, overflow: "hidden", flexDirection: "row", marginBottom: 2 }, cardVisual: { width: 118, backgroundColor: theme.surface, alignItems: "center", justifyContent: "center" }, cardVisualGlyph: { color: theme.accent, fontSize: 34, opacity: 0.45 }, cardBody: { flex: 1, padding: 12, gap: 4, justifyContent: "center" }, cardTitle: { color: theme.text, fontSize: 15, lineHeight: 20, fontWeight: "800" }, company: { color: theme.text, fontSize: 10, fontWeight: "600" }, meta: { color: theme.muted, fontSize: 9 }, openLabel: { color: theme.accent, fontSize: 10, fontWeight: "800", marginTop: 2 },
+    pressed: { opacity: 0.76, transform: [{ scale: 0.995 }] }, emptyState: { paddingVertical: 60, alignItems: "center", gap: 16 }, emptyTitle: { color: theme.text, fontSize: 16, textAlign: "center" }, retryButton: { borderRadius: 12, backgroundColor: theme.accent, paddingHorizontal: 20, paddingVertical: 12 }, retryText: { color: "#111111", fontWeight: "800" },
   });
 }
