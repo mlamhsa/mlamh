@@ -10,9 +10,13 @@ export function AdminTalentMarketScopeEnhancer() {
     const countrySelect = document.querySelector<HTMLSelectElement>(
       'select[name="base_country_code"]',
     );
+    const citySelect = document.querySelector<HTMLSelectElement>(
+      'select[name="city_slug"]',
+    );
 
     if (countrySelect) {
       const selectedCode = countrySelect.value.trim().toUpperCase();
+      const hasExistingSaudiCity = Boolean(citySelect?.value.trim());
       const placeholder = countrySelect.options[0]?.textContent ||
         (isArabic ? "اختر الدولة" : "Choose country");
 
@@ -26,8 +30,24 @@ export function AdminTalentMarketScopeEnhancer() {
       const saOption = document.createElement("option");
       saOption.value = "SA";
       saOption.textContent = isArabic ? "السعودية" : "Saudi Arabia";
-      saOption.selected = selectedCode === "SA";
+      // base_country_code is new for many legacy talents. If an existing record
+      // already has a Saudi city but no country, selecting Saudi Arabia here is
+      // a safe normalization on the next explicit admin save. Records without
+      // a city stay unassigned, and non-SA historical country codes are not
+      // overwritten silently by this enhancer.
+      saOption.selected = selectedCode === "SA" || (!selectedCode && hasExistingSaudiCity);
       countrySelect.appendChild(saOption);
+
+      if (selectedCode && selectedCode !== "SA") {
+        const legacyOption = document.createElement("option");
+        legacyOption.value = selectedCode;
+        legacyOption.textContent = isArabic
+          ? `القيمة الحالية: ${selectedCode}`
+          : `Current value: ${selectedCode}`;
+        legacyOption.selected = true;
+        legacyOption.hidden = true;
+        countrySelect.appendChild(legacyOption);
+      }
     }
 
     const locationSection = document.getElementById("location");
@@ -43,8 +63,8 @@ export function AdminTalentMarketScopeEnhancer() {
 
       if (description instanceof HTMLElement) {
         description.textContent = isArabic
-          ? "السوق الحالي هو السعودية؛ لذلك تظهر السعودية فقط كدولة إقامة وتظهر المدن السعودية فقط. الجنسية مستقلة وتبقى متاحة من القائمة العالمية. أسواق العمل مخفية مؤقتًا حتى تفعيل أسواق جديدة."
-          : "Saudi Arabia is the active market, so only Saudi Arabia is shown as the residence country and only Saudi cities are shown. Nationality remains independent and globally selectable. Work markets stay hidden until new markets are activated.";
+          ? "السوق الحالي هو السعودية؛ لذلك تظهر السعودية فقط كدولة إقامة وتظهر المدن السعودية فقط. الجنسية مستقلة وتبقى متاحة من القائمة العالمية. القيم القديمة تُحفظ بدون تغيير تلقائي، وأسواق العمل مخفية مؤقتًا حتى تفعيل أسواق جديدة."
+          : "Saudi Arabia is the active market, so only Saudi Arabia is shown as the residence country and only Saudi cities are shown. Nationality remains independent and globally selectable. Legacy values are preserved without silent changes, and work markets stay hidden until new markets are activated.";
       }
     }
 
