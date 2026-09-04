@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View, useColorScheme } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, Share, StyleSheet, Text, View, useColorScheme } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 
 import { resolveMobileMarket } from "@/lib/account";
@@ -50,6 +50,16 @@ export default function OpportunityDetailScreen() {
     } finally { setApplyLoading(false); }
   }
 
+  async function shareOpportunity() {
+    if (!item) return;
+    const url = `https://mlamh.net/${locale}/opportunities/${encodeURIComponent(item.slug)}`;
+    await Share.share({
+      title: item.title,
+      message: isArabic ? `${item.title}\n${url}` : `${item.title}\n${url}`,
+      url,
+    });
+  }
+
   function getApplyMessage(result: ApplyResult | null) {
     if (!result) return null;
     if (result.ok) return isArabic ? "تم تقديم طلبك بنجاح." : "Your application was submitted successfully.";
@@ -67,59 +77,73 @@ export default function OpportunityDetailScreen() {
   }
 
   if (loading) return <View style={styles.centered}><ActivityIndicator size="large" color={theme.accent} /></View>;
-  if (error || !item) return <View style={styles.centered}><Text style={styles.errorText}>{isArabic ? "تعذر فتح هذه الفرصة." : "Unable to open this opportunity."}</Text><Pressable style={styles.secondaryButton} onPress={() => router.back()}><Text style={styles.secondaryButtonText}>{isArabic ? "رجوع" : "Back"}</Text></Pressable></View>;
+  if (error || !item) return <View style={styles.centered}><Text accessibilityRole="alert" style={styles.errorText}>{isArabic ? "تعذر فتح هذه الفرصة." : "Unable to open this opportunity."}</Text><Pressable accessibilityRole="button" style={styles.secondaryButton} onPress={() => router.back()}><Text style={styles.secondaryButtonText}>{isArabic ? "رجوع" : "Back"}</Text></Pressable></View>;
 
   const compensation = item.compensationType === "unpaid"
     ? (isArabic ? "غير مدفوعة" : "Unpaid")
-    : item.budget && item.currency ? `${item.budget} ${item.currency}` : item.compensationType ?? null;
+    : item.budget && item.currency ? `${item.budget} ${item.currency}` : item.compensationType === "negotiable" ? (isArabic ? "حسب الاتفاق" : "Negotiable") : item.compensationType ?? null;
   const applyMessage = applyError ?? getApplyMessage(applyResult);
   const applied = applyResult?.ok === true || (!applyResult?.ok && applyResult?.code === "ALREADY_APPLIED");
+  const publishedLabel = item.createdAt ? new Date(item.createdAt).toLocaleDateString(isArabic ? "ar-SA" : "en-US") : null;
+  const deadlineLabel = item.expiresAt ? new Date(item.expiresAt).toLocaleDateString(isArabic ? "ar-SA" : "en-US") : null;
 
   return <View style={styles.screen}>
     <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
       <View style={[styles.topBar, { direction: isRtlLocale(locale) ? "rtl" : "ltr" }]}>
-        <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "رجوع" : "Back"} onPress={() => router.back()} hitSlop={12}><Text style={styles.topIcon}>‹</Text></Pressable>
-        <View style={styles.topActions}><Text style={styles.topIcon}>♡</Text><Text style={styles.topIcon}>↗</Text></View>
+        <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "رجوع" : "Back"} onPress={() => router.back()} hitSlop={12} style={styles.roundAction}><Text style={styles.topIcon}>‹</Text></Pressable>
+        <View style={styles.topIdentity}><Text style={styles.topBrand}>MLAMH</Text><View style={styles.topBrandDot} /></View>
+        <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "مشاركة الفرصة" : "Share opportunity"} onPress={() => void shareOpportunity()} hitSlop={10} style={styles.roundAction}><Text style={styles.shareIcon}>↗</Text></Pressable>
       </View>
 
       <View style={styles.coverCard}>
-        <View style={styles.coverGlow} />
-        <View style={styles.coverTopRow}><Text style={styles.featuredBadge}>{item.featured ? (isArabic ? "مميز" : "Featured") : (isArabic ? "فرصة" : "Opportunity")}</Text><Text style={styles.coverCount}>1/1</Text></View>
-        <View style={styles.coverContent}><Text style={styles.coverBrand}>MLAMH</Text><Text numberOfLines={2} style={styles.coverTitle}>{item.title}</Text></View>
+        <View style={styles.coverGlowLarge} />
+        <View style={styles.coverGlowSmall} />
+        <View style={styles.coverTopRow}><Text style={styles.featuredBadge}>{item.featured ? (isArabic ? "فرصة مميزة" : "Featured") : (isArabic ? "فرصة" : "Opportunity")}</Text><Text style={styles.coverType}>{item.opportunityType.replaceAll("_", " ")}</Text></View>
+        <View style={styles.coverContent}><Text style={styles.coverBrand}>MLAMH / OPPORTUNITIES</Text><Text numberOfLines={3} style={styles.coverTitle}>{item.title}</Text><View style={styles.coverMetaRow}><Text style={styles.coverMeta}>{item.companyName}</Text><Text style={styles.coverMetaDot}>•</Text><Text style={styles.coverMeta}>{[item.city, item.countryCode].filter(Boolean).join(" · ") || item.countryCode || "MLAMH"}</Text></View></View>
       </View>
 
       <View style={[styles.mainCard, { direction: isRtlLocale(locale) ? "rtl" : "ltr" }]}>
-        <Text accessibilityRole="header" style={styles.title}>{item.title}</Text>
-        <View style={styles.companyRow}><Text style={styles.company}>{item.companyName}</Text>{item.managedByMlamh ? <Text style={styles.verifiedDot}>✓</Text> : null}</View>
-        <Text style={styles.locationLine}>{[item.city, item.countryCode].filter(Boolean).join(" · ")}</Text>
-        {compensation ? <View style={styles.compensationPill}><Text style={styles.compensationText}>{compensation}</Text></View> : null}
+        <View style={styles.headingBlock}>
+          <Text accessibilityRole="header" style={styles.title}>{item.title}</Text>
+          <View style={styles.companyRow}><View style={styles.companyAvatar}><Text style={styles.companyAvatarText}>{item.companyName.slice(0, 1).toUpperCase()}</Text></View><View style={styles.companyText}><View style={styles.companyNameRow}><Text style={styles.company}>{item.companyName}</Text>{item.managedByMlamh ? <Text accessibilityLabel={isArabic ? "مدار بواسطة ملامح" : "Managed by MLAMH"} style={styles.verifiedDot}>✓</Text> : null}</View><Text style={styles.locationLine}>{[item.city, item.countryCode].filter(Boolean).join(" · ")}</Text></View></View>
+        </View>
 
-        <View style={styles.tabs}><Text style={[styles.tab, styles.tabActive]}>{isArabic ? "التفاصيل" : "Details"}</Text><Text style={styles.tab}>{isArabic ? "المتطلبات" : "Requirements"}</Text><Text style={styles.tab}>{isArabic ? "الموقع" : "Location"}</Text><Text style={styles.tab}>{isArabic ? "الجهة" : "Company"}</Text></View>
+        <View style={styles.quickFacts}>
+          <Fact value={compensation ?? (isArabic ? "غير محدد" : "Not specified")} label={isArabic ? "المقابل" : "Compensation"} styles={styles} />
+          <Fact value={item.city ?? item.countryCode ?? "—"} label={isArabic ? "الموقع" : "Location"} styles={styles} />
+          <Fact value={deadlineLabel ?? (isArabic ? "مفتوح" : "Open")} label={isArabic ? "آخر موعد" : "Deadline"} styles={styles} />
+        </View>
 
+        <View style={styles.sectionDivider} />
         <View style={styles.section}>
+          <Text style={styles.sectionEyebrow}>{isArabic ? "التفاصيل" : "DETAILS"}</Text>
           <Text style={styles.sectionTitle}>{isArabic ? "عن الفرصة" : "About the opportunity"}</Text>
           <Text style={styles.description}>{item.description}</Text>
         </View>
 
         <View style={styles.metaGrid}>
           <Meta label={isArabic ? "النوع" : "Type"} value={item.opportunityType.replaceAll("_", " ")} styles={styles} />
-          {item.city ? <Meta label={isArabic ? "الموقع" : "Location"} value={item.city} styles={styles} /> : null}
-          {item.createdAt ? <Meta label={isArabic ? "تاريخ النشر" : "Published"} value={new Date(item.createdAt).toLocaleDateString(isArabic ? "ar-SA" : "en-US")} styles={styles} /> : null}
-          {item.expiresAt ? <Meta label={isArabic ? "آخر موعد" : "Deadline"} value={new Date(item.expiresAt).toLocaleDateString(isArabic ? "ar-SA" : "en-US")} styles={styles} /> : null}
+          {item.city ? <Meta label={isArabic ? "المدينة" : "City"} value={item.city} styles={styles} /> : null}
+          {publishedLabel ? <Meta label={isArabic ? "تاريخ النشر" : "Published"} value={publishedLabel} styles={styles} /> : null}
+          {deadlineLabel ? <Meta label={isArabic ? "آخر موعد" : "Deadline"} value={deadlineLabel} styles={styles} /> : null}
         </View>
+
+        {item.managedByMlamh ? <View style={styles.trustCard}><View style={styles.trustMark}><Text style={styles.trustMarkText}>M</Text></View><View style={styles.trustText}><Text style={styles.trustTitle}>{isArabic ? "هذه الفرصة مُدارة عبر ملامح" : "Managed through MLAMH"}</Text><Text style={styles.trustBody}>{isArabic ? "يتم استقبال الطلبات ومتابعة مراحل الاختيار من خلال المنصة." : "Applications and selection updates are handled through the platform."}</Text></View></View> : null}
       </View>
     </ScrollView>
 
     <View style={styles.ctaBar}>
-      {applyMessage ? <Text accessibilityLiveRegion="polite" style={[styles.applyMessage, applied && styles.applySuccess]}>{applyMessage}</Text> : null}
-      <View style={styles.ctaRow}>
-        <Pressable style={styles.saveButton} accessibilityLabel={isArabic ? "حفظ الفرصة" : "Save opportunity"}><Text style={styles.saveIcon}>♡</Text></Pressable>
-        <Pressable disabled={applyLoading || applied} style={({ pressed }) => [styles.primaryButton, (pressed || applyLoading || applied) && styles.buttonDisabled]} onPress={() => void apply()}>
-          <Text style={styles.primaryButtonText}>{applyLoading ? (isArabic ? "جارٍ التقديم..." : "Applying...") : applied ? (isArabic ? "تم التقديم" : "Applied") : (isArabic ? "تقدم الآن" : "Apply now")}</Text>
-        </Pressable>
-      </View>
+      {applyMessage ? <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={[styles.applyMessage, applied && styles.applySuccess]}>{applyMessage}</Text> : null}
+      <Pressable accessibilityRole="button" accessibilityState={{ disabled: applyLoading || applied, busy: applyLoading }} disabled={applyLoading || applied} style={({ pressed }) => [styles.primaryButton, (pressed || applyLoading || applied) && styles.buttonDisabled]} onPress={() => void apply()}>
+        <Text style={styles.primaryButtonText}>{applyLoading ? (isArabic ? "جارٍ التقديم..." : "Applying...") : applied ? (isArabic ? "تم التقديم" : "Applied") : (isArabic ? "تقدم على الفرصة" : "Apply to opportunity")}</Text>
+        {!applied ? <Text style={styles.primaryArrow}>›</Text> : null}
+      </Pressable>
     </View>
   </View>;
+}
+
+function Fact({ label, value, styles }: { label: string; value: string; styles: ReturnType<typeof createStyles> }) {
+  return <View style={styles.fact}><Text numberOfLines={1} style={styles.factValue}>{value}</Text><Text style={styles.factLabel}>{label}</Text></View>;
 }
 
 function Meta({ label, value, styles }: { label: string; value: string; styles: ReturnType<typeof createStyles> }) {
@@ -130,26 +154,31 @@ function createStyles(theme: typeof lightTheme | typeof darkTheme) {
   return StyleSheet.create({
     screen: { flex: 1, backgroundColor: theme.background },
     centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 18, padding: 24, backgroundColor: theme.background },
-    content: { paddingHorizontal: 12, paddingTop: 46, paddingBottom: 152, gap: 12 },
-    topBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 6 },
-    topActions: { flexDirection: "row", gap: 18 }, topIcon: { color: theme.text, fontSize: 28, lineHeight: 32 },
-    coverCard: { minHeight: 248, borderRadius: 28, overflow: "hidden", backgroundColor: "#2E2E2E", borderWidth: 1, borderColor: theme.border, padding: 18, justifyContent: "space-between" },
-    coverGlow: { position: "absolute", width: 210, height: 210, borderRadius: 105, backgroundColor: "rgba(212,160,23,0.16)", right: -54, top: -50 },
-    coverTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-    featuredBadge: { color: "#2E2E2E", backgroundColor: "#D4A017", borderRadius: 12, overflow: "hidden", paddingHorizontal: 10, paddingVertical: 6, fontSize: 11, fontWeight: "800" },
-    coverCount: { color: "#F5F1E8", fontSize: 12, fontWeight: "700" }, coverContent: { gap: 8 },
-    coverBrand: { color: "#D4A017", fontSize: 13, fontWeight: "800", letterSpacing: 2.4 },
-    coverTitle: { color: "#F5F1E8", fontSize: 27, lineHeight: 34, fontWeight: "700", maxWidth: "86%" },
-    mainCard: { borderRadius: 30, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border, padding: 20, gap: 11 },
-    title: { color: theme.text, fontSize: 29, lineHeight: 38, fontWeight: "700" }, companyRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-    company: { color: theme.text, fontSize: 14, fontWeight: "700" }, verifiedDot: { width: 20, height: 20, borderRadius: 10, overflow: "hidden", textAlign: "center", lineHeight: 20, backgroundColor: theme.accent, color: "#2E2E2E", fontSize: 12, fontWeight: "900" },
-    locationLine: { color: theme.muted, fontSize: 13 }, compensationPill: { alignSelf: "flex-start", backgroundColor: "rgba(212,160,23,0.16)", borderRadius: 16, paddingHorizontal: 14, paddingVertical: 8 }, compensationText: { color: theme.text, fontSize: 13, fontWeight: "700" },
-    tabs: { flexDirection: "row", justifyContent: "space-between", borderBottomWidth: 1, borderBottomColor: theme.border, marginTop: 8 }, tab: { color: theme.muted, fontSize: 12, fontWeight: "600", paddingVertical: 12 }, tabActive: { color: theme.accent, borderBottomWidth: 2, borderBottomColor: theme.accent },
-    section: { gap: 10, paddingTop: 4 }, sectionTitle: { color: theme.text, fontSize: 18, fontWeight: "800" }, description: { color: theme.muted, fontSize: 15, lineHeight: 25 },
-    metaGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 8 }, metaItem: { width: "47%", borderRadius: 18, borderWidth: 1, borderColor: theme.border, padding: 12, gap: 4 }, metaLabel: { color: theme.muted, fontSize: 11 }, metaValue: { color: theme.text, fontSize: 13, fontWeight: "700" },
-    ctaBar: { position: "absolute", left: 0, right: 0, bottom: 0, gap: 8, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 24, backgroundColor: theme.background, borderTopWidth: 1, borderTopColor: theme.border }, applyMessage: { color: theme.muted, fontSize: 12, textAlign: "center" }, applySuccess: { color: theme.accent, fontWeight: "700" }, ctaRow: { flexDirection: "row", gap: 10 },
-    primaryButton: { flex: 1, backgroundColor: theme.accent, borderRadius: 16, minHeight: 54, alignItems: "center", justifyContent: "center" }, primaryButtonText: { color: "#2E2E2E", fontSize: 16, fontWeight: "900" },
-    saveButton: { width: 54, minHeight: 54, borderRadius: 16, borderWidth: 1, borderColor: theme.accent, alignItems: "center", justifyContent: "center", backgroundColor: theme.surface }, saveIcon: { color: theme.accent, fontSize: 24 }, buttonDisabled: { opacity: 0.55 },
+    content: { paddingHorizontal: 12, paddingTop: 46, paddingBottom: 138, gap: 12 },
+    topBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 4 },
+    roundAction: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, alignItems: "center", justifyContent: "center" },
+    topIcon: { color: theme.text, fontSize: 30, lineHeight: 32 }, shareIcon: { color: theme.text, fontSize: 21, lineHeight: 24 },
+    topIdentity: { flexDirection: "row", alignItems: "center", gap: 7 }, topBrand: { color: theme.text, fontSize: 11, fontWeight: "900", letterSpacing: 2.4 }, topBrandDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: theme.accent },
+    coverCard: { minHeight: 286, borderRadius: 30, overflow: "hidden", backgroundColor: theme.charcoal, borderWidth: 1, borderColor: theme.bronze, padding: 20, justifyContent: "space-between" },
+    coverGlowLarge: { position: "absolute", width: 250, height: 250, borderRadius: 125, backgroundColor: theme.accent, opacity: 0.15, right: -70, top: -72 },
+    coverGlowSmall: { position: "absolute", width: 110, height: 110, borderRadius: 55, borderWidth: 1, borderColor: theme.bronze, left: -22, bottom: -28, opacity: 0.7 },
+    coverTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 10 },
+    featuredBadge: { color: theme.charcoal, backgroundColor: theme.accent, borderRadius: 14, overflow: "hidden", paddingHorizontal: 11, paddingVertical: 6, fontSize: 10, fontWeight: "900" },
+    coverType: { color: theme.ivory, opacity: 0.72, fontSize: 10, fontWeight: "700", textTransform: "uppercase" },
+    coverContent: { gap: 9 }, coverBrand: { color: theme.accent, fontSize: 10, fontWeight: "900", letterSpacing: 2.2 },
+    coverTitle: { color: theme.ivory, fontSize: 30, lineHeight: 37, fontWeight: "700", maxWidth: "92%" },
+    coverMetaRow: { flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }, coverMeta: { color: theme.ivory, opacity: 0.78, fontSize: 11 }, coverMetaDot: { color: theme.accent, fontSize: 10 },
+    mainCard: { borderRadius: 30, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border, padding: 20, gap: 18 },
+    headingBlock: { gap: 15 }, title: { color: theme.text, fontSize: 29, lineHeight: 37, fontWeight: "800" }, companyRow: { flexDirection: "row", alignItems: "center", gap: 11 },
+    companyAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: theme.chip, borderWidth: 1, borderColor: theme.border, alignItems: "center", justifyContent: "center" }, companyAvatarText: { color: theme.accent, fontSize: 17, fontWeight: "900" },
+    companyText: { flex: 1, gap: 3 }, companyNameRow: { flexDirection: "row", alignItems: "center", gap: 6 }, company: { color: theme.text, fontSize: 14, fontWeight: "800" },
+    verifiedDot: { width: 20, height: 20, borderRadius: 10, overflow: "hidden", textAlign: "center", lineHeight: 20, backgroundColor: theme.accent, color: theme.charcoal, fontSize: 12, fontWeight: "900" }, locationLine: { color: theme.muted, fontSize: 12 },
+    quickFacts: { flexDirection: "row", gap: 8 }, fact: { flex: 1, minHeight: 74, borderRadius: 18, backgroundColor: theme.input, borderWidth: 1, borderColor: theme.border, paddingHorizontal: 10, paddingVertical: 12, justifyContent: "center", gap: 4 }, factValue: { color: theme.text, fontSize: 12, fontWeight: "800" }, factLabel: { color: theme.muted, fontSize: 9, fontWeight: "600" },
+    sectionDivider: { height: 1, backgroundColor: theme.border }, section: { gap: 9 }, sectionEyebrow: { color: theme.accent, fontSize: 10, fontWeight: "900", letterSpacing: 1.8 }, sectionTitle: { color: theme.text, fontSize: 20, fontWeight: "800" }, description: { color: theme.muted, fontSize: 15, lineHeight: 25 },
+    metaGrid: { flexDirection: "row", flexWrap: "wrap", gap: 9 }, metaItem: { width: "48%", borderRadius: 18, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.background, padding: 13, gap: 5 }, metaLabel: { color: theme.muted, fontSize: 10 }, metaValue: { color: theme.text, fontSize: 13, fontWeight: "700" },
+    trustCard: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 20, borderWidth: 1, borderColor: theme.bronze, backgroundColor: theme.chip, padding: 14 }, trustMark: { width: 42, height: 42, borderRadius: 21, backgroundColor: theme.charcoal, borderWidth: 1, borderColor: theme.bronze, alignItems: "center", justifyContent: "center" }, trustMarkText: { color: theme.accent, fontSize: 18, fontWeight: "900" }, trustText: { flex: 1, gap: 3 }, trustTitle: { color: theme.text, fontSize: 12, fontWeight: "800" }, trustBody: { color: theme.muted, fontSize: 10, lineHeight: 16 },
+    ctaBar: { position: "absolute", left: 0, right: 0, bottom: 0, gap: 8, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 24, backgroundColor: theme.background, borderTopWidth: 1, borderTopColor: theme.border }, applyMessage: { color: theme.muted, fontSize: 12, textAlign: "center" }, applySuccess: { color: theme.accent, fontWeight: "800" },
+    primaryButton: { minHeight: 56, borderRadius: 17, backgroundColor: theme.accent, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9 }, primaryButtonText: { color: theme.charcoal, fontSize: 16, fontWeight: "900" }, primaryArrow: { color: theme.charcoal, fontSize: 25, lineHeight: 25, fontWeight: "500" }, buttonDisabled: { opacity: 0.55 },
     secondaryButton: { borderWidth: 1, borderColor: theme.border, borderRadius: 16, minHeight: 48, paddingHorizontal: 20, paddingVertical: 12, justifyContent: "center" }, secondaryButtonText: { color: theme.text, fontWeight: "700" }, errorText: { color: theme.text, fontSize: 18, textAlign: "center" },
   });
 }
