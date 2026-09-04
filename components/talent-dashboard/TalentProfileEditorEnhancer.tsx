@@ -80,7 +80,7 @@ function updateDataQualityNotice() {
   if (!section) return;
 
   const ar = isArabicPage();
-  const invalidFields: string[] = [];
+  let hasInvalidMeasurement = false;
 
   for (const fieldName of PHYSICAL_MEASUREMENT_FIELDS) {
     const input = document.querySelector<HTMLInputElement>(`input[name="${fieldName}"]`);
@@ -94,12 +94,12 @@ function updateDataQualityNotice() {
     const invalid = numericValue !== null && Number.isFinite(numericValue) && numericValue <= 0;
 
     input.setAttribute("aria-invalid", invalid ? "true" : "false");
-    if (invalid) invalidFields.push(fieldName);
+    if (invalid) hasInvalidMeasurement = true;
   }
 
   let notice = section.querySelector<HTMLElement>("[data-mlamh-data-quality-notice]");
 
-  if (invalidFields.length === 0) {
+  if (!hasInvalidMeasurement) {
     notice?.remove();
     return;
   }
@@ -112,9 +112,13 @@ function updateDataQualityNotice() {
     section.prepend(notice);
   }
 
-  notice.textContent = ar
+  const message = ar
     ? "توجد قيمة قياس صفرية أو سالبة في ملفك. راجع القياسات وصححها حتى تكون بيانات الملف دقيقة."
     : "Your profile contains a zero or negative measurement. Review and correct the measurements so your profile data stays accurate.";
+
+  if (notice.textContent !== message) {
+    notice.textContent = message;
+  }
 }
 
 function enhancePage() {
