@@ -59,11 +59,27 @@ export function CityCombobox({
 
   return (
     <div ref={containerRef} className="relative md:col-span-2">
+      <input type="hidden" name="base_country_code" value="SA" />
       <input type="hidden" name="city_slug" value={selectedSlug} />
 
+      <div className="mb-4 rounded-xl border border-white/10 bg-black/20 px-4 py-3">
+        <p className="text-[10px] uppercase tracking-[0.3em] text-gray-muted">
+          الدولة
+        </p>
+        <div className="mt-2 flex items-center justify-between gap-3">
+          <span className="text-sm text-white">السعودية</span>
+          <span className="rounded-full border border-gold/20 bg-gold/[0.06] px-2.5 py-1 text-[10px] text-gold">
+            السوق الحالي
+          </span>
+        </div>
+        <p className="mt-2 text-xs leading-5 text-white/35">
+          ملامح متاحة حاليًا في السعودية، لذلك تظهر المدن السعودية فقط. الجنسية مستقلة ويمكن اختيارها من جميع الدول.
+        </p>
+      </div>
+
       <label className="mb-2 block text-[10px] uppercase tracking-[0.3em] text-gray-muted">
-  المدينة
-</label>
+        المدينة
+      </label>
 
       <button
         type="button"
@@ -80,7 +96,7 @@ export function CityCombobox({
             open ? "rotate-180" : ""
           }`}
         >
-         ⌄
+          ⌄
         </span>
       </button>
 
@@ -91,7 +107,7 @@ export function CityCombobox({
               autoFocus
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="ابحث عن مدينة..."
+              placeholder="ابحث عن مدينة سعودية..."
               dir="rtl"
               className="w-full rounded-xl border border-white/10 bg-black px-4 py-3 text-right text-sm text-white outline-none placeholder:text-white/30 focus:border-gold/40"
             />
