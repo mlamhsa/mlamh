@@ -1,49 +1,60 @@
 import Link from "next/link";
 import type { Locale } from "@/lib/i18n";
 
+type TalentQuery = {
+  locale: Locale;
+  q?: string;
+  category?: string;
+  city?: string;
+  gender?: string;
+  nationality?: string;
+  ageMin?: string;
+  ageMax?: string;
+  heightMin?: string;
+  heightMax?: string;
+  page?: number;
+};
+
 function buildTalentQueryString({
   locale,
   q,
   category,
   city,
+  gender,
+  nationality,
+  ageMin,
+  ageMax,
+  heightMin,
+  heightMax,
   page,
-}: {
-  locale: Locale;
-  q?: string;
-  category?: string;
-  city?: string;
-  page?: number;
-}) {
+}: TalentQuery) {
   const params = new URLSearchParams();
 
-  if (q?.trim()) {
-    params.set("q", q.trim());
+  const values: Array<[string, string | undefined]> = [
+    ["q", q],
+    ["category", category],
+    ["city", city],
+    ["gender", gender],
+    ["nationality", nationality],
+    ["ageMin", ageMin],
+    ["ageMax", ageMax],
+    ["heightMin", heightMin],
+    ["heightMax", heightMax],
+  ];
+
+  for (const [key, value] of values) {
+    if (value?.trim()) params.set(key, value.trim());
   }
 
-  if (category?.trim()) {
-    params.set("category", category.trim());
-  }
-
-  if (city?.trim()) {
-    params.set("city", city.trim());
-  }
-
-  if (page && page > 1) {
-    params.set("page", String(page));
-  }
+  if (page && page > 1) params.set("page", String(page));
 
   const query = params.toString();
-
   return query ? `/${locale}/talent?${query}` : `/${locale}/talent`;
 }
 
-type TalentPaginationProps = {
-  locale: Locale;
+type TalentPaginationProps = Omit<TalentQuery, "page"> & {
   currentPage: number;
   totalPages: number;
-  q?: string;
-  category?: string;
-  city?: string;
 };
 
 export function TalentPagination({
@@ -53,24 +64,34 @@ export function TalentPagination({
   q,
   category,
   city,
+  gender,
+  nationality,
+  ageMin,
+  ageMax,
+  heightMin,
+  heightMax,
 }: TalentPaginationProps) {
-  if (totalPages <= 1) {
-    return null;
-  }
+  if (totalPages <= 1) return null;
 
   const previousPage = Math.max(1, currentPage - 1);
   const nextPage = Math.min(totalPages, currentPage + 1);
+  const query = {
+    locale,
+    q,
+    category,
+    city,
+    gender,
+    nationality,
+    ageMin,
+    ageMax,
+    heightMin,
+    heightMax,
+  };
 
   return (
     <div className="mt-12 flex items-center justify-center gap-3">
       <Link
-        href={buildTalentQueryString({
-          locale,
-          q,
-          category,
-          city,
-          page: previousPage,
-        })}
+        href={buildTalentQueryString({ ...query, page: previousPage })}
         className={`rounded-full border px-5 py-2 text-sm transition ${
           currentPage === 1
             ? "pointer-events-none border-white/5 text-white/20"
@@ -85,13 +106,7 @@ export function TalentPagination({
       </div>
 
       <Link
-        href={buildTalentQueryString({
-          locale,
-          q,
-          category,
-          city,
-          page: nextPage,
-        })}
+        href={buildTalentQueryString({ ...query, page: nextPage })}
         className={`rounded-full border px-5 py-2 text-sm transition ${
           currentPage >= totalPages
             ? "pointer-events-none border-white/5 text-white/20"
