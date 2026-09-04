@@ -32,6 +32,6 @@ jobs:
           node -e 'const fs=require("fs"); const j=JSON.parse(fs.readFileSync("/tmp/eas-build.json","utf8")); for (const u of j.logFiles||[]) console.log(u)' > /tmp/eas-log-urls.txt
           while IFS= read -r url; do
             echo "===== EAS PHASE LOG ====="
-            curl --fail --silent --show-error "$url"
+            curl --compressed --fail --silent --show-error "$url"
             echo
           done < /tmp/eas-log-urls.txt
