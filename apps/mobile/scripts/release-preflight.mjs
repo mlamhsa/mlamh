@@ -38,7 +38,13 @@ requireValue(intentData.some((item) => item.scheme === "https" && item.host === 
 
 for (const profile of ["development", "preview", "production"]) {
   requireValue(Boolean(easConfig.build?.[profile]), `Missing EAS build profile: ${profile}.`);
+  requireValue(Boolean(easConfig.build?.[profile]?.environment), `EAS build profile '${profile}' must bind to an environment.`);
 }
+requireValue(easConfig.build?.development?.distribution === "internal", "Development build must use internal distribution.");
+requireValue(easConfig.build?.preview?.distribution === "internal", "Preview build must use internal distribution.");
+requireValue(easConfig.build?.preview?.android?.buildType === "apk", "Preview Android build must produce an APK for internal QA.");
+requireValue(easConfig.build?.preview?.channel === "preview", "Preview build must use the preview update channel.");
+requireValue(easConfig.build?.production?.channel === "production", "Production build must use the production update channel.");
 
 if (strict) {
   const requiredEnvironment = [
@@ -59,6 +65,12 @@ if (strict) {
       errors.push("EXPO_PUBLIC_API_BASE_URL must be a valid absolute URL.");
     }
   }
+
+  const market = process.env.EXPO_PUBLIC_DEFAULT_MARKET?.trim().toUpperCase();
+  if (market) requireValue(/^[A-Z]{2}$/.test(market), "EXPO_PUBLIC_DEFAULT_MARKET must be an ISO 3166-1 alpha-2 country code.");
+
+  const projectId = process.env.EXPO_PUBLIC_EAS_PROJECT_ID?.trim();
+  if (projectId) requireValue(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(projectId), "EXPO_PUBLIC_EAS_PROJECT_ID must be a valid UUID.");
 
   // Store/internal native builds must never ship with Expo placeholder artwork.
   requireLocalAsset(expo.icon, "App icon");
