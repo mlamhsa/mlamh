@@ -17,6 +17,7 @@ function requiresAuthentication(href: Href) {
     path.startsWith("/publisher/") ||
     path === "/publisher" ||
     path === "/applications" ||
+    path === "/messages" ||
     path === "/notifications" ||
     path.startsWith("/profile")
   );
