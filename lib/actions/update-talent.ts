@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 
 import { getNationalityByCode } from "@/lib/data/nationalities";
 import { SAUDI_CITIES } from "@/lib/data/saudi-cities";
-import { COUNTRY_CODES, isCountryCode } from "@/lib/markets/countries";
+import { COUNTRY_CODES } from "@/lib/markets/countries";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -86,12 +86,24 @@ function getGender(formData: FormData) {
 }
 
 function getBaseCountryCode(formData: FormData) {
-  const value = stringValue(formData, "base_country_code");
-  return isCountryCode(value) ? value : null;
+  const value = stringValue(formData, "base_country_code").toUpperCase();
+  const country = getNationalityByCode(value);
+  return country?.code ?? null;
 }
 
-function getWorkMarketCodes(formData: FormData) {
-  return arrayValue(formData, "work_market_codes").filter((value) => COUNTRY_CODES.includes(value as (typeof COUNTRY_CODES)[number]));
+function getWorkMarketCodes(formData: FormData, existing: unknown) {
+  // Work markets are currently hidden while MLAMH is Saudi-only. Preserve any
+  // historical values unless the editor explicitly opts into editing them in a
+  // future market-activation release.
+  if (formData.get("work_market_codes__present") !== "1") {
+    return Array.isArray(existing)
+      ? existing.filter((value): value is string => typeof value === "string")
+      : [];
+  }
+
+  return arrayValue(formData, "work_market_codes").filter((value) =>
+    COUNTRY_CODES.includes(value as (typeof COUNTRY_CODES)[number]),
+  );
 }
 
 function getCity(formData: FormData) {
@@ -114,6 +126,17 @@ export async function updateTalentAction(formData: FormData): Promise<void> {
 
   const id = nullableNumberValue(formData, "id");
   if (!id) throw new Error("Invalid talent id");
+
+  const supabase = createAdminClient();
+  const { data: currentTalent, error: currentTalentError } = await supabase
+    .from("talents")
+    .select("work_market_codes")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (currentTalentError) {
+    throw new Error(`[updateTalentAction.currentTalent] ${currentTalentError.message}`);
+  }
 
   const nameEn = stringValue(formData, "name_en");
   const slug = createSlug(nameEn, id);
@@ -140,7 +163,7 @@ export async function updateTalentAction(formData: FormData): Promise<void> {
     city_ar: city?.ar ?? null,
     city_slug: city?.slug ?? null,
     base_country_code: getBaseCountryCode(formData),
-    work_market_codes: getWorkMarketCodes(formData),
+    work_market_codes: getWorkMarketCodes(formData, currentTalent?.work_market_codes),
     nationality: nationality?.value ?? null,
     nationality_slug: nationality?.slug ?? null,
     gender: getGender(formData),
@@ -196,7 +219,6 @@ export async function updateTalentAction(formData: FormData): Promise<void> {
     verified_at: verified ? currentVerifiedAt || new Date().toISOString() : null,
   };
 
-  const supabase = createAdminClient();
   const { error } = await supabase.from("talents").update(payload).eq("id", id);
   if (error) throw new Error(`[updateTalentAction] ${error.message}`);
 
