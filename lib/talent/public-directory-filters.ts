@@ -1,5 +1,6 @@
 import { findNationality } from "@/lib/data/nationalities";
 import { getPublicTalents, getPublishedTalents } from "@/lib/supabase/public-talents";
+import { applyActiveFeaturedTalentEntitlements } from "@/lib/talent/public-featured-entitlements";
 import type { Talent } from "@/lib/types/talent";
 
 export type PublicTalentDirectoryFilters = {
@@ -123,13 +124,18 @@ export async function getFilteredPublicTalents(filters: PublicTalentDirectoryFil
   }
 
   if (!hasAdvancedFilters(filters)) {
-    return getPublicTalents({
+    const result = await getPublicTalents({
       page,
       pageSize,
       search: filters.search,
       category: filters.category,
       city: filters.city,
     });
+
+    return {
+      ...result,
+      talents: await applyActiveFeaturedTalentEntitlements(result.talents),
+    };
   }
 
   const ageMin = numberFilter(filters.ageMin);
@@ -160,9 +166,10 @@ export async function getFilteredPublicTalents(filters: PublicTalentDirectoryFil
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const safePage = Math.min(page, totalPages);
   const from = (safePage - 1) * pageSize;
+  const pageTalents = matching.slice(from, from + pageSize);
 
   return {
-    talents: matching.slice(from, from + pageSize),
+    talents: await applyActiveFeaturedTalentEntitlements(pageTalents),
     total,
     totalPages,
     currentPage: safePage,
