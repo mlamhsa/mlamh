@@ -26,10 +26,10 @@ jobs:
         working-directory: apps/mobile
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-      EXPO_PUBLIC_SUPABASE_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL }}
-      EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
-      EXPO_PUBLIC_API_BASE_URL: ${{ vars.EXPO_PUBLIC_API_BASE_URL }}
-      EXPO_PUBLIC_DEFAULT_MARKET: ${{ vars.EXPO_PUBLIC_DEFAULT_MARKET }}
+      EXPO_PUBLIC_SUPABASE_URL: https://ozieysztwlispglupuox.supabase.co
+      EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_8fHyfoV7YWfed4yRhu_BOw_BtzOId8g
+      EXPO_PUBLIC_API_BASE_URL: https://mlamh.net
+      EXPO_PUBLIC_DEFAULT_MARKET: SA
       EXPO_PUBLIC_EAS_PROJECT_ID: ${{ vars.EXPO_PUBLIC_EAS_PROJECT_ID }}
     steps:
       - name: Checkout
@@ -45,25 +45,27 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Validate internal build credentials
+      - name: Validate Expo authentication
         shell: bash
         run: |
-          missing=0
-          for key in EXPO_TOKEN EXPO_PUBLIC_SUPABASE_URL EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY EXPO_PUBLIC_API_BASE_URL EXPO_PUBLIC_DEFAULT_MARKET EXPO_PUBLIC_EAS_PROJECT_ID; do
-            if [ -z "${!key}" ]; then
-              echo "::error::$key is not configured for the internal build workflow."
-              missing=1
-            fi
-          done
-          if [ "$missing" -ne 0 ]; then
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error::EXPO_TOKEN is not configured for the internal build workflow."
             exit 1
+          fi
+
+      - name: Create or link EAS project
+        shell: bash
+        run: |
+          if [ -n "$EXPO_PUBLIC_EAS_PROJECT_ID" ]; then
+            npx eas-cli@latest project:init --id "$EXPO_PUBLIC_EAS_PROJECT_ID" --force --non-interactive
+          else
+            npx eas-cli@latest project:init --account mlamhsa --force --json --non-interactive > /tmp/eas-init.json
+            project_id=$(node -e 'const fs=require("fs"); const value=JSON.parse(fs.readFileSync("/tmp/eas-init.json","utf8")); const id=value?.id ?? value?.project?.id ?? value?.projectId; if (!id) process.exit(1); process.stdout.write(id)')
+            echo "EXPO_PUBLIC_EAS_PROJECT_ID=$project_id" >> "$GITHUB_ENV"
           fi
 
       - name: Release preflight strict
         run: npm run release:preflight:strict
-
-      - name: Link EAS project in runner
-        run: npx eas-cli@latest project:init --id "$EXPO_PUBLIC_EAS_PROJECT_ID" --force --non-interactive
 
       - name: Start internal EAS build
         shell: bash
