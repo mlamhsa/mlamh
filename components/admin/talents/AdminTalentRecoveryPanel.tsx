@@ -18,6 +18,7 @@ type Props = {
   reminderCount: number;
   lastReminderAt: string | null;
   lastReminderKind: string | null;
+  providerAvatarDetected: boolean;
 };
 
 function kindLabel(kind: string | null, ar: boolean) {
@@ -110,6 +111,24 @@ export function AdminTalentRecoveryPanel(props: Props) {
           <p className="mt-1 text-[11px] text-white/30">{kindLabel(props.lastReminderKind, ar)}</p>
         </div>
       </div>
+
+      {props.providerAvatarDetected ? (
+        <div className="mt-5 rounded-2xl border border-amber-400/20 bg-amber-400/[0.05] p-4">
+          <div className="flex items-start gap-3 text-amber-100">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <div>
+              <p className="text-sm font-medium">
+                {ar ? "تم اكتشاف صورة حساب Google" : "Google account avatar detected"}
+              </p>
+              <p className="mt-1 text-xs leading-6 text-amber-100/65">
+                {ar
+                  ? "هذه الصورة جاءت من بيانات تسجيل الدخول القديمة وليست بالضرورة صورة مهنية رفعها المستخدم داخل ملامح. راجع جودتها، وإذا كانت غير مناسبة استخدم «طلب تعديل» واختر سبب جودة الصورة الرئيسية."
+                  : "This image came from legacy sign-in metadata and may not be a professional photo uploaded in MLAMH. Review its quality; if unsuitable, use Request changes and choose the main photo quality reason."}
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {!props.isReady && props.missingRequirements.length > 0 ? (
         <div className="mt-5 rounded-2xl border border-amber-400/15 bg-amber-400/[0.04] p-4">
