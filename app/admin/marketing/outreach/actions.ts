@@ -7,6 +7,19 @@ import { executeMarketingEmailJob } from "@/lib/marketing/channels/email-executo
 import { createMarketingTask } from "@/lib/marketing/tasks/service";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+function linkedinProfileUrl(raw: FormDataEntryValue | null) {
+  const value = String(raw ?? "").trim();
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    const host = url.hostname.toLowerCase().replace(/^www\./, "");
+    if (url.protocol !== "https:" || host !== "linkedin.com") return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
 export async function createMarketingOutreachAction(formData: FormData) {
   await requireMarketingAdminAccess("marketing.manage");
   const leadId = Number(formData.get("lead_id"));
@@ -16,6 +29,12 @@ export async function createMarketingOutreachAction(formData: FormData) {
   const message = String(formData.get("message") ?? "").trim();
   if (!message) throw new Error("Message preview is required.");
   const subject = String(formData.get("subject") ?? "").trim();
+  const profileUrl = linkedinProfileUrl(formData.get("profile_url"));
+  const senderProfile = String(formData.get("sender_profile") ?? "").trim() || "sawsan";
+
+  if (channel === "linkedin" && !profileUrl) {
+    throw new Error("A valid https://linkedin.com profile URL is required for LinkedIn outreach.");
+  }
 
   const db = createAdminClient();
   let recipientEmail: string | null = null;
@@ -32,11 +51,18 @@ export async function createMarketingOutreachAction(formData: FormData) {
     message,
     subject: subject || null,
     recipient_email: recipientEmail,
+    linkedin_profile_url: profileUrl,
+    sender_profile: channel === "linkedin" ? senderProfile : null,
   };
   const { data: outreach, error } = await db.from("marketing_outreach").insert({
     lead_id: leadId,
     template_key: String(formData.get("template_key") ?? "").trim() || null,
     personalization,
+    metadata: channel === "linkedin" ? {
+      execution_mode: "manual_linkedin",
+      sender_profile: senderProfile,
+      automated_send: false,
+    } : null,
     channel,
     send_status: "waiting_approval",
     reply_status: "none",
@@ -47,7 +73,9 @@ export async function createMarketingOutreachAction(formData: FormData) {
     agentId: "layan",
     taskType: "first_outreach",
     title: `Approve first outreach to lead #${leadId}`,
-    objective: "Review the first external B2B outreach before sending.",
+    objective: channel === "linkedin"
+      ? "Review the LinkedIn outreach before Sawsan sends it manually from the approved sender profile."
+      : "Review the first external B2B outreach before sending.",
     channel,
     approvalLevel: "approval_required",
     leadId,
@@ -59,6 +87,9 @@ export async function createMarketingOutreachAction(formData: FormData) {
       message,
       subject: subject || null,
       recipient_email: recipientEmail,
+      linkedin_profile_url: profileUrl,
+      sender_profile: channel === "linkedin" ? senderProfile : null,
+      execution_mode: channel === "linkedin" ? "manual_linkedin" : null,
     },
   });
 
@@ -67,6 +98,72 @@ export async function createMarketingOutreachAction(formData: FormData) {
 
   revalidatePath("/admin/marketing/outreach");
   revalidatePath("/admin/marketing/approvals");
+}
+
+export async function markLinkedInOutreachSentAction(formData: FormData) {
+  await requireMarketingAdminAccess("marketing.manage");
+  const outreachId = Number(formData.get("outreach_id"));
+  if (!Number.isInteger(outreachId) || outreachId <= 0) throw new Error("Invalid outreach id.");
+
+  const db = createAdminClient();
+  const { data: outreach, error } = await db
+    .from("marketing_outreach")
+    .select("id,lead_id,channel,send_status,personalization,metadata")
+    .eq("id", outreachId)
+    .single();
+  if (error || !outreach) throw new Error("Outreach not found.");
+  if (outreach.channel !== "linkedin") throw new Error("This action is only available for LinkedIn outreach.");
+  if (!(["approved", "scheduled"] as string[]).includes(outreach.send_status)) {
+    throw new Error("LinkedIn outreach must be approved before it can be marked as sent.");
+  }
+
+  const now = new Date();
+  const followUpAt = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+  const metadata = outreach.metadata && typeof outreach.metadata === "object" && !Array.isArray(outreach.metadata)
+    ? outreach.metadata as Record<string, unknown>
+    : {};
+  const personalization = outreach.personalization && typeof outreach.personalization === "object" && !Array.isArray(outreach.personalization)
+    ? outreach.personalization as Record<string, unknown>
+    : {};
+  const senderProfile = typeof personalization.sender_profile === "string" && personalization.sender_profile.trim()
+    ? personalization.sender_profile.trim()
+    : "sawsan";
+
+  const { error: updateError } = await db.from("marketing_outreach").update({
+    send_status: "sent",
+    next_follow_up_at: followUpAt.toISOString(),
+    metadata: {
+      ...metadata,
+      execution_mode: "manual_linkedin",
+      automated_send: false,
+      sent_manually_at: now.toISOString(),
+      sender_profile: senderProfile,
+    },
+    updated_at: now.toISOString(),
+  }).eq("id", outreachId);
+  if (updateError) throw new Error(`[mark LinkedIn sent] ${updateError.message}`);
+
+  const { error: followUpError } = await db.from("marketing_followups").insert({
+    lead_id: outreach.lead_id,
+    follow_up_at: followUpAt.toISOString(),
+    reason: "LinkedIn follow-up #1 after approved manual outreach",
+    channel: "linkedin",
+    owner: senderProfile,
+    sequence_step: 1,
+    status: "scheduled",
+    next_action: "Review reply status; if no reply, prepare LinkedIn follow-up #1.",
+  });
+  if (followUpError) throw new Error(`[schedule LinkedIn follow-up] ${followUpError.message}`);
+
+  await db.from("marketing_leads").update({
+    stage: "contacted",
+    last_contact_at: now.toISOString(),
+    next_action_at: followUpAt.toISOString(),
+  }).eq("id", outreach.lead_id);
+
+  revalidatePath("/admin/marketing/outreach");
+  revalidatePath("/admin/marketing/follow-ups");
+  revalidatePath("/admin/marketing/leads");
 }
 
 export async function sendApprovedOutreachNowAction(formData: FormData) {
