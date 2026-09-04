@@ -6,6 +6,7 @@
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
+    "icon": "./assets/app-icon.png",
     "plugins": [
       "expo-router",
       "expo-localization",
@@ -36,7 +37,8 @@
       "package": "net.mlamh.app",
       "versionCode": 1,
       "adaptiveIcon": {
-        "backgroundColor": "#2E2E2E"
+        "foregroundImage": "./assets/app-icon.png",
+        "backgroundColor": "#000000"
       },
       "intentFilters": [
         {
