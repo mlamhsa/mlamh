@@ -1,0 +1,73 @@
+name: Mobile Internal Build
+
+on:
+  push:
+    branches:
+      - feat/mobile-platform-phase0
+    paths:
+      - ".github/workflows/mobile-internal-build.yml"
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: "Platform to build"
+        required: true
+        default: "android"
+        type: choice
+        options:
+          - android
+          - ios
+
+jobs:
+  internal-build:
+    name: EAS Internal Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      EXPO_PUBLIC_SUPABASE_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+      EXPO_PUBLIC_API_BASE_URL: ${{ vars.EXPO_PUBLIC_API_BASE_URL }}
+      EXPO_PUBLIC_DEFAULT_MARKET: ${{ vars.EXPO_PUBLIC_DEFAULT_MARKET }}
+      EXPO_PUBLIC_EAS_PROJECT_ID: ${{ vars.EXPO_PUBLIC_EAS_PROJECT_ID }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.0"
+          cache: npm
+          cache-dependency-path: apps/mobile/package.json
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Validate internal build credentials
+        shell: bash
+        run: |
+          missing=0
+          for key in EXPO_TOKEN EXPO_PUBLIC_SUPABASE_URL EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY EXPO_PUBLIC_API_BASE_URL EXPO_PUBLIC_DEFAULT_MARKET EXPO_PUBLIC_EAS_PROJECT_ID; do
+            if [ -z "${!key}" ]; then
+              echo "::error::$key is not configured for the internal build workflow."
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+
+      - name: Release preflight strict
+        run: npm run release:preflight:strict
+
+      - name: Link EAS project in runner
+        run: npx eas-cli@latest project:init --id "$EXPO_PUBLIC_EAS_PROJECT_ID" --force --non-interactive
+
+      - name: Start internal EAS build
+        shell: bash
+        run: |
+          platform="${{ github.event.inputs.platform }}"
+          if [ -z "$platform" ]; then platform="android"; fi
+          npx eas-cli@latest build --platform "$platform" --profile preview --non-interactive --no-wait
