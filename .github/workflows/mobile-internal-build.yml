@@ -30,7 +30,6 @@ jobs:
       EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_8fHyfoV7YWfed4yRhu_BOw_BtzOId8g
       EXPO_PUBLIC_API_BASE_URL: https://mlamh.net
       EXPO_PUBLIC_DEFAULT_MARKET: SA
-      EXPO_PUBLIC_EAS_PROJECT_ID: ${{ vars.EXPO_PUBLIC_EAS_PROJECT_ID }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -40,10 +39,16 @@ jobs:
         with:
           node-version: "22.13.0"
           cache: npm
-          cache-dependency-path: apps/mobile/package.json
+          cache-dependency-path: apps/mobile/package-lock.json
+
+      - name: Load persisted EAS project linkage
+        shell: bash
+        run: |
+          project_id=$(node -e 'const app=require("./app.json"); const id=app?.expo?.extra?.eas?.projectId; if (!id) process.exit(1); process.stdout.write(id)')
+          echo "EXPO_PUBLIC_EAS_PROJECT_ID=$project_id" >> "$GITHUB_ENV"
 
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --include=dev --no-audit --no-fund
 
       - name: Validate Expo authentication
         shell: bash
@@ -51,17 +56,6 @@ jobs:
           if [ -z "$EXPO_TOKEN" ]; then
             echo "::error::EXPO_TOKEN is not configured for the internal build workflow."
             exit 1
-          fi
-
-      - name: Create or link EAS project
-        shell: bash
-        run: |
-          if [ -n "$EXPO_PUBLIC_EAS_PROJECT_ID" ]; then
-            npx eas-cli@latest project:init --id "$EXPO_PUBLIC_EAS_PROJECT_ID" --force --non-interactive
-          else
-            npx eas-cli@latest project:init --account mlamhco --force --json --non-interactive > /tmp/eas-init.json
-            project_id=$(node -e 'const fs=require("fs"); const value=JSON.parse(fs.readFileSync("/tmp/eas-init.json","utf8")); const id=value?.id ?? value?.project?.id ?? value?.projectId; if (!id) process.exit(1); process.stdout.write(id)')
-            echo "EXPO_PUBLIC_EAS_PROJECT_ID=$project_id" >> "$GITHUB_ENV"
           fi
 
       - name: Release preflight strict
