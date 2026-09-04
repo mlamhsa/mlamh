@@ -96,6 +96,7 @@ export default async function HomePage({ params }: HomePageProps) {
   ]);
 
   const talents = await applyActiveFeaturedTalentEntitlements(talentResult.talents);
+  const featuredTalents = talents.filter((talent) => talent.featured);
 
   return (
     <main
@@ -108,7 +109,7 @@ export default async function HomePage({ params }: HomePageProps) {
       <div className="lg:hidden">
         <MobileHome
           locale={locale}
-          talents={talents}
+          talents={featuredTalents}
         />
       </div>
 
@@ -122,7 +123,7 @@ export default async function HomePage({ params }: HomePageProps) {
 
         <HowItWorks locale={locale} />
 
-        <ModelsShowcase locale={locale} talents={talents} />
+        <ModelsShowcase locale={locale} talents={featuredTalents} />
 
         <Opportunities locale={locale} />
 
