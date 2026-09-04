@@ -63,6 +63,8 @@ function extractRequirementText(value: unknown): string {
       .filter(Boolean)
       .join("، ");
   }
+  if (!value || typeof value !== "object") return "";
+
   const record = asRecord(value);
   const preferredKeys = [
     "text",
@@ -78,7 +80,9 @@ function extractRequirementText(value: unknown): string {
   ];
   const parts: string[] = [];
   for (const key of preferredKeys) {
-    const text = extractRequirementText(record[key]);
+    const nested = record[key];
+    if (nested === undefined || nested === null) continue;
+    const text = extractRequirementText(nested);
     if (text && !parts.includes(text)) parts.push(text);
   }
   return parts.join("، ");
