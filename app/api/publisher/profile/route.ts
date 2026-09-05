@@ -40,15 +40,16 @@ export async function PATCH(request: Request) {
 export async function POST(request: Request) {
   const auth = await getRequestUser(request);
   if (!auth.ok) return NextResponse.json({ ok: false, code: "UNAUTHENTICATED" }, { status: 401 });
-  const contentType = request.headers.get("content-type") ?? "";
-  if (contentType.includes("multipart/form-data")) {
-    let form: FormData;
-    try { form = await request.formData(); } catch { return NextResponse.json({ ok: false, code: "INVALID_FORM" }, { status: 400 }); }
-    const file = form.get("image");
-    if (!(file instanceof File)) return NextResponse.json({ ok: false, code: "INVALID_IMAGE" }, { status: 400 });
-    const result = await uploadMobilePublisherLogo(auth.user.id, file);
-    return NextResponse.json(result, { status: result.ok ? 200 : statusFor(result.code) });
-  }
   const result = await submitMobilePublisherProfileForReview(auth.user.id);
+  return NextResponse.json(result, { status: result.ok ? 200 : statusFor(result.code) });
+}
+
+export async function PUT(request: Request) {
+  const auth = await getRequestUser(request);
+  if (!auth.ok) return NextResponse.json({ ok: false, code: "UNAUTHENTICATED" }, { status: 401 });
+  const contentType = (request.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase();
+  let bytes: ArrayBuffer;
+  try { bytes = await request.arrayBuffer(); } catch { return NextResponse.json({ ok: false, code: "INVALID_IMAGE" }, { status: 400 }); }
+  const result = await uploadMobilePublisherLogo(auth.user.id, bytes, contentType);
   return NextResponse.json(result, { status: result.ok ? 200 : statusFor(result.code) });
 }
