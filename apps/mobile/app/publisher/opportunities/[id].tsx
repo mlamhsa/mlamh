@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Alert, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, useColorScheme } from "react-native";
+import { ActivityIndicator, Alert, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 
 import { getDeviceLocale, isRtlLocale } from "@/lib/i18n";
 import { getPublisherOpportunity, managePublisherOpportunity, updatePublisherApplicantStatus, type PublisherApplicant, type PublisherOpportunityAction, type PublisherOpportunityDetail } from "@/lib/publisher-api";
-import { darkTheme, lightTheme } from "@/lib/theme";
+import { darkTheme } from "@/lib/theme";
 
 const EDITABLE_STATUSES = new Set(["draft", "open", "needs_changes", "closed"]);
 const SUBMITTABLE_STATUSES = new Set(["draft", "open", "needs_changes", "closed"]);
@@ -16,7 +16,8 @@ export default function PublisherOpportunityDetailScreen() {
   const opportunityId = Number(rawId);
   const locale = getDeviceLocale();
   const isArabic = locale === "ar";
-  const theme = useColorScheme() === "dark" ? darkTheme : lightTheme;
+  const isRtl = isRtlLocale(locale);
+  const theme = darkTheme;
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [detail, setDetail] = useState<PublisherOpportunityDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -28,9 +29,7 @@ export default function PublisherOpportunityDetailScreen() {
   const load = useCallback(async (refresh = false) => {
     if (!Number.isInteger(opportunityId) || opportunityId <= 0) {
       setError(isArabic ? "الفرصة غير صالحة." : "Invalid opportunity.");
-      setLoading(false);
-      setRefreshing(false);
-      return;
+      setLoading(false); setRefreshing(false); return;
     }
     refresh ? setRefreshing(true) : setLoading(true);
     setError(null);
@@ -42,24 +41,17 @@ export default function PublisherOpportunityDetailScreen() {
       } else setDetail(result);
     } catch {
       setError(isArabic ? "تعذر تحميل تفاصيل الفرصة. تحقق من الاتصال وحاول مرة أخرى." : "Unable to load opportunity details. Check your connection and try again.");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+    } finally { setLoading(false); setRefreshing(false); }
   }, [isArabic, locale, opportunityId]);
 
   useEffect(() => { void load(); }, [load]);
 
   async function changeStatus(applicant: PublisherApplicant, status: ApplicantDecision) {
     if (busyId !== null) return;
-    setBusyId(applicant.applicationId);
-    setError(null);
+    setBusyId(applicant.applicationId); setError(null);
     try {
       const result = await updatePublisherApplicantStatus(opportunityId, applicant.applicationId, status);
-      if (!result.ok) {
-        setError(isArabic ? "تعذر تحديث حالة الطلب." : "Unable to update application status.");
-        return;
-      }
+      if (!result.ok) { setError(isArabic ? "تعذر تحديث حالة الطلب." : "Unable to update application status."); return; }
       await load(true);
       if (status === "accepted" && result.conversationId) router.push(`/conversations/${result.conversationId}`);
     } catch {
@@ -69,8 +61,7 @@ export default function PublisherOpportunityDetailScreen() {
 
   async function runAction(action: Exclude<PublisherOpportunityAction, "edit">) {
     if (busyAction) return;
-    setBusyAction(action);
-    setError(null);
+    setBusyAction(action); setError(null);
     try {
       const result = await managePublisherOpportunity(opportunityId, { action });
       if (!result.ok) setError(actionError(result.code, locale));
@@ -84,7 +75,7 @@ export default function PublisherOpportunityDetailScreen() {
     const archive = action === "archive";
     Alert.alert(
       archive ? (isArabic ? "أرشفة الفرصة؟" : "Archive opportunity?") : (isArabic ? "إغلاق الفرصة؟" : "Close opportunity?"),
-      archive ? (isArabic ? "سيتم إخفاء الفرصة وأرشفتها. لا يمكن تعديل الفرصة المؤرشفة من التطبيق." : "The opportunity will be hidden and archived. Archived opportunities cannot be edited in the app.") : (isArabic ? "سيتم إخفاء الفرصة وإيقاف استقبال الطلبات الجديدة أو سحبها من المراجعة." : "The opportunity will be hidden and stop receiving applications or be withdrawn from review."),
+      archive ? (isArabic ? "سيتم إخفاء الفرصة وأرشفتها." : "The opportunity will be hidden and archived.") : (isArabic ? "سيتم إيقاف استقبال الطلبات الجديدة." : "New applications will be stopped."),
       [{ text: isArabic ? "إلغاء" : "Cancel", style: "cancel" }, { text: archive ? (isArabic ? "أرشفة" : "Archive") : (isArabic ? "إغلاق" : "Close"), style: "destructive", onPress: () => void runAction(action) }],
     );
   }
@@ -93,7 +84,7 @@ export default function PublisherOpportunityDetailScreen() {
     const accepting = status === "accepted";
     Alert.alert(
       accepting ? (isArabic ? "قبول الموهبة؟" : "Accept talent?") : (isArabic ? "رفض الطلب؟" : "Reject application?"),
-      accepting ? (isArabic ? `سيتم قبول ${applicant.name} وفتح المحادثة للتواصل.` : `${applicant.name} will be accepted and a conversation will be opened.`) : (isArabic ? `سيتم رفض طلب ${applicant.name}. هذا القرار نهائي لهذا الطلب.` : `${applicant.name}'s application will be rejected. This decision is final for this application.`),
+      accepting ? (isArabic ? `سيتم قبول ${applicant.name} وفتح المحادثة للتواصل.` : `${applicant.name} will be accepted and a conversation will be opened.`) : (isArabic ? `سيتم رفض طلب ${applicant.name}.` : `${applicant.name}'s application will be rejected.`),
       [{ text: isArabic ? "إلغاء" : "Cancel", style: "cancel" }, { text: accepting ? (isArabic ? "قبول" : "Accept") : (isArabic ? "رفض" : "Reject"), style: accepting ? "default" : "destructive", onPress: () => void changeStatus(applicant, status) }],
     );
   }
@@ -105,19 +96,18 @@ export default function PublisherOpportunityDetailScreen() {
   const canSubmit = SUBMITTABLE_STATUSES.has(status);
   const published = detail?.opportunity.published === true || status === "published";
 
-  return <ScrollView style={styles.screen} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={[styles.content, { direction: isRtlLocale(locale) ? "rtl" : "ltr" }]} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={theme.accent} />}>
-    <View style={styles.topRow}><Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel={isArabic ? "رجوع" : "Back"} hitSlop={12}><Text style={styles.backIcon}>‹</Text></Pressable><View style={styles.brandMark}><Text style={styles.brandMarkText}>M</Text></View></View>
+  return <ScrollView style={styles.screen} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={[styles.content, { direction: isRtl ? "rtl" : "ltr" }]} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={theme.accent} />}>
+    <View style={styles.topRow}><Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel={isArabic ? "رجوع" : "Back"} hitSlop={12}><Text style={styles.backIcon}>{isRtl ? "›" : "‹"}</Text></Pressable><Text style={styles.topLabel}>{isArabic ? "إدارة الفرصة" : "Manage opportunity"}</Text></View>
     {detail ? <>
       <View style={styles.hero}>
-        <View style={styles.heroGlow} />
-        <Text style={styles.eyebrow}>MLAMH · OWNER</Text>
-        <Text accessibilityRole="header" style={styles.title}>{detail.opportunity.title}</Text>
-        <Text style={styles.heroMeta}>{[detail.opportunity.city, detail.opportunity.countryCode].filter(Boolean).join(" · ")}</Text>
-        <View style={styles.badges}><Text style={styles.goldBadge}>{detail.opportunity.opportunityType}</Text><Text style={styles.outlineBadge}>{statusLabel(status, locale)}</Text></View>
+        <Text style={styles.eyebrow}>{isArabic ? "ملامح للأعمال" : "MLAMH FOR BUSINESS"}</Text>
+        <Text accessibilityRole="header" style={[styles.title, { textAlign: isRtl ? "right" : "left" }]}>{detail.opportunity.title}</Text>
+        <Text style={[styles.heroMeta, { textAlign: isRtl ? "right" : "left" }]}>{[detail.opportunity.city, detail.opportunity.countryCode].filter(Boolean).join(" · ")}</Text>
+        <View style={styles.badges}><Text style={styles.goldBadge}>{opportunityTypeLabel(detail.opportunity.opportunityType, locale)}</Text><Text style={styles.outlineBadge}>{statusLabel(status, locale)}</Text></View>
       </View>
 
       <View style={styles.manageCard}>
-        <View style={styles.manageHeader}><View><Text style={styles.sectionEyebrow}>{isArabic ? "الحالة" : "STATUS"}</Text><Text style={styles.sectionTitle}>{isArabic ? "إدارة الفرصة" : "Manage opportunity"}</Text></View>{busyAction ? <ActivityIndicator color={theme.accent} /> : null}</View>
+        <View style={styles.manageHeader}><View><Text style={styles.sectionEyebrow}>{isArabic ? "الحالة" : "STATUS"}</Text><Text style={styles.sectionTitle}>{statusLabel(status, locale)}</Text></View>{busyAction ? <ActivityIndicator color={theme.accent} /> : null}</View>
         <Text style={styles.body}>{statusMessage(status, locale)}</Text>
         {!archived ? <View style={styles.manageActions}>
           {editable ? <Pressable disabled={Boolean(busyAction)} style={styles.manageSecondary} onPress={() => router.push(`/publisher/opportunities/${opportunityId}/edit`)}><Text style={styles.secondaryButtonText}>{isArabic ? "تعديل" : "Edit"}</Text></Pressable> : null}
@@ -127,47 +117,79 @@ export default function PublisherOpportunityDetailScreen() {
         </View> : null}
       </View>
 
-      <View style={styles.card}><Text style={styles.sectionEyebrow}>{isArabic ? "المشروع" : "PROJECT"}</Text><Text style={styles.sectionTitle}>{isArabic ? "تفاصيل الفرصة" : "Opportunity details"}</Text><Text style={styles.body}>{detail.opportunity.description}</Text><View style={styles.infoRow}><Text style={styles.meta}>{isArabic ? "المقابل" : "Compensation"}</Text><Text style={styles.infoValue}>{[detail.opportunity.budget, detail.opportunity.currency].filter(Boolean).join(" ") || detail.opportunity.compensationType || "—"}</Text></View></View>
+      <OpportunityFacts detail={detail} locale={locale} styles={styles} />
 
-      <View style={styles.sectionHeader}><View><Text style={styles.sectionEyebrow}>{isArabic ? "الطلبات" : "APPLICATIONS"}</Text><Text accessibilityRole="header" style={styles.sectionTitle}>{isArabic ? `المتقدمون (${detail.applicants.length})` : `Applicants (${detail.applicants.length})`}</Text></View></View>
-      {detail.applicants.length === 0 ? <View style={styles.empty}><View style={styles.emptyMark}><Text style={styles.emptyMarkText}>M</Text></View><Text style={styles.body}>{isArabic ? "لا توجد طلبات على هذه الفرصة حتى الآن." : "No applications yet."}</Text></View> : detail.applicants.map((applicant) => <ApplicantCard key={applicant.applicationId} applicant={applicant} locale={locale} styles={styles} busy={busyId === applicant.applicationId} disabled={busyId !== null} onChange={changeStatus} onConfirm={confirmDecision} />)}
+      <View style={styles.sectionHeader}><View><Text style={styles.sectionEyebrow}>{isArabic ? "الطلبات" : "APPLICATIONS"}</Text><Text style={styles.sectionTitle}>{isArabic ? `المتقدمون (${detail.applicants.length})` : `Applicants (${detail.applicants.length})`}</Text></View></View>
+      {detail.applicants.length === 0 ? <View style={styles.empty}><Text style={styles.emptyTitle}>{isArabic ? "لا توجد طلبات حتى الآن" : "No applications yet"}</Text><Text style={styles.body}>{isArabic ? "ستظهر الطلبات هنا بمجرد تقدم المواهب على الفرصة." : "Applications will appear here as talents apply."}</Text></View> : detail.applicants.map((applicant) => <ApplicantCard key={applicant.applicationId} applicant={applicant} locale={locale} styles={styles} busy={busyId === applicant.applicationId} disabled={busyId !== null} onChange={changeStatus} onConfirm={confirmDecision} />)}
       {error ? <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.error}>{error}</Text> : null}
     </> : <View style={styles.empty}><Text accessibilityRole="alert" style={styles.error}>{error}</Text><Pressable style={styles.manageSecondary} onPress={() => void load()}><Text style={styles.secondaryButtonText}>{isArabic ? "إعادة المحاولة" : "Try again"}</Text></Pressable></View>}
   </ScrollView>;
 }
 
+function OpportunityFacts({ detail, locale, styles }: { detail: PublisherOpportunityDetail; locale: "ar" | "en"; styles: ReturnType<typeof createStyles> }) {
+  const ar = locale === "ar";
+  const o = detail.opportunity;
+  const age = o.minAge == null && o.maxAge == null ? null : o.minAge != null && o.maxAge != null ? `${o.minAge}–${o.maxAge}` : o.minAge != null ? `${o.minAge}+` : `≤ ${o.maxAge}`;
+  const roleItems = roleRequirementItems(o.roleRequirements ?? {}, o.opportunityType, locale);
+  const compensation = o.compensationType === "unpaid" ? (ar ? "بدون مقابل" : "Unpaid") : o.compensationType === "negotiable" ? (ar ? "حسب الاتفاق" : "Negotiable") : [o.budget, o.currency].filter(Boolean).join(" ") || (ar ? "غير محدد" : "Not specified");
+  return <View style={styles.card}>
+    <Text style={styles.sectionEyebrow}>{ar ? "التفاصيل" : "DETAILS"}</Text>
+    <Text style={styles.sectionTitle}>{ar ? "تفاصيل الـBrief" : "Brief details"}</Text>
+    <Text style={styles.body}>{o.description}</Text>
+    <View style={styles.factGrid}>
+      <Fact label={ar ? "المقابل" : "Compensation"} value={compensation} styles={styles} />
+      <Fact label={ar ? "الجنس" : "Gender"} value={genderLabel(o.requiredGender, locale)} styles={styles} />
+      {age ? <Fact label={ar ? "العمر" : "Age"} value={age} styles={styles} /> : null}
+      {o.requiredCount ? <Fact label={ar ? "العدد المطلوب" : "Talent count"} value={String(o.requiredCount)} styles={styles} /> : null}
+      {o.workDate ? <Fact label={ar ? "تاريخ العمل" : "Work date"} value={formatDate(o.workDate, locale)} styles={styles} /> : null}
+      {o.workDuration ? <Fact label={ar ? "مدة العمل" : "Duration"} value={durationLabel(o.workDuration, locale)} styles={styles} /> : null}
+      {o.applicationStartDate ? <Fact label={ar ? "بداية التقديم" : "Application start"} value={formatDate(o.applicationStartDate, locale)} styles={styles} /> : null}
+      {o.applicationDeadline ? <Fact label={ar ? "آخر موعد" : "Deadline"} value={formatDate(o.applicationDeadline, locale)} styles={styles} /> : null}
+    </View>
+    {roleItems.length ? <View style={styles.requirements}>{roleItems.map((item) => <View key={item.label} style={styles.requirementRow}><Text style={styles.requirementLabel}>{item.label}</Text><Text style={styles.requirementValue}>{item.value}</Text></View>)}</View> : null}
+  </View>;
+}
+
+function Fact({ label, value, styles }: { label: string; value: string; styles: ReturnType<typeof createStyles> }) { return <View style={styles.fact}><Text style={styles.factLabel}>{label}</Text><Text style={styles.factValue}>{value}</Text></View>; }
 function ApplicantCard({ applicant, locale, styles, busy, disabled, onChange, onConfirm }: { applicant: PublisherApplicant; locale: "ar" | "en"; styles: ReturnType<typeof createStyles>; busy: boolean; disabled: boolean; onChange: (applicant: PublisherApplicant, status: ApplicantDecision) => Promise<void>; onConfirm: (applicant: PublisherApplicant, status: "accepted" | "rejected") => void }) {
-  const isArabic = locale === "ar";
-  const accepted = applicant.status === "accepted";
-  const rejected = applicant.status === "rejected";
-  const shortlisted = applicant.status === "shortlisted";
+  const isArabic = locale === "ar"; const accepted = applicant.status === "accepted"; const rejected = applicant.status === "rejected"; const shortlisted = applicant.status === "shortlisted";
   return <View accessibilityLabel={`${applicant.name}, ${statusLabel(applicant.status, locale)}`} style={styles.applicantCard}><View style={styles.applicantTop}>{applicant.imageUrl ? <Image source={{ uri: applicant.imageUrl }} style={styles.avatar} /> : <View style={styles.avatarFallback}><Text style={styles.avatarInitial}>{applicant.name.slice(0, 1)}</Text></View>}<View style={styles.applicantInfo}><Text style={styles.applicantName}>{applicant.name}</Text><Text style={styles.meta}>{[applicant.category, applicant.city].filter(Boolean).join(" · ")}</Text></View><Text style={styles.statusText}>{statusLabel(applicant.status, locale)}</Text></View>
     {accepted && applicant.conversationId ? <Pressable style={styles.primaryButton} onPress={() => router.push(`/conversations/${applicant.conversationId}`)}><Text style={styles.primaryButtonText}>{isArabic ? "فتح المحادثة" : "Open chat"}</Text></Pressable> : null}
     {!accepted && !rejected ? <View style={styles.actions}>{!shortlisted ? <Pressable disabled={disabled} style={styles.secondaryButton} onPress={() => void onChange(applicant, "shortlisted")}><Text style={styles.secondaryButtonText}>{isArabic ? "قائمة مختصرة" : "Shortlist"}</Text></Pressable> : null}<Pressable disabled={disabled} style={styles.rejectButton} onPress={() => onConfirm(applicant, "rejected")}><Text style={styles.dangerText}>{isArabic ? "رفض" : "Reject"}</Text></Pressable><Pressable disabled={disabled} style={styles.primaryButtonSmall} onPress={() => onConfirm(applicant, "accepted")}><Text style={styles.primaryButtonText}>{busy ? "…" : (isArabic ? "قبول" : "Accept")}</Text></Pressable></View> : null}
   </View>;
 }
 
-function actionError(code: string, locale: "ar" | "en") {
-  const ar: Record<string,string> = { INCOMPLETE_OPPORTUNITY: "أكمل عنوان ووصف الفرصة قبل إرسالها للمراجعة.", MISSING_COUNTRY: "حدد دولة الفرصة قبل إرسالها للمراجعة.", ARCHIVED: "لا يمكن تعديل أو إرسال فرصة مؤرشفة.", FORBIDDEN: "لا تملك صلاحية إدارة هذه الفرصة.", PUBLISHER_NOT_VERIFIED: "يجب توثيق الجهة قبل إرسال الفرصة للمراجعة.", ALREADY_PENDING_REVIEW: "الفرصة قيد المراجعة بالفعل.", ALREADY_PUBLISHED: "الفرصة منشورة بالفعل.", REJECTED: "الفرصة المرفوضة لا يمكن إعادة إرسالها من التطبيق.", EDIT_LOCKED: "لا يمكن تعديل الفرصة في حالتها الحالية." };
-  const en: Record<string,string> = { INCOMPLETE_OPPORTUNITY: "Complete the title and description before submitting for review.", MISSING_COUNTRY: "Set the opportunity country before submitting for review.", ARCHIVED: "Archived opportunities cannot be edited or submitted.", FORBIDDEN: "You do not have permission to manage this opportunity.", PUBLISHER_NOT_VERIFIED: "Your organization must be verified before submitting this opportunity.", ALREADY_PENDING_REVIEW: "This opportunity is already under review.", ALREADY_PUBLISHED: "This opportunity is already published.", REJECTED: "Rejected opportunities cannot be resubmitted from the app.", EDIT_LOCKED: "This opportunity cannot be edited in its current state." };
-  return (locale === "ar" ? ar : en)[code] ?? (locale === "ar" ? "تعذر تحديث الفرصة." : "Unable to update opportunity.");
+function roleRequirementItems(value: Record<string, unknown>, type: string, locale: "ar" | "en") {
+  const ar = locale === "ar"; const items: Array<{ label: string; value: string }> = [];
+  if (type === "actor") {
+    const languages = Array.isArray(value.languages) ? value.languages.filter((x): x is string => typeof x === "string") : [];
+    const dialects = Array.isArray(value.dialects) ? value.dialects.filter((x): x is string => typeof x === "string") : [];
+    if (languages.length) items.push({ label: ar ? "اللغات" : "Languages", value: languages.join(ar ? "، " : ", ") });
+    if (dialects.length) items.push({ label: ar ? "اللهجات" : "Dialects", value: dialects.join(ar ? "، " : ", ") });
+  } else if (type === "model") {
+    const modeling = Array.isArray(value.modeling_types) ? value.modeling_types.filter((x): x is string => typeof x === "string") : [];
+    if (modeling.length) items.push({ label: ar ? "أنواع المودل" : "Modeling types", value: modeling.join(ar ? "، " : ", ") });
+    if (value.min_height_cm != null) items.push({ label: ar ? "الحد الأدنى للطول" : "Minimum height", value: `${value.min_height_cm} ${ar ? "سم" : "cm"}` });
+    if (typeof value.hair_color === "string" && value.hair_color) items.push({ label: ar ? "لون الشعر" : "Hair color", value: value.hair_color });
+  }
+  return items;
 }
-function statusMessage(status: string, locale: "ar" | "en") {
-  const ar: Record<string,string> = { draft: "المسودة خاصة بك. عدّلها ثم أرسلها للمراجعة.", open: "المسودة خاصة بك. عدّلها ثم أرسلها للمراجعة.", pending_review: "تم إرسال الفرصة للمراجعة ولن تظهر للمواهب حتى اعتمادها.", needs_changes: "طلبت الإدارة تعديلات. حدّث الفرصة ثم أرسلها للمراجعة مجددًا.", published: "الفرصة منشورة وتستقبل الطلبات.", closed: "الفرصة مغلقة ويمكن تعديلها وإرسالها للمراجعة مجددًا.", rejected: "تم رفض هذه الفرصة. يمكنك أرشفتها وإنشاء فرصة جديدة.", archived: "هذه الفرصة مؤرشفة ومحفوظة للرجوع إليها." };
-  const en: Record<string,string> = { draft: "This draft is private. Edit it, then submit it for review.", open: "This draft is private. Edit it, then submit it for review.", pending_review: "This opportunity is under review and will not be visible to talent until approved.", needs_changes: "Changes were requested. Update the opportunity, then submit it again.", published: "This opportunity is published and accepting applications.", closed: "This opportunity is closed. You can edit and submit it for review again.", rejected: "This opportunity was rejected. Archive it and create a new opportunity.", archived: "This opportunity is archived and retained for reference." };
-  return (locale === "ar" ? ar : en)[status] ?? "";
-}
+function opportunityTypeLabel(value: string, locale: "ar" | "en") { return value === "actor" ? (locale === "ar" ? "ممثل" : "Actor") : value === "model" ? (locale === "ar" ? "مودل" : "Model") : value.replaceAll("_", " "); }
+function genderLabel(value: string | null | undefined, locale: "ar" | "en") { if (value === "male") return locale === "ar" ? "ذكر" : "Male"; if (value === "female") return locale === "ar" ? "أنثى" : "Female"; return locale === "ar" ? "الجميع" : "Any"; }
+function durationLabel(value: string, locale: "ar" | "en") { const map: Record<string, { ar: string; en: string }> = { "1_hour": { ar: "ساعة", en: "1 hour" }, "2_hours": { ar: "ساعتان", en: "2 hours" }, "4_hours": { ar: "4 ساعات", en: "4 hours" }, full_day: { ar: "يوم كامل", en: "Full day" } }; return map[value]?.[locale] ?? value.replaceAll("_", " "); }
+function formatDate(value: string, locale: "ar" | "en") { const date = new Date(value); return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString(locale === "ar" ? "ar-SA-u-nu-latn" : "en-US", { year: "numeric", month: "short", day: "numeric" }); }
+function actionError(code: string, locale: "ar" | "en") { const ar: Record<string,string> = { INCOMPLETE_OPPORTUNITY: "أكمل عنوان ووصف الفرصة قبل إرسالها للمراجعة.", MISSING_COUNTRY: "حدد دولة الفرصة قبل إرسالها للمراجعة.", ARCHIVED: "لا يمكن تعديل أو إرسال فرصة مؤرشفة.", FORBIDDEN: "لا تملك صلاحية إدارة هذه الفرصة.", PUBLISHER_NOT_VERIFIED: "يجب توثيق الجهة قبل إرسال الفرصة للمراجعة.", ALREADY_PENDING_REVIEW: "الفرصة قيد المراجعة بالفعل.", ALREADY_PUBLISHED: "الفرصة منشورة بالفعل.", REJECTED: "الفرصة المرفوضة لا يمكن إعادة إرسالها من التطبيق.", EDIT_LOCKED: "لا يمكن تعديل الفرصة في حالتها الحالية." }; const en: Record<string,string> = { INCOMPLETE_OPPORTUNITY: "Complete the title and description before submitting for review.", MISSING_COUNTRY: "Set the opportunity country before submitting for review.", ARCHIVED: "Archived opportunities cannot be edited or submitted.", FORBIDDEN: "You do not have permission to manage this opportunity.", PUBLISHER_NOT_VERIFIED: "Your organization must be verified before submitting this opportunity.", ALREADY_PENDING_REVIEW: "This opportunity is already under review.", ALREADY_PUBLISHED: "This opportunity is already published.", REJECTED: "Rejected opportunities cannot be resubmitted from the app.", EDIT_LOCKED: "This opportunity cannot be edited in its current state." }; return (locale === "ar" ? ar : en)[code] ?? (locale === "ar" ? "تعذر تحديث الفرصة." : "Unable to update opportunity."); }
+function statusMessage(status: string, locale: "ar" | "en") { const ar: Record<string,string> = { draft: "المسودة خاصة بك. عدّلها ثم أرسلها للمراجعة.", open: "المسودة خاصة بك. عدّلها ثم أرسلها للمراجعة.", pending_review: "تم إرسال الفرصة للمراجعة ولن تظهر للمواهب حتى اعتمادها.", needs_changes: "طلبت الإدارة تعديلات. حدّث الفرصة ثم أرسلها للمراجعة مجددًا.", published: "الفرصة منشورة وتستقبل الطلبات.", closed: "الفرصة مغلقة ويمكن تعديلها وإرسالها للمراجعة مجددًا.", rejected: "تم رفض هذه الفرصة.", archived: "هذه الفرصة مؤرشفة." }; const en: Record<string,string> = { draft: "This draft is private. Edit it, then submit it for review.", open: "This draft is private. Edit it, then submit it for review.", pending_review: "This opportunity is under review and will not be visible to talent until approved.", needs_changes: "Changes were requested. Update the opportunity, then submit it again.", published: "This opportunity is published and accepting applications.", closed: "This opportunity is closed. You can edit and submit it for review again.", rejected: "This opportunity was rejected.", archived: "This opportunity is archived." }; return (locale === "ar" ? ar : en)[status] ?? ""; }
 function statusLabel(status: string, locale: "ar" | "en") { const ar: Record<string,string> = { draft: "مسودة", open: "مسودة", pending_review: "قيد المراجعة", needs_changes: "تحتاج تعديل", published: "منشورة", closed: "مغلقة", archived: "مؤرشفة", submitted: "جديد", pending: "قيد المراجعة", shortlisted: "مختصر", accepted: "مقبول", rejected: "مرفوض" }; const en: Record<string,string> = { draft: "Draft", open: "Draft", pending_review: "In review", needs_changes: "Needs changes", published: "Published", closed: "Closed", archived: "Archived", submitted: "New", pending: "Review", shortlisted: "Shortlisted", accepted: "Accepted", rejected: "Rejected" }; return (locale === "ar" ? ar : en)[status] ?? status; }
 
-function createStyles(theme: typeof lightTheme | typeof darkTheme) { return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: theme.background }, centered: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: theme.background }, content: { paddingHorizontal: 16, paddingTop: 54, paddingBottom: 68, gap: 14 },
-  topRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, backIcon: { color: theme.text, fontSize: 32, lineHeight: 36 }, brandMark: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, borderColor: theme.accent, alignItems: "center", justifyContent: "center" }, brandMarkText: { color: theme.accent, fontWeight: "800", fontSize: 17 },
-  hero: { minHeight: 232, overflow: "hidden", borderRadius: 28, backgroundColor: theme.charcoal, padding: 20, justifyContent: "flex-end", gap: 9, borderWidth: 1, borderColor: theme.bronze }, heroGlow: { position: "absolute", width: 210, height: 210, borderRadius: 105, right: -65, top: -55, backgroundColor: "#D4A0171F" }, eyebrow: { color: theme.accent, fontSize: 11, fontWeight: "800", letterSpacing: 2 }, title: { color: theme.ivory, fontSize: 29, lineHeight: 37, fontWeight: "700" }, heroMeta: { color: theme.ivory, opacity: 0.76, fontSize: 12 },
-  meta: { color: theme.muted, fontSize: 11, lineHeight: 18 }, badges: { flexDirection: "row", gap: 8, flexWrap: "wrap" }, goldBadge: { color: theme.charcoal, backgroundColor: theme.accent, borderRadius: 14, overflow: "hidden", paddingHorizontal: 11, paddingVertical: 6, fontSize: 10, fontWeight: "800" }, outlineBadge: { color: theme.ivory, borderWidth: 1, borderColor: theme.bronze, borderRadius: 14, paddingHorizontal: 11, paddingVertical: 6, fontSize: 10 },
-  manageCard: { gap: 14, padding: 18, borderWidth: 1, borderColor: theme.border, borderRadius: 24, backgroundColor: theme.surface }, manageHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" }, manageActions: { flexDirection: "row", flexWrap: "wrap", gap: 8 }, sectionEyebrow: { color: theme.accent, fontSize: 10, fontWeight: "800", letterSpacing: 1.6 }, sectionTitle: { color: theme.text, fontSize: 20, fontWeight: "700", marginTop: 3 },
-  managePrimary: { minWidth: 140, minHeight: 48, flexGrow: 1, backgroundColor: theme.accent, borderRadius: 16, paddingVertical: 12, alignItems: "center", justifyContent: "center" }, manageSecondary: { minWidth: 90, minHeight: 48, flexGrow: 1, borderWidth: 1, borderColor: theme.border, borderRadius: 16, paddingVertical: 12, alignItems: "center", justifyContent: "center" }, manageDanger: { minWidth: 90, minHeight: 48, borderWidth: 1, borderColor: theme.bronze, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 12, alignItems: "center", justifyContent: "center" },
-  card: { gap: 12, padding: 18, borderWidth: 1, borderColor: theme.border, borderRadius: 24, backgroundColor: theme.surface }, sectionHeader: { marginTop: 5 }, body: { color: theme.muted, fontSize: 14, lineHeight: 23 }, infoRow: { flexDirection: "row", justifyContent: "space-between", gap: 12, borderTopWidth: 1, borderTopColor: theme.border, paddingTop: 12 }, infoValue: { color: theme.text, fontSize: 12, fontWeight: "800" },
-  applicantCard: { gap: 14, padding: 16, borderWidth: 1, borderColor: theme.border, borderRadius: 22, backgroundColor: theme.surface }, applicantTop: { flexDirection: "row", alignItems: "center", gap: 12 }, avatar: { width: 54, height: 54, borderRadius: 27, backgroundColor: theme.border }, avatarFallback: { width: 54, height: 54, borderRadius: 27, alignItems: "center", justifyContent: "center", backgroundColor: theme.chip, borderWidth: 1, borderColor: theme.border }, avatarInitial: { color: theme.accent, fontSize: 22, fontWeight: "700" }, applicantInfo: { flex: 1, gap: 3 }, applicantName: { color: theme.text, fontSize: 17, fontWeight: "700" }, statusText: { color: theme.accent, fontSize: 10, fontWeight: "800" },
-  actions: { flexDirection: "row", gap: 8 }, primaryButton: { backgroundColor: theme.accent, borderRadius: 16, minHeight: 48, paddingVertical: 13, alignItems: "center", justifyContent: "center" }, primaryButtonSmall: { flex: 1, backgroundColor: theme.accent, borderRadius: 14, minHeight: 44, paddingVertical: 11, alignItems: "center", justifyContent: "center" }, primaryButtonText: { color: theme.charcoal, fontSize: 12, fontWeight: "800" }, secondaryButton: { flex: 1.2, minHeight: 44, borderWidth: 1, borderColor: theme.border, borderRadius: 14, paddingVertical: 11, alignItems: "center", justifyContent: "center" }, secondaryButtonText: { color: theme.text, fontSize: 11, fontWeight: "700" }, rejectButton: { flex: 1, minHeight: 44, borderWidth: 1, borderColor: theme.bronze, borderRadius: 14, paddingVertical: 11, alignItems: "center", justifyContent: "center" }, dangerText: { color: theme.bronze, fontSize: 11, fontWeight: "800" },
-  empty: { minHeight: 150, alignItems: "center", justifyContent: "center", gap: 12, borderWidth: 1, borderStyle: "dashed", borderColor: theme.border, borderRadius: 22, padding: 20 }, emptyMark: { width: 48, height: 48, borderRadius: 24, borderWidth: 1, borderColor: theme.accent, alignItems: "center", justifyContent: "center" }, emptyMarkText: { color: theme.accent, fontWeight: "800" }, error: { color: theme.bronze, fontSize: 13, lineHeight: 19 },
+function createStyles(theme: typeof darkTheme) { return StyleSheet.create({
+  screen: { flex: 1, backgroundColor: theme.background }, centered: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: theme.background }, content: { paddingHorizontal: 18, paddingTop: 52, paddingBottom: 68, gap: 15 },
+  topRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, backIcon: { color: theme.text, fontSize: 30, lineHeight: 34 }, topLabel: { color: theme.muted, fontSize: 11, fontWeight: "700" },
+  hero: { paddingVertical: 8, gap: 8 }, eyebrow: { color: theme.accent, fontSize: 10, fontWeight: "900", letterSpacing: 1.7 }, title: { color: theme.text, fontSize: 30, lineHeight: 38, fontWeight: "700" }, heroMeta: { color: theme.muted, fontSize: 12 }, meta: { color: theme.muted, fontSize: 11, lineHeight: 18 }, badges: { flexDirection: "row", gap: 7, flexWrap: "wrap" }, goldBadge: { color: theme.background, backgroundColor: theme.accent, borderRadius: 11, overflow: "hidden", paddingHorizontal: 10, paddingVertical: 5, fontSize: 9, fontWeight: "900" }, outlineBadge: { color: theme.text, borderWidth: 1, borderColor: theme.border, borderRadius: 11, paddingHorizontal: 10, paddingVertical: 5, fontSize: 9 },
+  manageCard: { gap: 13, padding: 16, borderWidth: 1, borderColor: theme.border, borderRadius: 16, backgroundColor: theme.surface }, manageHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" }, manageActions: { flexDirection: "row", flexWrap: "wrap", gap: 8 }, sectionEyebrow: { color: theme.accent, fontSize: 9, fontWeight: "900", letterSpacing: 1.5 }, sectionTitle: { color: theme.text, fontSize: 19, fontWeight: "800", marginTop: 2 }, body: { color: theme.muted, fontSize: 13, lineHeight: 21 },
+  managePrimary: { minWidth: 140, minHeight: 46, flexGrow: 1, backgroundColor: theme.accent, borderRadius: 12, paddingVertical: 11, alignItems: "center", justifyContent: "center" }, manageSecondary: { minWidth: 90, minHeight: 46, flexGrow: 1, borderWidth: 1, borderColor: theme.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, alignItems: "center", justifyContent: "center" }, manageDanger: { minWidth: 90, minHeight: 46, borderWidth: 1, borderColor: "#C84F4F55", borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, alignItems: "center", justifyContent: "center" },
+  card: { gap: 12, padding: 16, borderWidth: 1, borderColor: theme.border, borderRadius: 16, backgroundColor: theme.surface }, sectionHeader: { marginTop: 6 }, factGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 }, fact: { minWidth: "46%", flexGrow: 1, borderTopWidth: 1, borderTopColor: theme.border, paddingTop: 10, gap: 3 }, factLabel: { color: theme.muted, fontSize: 9, fontWeight: "700" }, factValue: { color: theme.text, fontSize: 12, fontWeight: "800" }, requirements: { gap: 8, borderTopWidth: 1, borderTopColor: theme.border, paddingTop: 10 }, requirementRow: { flexDirection: "row", justifyContent: "space-between", gap: 12 }, requirementLabel: { color: theme.muted, fontSize: 10 }, requirementValue: { color: theme.text, fontSize: 11, fontWeight: "700", flex: 1, textAlign: "right" },
+  applicantCard: { gap: 13, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: theme.border }, applicantTop: { flexDirection: "row", alignItems: "center", gap: 11 }, avatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: theme.surface }, avatarFallback: { width: 50, height: 50, borderRadius: 25, alignItems: "center", justifyContent: "center", backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border }, avatarInitial: { color: theme.accent, fontSize: 20, fontWeight: "800" }, applicantInfo: { flex: 1, gap: 3 }, applicantName: { color: theme.text, fontSize: 16, fontWeight: "800" }, statusText: { color: theme.accent, fontSize: 9, fontWeight: "900" },
+  actions: { flexDirection: "row", gap: 8 }, primaryButton: { backgroundColor: theme.accent, borderRadius: 12, minHeight: 46, paddingVertical: 12, alignItems: "center", justifyContent: "center" }, primaryButtonSmall: { flex: 1, backgroundColor: theme.accent, borderRadius: 12, minHeight: 42, paddingVertical: 10, alignItems: "center", justifyContent: "center" }, primaryButtonText: { color: theme.background, fontSize: 11, fontWeight: "900" }, secondaryButton: { flex: 1.2, minHeight: 42, borderWidth: 1, borderColor: theme.border, borderRadius: 12, paddingVertical: 10, alignItems: "center", justifyContent: "center" }, secondaryButtonText: { color: theme.text, fontSize: 11, fontWeight: "700" }, rejectButton: { flex: 1, minHeight: 42, borderWidth: 1, borderColor: "#C84F4F55", borderRadius: 12, paddingVertical: 10, alignItems: "center", justifyContent: "center" }, dangerText: { color: "#E59A9A", fontSize: 11, fontWeight: "800" },
+  empty: { minHeight: 150, alignItems: "center", justifyContent: "center", gap: 8, borderWidth: 1, borderColor: theme.border, borderRadius: 16, padding: 20 }, emptyTitle: { color: theme.text, fontSize: 16, fontWeight: "800" }, error: { color: "#E59A9A", fontSize: 13, lineHeight: 19 },
 }); }
