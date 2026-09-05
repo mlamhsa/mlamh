@@ -12,6 +12,7 @@ function statusFor(code: string) {
   if (code === "UNAUTHENTICATED") return 401;
   if (code === "ACCOUNT_RESTRICTED") return 403;
   if (code === "NOT_PUBLISHER" || code === "PUBLISHER_NOT_FOUND") return 404;
+  if (code === "PUBLISHER_TYPE_LOCKED") return 409;
   if (code === "PROFILE_INCOMPLETE" || code === "INVALID_PUBLISHER_TYPE" || code === "INVALID_IMAGE") return 400;
   return 500;
 }
