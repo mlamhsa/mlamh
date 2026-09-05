@@ -5,7 +5,7 @@
     "scheme": "mlamh",
     "version": "0.1.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
     "icon": "./assets/app-icon.png",
     "plugins": [
       "expo-router",
@@ -16,10 +16,10 @@
           "image": "./assets/app-icon.png",
           "imageWidth": 160,
           "resizeMode": "contain",
-          "backgroundColor": "#F5F1E8",
+          "backgroundColor": "#050505",
           "dark": {
             "image": "./assets/app-icon.png",
-            "backgroundColor": "#2E2E2E"
+            "backgroundColor": "#050505"
           }
         }
       ],
@@ -34,7 +34,7 @@
       [
         "expo-notifications",
         {
-          "color": "#D4A017",
+          "color": "#C9A962",
           "defaultChannel": "mlamh-updates",
           "enableBackgroundRemoteNotifications": false
         }
@@ -57,7 +57,7 @@
       "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/app-icon.png",
-        "backgroundColor": "#2E2E2E"
+        "backgroundColor": "#050505"
       },
       "intentFilters": [
         {
