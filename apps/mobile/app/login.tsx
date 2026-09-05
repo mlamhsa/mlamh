@@ -5,9 +5,9 @@ import { type Href, router, useLocalSearchParams } from "expo-router";
 import { getMobileAccountContext } from "@/lib/account";
 import { getAccountHomeHref } from "@/lib/account-routing";
 import { getDeviceLocale, isRtlLocale } from "@/lib/i18n";
+import { getSafePostLoginPath } from "@/lib/post-login-route";
 import { supabase } from "@/lib/supabase";
 import { darkTheme } from "@/lib/theme";
-import { getSafePostLoginPath } from "../../../lib/mobile/post-login-route";
 
 async function resolvePostLoginDestination(nextParam?: string): Promise<Href> {
   const account = await getMobileAccountContext().catch(() => null);
