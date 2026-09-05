@@ -24,15 +24,33 @@ export type MobileAccountContext = {
   countryCode: string | null;
 };
 
+function isAccountContext(value: unknown): value is MobileAccountContext {
+  if (!value || typeof value !== "object") return false;
+  const account = value as Partial<MobileAccountContext>;
+  return account.type === "talent" || account.type === "publisher";
+}
+
 export async function getMobileAccountContext() {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.access_token) return null;
-  const response = await fetch(`${API_BASE_URL}/api/account/me`, {
-    headers: { Accept: "application/json", Authorization: `Bearer ${session.access_token}` },
-  });
-  if (!response.ok) return null;
-  const payload = await response.json() as { ok: true; account: MobileAccountContext };
-  return payload.account;
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/api/account/me`, {
+      headers: { Accept: "application/json", Authorization: `Bearer ${session.access_token}` },
+    });
+  } catch {
+    return null;
+  }
+
+  const raw = await response.text().catch(() => "");
+  if (!response.ok || !raw) return null;
+
+  let payload: unknown;
+  try { payload = JSON.parse(raw); } catch { return null; }
+  if (!payload || typeof payload !== "object") return null;
+  const account = (payload as { account?: unknown }).account;
+  return isAccountContext(account) ? account : null;
 }
 
 export async function resolveMobileMarket() {
