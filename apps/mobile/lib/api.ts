@@ -49,6 +49,10 @@ export type MobileTalentProfile = {
 export type MobileTalentProfileUpdateInput = {
   displayName?: string; bio?: string; skills?: string[]; citySlug?: string | null; gender?: string | null; dateOfBirth?: string | null;
   nationalitySlug?: string | null; heightCm?: number | null; availabilityStatus?: string | null;
+  languages?: string[]; dialects?: string[]; weightKg?: number | null; eyeColor?: string | null; hairColor?: string | null;
+  hairType?: string | null; skinColor?: string | null; clothingSize?: string | null; shoeSize?: number | null;
+  actingAgeMin?: number | null; actingAgeMax?: number | null; modelingTypes?: string[]; experienceYears?: number | null;
+  readyToTravel?: boolean; hasPassport?: boolean; hasCar?: boolean; workOutsideCity?: boolean; workOutsideCountry?: boolean;
 };
 
 type OpportunitiesResponse = { items: MobileOpportunity[]; market: string; locale: AppLocale };
