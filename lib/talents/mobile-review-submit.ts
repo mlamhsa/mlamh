@@ -4,8 +4,6 @@ import { getTalentProfileReviewReadiness } from "@/lib/talent/profile-review-rea
 import { TalentProfileService } from "@/lib/services/talent/TalentProfileService";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-const MIN_REVIEW_COMPLETION = 35;
-
 export async function submitMobileTalentProfileReview(userId: string, locale: "ar" | "en") {
   const isArabic = locale === "ar";
   const admin = createAdminClient();
@@ -38,17 +36,6 @@ export async function submitMobileTalentProfileReview(userId: string, locale: "a
   }
 
   const completion = TalentProfileService.calculateCompletion(talent);
-  if (completion < MIN_REVIEW_COMPLETION) {
-    return {
-      ok: false as const,
-      code: "PROFILE_INCOMPLETE" as const,
-      completion,
-      message: isArabic
-        ? `أكمل ملفك إلى ${MIN_REVIEW_COMPLETION}% على الأقل قبل إرساله للمراجعة. نسبة اكتمال ملفك الحالية ${completion}%.`
-        : `Complete at least ${MIN_REVIEW_COMPLETION}% of your profile before submitting it for review. Your current profile completion is ${completion}%.`,
-    };
-  }
-
   const readiness = getTalentProfileReviewReadiness(talent);
   if (!readiness.canSubmitForReview) {
     const missingFields = readiness.missingRequirements
@@ -58,6 +45,7 @@ export async function submitMobileTalentProfileReview(userId: string, locale: "a
       ok: false as const,
       code: "MISSING_REQUIREMENTS" as const,
       completion,
+      missingRequirements: readiness.missingRequirements.map((requirement) => ({ key: requirement.key, ar: requirement.ar, en: requirement.en })),
       message: isArabic
         ? `أكمل البيانات المطلوبة قبل إرسال الملف للمراجعة: ${missingFields}`
         : `Complete the required information before submitting your profile: ${missingFields}`,
