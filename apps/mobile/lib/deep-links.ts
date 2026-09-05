@@ -27,6 +27,7 @@ export function getMobileHrefFromUrl(rawUrl: string): Href | null {
 
   if (segments[0] === "onboarding") return "/onboarding" as Href;
   if (segments[0] === "reset-password" || segments[0] === "forgot-password") return `/${segments[0]}` as Href;
+  if (segments[0] === "casting") return "/casting" as Href;
   if (segments[0] === "opportunities" && segments[1]) return `/opportunities/${encodeURIComponent(segments[1])}` as Href;
   if (segments[0] === "talent" && segments[1]) return `/talents/${encodeURIComponent(segments[1])}` as Href;
   if (segments[0] === "talents" && segments[1]) return `/talents/${encodeURIComponent(segments[1])}` as Href;
