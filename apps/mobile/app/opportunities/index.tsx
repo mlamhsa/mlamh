@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { router } from "expo-router";
 
 import { AppTabBar } from "@/components/AppTabBar";
+import { ScreenSkeleton } from "@/components/ScreenSkeleton";
 import { resolveMobileMarket } from "@/lib/account";
 import { getNotifications, getPublicOpportunities, type MobileOpportunity } from "@/lib/api";
 import { getDeviceLocale, isRtlLocale } from "@/lib/i18n";
@@ -61,7 +62,7 @@ export default function OpportunitiesScreen() {
   const regular = filtered.filter((item) => !item.featured);
   const textAlign = isRtl ? "right" : "left";
 
-  if (loading) return <View style={styles.centered}><ActivityIndicator size="large" color={theme.accent} /></View>;
+  if (loading) return <ScreenSkeleton variant="list" />;
 
   return <View style={styles.screen}>
     <FlatList
@@ -124,7 +125,7 @@ function OpportunityCard({ item, locale, styles, isRtl }: { item: MobileOpportun
 function humanizeType(value: string) { return value.replaceAll("_", " ").replace(/\b\w/g, (m) => m.toUpperCase()); }
 
 function createStyles(theme: typeof darkTheme) { return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: theme.background }, centered: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: theme.background }, content: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 30, gap: 12 },
+  screen: { flex: 1, backgroundColor: theme.background }, content: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 30, gap: 12 },
   topBar: { marginTop: 18, flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 18 }, topBarRtl: { flexDirection: "row-reverse" }, titleBlock: { flex: 1, gap: 5 }, brand: { color: theme.accent, fontSize: 14, lineHeight: 20, fontWeight: "800", letterSpacing: 1.2 }, pageTitle: { color: theme.text, fontSize: 32, lineHeight: 39, fontWeight: "700" }, pageSubtitle: { color: theme.muted, fontSize: 13, lineHeight: 20, maxWidth: 390 },
   notificationButton: { minWidth: 42, height: 42, borderRadius: 21, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, alignItems: "center", justifyContent: "center", paddingHorizontal: 9 }, notificationText: { color: theme.accent, fontSize: 12, fontWeight: "800" },
   marketRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 18 }, marketRowRtl: { flexDirection: "row-reverse" }, marketLabel: { color: theme.text, fontSize: 13, fontWeight: "700" }, marketCount: { color: theme.muted, fontSize: 12 },
