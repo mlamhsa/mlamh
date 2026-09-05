@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, FlatList, Image, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { FlatList, Image, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 
 import { AppTabBar } from "@/components/AppTabBar";
+import { ScreenSkeleton } from "@/components/ScreenSkeleton";
 import { getConversations, getNotifications, type MobileConversation } from "@/lib/api";
 import { getDeviceLocale, isRtlLocale } from "@/lib/i18n";
 import { darkTheme } from "@/lib/theme";
@@ -41,7 +42,7 @@ export default function MessagesScreen() {
 
   useEffect(() => { void load(); }, [load]);
 
-  if (loading) return <View style={styles.centered}><ActivityIndicator size="large" color={theme.accent} /></View>;
+  if (loading) return <ScreenSkeleton variant="list" locale={locale} />;
 
   return <View style={styles.screen}>
     <FlatList
@@ -76,7 +77,7 @@ function ConversationRow({ item, locale, styles }: { item: MobileConversation; l
 }
 
 function createStyles(theme: typeof darkTheme) { return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: theme.background }, centered: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: theme.background }, content: { paddingHorizontal: 20, paddingTop: 54, paddingBottom: 28 },
+  screen: { flex: 1, backgroundColor: theme.background }, content: { paddingHorizontal: 20, paddingTop: 54, paddingBottom: 28 },
   header: { gap: 10, marginBottom: 20 }, brand: { color: theme.accent, fontSize: 17, fontWeight: "800", letterSpacing: 1.1 }, titleRow: { flexDirection: "row", alignItems: "center", gap: 9 }, title: { color: theme.text, fontSize: 31, lineHeight: 38, fontWeight: "700" }, subtitle: { color: theme.muted, fontSize: 13, lineHeight: 20, maxWidth: 430 }, unreadPill: { minWidth: 24, height: 24, borderRadius: 12, backgroundColor: theme.accent, paddingHorizontal: 7, alignItems: "center", justifyContent: "center" }, unreadPillText: { color: theme.background, fontSize: 10, fontWeight: "900" },
   row: { minHeight: 88, flexDirection: "row", alignItems: "center", gap: 12, borderBottomWidth: 1, borderBottomColor: theme.border, paddingVertical: 14 }, pressed: { opacity: 0.68 }, avatar: { width: 50, height: 50, borderRadius: 25, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface }, avatarFallback: { alignItems: "center", justifyContent: "center" }, avatarUnread: { borderColor: theme.accent }, avatarInitial: { color: theme.accent, fontSize: 18, fontWeight: "800" },
   rowBody: { flex: 1, gap: 3 }, rowTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 8 }, partyName: { flex: 1, color: theme.text, fontSize: 15, fontWeight: "700" }, partyNameUnread: { fontWeight: "900" }, time: { color: theme.muted, fontSize: 9 }, opportunity: { color: theme.accent, fontSize: 10, fontWeight: "700" }, previewRow: { flexDirection: "row", alignItems: "center", gap: 8 }, preview: { flex: 1, color: theme.muted, fontSize: 11, lineHeight: 17 }, previewUnread: { color: theme.text, fontWeight: "700" }, messageBadge: { minWidth: 20, height: 20, borderRadius: 10, backgroundColor: theme.accent, alignItems: "center", justifyContent: "center", paddingHorizontal: 5 }, messageBadgeText: { color: theme.background, fontSize: 8, fontWeight: "900" }, chevron: { color: theme.muted, fontSize: 20 },
