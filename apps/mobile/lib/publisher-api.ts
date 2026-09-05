@@ -97,6 +97,7 @@ export type ConversationsResponse = { items: MobileConversation[]; unreadCount: 
 export type PublisherApplicant = {
   applicationId: number;
   talentId: number;
+  talentSlug: string | null;
   name: string;
   imageUrl: string | null;
   category: string | null;
