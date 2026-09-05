@@ -1,18 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View, useColorScheme } from "react-native";
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 
 import { getMobileAccountContext } from "@/lib/account";
 import { getDeviceLocale, isRtlLocale } from "@/lib/i18n";
 import { supabase } from "@/lib/supabase";
-import { darkTheme, lightTheme } from "@/lib/theme";
+import { darkTheme } from "@/lib/theme";
 
 export default function WelcomeScreen() {
   const locale = getDeviceLocale();
-  const theme = useColorScheme() === "dark" ? darkTheme : lightTheme;
+  const isArabic = locale === "ar";
+  const isRtl = isRtlLocale(locale);
+  const theme = darkTheme;
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [checking, setChecking] = useState(true);
-  const isArabic = locale === "ar";
 
   useEffect(() => {
     let active = true;
@@ -20,115 +21,59 @@ export default function WelcomeScreen() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!active) return;
       if (!session) { setChecking(false); return; }
-      const account = await getMobileAccountContext();
+      const account = await getMobileAccountContext().catch(() => null);
       if (!active) return;
       if (account?.type === "publisher") { router.replace("/publisher"); return; }
       if (account?.type === "talent") {
         if (account.onboardingStatus !== "completed" || !account.entityId) { router.replace("/onboarding"); return; }
-        router.replace("/opportunities");
-        return;
+        router.replace("/opportunities"); return;
       }
       router.replace("/onboarding");
     })();
     return () => { active = false; };
   }, []);
 
-  if (checking) return <View style={styles.centered}><ActivityIndicator size="large" color={theme.accent} /></View>;
+  if (checking) return <View style={styles.centered}><Text style={[styles.loadingBrand, isArabic && styles.arabicText]}>{isArabic ? "ملامح" : "MLAMH"}</Text><ActivityIndicator size="small" color={theme.accent} /></View>;
 
-  const proofItems = isArabic
-    ? ["فرص حقيقية", "ملف احترافي", "تواصل بعد القبول"]
-    : ["Real opportunities", "Professional portfolio", "Chat after acceptance"];
+  const textAlign = isRtl ? "right" : "left";
+  return <ScrollView style={styles.screen} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+    <View style={[styles.content, { direction: isRtl ? "rtl" : "ltr" }]}>
+      <View style={[styles.topRow, isRtl && styles.topRowRtl]}><Text style={[styles.brand, isArabic && styles.arabicText]}>{isArabic ? "ملامح" : "MLAMH"}</Text><Text style={[styles.platform, isArabic && styles.arabicText]}>{isArabic ? "المواهب والفرص" : "Talent & Opportunities"}</Text></View>
 
-  return (
-    <ScrollView
-      style={styles.screen}
-      contentContainerStyle={styles.scrollContent}
-      showsVerticalScrollIndicator={false}
-    >
-      <View style={[styles.content, { direction: isRtlLocale(locale) ? "rtl" : "ltr" }]}>
-        <View pointerEvents="none" style={styles.ambientOne} />
-        <View pointerEvents="none" style={styles.ambientTwo} />
-
-        <View style={styles.topRow}>
-          <View style={styles.platformPill}><View style={styles.platformDot} /><Text style={styles.platformText}>{isArabic ? "منصة المواهب والفرص" : "Talent & Opportunities"}</Text></View>
-          <Text style={styles.versionText}>MLAMH</Text>
-        </View>
-
-        <View style={styles.hero}>
-          <View style={styles.markShell}>
-            <View style={styles.markRing}><Text accessibilityRole="header" style={styles.mark}>M</Text></View>
-          </View>
-          <Text style={styles.brand}>MLAMH</Text>
-          <Text style={styles.brandArabic}>ملامح</Text>
-          <Text style={styles.eyebrow}>{isArabic ? "اكتشف. تقدّم. تواصل." : "DISCOVER. APPLY. CONNECT."}</Text>
-          <Text style={styles.headline}>{isArabic ? "مكانك في عالم الإبداع يبدأ من هنا" : "Your place in the creative world starts here"}</Text>
-          <Text style={styles.subheadline}>{isArabic ? "اكتشف فرصًا مناسبة، ابنِ ملفك المهني، وتواصل مباشرة بعد قبولك." : "Discover relevant opportunities, build your portfolio, and connect directly after acceptance."}</Text>
-        </View>
-
-        <View style={styles.proofCard}>
-          {proofItems.map((item, index) => (
-            <View key={item} style={[styles.proofItem, index > 0 && styles.proofDivider]}>
-              <View style={styles.proofIcon}><Text style={styles.proofIconText}>{index === 0 ? "✦" : index === 1 ? "M" : "↗"}</Text></View>
-              <Text style={styles.proofText}>{item}</Text>
-            </View>
-          ))}
-        </View>
-
-        <View style={styles.actions}>
-          <Pressable accessibilityRole="button" style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]} onPress={() => router.push("/signup")}>
-            <Text style={styles.primaryButtonText}>{isArabic ? "ابدأ الآن" : "Get started"}</Text><Text style={styles.primaryArrow}>{isArabic ? "←" : "→"}</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]} onPress={() => router.push("/login")}>
-            <Text style={styles.secondaryButtonText}>{isArabic ? "لدي حساب" : "I already have an account"}</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" style={({ pressed }) => [styles.guestButton, pressed && styles.pressed]} onPress={() => router.push("/opportunities")}>
-            <Text style={styles.guestButtonText}>{isArabic ? "استكشف الفرص أولًا" : "Explore opportunities first"}</Text>
-          </Pressable>
-        </View>
-
-        <Text style={styles.footerNote}>{isArabic ? "المشاركة والتقديم مجانيان" : "Joining and applying are free"}</Text>
+      <View style={styles.hero}>
+        <Text style={[styles.kicker, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "منصة للمواهب وصنّاع الفرص" : "FOR TALENT. FOR OPPORTUNITY."}</Text>
+        <Text accessibilityRole="header" style={[styles.headline, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "ابدأ من ملف مهني.\nووصل للفرصة المناسبة." : "Build your profile.\nReach the right opportunity."}</Text>
+        <Text style={[styles.subheadline, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "اكتشف الفرص، قدّم من التطبيق، وتواصل بعد القبول ضمن تجربة بسيطة وواضحة." : "Discover opportunities, apply from the app, and connect after acceptance through one clear experience."}</Text>
       </View>
-    </ScrollView>
-  );
+
+      <View style={styles.divider} />
+
+      <View style={styles.valueGrid}>
+        <ValueItem number="01" title={isArabic ? "اكتشف" : "Discover"} body={isArabic ? "فرص مناسبة لتخصصك" : "Relevant opportunities for your talent"} styles={styles} isArabic={isArabic} align={textAlign} />
+        <ValueItem number="02" title={isArabic ? "قدّم" : "Apply"} body={isArabic ? "بطلب واضح من ملفك" : "Apply directly from your profile"} styles={styles} isArabic={isArabic} align={textAlign} />
+        <ValueItem number="03" title={isArabic ? "تواصل" : "Connect"} body={isArabic ? "بعد القبول فقط" : "Messaging unlocks after acceptance"} styles={styles} isArabic={isArabic} align={textAlign} />
+      </View>
+
+      <View style={styles.actions}>
+        <Pressable accessibilityRole="button" onPress={() => router.push("/signup")} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}><Text style={[styles.primaryButtonText, isArabic && styles.arabicText]}>{isArabic ? "إنشاء حساب موهبة" : "Create talent account"}</Text></Pressable>
+        <Pressable accessibilityRole="button" onPress={() => router.push("/login")} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}><Text style={[styles.secondaryButtonText, isArabic && styles.arabicText]}>{isArabic ? "تسجيل الدخول" : "Sign in"}</Text></Pressable>
+        <Pressable accessibilityRole="button" onPress={() => router.push("/opportunities")} style={({ pressed }) => [styles.textButton, pressed && styles.pressed]}><Text style={[styles.textButtonText, isArabic && styles.arabicText]}>{isArabic ? "استكشف الفرص بدون تسجيل" : "Explore opportunities without signing in"}</Text></Pressable>
+      </View>
+
+      <Text style={[styles.footer, isArabic && styles.arabicText]}>{isArabic ? "الانضمام والتقديم على الفرص مجاني" : "Free to join and apply to opportunities"}</Text>
+    </View>
+  </ScrollView>;
 }
 
-function createStyles(theme: typeof lightTheme | typeof darkTheme) {
-  return StyleSheet.create({
-    screen: { flex: 1, backgroundColor: theme.background },
-    centered: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: theme.background },
-    scrollContent: { flexGrow: 1, justifyContent: "center" },
-    content: { minHeight: 780, paddingHorizontal: 24, paddingTop: 58, paddingBottom: 34, gap: 24, overflow: "hidden" },
-    ambientOne: { position: "absolute", top: 80, right: -120, width: 300, height: 300, borderRadius: 150, borderWidth: 1, borderColor: "rgba(212,160,23,0.20)" },
-    ambientTwo: { position: "absolute", top: 120, right: -72, width: 210, height: 210, borderRadius: 105, backgroundColor: "rgba(212,160,23,0.06)" },
-    topRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-    platformPill: { minHeight: 34, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, borderRadius: 17, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface },
-    platformDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: theme.accent },
-    platformText: { color: theme.text, fontSize: 10, fontWeight: "700" },
-    versionText: { color: theme.accent, fontSize: 11, fontWeight: "900", letterSpacing: 2.2 },
-    hero: { alignItems: "center", gap: 6, paddingTop: 18 },
-    markShell: { width: 126, height: 126, borderRadius: 63, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(212,160,23,0.06)", borderWidth: 1, borderColor: "rgba(212,160,23,0.18)", marginBottom: 5 },
-    markRing: { width: 94, height: 94, borderRadius: 47, borderWidth: 1, borderColor: theme.accent, alignItems: "center", justifyContent: "center", backgroundColor: theme.surface },
-    mark: { color: theme.accent, fontSize: 56, lineHeight: 60, fontWeight: "300", letterSpacing: -6 },
-    brand: { color: theme.text, fontSize: 31, lineHeight: 35, fontWeight: "700", letterSpacing: 1.8 },
-    brandArabic: { color: theme.text, fontSize: 22, lineHeight: 28, fontWeight: "600" },
-    eyebrow: { color: theme.accent, fontSize: 10, fontWeight: "900", letterSpacing: 2.1, marginTop: 12 },
-    headline: { color: theme.text, fontSize: 31, lineHeight: 40, fontWeight: "800", textAlign: "center", marginTop: 4, maxWidth: 350 },
-    subheadline: { color: theme.muted, fontSize: 14, lineHeight: 23, textAlign: "center", maxWidth: 350 },
-    proofCard: { flexDirection: "row", alignItems: "stretch", borderWidth: 1, borderColor: theme.border, borderRadius: 24, backgroundColor: theme.surface, overflow: "hidden" },
-    proofItem: { flex: 1, minHeight: 96, alignItems: "center", justifyContent: "center", paddingHorizontal: 8, gap: 8 },
-    proofDivider: { borderStartWidth: 1, borderStartColor: theme.border },
-    proofIcon: { width: 30, height: 30, borderRadius: 15, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(212,160,23,0.12)" },
-    proofIconText: { color: theme.accent, fontSize: 13, fontWeight: "900" },
-    proofText: { color: theme.text, fontSize: 9, lineHeight: 14, textAlign: "center", fontWeight: "700" },
-    actions: { gap: 10, marginTop: 2 },
-    primaryButton: { minHeight: 56, borderRadius: 18, backgroundColor: theme.accent, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, shadowColor: theme.shadow, shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 5 } },
-    primaryButtonText: { color: theme.charcoal, fontSize: 15, fontWeight: "900" },
-    primaryArrow: { color: theme.charcoal, fontSize: 18, fontWeight: "900" },
-    secondaryButton: { minHeight: 52, borderRadius: 18, borderWidth: 1, borderColor: theme.accent, alignItems: "center", justifyContent: "center", backgroundColor: theme.surface },
-    secondaryButtonText: { color: theme.text, fontSize: 14, fontWeight: "800" },
-    guestButton: { minHeight: 42, alignItems: "center", justifyContent: "center" },
-    guestButtonText: { color: theme.muted, fontSize: 12, fontWeight: "700" },
-    footerNote: { color: theme.muted, fontSize: 10, textAlign: "center" },
-    pressed: { opacity: 0.74, transform: [{ scale: 0.99 }] },
-  });
+function ValueItem({ number, title, body, styles, isArabic, align }: { number: string; title: string; body: string; styles: ReturnType<typeof createStyles>; isArabic: boolean; align: "left" | "right" }) {
+  return <View style={styles.valueItem}><Text style={styles.valueNumber}>{number}</Text><Text style={[styles.valueTitle, isArabic && styles.arabicText, { textAlign: align }]}>{title}</Text><Text style={[styles.valueBody, isArabic && styles.arabicText, { textAlign: align }]}>{body}</Text></View>;
 }
+
+function createStyles(theme: typeof darkTheme) { return StyleSheet.create({
+  screen: { flex: 1, backgroundColor: theme.background }, centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 14, backgroundColor: theme.background }, loadingBrand: { color: theme.accent, fontSize: 19, fontWeight: "800", letterSpacing: 1.4 },
+  scrollContent: { flexGrow: 1, justifyContent: "center", paddingVertical: Platform.OS === "ios" ? 24 : 20 }, content: { width: "100%", maxWidth: 560, alignSelf: "center", paddingHorizontal: 24, paddingTop: 34, paddingBottom: 32, gap: 28 },
+  topRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 16 }, topRowRtl: { flexDirection: "row-reverse" }, brand: { color: theme.accent, fontSize: 20, fontWeight: "800", letterSpacing: 1.2 }, platform: { color: theme.muted, fontSize: 11, fontWeight: "600" },
+  hero: { gap: 13, paddingTop: 24 }, kicker: { color: theme.accent, fontSize: 11, lineHeight: 16, fontWeight: "800", letterSpacing: 1.7 }, headline: { color: theme.text, fontSize: 39, lineHeight: 47, fontWeight: "700", maxWidth: 500 }, subheadline: { color: theme.muted, fontSize: 15, lineHeight: 24, maxWidth: 470 }, divider: { height: 1, backgroundColor: theme.border },
+  valueGrid: { gap: 0, borderTopWidth: 1, borderTopColor: theme.border, borderBottomWidth: 1, borderBottomColor: theme.border }, valueItem: { paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: theme.border, gap: 3 }, valueNumber: { color: theme.accent, fontSize: 10, fontWeight: "800", letterSpacing: 1.3 }, valueTitle: { color: theme.text, fontSize: 16, lineHeight: 22, fontWeight: "700" }, valueBody: { color: theme.muted, fontSize: 12, lineHeight: 18 },
+  actions: { gap: 10 }, primaryButton: { minHeight: 52, borderRadius: 12, backgroundColor: theme.accent, alignItems: "center", justifyContent: "center", paddingHorizontal: 18 }, primaryButtonText: { color: theme.background, fontSize: 15, fontWeight: "800" }, secondaryButton: { minHeight: 50, borderRadius: 12, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, alignItems: "center", justifyContent: "center", paddingHorizontal: 18 }, secondaryButtonText: { color: theme.text, fontSize: 14, fontWeight: "700" }, textButton: { minHeight: 42, alignItems: "center", justifyContent: "center" }, textButtonText: { color: theme.muted, fontSize: 12, fontWeight: "600", textAlign: "center" }, footer: { color: theme.muted, fontSize: 10, textAlign: "center" }, pressed: { opacity: 0.72 }, arabicText: { letterSpacing: 0 },
+}); }
