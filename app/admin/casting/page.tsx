@@ -56,7 +56,7 @@ export default async function AdminCastingPage({
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="grid w-full gap-2 sm:flex sm:w-auto sm:flex-wrap">
             <Link
               href={`/admin/casting/commercial?lang=${language}`}
               className="inline-flex min-h-11 items-center justify-center rounded-xl border border-gold/25 px-4 py-2 text-sm text-gold transition hover:bg-gold/10"
@@ -97,76 +97,163 @@ export default async function AdminCastingPage({
               {isArabic ? "لا توجد طلبات Casting حتى الآن." : "No casting requests yet."}
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[1120px] text-sm">
-                <thead className="border-b border-white/10 bg-white/[0.025] text-xs text-white/35">
-                  <tr>
-                    <th className="px-4 py-4 text-start">#</th>
-                    <th className="px-4 py-4 text-start">{isArabic ? "المشروع" : "Project"}</th>
-                    <th className="px-4 py-4 text-start">{isArabic ? "العميل" : "Client"}</th>
-                    <th className="px-4 py-4 text-start">{isArabic ? "المواهب" : "Talent"}</th>
-                    <th className="px-4 py-4 text-start">{isArabic ? "الحالة" : "Status"}</th>
-                    <th className="px-4 py-4 text-start">{isArabic ? "الباقة" : "Package"}</th>
-                    <th className="px-4 py-4 text-start">{isArabic ? "التواصل" : "Contact"}</th>
-                    <th className="px-4 py-4 text-start">{isArabic ? "الفرصة" : "Opportunity"}</th>
-                    <th className="px-4 py-4 text-start">{isArabic ? "إدارة" : "Manage"}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/[0.07]">
-                  {rows.map((project) => {
-                    const status = statusLabels[project.status] ?? { ar: project.status, en: project.status };
-                    return (
-                      <tr key={project.id} className="text-white/65 hover:bg-white/[0.02]">
-                        <td className="px-4 py-4 text-white/35">{project.id}</td>
-                        <td className="px-4 py-4">
-                          <Link href={`/admin/casting/${project.id}?lang=${language}`} className="font-medium text-white/85 hover:text-gold">
+            <>
+              <div className="divide-y divide-white/[0.07] md:hidden">
+                {rows.map((project) => {
+                  const status = statusLabels[project.status] ?? { ar: project.status, en: project.status };
+                  const clientName = project.company_name || project.client_name || "—";
+
+                  return (
+                    <article key={project.id} className="p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <Link
+                            href={`/admin/casting/${project.id}?lang=${language}`}
+                            className="block truncate text-base font-medium text-white/90 hover:text-gold"
+                          >
                             {project.project_title}
                           </Link>
-                          <p className="mt-1 text-xs text-white/35">{project.city || "—"}</p>
-                        </td>
-                        <td className="px-4 py-4">
-                          <p>{project.company_name || project.client_name}</p>
-                          {project.company_name ? <p className="mt-1 text-xs text-white/35">{project.client_name}</p> : null}
-                        </td>
-                        <td className="px-4 py-4">
-                          <span className="capitalize">{project.talent_type}</span>
-                          <span className="ms-2 text-white/35">× {project.required_count}</span>
-                        </td>
-                        <td className="px-4 py-4">
-                          <span className="rounded-full border border-gold/20 bg-gold/[0.07] px-3 py-1 text-xs text-gold">
-                            {isArabic ? status.ar : status.en}
-                          </span>
-                        </td>
-                        <td className="px-4 py-4">
-                          <p className="capitalize">{project.package_code || "—"}</p>
-                          {project.quoted_amount != null ? (
-                            <p className="mt-1 text-xs text-white/35">{project.quoted_amount} {project.currency}</p>
+                          <p className="mt-1 text-xs text-white/35">
+                            #{project.id} · {project.city || "—"}
+                          </p>
+                        </div>
+
+                        <span className="shrink-0 rounded-full border border-gold/20 bg-gold/[0.07] px-3 py-1 text-[10px] text-gold">
+                          {isArabic ? status.ar : status.en}
+                        </span>
+                      </div>
+
+                      <div className="mt-4 grid grid-cols-2 gap-3 rounded-2xl border border-white/[0.06] bg-black/20 p-3 text-xs">
+                        <div>
+                          <p className="text-[10px] text-white/30">{isArabic ? "العميل" : "Client"}</p>
+                          <p className="mt-1 break-words text-white/70">{clientName}</p>
+                          {project.company_name && project.client_name ? (
+                            <p className="mt-1 break-words text-[10px] text-white/35">{project.client_name}</p>
                           ) : null}
-                        </td>
-                        <td className="px-4 py-4 text-xs leading-6">
-                          <p>{project.contact_phone || "—"}</p>
-                          <p className="text-white/35">{project.contact_email || ""}</p>
-                        </td>
-                        <td className="px-4 py-4">
+                        </div>
+
+                        <div>
+                          <p className="text-[10px] text-white/30">{isArabic ? "المواهب" : "Talent"}</p>
+                          <p className="mt-1 capitalize text-white/70">
+                            {project.talent_type} × {project.required_count}
+                          </p>
+                        </div>
+
+                        <div>
+                          <p className="text-[10px] text-white/30">{isArabic ? "الباقة" : "Package"}</p>
+                          <p className="mt-1 capitalize text-white/70">{project.package_code || "—"}</p>
+                          {project.quoted_amount != null ? (
+                            <p className="mt-1 text-[10px] text-white/35">
+                              {project.quoted_amount} {project.currency}
+                            </p>
+                          ) : null}
+                        </div>
+
+                        <div>
+                          <p className="text-[10px] text-white/30">{isArabic ? "الفرصة" : "Opportunity"}</p>
                           {project.opportunity_id ? (
-                            <Link href={`/admin/opportunities/${project.opportunity_id}?lang=${language}`} className="text-gold hover:underline">
+                            <Link
+                              href={`/admin/opportunities/${project.opportunity_id}?lang=${language}`}
+                              className="mt-1 inline-block text-gold hover:underline"
+                            >
                               #{project.opportunity_id}
                             </Link>
                           ) : (
-                            <span className="text-white/25">—</span>
+                            <p className="mt-1 text-white/25">—</p>
                           )}
-                        </td>
-                        <td className="px-4 py-4">
-                          <Link href={`/admin/casting/${project.id}?lang=${language}`} className="rounded-lg border border-gold/25 px-3 py-2 text-xs text-gold hover:bg-gold/10">
-                            {isArabic ? "فتح المشروع" : "Open"}
-                          </Link>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 rounded-2xl border border-white/[0.06] bg-black/10 p-3 text-xs leading-6">
+                        <p className="text-[10px] text-white/30">{isArabic ? "التواصل" : "Contact"}</p>
+                        <p dir="ltr" className="mt-1 break-all text-white/65">{project.contact_phone || "—"}</p>
+                        {project.contact_email ? (
+                          <p dir="ltr" className="break-all text-white/40">{project.contact_email}</p>
+                        ) : null}
+                      </div>
+
+                      <Link
+                        href={`/admin/casting/${project.id}?lang=${language}`}
+                        className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-gold/25 bg-gold/[0.05] px-4 text-sm font-medium text-gold transition hover:bg-gold/10"
+                      >
+                        {isArabic ? "فتح المشروع" : "Open project"}
+                      </Link>
+                    </article>
+                  );
+                })}
+              </div>
+
+              <div className="hidden overflow-x-auto md:block">
+                <table className="w-full min-w-[1120px] text-sm">
+                  <thead className="border-b border-white/10 bg-white/[0.025] text-xs text-white/35">
+                    <tr>
+                      <th className="px-4 py-4 text-start">#</th>
+                      <th className="px-4 py-4 text-start">{isArabic ? "المشروع" : "Project"}</th>
+                      <th className="px-4 py-4 text-start">{isArabic ? "العميل" : "Client"}</th>
+                      <th className="px-4 py-4 text-start">{isArabic ? "المواهب" : "Talent"}</th>
+                      <th className="px-4 py-4 text-start">{isArabic ? "الحالة" : "Status"}</th>
+                      <th className="px-4 py-4 text-start">{isArabic ? "الباقة" : "Package"}</th>
+                      <th className="px-4 py-4 text-start">{isArabic ? "التواصل" : "Contact"}</th>
+                      <th className="px-4 py-4 text-start">{isArabic ? "الفرصة" : "Opportunity"}</th>
+                      <th className="px-4 py-4 text-start">{isArabic ? "إدارة" : "Manage"}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/[0.07]">
+                    {rows.map((project) => {
+                      const status = statusLabels[project.status] ?? { ar: project.status, en: project.status };
+                      return (
+                        <tr key={project.id} className="text-white/65 hover:bg-white/[0.02]">
+                          <td className="px-4 py-4 text-white/35">{project.id}</td>
+                          <td className="px-4 py-4">
+                            <Link href={`/admin/casting/${project.id}?lang=${language}`} className="font-medium text-white/85 hover:text-gold">
+                              {project.project_title}
+                            </Link>
+                            <p className="mt-1 text-xs text-white/35">{project.city || "—"}</p>
+                          </td>
+                          <td className="px-4 py-4">
+                            <p>{project.company_name || project.client_name}</p>
+                            {project.company_name ? <p className="mt-1 text-xs text-white/35">{project.client_name}</p> : null}
+                          </td>
+                          <td className="px-4 py-4">
+                            <span className="capitalize">{project.talent_type}</span>
+                            <span className="ms-2 text-white/35">× {project.required_count}</span>
+                          </td>
+                          <td className="px-4 py-4">
+                            <span className="rounded-full border border-gold/20 bg-gold/[0.07] px-3 py-1 text-xs text-gold">
+                              {isArabic ? status.ar : status.en}
+                            </span>
+                          </td>
+                          <td className="px-4 py-4">
+                            <p className="capitalize">{project.package_code || "—"}</p>
+                            {project.quoted_amount != null ? (
+                              <p className="mt-1 text-xs text-white/35">{project.quoted_amount} {project.currency}</p>
+                            ) : null}
+                          </td>
+                          <td className="px-4 py-4 text-xs leading-6">
+                            <p>{project.contact_phone || "—"}</p>
+                            <p className="text-white/35">{project.contact_email || ""}</p>
+                          </td>
+                          <td className="px-4 py-4">
+                            {project.opportunity_id ? (
+                              <Link href={`/admin/opportunities/${project.opportunity_id}?lang=${language}`} className="text-gold hover:underline">
+                                #{project.opportunity_id}
+                              </Link>
+                            ) : (
+                              <span className="text-white/25">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-4">
+                            <Link href={`/admin/casting/${project.id}?lang=${language}`} className="rounded-lg border border-gold/25 px-3 py-2 text-xs text-gold hover:bg-gold/10">
+                              {isArabic ? "فتح المشروع" : "Open"}
+                            </Link>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
       </div>
