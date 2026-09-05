@@ -1,0 +1,118 @@
+name: Mobile RC Paired Build
+
+on:
+  push:
+    branches:
+      - feat/mobile-platform-phase0
+    paths:
+      - ".github/workflows/mobile-rc-paired-build.yml"
+  workflow_dispatch:
+
+jobs:
+  android-internal:
+    name: Android Internal APK
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      EXPO_PUBLIC_SUPABASE_URL: https://ozieysztwlispglupuox.supabase.co
+      EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_8fHyfoV7YWfed4yRhu_BOw_BtzOId8g
+      EXPO_PUBLIC_API_BASE_URL: https://mlamh.net
+      EXPO_PUBLIC_DEFAULT_MARKET: SA
+      EXPO_PUBLIC_EAS_PROJECT_ID: ca757cb1-e91c-4e8c-a3a9-6cee885e483a
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.0"
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --include=dev --no-audit --no-fund
+
+      - name: Validate Expo authentication
+        shell: bash
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error::EXPO_TOKEN is not configured for RC packaging."
+            exit 1
+          fi
+
+      - name: Expo Doctor
+        run: npx expo-doctor
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Release preflight strict
+        run: npm run release:preflight:strict
+
+      - name: Validate Android native prebuild
+        shell: bash
+        run: |
+          npx expo prebuild --clean --no-install --platform android
+          rm -rf android
+          git restore package.json
+
+      - name: Start Android internal EAS build
+        run: npx eas-cli@latest build --platform android --profile preview --non-interactive --no-wait
+
+  ios-testflight:
+    name: iOS TestFlight Candidate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      EXPO_PUBLIC_SUPABASE_URL: https://ozieysztwlispglupuox.supabase.co
+      EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_8fHyfoV7YWfed4yRhu_BOw_BtzOId8g
+      EXPO_PUBLIC_API_BASE_URL: https://mlamh.net
+      EXPO_PUBLIC_DEFAULT_MARKET: SA
+      EXPO_PUBLIC_EAS_PROJECT_ID: ca757cb1-e91c-4e8c-a3a9-6cee885e483a
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.0"
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --include=dev --no-audit --no-fund
+
+      - name: Validate Expo authentication
+        shell: bash
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error::EXPO_TOKEN is not configured for RC packaging."
+            exit 1
+          fi
+
+      - name: Expo Doctor
+        run: npx expo-doctor
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Release preflight strict
+        run: npm run release:preflight:strict
+
+      - name: Validate iOS native prebuild
+        shell: bash
+        run: |
+          npx expo prebuild --clean --no-install --platform ios
+          rm -rf ios
+          git restore package.json
+
+      - name: Start iOS TestFlight EAS build
+        run: npx eas-cli@latest build --platform ios --profile testflight --non-interactive --no-wait
