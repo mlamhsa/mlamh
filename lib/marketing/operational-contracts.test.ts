@@ -38,8 +38,9 @@ test("Layan LinkedIn handoff stays manual under Sawsan and never becomes automat
 test("Salman research review requires sourced professional contact evidence", () => {
   const actions = source("app/admin/marketing/leads/[id]/research/actions.ts");
   assert.match(actions, /sourceEvidence/);
-  assert.match(actions, /linkedin\.com/);
-  assert.match(actions, /\/in\//);
-  assert.match(actions, /professional/i);
+  assert.match(actions, /host === "linkedin\.com" && isPersonProfile/);
+  assert.match(actions, /const isPersonProfile = \^?\/.*in/);
+  assert.match(actions, /A sourced professional role\/title is required before approval/);
+  assert.match(actions, /Claim-level source evidence is required before a researched contact can become outreach-ready/);
   assert.match(actions, /marketing_contacts/);
 });
