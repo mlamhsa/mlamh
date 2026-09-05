@@ -158,16 +158,16 @@ export async function submitMobilePublisherProfileForReview(userId: string) {
   return { ok: true as const, approvalStatus: "pending" as const };
 }
 
-export async function uploadMobilePublisherLogo(userId: string, file: File) {
+export async function uploadMobilePublisherLogo(userId: string, bytes: ArrayBuffer, contentType: string) {
   const resolved = await resolvePublisher(userId);
   if (!resolved.ok) return resolved;
-  if (!ALLOWED_IMAGE_TYPES.has(file.type) || file.size <= 0 || file.size > MAX_PROFILE_IMAGE_SIZE) {
+  if (!ALLOWED_IMAGE_TYPES.has(contentType) || bytes.byteLength <= 0 || bytes.byteLength > MAX_PROFILE_IMAGE_SIZE) {
     return { ok: false as const, code: "INVALID_IMAGE" as const };
   }
-  const extension = IMAGE_EXTENSIONS[file.type];
+  const extension = IMAGE_EXTENSIONS[contentType];
   const filePath = `publishers/${resolved.publisher.id}/profile-${Date.now()}.${extension}`;
-  const buffer = Buffer.from(await file.arrayBuffer());
-  const { error: uploadError } = await resolved.supabase.storage.from(BUCKET).upload(filePath, buffer, { contentType: file.type, upsert: false });
+  const buffer = Buffer.from(bytes);
+  const { error: uploadError } = await resolved.supabase.storage.from(BUCKET).upload(filePath, buffer, { contentType, upsert: false });
   if (uploadError) return { ok: false as const, code: "UPLOAD_FAILED" as const };
   const { data } = resolved.supabase.storage.from(BUCKET).getPublicUrl(filePath);
   const { error: updateError } = await resolved.supabase.from("publishers").update({ profile_image_url: data.publicUrl }).eq("id", resolved.publisher.id).eq("profile_id", resolved.profile.id);
