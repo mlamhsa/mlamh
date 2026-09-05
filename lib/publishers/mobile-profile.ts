@@ -15,6 +15,16 @@ const ALLOWED_PUBLISHER_TYPES = new Set([
   "individual",
   "other",
 ]);
+const BLOCKED_PUBLIC_EMAIL_DOMAINS = new Set([
+  "gmail.com",
+  "hotmail.com",
+  "outlook.com",
+  "yahoo.com",
+  "icloud.com",
+  "live.com",
+  "proton.me",
+  "protonmail.com",
+]);
 
 type PublisherProfileInput = {
   companyName?: string | null;
@@ -38,6 +48,14 @@ function clean(value: unknown, max: number) {
   return normalized || null;
 }
 
+function normalizeVerificationEmail(value: unknown) {
+  const email = clean(value, 254)?.toLowerCase() ?? null;
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return null;
+  const domain = email.split("@")[1];
+  if (!domain || BLOCKED_PUBLIC_EMAIL_DOMAINS.has(domain)) return null;
+  return email;
+}
+
 async function resolvePublisher(userId: string) {
   const supabase = createAdminClient();
   const { data: profile, error: profileError } = await supabase
@@ -51,7 +69,7 @@ async function resolvePublisher(userId: string) {
 
   const { data: publisher, error: publisherError } = await supabase
     .from("publishers")
-    .select("id,company_name,contact_name,publisher_type,city,description,phone,email,website,instagram,tiktok_url,linkedin_url,profile_image_url,cover_image_url,verified,verification_status,verification_method,verification_email,verification_document_url,verification_submitted_at,status,country_code")
+    .select("id,company_name,contact_name,publisher_type,city,description,phone,email,website,instagram,tiktok_url,linkedin_url,profile_image_url,cover_image_url,verified,verification_status,verification_method,verification_email,verification_document_url,verification_submitted_at,verification_reviewed_at,verification_rejection_reason,status,country_code")
     .eq("profile_id", profile.id)
     .maybeSingle();
   if (publisherError) return { ok: false as const, code: "PUBLISHER_LOOKUP_FAILED" as const };
@@ -96,6 +114,8 @@ export async function getMobilePublisherProfile(userId: string) {
       verificationEmail: publisher.verification_email ?? null,
       verificationDocumentUrl: publisher.verification_document_url ?? null,
       verificationSubmittedAt: publisher.verification_submitted_at ?? null,
+      verificationReviewedAt: publisher.verification_reviewed_at ?? null,
+      verificationRejectionReason: publisher.verification_rejection_reason ?? null,
       countryCode: publisher.country_code ?? null,
       isIndividual,
       reviewReady: required.every((entry) => entry.complete),
@@ -156,6 +176,33 @@ export async function submitMobilePublisherProfileForReview(userId: string) {
   }).eq("id", resolved.profile.id).eq("user_id", userId);
   if (error) return { ok: false as const, code: "SUBMIT_FAILED" as const };
   return { ok: true as const, approvalStatus: "pending" as const };
+}
+
+export async function submitMobilePublisherVerification(userId: string, input: { method?: unknown; email?: unknown }) {
+  const resolved = await resolvePublisher(userId);
+  if (!resolved.ok) return resolved;
+  const { supabase, profile, publisher } = resolved;
+  if (publisher.publisher_type === "individual") return { ok: false as const, code: "INDIVIDUAL_NOT_ELIGIBLE" as const };
+  if (profile.approval_status !== "approved") return { ok: false as const, code: "PROFILE_NOT_APPROVED" as const };
+  if (publisher.verification_status === "verified" || publisher.verified === true) return { ok: false as const, code: "ALREADY_VERIFIED" as const };
+  if (publisher.verification_status === "pending") return { ok: false as const, code: "VERIFICATION_PENDING" as const };
+  if (input.method !== "company_email") return { ok: false as const, code: "METHOD_NOT_AVAILABLE" as const };
+  const email = normalizeVerificationEmail(input.email);
+  if (!email) return { ok: false as const, code: "INVALID_COMPANY_EMAIL" as const };
+
+  const { error } = await supabase.from("publishers").update({
+    verified: false,
+    verification_status: "pending",
+    verification_method: "company_email",
+    verification_email: email,
+    verification_document_url: null,
+    verification_submitted_at: new Date().toISOString(),
+    verification_rejection_reason: null,
+    verification_reviewed_by: null,
+    verification_reviewed_at: null,
+  }).eq("id", publisher.id).eq("profile_id", profile.id);
+  if (error) return { ok: false as const, code: "VERIFICATION_SUBMIT_FAILED" as const };
+  return { ok: true as const, verificationStatus: "pending" as const, method: "company_email" as const, email };
 }
 
 export async function uploadMobilePublisherLogo(userId: string, bytes: ArrayBuffer, contentType: string) {
