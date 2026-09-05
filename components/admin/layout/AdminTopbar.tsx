@@ -18,11 +18,14 @@ import {
   withAdminLanguage,
   type AdminLanguage,
 } from "@/lib/admin/i18n";
-import { adminNavigation } from "./admin-navigation";
+import { adminNavigation, type AdminBadgeKey } from "./admin-navigation";
+
+type AdminTopbarCounts = Partial<Record<AdminBadgeKey, number>>;
 
 type AdminTopbarProps = {
   onOpenMobileMenu?: () => void;
   unreadAdminNotifications?: number;
+  counts?: AdminTopbarCounts;
 };
 
 function buildLanguageSwitchHref({
@@ -49,6 +52,7 @@ function isActiveRoute(pathname: string, href: string) {
 export function AdminTopbar({
   onOpenMobileMenu,
   unreadAdminNotifications = 0,
+  counts = {},
 }: AdminTopbarProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -178,7 +182,7 @@ export function AdminTopbar({
 
           <aside
             dir={isArabic ? "rtl" : "ltr"}
-            className={`absolute top-0 flex h-full w-[min(86vw,340px)] flex-col border-white/[0.08] bg-[#080808] shadow-2xl ${
+            className={`absolute top-0 flex h-full w-[min(90vw,370px)] flex-col border-white/[0.08] bg-[#080808] shadow-2xl ${
               isArabic ? "right-0 border-l" : "left-0 border-r"
             }`}
           >
@@ -200,6 +204,34 @@ export function AdminTopbar({
               </button>
             </div>
 
+            <div className="shrink-0 border-b border-white/[0.07] px-4 py-4">
+              <form action="/admin/search" method="GET" className="relative">
+                <input type="hidden" name="lang" value={language} />
+                <Search
+                  aria-hidden="true"
+                  className={`pointer-events-none absolute top-1/2 h-4 w-4 -translate-y-1/2 text-white/30 ${
+                    isArabic ? "right-4" : "left-4"
+                  }`}
+                />
+                <input
+                  type="search"
+                  name="q"
+                  defaultValue={
+                    pathname === "/admin/search" ? searchParams.get("q") ?? "" : ""
+                  }
+                  placeholder={
+                    isArabic
+                      ? "ابحث في لوحة الإدارة..."
+                      : "Search admin workspace..."
+                  }
+                  autoComplete="off"
+                  className={`h-11 w-full rounded-xl border border-white/[0.08] bg-white/[0.025] text-sm text-white outline-none placeholder:text-white/25 focus:border-gold/30 ${
+                    isArabic ? "pr-11 pl-4" : "pl-11 pr-4"
+                  }`}
+                />
+              </form>
+            </div>
+
             <nav className="flex-1 space-y-7 overflow-y-auto px-4 py-5">
               {adminNavigation.map((group) => (
                 <section key={group.titleEn}>
@@ -211,12 +243,14 @@ export function AdminTopbar({
                     {group.items.map((item) => {
                       const active = isActiveRoute(pathname, item.href);
                       const Icon = item.icon;
+                      const badgeValue = item.badgeKey ? counts[item.badgeKey] : undefined;
 
                       return (
                         <Link
                           key={item.href}
                           href={withAdminLanguage(item.href, language)}
                           onClick={() => setMobileMenuOpen(false)}
+                          aria-current={active ? "page" : undefined}
                           className={`flex min-h-11 items-center gap-3 rounded-xl border px-3.5 py-2.5 text-sm transition ${
                             active
                               ? "border-gold/20 bg-gold/[0.09] text-gold"
@@ -224,7 +258,20 @@ export function AdminTopbar({
                           }`}
                         >
                           <Icon className="h-[18px] w-[18px] shrink-0" />
-                          <span>{isArabic ? item.labelAr : item.labelEn}</span>
+                          <span className="min-w-0 flex-1 truncate">
+                            {isArabic ? item.labelAr : item.labelEn}
+                          </span>
+                          {typeof badgeValue === "number" && badgeValue > 0 ? (
+                            <span
+                              className={`inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full border px-1.5 text-[11px] font-semibold tabular-nums ${
+                                active
+                                  ? "border-black/15 bg-gold text-black"
+                                  : "border-gold/30 bg-gold/10 text-gold"
+                              }`}
+                            >
+                              {badgeValue > 99 ? "99+" : badgeValue}
+                            </span>
+                          ) : null}
                         </Link>
                       );
                     })}
@@ -234,6 +281,22 @@ export function AdminTopbar({
             </nav>
 
             <div className="shrink-0 border-t border-white/[0.08] bg-[#080808] p-4 pb-[max(env(safe-area-inset-bottom),1rem)]">
+              <div className="mb-2 grid grid-cols-2 gap-2">
+                <Link
+                  href={languageSwitchHref}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="rounded-xl border border-white/[0.08] px-3 py-2 text-center text-xs text-white/55 transition hover:border-gold/25 hover:text-gold"
+                >
+                  {isArabic ? dictionary.common.english : dictionary.common.arabic}
+                </Link>
+                <Link
+                  href="/"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="rounded-xl border border-white/[0.08] px-3 py-2 text-center text-xs text-white/55 transition hover:border-gold/25 hover:text-gold"
+                >
+                  {dictionary.common.viewSite}
+                </Link>
+              </div>
               <AdminLogoutButton isArabic={isArabic} />
             </div>
           </aside>

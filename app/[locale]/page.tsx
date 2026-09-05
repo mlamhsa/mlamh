@@ -17,6 +17,7 @@ import { HomepageCMS } from "@/lib/cms/HomepageCMS";
 import { ValuePropsCMS } from "@/lib/cms/ValuePropsCMS";
 import { isValidLocale, type Locale } from "@/lib/i18n";
 import { getPublicTalents } from "@/lib/supabase/public-talents";
+import { getHomepageTalentsWithFeaturedEntitlements } from "@/lib/talent/public-featured-entitlements";
 
 const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://mlamh.net").replace(/\/$/, "");
 
@@ -94,7 +95,7 @@ export default async function HomePage({ params }: HomePageProps) {
     ValuePropsCMS.getPublicValueProps(locale),
   ]);
 
-  const talents = talentResult.talents;
+  const talents = await getHomepageTalentsWithFeaturedEntitlements(talentResult.talents);
 
   return (
     <main
@@ -103,15 +104,15 @@ export default async function HomePage({ params }: HomePageProps) {
     >
       <HomeScrollReset />
 
-      {/* Mobile web home stays on its existing maintained flow. */}
       <div className="lg:hidden">
         <MobileHome
           locale={locale}
           talents={talents}
+          hero={hero}
+          valueProps={valueProps}
         />
       </div>
 
-      {/* Desktop website */}
       <div className="hidden lg:block">
         <Hero locale={locale} data={hero} />
 

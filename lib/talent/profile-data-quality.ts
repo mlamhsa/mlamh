@@ -39,11 +39,16 @@ export function getTalentProfileDataQualityIssues(
 
   for (const key of Object.keys(LABELS) as Array<keyof TalentProfileDataQualityInput>) {
     const value = numericValue(talent[key]);
-    if (value === null || value > 0) continue;
+    if (value === null) continue;
+
+    // Waist is optional. Zero means "not provided" and should not be treated as a data-quality issue.
+    if (key === "waist_size" && value === 0) continue;
+
+    if (value > 0) continue;
 
     issues.push({
       key,
-      ar: `${LABELS[key].ar}: القيمة ${value} غير صالحة` ,
+      ar: `${LABELS[key].ar}: القيمة ${value} غير صالحة`,
       en: `${LABELS[key].en}: value ${value} is invalid`,
       value,
     });

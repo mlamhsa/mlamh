@@ -113,6 +113,13 @@ async function getAdminSidebarCounts() {
 export default async function AdminLayout({ children }: AdminLayoutProps) {
   await requireAdminAccess();
   const counts = await getAdminSidebarCounts();
+  const navigationCounts = {
+    pendingActions: counts.pendingActions,
+    pendingPublishers: counts.pendingPublishers,
+    pendingOpportunities: counts.pendingOpportunities,
+    reportedMessages: counts.reportedMessages,
+    notifications: counts.unreadAdminNotifications,
+  };
 
   return (
     <div className="min-h-screen bg-[#050505] text-white">
@@ -122,15 +129,7 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
             <div className="hidden min-h-screen w-[286px] shrink-0 border-e border-white/[0.08] bg-[#080808] lg:block" />
           }
         >
-          <AdminSidebar
-            counts={{
-              pendingActions: counts.pendingActions,
-              pendingPublishers: counts.pendingPublishers,
-              pendingOpportunities: counts.pendingOpportunities,
-              reportedMessages: counts.reportedMessages,
-              notifications: counts.unreadAdminNotifications,
-            }}
-          />
+          <AdminSidebar counts={navigationCounts} />
         </Suspense>
 
         <div className="min-w-0 flex-1">
@@ -139,7 +138,10 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
               <div className="h-[72px] border-b border-white/[0.08] bg-[#070707]/90" />
             }
           >
-            <AdminTopbar unreadAdminNotifications={counts.unreadAdminNotifications} />
+            <AdminTopbar
+              counts={navigationCounts}
+              unreadAdminNotifications={counts.unreadAdminNotifications}
+            />
           </Suspense>
 
           <main className="min-w-0 flex-1">{children}</main>
