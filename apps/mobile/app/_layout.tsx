@@ -15,9 +15,29 @@ function requiresAuthentication(href: Href) {
   return typeof path === "string" && (path.startsWith("/conversations/") || path.startsWith("/publisher/") || path === "/publisher" || path === "/applications" || path === "/messages" || path === "/notifications" || path.startsWith("/profile"));
 }
 
+function getAuthCallbackType(rawUrl: string) {
+  try {
+    const parsed = new URL(rawUrl);
+    const fragment = new URLSearchParams(parsed.hash.replace(/^#/, ""));
+    return fragment.get("type") ?? parsed.searchParams.get("type");
+  } catch {
+    return null;
+  }
+}
+
 async function routeIncomingUrl(url: string) {
+  const callbackType = getAuthCallbackType(url);
   const consumedAuth = await consumeNativeAuthCallback(url);
-  if (consumedAuth) { router.replace("/onboarding"); return; }
+  if (consumedAuth) {
+    if (callbackType === "recovery") {
+      router.replace("/reset-password");
+      return;
+    }
+    const { data: { user } } = await supabase.auth.getUser();
+    const accountType = user?.user_metadata?.account_type;
+    router.replace(accountType === "publisher" ? "/publisher/setup" : "/onboarding");
+    return;
+  }
   const href = getMobileHrefFromUrl(url);
   if (!href) return;
   const { data } = await supabase.auth.getSession();
