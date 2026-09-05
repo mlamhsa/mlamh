@@ -2,9 +2,23 @@ import { useMemo, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { type Href, router, useLocalSearchParams } from "expo-router";
 
+import { getMobileAccountContext } from "@/lib/account";
 import { getDeviceLocale, isRtlLocale } from "@/lib/i18n";
 import { supabase } from "@/lib/supabase";
 import { darkTheme } from "@/lib/theme";
+
+function isSafeNext(value?: string) {
+  return Boolean(value?.startsWith("/") && !value.startsWith("//") && !value.includes("\\"));
+}
+
+async function resolveSignedInHome(): Promise<Href> {
+  const account = await getMobileAccountContext().catch(() => null);
+  if (!account) return "/opportunities" as Href;
+  if (account.type === "publisher") {
+    return account.entityId && account.onboardingStatus === "completed" ? "/publisher" as Href : "/publisher/setup" as Href;
+  }
+  return account.entityId && account.onboardingStatus === "completed" ? "/opportunities" as Href : "/onboarding" as Href;
+}
 
 export default function LoginScreen() {
   const params = useLocalSearchParams<{ next?: string | string[] }>();
@@ -20,8 +34,9 @@ export default function LoginScreen() {
     try {
       const { data, error: authError } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
       if (authError || !data.user) { setError(isArabic ? "البريد الإلكتروني أو كلمة المرور غير صحيحة." : "The email or password is incorrect."); return; }
-      const safeNext = nextParam?.startsWith("/") && !nextParam.startsWith("//") ? nextParam : "/"; router.replace(safeNext as Href);
-    } catch { setError(isArabic ? "تعذر تسجيل الدخول. حاول مرة أخرى." : "Unable to sign in. Please try again."); }
+      const destination = isSafeNext(nextParam) ? nextParam as Href : await resolveSignedInHome();
+      router.replace(destination);
+    } catch { setError(isArabic ? "تعذر تسجيل الدخول. تحقق من الاتصال وحاول مرة أخرى." : "Unable to sign in. Check your connection and try again."); }
     finally { setLoading(false); }
   }
 
