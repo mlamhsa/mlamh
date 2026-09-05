@@ -8,7 +8,7 @@ import type { AppLocale } from "@/lib/i18n";
 import { darkTheme } from "@/lib/theme";
 
 type Theme = typeof darkTheme;
-type PublisherTab = "dashboard" | "talents" | "create" | "messages" | "notifications";
+type PublisherTab = "dashboard" | "talents" | "create" | "messages" | "profile" | "notifications";
 
 type ViewerKind = "checking" | "publisher" | "other";
 
@@ -17,10 +17,10 @@ const tabs = [
   { key: "talents" as const, path: "/talents" as const, ar: "المواهب", en: "Talents" },
   { key: "create" as const, path: "/publisher/opportunities/new" as const, ar: "فرصة", en: "Create" },
   { key: "messages" as const, path: "/publisher/messages" as const, ar: "الرسائل", en: "Messages" },
-  { key: "notifications" as const, path: "/notifications" as const, ar: "التنبيهات", en: "Alerts" },
+  { key: "profile" as const, path: "/publisher/profile" as const, ar: "الملف", en: "Profile" },
 ];
 
-export function PublisherTabBar({ active, locale, theme = darkTheme, unreadCount = 0, notificationCount = 0 }: { active: PublisherTab; locale: AppLocale; theme?: Theme; unreadCount?: number; notificationCount?: number }) {
+export function PublisherTabBar({ active, locale, theme = darkTheme, unreadCount = 0 }: { active: PublisherTab; locale: AppLocale; theme?: Theme; unreadCount?: number; notificationCount?: number }) {
   const insets = useSafeAreaInsets();
   const styles = createStyles(theme);
   const [viewer, setViewer] = useState<ViewerKind>(active === "talents" ? "checking" : "publisher");
@@ -48,9 +48,9 @@ export function PublisherTabBar({ active, locale, theme = darkTheme, unreadCount
     </View>;
   }
 
-  return <View style={[styles.outer, { paddingBottom: Math.max(insets.bottom, 8) }]}><View style={styles.shell}>{tabs.map((tab) => {
+  return <View style={[styles.outer, { paddingBottom: Math.max(insets.bottom, 8) }]}><View accessibilityRole="tablist" style={styles.shell}>{tabs.map((tab) => {
     const selected = active === tab.key;
-    const badgeCount = tab.key === "messages" ? unreadCount : tab.key === "notifications" ? notificationCount : 0;
+    const badgeCount = tab.key === "messages" ? unreadCount : 0;
     const label = locale === "ar" ? tab.ar : tab.en;
     const accessibilityLabel = badgeCount > 0 ? `${label}, ${badgeCount > 99 ? "99+" : badgeCount}` : label;
     return <Pressable key={tab.key} accessibilityRole="tab" accessibilityLabel={accessibilityLabel} accessibilityState={{ selected }} hitSlop={5} style={({ pressed }) => [styles.tab, pressed && styles.pressed]} onPress={() => router.replace(tab.path)}>
