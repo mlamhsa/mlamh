@@ -3,6 +3,7 @@ import * as Linking from "expo-linking";
 import { type ErrorBoundaryProps, type Href, router, Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { getMobileHrefFromUrl } from "@/lib/deep-links";
 import { getDeviceLocale } from "@/lib/i18n";
@@ -65,7 +66,7 @@ export default function RootLayout() {
     const removePushObserver = installPushDeepLinkObserver(openUrl);
     return () => { active = false; linkingSubscription.remove(); removePushObserver(); };
   }, []);
-  return <NotificationSyncProvider><StatusBar style="light" /><Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#050505" } }} /></NotificationSyncProvider>;
+  return <SafeAreaProvider><NotificationSyncProvider><StatusBar style="light" /><Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#050505" } }} /></NotificationSyncProvider></SafeAreaProvider>;
 }
 
 const errorStyles = StyleSheet.create({
