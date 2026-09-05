@@ -1,7 +1,33 @@
 import type { AppLocale } from "@/lib/i18n";
 import { supabase } from "@/lib/supabase";
 
-export type MobileOpportunity = { id: number; title: string; slug: string; description: string; opportunityType: string; countryCode: string | null; currency: string | null; city: string | null; compensationType: "fixed" | "negotiable" | "unpaid" | null; budget: string | null; companyName: string; featured: boolean; managedByMlamh: boolean; expiresAt: string | null; createdAt: string };
+export type MobileOpportunity = {
+  id: number;
+  title: string;
+  slug: string;
+  description: string;
+  opportunityType: string;
+  countryCode: string | null;
+  currency: string | null;
+  citySlug: string | null;
+  city: string | null;
+  requiredGender: string | null;
+  minAge: number | null;
+  maxAge: number | null;
+  requiredCount: number | null;
+  workDate: string | null;
+  workDuration: string | null;
+  applicationStartDate: string | null;
+  applicationDeadline: string | null;
+  roleRequirements: Record<string, unknown>;
+  compensationType: "fixed" | "negotiable" | "unpaid" | null;
+  budget: string | null;
+  companyName: string;
+  featured: boolean;
+  managedByMlamh: boolean;
+  expiresAt: string | null;
+  createdAt: string;
+};
 export type MobileApplicationStatus = "pending" | "reviewing" | "shortlisted" | "accepted" | "rejected";
 export type MobileApplicationItem = { id: number | string; status: MobileApplicationStatus; createdAt: string | null; opportunity: { id: number | string; title: string | null; slug: string | null; city: string | null; opportunityType: string | null; status: string | null; createdAt: string | null } | null; conversationId: string | null };
 export type MobileConversation = { id: number; opportunityId: number; opportunityTitle: string | null; partyName: string; partyImageUrl: string | null; status: string | null; latestMessage: string | null; lastActivityAt: string | null; unreadCount: number };
