@@ -23,12 +23,13 @@ export default function WelcomeScreen() {
       if (!session) { setChecking(false); return; }
       const account = await getMobileAccountContext().catch(() => null);
       if (!active) return;
-      if (account?.type === "publisher") { router.replace("/publisher"); return; }
+      if (account?.type === "publisher") { router.replace(account.onboardingStatus === "completed" && account.entityId ? "/publisher" : "/publisher/setup"); return; }
       if (account?.type === "talent") {
         if (account.onboardingStatus !== "completed" || !account.entityId) { router.replace("/onboarding"); return; }
         router.replace("/opportunities"); return;
       }
-      router.replace("/onboarding");
+      const accountType = session.user.user_metadata?.account_type;
+      router.replace(accountType === "publisher" ? "/publisher/setup" : "/onboarding");
     })();
     return () => { active = false; };
   }, []);
@@ -41,26 +42,26 @@ export default function WelcomeScreen() {
       <View style={[styles.topRow, isRtl && styles.topRowRtl]}><Text style={[styles.brand, isArabic && styles.arabicText]}>{isArabic ? "ملامح" : "MLAMH"}</Text><Text style={[styles.platform, isArabic && styles.arabicText]}>{isArabic ? "المواهب والفرص" : "Talent & Opportunities"}</Text></View>
 
       <View style={styles.hero}>
-        <Text style={[styles.kicker, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "منصة للمواهب وصنّاع الفرص" : "FOR TALENT. FOR OPPORTUNITY."}</Text>
-        <Text accessibilityRole="header" style={[styles.headline, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "ابدأ من ملف مهني.\nووصل للفرصة المناسبة." : "Build your profile.\nReach the right opportunity."}</Text>
-        <Text style={[styles.subheadline, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "اكتشف الفرص، قدّم من التطبيق، وتواصل بعد القبول ضمن تجربة بسيطة وواضحة." : "Discover opportunities, apply from the app, and connect after acceptance through one clear experience."}</Text>
+        <Text style={[styles.kicker, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "منصة للمواهب وصنّاع الفرص" : "TALENT MEETS OPPORTUNITY"}</Text>
+        <Text accessibilityRole="header" style={[styles.headline, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "ملف احترافي.\nفرص حقيقية.\nتواصل في الوقت الصحيح." : "Professional profiles.\nReal opportunities.\nThe right connection."}</Text>
+        <Text style={[styles.subheadline, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "تجربة واحدة للممثلين والمودلز والجهات التي تبحث عن المواهب — من الاكتشاف إلى القبول والتواصل." : "One experience for actors, models and the organizations hiring them — from discovery to acceptance and connection."}</Text>
       </View>
 
       <View style={styles.divider} />
 
       <View style={styles.valueGrid}>
-        <ValueItem number="01" title={isArabic ? "اكتشف" : "Discover"} body={isArabic ? "فرص مناسبة لتخصصك" : "Relevant opportunities for your talent"} styles={styles} isArabic={isArabic} align={textAlign} />
-        <ValueItem number="02" title={isArabic ? "قدّم" : "Apply"} body={isArabic ? "بطلب واضح من ملفك" : "Apply directly from your profile"} styles={styles} isArabic={isArabic} align={textAlign} />
-        <ValueItem number="03" title={isArabic ? "تواصل" : "Connect"} body={isArabic ? "بعد القبول فقط" : "Messaging unlocks after acceptance"} styles={styles} isArabic={isArabic} align={textAlign} />
+        <ValueItem number="01" title={isArabic ? "اكتشف" : "Discover"} body={isArabic ? "فرصًا مناسبة بدون تعقيد" : "Relevant opportunities without friction"} styles={styles} isArabic={isArabic} align={textAlign} />
+        <ValueItem number="02" title={isArabic ? "قدّم" : "Apply"} body={isArabic ? "من ملف مهني موحد" : "From one professional profile"} styles={styles} isArabic={isArabic} align={textAlign} />
+        <ValueItem number="03" title={isArabic ? "اختر وتواصل" : "Select & Connect"} body={isArabic ? "التواصل بعد القبول لحماية الطرفين" : "Messaging unlocks after acceptance"} styles={styles} isArabic={isArabic} align={textAlign} />
       </View>
 
       <View style={styles.actions}>
-        <Pressable accessibilityRole="button" onPress={() => router.push("/signup")} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}><Text style={[styles.primaryButtonText, isArabic && styles.arabicText]}>{isArabic ? "إنشاء حساب موهبة" : "Create talent account"}</Text></Pressable>
-        <Pressable accessibilityRole="button" onPress={() => router.push("/login")} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}><Text style={[styles.secondaryButtonText, isArabic && styles.arabicText]}>{isArabic ? "تسجيل الدخول" : "Sign in"}</Text></Pressable>
-        <Pressable accessibilityRole="button" onPress={() => router.push("/opportunities")} style={({ pressed }) => [styles.textButton, pressed && styles.pressed]}><Text style={[styles.textButtonText, isArabic && styles.arabicText]}>{isArabic ? "استكشف الفرص بدون تسجيل" : "Explore opportunities without signing in"}</Text></Pressable>
+        <Pressable accessibilityRole="button" onPress={() => router.push("/signup")} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}><Text style={[styles.primaryButtonText, isArabic && styles.arabicText]}>{isArabic ? "انضم إلى ملامح" : "Join MLAMH"}</Text></Pressable>
+        <Pressable accessibilityRole="button" onPress={() => router.push("/opportunities")} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}><Text style={[styles.secondaryButtonText, isArabic && styles.arabicText]}>{isArabic ? "استكشف الفرص" : "Explore opportunities"}</Text></Pressable>
+        <Pressable accessibilityRole="button" onPress={() => router.push("/login")} style={({ pressed }) => [styles.textButton, pressed && styles.pressed]}><Text style={[styles.textButtonText, isArabic && styles.arabicText]}>{isArabic ? "لديك حساب؟ تسجيل الدخول" : "Already have an account? Sign in"}</Text></Pressable>
       </View>
 
-      <Text style={[styles.footer, isArabic && styles.arabicText]}>{isArabic ? "الانضمام والتقديم على الفرص مجاني" : "Free to join and apply to opportunities"}</Text>
+      <Text style={[styles.footer, isArabic && styles.arabicText]}>{isArabic ? "مصمم للسعودية والخليج. مبني للتوسع عالميًا." : "Built in the GCC. Designed to scale globally."}</Text>
     </View>
   </ScrollView>;
 }
@@ -73,7 +74,7 @@ function createStyles(theme: typeof darkTheme) { return StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.background }, centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 14, backgroundColor: theme.background }, loadingBrand: { color: theme.accent, fontSize: 19, fontWeight: "800", letterSpacing: 1.4 },
   scrollContent: { flexGrow: 1, justifyContent: "center", paddingVertical: Platform.OS === "ios" ? 24 : 20 }, content: { width: "100%", maxWidth: 560, alignSelf: "center", paddingHorizontal: 24, paddingTop: 34, paddingBottom: 32, gap: 28 },
   topRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 16 }, topRowRtl: { flexDirection: "row-reverse" }, brand: { color: theme.accent, fontSize: 20, fontWeight: "800", letterSpacing: 1.2 }, platform: { color: theme.muted, fontSize: 11, fontWeight: "600" },
-  hero: { gap: 13, paddingTop: 24 }, kicker: { color: theme.accent, fontSize: 11, lineHeight: 16, fontWeight: "800", letterSpacing: 1.7 }, headline: { color: theme.text, fontSize: 39, lineHeight: 47, fontWeight: "700", maxWidth: 500 }, subheadline: { color: theme.muted, fontSize: 15, lineHeight: 24, maxWidth: 470 }, divider: { height: 1, backgroundColor: theme.border },
+  hero: { gap: 13, paddingTop: 24 }, kicker: { color: theme.accent, fontSize: 11, lineHeight: 16, fontWeight: "800", letterSpacing: 1.7 }, headline: { color: theme.text, fontSize: 39, lineHeight: 46, fontWeight: "700", maxWidth: 510 }, subheadline: { color: theme.muted, fontSize: 15, lineHeight: 24, maxWidth: 480 }, divider: { height: 1, backgroundColor: theme.border },
   valueGrid: { gap: 0, borderTopWidth: 1, borderTopColor: theme.border, borderBottomWidth: 1, borderBottomColor: theme.border }, valueItem: { paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: theme.border, gap: 3 }, valueNumber: { color: theme.accent, fontSize: 10, fontWeight: "800", letterSpacing: 1.3 }, valueTitle: { color: theme.text, fontSize: 16, lineHeight: 22, fontWeight: "700" }, valueBody: { color: theme.muted, fontSize: 12, lineHeight: 18 },
-  actions: { gap: 10 }, primaryButton: { minHeight: 52, borderRadius: 12, backgroundColor: theme.accent, alignItems: "center", justifyContent: "center", paddingHorizontal: 18 }, primaryButtonText: { color: theme.background, fontSize: 15, fontWeight: "800" }, secondaryButton: { minHeight: 50, borderRadius: 12, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, alignItems: "center", justifyContent: "center", paddingHorizontal: 18 }, secondaryButtonText: { color: theme.text, fontSize: 14, fontWeight: "700" }, textButton: { minHeight: 42, alignItems: "center", justifyContent: "center" }, textButtonText: { color: theme.muted, fontSize: 12, fontWeight: "600", textAlign: "center" }, footer: { color: theme.muted, fontSize: 10, textAlign: "center" }, pressed: { opacity: 0.72 }, arabicText: { letterSpacing: 0 },
+  actions: { gap: 10 }, primaryButton: { minHeight: 54, borderRadius: 12, backgroundColor: theme.accent, alignItems: "center", justifyContent: "center", paddingHorizontal: 18 }, primaryButtonText: { color: theme.background, fontSize: 15, fontWeight: "800" }, secondaryButton: { minHeight: 50, borderRadius: 12, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, alignItems: "center", justifyContent: "center", paddingHorizontal: 18 }, secondaryButtonText: { color: theme.text, fontSize: 14, fontWeight: "700" }, textButton: { minHeight: 42, alignItems: "center", justifyContent: "center" }, textButtonText: { color: theme.muted, fontSize: 12, fontWeight: "600", textAlign: "center" }, footer: { color: theme.muted, fontSize: 10, textAlign: "center" }, pressed: { opacity: 0.72 }, arabicText: { letterSpacing: 0 },
 }); }
