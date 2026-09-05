@@ -54,8 +54,8 @@ export async function completeMobileTalentOnboarding(
         account_type: "talent",
         display_name: displayName,
         status: "active",
-        onboarding_status: "in_progress",
-        onboarding_step: "talent_type",
+        onboarding_status: "profile_in_progress",
+        onboarding_step: "talent_profile",
       })
       .select("id")
       .single();
