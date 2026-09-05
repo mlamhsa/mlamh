@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 
 import { AppTabBar } from "@/components/AppTabBar";
 import { PublisherTabBar } from "@/components/PublisherTabBar";
+import { ScreenSkeleton } from "@/components/ScreenSkeleton";
 import { getMobileAccountContext } from "@/lib/account";
 import { getNotifications, markNotificationRead, type MobileNotification } from "@/lib/api";
 import { getDeviceLocale, isRtlLocale } from "@/lib/i18n";
@@ -72,9 +73,7 @@ export default function NotificationsScreen() {
     if (target.type === "talent_applications") router.push("/applications");
   }
 
-  if (loading) {
-    return <View style={styles.centered}><ActivityIndicator size="large" color={theme.accent} /></View>;
-  }
+  if (loading) return <ScreenSkeleton variant="list" locale={locale} label={isArabic ? "جارٍ تحميل الإشعارات" : "Loading notifications"} />;
 
   const visibleItems = filter === "unread" ? items.filter((item) => !item.isRead) : items;
   const readCount = Math.max(0, items.length - unreadCount);
@@ -92,12 +91,12 @@ export default function NotificationsScreen() {
             <Text style={styles.eyebrow}>{isArabic ? "MLAMH · مركز التحديثات" : "MLAMH · ACTIVITY CENTER"}</Text>
             <Text accessibilityRole="header" style={[styles.title, { textAlign: isRtl ? "right" : "left" }]}>{isArabic ? "الإشعارات" : "Notifications"}</Text>
           </View>
-          {unreadCount > 0 ? <View accessibilityLabel={isArabic ? `${unreadCount} إشعار غير مقروء` : `${unreadCount} unread notifications`} style={styles.countBadge}><Text style={styles.countText}>{unreadCount > 99 ? "99+" : unreadCount}</Text></View> : null}
+          {unreadCount > 0 ? <View accessible accessibilityLabel={isArabic ? `${unreadCount} إشعار غير مقروء` : `${unreadCount} unread notifications`} style={styles.countBadge}><Text style={styles.countText}>{unreadCount > 99 ? "99+" : unreadCount}</Text></View> : null}
         </View>
 
         <Text style={[styles.subtitle, { textAlign: isRtl ? "right" : "left" }]}>{isArabic ? "تابع الطلبات والقبول والرسائل والتنبيهات المهمة من مكان واحد." : "Keep up with applications, decisions, messages and important account updates in one place."}</Text>
 
-        <View style={styles.summaryCard}>
+        <View style={[styles.summaryCard, isRtl && styles.rowRtl]}>
           <View style={styles.summaryPrimary}><Text style={styles.summaryLabel}>{isArabic ? "غير مقروء" : "Unread"}</Text><Text style={styles.summaryValue}>{unreadCount}</Text></View>
           <View style={styles.summaryDivider} />
           <View style={styles.summarySecondary}><Text style={styles.summaryLabel}>{isArabic ? "مقروء" : "Read"}</Text><Text style={styles.summaryValueSmall}>{readCount}</Text></View>
@@ -110,7 +109,7 @@ export default function NotificationsScreen() {
           <Filter active={filter === "unread"} label={isArabic ? `غير مقروء ${unreadCount}` : `Unread ${unreadCount}`} onPress={() => setFilter("unread")} styles={styles} />
         </View>
 
-        {error ? <View style={styles.errorCard}><Text accessibilityRole="alert" style={styles.error}>{error}</Text><Pressable style={styles.retry} onPress={() => void load()}><Text style={styles.retryText}>{isArabic ? "إعادة المحاولة" : "Try again"}</Text></Pressable></View> : null}
+        {error ? <View style={styles.errorCard}><Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.error}>{error}</Text><Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "إعادة تحميل الإشعارات" : "Reload notifications"} style={styles.retry} onPress={() => void load()}><Text style={styles.retryText}>{isArabic ? "إعادة المحاولة" : "Try again"}</Text></Pressable></View> : null}
       </View>}
       ListEmptyComponent={!error ? <View style={styles.emptyState}><Text style={styles.emptyEyebrow}>{isArabic ? "كل شيء محدث" : "YOU'RE CAUGHT UP"}</Text><Text style={styles.emptyTitle}>{filter === "unread" ? (isArabic ? "لا توجد إشعارات غير مقروءة" : "No unread notifications") : (isArabic ? "لا توجد إشعارات بعد" : "No notifications yet")}</Text><Text style={styles.emptyBody}>{isArabic ? "ستظهر هنا تحديثات الطلبات والرسائل والقرارات المهمة." : "Important application, message and decision updates will appear here."}</Text></View> : null}
       renderItem={({ item }) => <NotificationRow item={item} locale={locale} isRtl={isRtl} styles={styles} onPress={() => void openNotification(item)} />}
@@ -131,7 +130,7 @@ function NotificationRow({ item, locale, isRtl, styles, onPress }: { item: Mobil
   const date = item.createdAt
     ? new Date(item.createdAt).toLocaleDateString(locale === "ar" ? "ar-SA-u-nu-latn" : "en-US", { month: "short", day: "numeric" })
     : "";
-  return <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.row, !item.isRead && styles.rowUnread, pressed && styles.pressed]}>
+  return <Pressable accessibilityRole="button" accessibilityLabel={`${item.title}${item.body ? `. ${item.body}` : ""}`} onPress={onPress} style={({ pressed }) => [styles.row, !item.isRead && styles.rowUnread, pressed && styles.pressed]}>
     <View style={[styles.rowTop, isRtl && styles.rowRtl]}>
       <View style={[styles.categoryPill, !item.isRead && styles.categoryPillUnread]}><Text style={[styles.category, !item.isRead && styles.categoryUnread]}>{categoryLabel(item.category, locale)}</Text></View>
       <View style={[styles.dateWrap, isRtl && styles.rowRtl]}>{!item.isRead ? <View style={styles.unreadDot} /> : null}<Text style={styles.date}>{date}</Text></View>
@@ -155,7 +154,6 @@ function categoryLabel(category: MobileNotification["category"], locale: "ar" | 
 function createStyles(theme: typeof darkTheme) {
   return StyleSheet.create({
     screen: { flex: 1, backgroundColor: theme.background },
-    centered: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: theme.background },
     content: { paddingHorizontal: 18, paddingTop: 44, paddingBottom: 20 },
     header: { gap: 15, marginBottom: 18 },
     topRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 14 },
@@ -173,7 +171,7 @@ function createStyles(theme: typeof darkTheme) {
     summaryValue: { color: theme.accent, fontSize: 28, fontWeight: "700", marginTop: 4 },
     summaryValueSmall: { color: theme.text, fontSize: 22, fontWeight: "700", marginTop: 4 },
     filters: { flexDirection: "row", gap: 8 },
-    filter: { minHeight: 39, borderRadius: 999, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, alignItems: "center", justifyContent: "center", paddingHorizontal: 14 },
+    filter: { minHeight: 44, borderRadius: 999, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, alignItems: "center", justifyContent: "center", paddingHorizontal: 14 },
     filterActive: { borderColor: theme.accent, backgroundColor: theme.chip },
     filterText: { color: theme.muted, fontSize: 10, fontWeight: "800" },
     filterTextActive: { color: theme.accent },
@@ -197,7 +195,7 @@ function createStyles(theme: typeof darkTheme) {
     openArrow: { color: theme.accent, fontSize: 16, lineHeight: 18 },
     errorCard: { gap: 9, borderWidth: 1, borderColor: "#8C4A4A66", borderRadius: 15, backgroundColor: "#8C4A4A12", padding: 13 },
     error: { color: "#E59A9A", fontSize: 12, lineHeight: 18 },
-    retry: { alignSelf: "flex-start", borderWidth: 1, borderColor: theme.border, borderRadius: 10, paddingHorizontal: 11, paddingVertical: 8 },
+    retry: { alignSelf: "flex-start", borderWidth: 1, borderColor: theme.border, borderRadius: 10, paddingHorizontal: 14, minHeight: 44, justifyContent: "center" },
     retryText: { color: theme.text, fontSize: 10, fontWeight: "800" },
     emptyState: { minHeight: 220, borderWidth: 1, borderColor: theme.border, borderRadius: 22, backgroundColor: theme.surface, padding: 24, alignItems: "center", justifyContent: "center", gap: 8 },
     emptyEyebrow: { color: theme.accent, fontSize: 8, fontWeight: "900", letterSpacing: 1.2 },
