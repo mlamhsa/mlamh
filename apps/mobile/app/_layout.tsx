@@ -5,6 +5,7 @@ import { StatusBar } from "expo-status-bar";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import { getMobileAccountContext } from "@/lib/account";
 import { getMobileHrefFromUrl } from "@/lib/deep-links";
 import { getDeviceLocale } from "@/lib/i18n";
 import { NotificationSyncProvider } from "@/lib/notifications-context";
@@ -26,6 +27,19 @@ function getAuthCallbackType(rawUrl: string) {
   }
 }
 
+async function resolvePostAuthHref(): Promise<Href> {
+  const account = await getMobileAccountContext().catch(() => null);
+  if (account?.type === "publisher") {
+    return account.entityId && account.onboardingStatus === "completed" ? "/publisher" : "/publisher/setup";
+  }
+  if (account?.type === "talent") {
+    return account.entityId && account.onboardingStatus === "completed" ? "/opportunities" : "/onboarding";
+  }
+
+  const { data: { user } } = await supabase.auth.getUser();
+  return user?.user_metadata?.account_type === "publisher" ? "/publisher/setup" : "/onboarding";
+}
+
 async function routeIncomingUrl(url: string) {
   const callbackType = getAuthCallbackType(url);
   const consumedAuth = await consumeNativeAuthCallback(url);
@@ -34,9 +48,7 @@ async function routeIncomingUrl(url: string) {
       router.replace("/reset-password");
       return;
     }
-    const { data: { user } } = await supabase.auth.getUser();
-    const accountType = user?.user_metadata?.account_type;
-    router.replace(accountType === "publisher" ? "/publisher/setup" : "/onboarding");
+    router.replace(await resolvePostAuthHref());
     return;
   }
   const href = getMobileHrefFromUrl(url);
