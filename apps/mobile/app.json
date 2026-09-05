@@ -43,7 +43,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "net.mlamh.app",
-      "buildNumber": "3",
+      "buildNumber": "4",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
@@ -54,9 +54,9 @@
     },
     "android": {
       "package": "net.mlamh.app",
-      "versionCode": 3,
+      "versionCode": 4,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/app-icon.png",
+        "foregroundImage": "./assets/adaptive-icon-foreground.png",
         "backgroundColor": "#050505"
       },
       "intentFilters": [
