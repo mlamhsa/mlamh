@@ -42,6 +42,17 @@ function append(params: URLSearchParams, key: string, value: string | number | u
   params.set(key, String(value));
 }
 
+function safePositiveInteger(value: unknown, fallback: number) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) && numeric > 0 ? Math.floor(numeric) : fallback;
+}
+
+async function readJson(response: Response) {
+  const raw = await response.text().catch(() => "");
+  if (!raw) return null;
+  try { return JSON.parse(raw) as unknown; } catch { return null; }
+}
+
 export async function getMobileTalents(locale: AppLocale, filters: TalentDirectoryFilters = {}) {
   const params = new URLSearchParams();
   params.set("locale", locale);
@@ -57,28 +68,38 @@ export async function getMobileTalents(locale: AppLocale, filters: TalentDirecto
   append(params, "page", filters.page ?? 1);
   params.set("pageSize", "20");
 
-  const response = await fetch(`${MOBILE_API_BASE_URL}/api/mobile/talents?${params.toString()}`, {
-    headers: { Accept: "application/json" },
-  });
-  const raw = await response.text();
-  let payload: { ok?: boolean; items?: MobilePublicTalent[]; total?: number; totalPages?: number; currentPage?: number; code?: string } = {};
-  try { payload = raw ? JSON.parse(raw) : {}; } catch { payload = {}; }
-  if (!response.ok || !payload.ok) throw new Error(payload.code || "TALENT_DIRECTORY_FAILED");
+  let response: Response;
+  try {
+    response = await fetch(`${MOBILE_API_BASE_URL}/api/mobile/talents?${params.toString()}`, { headers: { Accept: "application/json" } });
+  } catch {
+    throw new Error("NETWORK_UNAVAILABLE");
+  }
+
+  const parsed = await readJson(response);
+  const payload = parsed && typeof parsed === "object" ? parsed as { ok?: boolean; items?: MobilePublicTalent[]; total?: number; totalPages?: number; currentPage?: number; code?: string } : {};
+  if (!response.ok || payload.ok !== true) throw new Error(payload.code || `TALENT_DIRECTORY_FAILED:${response.status}`);
+
   return {
     items: Array.isArray(payload.items) ? payload.items : [],
-    total: Number(payload.total ?? 0),
-    totalPages: Math.max(1, Number(payload.totalPages ?? 1)),
-    currentPage: Math.max(1, Number(payload.currentPage ?? 1)),
+    total: Math.max(0, Number.isFinite(Number(payload.total)) ? Number(payload.total) : 0),
+    totalPages: safePositiveInteger(payload.totalPages, 1),
+    currentPage: safePositiveInteger(payload.currentPage, 1),
   };
 }
 
 export async function getMobileTalent(locale: AppLocale, slug: string) {
-  const response = await fetch(`${MOBILE_API_BASE_URL}/api/mobile/talents/${encodeURIComponent(slug)}?locale=${locale}`, {
-    headers: { Accept: "application/json" },
-  });
-  const raw = await response.text();
-  let payload: { ok?: boolean; item?: MobilePublicTalent; code?: string } = {};
-  try { payload = raw ? JSON.parse(raw) : {}; } catch { payload = {}; }
-  if (!response.ok || !payload.ok || !payload.item) throw new Error(payload.code || "TALENT_LOOKUP_FAILED");
+  const normalizedSlug = slug.trim();
+  if (!normalizedSlug) throw new Error("INVALID_TALENT_SLUG");
+
+  let response: Response;
+  try {
+    response = await fetch(`${MOBILE_API_BASE_URL}/api/mobile/talents/${encodeURIComponent(normalizedSlug)}?locale=${locale}`, { headers: { Accept: "application/json" } });
+  } catch {
+    throw new Error("NETWORK_UNAVAILABLE");
+  }
+
+  const parsed = await readJson(response);
+  const payload = parsed && typeof parsed === "object" ? parsed as { ok?: boolean; item?: MobilePublicTalent; code?: string } : {};
+  if (!response.ok || payload.ok !== true || !payload.item) throw new Error(payload.code || `TALENT_LOOKUP_FAILED:${response.status}`);
   return payload.item;
 }
