@@ -6,6 +6,7 @@ import { AppTabBar } from "@/components/AppTabBar";
 import { ScreenSkeleton } from "@/components/ScreenSkeleton";
 import { getMyApplications, getNotifications, type MobileApplicationItem, type MobileApplicationStatus } from "@/lib/api";
 import { getDeviceLocale, isRtlLocale } from "@/lib/i18n";
+import { getMobileMarketLabel } from "@/lib/market-labels";
 import { darkTheme } from "@/lib/theme";
 
 type Counts = Record<MobileApplicationStatus | "total", number>;
@@ -15,6 +16,7 @@ const EMPTY_COUNTS: Counts = { total: 0, pending: 0, reviewing: 0, shortlisted: 
 export default function ApplicationsScreen() {
   const locale = getDeviceLocale();
   const isArabic = locale === "ar";
+  const isRtl = isRtlLocale(locale);
   const theme = darkTheme;
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [items, setItems] = useState<MobileApplicationItem[]>([]);
@@ -57,35 +59,35 @@ export default function ApplicationsScreen() {
     return items;
   }, [filter, items]);
 
-  if (loading) return <ScreenSkeleton variant="list" locale={locale} />;
+  if (loading) return <ScreenSkeleton variant="list" locale={locale} label={isArabic ? "تحميل طلباتي" : "Loading applications"} />;
 
   return <View style={styles.screen}>
     <FlatList
       data={filteredItems}
       keyExtractor={(item) => String(item.id)}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, { direction: isRtl ? "rtl" : "ltr" }]}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={theme.accent} />}
-      ListHeaderComponent={<View style={[styles.header, { direction: isRtlLocale(locale) ? "rtl" : "ltr" }]}>
+      ListHeaderComponent={<View style={styles.header}>
         <Text style={styles.brand}>{isArabic ? "ملامح" : "MLAMH"}</Text>
-        <Text accessibilityRole="header" style={[styles.title, { textAlign: isArabic ? "right" : "left" }]}>{isArabic ? "طلباتي" : "My applications"}</Text>
-        <Text style={[styles.subtitle, { textAlign: isArabic ? "right" : "left" }]}>{isArabic ? "تابع حالة كل طلب. المحادثة لا تُفتح إلا بعد القبول." : "Track every application. Messaging unlocks only after acceptance."}</Text>
+        <Text accessibilityRole="header" style={[styles.title, { textAlign: isRtl ? "right" : "left" }]}>{isArabic ? "طلباتي" : "My applications"}</Text>
+        <Text style={[styles.subtitle, { textAlign: isRtl ? "right" : "left" }]}>{isArabic ? "تابع حالة كل طلب. المحادثة لا تُفتح إلا بعد القبول." : "Track every application. Messaging unlocks only after acceptance."}</Text>
 
-        <View style={styles.statsRow}>
+        <View style={[styles.statsRow, isRtl && styles.rowRtl]}>
           <Stat value={counts.total} label={isArabic ? "الكل" : "Total"} styles={styles} />
           <Stat value={counts.pending + counts.reviewing + counts.shortlisted} label={isArabic ? "قيد التقدم" : "In progress"} styles={styles} />
           <Stat value={counts.accepted} label={isArabic ? "مقبول" : "Accepted"} styles={styles} accent />
         </View>
 
-        <View accessibilityRole="tablist" style={styles.filterRow}>
+        <View accessibilityRole="tablist" style={[styles.filterRow, isRtl && styles.rowRtl]}>
           <FilterTab active={filter === "all"} label={isArabic ? "الكل" : "All"} count={counts.total} onPress={() => setFilter("all")} styles={styles} />
           <FilterTab active={filter === "active"} label={isArabic ? "قيد التقدم" : "In progress"} count={counts.pending + counts.reviewing + counts.shortlisted} onPress={() => setFilter("active")} styles={styles} />
           <FilterTab active={filter === "accepted"} label={isArabic ? "مقبول" : "Accepted"} count={counts.accepted} onPress={() => setFilter("accepted")} styles={styles} />
         </View>
       </View>}
       ListEmptyComponent={<View style={styles.emptyState}>
-        <Text style={styles.emptyTitle}>{error ?? (filter === "all" ? (isArabic ? "لا توجد طلبات حتى الآن" : "No applications yet") : (isArabic ? "لا توجد طلبات في هذه الحالة" : "No applications in this view"))}</Text>
+        <Text accessibilityRole={error ? "alert" : undefined} style={styles.emptyTitle}>{error ?? (filter === "all" ? (isArabic ? "لا توجد طلبات حتى الآن" : "No applications yet") : (isArabic ? "لا توجد طلبات في هذه الحالة" : "No applications in this view"))}</Text>
         <Text style={styles.emptyBody}>{error ? (isArabic ? "أعد المحاولة عند استقرار الاتصال." : "Try again when your connection is stable.") : (isArabic ? "استكشف الفرص المناسبة وابدأ أول طلب من داخل ملامح." : "Discover relevant opportunities and start your first application in MLAMH.")}</Text>
-        {error ? <Pressable accessibilityRole="button" style={styles.primaryButton} onPress={() => void load()}><Text style={styles.primaryButtonText}>{isArabic ? "إعادة المحاولة" : "Try again"}</Text></Pressable> : filter === "all" ? <Pressable accessibilityRole="button" style={styles.primaryButton} onPress={() => router.push("/opportunities")}><Text style={styles.primaryButtonText}>{isArabic ? "استكشف الفرص" : "Discover opportunities"}</Text></Pressable> : null}
+        {error ? <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "إعادة المحاولة" : "Try again"} style={styles.primaryButton} onPress={() => void load()}><Text style={styles.primaryButtonText}>{isArabic ? "إعادة المحاولة" : "Try again"}</Text></Pressable> : filter === "all" ? <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "استكشف الفرص" : "Discover opportunities"} style={styles.primaryButton} onPress={() => router.push("/opportunities")}><Text style={styles.primaryButtonText}>{isArabic ? "استكشف الفرص" : "Discover opportunities"}</Text></Pressable> : null}
       </View>}
       renderItem={({ item }) => <ApplicationCard item={item} locale={locale} styles={styles} />}
     />
@@ -103,6 +105,7 @@ function FilterTab({ active, label, count, onPress, styles }: { active: boolean;
 
 function ApplicationCard({ item, locale, styles }: { item: MobileApplicationItem; locale: "ar" | "en"; styles: ReturnType<typeof createStyles> }) {
   const isArabic = locale === "ar";
+  const isRtl = isRtlLocale(locale);
   const labels: Record<MobileApplicationStatus, { ar: string; en: string }> = {
     pending: { ar: "تم الاستلام", en: "Received" },
     reviewing: { ar: "قيد المراجعة", en: "Reviewing" },
@@ -113,24 +116,34 @@ function ApplicationCard({ item, locale, styles }: { item: MobileApplicationItem
   const status = labels[item.status][locale];
   const createdLabel = item.createdAt ? new Date(item.createdAt).toLocaleDateString(isArabic ? "ar-SA-u-nu-latn" : "en-US", { day: "numeric", month: "short" }) : null;
   const accepted = item.status === "accepted";
+  const opportunity = item.opportunity as (MobileApplicationItem["opportunity"] & { countryCode?: string | null });
+  const marketLabel = getMobileMarketLabel(opportunity?.countryCode, locale);
+  const locationLabel = [opportunity?.city, marketLabel].filter(Boolean).join(" · ");
   return <View style={[styles.card, accepted && styles.cardAccepted]}>
-    <View style={styles.cardTop}><Text style={[styles.status, accepted && styles.statusAccepted]}>{status}</Text>{createdLabel ? <Text style={styles.date}>{createdLabel}</Text> : null}</View>
-    <Text style={[styles.cardTitle, { textAlign: isArabic ? "right" : "left" }]}>{item.opportunity?.title ?? (isArabic ? "فرصة" : "Opportunity")}</Text>
-    <View style={styles.metaRow}>{item.opportunity?.city ? <Text style={styles.meta}>{item.opportunity.city}</Text> : null}{item.opportunity?.opportunityType ? <Text style={styles.meta}>{item.opportunity.opportunityType.replaceAll("_", " ")}</Text> : null}</View>
-    {accepted ? <Text style={styles.acceptedHint}>{isArabic ? "تم فتح التواصل بعد القبول" : "Messaging unlocked after acceptance"}</Text> : null}
-    <View style={styles.actionsRow}>
-      {item.opportunity?.slug ? <Pressable accessibilityRole="button" style={styles.secondaryButton} onPress={() => router.push(`/opportunities/${item.opportunity?.slug}`)}><Text style={styles.secondaryButtonText}>{isArabic ? "عرض الفرصة" : "View opportunity"}</Text></Pressable> : null}
-      {accepted && item.conversationId ? <Pressable accessibilityRole="button" style={styles.primaryButton} onPress={() => router.push(`/conversations/${item.conversationId}`)}><Text style={styles.primaryButtonText}>{isArabic ? "فتح المحادثة" : "Open conversation"}</Text></Pressable> : null}
+    <View style={[styles.cardTop, isRtl && styles.rowRtl]}><Text style={[styles.status, accepted && styles.statusAccepted]}>{status}</Text>{createdLabel ? <Text style={styles.date}>{createdLabel}</Text> : null}</View>
+    <Text style={[styles.cardTitle, { textAlign: isRtl ? "right" : "left" }]}>{opportunity?.title ?? (isArabic ? "فرصة" : "Opportunity")}</Text>
+    <View style={[styles.metaRow, isRtl && styles.rowRtl]}>{locationLabel ? <Text style={styles.meta}>{locationLabel}</Text> : null}{opportunity?.opportunityType ? <Text style={styles.meta}>{formatOpportunityType(opportunity.opportunityType, isArabic)}</Text> : null}</View>
+    {accepted ? <Text style={[styles.acceptedHint, { textAlign: isRtl ? "right" : "left" }]}>{isArabic ? "تم فتح التواصل بعد القبول" : "Messaging unlocked after acceptance"}</Text> : null}
+    <View style={[styles.actionsRow, isRtl && styles.rowRtl]}>
+      {opportunity?.slug ? <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "عرض الفرصة" : "View opportunity"} style={styles.secondaryButton} onPress={() => router.push(`/opportunities/${opportunity.slug}`)}><Text style={styles.secondaryButtonText}>{isArabic ? "عرض الفرصة" : "View opportunity"}</Text></Pressable> : null}
+      {accepted && item.conversationId ? <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "فتح المحادثة" : "Open conversation"} style={styles.primaryButton} onPress={() => router.push(`/conversations/${item.conversationId}`)}><Text style={styles.primaryButtonText}>{isArabic ? "فتح المحادثة" : "Open conversation"}</Text></Pressable> : null}
     </View>
   </View>;
 }
 
+function formatOpportunityType(value: string, isArabic: boolean) {
+  const normalized = value.toLowerCase();
+  if (normalized === "actor") return isArabic ? "ممثل / ممثلة" : "Actor";
+  if (normalized === "model") return isArabic ? "مودل" : "Model";
+  return value.replaceAll("_", " ");
+}
+
 function createStyles(theme: typeof darkTheme) { return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: theme.background }, content: { paddingHorizontal: 20, paddingTop: 54, paddingBottom: 30, gap: 12 },
+  screen: { flex: 1, backgroundColor: theme.background }, content: { paddingHorizontal: 20, paddingTop: 54, paddingBottom: 30, gap: 12 }, rowRtl: { flexDirection: "row-reverse" },
   header: { gap: 12, marginBottom: 8 }, brand: { color: theme.accent, fontSize: 17, fontWeight: "800", letterSpacing: 1.1 }, title: { color: theme.text, fontSize: 31, lineHeight: 38, fontWeight: "700" }, subtitle: { color: theme.muted, fontSize: 13, lineHeight: 20, maxWidth: 420 },
   statsRow: { flexDirection: "row", borderTopWidth: 1, borderBottomWidth: 1, borderColor: theme.border, paddingVertical: 14 }, stat: { flex: 1, gap: 3 }, statValue: { color: theme.text, fontSize: 22, fontWeight: "800" }, statValueAccent: { color: theme.accent }, statLabel: { color: theme.muted, fontSize: 10 },
-  filterRow: { flexDirection: "row", gap: 18, borderBottomWidth: 1, borderBottomColor: theme.border }, filterTab: { flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 11 }, filterTabActive: { borderBottomWidth: 2, borderBottomColor: theme.accent }, filterText: { color: theme.muted, fontSize: 11, fontWeight: "700" }, filterTextActive: { color: theme.text }, filterCount: { color: theme.muted, fontSize: 9, fontWeight: "800" }, filterCountActive: { color: theme.accent },
-  card: { backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border, borderRadius: 16, padding: 16, gap: 10 }, cardAccepted: { borderColor: theme.accent }, cardTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, status: { color: theme.muted, fontSize: 11, fontWeight: "800" }, statusAccepted: { color: theme.accent }, date: { color: theme.muted, fontSize: 9 }, cardTitle: { color: theme.text, fontSize: 19, lineHeight: 26, fontWeight: "700" }, metaRow: { flexDirection: "row", gap: 10, flexWrap: "wrap" }, meta: { color: theme.muted, fontSize: 10 }, acceptedHint: { color: theme.accent, fontSize: 11, fontWeight: "700" }, actionsRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 2 },
-  primaryButton: { backgroundColor: theme.accent, borderRadius: 12, minHeight: 42, paddingHorizontal: 15, paddingVertical: 10, alignItems: "center", justifyContent: "center" }, primaryButtonText: { color: theme.background, fontSize: 12, fontWeight: "900" }, secondaryButton: { borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, borderRadius: 12, minHeight: 42, paddingHorizontal: 15, paddingVertical: 10, alignItems: "center", justifyContent: "center" }, secondaryButtonText: { color: theme.text, fontSize: 12, fontWeight: "700" },
+  filterRow: { flexDirection: "row", gap: 18, borderBottomWidth: 1, borderBottomColor: theme.border }, filterTab: { minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 11 }, filterTabActive: { borderBottomWidth: 2, borderBottomColor: theme.accent }, filterText: { color: theme.muted, fontSize: 11, fontWeight: "700" }, filterTextActive: { color: theme.text }, filterCount: { color: theme.muted, fontSize: 9, fontWeight: "800" }, filterCountActive: { color: theme.accent },
+  card: { backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border, borderRadius: 18, padding: 16, gap: 10 }, cardAccepted: { borderColor: "#16A36A77" }, cardTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, status: { color: theme.muted, fontSize: 11, fontWeight: "800" }, statusAccepted: { color: "#49C991" }, date: { color: theme.muted, fontSize: 9 }, cardTitle: { color: theme.text, fontSize: 19, lineHeight: 26, fontWeight: "700" }, metaRow: { flexDirection: "row", gap: 10, flexWrap: "wrap" }, meta: { color: theme.muted, fontSize: 10 }, acceptedHint: { color: "#49C991", fontSize: 11, fontWeight: "700" }, actionsRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 2 },
+  primaryButton: { backgroundColor: theme.accent, borderRadius: 12, minHeight: 44, paddingHorizontal: 15, paddingVertical: 10, alignItems: "center", justifyContent: "center" }, primaryButtonText: { color: theme.background, fontSize: 12, fontWeight: "900" }, secondaryButton: { borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, borderRadius: 12, minHeight: 44, paddingHorizontal: 15, paddingVertical: 10, alignItems: "center", justifyContent: "center" }, secondaryButtonText: { color: theme.text, fontSize: 12, fontWeight: "700" },
   emptyState: { paddingVertical: 72, alignItems: "center", gap: 12, paddingHorizontal: 24 }, emptyTitle: { color: theme.text, fontSize: 17, fontWeight: "800", textAlign: "center", lineHeight: 24 }, emptyBody: { color: theme.muted, fontSize: 12, lineHeight: 19, textAlign: "center", maxWidth: 300 },
 }); }
