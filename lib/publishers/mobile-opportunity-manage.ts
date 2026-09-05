@@ -1,5 +1,7 @@
 import { isRestrictedAccountStatus } from "@/lib/accounts/account-rules";
 import { createEvent, EVENT_TARGETS, EVENT_TYPES } from "@/lib/events";
+import { isCountryCode } from "@/lib/markets/countries";
+import { isMarketFeatureEnabled, resolveMarketCurrency } from "@/lib/markets/config";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const ALLOWED_TYPES = new Set(["actor", "model"]);
@@ -52,6 +54,13 @@ function isVerifiedPublisher(publisher: { publisher_type: string | null; verifie
   return publisher.publisher_type === "individual" || (publisher.verified === true && publisher.verification_status === "verified");
 }
 
+function resolveEnabledOpportunityMarket(value: unknown) {
+  const countryCode = cleanText(value, 2).toUpperCase();
+  if (!isCountryCode(countryCode)) return { ok: false as const, code: "INVALID_COUNTRY" as const };
+  if (!isMarketFeatureEnabled(countryCode, "opportunityCreation")) return { ok: false as const, code: "MARKET_NOT_ACTIVE" as const };
+  return { ok: true as const, countryCode, currency: resolveMarketCurrency(countryCode) };
+}
+
 export async function manageMobilePublisherOpportunity(userId: string, opportunityId: number, input: Record<string, unknown>) {
   if (!Number.isInteger(opportunityId) || opportunityId <= 0) return { ok: false as const, code: "INVALID_OPPORTUNITY" as const };
   if (!isAction(input.action)) return { ok: false as const, code: "INVALID_ACTION" as const };
@@ -76,12 +85,15 @@ export async function manageMobilePublisherOpportunity(userId: string, opportuni
     if (!SUBMITTABLE_STATUSES.has(String(existing.status ?? "draft"))) return { ok: false as const, code: "INVALID_STATE" as const };
     if (cleanText(existing.title, 140).length < 4 || cleanText(existing.description, 5000).length < 20) return { ok: false as const, code: "INCOMPLETE_OPPORTUNITY" as const };
     if (!ALLOWED_TYPES.has(String(existing.opportunity_type ?? ""))) return { ok: false as const, code: "INVALID_OPPORTUNITY_TYPE" as const };
-    const countryCode = cleanText(existing.country_code || publisher.country_code, 2).toUpperCase();
-    if (!/^[A-Z]{2}$/.test(countryCode)) return { ok: false as const, code: "MISSING_COUNTRY" as const };
-    const currency = cleanText(existing.currency, 3).toUpperCase();
-    if (currency && !/^[A-Z]{3}$/.test(currency)) return { ok: false as const, code: "INVALID_CURRENCY" as const };
 
-    const { data, error } = await admin.from("opportunities").update({ published: false, status: "pending_review", country_code: countryCode, updated_at: now }).eq("id", opportunityId).eq("publisher_id", publisher.id).select("id,status,published").single();
+    const market = resolveEnabledOpportunityMarket(existing.country_code || publisher.country_code || "SA");
+    if (!market.ok) return market;
+    const existingCurrency = cleanText(existing.currency, 3).toUpperCase();
+    const compensationType = cleanText(existing.compensation_type, 32);
+    if (compensationType !== "unpaid" && existingCurrency && existingCurrency !== market.currency) return { ok: false as const, code: "INVALID_CURRENCY" as const };
+    const currency = compensationType === "unpaid" ? null : market.currency;
+
+    const { data, error } = await admin.from("opportunities").update({ published: false, status: "pending_review", country_code: market.countryCode, currency, updated_at: now }).eq("id", opportunityId).eq("publisher_id", publisher.id).select("id,status,published").single();
     if (error || !data) return { ok: false as const, code: "UPDATE_FAILED" as const };
 
     try {
@@ -90,7 +102,7 @@ export async function manageMobilePublisherOpportunity(userId: string, opportuni
         target: EVENT_TARGETS.ADMIN,
         targetId: "admin",
         actorId: publisher.id,
-        metadata: { opportunityId, publisherId: publisher.id, title: existing.title, countryCode, source: "mobile" },
+        metadata: { opportunityId, publisherId: publisher.id, title: existing.title, countryCode: market.countryCode, source: "mobile" },
       });
     } catch (eventError) {
       console.error("[manageMobilePublisherOpportunity submit event]", eventError);
@@ -141,14 +153,9 @@ export async function manageMobilePublisherOpportunity(userId: string, opportuni
     patch.budget = cleanText(input.budget, 120) || null; changed = true;
   }
   if (Object.prototype.hasOwnProperty.call(input, "countryCode")) {
-    const countryCode = cleanText(input.countryCode, 2).toUpperCase();
-    if (!/^[A-Z]{2}$/.test(countryCode)) return { ok: false as const, code: "INVALID_COUNTRY" as const };
-    patch.country_code = countryCode; changed = true;
-  }
-  if (Object.prototype.hasOwnProperty.call(input, "currency")) {
-    const currency = cleanText(input.currency, 3).toUpperCase();
-    if (currency && !/^[A-Z]{3}$/.test(currency)) return { ok: false as const, code: "INVALID_CURRENCY" as const };
-    patch.currency = currency || null; changed = true;
+    const market = resolveEnabledOpportunityMarket(input.countryCode);
+    if (!market.ok) return market;
+    patch.country_code = market.countryCode; changed = true;
   }
   if (Object.prototype.hasOwnProperty.call(input, "requiredGender")) {
     const gender = cleanText(input.requiredGender, 16);
@@ -195,6 +202,19 @@ export async function manageMobilePublisherOpportunity(userId: string, opportuni
     patch.role_requirements = effectiveType === "actor" ? { languages, dialects } : { modeling_types: modelingTypes, min_height_cm: minHeightCm, hair_color: hairColor || null };
     changed = true;
   }
+
+  const market = resolveEnabledOpportunityMarket(patch.country_code ?? existing.country_code ?? publisher.country_code ?? "SA");
+  if (!market.ok) return market;
+  const effectiveCompensation = String(patch.compensation_type ?? existing.compensation_type ?? "fixed");
+  const requestedCurrency = Object.prototype.hasOwnProperty.call(input, "currency") ? cleanText(input.currency, 3).toUpperCase() : cleanText(existing.currency, 3).toUpperCase();
+  if (effectiveCompensation !== "unpaid" && requestedCurrency && requestedCurrency !== market.currency) return { ok: false as const, code: "INVALID_CURRENCY" as const };
+  const canonicalCurrency = effectiveCompensation === "unpaid" ? null : market.currency;
+  if (patch.country_code !== market.countryCode) patch.country_code = market.countryCode;
+  if (existing.currency !== canonicalCurrency || Object.prototype.hasOwnProperty.call(input, "currency") || Object.prototype.hasOwnProperty.call(input, "countryCode") || Object.prototype.hasOwnProperty.call(input, "compensationType")) {
+    patch.currency = canonicalCurrency;
+    changed = true;
+  }
+
   if (!changed) return { ok: false as const, code: "NO_CHANGES" as const };
 
   const { data, error } = await admin.from("opportunities").update(patch).eq("id", opportunityId).eq("publisher_id", publisher.id).select("id,status,published").single();
