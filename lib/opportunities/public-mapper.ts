@@ -17,6 +17,12 @@ export type PublicOpportunityRow = {
   required_gender: string | null;
   min_age: number | null;
   max_age: number | null;
+  required_count: number | null;
+  work_date: string | null;
+  work_duration: string | null;
+  application_start_date: string | null;
+  application_deadline: string | null;
+  role_requirements: Record<string, unknown> | null;
   compensation_type: "fixed" | "negotiable" | "unpaid" | null;
   budget: string | null;
   company_name: string;
@@ -39,9 +45,7 @@ export function toPublicOpportunity(
     id: row.id,
     title: isEnglish ? row.title_en?.trim() || row.title : row.title,
     slug: row.slug,
-    description: isEnglish
-      ? row.description_en?.trim() || row.description
-      : row.description,
+    description: isEnglish ? row.description_en?.trim() || row.description : row.description,
     opportunityType: row.opportunity_type,
     countryCode: row.country_code,
     currency: row.currency,
@@ -50,6 +54,12 @@ export function toPublicOpportunity(
     requiredGender: row.required_gender,
     minAge: row.min_age,
     maxAge: row.max_age,
+    requiredCount: row.required_count,
+    workDate: row.work_date,
+    workDuration: row.work_duration,
+    applicationStartDate: row.application_start_date,
+    applicationDeadline: row.application_deadline,
+    roleRequirements: row.role_requirements && typeof row.role_requirements === "object" && !Array.isArray(row.role_requirements) ? row.role_requirements : {},
     compensationType: row.compensation_type,
     budget: row.budget,
     companyName: row.company_name,
