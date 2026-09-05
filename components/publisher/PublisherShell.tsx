@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 import {
+  BadgeCheck,
   Bell,
   BriefcaseBusiness,
   Building2,
@@ -17,6 +18,7 @@ import {
   LogOut,
   MessageSquare,
   Settings,
+  Sparkles,
   UsersRound,
 } from "lucide-react";
 
@@ -52,20 +54,16 @@ export default function PublisherShell({
 
   const activeRequestRef =
     useRef<AbortController | null>(null);
-    const loggingOutRef = useRef(false);
-    
+  const loggingOutRef = useRef(false);
+
   const dashboardHref =
     `/${locale}/publisher-dashboard`;
 
   const refreshCounts = useCallback(async () => {
-    /*
-     * إلغاء الطلب السابق إن كان لا يزال يعمل.
-     * هذا يمنع تداخل طلبات العداد عند التنقل
-     * أو أثناء تحديث Turbopack.
-     */
     if (loggingOutRef.current) {
       return;
     }
+
     activeRequestRef.current?.abort();
 
     const controller = new AbortController();
@@ -86,10 +84,6 @@ export default function PublisherShell({
       );
 
       if (!response.ok) {
-        /*
-         * عدم تحويل أخطاء المصادقة المؤقتة إلى
-         * شاشة خطأ داخل وضع التطوير.
-         */
         if (
           response.status === 401 ||
           response.status === 403 ||
@@ -113,24 +107,16 @@ export default function PublisherShell({
           typeof data.applicants === "number"
             ? Math.max(0, data.applicants)
             : 0,
-      
         messages:
           typeof data.messages === "number"
             ? Math.max(0, data.messages)
             : 0,
-      
         notifications:
           typeof data.notifications === "number"
             ? Math.max(0, data.notifications)
             : 0,
       });
     } catch (error) {
-      /*
-       * AbortError طبيعي عند:
-       * - التنقل بين الصفحات
-       * - تحديث Turbopack
-       * - إلغاء الطلب السابق
-       */
       if (
         error instanceof DOMException &&
         error.name === "AbortError"
@@ -138,17 +124,10 @@ export default function PublisherShell({
         return;
       }
 
-      /*
-       * أثناء التطوير قد ينقطع fetch لجزء من الثانية
-       * بينما يعيد Next.js تجميع الملفات.
-       * لا نستخدم console.error هنا حتى لا تظهر
-       * شاشة Runtime Error الحمراء.
-       */
       if (process.env.NODE_ENV === "development") {
         console.warn(
           "[PublisherShell] Dashboard counts request was interrupted.",
         );
-
         return;
       }
 
@@ -166,12 +145,8 @@ export default function PublisherShell({
     const initialRefresh = window.setTimeout(() => {
       void refreshCounts();
     }, 0);
-  
+
     const intervalId = window.setInterval(() => {
-      /*
-       * لا نرسل الطلب عندما تكون الصفحة مخفية
-       * أو عندما لا يوجد اتصال بالإنترنت.
-       */
       if (
         document.visibilityState === "visible" &&
         navigator.onLine
@@ -243,6 +218,12 @@ export default function PublisherShell({
       badge: counts.applicants,
     },
     {
+      href: `${dashboardHref}/featured`,
+      label: isRtl ? "التمييز" : "Featured",
+      icon: <Sparkles size={18} />,
+      badge: 0,
+    },
+    {
       href: `${dashboardHref}/messages`,
       label: isRtl ? "الرسائل" : "Messages",
       icon: <MessageSquare size={18} />,
@@ -256,10 +237,14 @@ export default function PublisherShell({
     },
     {
       href: `${dashboardHref}/profile`,
-      label: isRtl
-        ? "ملف الشركة"
-        : "Company Profile",
+      label: isRtl ? "ملف الشركة" : "Company Profile",
       icon: <Building2 size={18} />,
+      badge: 0,
+    },
+    {
+      href: `${dashboardHref}/verification`,
+      label: isRtl ? "التوثيق" : "Verification",
+      icon: <BadgeCheck size={18} />,
       badge: 0,
     },
     {
@@ -272,9 +257,7 @@ export default function PublisherShell({
 
   async function handleLogout() {
     loggingOutRef.current = true;
-  
     activeRequestRef.current?.abort();
-  
     setCounts(EMPTY_COUNTS);
 
     const { error } =
@@ -285,7 +268,6 @@ export default function PublisherShell({
         "[PublisherShell] Sign-out failed:",
         error.message,
       );
-
       return;
     }
 
@@ -308,20 +290,16 @@ export default function PublisherShell({
             </p>
 
             <p className="mt-3 text-xs uppercase tracking-[0.28em] text-white/35">
-              {isRtl
-                ? "لوحة الشركة"
-                : "Publisher Dashboard"}
+              {isRtl ? "لوحة الشركة" : "Publisher Dashboard"}
             </p>
           </Link>
 
-          <nav className="grid grid-cols-2 gap-2 lg:mt-6 lg:block lg:space-y-2">
+          <nav className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:mt-6 lg:block lg:space-y-2">
             {items.map((item) => {
               const active = item.exact
                 ? pathname === item.href
                 : pathname === item.href ||
-                  pathname.startsWith(
-                    `${item.href}/`,
-                  );
+                  pathname.startsWith(`${item.href}/`);
 
               return (
                 <Link
@@ -333,13 +311,7 @@ export default function PublisherShell({
                       : "border-white/10 text-white/60 hover:bg-white/[0.03] hover:text-white"
                   }`}
                 >
-                  <span
-                    className={
-                      active
-                        ? "text-gold"
-                        : "text-white/35"
-                    }
-                  >
+                  <span className={active ? "text-gold" : "text-white/35"}>
                     {item.icon}
                   </span>
 
@@ -349,9 +321,7 @@ export default function PublisherShell({
 
                   {item.badge > 0 ? (
                     <span className="absolute end-2 top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-gold px-1.5 text-[9px] font-semibold text-black lg:static lg:ms-auto">
-                      {item.badge > 99
-                        ? "99+"
-                        : item.badge}
+                      {item.badge > 99 ? "99+" : item.badge}
                     </span>
                   ) : null}
                 </Link>
@@ -360,17 +330,13 @@ export default function PublisherShell({
           </nav>
 
           <div className="mt-5 grid gap-3 border-t border-white/10 pt-5 lg:mt-8 lg:pt-6">
-
             <button
               type="button"
               onClick={handleLogout}
               className="flex w-full items-center justify-center gap-2 rounded-2xl border border-red-500/20 bg-red-500/5 px-5 py-4 text-sm text-red-300 transition hover:bg-red-500/10"
             >
               <LogOut size={16} />
-
-              {isRtl
-                ? "تسجيل الخروج"
-                : "Sign Out"}
+              {isRtl ? "تسجيل الخروج" : "Sign Out"}
             </button>
           </div>
         </aside>
