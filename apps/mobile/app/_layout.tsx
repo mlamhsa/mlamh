@@ -6,6 +6,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { getMobileAccountContext } from "@/lib/account";
+import { getAccountHomeHref } from "@/lib/account-routing";
 import { getMobileHrefFromUrl } from "@/lib/deep-links";
 import { getDeviceLocale } from "@/lib/i18n";
 import { NotificationSyncProvider } from "@/lib/notifications-context";
@@ -29,12 +30,8 @@ function getAuthCallbackType(rawUrl: string) {
 
 async function resolvePostAuthHref(): Promise<Href> {
   const account = await getMobileAccountContext().catch(() => null);
-  if (account?.type === "publisher") {
-    return account.entityId && account.onboardingStatus === "completed" ? "/publisher" : "/publisher/setup";
-  }
-  if (account?.type === "talent") {
-    return account.entityId && account.onboardingStatus === "completed" ? "/opportunities" : "/onboarding";
-  }
+  const accountHref = getAccountHomeHref(account);
+  if (accountHref) return accountHref;
 
   const { data: { user } } = await supabase.auth.getUser();
   return user?.user_metadata?.account_type === "publisher" ? "/publisher/setup" : "/onboarding";
