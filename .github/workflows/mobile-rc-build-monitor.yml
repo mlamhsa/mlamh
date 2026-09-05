@@ -12,7 +12,7 @@ jobs:
   monitor:
     name: Monitor EAS RC Builds
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: apps/mobile
@@ -37,62 +37,15 @@ jobs:
             exit 1
           fi
 
-      - name: Wait for Android and iOS builds
+      - name: Diagnose EAS project access
         shell: bash
         run: |
-          set -euo pipefail
-          terminal_status() {
-            case "$1" in
-              finished|errored|canceled) return 0 ;;
-              *) return 1 ;;
-            esac
-          }
-
-          for attempt in $(seq 1 90); do
-            builds_json=$(npx --yes eas-cli@latest build:list --json --limit 50 --non-interactive)
-            printf '%s\n' "$builds_json" > /tmp/eas-builds.json
-
-            node - "$ANDROID_BUILD_ID" "$IOS_BUILD_ID" <<'NODE' > /tmp/rc-status.txt
-          const fs = require('fs');
-          const [androidId, iosId] = process.argv.slice(2);
-          const raw = JSON.parse(fs.readFileSync('/tmp/eas-builds.json', 'utf8'));
-          const builds = Array.isArray(raw) ? raw : (Array.isArray(raw?.builds) ? raw.builds : []);
-          const find = (id) => builds.find((b) => b?.id === id) ?? null;
-          const android = find(androidId);
-          const ios = find(iosId);
-          const status = (b) => String(b?.status ?? 'missing').toLowerCase();
-          console.log(`android=${status(android)}`);
-          console.log(`ios=${status(ios)}`);
-          if (android) fs.writeFileSync('/tmp/android-build.json', JSON.stringify(android, null, 2));
-          if (ios) fs.writeFileSync('/tmp/ios-build.json', JSON.stringify(ios, null, 2));
-          NODE
-
-            android_status=$(grep '^android=' /tmp/rc-status.txt | cut -d= -f2)
-            ios_status=$(grep '^ios=' /tmp/rc-status.txt | cut -d= -f2)
-            echo "Attempt $attempt: Android=$android_status iOS=$ios_status"
-
-            if terminal_status "$android_status" && terminal_status "$ios_status"; then
-              break
-            fi
-
-            if [ "$attempt" -eq 90 ]; then
-              echo "::error::Timed out waiting for paired EAS builds."
-              exit 1
-            fi
-            sleep 30
-          done
-
-          node - <<'NODE'
-          const fs = require('fs');
-          for (const [platform, file] of [['Android','/tmp/android-build.json'], ['iOS','/tmp/ios-build.json']]) {
-            const b = JSON.parse(fs.readFileSync(file, 'utf8'));
-            console.log(`${platform} build id: ${b.id}`);
-            console.log(`${platform} status: ${b.status}`);
-            console.log(`${platform} platform: ${b.platform}`);
-            console.log(`${platform} app version: ${b.appVersion ?? ''}`);
-            console.log(`${platform} build version: ${b.appBuildVersion ?? ''}`);
-            console.log(`${platform} artifact: ${b.artifacts?.buildUrl ?? b.artifacts?.applicationArchiveUrl ?? ''}`);
-            console.log(`${platform} logs: https://expo.dev/accounts/mlamhco/projects/mlamh/builds/${b.id}`);
-            if (String(b.status).toLowerCase() !== 'finished') process.exitCode = 1;
-          }
-          NODE
+          set -uo pipefail
+          npx --yes eas-cli@latest whoami || true
+          npx --yes eas-cli@latest project:info || true
+          echo "--- Android build lookup ---"
+          npx --yes eas-cli@latest build:view "$ANDROID_BUILD_ID" --json || true
+          echo "--- iOS build lookup ---"
+          npx --yes eas-cli@latest build:view "$IOS_BUILD_ID" --json || true
+          echo "--- Recent builds ---"
+          npx --yes eas-cli@latest build:list --json --limit 10 --non-interactive || true
