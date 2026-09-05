@@ -5,7 +5,7 @@ export type MobileOpportunity = {
   id: number; title: string; slug: string; description: string; opportunityType: string; countryCode: string | null; currency: string | null; citySlug: string | null; city: string | null; requiredGender: string | null; minAge: number | null; maxAge: number | null; requiredCount: number | null; workDate: string | null; workDuration: string | null; applicationStartDate: string | null; applicationDeadline: string | null; roleRequirements: Record<string, unknown>; compensationType: "fixed" | "negotiable" | "unpaid" | null; budget: string | null; companyName: string; featured: boolean; managedByMlamh: boolean; expiresAt: string | null; createdAt: string;
 };
 export type MobileApplicationStatus = "pending" | "reviewing" | "shortlisted" | "accepted" | "rejected";
-export type MobileApplicationItem = { id: number | string; status: MobileApplicationStatus; createdAt: string | null; opportunity: { id: number | string; title: string | null; slug: string | null; city: string | null; opportunityType: string | null; status: string | null; createdAt: string | null } | null; conversationId: string | null };
+export type MobileApplicationItem = { id: number | string; status: MobileApplicationStatus; createdAt: string | null; opportunity: { id: number | string; title: string | null; slug: string | null; city: string | null; countryCode: string | null; opportunityType: string | null; status: string | null; createdAt: string | null } | null; conversationId: string | null };
 export type MobileConversation = { id: number; opportunityId: number; opportunityTitle: string | null; partyName: string; partyImageUrl: string | null; status: string | null; latestMessage: string | null; lastActivityAt: string | null; unreadCount: number };
 export type ConversationsResponse = { items: MobileConversation[]; unreadCount: number };
 export type MobileMessage = { id: number | string; conversationId: number; senderUserId: string; body: string; readAt: string | null; createdAt: string; isMine: boolean };
@@ -109,8 +109,16 @@ export async function getConversation(conversationId: string): Promise<Conversat
 }
 export async function sendMessage(conversationId: string, body: string): Promise<SendMessageResult> { return authedMutation<SendMessageResult>(`/api/conversations/${encodeURIComponent(conversationId)}`, "POST", { ok: false, code: "REQUEST_FAILED" }, { body }); }
 export async function getNotifications(): Promise<NotificationsResponse | null> {
-  const headers = await authHeaders(); if (!headers) return null;
-  try { const response = await fetch(`${API_BASE_URL}/api/notifications`, { headers }); if (!response.ok) return null; return await readJson<NotificationsResponse>(response); } catch { return null; }
+  const headers = await authHeaders();
+  if (!headers) return null;
+  let response: Response;
+  try { response = await fetch(`${API_BASE_URL}/api/notifications`, { headers }); }
+  catch { throw new Error("NOTIFICATIONS_REQUEST_FAILED:NETWORK"); }
+  if (response.status === 401 || response.status === 403) return null;
+  if (!response.ok) throw new Error(`NOTIFICATIONS_REQUEST_FAILED:${response.status}`);
+  const payload = await readJson<NotificationsResponse>(response);
+  if (!payload || !Array.isArray(payload.items) || typeof payload.unreadCount !== "number") throw new Error("NOTIFICATIONS_REQUEST_FAILED:INVALID_RESPONSE");
+  return payload;
 }
 export async function markNotificationRead(notificationId: number | string) {
   const headers = await authHeaders(); if (!headers) return false;
