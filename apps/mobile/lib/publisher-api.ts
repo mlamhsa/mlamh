@@ -14,6 +14,13 @@ function requireApiBaseUrl() {
 
 const API_BASE_URL = requireApiBaseUrl();
 
+async function readJson<T>(response: Response): Promise<T | null> {
+  let text = "";
+  try { text = await response.text(); } catch { return null; }
+  if (!text.trim()) return null;
+  try { return JSON.parse(text) as T; } catch { return null; }
+}
+
 export type MobilePublisherOpportunity = {
   id: number;
   title: string;
@@ -163,67 +170,76 @@ async function accessToken() {
 export async function getPublisherDashboard(locale: AppLocale): Promise<MobilePublisherDashboard | null> {
   const token = await accessToken();
   if (!token) return null;
-  const response = await fetch(`${API_BASE_URL}/api/publisher/me?locale=${locale}`, {
-    headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
-  });
-  if (!response.ok) return null;
-  return (await response.json()) as MobilePublisherDashboard;
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/publisher/me?locale=${locale}`, {
+      headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) return null;
+    return await readJson<MobilePublisherDashboard>(response);
+  } catch { return null; }
 }
 
 export async function createPublisherOpportunityDraft(input: CreateOpportunityDraftInput): Promise<CreateOpportunityDraftResult> {
   const token = await accessToken();
   if (!token) return { ok: false, code: "UNAUTHENTICATED" };
-  const response = await fetch(`${API_BASE_URL}/api/publisher/opportunities`, {
-    method: "POST",
-    headers: { Accept: "application/json", "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify(input),
-  });
-  try { return (await response.json()) as CreateOpportunityDraftResult; }
-  catch { return { ok: false, code: "REQUEST_FAILED" }; }
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/publisher/opportunities`, {
+      method: "POST",
+      headers: { Accept: "application/json", "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(input),
+    });
+    return (await readJson<CreateOpportunityDraftResult>(response)) ?? { ok: false, code: response.ok ? "INVALID_RESPONSE" : "REQUEST_FAILED" };
+  } catch { return { ok: false, code: "REQUEST_FAILED" }; }
 }
 
 export async function getPublisherConversations(): Promise<ConversationsResponse | null> {
   const token = await accessToken();
   if (!token) return null;
-  const response = await fetch(`${API_BASE_URL}/api/conversations`, {
-    headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
-  });
-  if (!response.ok) return null;
-  return (await response.json()) as ConversationsResponse;
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/conversations`, {
+      headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) return null;
+    return await readJson<ConversationsResponse>(response);
+  } catch { return null; }
 }
 
 export async function getPublisherOpportunity(opportunityId: number, locale: AppLocale): Promise<PublisherOpportunityDetail | null> {
   const token = await accessToken();
   if (!token) return null;
-  const response = await fetch(`${API_BASE_URL}/api/publisher/opportunities/${opportunityId}?locale=${locale}`, {
-    headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
-  });
-  if (!response.ok) return null;
-  const payload = (await response.json()) as { ok?: boolean; opportunity?: PublisherOpportunityDetail["opportunity"]; applicants?: PublisherApplicant[] };
-  if (!payload.ok || !payload.opportunity || !Array.isArray(payload.applicants)) return null;
-  return { opportunity: payload.opportunity, applicants: payload.applicants };
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/publisher/opportunities/${opportunityId}?locale=${locale}`, {
+      headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) return null;
+    const payload = await readJson<{ ok?: boolean; opportunity?: PublisherOpportunityDetail["opportunity"]; applicants?: PublisherApplicant[] }>(response);
+    if (!payload?.ok || !payload.opportunity || !Array.isArray(payload.applicants)) return null;
+    return { opportunity: payload.opportunity, applicants: payload.applicants };
+  } catch { return null; }
 }
 
 export async function updatePublisherApplicantStatus(opportunityId: number, applicationId: number, status: "accepted" | "rejected" | "shortlisted"): Promise<PublisherApplicantStatusResult> {
   const token = await accessToken();
   if (!token) return { ok: false, code: "UNAUTHENTICATED" };
-  const response = await fetch(`${API_BASE_URL}/api/publisher/opportunities/${opportunityId}`, {
-    method: "PATCH",
-    headers: { Accept: "application/json", "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ applicationId, status }),
-  });
-  try { return (await response.json()) as PublisherApplicantStatusResult; }
-  catch { return { ok: false, code: "REQUEST_FAILED" }; }
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/publisher/opportunities/${opportunityId}`, {
+      method: "PATCH",
+      headers: { Accept: "application/json", "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ applicationId, status }),
+    });
+    return (await readJson<PublisherApplicantStatusResult>(response)) ?? { ok: false, code: response.ok ? "INVALID_RESPONSE" : "REQUEST_FAILED" };
+  } catch { return { ok: false, code: "REQUEST_FAILED" }; }
 }
 
 export async function managePublisherOpportunity(opportunityId: number, input: PublisherOpportunityManageInput): Promise<PublisherOpportunityManageResult> {
   const token = await accessToken();
   if (!token) return { ok: false, code: "UNAUTHENTICATED" };
-  const response = await fetch(`${API_BASE_URL}/api/publisher/opportunities/${opportunityId}`, {
-    method: "PATCH",
-    headers: { Accept: "application/json", "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify(input),
-  });
-  try { return (await response.json()) as PublisherOpportunityManageResult; }
-  catch { return { ok: false, code: "REQUEST_FAILED" }; }
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/publisher/opportunities/${opportunityId}`, {
+      method: "PATCH",
+      headers: { Accept: "application/json", "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(input),
+    });
+    return (await readJson<PublisherOpportunityManageResult>(response)) ?? { ok: false, code: response.ok ? "INVALID_RESPONSE" : "REQUEST_FAILED" };
+  } catch { return { ok: false, code: "REQUEST_FAILED" }; }
 }
