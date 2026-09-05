@@ -27,6 +27,15 @@ export type PublisherOpportunityDetail = {
     currency: string | null;
     budget: string | null;
     compensationType: string | null;
+    requiredGender: string | null;
+    minAge: number | null;
+    maxAge: number | null;
+    requiredCount: number | null;
+    workDate: string | null;
+    workDuration: string | null;
+    applicationStartDate: string | null;
+    applicationDeadline: string | null;
+    roleRequirements: Record<string, unknown>;
     status: string | null;
     published: boolean;
     createdAt: string | null;
@@ -48,15 +57,16 @@ export async function getPublisherOpportunityDetail(userId: string, opportunityI
   const context = await publisherContext(userId);
   if (!context) return null;
   const { admin, publisher } = context;
-  const { data: opportunity } = await admin.from("opportunities").select("id,title,title_en,description,description_en,opportunity_type,city_ar,city_en,country_code,currency,budget,compensation_type,status,published,created_at").eq("id", opportunityId).eq("publisher_id", publisher.id).maybeSingle();
+  const { data: opportunity } = await admin.from("opportunities").select("id,title,title_en,description,description_en,opportunity_type,city_ar,city_en,country_code,currency,budget,compensation_type,required_gender,min_age,max_age,required_count,work_date,work_duration,application_start_date,application_deadline,role_requirements,status,published,created_at").eq("id", opportunityId).eq("publisher_id", publisher.id).maybeSingle();
   if (!opportunity) return null;
 
   const { data: applications, error } = await admin.from("opportunity_applications").select("id,talent_id,status,created_at").eq("opportunity_id", opportunityId).order("created_at", { ascending: false });
   if (error) throw new Error(`[getPublisherOpportunityDetail] ${error.message}`);
   const talentIds = [...new Set((applications ?? []).map((item) => item.talent_id))];
+  const acceptedApplicationIds = (applications ?? []).filter((item) => normalizeApplicationStatus(item.status) === "accepted").map((item) => item.id);
   const [talentsResult, conversationsResult] = await Promise.all([
     talentIds.length ? admin.from("talents").select("id,display_name_ar,display_name_en,name_ar,name_en,image_url,category_ar,category_en,city_ar,city_en").in("id", talentIds) : Promise.resolve({ data: [], error: null }),
-    admin.from("conversations").select("id,application_id").eq("opportunity_id", opportunityId),
+    acceptedApplicationIds.length ? admin.from("conversations").select("id,application_id").eq("opportunity_id", opportunityId).in("application_id", acceptedApplicationIds) : Promise.resolve({ data: [], error: null }),
   ]);
   if (talentsResult.error) throw new Error(`[getPublisherOpportunityDetail] ${talentsResult.error.message}`);
   if (conversationsResult.error) throw new Error(`[getPublisherOpportunityDetail] ${conversationsResult.error.message}`);
@@ -66,6 +76,7 @@ export async function getPublisherOpportunityDetail(userId: string, opportunityI
 
   const applicants = await Promise.all((applications ?? []).map(async (application) => {
     const talent = talentMap.get(application.talent_id);
+    const status = normalizeApplicationStatus(application.status);
     return {
       applicationId: application.id,
       talentId: application.talent_id,
@@ -73,9 +84,9 @@ export async function getPublisherOpportunityDetail(userId: string, opportunityI
       imageUrl: talent ? await signTalentMediaReference(talent.image_url, admin) : null,
       category: talent ? localized(talent.category_ar, talent.category_en) || null : null,
       city: talent ? localized(talent.city_ar, talent.city_en) || null : null,
-      status: normalizeApplicationStatus(application.status),
+      status,
       createdAt: application.created_at ?? null,
-      conversationId: conversationMap.get(Number(application.id)) ?? null,
+      conversationId: status === "accepted" ? conversationMap.get(Number(application.id)) ?? null : null,
     };
   }));
 
@@ -90,6 +101,15 @@ export async function getPublisherOpportunityDetail(userId: string, opportunityI
       currency: opportunity.currency ?? null,
       budget: opportunity.budget ?? null,
       compensationType: opportunity.compensation_type ?? null,
+      requiredGender: opportunity.required_gender ?? null,
+      minAge: opportunity.min_age == null ? null : Number(opportunity.min_age),
+      maxAge: opportunity.max_age == null ? null : Number(opportunity.max_age),
+      requiredCount: opportunity.required_count == null ? null : Number(opportunity.required_count),
+      workDate: opportunity.work_date ?? null,
+      workDuration: opportunity.work_duration ?? null,
+      applicationStartDate: opportunity.application_start_date ?? null,
+      applicationDeadline: opportunity.application_deadline ?? null,
+      roleRequirements: opportunity.role_requirements && typeof opportunity.role_requirements === "object" && !Array.isArray(opportunity.role_requirements) ? opportunity.role_requirements as Record<string, unknown> : {},
       status: opportunity.status ?? null,
       published: Boolean(opportunity.published),
       createdAt: opportunity.created_at ?? null,
