@@ -7,6 +7,11 @@ import { getDeviceLocale, isRtlLocale } from "@/lib/i18n";
 import { CLOTHING_SIZE_OPTIONS, EYE_COLOR_OPTIONS, HAIR_COLOR_OPTIONS, HAIR_TYPE_OPTIONS, SAUDI_CITY_OPTIONS, SKIN_COLOR_OPTIONS, TALENT_AVAILABILITY_OPTIONS, TALENT_GENDER_OPTIONS, type MobileOption } from "@/lib/profile-options";
 import { darkTheme } from "@/lib/theme";
 
+const TALENT_ROLE_OPTIONS: MobileOption[] = [
+  { value: "actor", ar: "ممثل", en: "Actor" },
+  { value: "model", ar: "مودل", en: "Model" },
+];
+
 export default function EditTalentProfileScreen() {
   const locale = getDeviceLocale(); const isArabic = locale === "ar"; const isRtl = isRtlLocale(locale); const theme = darkTheme; const styles = useMemo(() => createStyles(theme), [theme]);
   const [primaryRole, setPrimaryRole] = useState<"actor" | "model" | null>(null);
@@ -41,13 +46,13 @@ export default function EditTalentProfileScreen() {
     const split = (value: string, max = 12) => value.split(",").map((item) => item.trim()).filter(Boolean).slice(0, max);
     const number = (value: string) => value.trim() ? Number(value) : null;
     const height = number(heightCm), weight = number(weightKg), shoe = number(shoeSize), ageMin = number(actingAgeMin), ageMax = number(actingAgeMax), experience = number(experienceYears);
-    if (displayName.trim().length > 80 || bio.trim().length > 1200 || split(skills).some((x) => x.length > 40) || (dateOfBirth && !/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth)) || (height !== null && (!Number.isFinite(height) || height < 80 || height > 250)) || (ageMin !== null && ageMax !== null && ageMin > ageMax)) {
-      setError(isArabic ? "راجع البيانات المدخلة، خصوصًا تاريخ الميلاد والطول والعمر التمثيلي." : "Review your entries, especially date of birth, height, and acting age."); return;
+    if (!primaryRole || displayName.trim().length > 80 || bio.trim().length > 1200 || split(skills).some((x) => x.length > 40) || (dateOfBirth && !/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth)) || (height !== null && (!Number.isFinite(height) || height < 80 || height > 250)) || (ageMin !== null && ageMax !== null && ageMin > ageMax)) {
+      setError(isArabic ? "راجع البيانات المدخلة، خصوصًا نوع الموهبة وتاريخ الميلاد والطول والعمر التمثيلي." : "Review your entries, especially talent type, date of birth, height, and acting age."); return;
     }
     setSaving(true); setError(null);
     try {
       const result = await updateTalentProfile(locale, {
-        displayName, bio, skills: split(skills), languages: split(languages, 8), dialects: split(dialects, 8), modelingTypes: split(modelingTypes, 8), citySlug, gender,
+        primaryRole, displayName, bio, skills: split(skills), languages: split(languages, 8), dialects: split(dialects, 8), modelingTypes: split(modelingTypes, 8), citySlug, gender,
         dateOfBirth: dateOfBirth || null, nationalitySlug: nationalitySlug.trim() || null, heightCm: height, weightKg: weight, shoeSize: shoe, availabilityStatus, eyeColor, hairColor, hairType, skinColor, clothingSize,
         actingAgeMin: ageMin, actingAgeMax: ageMax, experienceYears: experience, readyToTravel, hasPassport, hasCar, workOutsideCity, workOutsideCountry,
       });
@@ -64,6 +69,7 @@ export default function EditTalentProfileScreen() {
     <View style={styles.header}><Text accessibilityRole="header" style={[styles.title, { textAlign: align }]}>{isArabic ? "بيانات ملفك" : "Profile details"}</Text><Text style={[styles.subtitle, { textAlign: align }]}>{isArabic ? "ملف مهني كامل يساعد على المطابقة ويجهزك للمراجعة." : "A complete professional profile improves matching and review readiness."}</Text></View>
 
     <Section title={isArabic ? "البيانات الأساسية" : "Core details"} styles={styles}>
+      <Label text={isArabic ? "نوع الموهبة" : "Talent type"} styles={styles} /><OptionWrap options={TALENT_ROLE_OPTIONS} value={primaryRole} onChange={(value) => setPrimaryRole(value as "actor" | "model")} locale={locale} styles={styles} />
       <Field label={isArabic ? "الاسم المهني" : "Professional name"} value={displayName} onChangeText={setDisplayName} styles={styles} align={align} />
       <Label text={isArabic ? "المدينة" : "City"} styles={styles} /><OptionWrap options={SAUDI_CITY_OPTIONS} value={citySlug} onChange={setCitySlug} locale={locale} styles={styles} />
       <Label text={isArabic ? "الجنس" : "Gender"} styles={styles} /><OptionWrap options={TALENT_GENDER_OPTIONS} value={gender} onChange={setGender} locale={locale} styles={styles} />
