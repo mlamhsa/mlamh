@@ -189,7 +189,7 @@ function createStyles(theme: typeof darkTheme) {
     dateWrap: { flexDirection: "row", alignItems: "center", gap: 6 },
     unreadDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: theme.accent },
     date: { color: theme.grayMuted, fontSize: 9 },
-    cardTitle: { color: theme.text, fontSize: 15, lineHeight: 21, fontWeight: "650" },
+    cardTitle: { color: theme.text, fontSize: 15, lineHeight: 21, fontWeight: "600" },
     cardTitleUnread: { fontWeight: "900" },
     body: { color: theme.muted, fontSize: 12, lineHeight: 19 },
     openRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 2 },
