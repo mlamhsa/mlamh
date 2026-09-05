@@ -10,6 +10,22 @@ import { darkTheme } from "@/lib/theme";
 type TalentType = "actor" | "model";
 type OnboardingResult = { ok?: boolean; code?: string };
 
+async function submitTalentType(accessToken: string, talentType: TalentType) {
+  const response = await fetch(`${MOBILE_API_BASE_URL}/api/talent/onboarding`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ talentType }),
+  });
+  const raw = await response.text().catch(() => "");
+  let result: OnboardingResult = {};
+  try { result = raw ? JSON.parse(raw) as OnboardingResult : {}; } catch { result = {}; }
+  return { response, result };
+}
+
 export default function TalentOnboardingScreen() {
   const locale = getDeviceLocale();
   const isArabic = locale === "ar";
@@ -31,27 +47,22 @@ export default function TalentOnboardingScreen() {
         return;
       }
 
-      const response = await fetch(`${MOBILE_API_BASE_URL}/api/talent/onboarding`, {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ talentType: selected }),
-      });
-
-      const raw = await response.text();
-      let result: OnboardingResult = {};
-      try { result = raw ? JSON.parse(raw) as OnboardingResult : {}; } catch { result = {}; }
-
-      if (!response.ok || !result.ok) {
-        if (response.status === 401 || result.code === "UNAUTHENTICATED") {
-          await supabase.auth.refreshSession().catch(() => undefined);
-          setError(isArabic ? "انتهت جلسة الدخول. سجّل الدخول مرة أخرى للمتابعة." : "Your session expired. Sign in again to continue.");
+      let attempt = await submitTalentType(session.access_token, selected);
+      if (attempt.response.status === 401 || attempt.result.code === "UNAUTHENTICATED") {
+        const { data: refreshed } = await supabase.auth.refreshSession().catch(() => ({ data: { session: null } }));
+        if (!refreshed.session?.access_token) {
+          router.replace({ pathname: "/login", params: { next: "/onboarding" } });
           return;
         }
-        setError(result.code === "ACCOUNT_TYPE_CONFLICT"
+        attempt = await submitTalentType(refreshed.session.access_token, selected);
+      }
+
+      if (!attempt.response.ok || !attempt.result.ok) {
+        if (attempt.response.status === 401 || attempt.result.code === "UNAUTHENTICATED") {
+          router.replace({ pathname: "/login", params: { next: "/onboarding" } });
+          return;
+        }
+        setError(attempt.result.code === "ACCOUNT_TYPE_CONFLICT"
           ? (isArabic ? "هذا الحساب مرتبط بنوع حساب آخر." : "This account is linked to another account type.")
           : (isArabic ? "تعذر حفظ نوع الموهبة. حاول مرة أخرى." : "We couldn't save your talent type. Please try again."));
         return;
