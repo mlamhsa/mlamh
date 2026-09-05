@@ -2,9 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 
+import { ScreenSkeleton } from "@/components/ScreenSkeleton";
 import { resolveMobileMarket } from "@/lib/account";
 import { applyToOpportunity, getPublicOpportunity, type ApplyResult, type MobileOpportunity } from "@/lib/api";
 import { getDeviceLocale, isRtlLocale } from "@/lib/i18n";
+import { getMobileMarketLabel } from "@/lib/market-labels";
 import { darkTheme } from "@/lib/theme";
 
 export default function OpportunityDetailScreen() {
@@ -73,8 +75,8 @@ export default function OpportunityDetailScreen() {
     return isArabic ? message.ar : message.en;
   }
 
-  if (loading) return <View style={styles.centered}><ActivityIndicator size="large" color={theme.accent} /></View>;
-  if (error || !item) return <View style={styles.centered}><Text accessibilityRole="alert" style={styles.errorText}>{isArabic ? "تعذر فتح هذه الفرصة." : "Unable to open this opportunity."}</Text><Pressable accessibilityRole="button" style={styles.secondaryButton} onPress={() => router.back()}><Text style={styles.secondaryButtonText}>{isArabic ? "رجوع" : "Back"}</Text></Pressable></View>;
+  if (loading) return <ScreenSkeleton variant="detail" locale={locale} label={isArabic ? "تحميل تفاصيل الفرصة" : "Loading opportunity details"} />;
+  if (error || !item) return <View style={styles.centered}><Text accessibilityRole="alert" style={styles.errorText}>{isArabic ? "تعذر فتح هذه الفرصة." : "Unable to open this opportunity."}</Text><Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "رجوع" : "Back"} style={styles.secondaryButton} onPress={() => router.back()}><Text style={styles.secondaryButtonText}>{isArabic ? "رجوع" : "Back"}</Text></Pressable></View>;
 
   const compensation = item.compensationType === "unpaid"
     ? (isArabic ? "غير مدفوعة" : "Unpaid")
@@ -88,6 +90,8 @@ export default function OpportunityDetailScreen() {
   const roleRequirementItems = getRoleRequirementItems(item, isArabic);
   const applyMessage = applyError ?? getApplyMessage(applyResult);
   const applied = applyResult?.ok === true || (!applyResult?.ok && applyResult?.code === "ALREADY_APPLIED");
+  const marketLabel = getMobileMarketLabel(item.countryCode, locale);
+  const locationLabel = [item.city, marketLabel].filter(Boolean).join(" · ");
 
   return <View style={styles.screen}>
     <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
@@ -101,7 +105,7 @@ export default function OpportunityDetailScreen() {
         <View style={styles.badgeRow}>{item.featured ? <Text style={styles.goldBadge}>{isArabic ? "مميزة" : "Featured"}</Text> : null}<Text style={styles.neutralBadge}>{formatType(item.opportunityType, isArabic)}</Text></View>
         <Text accessibilityRole="header" style={[styles.title, { textAlign: isRtl ? "right" : "left" }]}>{item.title}</Text>
         <Text style={[styles.company, { textAlign: isRtl ? "right" : "left" }]}>{item.companyName}</Text>
-        <Text style={[styles.location, { textAlign: isRtl ? "right" : "left" }]}>{[item.city, item.countryCode].filter(Boolean).join(" · ")}</Text>
+        {locationLabel ? <Text style={[styles.location, { textAlign: isRtl ? "right" : "left" }]}>{locationLabel}</Text> : null}
       </View>
 
       <View style={[styles.factStrip, { direction: isRtl ? "rtl" : "ltr" }]}>
@@ -132,8 +136,8 @@ export default function OpportunityDetailScreen() {
 
     <View style={styles.ctaBar}>
       {applyMessage ? <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={[styles.applyMessage, applied && styles.applySuccess]}>{applyMessage}</Text> : null}
-      <Pressable accessibilityRole="button" accessibilityState={{ disabled: applyLoading || applied, busy: applyLoading }} disabled={applyLoading || applied} onPress={() => void apply()} style={({ pressed }) => [styles.primaryButton, (applyLoading || applied) && styles.buttonDisabled, pressed && !applied && styles.pressed]}>
-        {applyLoading ? <ActivityIndicator color={theme.background} /> : <Text style={styles.primaryButtonText}>{applied ? (isArabic ? "تم التقديم" : "Applied") : (isArabic ? "تقدم على الفرصة" : "Apply to opportunity")}</Text>}
+      <Pressable accessibilityRole="button" accessibilityLabel={applied ? (isArabic ? "تم التقديم" : "Applied") : (isArabic ? "تقدم على الفرصة" : "Apply to opportunity")} accessibilityState={{ disabled: applyLoading || applied, busy: applyLoading }} disabled={applyLoading || applied} onPress={() => void apply()} style={({ pressed }) => [styles.primaryButton, (applyLoading || applied) && styles.buttonDisabled, pressed && !applied && styles.pressed]}>
+        {applyLoading ? <ActivityIndicator accessibilityLabel={isArabic ? "جارٍ إرسال الطلب" : "Submitting application"} color={theme.background} /> : <Text style={styles.primaryButtonText}>{applied ? (isArabic ? "تم التقديم" : "Applied") : (isArabic ? "تقدم على الفرصة" : "Apply to opportunity")}</Text>}
       </Pressable>
     </View>
   </View>;
@@ -153,10 +157,10 @@ function getRoleRequirementItems(item: MobileOpportunity, ar: boolean) { const r
 
 function createStyles(theme: typeof darkTheme) { return StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.background }, centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 18, padding: 24, backgroundColor: theme.background }, content: { paddingHorizontal: 18, paddingTop: 26, paddingBottom: 148, gap: 18 },
-  topBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, roundAction: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, alignItems: "center", justifyContent: "center" }, topIcon: { color: theme.text, fontSize: 30, lineHeight: 32 }, topIconRtl: { transform: [{ rotate: "180deg" }] }, shareIcon: { color: theme.text, fontSize: 19 }, topBrand: { color: theme.accent, fontSize: 12, fontWeight: "900", letterSpacing: 2 },
+  topBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, roundAction: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, alignItems: "center", justifyContent: "center" }, topIcon: { color: theme.text, fontSize: 30, lineHeight: 32 }, topIconRtl: { transform: [{ rotate: "180deg" }] }, shareIcon: { color: theme.text, fontSize: 19 }, topBrand: { color: theme.accent, fontSize: 12, fontWeight: "900", letterSpacing: 2 },
   hero: { gap: 8, paddingTop: 8, paddingBottom: 8 }, badgeRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 }, goldBadge: { color: theme.background, backgroundColor: theme.accent, borderRadius: 999, overflow: "hidden", paddingHorizontal: 10, paddingVertical: 5, fontSize: 10, fontWeight: "800" }, neutralBadge: { color: theme.text, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border, borderRadius: 999, overflow: "hidden", paddingHorizontal: 10, paddingVertical: 5, fontSize: 10, fontWeight: "700" }, title: { color: theme.text, fontSize: 31, lineHeight: 39, fontWeight: "700" }, company: { color: theme.text, fontSize: 15, fontWeight: "700" }, location: { color: theme.muted, fontSize: 12 },
   factStrip: { flexDirection: "row", borderTopWidth: 1, borderBottomWidth: 1, borderColor: theme.border, paddingVertical: 14 }, fact: { flex: 1, paddingHorizontal: 8, gap: 4 }, factValue: { color: theme.text, fontSize: 13, fontWeight: "700", textAlign: "center" }, factLabel: { color: theme.muted, fontSize: 9, textAlign: "center" },
   section: { gap: 12, paddingTop: 6 }, sectionTitle: { color: theme.text, fontSize: 19, fontWeight: "700" }, description: { color: theme.muted, fontSize: 14, lineHeight: 23 }, metaGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 }, metaItem: { width: "48%", minHeight: 74, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border, borderRadius: 14, padding: 13, gap: 5 }, metaLabel: { color: theme.muted, fontSize: 10 }, metaValue: { color: theme.text, fontSize: 13, fontWeight: "700" }, requirementList: { borderTopWidth: 1, borderColor: theme.border }, requirementRow: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: theme.border, gap: 4 }, requirementLabel: { color: theme.muted, fontSize: 10 }, requirementValue: { color: theme.text, fontSize: 13, lineHeight: 19, fontWeight: "600" },
   trustCard: { flexDirection: "row", gap: 11, alignItems: "flex-start", backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border, borderRadius: 14, padding: 14 }, trustDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: theme.accent, marginTop: 5 }, trustCopy: { flex: 1, gap: 4 }, trustTitle: { color: theme.text, fontSize: 13, fontWeight: "700" }, trustBody: { color: theme.muted, fontSize: 11, lineHeight: 17 },
-  ctaBar: { position: "absolute", left: 0, right: 0, bottom: 0, paddingHorizontal: 18, paddingTop: 10, paddingBottom: 18, borderTopWidth: 1, borderTopColor: theme.border, backgroundColor: theme.background }, primaryButton: { minHeight: 52, borderRadius: 12, backgroundColor: theme.accent, alignItems: "center", justifyContent: "center" }, primaryButtonText: { color: theme.background, fontSize: 15, fontWeight: "800" }, buttonDisabled: { opacity: 0.5 }, pressed: { opacity: 0.8 }, applyMessage: { color: "#E59A9A", fontSize: 12, textAlign: "center", marginBottom: 8 }, applySuccess: { color: theme.accent }, secondaryButton: { borderWidth: 1, borderColor: theme.border, borderRadius: 12, paddingHorizontal: 18, paddingVertical: 12 }, secondaryButtonText: { color: theme.text, fontSize: 13, fontWeight: "700" }, errorText: { color: theme.text, fontSize: 14, textAlign: "center" },
+  ctaBar: { position: "absolute", left: 0, right: 0, bottom: 0, paddingHorizontal: 18, paddingTop: 10, paddingBottom: 18, borderTopWidth: 1, borderTopColor: theme.border, backgroundColor: theme.background }, primaryButton: { minHeight: 52, borderRadius: 12, backgroundColor: theme.accent, alignItems: "center", justifyContent: "center" }, primaryButtonText: { color: theme.background, fontSize: 15, fontWeight: "800" }, buttonDisabled: { opacity: 0.5 }, pressed: { opacity: 0.8 }, applyMessage: { color: "#E59A9A", fontSize: 12, textAlign: "center", marginBottom: 8 }, applySuccess: { color: theme.accent }, secondaryButton: { borderWidth: 1, borderColor: theme.border, borderRadius: 12, minHeight: 44, paddingHorizontal: 18, paddingVertical: 12, alignItems: "center", justifyContent: "center" }, secondaryButtonText: { color: theme.text, fontSize: 13, fontWeight: "700" }, errorText: { color: theme.text, fontSize: 14, textAlign: "center" },
 }); }
