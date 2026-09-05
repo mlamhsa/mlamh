@@ -40,7 +40,7 @@ export default async function LeadWorkspacePage({ params, searchParams }: PagePr
   const hasNamedContact = Boolean(contact?.contact_name?.trim());
   const hasLinkedIn = Boolean(contact?.linkedin_url?.trim());
   const hasEmail = Boolean(contact?.email?.trim());
-  const outreachReady = hasNamedContact && (hasLinkedIn || hasEmail);
+  const outreachReady = hasNamedContact && Boolean(role) && (hasLinkedIn || hasEmail);
   const missingReadiness = [
     !hasNamedContact ? (ar ? "اسم الشخص المسؤول" : "named decision-maker") : null,
     !role ? (ar ? "المنصب" : "role/title") : null,
