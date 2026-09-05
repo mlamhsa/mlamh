@@ -47,6 +47,7 @@ export type MobileTalentProfile = {
 };
 
 export type MobileTalentProfileUpdateInput = {
+  primaryRole?: "actor" | "model" | null;
   displayName?: string; bio?: string; skills?: string[]; citySlug?: string | null; gender?: string | null; dateOfBirth?: string | null;
   nationalitySlug?: string | null; heightCm?: number | null; availabilityStatus?: string | null;
   languages?: string[]; dialects?: string[]; weightKg?: number | null; eyeColor?: string | null; hairColor?: string | null;
