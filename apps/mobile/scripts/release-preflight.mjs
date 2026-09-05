@@ -26,15 +26,15 @@ function requireLocalAsset(assetPath, label) {
 requireValue(fs.existsSync(path.join(root, "package-lock.json")), "Mobile package-lock.json must be committed for reproducible EAS builds.");
 requireValue(expo.slug === "mlamh", "Expo slug must remain 'mlamh'.");
 requireValue(expo.scheme === "mlamh", "Custom URL scheme must remain 'mlamh'.");
+requireValue(expo.userInterfaceStyle === "dark", "MLAMH native shell must use the dark brand appearance.");
 requireValue(expo.ios?.bundleIdentifier === "net.mlamh.app", "iOS bundleIdentifier must be net.mlamh.app.");
 requireValue(/^\d+$/.test(expo.ios?.buildNumber ?? ""), "iOS buildNumber must be a numeric string.");
 requireValue(expo.android?.package === "net.mlamh.app", "Android package must be net.mlamh.app.");
 requireValue(Number.isInteger(expo.android?.versionCode) && expo.android.versionCode > 0, "Android versionCode must be a positive integer.");
 
-for (const [name, value] of [["Gold", "#D4A017"], ["Charcoal", "#2E2E2E"], ["Warm Ivory", "#F5F1E8"], ["Bronze", "#8C6A2D"]]) {
-  requireValue(themeSource.includes(value), `Canonical MLAMH ${name} token ${value} is missing from lib/theme.ts.`);
+for (const [name, value] of [["Background", "#050505"], ["Foreground", "#F5F5F0"], ["Gold", "#C9A962"], ["Gold Soft", "#D4AF6A"], ["Elevated", "#141414"]]) {
+  requireValue(themeSource.toUpperCase().includes(value.toUpperCase()), `Canonical MLAMH ${name} token ${value} is missing from lib/theme.ts.`);
 }
-requireValue(!themeSource.includes("goldStrong"), "MLAMH theme must not redefine the primary Gold token with an alternate brand gold.");
 
 const associatedDomains = new Set(expo.ios?.associatedDomains ?? []);
 requireValue(associatedDomains.has("applinks:mlamh.net"), "iOS associated domains must include mlamh.net.");
@@ -60,12 +60,13 @@ if (easConfig.build?.development?.developmentClient === true) {
   requireValue(Boolean(packageConfig.dependencies?.["expo-dev-client"]), "Development Client builds require expo-dev-client in dependencies.");
 }
 
-requireValue(expo.android?.adaptiveIcon?.backgroundColor === "#2E2E2E", "Android adaptive icon background must use official MLAMH Charcoal #2E2E2E.");
+requireValue(expo.android?.adaptiveIcon?.backgroundColor === "#050505", "Android adaptive icon background must use MLAMH background #050505.");
+requireValue(expo.plugins?.some((plugin) => Array.isArray(plugin) && plugin[0] === "expo-notifications" && plugin[1]?.color === "#C9A962"), "Notification accent must use MLAMH Gold #C9A962.");
 const splashPlugin = (expo.plugins ?? []).find((plugin) => Array.isArray(plugin) && plugin[0] === "expo-splash-screen");
 if (splashPlugin) {
   const splashConfig = splashPlugin[1] ?? {};
-  requireValue(splashConfig.backgroundColor === "#F5F1E8", "Light splash background must use official MLAMH Warm Ivory #F5F1E8.");
-  requireValue(splashConfig.dark?.backgroundColor === "#2E2E2E", "Dark splash background must use official MLAMH Charcoal #2E2E2E.");
+  requireValue(splashConfig.backgroundColor === "#050505", "Splash background must use MLAMH background #050505.");
+  requireValue(splashConfig.dark?.backgroundColor === "#050505", "Dark splash background must use MLAMH background #050505.");
 }
 
 if (strict) {
