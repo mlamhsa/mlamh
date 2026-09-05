@@ -13,6 +13,12 @@ export type PublicOpportunity = {
   requiredGender: string | null;
   minAge: number | null;
   maxAge: number | null;
+  requiredCount: number | null;
+  workDate: string | null;
+  workDuration: string | null;
+  applicationStartDate: string | null;
+  applicationDeadline: string | null;
+  roleRequirements: Record<string, unknown>;
   compensationType: "fixed" | "negotiable" | "unpaid" | null;
   budget: string | null;
   companyName: string;
