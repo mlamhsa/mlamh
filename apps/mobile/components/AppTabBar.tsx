@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import type { AppLocale } from "@/lib/i18n";
 import { darkTheme } from "@/lib/theme";
@@ -16,8 +17,9 @@ const tabs: Array<{ key: NavTabKey; path: "/opportunities" | "/applications" | "
 ];
 
 export function AppTabBar({ active, locale, theme = darkTheme }: { active: TabKey; locale: AppLocale; theme?: Theme; notificationCount?: number }) {
+  const insets = useSafeAreaInsets();
   const styles = createStyles(theme);
-  return <View style={styles.outer}><View style={styles.shell}>
+  return <View style={[styles.outer, { paddingBottom: Math.max(insets.bottom, 8) }]}><View style={styles.shell}>
     {tabs.map((tab) => <Tab key={tab.key} tab={tab} active={active} locale={locale} styles={styles} />)}
   </View></View>;
 }
@@ -32,7 +34,7 @@ function Tab({ tab, active, locale, styles }: { tab: (typeof tabs)[number]; acti
 }
 
 function createStyles(theme: Theme) { return StyleSheet.create({
-  outer: { backgroundColor: theme.background, paddingHorizontal: 0, paddingBottom: 0 },
+  outer: { backgroundColor: theme.background },
   shell: { minHeight: 70, flexDirection: "row", alignItems: "center", borderTopWidth: 1, borderTopColor: theme.border, backgroundColor: theme.nav, paddingHorizontal: 8, paddingTop: 7, paddingBottom: 9 },
   tab: { flex: 1, alignItems: "center", justifyContent: "center", gap: 7, minHeight: 52, paddingHorizontal: 4 },
   indicator: { width: 18, height: 2, borderRadius: 1, backgroundColor: "transparent" },
