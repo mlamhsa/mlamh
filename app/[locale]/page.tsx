@@ -108,6 +108,7 @@ export default async function HomePage({ params }: HomePageProps) {
         <MobileHome
           locale={locale}
           talents={talents}
+          hero={hero}
           valueProps={valueProps}
         />
       </div>
