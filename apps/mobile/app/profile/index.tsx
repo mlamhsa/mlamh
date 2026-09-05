@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 
 import { AppTabBar } from "@/components/AppTabBar";
+import { ScreenSkeleton } from "@/components/ScreenSkeleton";
 import { getNotifications, getTalentProfile, type MobileTalentProfile } from "@/lib/api";
 import { getDeviceLocale, isRtlLocale } from "@/lib/i18n";
 import { preparePushRegistration, signOutMobile } from "@/lib/push";
@@ -38,7 +39,7 @@ export default function ProfileScreen() {
     setPushMessage(messages[result.code]?.[locale] ?? (isArabic ? "تعذر تفعيل الإشعارات حاليًا." : "Unable to enable notifications right now."));
   }
 
-  if (loading) return <View style={styles.centered}><ActivityIndicator size="large" color={theme.accent} /></View>;
+  if (loading) return <ScreenSkeleton variant="profile" locale={locale} />;
   return <View style={styles.screen}><ScrollView contentContainerStyle={[styles.content, { direction: isRtl ? "rtl" : "ltr" }]} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={theme.accent} />}>
     <View style={styles.topBar}><View><Text style={styles.eyebrow}>{isArabic ? "ملامح" : "MLAMH"}</Text><Text style={styles.pageTitle}>{isArabic ? "ملفي" : "Profile"}</Text></View><Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "الدعم والسياسات" : "Support and policies"} onPress={() => router.push("/support")}><Text style={styles.topAction}>{isArabic ? "المساعدة" : "Support"}</Text></Pressable></View>
 
@@ -91,7 +92,7 @@ function approvalLabel(value: string | null, locale: "ar" | "en") { const ar: Re
 function availabilityLabel(value: string | null, locale: "ar" | "en") { const ar: Record<string,string> = { available_now: "متاح الآن", available_this_week: "هذا الأسبوع", available_next_month: "الشهر القادم", unavailable: "غير متاح" }; const en: Record<string,string> = { available_now: "Available now", available_this_week: "This week", available_next_month: "Next month", unavailable: "Unavailable" }; return (locale === "ar" ? ar : en)[value ?? ""] ?? (locale === "ar" ? "غير محدد" : "Not set"); }
 
 function createStyles(theme: typeof darkTheme) { return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: theme.background }, centered: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: theme.background }, content: { paddingHorizontal: 20, paddingTop: 52, paddingBottom: 34, gap: 20 }, topBar: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" }, eyebrow: { color: theme.accent, fontSize: 10, fontWeight: "900", letterSpacing: 1.7 }, pageTitle: { color: theme.text, fontSize: 32, lineHeight: 39, fontWeight: "700", marginTop: 2 }, topAction: { color: theme.muted, fontSize: 11, fontWeight: "700", paddingVertical: 7 },
+  screen: { flex: 1, backgroundColor: theme.background }, content: { paddingHorizontal: 20, paddingTop: 52, paddingBottom: 34, gap: 20 }, topBar: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" }, eyebrow: { color: theme.accent, fontSize: 10, fontWeight: "900", letterSpacing: 1.7 }, pageTitle: { color: theme.text, fontSize: 32, lineHeight: 39, fontWeight: "700", marginTop: 2 }, topAction: { color: theme.muted, fontSize: 11, fontWeight: "700", paddingVertical: 7 },
   identitySection: { alignItems: "center", gap: 6 }, avatarWrap: { width: 112, height: 112, marginBottom: 4 }, avatar: { width: 112, height: 112, borderRadius: 56, borderWidth: 1, borderColor: theme.border }, avatarPlaceholder: { width: 112, height: 112, borderRadius: 56, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, alignItems: "center", justifyContent: "center" }, avatarInitial: { color: theme.accent, fontSize: 42, fontWeight: "500" }, verifiedBadge: { position: "absolute", right: 2, bottom: 3, width: 26, height: 26, borderRadius: 13, backgroundColor: theme.accent, borderWidth: 3, borderColor: theme.background, alignItems: "center", justifyContent: "center" }, verifiedText: { color: theme.background, fontWeight: "900", fontSize: 11 }, name: { color: theme.text, fontSize: 26, lineHeight: 32, fontWeight: "800", textAlign: "center" }, category: { color: theme.accent, fontSize: 12, fontWeight: "800" }, location: { color: theme.muted, fontSize: 11 },
   statsRow: { width: "100%", flexDirection: "row", borderTopWidth: 1, borderBottomWidth: 1, borderColor: theme.border, marginTop: 8 }, stat: { flex: 1, alignItems: "center", paddingVertical: 12 }, statValue: { color: theme.text, fontSize: 18, fontWeight: "800" }, statLabel: { color: theme.muted, fontSize: 9, marginTop: 2 }, primaryButton: { width: "100%", minHeight: 50, borderRadius: 12, backgroundColor: theme.accent, alignItems: "center", justifyContent: "center", marginTop: 4 }, primaryButtonText: { color: theme.background, fontSize: 13, fontWeight: "900" },
   statusStrip: { flexDirection: "row", gap: 8 }, statusItem: { flex: 1, gap: 3, borderBottomWidth: 1, borderBottomColor: theme.border, paddingBottom: 10 }, statusLabel: { color: theme.muted, fontSize: 9 }, statusValue: { color: theme.text, fontSize: 11, fontWeight: "800" },
