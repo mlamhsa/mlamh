@@ -7,6 +7,7 @@ import { signTalentMediaReference } from "@/lib/talents/talent-media-signing";
 export type PublisherApplicant = {
   applicationId: number;
   talentId: number;
+  talentSlug: string | null;
   name: string;
   imageUrl: string | null;
   category: string | null;
@@ -65,7 +66,7 @@ export async function getPublisherOpportunityDetail(userId: string, opportunityI
   const talentIds = [...new Set((applications ?? []).map((item) => item.talent_id))];
   const acceptedApplicationIds = (applications ?? []).filter((item) => normalizeApplicationStatus(item.status) === "accepted").map((item) => item.id);
   const [talentsResult, conversationsResult] = await Promise.all([
-    talentIds.length ? admin.from("talents").select("id,display_name_ar,display_name_en,name_ar,name_en,image_url,category_ar,category_en,city_ar,city_en").in("id", talentIds) : Promise.resolve({ data: [], error: null }),
+    talentIds.length ? admin.from("talents").select("id,slug,display_name_ar,display_name_en,name_ar,name_en,image_url,category_ar,category_en,city_ar,city_en").in("id", talentIds) : Promise.resolve({ data: [], error: null }),
     acceptedApplicationIds.length ? admin.from("conversations").select("id,application_id").eq("opportunity_id", opportunityId).in("application_id", acceptedApplicationIds) : Promise.resolve({ data: [], error: null }),
   ]);
   if (talentsResult.error) throw new Error(`[getPublisherOpportunityDetail] ${talentsResult.error.message}`);
@@ -80,6 +81,7 @@ export async function getPublisherOpportunityDetail(userId: string, opportunityI
     return {
       applicationId: application.id,
       talentId: application.talent_id,
+      talentSlug: talent?.slug ?? null,
       name: talent ? localized(talent.display_name_ar || talent.name_ar, talent.display_name_en || talent.name_en, locale === "ar" ? "موهبة" : "Talent") : (locale === "ar" ? "موهبة" : "Talent"),
       imageUrl: talent ? await signTalentMediaReference(talent.image_url, admin) : null,
       category: talent ? localized(talent.category_ar, talent.category_en) || null : null,
