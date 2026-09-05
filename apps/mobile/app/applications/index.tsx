@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 
 import { AppTabBar } from "@/components/AppTabBar";
+import { ScreenSkeleton } from "@/components/ScreenSkeleton";
 import { getMyApplications, getNotifications, type MobileApplicationItem, type MobileApplicationStatus } from "@/lib/api";
 import { getDeviceLocale, isRtlLocale } from "@/lib/i18n";
 import { darkTheme } from "@/lib/theme";
@@ -56,7 +57,7 @@ export default function ApplicationsScreen() {
     return items;
   }, [filter, items]);
 
-  if (loading) return <View style={styles.centered}><ActivityIndicator size="large" color={theme.accent} /></View>;
+  if (loading) return <ScreenSkeleton variant="list" locale={locale} />;
 
   return <View style={styles.screen}>
     <FlatList
@@ -125,7 +126,7 @@ function ApplicationCard({ item, locale, styles }: { item: MobileApplicationItem
 }
 
 function createStyles(theme: typeof darkTheme) { return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: theme.background }, centered: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: theme.background }, content: { paddingHorizontal: 20, paddingTop: 54, paddingBottom: 30, gap: 12 },
+  screen: { flex: 1, backgroundColor: theme.background }, content: { paddingHorizontal: 20, paddingTop: 54, paddingBottom: 30, gap: 12 },
   header: { gap: 12, marginBottom: 8 }, brand: { color: theme.accent, fontSize: 17, fontWeight: "800", letterSpacing: 1.1 }, title: { color: theme.text, fontSize: 31, lineHeight: 38, fontWeight: "700" }, subtitle: { color: theme.muted, fontSize: 13, lineHeight: 20, maxWidth: 420 },
   statsRow: { flexDirection: "row", borderTopWidth: 1, borderBottomWidth: 1, borderColor: theme.border, paddingVertical: 14 }, stat: { flex: 1, gap: 3 }, statValue: { color: theme.text, fontSize: 22, fontWeight: "800" }, statValueAccent: { color: theme.accent }, statLabel: { color: theme.muted, fontSize: 10 },
   filterRow: { flexDirection: "row", gap: 18, borderBottomWidth: 1, borderBottomColor: theme.border }, filterTab: { flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 11 }, filterTabActive: { borderBottomWidth: 2, borderBottomColor: theme.accent }, filterText: { color: theme.muted, fontSize: 11, fontWeight: "700" }, filterTextActive: { color: theme.text }, filterCount: { color: theme.muted, fontSize: 9, fontWeight: "800" }, filterCountActive: { color: theme.accent },
