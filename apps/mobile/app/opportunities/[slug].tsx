@@ -1,18 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, Share, StyleSheet, Text, View, useColorScheme } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 
 import { resolveMobileMarket } from "@/lib/account";
 import { applyToOpportunity, getPublicOpportunity, type ApplyResult, type MobileOpportunity } from "@/lib/api";
 import { getDeviceLocale, isRtlLocale } from "@/lib/i18n";
-import { darkTheme, lightTheme } from "@/lib/theme";
+import { darkTheme } from "@/lib/theme";
 
 export default function OpportunityDetailScreen() {
   const params = useLocalSearchParams<{ slug?: string | string[] }>();
   const slug = Array.isArray(params.slug) ? params.slug[0] : params.slug;
   const locale = getDeviceLocale();
   const isArabic = locale === "ar";
-  const theme = useColorScheme() === "dark" ? darkTheme : lightTheme;
+  const isRtl = isRtlLocale(locale);
+  const theme = darkTheme;
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [item, setItem] = useState<MobileOpportunity | null>(null);
   const [loading, setLoading] = useState(true);
@@ -53,11 +54,7 @@ export default function OpportunityDetailScreen() {
   async function shareOpportunity() {
     if (!item) return;
     const url = `https://mlamh.net/${locale}/opportunities/${encodeURIComponent(item.slug)}`;
-    await Share.share({
-      title: item.title,
-      message: isArabic ? `${item.title}\n${url}` : `${item.title}\n${url}`,
-      url,
-    });
+    await Share.share({ title: item.title, message: `${item.title}\n${url}`, url });
   }
 
   function getApplyMessage(result: ApplyResult | null) {
@@ -81,104 +78,85 @@ export default function OpportunityDetailScreen() {
 
   const compensation = item.compensationType === "unpaid"
     ? (isArabic ? "غير مدفوعة" : "Unpaid")
-    : item.budget && item.currency ? `${item.budget} ${item.currency}` : item.compensationType === "negotiable" ? (isArabic ? "حسب الاتفاق" : "Negotiable") : item.compensationType ?? null;
+    : item.budget && item.currency ? `${item.budget} ${item.currency}` : item.compensationType === "negotiable" ? (isArabic ? "حسب الاتفاق" : "Negotiable") : (isArabic ? "غير محدد" : "Not specified");
+  const publishedLabel = formatDate(item.createdAt, locale);
+  const deadlineLabel = formatDate(item.applicationDeadline ?? item.expiresAt, locale);
+  const workDateLabel = formatDate(item.workDate, locale);
+  const ageLabel = formatAge(item.minAge, item.maxAge, isArabic);
+  const genderLabel = formatGender(item.requiredGender, isArabic);
+  const durationLabel = formatDuration(item.workDuration, isArabic);
+  const roleRequirementItems = getRoleRequirementItems(item, isArabic);
   const applyMessage = applyError ?? getApplyMessage(applyResult);
   const applied = applyResult?.ok === true || (!applyResult?.ok && applyResult?.code === "ALREADY_APPLIED");
-  const publishedLabel = item.createdAt ? new Date(item.createdAt).toLocaleDateString(isArabic ? "ar-SA" : "en-US") : null;
-  const deadlineLabel = item.expiresAt ? new Date(item.expiresAt).toLocaleDateString(isArabic ? "ar-SA" : "en-US") : null;
 
   return <View style={styles.screen}>
     <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
-      <View style={[styles.topBar, { direction: isRtlLocale(locale) ? "rtl" : "ltr" }]}>
-        <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "رجوع" : "Back"} onPress={() => router.back()} hitSlop={12} style={styles.roundAction}><Text style={styles.topIcon}>‹</Text></Pressable>
-        <View style={styles.topIdentity}><Text style={styles.topBrand}>MLAMH</Text><View style={styles.topBrandDot} /></View>
+      <View style={[styles.topBar, { direction: isRtl ? "rtl" : "ltr" }]}>
+        <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "رجوع" : "Back"} onPress={() => router.back()} hitSlop={12} style={styles.roundAction}><Text style={[styles.topIcon, isRtl && styles.topIconRtl]}>‹</Text></Pressable>
+        <Text style={styles.topBrand}>MLAMH</Text>
         <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "مشاركة الفرصة" : "Share opportunity"} onPress={() => void shareOpportunity()} hitSlop={10} style={styles.roundAction}><Text style={styles.shareIcon}>↗</Text></Pressable>
       </View>
 
-      <View style={styles.coverCard}>
-        <View style={styles.coverGlowLarge} />
-        <View style={styles.coverGlowSmall} />
-        <View style={styles.coverTopRow}><Text style={styles.featuredBadge}>{item.featured ? (isArabic ? "فرصة مميزة" : "Featured") : (isArabic ? "فرصة" : "Opportunity")}</Text><Text style={styles.coverType}>{item.opportunityType.replaceAll("_", " ")}</Text></View>
-        <View style={styles.coverContent}><Text style={styles.coverBrand}>MLAMH / OPPORTUNITIES</Text><Text numberOfLines={3} style={styles.coverTitle}>{item.title}</Text><View style={styles.coverMetaRow}><Text style={styles.coverMeta}>{item.companyName}</Text><Text style={styles.coverMetaDot}>•</Text><Text style={styles.coverMeta}>{[item.city, item.countryCode].filter(Boolean).join(" · ") || item.countryCode || "MLAMH"}</Text></View></View>
+      <View style={[styles.hero, { direction: isRtl ? "rtl" : "ltr" }]}>
+        <View style={styles.badgeRow}>{item.featured ? <Text style={styles.goldBadge}>{isArabic ? "مميزة" : "Featured"}</Text> : null}<Text style={styles.neutralBadge}>{formatType(item.opportunityType, isArabic)}</Text></View>
+        <Text accessibilityRole="header" style={[styles.title, { textAlign: isRtl ? "right" : "left" }]}>{item.title}</Text>
+        <Text style={[styles.company, { textAlign: isRtl ? "right" : "left" }]}>{item.companyName}</Text>
+        <Text style={[styles.location, { textAlign: isRtl ? "right" : "left" }]}>{[item.city, item.countryCode].filter(Boolean).join(" · ")}</Text>
       </View>
 
-      <View style={[styles.mainCard, { direction: isRtlLocale(locale) ? "rtl" : "ltr" }]}>
-        <View style={styles.headingBlock}>
-          <Text accessibilityRole="header" style={styles.title}>{item.title}</Text>
-          <View style={styles.companyRow}><View style={styles.companyAvatar}><Text style={styles.companyAvatarText}>{item.companyName.slice(0, 1).toUpperCase()}</Text></View><View style={styles.companyText}><View style={styles.companyNameRow}><Text style={styles.company}>{item.companyName}</Text>{item.managedByMlamh ? <Text accessibilityLabel={isArabic ? "مدار بواسطة ملامح" : "Managed by MLAMH"} style={styles.verifiedDot}>✓</Text> : null}</View><Text style={styles.locationLine}>{[item.city, item.countryCode].filter(Boolean).join(" · ")}</Text></View></View>
-        </View>
+      <View style={[styles.factStrip, { direction: isRtl ? "rtl" : "ltr" }]}>
+        <Fact label={isArabic ? "المقابل" : "Compensation"} value={compensation} styles={styles} />
+        <Fact label={isArabic ? "العمر" : "Age"} value={ageLabel} styles={styles} />
+        <Fact label={isArabic ? "آخر موعد" : "Deadline"} value={deadlineLabel ?? (isArabic ? "مفتوح" : "Open")} styles={styles} />
+      </View>
 
-        <View style={styles.quickFacts}>
-          <Fact value={compensation ?? (isArabic ? "غير محدد" : "Not specified")} label={isArabic ? "المقابل" : "Compensation"} styles={styles} />
-          <Fact value={item.city ?? item.countryCode ?? "—"} label={isArabic ? "الموقع" : "Location"} styles={styles} />
-          <Fact value={deadlineLabel ?? (isArabic ? "مفتوح" : "Open")} label={isArabic ? "آخر موعد" : "Deadline"} styles={styles} />
-        </View>
+      <Section title={isArabic ? "عن الفرصة" : "About the opportunity"} styles={styles} isRtl={isRtl}>
+        <Text style={[styles.description, { textAlign: isRtl ? "right" : "left" }]}>{item.description || (isArabic ? "لا يوجد وصف متاح لهذه الفرصة." : "No description is available for this opportunity.")}</Text>
+      </Section>
 
-        <View style={styles.sectionDivider} />
-        <View style={styles.section}>
-          <Text style={styles.sectionEyebrow}>{isArabic ? "التفاصيل" : "DETAILS"}</Text>
-          <Text style={styles.sectionTitle}>{isArabic ? "عن الفرصة" : "About the opportunity"}</Text>
-          <Text style={styles.description}>{item.description}</Text>
-        </View>
-
+      <Section title={isArabic ? "التفاصيل الأساسية" : "Key details"} styles={styles} isRtl={isRtl}>
         <View style={styles.metaGrid}>
-          <Meta label={isArabic ? "النوع" : "Type"} value={item.opportunityType.replaceAll("_", " ")} styles={styles} />
-          {item.city ? <Meta label={isArabic ? "المدينة" : "City"} value={item.city} styles={styles} /> : null}
+          <Meta label={isArabic ? "نوع الفرصة" : "Type"} value={formatType(item.opportunityType, isArabic)} styles={styles} />
+          <Meta label={isArabic ? "الجنس" : "Gender"} value={genderLabel} styles={styles} />
+          {item.requiredCount ? <Meta label={isArabic ? "العدد المطلوب" : "Talent needed"} value={String(item.requiredCount)} styles={styles} /> : null}
+          {workDateLabel ? <Meta label={isArabic ? "تاريخ العمل" : "Work date"} value={workDateLabel} styles={styles} /> : null}
+          {durationLabel ? <Meta label={isArabic ? "مدة العمل" : "Duration"} value={durationLabel} styles={styles} /> : null}
           {publishedLabel ? <Meta label={isArabic ? "تاريخ النشر" : "Published"} value={publishedLabel} styles={styles} /> : null}
-          {deadlineLabel ? <Meta label={isArabic ? "آخر موعد" : "Deadline"} value={deadlineLabel} styles={styles} /> : null}
         </View>
+      </Section>
 
-        {item.managedByMlamh ? <View style={styles.trustCard}><View style={styles.trustMark}><Text style={styles.trustMarkText}>M</Text></View><View style={styles.trustText}><Text style={styles.trustTitle}>{isArabic ? "هذه الفرصة مُدارة عبر ملامح" : "Managed through MLAMH"}</Text><Text style={styles.trustBody}>{isArabic ? "يتم استقبال الطلبات ومتابعة مراحل الاختيار من خلال المنصة." : "Applications and selection updates are handled through the platform."}</Text></View></View> : null}
-      </View>
+      {roleRequirementItems.length > 0 ? <Section title={isArabic ? "متطلبات الدور" : "Role requirements"} styles={styles} isRtl={isRtl}><View style={styles.requirementList}>{roleRequirementItems.map((entry) => <View key={`${entry.label}-${entry.value}`} style={styles.requirementRow}><Text style={styles.requirementLabel}>{entry.label}</Text><Text style={styles.requirementValue}>{entry.value}</Text></View>)}</View></Section> : null}
+
+      {item.managedByMlamh ? <View style={[styles.trustCard, { direction: isRtl ? "rtl" : "ltr" }]}><View style={styles.trustDot} /><View style={styles.trustCopy}><Text style={[styles.trustTitle, { textAlign: isRtl ? "right" : "left" }]}>{isArabic ? "هذه الفرصة مُدارة عبر ملامح" : "Managed through MLAMH"}</Text><Text style={[styles.trustBody, { textAlign: isRtl ? "right" : "left" }]}>{isArabic ? "استقبال الطلبات ومراحل الاختيار تتم من خلال المنصة." : "Applications and selection stages are handled through the platform."}</Text></View></View> : null}
     </ScrollView>
 
     <View style={styles.ctaBar}>
       {applyMessage ? <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={[styles.applyMessage, applied && styles.applySuccess]}>{applyMessage}</Text> : null}
-      <Pressable accessibilityRole="button" accessibilityState={{ disabled: applyLoading || applied, busy: applyLoading }} disabled={applyLoading || applied} style={({ pressed }) => [styles.primaryButton, (pressed || applyLoading || applied) && styles.buttonDisabled]} onPress={() => void apply()}>
-        <Text style={styles.primaryButtonText}>{applyLoading ? (isArabic ? "جارٍ التقديم..." : "Applying...") : applied ? (isArabic ? "تم التقديم" : "Applied") : (isArabic ? "تقدم على الفرصة" : "Apply to opportunity")}</Text>
-        {!applied ? <Text style={styles.primaryArrow}>›</Text> : null}
+      <Pressable accessibilityRole="button" accessibilityState={{ disabled: applyLoading || applied, busy: applyLoading }} disabled={applyLoading || applied} onPress={() => void apply()} style={({ pressed }) => [styles.primaryButton, (applyLoading || applied) && styles.buttonDisabled, pressed && !applied && styles.pressed]}>
+        {applyLoading ? <ActivityIndicator color={theme.background} /> : <Text style={styles.primaryButtonText}>{applied ? (isArabic ? "تم التقديم" : "Applied") : (isArabic ? "تقدم على الفرصة" : "Apply to opportunity")}</Text>}
       </Pressable>
     </View>
   </View>;
 }
 
-function Fact({ label, value, styles }: { label: string; value: string; styles: ReturnType<typeof createStyles> }) {
-  return <View style={styles.fact}><Text numberOfLines={1} style={styles.factValue}>{value}</Text><Text style={styles.factLabel}>{label}</Text></View>;
-}
+function Section({ title, children, styles, isRtl }: { title: string; children: React.ReactNode; styles: ReturnType<typeof createStyles>; isRtl: boolean }) { return <View style={[styles.section, { direction: isRtl ? "rtl" : "ltr" }]}><Text style={[styles.sectionTitle, { textAlign: isRtl ? "right" : "left" }]}>{title}</Text>{children}</View>; }
+function Fact({ label, value, styles }: { label: string; value: string; styles: ReturnType<typeof createStyles> }) { return <View style={styles.fact}><Text numberOfLines={2} style={styles.factValue}>{value}</Text><Text style={styles.factLabel}>{label}</Text></View>; }
+function Meta({ label, value, styles }: { label: string; value: string; styles: ReturnType<typeof createStyles> }) { return <View style={styles.metaItem}><Text style={styles.metaLabel}>{label}</Text><Text style={styles.metaValue}>{value}</Text></View>; }
 
-function Meta({ label, value, styles }: { label: string; value: string; styles: ReturnType<typeof createStyles> }) {
-  return <View style={styles.metaItem}><Text style={styles.metaLabel}>{label}</Text><Text style={styles.metaValue}>{value}</Text></View>;
-}
+function formatDate(value: string | null | undefined, locale: "ar" | "en") { if (!value) return null; const date = new Date(value); if (Number.isNaN(date.getTime())) return null; return new Intl.DateTimeFormat(locale === "ar" ? "ar-SA-u-nu-latn" : "en-US", { year: "numeric", month: "short", day: "numeric" }).format(date); }
+function formatType(value: string, ar: boolean) { const key = value.toLowerCase(); if (key === "actor") return ar ? "ممثل / ممثلة" : "Actor"; if (key === "model") return ar ? "مودل" : "Model"; return value.replaceAll("_", " "); }
+function formatGender(value: string | null, ar: boolean) { if (!value || value === "any" || value === "all") return ar ? "الجميع" : "Any"; if (value === "male") return ar ? "ذكر" : "Male"; if (value === "female") return ar ? "أنثى" : "Female"; return value; }
+function formatAge(min: number | null, max: number | null, ar: boolean) { if (min == null && max == null) return ar ? "جميع الأعمار" : "All ages"; if (min != null && max != null) return ar ? `${min}–${max} سنة` : `${min}–${max} years`; if (min != null) return ar ? `${min}+ سنة` : `${min}+ years`; return ar ? `حتى ${max} سنة` : `Up to ${max}`; }
+function formatDuration(value: string | null, ar: boolean) { if (!value) return null; const map: Record<string, [string,string]> = { "1_hour": ["ساعة", "1 hour"], "2_hours": ["ساعتان", "2 hours"], "4_hours": ["4 ساعات", "4 hours"], "full_day": ["يوم كامل", "Full day"] }; return map[value]?.[ar ? 0 : 1] ?? value.replaceAll("_", " "); }
+function humanizeRequirement(value: unknown, ar: boolean) { const key = String(value ?? "").trim().toLowerCase().replaceAll("-", "_"); const labels: Record<string, [string,string]> = { arabic:["العربية","Arabic"], english:["الإنجليزية","English"], french:["الفرنسية","French"], najdi:["نجدي","Najdi"], hejazi:["حجازي","Hejazi"], southern:["جنوبي","Southern"], northern:["شمالي","Northern"], gulf:["خليجي","Gulf"], commercial:["تجاري","Commercial"], fashion:["أزياء","Fashion"], beauty:["جمال","Beauty"], lifestyle:["لايف ستايل","Lifestyle"], ecommerce:["متاجر إلكترونية","E-commerce"], black:["أسود","Black"], brown:["بني","Brown"], blonde:["أشقر","Blonde"], red:["أحمر","Red"], gray:["رمادي","Gray"] }; return labels[key]?.[ar ? 0 : 1] ?? key.replaceAll("_", " "); }
+function getRoleRequirementItems(item: MobileOpportunity, ar: boolean) { const req = item.roleRequirements ?? {}; const list: Array<{label:string;value:string}> = []; const arr = (key: string) => Array.isArray(req[key]) ? (req[key] as unknown[]).map((v) => humanizeRequirement(v, ar)).filter(Boolean) : []; if (item.opportunityType.toLowerCase() === "actor") { const languages = arr("languages"); const dialects = arr("dialects"); if (languages.length) list.push({ label: ar ? "اللغات المطلوبة" : "Languages", value: languages.join(ar ? "، " : ", ") }); if (dialects.length) list.push({ label: ar ? "اللهجات المطلوبة" : "Dialects", value: dialects.join(ar ? "، " : ", ") }); } if (item.opportunityType.toLowerCase() === "model") { const modelingTypes = arr("modeling_types"); if (modelingTypes.length) list.push({ label: ar ? "نوع أعمال المودل" : "Modeling types", value: modelingTypes.join(ar ? "، " : ", ") }); if (req.min_height_cm != null) list.push({ label: ar ? "الحد الأدنى للطول" : "Minimum height", value: `${req.min_height_cm} ${ar ? "سم" : "cm"}` }); if (req.hair_color) list.push({ label: ar ? "لون الشعر" : "Hair color", value: humanizeRequirement(req.hair_color, ar) }); } return list; }
 
-function createStyles(theme: typeof lightTheme | typeof darkTheme) {
-  return StyleSheet.create({
-    screen: { flex: 1, backgroundColor: theme.background },
-    centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 18, padding: 24, backgroundColor: theme.background },
-    content: { paddingHorizontal: 12, paddingTop: 46, paddingBottom: 138, gap: 12 },
-    topBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 4 },
-    roundAction: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, alignItems: "center", justifyContent: "center" },
-    topIcon: { color: theme.text, fontSize: 30, lineHeight: 32 }, shareIcon: { color: theme.text, fontSize: 21, lineHeight: 24 },
-    topIdentity: { flexDirection: "row", alignItems: "center", gap: 7 }, topBrand: { color: theme.text, fontSize: 11, fontWeight: "900", letterSpacing: 2.4 }, topBrandDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: theme.accent },
-    coverCard: { minHeight: 286, borderRadius: 30, overflow: "hidden", backgroundColor: theme.charcoal, borderWidth: 1, borderColor: theme.bronze, padding: 20, justifyContent: "space-between" },
-    coverGlowLarge: { position: "absolute", width: 250, height: 250, borderRadius: 125, backgroundColor: theme.accent, opacity: 0.15, right: -70, top: -72 },
-    coverGlowSmall: { position: "absolute", width: 110, height: 110, borderRadius: 55, borderWidth: 1, borderColor: theme.bronze, left: -22, bottom: -28, opacity: 0.7 },
-    coverTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 10 },
-    featuredBadge: { color: theme.charcoal, backgroundColor: theme.accent, borderRadius: 14, overflow: "hidden", paddingHorizontal: 11, paddingVertical: 6, fontSize: 10, fontWeight: "900" },
-    coverType: { color: theme.ivory, opacity: 0.72, fontSize: 10, fontWeight: "700", textTransform: "uppercase" },
-    coverContent: { gap: 9 }, coverBrand: { color: theme.accent, fontSize: 10, fontWeight: "900", letterSpacing: 2.2 },
-    coverTitle: { color: theme.ivory, fontSize: 30, lineHeight: 37, fontWeight: "700", maxWidth: "92%" },
-    coverMetaRow: { flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }, coverMeta: { color: theme.ivory, opacity: 0.78, fontSize: 11 }, coverMetaDot: { color: theme.accent, fontSize: 10 },
-    mainCard: { borderRadius: 30, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border, padding: 20, gap: 18 },
-    headingBlock: { gap: 15 }, title: { color: theme.text, fontSize: 29, lineHeight: 37, fontWeight: "800" }, companyRow: { flexDirection: "row", alignItems: "center", gap: 11 },
-    companyAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: theme.chip, borderWidth: 1, borderColor: theme.border, alignItems: "center", justifyContent: "center" }, companyAvatarText: { color: theme.accent, fontSize: 17, fontWeight: "900" },
-    companyText: { flex: 1, gap: 3 }, companyNameRow: { flexDirection: "row", alignItems: "center", gap: 6 }, company: { color: theme.text, fontSize: 14, fontWeight: "800" },
-    verifiedDot: { width: 20, height: 20, borderRadius: 10, overflow: "hidden", textAlign: "center", lineHeight: 20, backgroundColor: theme.accent, color: theme.charcoal, fontSize: 12, fontWeight: "900" }, locationLine: { color: theme.muted, fontSize: 12 },
-    quickFacts: { flexDirection: "row", gap: 8 }, fact: { flex: 1, minHeight: 74, borderRadius: 18, backgroundColor: theme.input, borderWidth: 1, borderColor: theme.border, paddingHorizontal: 10, paddingVertical: 12, justifyContent: "center", gap: 4 }, factValue: { color: theme.text, fontSize: 12, fontWeight: "800" }, factLabel: { color: theme.muted, fontSize: 9, fontWeight: "600" },
-    sectionDivider: { height: 1, backgroundColor: theme.border }, section: { gap: 9 }, sectionEyebrow: { color: theme.accent, fontSize: 10, fontWeight: "900", letterSpacing: 1.8 }, sectionTitle: { color: theme.text, fontSize: 20, fontWeight: "800" }, description: { color: theme.muted, fontSize: 15, lineHeight: 25 },
-    metaGrid: { flexDirection: "row", flexWrap: "wrap", gap: 9 }, metaItem: { width: "48%", borderRadius: 18, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.background, padding: 13, gap: 5 }, metaLabel: { color: theme.muted, fontSize: 10 }, metaValue: { color: theme.text, fontSize: 13, fontWeight: "700" },
-    trustCard: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 20, borderWidth: 1, borderColor: theme.bronze, backgroundColor: theme.chip, padding: 14 }, trustMark: { width: 42, height: 42, borderRadius: 21, backgroundColor: theme.charcoal, borderWidth: 1, borderColor: theme.bronze, alignItems: "center", justifyContent: "center" }, trustMarkText: { color: theme.accent, fontSize: 18, fontWeight: "900" }, trustText: { flex: 1, gap: 3 }, trustTitle: { color: theme.text, fontSize: 12, fontWeight: "800" }, trustBody: { color: theme.muted, fontSize: 10, lineHeight: 16 },
-    ctaBar: { position: "absolute", left: 0, right: 0, bottom: 0, gap: 8, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 24, backgroundColor: theme.background, borderTopWidth: 1, borderTopColor: theme.border }, applyMessage: { color: theme.muted, fontSize: 12, textAlign: "center" }, applySuccess: { color: theme.accent, fontWeight: "800" },
-    primaryButton: { minHeight: 56, borderRadius: 17, backgroundColor: theme.accent, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9 }, primaryButtonText: { color: theme.charcoal, fontSize: 16, fontWeight: "900" }, primaryArrow: { color: theme.charcoal, fontSize: 25, lineHeight: 25, fontWeight: "500" }, buttonDisabled: { opacity: 0.55 },
-    secondaryButton: { borderWidth: 1, borderColor: theme.border, borderRadius: 16, minHeight: 48, paddingHorizontal: 20, paddingVertical: 12, justifyContent: "center" }, secondaryButtonText: { color: theme.text, fontWeight: "700" }, errorText: { color: theme.text, fontSize: 18, textAlign: "center" },
-  });
-}
+function createStyles(theme: typeof darkTheme) { return StyleSheet.create({
+  screen: { flex: 1, backgroundColor: theme.background }, centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 18, padding: 24, backgroundColor: theme.background }, content: { paddingHorizontal: 18, paddingTop: 26, paddingBottom: 148, gap: 18 },
+  topBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, roundAction: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, alignItems: "center", justifyContent: "center" }, topIcon: { color: theme.text, fontSize: 30, lineHeight: 32 }, topIconRtl: { transform: [{ rotate: "180deg" }] }, shareIcon: { color: theme.text, fontSize: 19 }, topBrand: { color: theme.accent, fontSize: 12, fontWeight: "900", letterSpacing: 2 },
+  hero: { gap: 8, paddingTop: 8, paddingBottom: 8 }, badgeRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 }, goldBadge: { color: theme.background, backgroundColor: theme.accent, borderRadius: 999, overflow: "hidden", paddingHorizontal: 10, paddingVertical: 5, fontSize: 10, fontWeight: "800" }, neutralBadge: { color: theme.text, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border, borderRadius: 999, overflow: "hidden", paddingHorizontal: 10, paddingVertical: 5, fontSize: 10, fontWeight: "700" }, title: { color: theme.text, fontSize: 31, lineHeight: 39, fontWeight: "700" }, company: { color: theme.text, fontSize: 15, fontWeight: "700" }, location: { color: theme.muted, fontSize: 12 },
+  factStrip: { flexDirection: "row", borderTopWidth: 1, borderBottomWidth: 1, borderColor: theme.border, paddingVertical: 14 }, fact: { flex: 1, paddingHorizontal: 8, gap: 4 }, factValue: { color: theme.text, fontSize: 13, fontWeight: "700", textAlign: "center" }, factLabel: { color: theme.muted, fontSize: 9, textAlign: "center" },
+  section: { gap: 12, paddingTop: 6 }, sectionTitle: { color: theme.text, fontSize: 19, fontWeight: "700" }, description: { color: theme.muted, fontSize: 14, lineHeight: 23 }, metaGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 }, metaItem: { width: "48%", minHeight: 74, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border, borderRadius: 14, padding: 13, gap: 5 }, metaLabel: { color: theme.muted, fontSize: 10 }, metaValue: { color: theme.text, fontSize: 13, fontWeight: "700" }, requirementList: { borderTopWidth: 1, borderColor: theme.border }, requirementRow: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: theme.border, gap: 4 }, requirementLabel: { color: theme.muted, fontSize: 10 }, requirementValue: { color: theme.text, fontSize: 13, lineHeight: 19, fontWeight: "600" },
+  trustCard: { flexDirection: "row", gap: 11, alignItems: "flex-start", backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border, borderRadius: 14, padding: 14 }, trustDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: theme.accent, marginTop: 5 }, trustCopy: { flex: 1, gap: 4 }, trustTitle: { color: theme.text, fontSize: 13, fontWeight: "700" }, trustBody: { color: theme.muted, fontSize: 11, lineHeight: 17 },
+  ctaBar: { position: "absolute", left: 0, right: 0, bottom: 0, paddingHorizontal: 18, paddingTop: 10, paddingBottom: 18, borderTopWidth: 1, borderTopColor: theme.border, backgroundColor: theme.background }, primaryButton: { minHeight: 52, borderRadius: 12, backgroundColor: theme.accent, alignItems: "center", justifyContent: "center" }, primaryButtonText: { color: theme.background, fontSize: 15, fontWeight: "800" }, buttonDisabled: { opacity: 0.5 }, pressed: { opacity: 0.8 }, applyMessage: { color: "#E59A9A", fontSize: 12, textAlign: "center", marginBottom: 8 }, applySuccess: { color: theme.accent }, secondaryButton: { borderWidth: 1, borderColor: theme.border, borderRadius: 12, paddingHorizontal: 18, paddingVertical: 12 }, secondaryButtonText: { color: theme.text, fontSize: 13, fontWeight: "700" }, errorText: { color: theme.text, fontSize: 14, textAlign: "center" },
+}); }
