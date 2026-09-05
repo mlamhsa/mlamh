@@ -11,6 +11,7 @@ test("builds canonical opportunity and talent web paths", () => {
 test("covers core native account destinations", () => {
   assert.equal(getWebPathForDeepLink({ type: "publisherSetup" }), "/publisher/setup");
   assert.equal(getWebPathForDeepLink({ type: "publisherProfile" }), "/publisher/profile");
+  assert.equal(getWebPathForDeepLink({ type: "publisherVerification" }), "/publisher/verification");
   assert.equal(getWebPathForDeepLink({ type: "casting" }), "/casting");
   assert.equal(getWebPathForDeepLink({ type: "notifications" }), "/notifications");
   assert.equal(getWebPathForDeepLink({ type: "profile" }), "/profile");
@@ -25,5 +26,6 @@ test("keeps application list valid when no application id is supplied", () => {
 test("builds mlamh.net universal links only", () => {
   assert.equal(getUniversalLink({ type: "casting" }), "https://mlamh.net/casting");
   assert.equal(getUniversalLink({ type: "publisherProfile" }), "https://mlamh.net/publisher/profile");
+  assert.equal(getUniversalLink({ type: "publisherVerification" }), "https://mlamh.net/publisher/verification");
   assert.equal(getUniversalLink({ type: "conversation", conversationId: "77" }), "https://mlamh.net/messages/77");
 });
