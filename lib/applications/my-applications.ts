@@ -13,6 +13,7 @@ export type TalentApplicationItem = {
     title: string | null;
     slug: string | null;
     city: string | null;
+    countryCode: string | null;
     opportunityType: string | null;
     status: string | null;
     createdAt: string | null;
@@ -31,34 +32,24 @@ export type TalentApplicationsResult =
       code: "TALENT_NOT_FOUND" | "TALENT_LOOKUP_FAILED" | "APPLICATIONS_LOOKUP_FAILED";
     };
 
+type OpportunityRow = {
+  id: number | string;
+  title: string | null;
+  title_en?: string | null;
+  slug: string | null;
+  city_ar: string | null;
+  city_en: string | null;
+  country_code: string | null;
+  opportunity_type: string | null;
+  status: string | null;
+  created_at: string | null;
+};
+
 type ApplicationRow = {
   id: number | string;
   status: string | null;
   created_at: string | null;
-  opportunities:
-    | {
-        id: number | string;
-        title: string | null;
-        title_en?: string | null;
-        slug: string | null;
-        city_ar: string | null;
-        city_en: string | null;
-        opportunity_type: string | null;
-        status: string | null;
-        created_at: string | null;
-      }
-    | Array<{
-        id: number | string;
-        title: string | null;
-        title_en?: string | null;
-        slug: string | null;
-        city_ar: string | null;
-        city_en: string | null;
-        opportunity_type: string | null;
-        status: string | null;
-        created_at: string | null;
-      }>
-    | null;
+  opportunities: OpportunityRow | OpportunityRow[] | null;
 };
 
 function firstOpportunity(row: ApplicationRow) {
@@ -99,6 +90,7 @@ export async function getTalentApplications(input: {
         slug,
         city_ar,
         city_en,
+        country_code,
         opportunity_type,
         status,
         created_at
@@ -157,6 +149,7 @@ export async function getTalentApplications(input: {
             city: isEnglish
               ? opportunity.city_en || opportunity.city_ar
               : opportunity.city_ar || opportunity.city_en,
+            countryCode: opportunity.country_code?.trim().toUpperCase() || null,
             opportunityType: opportunity.opportunity_type,
             status: opportunity.status,
             createdAt: opportunity.created_at,
