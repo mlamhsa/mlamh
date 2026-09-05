@@ -1,4 +1,6 @@
 import { isRestrictedAccountStatus } from "@/lib/accounts/account-rules";
+import { isCountryCode } from "@/lib/markets/countries";
+import { isMarketFeatureEnabled, resolveMarketCurrency } from "@/lib/markets/config";
 import { createSlug } from "@/lib/services/localization";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -92,8 +94,13 @@ export async function createMobilePublisherOpportunityDraft(userId: string, inpu
   }
 
   const companyName = publisher.company_name || publisher.contact_name || "MLAMH Publisher";
-  const countryCode = requestedCountryCode || publisher.country_code || null;
-  const currency = requestedCurrency || null;
+  const marketCandidate = requestedCountryCode || cleanText(publisher.country_code, 2).toUpperCase() || "SA";
+  if (!isCountryCode(marketCandidate)) return { ok: false as const, code: "INVALID_COUNTRY" as const };
+  if (!isMarketFeatureEnabled(marketCandidate, "opportunityCreation")) return { ok: false as const, code: "MARKET_NOT_ACTIVE" as const };
+  const countryCode = marketCandidate;
+  const marketCurrency = resolveMarketCurrency(countryCode);
+  if (requestedCurrency && requestedCurrency !== marketCurrency) return { ok: false as const, code: "INVALID_CURRENCY" as const };
+  const currency = compensationType === "unpaid" ? null : marketCurrency;
 
   const { data: opportunity, error: insertError } = await supabase.from("opportunities").insert({
     title,
