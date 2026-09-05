@@ -145,12 +145,17 @@ function attachResearchSources(content: string, sources: Array<{ url: string; ti
 }
 
 class ResponsesMarketingProvider implements MarketingAIProvider {
-  constructor(
-    public readonly id: string,
-    private readonly apiKey: string,
-    private readonly model: string,
-    private readonly baseUrl: string,
-  ) {}
+  public readonly id: string;
+  private readonly apiKey: string;
+  private readonly model: string;
+  private readonly baseUrl: string;
+
+  constructor(id: string, apiKey: string, model: string, baseUrl: string) {
+    this.id = id;
+    this.apiKey = apiKey;
+    this.model = model;
+    this.baseUrl = baseUrl;
+  }
 
   async generate(request: MarketingAIRequest): Promise<MarketingAIResponse> {
     const leadResearch = request.taskType === "lead_enrichment";
