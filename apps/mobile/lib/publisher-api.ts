@@ -41,6 +41,14 @@ export type MobilePublisherDashboard = {
   opportunities: MobilePublisherOpportunity[];
 };
 
+export type OpportunityRoleRequirements = {
+  languages?: string[];
+  dialects?: string[];
+  modelingTypes?: string[];
+  minHeightCm?: number | null;
+  hairColor?: string | null;
+};
+
 export type CreateOpportunityDraftInput = {
   title: string;
   description: string;
@@ -50,6 +58,15 @@ export type CreateOpportunityDraftInput = {
   budget?: string;
   countryCode?: string;
   currency?: string;
+  requiredGender?: "male" | "female" | "any";
+  minAge?: number | null;
+  maxAge?: number | null;
+  requiredCount?: number | null;
+  workDate?: string | null;
+  workDuration?: "1_hour" | "2_hours" | "4_hours" | "full_day" | null;
+  applicationStartDate?: string | null;
+  applicationDeadline?: string | null;
+  roleRequirements?: OpportunityRoleRequirements;
 };
 
 export type CreateOpportunityDraftResult =
@@ -93,6 +110,15 @@ export type PublisherOpportunityDetail = {
     currency: string | null;
     budget: string | null;
     compensationType: string | null;
+    requiredGender?: string | null;
+    minAge?: number | null;
+    maxAge?: number | null;
+    requiredCount?: number | null;
+    workDate?: string | null;
+    workDuration?: string | null;
+    applicationStartDate?: string | null;
+    applicationDeadline?: string | null;
+    roleRequirements?: Record<string, unknown>;
     status: string | null;
     published: boolean;
     createdAt: string | null;
@@ -115,6 +141,15 @@ export type PublisherOpportunityManageInput = {
   budget?: string;
   countryCode?: string;
   currency?: string;
+  requiredGender?: "male" | "female" | "any";
+  minAge?: number | null;
+  maxAge?: number | null;
+  requiredCount?: number | null;
+  workDate?: string | null;
+  workDuration?: "1_hour" | "2_hours" | "4_hours" | "full_day" | null;
+  applicationStartDate?: string | null;
+  applicationDeadline?: string | null;
+  roleRequirements?: OpportunityRoleRequirements;
 };
 export type PublisherOpportunityManageResult =
   | { ok: true; item: { id: number; status: string | null; published: boolean } }
