@@ -16,9 +16,15 @@ const row = {
   city_slug: "riyadh",
   city_ar: "الرياض",
   city_en: "Riyadh",
-  required_gender: null,
+  required_gender: "female",
   min_age: 20,
   max_age: 35,
+  required_count: 3,
+  work_date: "2026-09-20",
+  work_duration: "4_hours",
+  application_start_date: "2026-09-05",
+  application_deadline: "2026-09-15",
+  role_requirements: { modeling_types: ["commercial", "beauty"], min_height_cm: 165 },
   compensation_type: "fixed" as const,
   budget: "1500",
   company_name: "MLAMH",
@@ -44,6 +50,20 @@ test("maps localized public opportunity fields", () => {
   assert.equal(arabic.title, "فرصة إعلان");
   assert.equal(arabic.description, "وصف عربي");
   assert.equal(arabic.city, "الرياض");
+});
+
+test("maps current web opportunity requirements for native clients", () => {
+  const opportunity = toPublicOpportunity(row, "en");
+
+  assert.equal(opportunity.requiredGender, "female");
+  assert.equal(opportunity.minAge, 20);
+  assert.equal(opportunity.maxAge, 35);
+  assert.equal(opportunity.requiredCount, 3);
+  assert.equal(opportunity.workDate, "2026-09-20");
+  assert.equal(opportunity.workDuration, "4_hours");
+  assert.equal(opportunity.applicationStartDate, "2026-09-05");
+  assert.equal(opportunity.applicationDeadline, "2026-09-15");
+  assert.deepEqual(opportunity.roleRequirements, { modeling_types: ["commercial", "beauty"], min_height_cm: 165 });
 });
 
 test("does not expose private contact fields", () => {
