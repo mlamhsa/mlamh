@@ -53,11 +53,14 @@ jobs:
       - name: Release preflight strict
         run: npm run release:preflight:strict
 
+      - name: Validate Android production bundle
+        run: npx expo export --platform android --output-dir dist-android --clear
+
       - name: Validate Android native prebuild
         shell: bash
         run: |
           npx expo prebuild --clean --no-install --platform android
-          rm -rf android
+          rm -rf android dist-android
           git restore package.json
 
       - name: Start Android internal EAS build
@@ -107,11 +110,14 @@ jobs:
       - name: Release preflight strict
         run: npm run release:preflight:strict
 
+      - name: Validate iOS production bundle
+        run: npx expo export --platform ios --output-dir dist-ios --clear
+
       - name: Validate iOS native prebuild
         shell: bash
         run: |
           npx expo prebuild --clean --no-install --platform ios
-          rm -rf ios
+          rm -rf ios dist-ios
           git restore package.json
 
       - name: Start iOS TestFlight EAS build
