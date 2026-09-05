@@ -11,10 +11,7 @@ const expo = appConfig.expo ?? {};
 const errors = [];
 const strict = process.argv.includes("--strict");
 
-function requireValue(condition, message) {
-  if (!condition) errors.push(message);
-}
-
+function requireValue(condition, message) { if (!condition) errors.push(message); }
 function requireLocalAsset(assetPath, label) {
   requireValue(typeof assetPath === "string" && assetPath.trim().length > 0, `${label} must be configured.`);
   if (typeof assetPath !== "string" || !assetPath.trim()) return;
@@ -39,7 +36,6 @@ for (const [name, value] of [["Background", "#050505"], ["Foreground", "#F5F5F0"
 const associatedDomains = new Set(expo.ios?.associatedDomains ?? []);
 requireValue(associatedDomains.has("applinks:mlamh.net"), "iOS associated domains must include mlamh.net.");
 requireValue(associatedDomains.has("applinks:www.mlamh.net"), "iOS associated domains must include www.mlamh.net.");
-
 const intentData = (expo.android?.intentFilters ?? []).flatMap((filter) => filter.data ?? []);
 requireValue(intentData.some((item) => item.scheme === "https" && item.host === "mlamh.net"), "Android App Links must include https://mlamh.net.");
 requireValue(intentData.some((item) => item.scheme === "https" && item.host === "www.mlamh.net"), "Android App Links must include https://www.mlamh.net.");
@@ -54,12 +50,10 @@ requireValue(easConfig.build?.preview?.android?.buildType === "apk", "Preview An
 requireValue(easConfig.build?.preview?.channel === "preview", "Preview build must use the preview update channel.");
 requireValue(easConfig.build?.testflight?.distribution === "store", "TestFlight build must use App Store distribution signing.");
 requireValue(easConfig.build?.testflight?.environment === "preview", "TestFlight build must use the preview environment until release approval.");
+requireValue(Object.prototype.hasOwnProperty.call(easConfig.submit ?? {}, "testflight"), "Missing explicit EAS submit profile: testflight.");
 requireValue(easConfig.build?.production?.channel === "production", "Production build must use the production update channel.");
 
-if (easConfig.build?.development?.developmentClient === true) {
-  requireValue(Boolean(packageConfig.dependencies?.["expo-dev-client"]), "Development Client builds require expo-dev-client in dependencies.");
-}
-
+if (easConfig.build?.development?.developmentClient === true) requireValue(Boolean(packageConfig.dependencies?.["expo-dev-client"]), "Development Client builds require expo-dev-client in dependencies.");
 requireValue(expo.android?.adaptiveIcon?.backgroundColor === "#050505", "Android adaptive icon background must use MLAMH background #050505.");
 requireValue(expo.plugins?.some((plugin) => Array.isArray(plugin) && plugin[0] === "expo-notifications" && plugin[1]?.color === "#C9A962"), "Notification accent must use MLAMH Gold #C9A962.");
 const splashPlugin = (expo.plugins ?? []).find((plugin) => Array.isArray(plugin) && plugin[0] === "expo-splash-screen");
@@ -70,13 +64,7 @@ if (splashPlugin) {
 }
 
 if (strict) {
-  const requiredEnvironment = [
-    "EXPO_PUBLIC_SUPABASE_URL",
-    "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
-    "EXPO_PUBLIC_API_BASE_URL",
-    "EXPO_PUBLIC_DEFAULT_MARKET",
-    "EXPO_PUBLIC_EAS_PROJECT_ID",
-  ];
+  const requiredEnvironment = ["EXPO_PUBLIC_SUPABASE_URL", "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "EXPO_PUBLIC_API_BASE_URL", "EXPO_PUBLIC_DEFAULT_MARKET", "EXPO_PUBLIC_EAS_PROJECT_ID"];
   const previewEnvironment = easConfig.build?.preview?.env ?? {};
   const testflightEnvironment = easConfig.build?.testflight?.env ?? {};
   for (const key of requiredEnvironment) {
@@ -89,26 +77,18 @@ if (strict) {
     if (runtimeValue && previewValue) requireValue(runtimeValue === previewValue, `Preview EAS environment value must match CI for ${key}.`);
     if (runtimeValue && testflightValue) requireValue(runtimeValue === testflightValue, `TestFlight EAS environment value must match CI for ${key}.`);
   }
-
   const apiBase = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
   if (apiBase) {
-    try {
-      const parsed = new URL(apiBase);
-      requireValue(parsed.protocol === "https:" || parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1", "EXPO_PUBLIC_API_BASE_URL must use HTTPS outside local development.");
-    } catch {
-      errors.push("EXPO_PUBLIC_API_BASE_URL must be a valid absolute URL.");
-    }
+    try { const parsed = new URL(apiBase); requireValue(parsed.protocol === "https:" || parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1", "EXPO_PUBLIC_API_BASE_URL must use HTTPS outside local development."); }
+    catch { errors.push("EXPO_PUBLIC_API_BASE_URL must be a valid absolute URL."); }
   }
-
   const market = process.env.EXPO_PUBLIC_DEFAULT_MARKET?.trim().toUpperCase();
   if (market) requireValue(/^[A-Z]{2}$/.test(market), "EXPO_PUBLIC_DEFAULT_MARKET must be an ISO 3166-1 alpha-2 country code.");
-
   const projectId = process.env.EXPO_PUBLIC_EAS_PROJECT_ID?.trim();
   if (projectId) {
     requireValue(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(projectId), "EXPO_PUBLIC_EAS_PROJECT_ID must be a valid UUID.");
     requireValue(expo.extra?.eas?.projectId === projectId, "app.json EAS project linkage must match EXPO_PUBLIC_EAS_PROJECT_ID.");
   }
-
   requireLocalAsset(expo.icon, "App icon");
   requireLocalAsset(expo.android?.adaptiveIcon?.foregroundImage, "Android adaptive icon foreground");
   if (splashPlugin) requireLocalAsset(splashPlugin[1]?.image, "Splash image");
@@ -119,5 +99,4 @@ if (errors.length) {
   for (const error of errors) console.error(`- ${error}`);
   process.exit(1);
 }
-
 console.log(`MLAMH Mobile release preflight passed${strict ? " (strict)" : ""}.`);
