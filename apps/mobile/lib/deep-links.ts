@@ -3,6 +3,7 @@ import type { Href } from "expo-router";
 const ALLOWED_MLAMH_ORIGINS = new Set(["https://mlamh.net", "https://www.mlamh.net"]);
 const SAFE_RELATIVE_BASE = "https://mlamh.net";
 const APP_SCHEME = "mlamh:";
+const SUPPORT_PATHS = new Set(["support", "privacy", "terms", "refund-policy", "complaints"]);
 
 function getPathSegments(rawUrl: string) {
   if (typeof rawUrl !== "string" || rawUrl.length === 0 || rawUrl.length > 2048) return null;
@@ -29,6 +30,7 @@ export function getMobileHrefFromUrl(rawUrl: string): Href | null {
   if (segments[0] === "reset-password" || segments[0] === "forgot-password") return `/${segments[0]}` as Href;
   if (segments[0] === "casting") return "/casting" as Href;
   if (segments[0] === "opportunities" && segments[1]) return `/opportunities/${encodeURIComponent(segments[1])}` as Href;
+  if (segments[0] === "opportunities") return "/opportunities" as Href;
   if (segments[0] === "talent" && segments[1]) return `/talents/${encodeURIComponent(segments[1])}` as Href;
   if (segments[0] === "talents" && segments[1]) return `/talents/${encodeURIComponent(segments[1])}` as Href;
   if (segments[0] === "talent" || segments[0] === "talents") return "/talents" as Href;
@@ -40,7 +42,7 @@ export function getMobileHrefFromUrl(rawUrl: string): Href | null {
   if (segments[0] === "applications") return "/applications" as Href;
   if (segments[0] === "notifications") return "/notifications" as Href;
   if (segments[0] === "profile") return "/profile" as Href;
-  if (segments[0] === "support") return "/support" as Href;
+  if (segments[0] && SUPPORT_PATHS.has(segments[0])) return "/support" as Href;
   if (segments.length === 0 || segments[0] === "home") return "/opportunities" as Href;
   return null;
 }
