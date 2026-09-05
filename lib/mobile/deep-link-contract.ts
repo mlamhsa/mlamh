@@ -9,6 +9,7 @@ export type MobileDeepLinkTarget =
   | { type: "publisherOpportunity"; opportunityId: string }
   | { type: "publisherSetup" }
   | { type: "publisherProfile" }
+  | { type: "publisherVerification" }
   | { type: "casting" }
   | { type: "notifications" }
   | { type: "profile" }
@@ -35,6 +36,8 @@ export function getWebPathForDeepLink(target: MobileDeepLinkTarget) {
       return "/publisher/setup";
     case "publisherProfile":
       return "/publisher/profile";
+    case "publisherVerification":
+      return "/publisher/verification";
     case "casting":
       return "/casting";
     case "notifications":
