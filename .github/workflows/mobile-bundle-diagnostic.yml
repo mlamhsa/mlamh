@@ -1,0 +1,49 @@
+name: Mobile Bundle Diagnostic
+
+on:
+  push:
+    branches:
+      - feat/mobile-platform-phase0
+    paths:
+      - ".github/workflows/mobile-bundle-diagnostic.yml"
+      - "apps/mobile/**"
+  workflow_dispatch:
+
+jobs:
+  bundle:
+    name: Expo Production Bundle
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+    env:
+      EXPO_PUBLIC_SUPABASE_URL: https://ozieysztwlispglupuox.supabase.co
+      EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_8fHyfoV7YWfed4yRhu_BOw_BtzOId8g
+      EXPO_PUBLIC_API_BASE_URL: https://mlamh.net
+      EXPO_PUBLIC_DEFAULT_MARKET: SA
+      EXPO_PUBLIC_EAS_PROJECT_ID: ca757cb1-e91c-4e8c-a3a9-6cee885e483a
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.0"
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --include=dev --no-audit --no-fund
+
+      - name: Expo Doctor
+        run: npx expo-doctor
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Export Android production bundle
+        run: npx expo export --platform android --output-dir dist-android --clear
+
+      - name: Export iOS production bundle
+        run: npx expo export --platform ios --output-dir dist-ios --clear
