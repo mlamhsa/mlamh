@@ -1,4 +1,5 @@
 import { isRestrictedAccountStatus } from "@/lib/accounts/account-rules";
+import { normalizeOrganizationVerificationEmail } from "@/lib/publishers/verification-rules";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const BUCKET = "publisher-assets";
@@ -14,16 +15,6 @@ const ALLOWED_PUBLISHER_TYPES = new Set([
   "content_company",
   "individual",
   "other",
-]);
-const BLOCKED_PUBLIC_EMAIL_DOMAINS = new Set([
-  "gmail.com",
-  "hotmail.com",
-  "outlook.com",
-  "yahoo.com",
-  "icloud.com",
-  "live.com",
-  "proton.me",
-  "protonmail.com",
 ]);
 
 type PublisherProfileInput = {
@@ -46,14 +37,6 @@ function clean(value: unknown, max: number) {
   const normalized = value.trim();
   if (normalized.length > max) throw new Error("INVALID_INPUT");
   return normalized || null;
-}
-
-function normalizeVerificationEmail(value: unknown) {
-  const email = clean(value, 254)?.toLowerCase() ?? null;
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return null;
-  const domain = email.split("@")[1];
-  if (!domain || BLOCKED_PUBLIC_EMAIL_DOMAINS.has(domain)) return null;
-  return email;
 }
 
 async function resolvePublisher(userId: string) {
@@ -187,7 +170,7 @@ export async function submitMobilePublisherVerification(userId: string, input: {
   if (publisher.verification_status === "verified" || publisher.verified === true) return { ok: false as const, code: "ALREADY_VERIFIED" as const };
   if (publisher.verification_status === "pending") return { ok: false as const, code: "VERIFICATION_PENDING" as const };
   if (input.method !== "company_email") return { ok: false as const, code: "METHOD_NOT_AVAILABLE" as const };
-  const email = normalizeVerificationEmail(input.email);
+  const email = normalizeOrganizationVerificationEmail(input.email);
   if (!email) return { ok: false as const, code: "INVALID_COMPANY_EMAIL" as const };
 
   const { error } = await supabase.from("publishers").update({
