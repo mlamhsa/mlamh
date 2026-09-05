@@ -3,6 +3,7 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text
 import { type Href, router, useLocalSearchParams } from "expo-router";
 
 import { getMobileAccountContext } from "@/lib/account";
+import { getAccountHomeHref } from "@/lib/account-routing";
 import { getDeviceLocale, isRtlLocale } from "@/lib/i18n";
 import { supabase } from "@/lib/supabase";
 import { darkTheme } from "@/lib/theme";
@@ -13,11 +14,7 @@ function isSafeNext(value?: string) {
 
 async function resolveSignedInHome(): Promise<Href> {
   const account = await getMobileAccountContext().catch(() => null);
-  if (!account) return "/opportunities" as Href;
-  if (account.type === "publisher") {
-    return account.entityId && account.onboardingStatus === "completed" ? "/publisher" as Href : "/publisher/setup" as Href;
-  }
-  return account.entityId && account.onboardingStatus === "completed" ? "/opportunities" as Href : "/onboarding" as Href;
+  return getAccountHomeHref(account) ?? "/opportunities";
 }
 
 export default function LoginScreen() {
