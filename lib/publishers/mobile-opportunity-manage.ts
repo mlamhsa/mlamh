@@ -4,6 +4,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 const ALLOWED_TYPES = new Set(["actor", "model"]);
 const ALLOWED_COMPENSATION = new Set(["fixed", "negotiable", "unpaid"]);
+const ALLOWED_GENDERS = new Set(["male", "female", "any"]);
+const ALLOWED_DURATIONS = new Set(["1_hour", "2_hours", "4_hours", "full_day"]);
 const EDITABLE_STATUSES = new Set(["draft", "open", "needs_changes", "closed"]);
 const SUBMITTABLE_STATUSES = new Set(["draft", "open", "needs_changes", "closed"]);
 export const PUBLISHER_OPPORTUNITY_ACTIONS = ["edit", "publish", "close", "archive"] as const;
@@ -12,6 +14,24 @@ export type PublisherOpportunityAction = (typeof PUBLISHER_OPPORTUNITY_ACTIONS)[
 function cleanText(value: unknown, max: number) {
   if (typeof value !== "string") return "";
   return value.trim().slice(0, max);
+}
+function nullableInt(value: unknown, min: number, max: number) {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < min || parsed > max) return undefined;
+  return parsed;
+}
+function cleanDate(value: unknown) {
+  if (value === null || value === undefined || value === "") return null;
+  const text = cleanText(value, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : undefined;
+}
+function cleanStringArray(value: unknown, maxItems = 8, maxLength = 40) {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length > maxItems) return undefined;
+  const items = [...new Set(value.map((item) => typeof item === "string" ? item.trim() : "").filter(Boolean))];
+  if (items.some((item) => item.length > maxLength)) return undefined;
+  return items;
 }
 
 function isAction(value: unknown): value is PublisherOpportunityAction {
@@ -40,7 +60,7 @@ export async function manageMobilePublisherOpportunity(userId: string, opportuni
   if (!context) return { ok: false as const, code: "FORBIDDEN" as const };
   const { admin, publisher } = context;
   const { data: existing, error: lookupError } = await admin.from("opportunities")
-    .select("id,title,description,opportunity_type,city_ar,city_en,country_code,currency,budget,compensation_type,status,published")
+    .select("id,title,description,opportunity_type,city_ar,city_en,country_code,currency,budget,compensation_type,status,published,required_gender,min_age,max_age,required_count,work_date,work_duration,application_start_date,application_deadline,role_requirements")
     .eq("id", opportunityId).eq("publisher_id", publisher.id).maybeSingle();
   if (lookupError) return { ok: false as const, code: "LOOKUP_FAILED" as const };
   if (!existing) return { ok: false as const, code: "NOT_FOUND" as const };
@@ -129,6 +149,51 @@ export async function manageMobilePublisherOpportunity(userId: string, opportuni
     const currency = cleanText(input.currency, 3).toUpperCase();
     if (currency && !/^[A-Z]{3}$/.test(currency)) return { ok: false as const, code: "INVALID_CURRENCY" as const };
     patch.currency = currency || null; changed = true;
+  }
+  if (Object.prototype.hasOwnProperty.call(input, "requiredGender")) {
+    const gender = cleanText(input.requiredGender, 16);
+    if (!ALLOWED_GENDERS.has(gender)) return { ok: false as const, code: "INVALID_GENDER" as const };
+    patch.required_gender = gender; changed = true;
+  }
+  if (Object.prototype.hasOwnProperty.call(input, "minAge")) {
+    const value = nullableInt(input.minAge, 0, 120); if (value === undefined) return { ok: false as const, code: "INVALID_AGE_RANGE" as const }; patch.min_age = value; changed = true;
+  }
+  if (Object.prototype.hasOwnProperty.call(input, "maxAge")) {
+    const value = nullableInt(input.maxAge, 0, 120); if (value === undefined) return { ok: false as const, code: "INVALID_AGE_RANGE" as const }; patch.max_age = value; changed = true;
+  }
+  const effectiveMinAge = Object.prototype.hasOwnProperty.call(patch, "min_age") ? patch.min_age as number | null : existing.min_age;
+  const effectiveMaxAge = Object.prototype.hasOwnProperty.call(patch, "max_age") ? patch.max_age as number | null : existing.max_age;
+  if (effectiveMinAge !== null && effectiveMinAge !== undefined && effectiveMaxAge !== null && effectiveMaxAge !== undefined && effectiveMinAge > effectiveMaxAge) return { ok: false as const, code: "INVALID_AGE_RANGE" as const };
+  if (Object.prototype.hasOwnProperty.call(input, "requiredCount")) {
+    const value = nullableInt(input.requiredCount, 1, 10000); if (value === undefined) return { ok: false as const, code: "INVALID_NUMERIC_FIELD" as const }; patch.required_count = value; changed = true;
+  }
+  if (Object.prototype.hasOwnProperty.call(input, "workDate")) {
+    const value = cleanDate(input.workDate); if (value === undefined) return { ok: false as const, code: "INVALID_DATE" as const }; patch.work_date = value; changed = true;
+  }
+  if (Object.prototype.hasOwnProperty.call(input, "workDuration")) {
+    const value = input.workDuration == null || input.workDuration === "" ? null : cleanText(input.workDuration, 32); if (value && !ALLOWED_DURATIONS.has(value)) return { ok: false as const, code: "INVALID_WORK_DURATION" as const }; patch.work_duration = value; changed = true;
+  }
+  if (Object.prototype.hasOwnProperty.call(input, "applicationStartDate")) {
+    const value = cleanDate(input.applicationStartDate); if (value === undefined) return { ok: false as const, code: "INVALID_DATE" as const }; patch.application_start_date = value; changed = true;
+  }
+  if (Object.prototype.hasOwnProperty.call(input, "applicationDeadline")) {
+    const value = cleanDate(input.applicationDeadline); if (value === undefined) return { ok: false as const, code: "INVALID_DATE" as const }; patch.application_deadline = value; changed = true;
+  }
+  const effectiveStart = Object.prototype.hasOwnProperty.call(patch, "application_start_date") ? patch.application_start_date as string | null : existing.application_start_date;
+  const effectiveDeadline = Object.prototype.hasOwnProperty.call(patch, "application_deadline") ? patch.application_deadline as string | null : existing.application_deadline;
+  if (effectiveStart && effectiveDeadline && effectiveStart > effectiveDeadline) return { ok: false as const, code: "INVALID_APPLICATION_WINDOW" as const };
+  if (Object.prototype.hasOwnProperty.call(input, "roleRequirements")) {
+    if (!input.roleRequirements || typeof input.roleRequirements !== "object" || Array.isArray(input.roleRequirements)) return { ok: false as const, code: "INVALID_ROLE_REQUIREMENTS" as const };
+    const roleInput = input.roleRequirements as Record<string, unknown>;
+    const languages = cleanStringArray(roleInput.languages);
+    const dialects = cleanStringArray(roleInput.dialects);
+    const modelingTypes = cleanStringArray(roleInput.modelingTypes);
+    const minHeightCm = nullableInt(roleInput.minHeightCm, 50, 250);
+    const hairColor = roleInput.hairColor == null ? null : cleanText(roleInput.hairColor, 40);
+    if (languages === undefined || dialects === undefined || modelingTypes === undefined || minHeightCm === undefined) return { ok: false as const, code: "INVALID_ROLE_REQUIREMENTS" as const };
+    const effectiveType = String(patch.opportunity_type ?? existing.opportunity_type ?? "");
+    patch.role_requirements = effectiveType === "actor" ? { languages, dialects } : { modeling_types: modelingTypes, min_height_cm: minHeightCm, hair_color: hairColor || null };
+    changed = true;
   }
   if (!changed) return { ok: false as const, code: "NO_CHANGES" as const };
 
