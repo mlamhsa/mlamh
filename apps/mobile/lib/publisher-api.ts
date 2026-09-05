@@ -163,6 +163,50 @@ export type PublisherOpportunityManageResult =
   | { ok: true; item: { id: number; status: string | null; published: boolean } }
   | { ok: false; code: string };
 
+export type MobilePublisherProfile = {
+  id: number;
+  companyName: string | null;
+  contactName: string | null;
+  publisherType: string | null;
+  city: string | null;
+  description: string | null;
+  phone: string | null;
+  email: string | null;
+  website: string | null;
+  instagram: string | null;
+  tiktokUrl: string | null;
+  linkedinUrl: string | null;
+  profileImageUrl: string | null;
+  coverImageUrl: string | null;
+  approvalStatus: string;
+  verified: boolean;
+  verificationStatus: string | null;
+  verificationMethod: string | null;
+  verificationEmail: string | null;
+  verificationDocumentUrl: string | null;
+  verificationSubmittedAt: string | null;
+  countryCode: string | null;
+  isIndividual: boolean;
+  reviewReady: boolean;
+  required: { key: string; complete: boolean }[];
+};
+
+export type PublisherProfileInput = {
+  companyName?: string | null;
+  contactName?: string | null;
+  publisherType?: string | null;
+  city?: string | null;
+  description?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  website?: string | null;
+  instagram?: string | null;
+  tiktokUrl?: string | null;
+  linkedinUrl?: string | null;
+};
+
+type PublisherProfileResponse = { ok: true; item: MobilePublisherProfile } | { ok: false; code: string; missing?: string[] };
+
 async function accessToken() {
   const { data: { session } } = await supabase.auth.getSession();
   return session?.access_token ?? null;
@@ -242,5 +286,49 @@ export async function managePublisherOpportunity(opportunityId: number, input: P
       body: JSON.stringify(input),
     });
     return (await readJson<PublisherOpportunityManageResult>(response)) ?? { ok: false, code: response.ok ? "INVALID_RESPONSE" : "REQUEST_FAILED" };
+  } catch { return { ok: false, code: "REQUEST_FAILED" }; }
+}
+
+export async function getPublisherProfile(): Promise<PublisherProfileResponse> {
+  const token = await accessToken();
+  if (!token) return { ok: false, code: "UNAUTHENTICATED" };
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/publisher/profile`, { headers: { Accept: "application/json", Authorization: `Bearer ${token}` } });
+    return (await readJson<PublisherProfileResponse>(response)) ?? { ok: false, code: response.ok ? "INVALID_RESPONSE" : "REQUEST_FAILED" };
+  } catch { return { ok: false, code: "REQUEST_FAILED" }; }
+}
+
+export async function updatePublisherProfile(input: PublisherProfileInput): Promise<PublisherProfileResponse> {
+  const token = await accessToken();
+  if (!token) return { ok: false, code: "UNAUTHENTICATED" };
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/publisher/profile`, {
+      method: "PATCH",
+      headers: { Accept: "application/json", "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(input),
+    });
+    return (await readJson<PublisherProfileResponse>(response)) ?? { ok: false, code: response.ok ? "INVALID_RESPONSE" : "REQUEST_FAILED" };
+  } catch { return { ok: false, code: "REQUEST_FAILED" }; }
+}
+
+export async function submitPublisherProfileForReview(): Promise<{ ok: true; approvalStatus: string } | { ok: false; code: string; missing?: string[] }> {
+  const token = await accessToken();
+  if (!token) return { ok: false, code: "UNAUTHENTICATED" };
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/publisher/profile`, { method: "POST", headers: { Accept: "application/json", Authorization: `Bearer ${token}` } });
+    return (await readJson<{ ok: true; approvalStatus: string } | { ok: false; code: string; missing?: string[] }>(response)) ?? { ok: false, code: response.ok ? "INVALID_RESPONSE" : "REQUEST_FAILED" };
+  } catch { return { ok: false, code: "REQUEST_FAILED" }; }
+}
+
+export async function uploadPublisherLogoBuffer(buffer: ArrayBuffer, contentType = "image/jpeg"): Promise<{ ok: true; url: string } | { ok: false; code: string }> {
+  const token = await accessToken();
+  if (!token) return { ok: false, code: "UNAUTHENTICATED" };
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/publisher/profile`, {
+      method: "PUT",
+      headers: { Accept: "application/json", "Content-Type": contentType, Authorization: `Bearer ${token}` },
+      body: buffer,
+    });
+    return (await readJson<{ ok: true; url: string } | { ok: false; code: string }>(response)) ?? { ok: false, code: response.ok ? "INVALID_RESPONSE" : "REQUEST_FAILED" };
   } catch { return { ok: false, code: "REQUEST_FAILED" }; }
 }
