@@ -36,6 +36,7 @@ export function getMobileHrefFromUrl(rawUrl: string): Href | null {
   if (segments[0] === "talent" || segments[0] === "talents") return "/talents" as Href;
   if ((segments[0] === "messages" || segments[0] === "conversations") && segments[1] && /^\d+$/.test(segments[1])) return `/conversations/${segments[1]}` as Href;
   if (segments[0] === "publisher" && segments[1] === "setup") return "/publisher/setup" as Href;
+  if (segments[0] === "publisher" && segments[1] === "profile") return "/publisher/profile" as Href;
   if (segments[0] === "publisher" && segments[1] === "opportunities" && segments[2] && /^\d+$/.test(segments[2])) return `/publisher/opportunities/${segments[2]}` as Href;
   if (segments[0] === "publisher" && segments[1] === "messages") return "/publisher/messages" as Href;
   if (segments[0] === "publisher" && segments.length === 1) return "/publisher" as Href;
