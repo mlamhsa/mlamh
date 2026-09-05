@@ -185,6 +185,8 @@ export type MobilePublisherProfile = {
   verificationEmail: string | null;
   verificationDocumentUrl: string | null;
   verificationSubmittedAt: string | null;
+  verificationReviewedAt: string | null;
+  verificationRejectionReason: string | null;
   countryCode: string | null;
   isIndividual: boolean;
   reviewReady: boolean;
@@ -206,6 +208,9 @@ export type PublisherProfileInput = {
 };
 
 type PublisherProfileResponse = { ok: true; item: MobilePublisherProfile } | { ok: false; code: string; missing?: string[] };
+export type PublisherVerificationResult =
+  | { ok: true; verificationStatus: "pending"; method: "company_email"; email: string }
+  | { ok: false; code: string };
 
 async function accessToken() {
   const { data: { session } } = await supabase.auth.getSession();
@@ -330,5 +335,18 @@ export async function uploadPublisherLogoBuffer(buffer: ArrayBuffer, contentType
       body: buffer,
     });
     return (await readJson<{ ok: true; url: string } | { ok: false; code: string }>(response)) ?? { ok: false, code: response.ok ? "INVALID_RESPONSE" : "REQUEST_FAILED" };
+  } catch { return { ok: false, code: "REQUEST_FAILED" }; }
+}
+
+export async function submitPublisherVerificationEmail(email: string): Promise<PublisherVerificationResult> {
+  const token = await accessToken();
+  if (!token) return { ok: false, code: "UNAUTHENTICATED" };
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/publisher/verification`, {
+      method: "POST",
+      headers: { Accept: "application/json", "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ method: "company_email", email }),
+    });
+    return (await readJson<PublisherVerificationResult>(response)) ?? { ok: false, code: response.ok ? "INVALID_RESPONSE" : "REQUEST_FAILED" };
   } catch { return { ok: false, code: "REQUEST_FAILED" }; }
 }
