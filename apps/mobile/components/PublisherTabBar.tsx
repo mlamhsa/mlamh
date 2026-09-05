@@ -1,12 +1,16 @@
+import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { getMobileAccountContext } from "@/lib/account";
 import type { AppLocale } from "@/lib/i18n";
 import { darkTheme } from "@/lib/theme";
 
 type Theme = typeof darkTheme;
 type PublisherTab = "dashboard" | "talents" | "create" | "messages" | "notifications";
+
+type ViewerKind = "checking" | "publisher" | "other";
 
 const tabs = [
   { key: "dashboard" as const, path: "/publisher" as const, ar: "الرئيسية", en: "Home" },
@@ -19,6 +23,31 @@ const tabs = [
 export function PublisherTabBar({ active, locale, theme = darkTheme, unreadCount = 0, notificationCount = 0 }: { active: PublisherTab; locale: AppLocale; theme?: Theme; unreadCount?: number; notificationCount?: number }) {
   const insets = useSafeAreaInsets();
   const styles = createStyles(theme);
+  const [viewer, setViewer] = useState<ViewerKind>(active === "talents" ? "checking" : "publisher");
+
+  useEffect(() => {
+    if (active !== "talents") return;
+    let mounted = true;
+    void getMobileAccountContext()
+      .then((account) => { if (mounted) setViewer(account?.type === "publisher" ? "publisher" : "other"); })
+      .catch(() => { if (mounted) setViewer("other"); });
+    return () => { mounted = false; };
+  }, [active]);
+
+  if (active === "talents" && viewer !== "publisher") {
+    return <View style={[styles.outer, { paddingBottom: Math.max(insets.bottom, 8) }]}>
+      <View style={styles.publicShell}>
+        <Pressable accessibilityRole="button" onPress={() => router.replace("/opportunities")} style={({ pressed }) => [styles.publicAction, pressed && styles.pressed]}>
+          <Text style={styles.publicActionText}>{locale === "ar" ? "الفرص" : "Opportunities"}</Text>
+        </Pressable>
+        <View style={styles.publicCurrent}><View style={styles.indicatorSelectedPublic} /><Text style={styles.publicCurrentText}>{locale === "ar" ? "المواهب" : "Talents"}</Text></View>
+        <Pressable accessibilityRole="button" onPress={() => router.push(viewer === "checking" ? "/login" : "/signup")} style={({ pressed }) => [styles.publicAction, pressed && styles.pressed]}>
+          <Text style={styles.publicActionText}>{locale === "ar" ? (viewer === "checking" ? "الدخول" : "انضم") : (viewer === "checking" ? "Sign in" : "Join")}</Text>
+        </Pressable>
+      </View>
+    </View>;
+  }
+
   return <View style={[styles.outer, { paddingBottom: Math.max(insets.bottom, 8) }]}><View style={styles.shell}>{tabs.map((tab) => {
     const selected = active === tab.key;
     const badgeCount = tab.key === "messages" ? unreadCount : tab.key === "notifications" ? notificationCount : 0;
@@ -42,6 +71,12 @@ function createStyles(theme: Theme) { return StyleSheet.create({
   labelSelected: { color: theme.text, fontWeight: "800" },
   badge: { minWidth: 16, height: 16, paddingHorizontal: 3, borderRadius: 8, alignItems: "center", justifyContent: "center", backgroundColor: theme.accent },
   badgeText: { color: theme.background, fontSize: 8, fontWeight: "900" },
+  publicShell: { minHeight: 66, flexDirection: "row", alignItems: "center", borderTopWidth: 1, borderTopColor: theme.border, backgroundColor: theme.nav, paddingHorizontal: 10, paddingTop: 7, paddingBottom: 7 },
+  publicAction: { flex: 1, minHeight: 48, alignItems: "center", justifyContent: "center" },
+  publicActionText: { color: theme.muted, fontSize: 10, fontWeight: "700" },
+  publicCurrent: { flex: 1, minHeight: 48, alignItems: "center", justifyContent: "center", gap: 7 },
+  indicatorSelectedPublic: { width: 16, height: 2, borderRadius: 1, backgroundColor: theme.accent },
+  publicCurrentText: { color: theme.text, fontSize: 10, fontWeight: "900" },
   pressed: { opacity: 0.65 },
   arabicText: { letterSpacing: 0 },
 }); }
