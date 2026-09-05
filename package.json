@@ -7,12 +7,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:mobile": "node --experimental-strip-types --test lib/accounts/account-rules.test.ts lib/applications/apply-rules.test.ts lib/applications/status-rules.test.ts lib/mobile/deep-link-contract.test.ts lib/mobile/post-login-route.test.ts lib/mobile/public-talent-contract.test.ts lib/opportunities/public-mapper.test.ts lib/publishers/verification-rules.test.ts lib/talent/public-profile-access.test.ts",
+    "test:mobile": "node --experimental-strip-types --test lib/accounts/account-rules.test.ts lib/applications/apply-rules.test.ts lib/applications/status-rules.test.ts lib/markets/config.test.ts lib/mobile/deep-link-contract.test.ts lib/mobile/post-login-route.test.ts lib/mobile/public-talent-contract.test.ts lib/opportunities/public-mapper.test.ts lib/publishers/verification-rules.test.ts lib/talent/public-profile-access.test.ts",
     "test:marketing": "node --experimental-strip-types --test lib/marketing/channels/execution-policy.test.ts lib/marketing/channels/controlled-execution.test.ts lib/marketing/channels/social-copy.test.ts lib/marketing/channels/zoho-mail.test.ts lib/marketing/credentials/infisical.test.ts lib/marketing/channels/meta.test.ts lib/marketing/channels/meta-instagram-facebook-login.test.ts lib/marketing/channels/meta-integration-state.test.ts lib/marketing/channels/meta-readonly.test.ts lib/marketing/dana/domain.test.ts lib/marketing/dana/location.test.ts lib/marketing/dana/multi-country.test.ts lib/marketing/dana/client-response.test.ts lib/marketing/dana/workflow.test.ts lib/talent/qualification.test.ts lib/talent/supply.test.ts lib/talent/public-profile-access.test.ts lib/markets/config.test.ts lib/markets/eligibility.test.ts lib/markets/public-access.test.ts lib/markets/seo.test.ts lib/markets/analytics.test.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
-    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/sortable": "^10.0.1",
     "@dnd-kit/utilities": "^3.2.2",
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.106.1",
