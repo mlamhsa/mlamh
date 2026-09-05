@@ -12,14 +12,14 @@ jobs:
   monitor:
     name: Monitor EAS RC Builds
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 60
     defaults:
       run:
         working-directory: apps/mobile
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-      ANDROID_BUILD_ID: 20ff617c-d6da-4c11-96ce-e25ca1a72eff
-      IOS_BUILD_ID: aee0a0e8-e3c6-46fa-8155-fa5bde677271
+      ANDROID_BUILD_ID: 59ea156d-95b9-4772-a7fb-bb26218687f1
+      IOS_BUILD_ID: 57a67af8-8a11-48c9-a005-3361566611ce
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -42,17 +42,40 @@ jobs:
             exit 1
           fi
 
-      - name: Inspect Android and iOS RC builds
+      - name: Wait for Android and iOS RC builds
         shell: bash
         run: |
           set -euo pipefail
-          android_json=$(npx --yes eas-cli@latest build:view "$ANDROID_BUILD_ID" --json)
-          ios_json=$(npx --yes eas-cli@latest build:view "$IOS_BUILD_ID" --json)
-          printf '%s\n' "$android_json" > /tmp/android-build.json
-          printf '%s\n' "$ios_json" > /tmp/ios-build.json
+          terminal_status() {
+            case "$1" in
+              finished|errored|canceled) return 0 ;;
+              *) return 1 ;;
+            esac
+          }
+
+          for attempt in $(seq 1 100); do
+            android_json=$(npx --yes eas-cli@latest build:view "$ANDROID_BUILD_ID" --json)
+            ios_json=$(npx --yes eas-cli@latest build:view "$IOS_BUILD_ID" --json)
+            printf '%s\n' "$android_json" > /tmp/android-build.json
+            printf '%s\n' "$ios_json" > /tmp/ios-build.json
+
+            android_status=$(printf '%s' "$android_json" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const x=JSON.parse(s);process.stdout.write(String(x.status||"").toLowerCase())})')
+            ios_status=$(printf '%s' "$ios_json" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const x=JSON.parse(s);process.stdout.write(String(x.status||"").toLowerCase())})')
+            echo "Attempt $attempt: Android=$android_status iOS=$ios_status"
+
+            if terminal_status "$android_status" && terminal_status "$ios_status"; then
+              break
+            fi
+            if [ "$attempt" -eq 100 ]; then
+              echo "::error::Timed out waiting for paired EAS RC builds."
+              exit 1
+            fi
+            sleep 30
+          done
 
           node - <<'NODE'
           const fs = require('fs');
+          let failed = false;
           for (const [platform, file] of [['Android','/tmp/android-build.json'], ['iOS','/tmp/ios-build.json']]) {
             const b = JSON.parse(fs.readFileSync(file, 'utf8'));
             const details = {
@@ -62,13 +85,12 @@ jobs:
               appVersion: b.appVersion,
               appBuildVersion: b.appBuildVersion,
               error: b.error ?? null,
-              errors: b.errors ?? null,
-              failureReason: b.failureReason ?? null,
-              message: b.message ?? null,
               artifacts: b.artifacts ?? null,
             };
             console.log(`${platform} RC build:`);
             console.log(JSON.stringify(details, null, 2));
             console.log(`${platform} logs: https://expo.dev/accounts/mlamhco/projects/mlamh/builds/${b.id}`);
+            if (String(b.status).toLowerCase() !== 'finished') failed = true;
           }
+          if (failed) process.exitCode = 1;
           NODE
