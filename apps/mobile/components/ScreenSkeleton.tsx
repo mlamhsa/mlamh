@@ -5,10 +5,10 @@ import { darkTheme } from "@/lib/theme";
 
 type Variant = "list" | "profile" | "detail" | "dashboard";
 
-export function ScreenSkeleton({ variant = "list", locale = "en" }: { variant?: Variant; locale?: AppLocale }) {
+export function ScreenSkeleton({ variant = "list", locale = "en", label }: { variant?: Variant; locale?: AppLocale; label?: string }) {
   const rows = variant === "profile" ? 3 : variant === "detail" ? 4 : variant === "dashboard" ? 4 : 5;
-  const label = locale === "ar" ? "جارٍ تحميل المحتوى" : "Loading content";
-  return <View style={styles.screen} accessibilityRole="progressbar" accessibilityLabel={label}>
+  const accessibilityLabel = label ?? (locale === "ar" ? "جارٍ تحميل المحتوى" : "Loading content");
+  return <View style={styles.screen} accessibilityRole="progressbar" accessibilityLabel={accessibilityLabel}>
     <View importantForAccessibility="no-hide-descendants" style={styles.content}>
       <View style={styles.brand} />
       <View style={styles.title} />
