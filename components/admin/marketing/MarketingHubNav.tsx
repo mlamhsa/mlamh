@@ -47,13 +47,17 @@ export function MarketingHubNav() {
   }, [openGroup]);
 
   return (
-    <nav ref={navRef} aria-label={isArabic ? "أقسام مركز التسويق" : "Marketing Hub sections"} className="relative z-30 mb-8 rounded-[1.35rem] border border-white/[0.09] bg-gradient-to-b from-white/[0.045] to-white/[0.02] p-2 shadow-[0_14px_45px_rgba(0,0,0,0.18)] ring-1 ring-inset ring-white/[0.015]">
-      <div className="flex flex-wrap items-center gap-1.5">
+    <nav
+      ref={navRef}
+      aria-label={isArabic ? "أقسام مركز التسويق" : "Marketing Hub sections"}
+      className="relative z-30 mb-6 rounded-[1.35rem] border border-white/[0.09] bg-gradient-to-b from-white/[0.045] to-white/[0.02] p-2 shadow-[0_14px_45px_rgba(0,0,0,0.18)] ring-1 ring-inset ring-white/[0.015] sm:mb-8"
+    >
+      <div className="grid grid-cols-2 items-stretch gap-1.5 sm:flex sm:flex-wrap sm:items-center">
         <Link
           href={withAdminLanguage(overview.href, language)}
           aria-current={isItemActive(pathname, overview.href) ? "page" : undefined}
           onClick={() => setOpenGroup(null)}
-          className={`inline-flex min-h-11 items-center gap-2 rounded-xl border px-3.5 py-2 text-xs transition-all ${isItemActive(pathname, overview.href) ? "border-gold/30 bg-gold/[0.11] text-gold" : "border-transparent text-white/55 hover:border-white/[0.1] hover:bg-white/[0.05] hover:text-white"}`}
+          className={`col-span-2 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border px-3.5 py-2 text-xs transition-all sm:col-span-1 sm:justify-start ${isItemActive(pathname, overview.href) ? "border-gold/30 bg-gold/[0.11] text-gold" : "border-transparent text-white/55 hover:border-white/[0.1] hover:bg-white/[0.05] hover:text-white"}`}
         >
           <overview.icon className="h-4 w-4" aria-hidden="true" />
           <span>{isArabic ? overview.labelAr : overview.labelEn}</span>
@@ -62,29 +66,36 @@ export function MarketingHubNav() {
         <span className="mx-1 hidden h-6 w-px bg-white/[0.08] sm:block" />
 
         {marketingHubNavigationGroups.map((group) => {
-          const items = group.itemKeys.map((key) => marketingHubNavigation.find((item) => item.key === key)).filter(Boolean) as typeof marketingHubNavigation;
+          const items = group.itemKeys
+            .map((key) => marketingHubNavigation.find((item) => item.key === key))
+            .filter(Boolean) as typeof marketingHubNavigation;
           const active = items.some((item) => isItemActive(pathname, item.href));
           const GroupIcon = group.icon;
           const isOpen = openGroup === group.key;
 
           return (
-            <div key={group.key} className="relative">
+            <div key={group.key} className="relative min-w-0">
               <button
                 type="button"
                 aria-expanded={isOpen}
                 aria-haspopup="menu"
                 onClick={() => setOpenGroup((current) => current === group.key ? null : group.key)}
-                className={`flex min-h-11 cursor-pointer select-none items-center gap-2 rounded-xl border px-3.5 py-2 text-xs outline-none transition-all ${active ? "border-gold/25 bg-gold/[0.08] text-gold" : "border-transparent text-white/45 hover:border-white/[0.1] hover:bg-white/[0.05] hover:text-white"}`}
+                className={`flex min-h-11 w-full cursor-pointer select-none items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs outline-none transition-all sm:w-auto sm:justify-start sm:px-3.5 ${active ? "border-gold/25 bg-gold/[0.08] text-gold" : "border-transparent text-white/45 hover:border-white/[0.1] hover:bg-white/[0.05] hover:text-white"}`}
               >
                 <GroupIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span>{isArabic ? group.labelAr : group.labelEn}</span>
-                <ChevronDown className={`h-3.5 w-3.5 text-white/30 transition-transform ${isOpen ? "rotate-180" : ""}`} aria-hidden="true" />
+                <span className="truncate">{isArabic ? group.labelAr : group.labelEn}</span>
+                <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-white/30 transition-transform ${isOpen ? "rotate-180" : ""}`} aria-hidden="true" />
               </button>
 
               {isOpen ? (
-                <div role="menu" className="absolute start-1/2 top-full z-50 mt-2 w-[min(19rem,calc(100vw-3rem))] -translate-x-1/2 rounded-2xl border border-white/[0.1] bg-[#101010]/95 p-2 shadow-2xl backdrop-blur-xl rtl:translate-x-1/2">
+                <div
+                  role="menu"
+                  className="absolute start-0 top-full z-50 mt-2 w-[min(19rem,calc(100vw-2.5rem))] rounded-2xl border border-white/[0.1] bg-[#101010]/95 p-2 shadow-2xl backdrop-blur-xl sm:start-1/2 sm:-translate-x-1/2 rtl:sm:translate-x-1/2"
+                >
                   <div className="mb-2 px-2 pt-1">
-                    <p className="text-[9px] uppercase tracking-[0.2em] text-gold/45">{isArabic ? group.labelAr : group.labelEn}</p>
+                    <p className="text-[9px] uppercase tracking-[0.2em] text-gold/45">
+                      {isArabic ? group.labelAr : group.labelEn}
+                    </p>
                   </div>
                   <div className="grid gap-1">
                     {items.map((item) => {
