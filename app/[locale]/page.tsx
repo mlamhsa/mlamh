@@ -104,15 +104,14 @@ export default async function HomePage({ params }: HomePageProps) {
     >
       <HomeScrollReset />
 
-      {/* Mobile web home stays on its existing maintained flow. */}
       <div className="lg:hidden">
         <MobileHome
           locale={locale}
           talents={talents}
+          valueProps={valueProps}
         />
       </div>
 
-      {/* Desktop website */}
       <div className="hidden lg:block">
         <Hero locale={locale} data={hero} />
 

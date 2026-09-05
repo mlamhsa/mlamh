@@ -1,3 +1,5 @@
+import { HowItWorks } from "@/components/HowItWorks";
+import { ValueProps } from "@/components/ValueProps";
 import { MobileCastingBriefCTA } from "@/components/mobile/home/MobileCastingBriefCTA";
 import { MobileFinalCTA } from "@/components/mobile/home/MobileFinalCTA";
 import { MobileFooter } from "@/components/mobile/home/MobileFooter";
@@ -9,6 +11,7 @@ import { MobileTalentsSection } from "@/components/mobile/home/MobileTalentsSect
 
 import type { Locale } from "@/lib/i18n";
 import type { Talent } from "@/lib/types/talent";
+import type { PublicHomepageValueProp } from "@/lib/types/value-props";
 
 type MobileTalent = Talent & {
   image_url: string;
@@ -17,11 +20,13 @@ type MobileTalent = Talent & {
 type MobileHomeProps = {
   locale: Locale;
   talents: MobileTalent[];
+  valueProps: PublicHomepageValueProp[];
 };
 
 export function MobileHome({
   locale,
   talents,
+  valueProps,
 }: MobileHomeProps) {
   return (
     <>
@@ -30,6 +35,10 @@ export function MobileHome({
       <MobileCastingBriefCTA locale={locale} />
 
       <MobileQuickAccess locale={locale} />
+
+      <ValueProps locale={locale} data={valueProps} />
+
+      <HowItWorks locale={locale} />
 
       <MobileTalentsSection
         locale={locale}
