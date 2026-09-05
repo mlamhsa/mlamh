@@ -114,6 +114,7 @@ export async function updateMobilePublisherProfile(userId: string, input: Publis
 
   const publisherType = clean(input.publisherType, 64);
   if (!publisherType || !ALLOWED_PUBLISHER_TYPES.has(publisherType)) return { ok: false as const, code: "INVALID_PUBLISHER_TYPE" as const };
+  if (!publisher.publisher_type || publisherType !== publisher.publisher_type) return { ok: false as const, code: "PUBLISHER_TYPE_LOCKED" as const };
   const companyName = clean(input.companyName, 160);
   const contactName = clean(input.contactName, 120);
   const phone = clean(input.phone, 40);
@@ -122,7 +123,6 @@ export async function updateMobilePublisherProfile(userId: string, input: Publis
   const update = {
     company_name: companyName,
     contact_name: contactName,
-    publisher_type: publisherType,
     city: clean(input.city, 120),
     description: clean(input.description, 2000),
     phone,
