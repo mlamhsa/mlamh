@@ -49,17 +49,29 @@ jobs:
           }
 
           for attempt in $(seq 1 90); do
-            android_json=$(npx --yes eas-cli@latest build:view "$ANDROID_BUILD_ID" --json)
-            ios_json=$(npx --yes eas-cli@latest build:view "$IOS_BUILD_ID" --json)
+            builds_json=$(npx --yes eas-cli@latest build:list --json --limit 50 --non-interactive)
+            printf '%s\n' "$builds_json" > /tmp/eas-builds.json
 
-            android_status=$(printf '%s' "$android_json" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const x=JSON.parse(s);process.stdout.write(String(x.status||"").toLowerCase())})')
-            ios_status=$(printf '%s' "$ios_json" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const x=JSON.parse(s);process.stdout.write(String(x.status||"").toLowerCase())})')
+            node - "$ANDROID_BUILD_ID" "$IOS_BUILD_ID" <<'NODE' > /tmp/rc-status.txt
+          const fs = require('fs');
+          const [androidId, iosId] = process.argv.slice(2);
+          const raw = JSON.parse(fs.readFileSync('/tmp/eas-builds.json', 'utf8'));
+          const builds = Array.isArray(raw) ? raw : (Array.isArray(raw?.builds) ? raw.builds : []);
+          const find = (id) => builds.find((b) => b?.id === id) ?? null;
+          const android = find(androidId);
+          const ios = find(iosId);
+          const status = (b) => String(b?.status ?? 'missing').toLowerCase();
+          console.log(`android=${status(android)}`);
+          console.log(`ios=${status(ios)}`);
+          if (android) fs.writeFileSync('/tmp/android-build.json', JSON.stringify(android, null, 2));
+          if (ios) fs.writeFileSync('/tmp/ios-build.json', JSON.stringify(ios, null, 2));
+          NODE
 
+            android_status=$(grep '^android=' /tmp/rc-status.txt | cut -d= -f2)
+            ios_status=$(grep '^ios=' /tmp/rc-status.txt | cut -d= -f2)
             echo "Attempt $attempt: Android=$android_status iOS=$ios_status"
 
             if terminal_status "$android_status" && terminal_status "$ios_status"; then
-              printf '%s\n' "$android_json" > /tmp/android-build.json
-              printf '%s\n' "$ios_json" > /tmp/ios-build.json
               break
             fi
 
