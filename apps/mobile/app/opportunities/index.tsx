@@ -7,6 +7,7 @@ import { ScreenSkeleton } from "@/components/ScreenSkeleton";
 import { resolveMobileMarket } from "@/lib/account";
 import { getNotifications, getPublicOpportunities, type MobileOpportunity } from "@/lib/api";
 import { getDeviceLocale, isRtlLocale } from "@/lib/i18n";
+import { getMobileMarketLabel } from "@/lib/market-labels";
 import { darkTheme } from "@/lib/theme";
 
 type FilterKey = "all" | "actor" | "model";
@@ -61,8 +62,9 @@ export default function OpportunitiesScreen() {
   const featured = filtered.filter((item) => item.featured).slice(0, 4);
   const regular = filtered.filter((item) => !item.featured);
   const textAlign = isRtl ? "right" : "left";
+  const marketLabel = getMobileMarketLabel(market, locale) ?? market;
 
-  if (loading) return <ScreenSkeleton variant="list" />;
+  if (loading) return <ScreenSkeleton variant="list" locale={locale} />;
 
   return <View style={styles.screen}>
     <FlatList
@@ -76,7 +78,7 @@ export default function OpportunitiesScreen() {
           <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "التنبيهات" : "Notifications"} onPress={() => router.push("/notifications")} style={({ pressed }) => [styles.notificationButton, pressed && styles.pressed]}><Text style={styles.notificationText}>{unreadCount > 0 ? String(Math.min(unreadCount, 99)) : "•"}</Text></Pressable>
         </View>
 
-        <View style={[styles.marketRow, isRtl && styles.marketRowRtl]}><Text style={[styles.marketLabel, isArabic && styles.arabicText]}>{market === "SA" ? (isArabic ? "السعودية" : "Saudi Arabia") : market}</Text><Text style={[styles.marketCount, isArabic && styles.arabicText]}>{isArabic ? `${filtered.length} فرصة` : `${filtered.length} opportunities`}</Text></View>
+        <View style={[styles.marketRow, isRtl && styles.marketRowRtl]}><Text style={[styles.marketLabel, isArabic && styles.arabicText]}>{marketLabel}</Text><Text style={[styles.marketCount, isArabic && styles.arabicText]}>{isArabic ? `${filtered.length} فرصة` : `${filtered.length} opportunities`}</Text></View>
 
         <View style={styles.searchBox}><TextInput value={query} onChangeText={setQuery} placeholder={isArabic ? "ابحث عن فرصة أو جهة" : "Search opportunities or companies"} placeholderTextColor={theme.muted} style={[styles.searchInput, isArabic && styles.arabicText, { textAlign }]} autoCapitalize="none" returnKeyType="search" /></View>
 
@@ -104,16 +106,17 @@ function FilterChip({ active, label, onPress, styles, isArabic }: { active: bool
 function FeaturedCard({ item, locale, styles }: { item: MobileOpportunity; locale: "ar" | "en"; styles: ReturnType<typeof createStyles> }) {
   const isArabic = locale === "ar";
   const compensation = item.budget && item.currency ? `${item.budget} ${item.currency}` : (isArabic ? "حسب الاتفاق" : "By agreement");
+  const location = [item.city, getMobileMarketLabel(item.countryCode, locale)].filter(Boolean).join(" · ");
   return <Pressable accessibilityRole="button" onPress={() => router.push(`/opportunities/${item.slug}`)} style={({ pressed }) => [styles.featuredCard, pressed && styles.pressed]}>
     <View style={styles.featuredTop}><Text style={[styles.featuredBadge, isArabic && styles.arabicText]}>{isArabic ? "مميز" : "Featured"}</Text><Text numberOfLines={1} style={[styles.company, isArabic && styles.arabicText]}>{item.companyName}</Text></View>
     <Text numberOfLines={2} style={[styles.featuredTitle, isArabic && styles.arabicText]}>{item.title}</Text>
-    <View style={styles.metaRow}><Text numberOfLines={1} style={[styles.meta, isArabic && styles.arabicText]}>{[item.city, item.countryCode].filter(Boolean).join(" · ")}</Text><Text style={[styles.compensation, isArabic && styles.arabicText]}>{compensation}</Text></View>
+    <View style={styles.metaRow}><Text numberOfLines={1} style={[styles.meta, isArabic && styles.arabicText]}>{location}</Text><Text style={[styles.compensation, isArabic && styles.arabicText]}>{compensation}</Text></View>
   </Pressable>;
 }
 
 function OpportunityCard({ item, locale, styles, isRtl }: { item: MobileOpportunity; locale: "ar" | "en"; styles: ReturnType<typeof createStyles>; isRtl: boolean }) {
   const isArabic = locale === "ar";
-  const location = [item.city, item.countryCode].filter(Boolean).join(" · ") || (isArabic ? "مرن" : "Flexible");
+  const location = [item.city, getMobileMarketLabel(item.countryCode, locale)].filter(Boolean).join(" · ") || (isArabic ? "مرن" : "Flexible");
   return <Pressable accessibilityRole="button" onPress={() => router.push(`/opportunities/${item.slug}`)} style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
     <View style={[styles.cardHeader, isRtl && styles.cardHeaderRtl]}><Text style={[styles.typeBadge, isArabic && styles.arabicText]}>{humanizeType(item.opportunityType)}</Text><Text style={styles.chevron}>{isRtl ? "‹" : "›"}</Text></View>
     <Text numberOfLines={2} style={[styles.cardTitle, isArabic && styles.arabicText, { textAlign: isRtl ? "right" : "left" }]}>{item.title}</Text>
