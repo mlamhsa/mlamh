@@ -4,6 +4,10 @@ import {
   buildAllIntelligenceMarketContexts,
   type IntelligenceMarketContext,
 } from "@/lib/intelligence/markets/context";
+import {
+  buildExecutiveBrief,
+  type ExecutiveBrief,
+} from "@/lib/intelligence/executive/brief";
 import type {
   IntelligenceDataGap,
   IntelligenceRecommendation,
@@ -26,6 +30,7 @@ export type CommandCenterOverview = {
   readOnly: true;
   markets: IntelligenceMarketContext[];
   marketplace: CommandCenterMarketplaceSummary;
+  executiveBrief: ExecutiveBrief;
   criticalSignals: IntelligenceSignal[];
   recommendations: IntelligenceRecommendation[];
   dataGaps: IntelligenceDataGap[];
@@ -107,6 +112,8 @@ export async function buildCommandCenterOverview(): Promise<CommandCenterOvervie
     });
   }
 
+  const executiveBrief = buildExecutiveBrief(marketplace, generatedAt);
+
   const dataGaps: IntelligenceDataGap[] = [
     {
       key: "market_demand_history",
@@ -114,7 +121,7 @@ export async function buildCommandCenterOverview(): Promise<CommandCenterOvervie
     },
     {
       key: "city_supply_matrix",
-      description: "City-level supply gap aggregation is deferred to the Casting Intelligence slice.",
+      description: "City-level supply gap aggregation is deferred to a later Talent Supply Intelligence slice.",
     },
   ];
 
@@ -124,6 +131,7 @@ export async function buildCommandCenterOverview(): Promise<CommandCenterOvervie
     readOnly: true,
     markets: buildAllIntelligenceMarketContexts(),
     marketplace,
+    executiveBrief,
     criticalSignals,
     recommendations,
     dataGaps,
