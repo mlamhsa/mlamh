@@ -1,6 +1,7 @@
 import {
   BarChart3,
   Bell,
+  BrainCircuit,
   BriefcaseBusiness,
   Building2,
   ClipboardList,
@@ -57,6 +58,18 @@ export const adminNavigation: AdminNavigationGroup[] = [
         href: "/admin/action-center",
         icon: FileClock,
         badgeKey: "pendingActions",
+      },
+    ],
+  },
+  {
+    titleAr: "ذكاء ملامح",
+    titleEn: "Intelligence",
+    items: [
+      {
+        labelAr: "AI Command Center",
+        labelEn: "AI Command Center",
+        href: "/admin/intelligence",
+        icon: BrainCircuit,
       },
     ],
   },
