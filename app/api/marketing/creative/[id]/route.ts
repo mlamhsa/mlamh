@@ -45,7 +45,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
   if (!content) return new Response("Creative content not found", { status: 404 });
 
   const title = text(content.hook) || text(content.title) || "موهبتك تستحق فرصة واضحة";
-  const cta = text(content.cta) || "mlamh.net";
+  const cta = text(content.cta) || "اكتشف الفرص على mlamh.net";
   const platform = text(creative.platform || content.channel).toUpperCase();
   const { width, height } = dimensions(creative.aspect_ratio, content.content_type);
   const vertical = height > width;
@@ -59,91 +59,47 @@ export async function GET(_request: Request, { params }: RouteContext) {
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
-        background: "#2E2E2E",
+        backgroundColor: "#2E2E2E",
         color: "#F5F1E8",
-        padding: vertical ? "92px 84px" : "72px 76px",
-        fontFamily: "Arial, sans-serif",
-        position: "relative",
-        overflow: "hidden",
+        padding: vertical ? "88px 76px" : "68px 70px",
+        fontFamily: "sans-serif",
       },
     },
-    createElement("div", {
-      style: {
-        position: "absolute",
-        width: vertical ? 620 : 520,
-        height: vertical ? 620 : 520,
-        border: "2px solid rgba(212,160,23,.18)",
-        borderRadius: 999,
-        top: vertical ? -180 : -220,
-        left: -180,
-      },
-    }),
-    createElement("div", {
-      style: {
-        position: "absolute",
-        width: vertical ? 760 : 560,
-        height: vertical ? 760 : 560,
-        border: "1px solid rgba(245,241,232,.06)",
-        borderRadius: 999,
-        bottom: vertical ? -330 : -320,
-        right: -220,
-      },
-    }),
     createElement(
       "div",
-      { style: { display: "flex", flexDirection: "column", gap: 18 } },
+      { style: { display: "flex", flexDirection: "column" } },
       createElement(
         "div",
-        { style: { display: "flex", alignItems: "center", gap: 18 } },
-        createElement("div", { style: { width: 58, height: 6, borderRadius: 99, background: "#D4A017" } }),
-        createElement("div", { style: { fontSize: vertical ? 30 : 25, letterSpacing: 4, color: "#D4A017", fontWeight: 700 } }, "MLAMH"),
+        { style: { display: "flex", alignItems: "center" } },
+        createElement("div", { style: { width: 64, height: 7, borderRadius: 12, backgroundColor: "#D4A017", marginRight: 18 } }),
+        createElement("div", { style: { fontSize: vertical ? 32 : 27, color: "#D4A017", fontWeight: 700 } }, "MLAMH"),
       ),
-      createElement("div", { style: { fontSize: vertical ? 22 : 18, letterSpacing: 3, color: "rgba(245,241,232,.48)" } }, platform || "TALENT & OPPORTUNITIES"),
+      createElement("div", { style: { marginTop: 14, fontSize: vertical ? 22 : 18, color: "#B7B2AA" } }, platform || "TALENT & OPPORTUNITIES"),
     ),
     createElement(
       "div",
-      { style: { display: "flex", flexDirection: "column", gap: vertical ? 38 : 26, maxWidth: vertical ? 900 : 980 } },
-      createElement("div", {
-        style: {
-          fontSize: vertical ? 78 : 64,
-          lineHeight: 1.28,
-          fontWeight: 700,
-          direction: "rtl",
-          textAlign: "right",
-          letterSpacing: -1.5,
-        },
-      }, title),
-      createElement("div", { style: { width: vertical ? 180 : 150, height: 8, borderRadius: 99, background: "#D4A017", alignSelf: "flex-end" } }),
+      { style: { display: "flex", flexDirection: "column", width: "100%", direction: "rtl", textAlign: "right" } },
+      createElement("div", { style: { fontSize: vertical ? 76 : 62, lineHeight: 1.3, fontWeight: 700 } }, title),
+      createElement("div", { style: { width: 170, height: 8, borderRadius: 12, backgroundColor: "#D4A017", marginTop: 34, marginLeft: "auto" } }),
     ),
     createElement(
       "div",
-      { style: { display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 28 } },
-      createElement(
-        "div",
-        { style: { display: "flex", flexDirection: "column", gap: 10 } },
-        createElement("div", { style: { fontSize: vertical ? 24 : 19, color: "rgba(245,241,232,.52)" } }, "Talent & Opportunities Platform"),
-        createElement("div", { style: { fontSize: vertical ? 30 : 24, color: "#D4A017", fontWeight: 700 } }, "mlamh.net"),
-      ),
-      createElement("div", {
-        style: {
-          maxWidth: vertical ? 520 : 620,
-          padding: vertical ? "22px 30px" : "18px 26px",
-          border: "1px solid rgba(212,160,23,.45)",
-          borderRadius: 18,
-          fontSize: vertical ? 30 : 24,
-          direction: "rtl",
-          textAlign: "right",
-          color: "#F5F1E8",
-        },
-      }, cta),
+      { style: { display: "flex", flexDirection: "column", borderTop: "1px solid #5B5140", paddingTop: 28 } },
+      createElement("div", { style: { fontSize: vertical ? 28 : 23, direction: "rtl", textAlign: "right" } }, cta),
+      createElement("div", { style: { marginTop: 14, fontSize: vertical ? 26 : 22, color: "#D4A017", fontWeight: 700 } }, "mlamh.net"),
     ),
   );
 
-  return new ImageResponse(root, {
-    width,
-    height,
-    headers: {
-      "Cache-Control": "public, max-age=300, s-maxage=300",
-    },
-  });
+  try {
+    return new ImageResponse(root, {
+      width,
+      height,
+      headers: {
+        "Cache-Control": "public, max-age=300, s-maxage=300",
+      },
+    });
+  } catch (error) {
+    console.error("[MarketingCreativeImage] render failed", error instanceof Error ? error.message : "unknown");
+    return new Response("Creative image render failed", { status: 500 });
+  }
 }
