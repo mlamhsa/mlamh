@@ -18,8 +18,8 @@ jobs:
         working-directory: apps/mobile
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-      ANDROID_BUILD_ID: 59ea156d-95b9-4772-a7fb-bb26218687f1
-      IOS_BUILD_ID: 57a67af8-8a11-48c9-a005-3361566611ce
+      ANDROID_BUILD_ID: 20b40f74-bd2a-4de9-85dc-04606d43c60d
+      IOS_BUILD_ID: e605332c-4b30-416e-95e1-1ac9e3fd30e0
     steps:
       - name: Checkout
         uses: actions/checkout@v4
