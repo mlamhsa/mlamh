@@ -8,6 +8,8 @@ on:
       - ".github/workflows/mobile-rc-testflight-submit.yml"
   workflow_dispatch:
 
+# RC Build 4 TestFlight submit retry after ascAppId configuration.
+
 jobs:
   submit-ios:
     name: Submit iOS Build 4 to TestFlight
