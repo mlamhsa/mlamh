@@ -1,0 +1,44 @@
+name: Mobile RC TestFlight Submit
+
+on:
+  push:
+    branches:
+      - feat/mobile-platform-phase0
+    paths:
+      - ".github/workflows/mobile-rc-testflight-submit.yml"
+  workflow_dispatch:
+
+jobs:
+  submit-ios:
+    name: Submit iOS Build 4 to TestFlight
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      IOS_BUILD_ID: e605332c-4b30-416e-95e1-1ac9e3fd30e0
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.0"
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --include=dev --no-audit --no-fund
+
+      - name: Validate Expo authentication
+        shell: bash
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error::EXPO_TOKEN is not configured for TestFlight submit."
+            exit 1
+          fi
+
+      - name: Submit existing iOS RC build to TestFlight
+        run: npx eas-cli@latest submit --platform ios --id "$IOS_BUILD_ID" --profile testflight --non-interactive --wait
