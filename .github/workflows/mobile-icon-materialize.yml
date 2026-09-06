@@ -1,0 +1,135 @@
+name: Mobile Icon Materialize
+
+on:
+  push:
+    branches:
+      - feat/mobile-platform-phase0
+    paths:
+      - ".github/workflows/mobile-icon-materialize.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    name: Materialize and validate approved app icon
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Materialize approved icon as strict RGB PNG
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import base64, binascii, struct, zlib
+
+          source_b64 = '''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'''
+          src = zlib.decompress(base64.b64decode(source_b64))
+          sw = sh = 128
+          if len(src) != sw * sh * 3:
+              raise SystemExit('Unexpected embedded icon payload length')
+
+          ow = oh = 1024
+          scale = 8
+          scanlines = bytearray()
+          for y in range(oh):
+              sy = y // scale
+              row = bytearray([0])
+              src_row = src[sy * sw * 3:(sy + 1) * sw * 3]
+              for x in range(sw):
+                  px = src_row[x * 3:x * 3 + 3]
+                  row.extend(px * scale)
+              scanlines.extend(row)
+
+          def chunk(kind, payload):
+              return struct.pack('>I', len(payload)) + kind + payload + struct.pack('>I', binascii.crc32(kind + payload) & 0xffffffff)
+
+          png = bytearray(b'\x89PNG\r\n\x1a\n')
+          png += chunk(b'IHDR', struct.pack('>IIBBBBB', ow, oh, 8, 2, 0, 0, 0))
+          png += chunk(b'IDAT', zlib.compress(bytes(scanlines), 9))
+          png += chunk(b'IEND', b'')
+          out = Path('assets/app-icon.png')
+          out.write_bytes(png)
+          print(f'Wrote {out} ({len(png)} bytes)')
+          PY
+
+      - name: Verify strict PNG scanline filters
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import struct, zlib
+          d = Path('assets/app-icon.png').read_bytes()
+          if d[:8] != b'\x89PNG\r\n\x1a\n':
+              raise SystemExit('Invalid PNG signature')
+          pos = 8
+          idat = bytearray()
+          width = height = color_type = None
+          while pos < len(d):
+              n = struct.unpack('>I', d[pos:pos+4])[0]
+              kind = d[pos+4:pos+8]
+              payload = d[pos+8:pos+8+n]
+              pos += 12 + n
+              if kind == b'IHDR':
+                  width, height, depth, color_type, _, _, interlace = struct.unpack('>IIBBBBB', payload)
+                  if (width, height, depth, color_type, interlace) != (1024, 1024, 8, 2, 0):
+                      raise SystemExit('Unexpected PNG format')
+              elif kind == b'IDAT':
+                  idat.extend(payload)
+              elif kind == b'IEND':
+                  break
+          raw = zlib.decompress(bytes(idat))
+          rowbytes = width * 3
+          filters = {raw[y * (rowbytes + 1)] for y in range(height)}
+          if not filters.issubset({0,1,2,3,4}):
+              raise SystemExit(f'Invalid PNG filters: {filters}')
+          print(f'PNG verified: {width}x{height}, RGB8, filters={sorted(filters)}')
+          PY
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.0"
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --include=dev --no-audit --no-fund
+
+      - name: Expo Doctor
+        run: npx expo-doctor
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Release preflight
+        run: npm run release:preflight
+
+      - name: Android native prebuild
+        shell: bash
+        run: |
+          npx expo prebuild --clean --no-install --platform android
+          rm -rf android
+          git restore package.json
+
+      - name: Mobile backend contract tests
+        working-directory: .
+        run: npm run test:mobile
+
+      - name: Commit validated icon and remove temporary workflow
+        working-directory: .
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/mobile-icon-materialize.yml
+          git add apps/mobile/assets/app-icon.png
+          git commit -m "fix(mobile): materialize Jimp-safe approved app icon"
+          git push origin HEAD:feat/mobile-platform-phase0
