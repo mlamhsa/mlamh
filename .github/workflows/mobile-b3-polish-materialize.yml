@@ -66,9 +66,6 @@ jobs:
 
           detail = "apps/mobile/app/opportunities/[slug].tsx"
           replace_exact(detail,
-              'await Share.share({ title: item.title, message: `${item.title}\\\\n${url}`, url });',
-              'await Share.share({ title: item.title, message: `${item.title}\\n${url}`, url });')
-          replace_exact(detail,
               '{item.description || (isArabic ? "لا يوجد وصف متاح لهذه الفرصة." : "No description is available for this opportunity.")}',
               '{item.description ? normalizeDisplayText(item.description) : (isArabic ? "لا يوجد وصف متاح لهذه الفرصة." : "No description is available for this opportunity.")}')
           replace_exact(detail,
