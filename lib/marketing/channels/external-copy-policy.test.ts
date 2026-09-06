@@ -5,7 +5,7 @@ import {
   assertExternalMarketingCopyPolicy,
   containsLiveTalentCountClaim,
   normalizeExternalCopy,
-} from "./external-copy-policy";
+} from "./external-copy-policy.ts";
 
 test("normalizes escaped line breaks before external delivery", () => {
   assert.equal(normalizeExternalCopy("سطر أول\\n\\nسطر ثان"), "سطر أول\n\nسطر ثان");
