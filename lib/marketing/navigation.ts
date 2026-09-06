@@ -12,12 +12,14 @@ import {
   FileText,
   Inbox,
   Layers3,
+  ListChecks,
   ListTodo,
   Megaphone,
   Palette,
   Plug,
   Send,
   Settings2,
+  ShieldCheck,
   Target,
   UsersRound,
   Workflow,
@@ -28,6 +30,7 @@ export type MarketingHubNavGroup = { key: string; labelAr: string; labelEn: stri
 
 export const marketingHubNavigation: MarketingHubNavItem[] = [
   { key: "overview", labelAr: "مركز القيادة", labelEn: "Command", href: "/admin/marketing", icon: BarChart3 },
+  { key: "control", labelAr: "مركز التحكم", labelEn: "Control Center", href: "/admin/marketing/control", icon: ShieldCheck },
   { key: "ai-team", labelAr: "الفريق", labelEn: "AI Team", href: "/admin/marketing/ai-team", icon: Bot },
   { key: "tasks", labelAr: "المهام", labelEn: "Tasks", href: "/admin/marketing/tasks", icon: ListTodo },
   { key: "inbox", labelAr: "الوارد", labelEn: "Inbox", href: "/admin/marketing/inbox", icon: Inbox },
@@ -35,6 +38,7 @@ export const marketingHubNavigation: MarketingHubNavItem[] = [
   { key: "briefs", labelAr: "البريفات", labelEn: "Briefs", href: "/admin/marketing/briefs", icon: ClipboardPenLine },
   { key: "talent-growth", labelAr: "نمو المواهب", labelEn: "Talent Growth", href: "/admin/marketing/talent-growth", icon: UsersRound },
   { key: "opportunity-growth", labelAr: "نمو الفرص", labelEn: "Opportunity Growth", href: "/admin/marketing/opportunity-growth", icon: BriefcaseBusiness },
+  { key: "content-review", labelAr: "مراجعة المحتوى", labelEn: "Review Workspace", href: "/admin/marketing/content/review", icon: ListChecks },
   { key: "content", labelAr: "المحتوى", labelEn: "Content", href: "/admin/marketing/content", icon: FileText },
   { key: "creative", labelAr: "الإبداع", labelEn: "Creative", href: "/admin/marketing/creative", icon: Palette },
   { key: "social", labelAr: "السوشيال", labelEn: "Social", href: "/admin/marketing/social", icon: Megaphone },
@@ -54,8 +58,8 @@ export const marketingHubNavigation: MarketingHubNavItem[] = [
 export const marketingHubNavigationGroups: MarketingHubNavGroup[] = [
   { key: "decisions", labelAr: "قراراتي", labelEn: "Decisions", icon: CheckCheck, itemKeys: ["approvals", "inbox"] },
   { key: "growth", labelAr: "النمو", labelEn: "Growth", icon: Target, itemKeys: ["leads", "outreach", "follow-ups", "briefs", "talent-growth", "opportunity-growth"] },
-  { key: "content-work", labelAr: "المحتوى", labelEn: "Content", icon: Megaphone, itemKeys: ["content", "creative", "social", "campaigns"] },
-  { key: "operations", labelAr: "الفريق والتنفيذ", labelEn: "Operations", icon: Workflow, itemKeys: ["ai-team", "tasks", "automation", "activity"] },
+  { key: "content-work", labelAr: "المحتوى", labelEn: "Content", icon: Megaphone, itemKeys: ["content-review", "content", "creative", "social", "campaigns"] },
+  { key: "operations", labelAr: "الفريق والتنفيذ", labelEn: "Operations", icon: Workflow, itemKeys: ["control", "ai-team", "tasks", "automation", "activity"] },
   { key: "insights", labelAr: "القياس والإعداد", labelEn: "Insights & Setup", icon: Settings2, itemKeys: ["analytics", "experiments", "integrations", "knowledge", "settings"] },
 ];
 

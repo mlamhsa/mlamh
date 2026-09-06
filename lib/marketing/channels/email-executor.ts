@@ -15,6 +15,34 @@ function stringValue(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
+function riyadhDayWindow(now = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Riyadh",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now);
+  const value = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? "";
+  const startMs = Date.parse(`${value("year")}-${value("month")}-${value("day")}T00:00:00+03:00`);
+  return {
+    start: new Date(startMs).toISOString(),
+    end: new Date(startMs + 24 * 60 * 60 * 1000).toISOString(),
+  };
+}
+
+async function assertDailyEmailLimit(limit: number) {
+  const db = createAdminClient();
+  const window = riyadhDayWindow();
+  const { count, error } = await db.from("marketing_channel_jobs")
+    .select("id", { count: "exact", head: true })
+    .eq("channel", "email")
+    .eq("status", "published")
+    .gte("published_at", window.start)
+    .lt("published_at", window.end);
+  if (error) throw new Error("Email execution blocked: daily_limit_check_failed.");
+  if ((count ?? 0) >= limit) throw new Error("Email execution blocked: daily_email_limit_reached.");
+}
+
 export async function executeMarketingEmailJob(jobId: number) {
   const db = createAdminClient();
   const { data: job, error } = await db.from("marketing_channel_jobs")
@@ -64,14 +92,16 @@ export async function executeMarketingEmailJob(jobId: number) {
   }
 
   const executionSettings = await getExternalExecutionSettings();
+  const emailProductionEnabled = executionSettings.productionEnabled && executionSettings.productionChannels.includes("email");
   const controlledExecution = evaluateControlledExecution({
     channel: "email",
-    productionEnabled: executionSettings.productionEnabled,
+    productionEnabled: emailProductionEnabled,
     testModeRequested: payload.test_mode === true,
     testMode: executionSettings.testMode,
     recipientEmail,
   });
   if (!controlledExecution.allowed) throw new Error(`Email execution blocked: ${controlledExecution.reason}.`);
+  if (controlledExecution.mode === "production") await assertDailyEmailLimit(executionSettings.dailyEmailLimit);
 
   const adapter = getMarketingChannelAdapter("email");
   if (!adapter?.sendMessage) throw new Error("No email message adapter is configured.");
