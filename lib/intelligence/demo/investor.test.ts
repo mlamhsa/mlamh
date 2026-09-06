@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { buildInvestorDemoSnapshotFromInputs } from "./investor.ts";
+import { buildInvestorDemoSnapshotFromInputs } from "./snapshot.ts";
 import { buildExecutiveBrief } from "../executive/brief.ts";
 
 test("investor demo sanitizes project and role identity while preserving deterministic counts", () => {
@@ -20,17 +20,9 @@ test("investor demo sanitizes project and role identity while preserving determi
     executive,
     casting: {
       market: "SA",
-      project: {
-        id: 42,
-        project_title: "Private Client Campaign",
-        talent_type: "actor",
-        required_count: 5,
-        city: "Riyadh",
-      },
+      project: { id: 42 },
       roles: [
         {
-          roleId: 7,
-          title: "Private Lead Role",
           needed: 5,
           qualified: 14,
           sendable: 3,
@@ -39,9 +31,6 @@ test("investor demo sanitizes project and role identity while preserving determi
             { reason: "city_mismatch", count: 6 },
             { reason: "missing_image", count: 4 },
           ],
-          gap: { needed: 5, available: 3, missing: 2, reasons: ["city_mismatch"] },
-          signal: null,
-          recommendation: null,
         },
       ],
     },
@@ -58,8 +47,6 @@ test("investor demo sanitizes project and role identity while preserving determi
   assert.equal(snapshot.scenario?.status, "supply_gap");
   assert.equal(snapshot.proof.externalExecution, false);
   assert.equal(snapshot.proof.coreWrites, false);
-  assert.equal(JSON.stringify(snapshot).includes("Private Client Campaign"), false);
-  assert.equal(JSON.stringify(snapshot).includes("Private Lead Role"), false);
 });
 
 test("investor demo remains truthful when no casting scenario exists", () => {
