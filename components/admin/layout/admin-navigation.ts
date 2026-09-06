@@ -78,6 +78,12 @@ export const adminNavigation: AdminNavigationGroup[] = [
         icon: Globe2,
       },
       {
+        labelAr: "ذكاء عرض المواهب",
+        labelEn: "Talent Supply Intelligence",
+        href: "/admin/intelligence/supply",
+        icon: Users,
+      },
+      {
         labelAr: "Investor Demo",
         labelEn: "Investor Demo",
         href: "/admin/intelligence/demo",
