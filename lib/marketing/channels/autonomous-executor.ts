@@ -26,11 +26,22 @@ export async function runGovernedChannelWorker({ maxJobs = 2 }: { maxJobs?: numb
 
   const safeMax = Math.max(1, Math.min(maxJobs, 5));
   const db = createAdminClient();
+  const enabledProductionChannels = executionSettings.productionEnabled
+    ? executionSettings.productionChannels
+    : [];
+  const readableChannels = executionSettings.productionEnabled
+    ? enabledProductionChannels
+    : ["email", "buffer"];
+
+  if (readableChannels.length === 0 && !executionSettings.testMode.enabled) {
+    return { enabled: true, mode: "production", executed: [], skipped: [] };
+  }
+
   let query = db
     .from("marketing_channel_jobs")
     .select("id,channel,status,scheduled_at,payload")
     .in("status", ["approved", "scheduled"])
-    .in("channel", ["email", "buffer"])
+    .in("channel", readableChannels.length ? readableChannels : ["email", "buffer"])
     .order("created_at", { ascending: true })
     .limit(safeMax * 5);
 
@@ -51,6 +62,10 @@ export async function runGovernedChannelWorker({ maxJobs = 2 }: { maxJobs?: numb
       const payload = asRecord(row.payload);
       if (!executionSettings.productionEnabled && payload.test_mode !== true) {
         skipped.push({ id: row.id, channel: row.channel, reason: "production_execution_disabled_non_test_job" });
+        continue;
+      }
+      if (executionSettings.productionEnabled && !executionSettings.productionChannels.includes(row.channel as "email" | "buffer")) {
+        skipped.push({ id: row.id, channel: row.channel, reason: "production_channel_disabled" });
         continue;
       }
 
