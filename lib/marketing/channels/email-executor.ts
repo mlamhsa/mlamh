@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getMarketingChannelAdapter } from "./adapters";
 import { evaluateControlledExecution, getExternalExecutionSettings } from "./controlled-execution";
 import { withMlamhEmailSignature } from "./email-signature";
+import { assertExternalMarketingCopyPolicy } from "./external-copy-policy";
 import { buildEmailOutreachIdempotencyKey, sanitizeZohoError } from "./zoho-mail-core";
 
 export { buildEmailOutreachIdempotencyKey } from "./zoho-mail-core";
@@ -90,6 +91,7 @@ export async function executeMarketingEmailJob(jobId: number) {
     await db.from("marketing_channel_jobs").update({ status: "failed", retry_count: job.retry_count + 1, last_error: message, updated_at: new Date().toISOString() }).eq("id", job.id);
     throw new Error(message);
   }
+  const approvedText = assertExternalMarketingCopyPolicy(text);
 
   const executionSettings = await getExternalExecutionSettings();
   const emailProductionEnabled = executionSettings.productionEnabled && executionSettings.productionChannels.includes("email");
@@ -129,7 +131,7 @@ export async function executeMarketingEmailJob(jobId: number) {
   try {
     const result = await adapter.sendMessage({
       recipient,
-      text: withMlamhEmailSignature(text),
+      text: withMlamhEmailSignature(approvedText),
       metadata: {
         subject,
         outreach_id: outreachId,
