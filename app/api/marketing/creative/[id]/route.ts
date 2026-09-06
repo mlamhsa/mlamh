@@ -26,8 +26,8 @@ function dimensions(aspectRatio: string | null, contentType: string | null) {
   return { width: 1080, height: 1080 };
 }
 
-function brandedArabicFallback(requestUrl: string, platform: string, vertical: boolean) {
-  const logoUrl = new URL("/logo.ar.png", requestUrl).toString();
+function brandedArabicFallback(platform: string, vertical: boolean) {
+  const logoUrl = "https://mlamh.net/logo.ar.png";
   return createElement(
     "div",
     {
@@ -100,7 +100,7 @@ export async function GET(request: Request, { params }: RouteContext) {
   const arabicContent = hasArabic(title) || hasArabic(cta);
 
   const root = arabicContent
-    ? brandedArabicFallback(request.url, platform, vertical)
+    ? brandedArabicFallback(platform, vertical)
     : createElement(
         "div",
         {
