@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ClipboardList, MessageCircle, Search, UserRound, type LucideIcon } from "lucide-react-native";
 
 import type { AppLocale } from "@/lib/i18n";
 import { darkTheme } from "@/lib/theme";
@@ -9,11 +10,19 @@ type TabKey = "discover" | "applications" | "messages" | "profile" | "notificati
 type NavTabKey = Exclude<TabKey, "notifications">;
 type Theme = typeof darkTheme;
 
-const tabs: Array<{ key: NavTabKey; path: "/opportunities" | "/applications" | "/messages" | "/profile"; ar: string; en: string }> = [
-  { key: "discover", path: "/opportunities", ar: "الفرص", en: "Discover" },
-  { key: "applications", path: "/applications", ar: "طلباتي", en: "Applications" },
-  { key: "messages", path: "/messages", ar: "الرسائل", en: "Messages" },
-  { key: "profile", path: "/profile", ar: "ملفي", en: "Profile" },
+type TabDefinition = {
+  key: NavTabKey;
+  path: "/opportunities" | "/applications" | "/messages" | "/profile";
+  ar: string;
+  en: string;
+  icon: LucideIcon;
+};
+
+const tabs: TabDefinition[] = [
+  { key: "discover", path: "/opportunities", ar: "الفرص", en: "Discover", icon: Search },
+  { key: "applications", path: "/applications", ar: "طلباتي", en: "Applications", icon: ClipboardList },
+  { key: "messages", path: "/messages", ar: "الرسائل", en: "Messages", icon: MessageCircle },
+  { key: "profile", path: "/profile", ar: "ملفي", en: "Profile", icon: UserRound },
 ];
 
 export function AppTabBar({ active, locale, theme = darkTheme }: { active: TabKey; locale: AppLocale; theme?: Theme; notificationCount?: number }) {
@@ -21,14 +30,15 @@ export function AppTabBar({ active, locale, theme = darkTheme }: { active: TabKe
   const styles = createStyles(theme);
   return <View style={[styles.outer, { paddingBottom: Math.max(insets.bottom, 8) }]}>
     <View accessibilityRole="tablist" style={styles.shell}>
-      {tabs.map((tab) => <Tab key={tab.key} tab={tab} active={active} locale={locale} styles={styles} />)}
+      {tabs.map((tab) => <Tab key={tab.key} tab={tab} active={active} locale={locale} theme={theme} styles={styles} />)}
     </View>
   </View>;
 }
 
-function Tab({ tab, active, locale, styles }: { tab: (typeof tabs)[number]; active: TabKey; locale: AppLocale; styles: ReturnType<typeof createStyles> }) {
+function Tab({ tab, active, locale, theme, styles }: { tab: TabDefinition; active: TabKey; locale: AppLocale; theme: Theme; styles: ReturnType<typeof createStyles> }) {
   const selected = tab.key === active;
   const label = locale === "ar" ? tab.ar : tab.en;
+  const Icon = tab.icon;
   return <Pressable
     style={({ pressed }) => [styles.tab, selected && styles.tabSelected, pressed && styles.pressed]}
     onPress={() => router.replace(tab.path)}
@@ -37,7 +47,7 @@ function Tab({ tab, active, locale, styles }: { tab: (typeof tabs)[number]; acti
     accessibilityState={{ selected }}
     hitSlop={5}
   >
-    <View style={[styles.indicator, selected && styles.indicatorSelected]} />
+    <Icon size={19} strokeWidth={selected ? 2.15 : 1.8} color={selected ? theme.accent : theme.muted} />
     <Text numberOfLines={1} style={[styles.label, locale === "ar" && styles.arabicText, selected && styles.labelSelected]}>{label}</Text>
   </Pressable>;
 }
@@ -50,7 +60,7 @@ function createStyles(theme: Theme) {
       paddingTop: 7,
     },
     shell: {
-      minHeight: 66,
+      minHeight: 68,
       flexDirection: "row",
       alignItems: "center",
       borderWidth: 1,
@@ -62,24 +72,15 @@ function createStyles(theme: Theme) {
     },
     tab: {
       flex: 1,
-      minHeight: 52,
+      minHeight: 54,
       borderRadius: 18,
       alignItems: "center",
       justifyContent: "center",
-      gap: 6,
+      gap: 5,
       paddingHorizontal: 4,
     },
     tabSelected: {
       backgroundColor: theme.chip,
-    },
-    indicator: {
-      width: 5,
-      height: 5,
-      borderRadius: 3,
-      backgroundColor: "transparent",
-    },
-    indicatorSelected: {
-      backgroundColor: theme.accent,
     },
     label: {
       color: theme.muted,
