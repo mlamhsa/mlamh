@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getRequestUser } from "@/lib/auth/request-user";
-import { createMobileGalleryUpload, deleteMobileGalleryImage, finalizeMobileGalleryUpload, setMobileGalleryPrimary } from "@/lib/talents/mobile-gallery";
+import { createMobileGalleryUpload, deleteMobileGalleryImage, finalizeMobileGalleryUpload, reorderMobileGallery, setMobileGalleryPrimary } from "@/lib/talents/mobile-gallery";
 
 async function readBody(request: Request) {
   try { return await request.json() as Record<string, unknown>; } catch { return null; }
@@ -30,7 +30,7 @@ export async function PUT(request: Request) {
 export async function PATCH(request: Request) {
   const auth = await getRequestUser(request); if (!auth.ok) return NextResponse.json({ ok: false, code: "UNAUTHENTICATED" }, { status: 401 });
   const body = await readBody(request); if (!body) return NextResponse.json({ ok: false, code: "INVALID_BODY" }, { status: 400 });
-  const result = await setMobileGalleryPrimary({ userId: auth.user.id, url: body.url });
+  const result = body.action === "reorder" ? await reorderMobileGallery({ userId: auth.user.id, urls: body.urls }) : await setMobileGalleryPrimary({ userId: auth.user.id, url: body.url });
   return NextResponse.json(result, { status: result.ok ? 200 : errorStatus(result.code) });
 }
 
