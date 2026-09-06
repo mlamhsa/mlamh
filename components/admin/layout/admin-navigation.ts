@@ -84,6 +84,12 @@ export const adminNavigation: AdminNavigationGroup[] = [
         icon: Users,
       },
       {
+        labelAr: "ذكاء النمو",
+        labelEn: "Growth Intelligence",
+        href: "/admin/intelligence/growth",
+        icon: BarChart3,
+      },
+      {
         labelAr: "Investor Demo",
         labelEn: "Investor Demo",
         href: "/admin/intelligence/demo",
