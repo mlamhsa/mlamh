@@ -58,15 +58,16 @@ export async function executeMarketingChannelJob(jobId: number, mode: "publish_n
   await assertVisualReadiness(job.content_id, target, assetUrls);
 
   const executionSettings = await getExternalExecutionSettings();
+  const bufferProductionEnabled = executionSettings.productionEnabled && executionSettings.productionChannels.includes("buffer");
   const controlledExecution = job.channel === "buffer"
     ? evaluateControlledExecution({
         channel: "buffer",
-        productionEnabled: executionSettings.productionEnabled,
+        productionEnabled: bufferProductionEnabled,
         testModeRequested: payload.test_mode === true,
         testMode: executionSettings.testMode,
         bufferTarget: target,
       })
-    : executionSettings.productionEnabled
+    : bufferProductionEnabled
       ? { allowed: true as const, mode: "production" as const }
       : { allowed: false as const, reason: "external_execution_disabled" };
 
