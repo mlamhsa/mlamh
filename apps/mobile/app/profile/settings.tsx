@@ -77,6 +77,7 @@ export default function ProfileSettingsScreen() {
       <Text style={[styles.subtitle, isRtl && styles.textRtl]}>{isArabic ? "إدارة تجربة ملامح من مكان واحد." : "Manage your MLAMH experience in one place."}</Text>
     </View>
 
+    <Text style={[styles.sectionLabel, isRtl && styles.textRtl]}>{isArabic ? "التفضيلات" : "PREFERENCES"}</Text>
     <View style={styles.languageCard}>
       <View style={[styles.cardHeading, isRtl && styles.rowRtl]}><View style={styles.iconShell}><Languages size={19} strokeWidth={1.9} color={theme.accent} /></View><View style={styles.cardHeadingCopy}><Text style={[styles.rowTitle, isRtl && styles.textRtl]}>{isArabic ? "اللغة" : "Language"}</Text><Text style={[styles.rowSubtitle, isRtl && styles.textRtl]}>{isArabic ? "اختر لغة التطبيق. سيتم حفظ اختيارك على هذا الجهاز." : "Choose the app language. Your preference is saved on this device."}</Text></View></View>
       <View style={[styles.languageOptions, isRtl && styles.rowRtl]}>
@@ -91,6 +92,7 @@ export default function ProfileSettingsScreen() {
       {pushMessage ? <Text accessibilityRole="alert" style={[styles.pushMessage, isRtl && styles.textRtl]}>{pushMessage}</Text> : null}
     </View>
 
+    <Text style={[styles.sectionLabel, isRtl && styles.textRtl]}>{isArabic ? "الحساب والدعم" : "ACCOUNT & SUPPORT"}</Text>
     <View style={styles.group}>{rows.map((row, index) => { const RowIcon = row.icon; return <Pressable key={row.title} style={[styles.row, index === rows.length - 1 && styles.rowLast, isRtl && styles.rowRtl]} onPress={row.action}>
       <View style={[styles.rowLead, isRtl && styles.rowRtl]}><View style={styles.iconShell}><RowIcon size={19} strokeWidth={1.9} color={theme.accent} /></View><View style={styles.rowText}><Text style={[styles.rowTitle, isRtl && styles.textRtl]}>{row.title}</Text><Text style={[styles.rowSubtitle, isRtl && styles.textRtl]}>{row.subtitle}</Text></View></View><ForwardIcon size={18} strokeWidth={1.8} color={theme.muted} />
     </Pressable>; })}</View>
@@ -109,18 +111,19 @@ function createStyles(theme: typeof darkTheme) {
     backButton: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: 5 },
     back: { color: theme.text, fontSize: 15, fontWeight: "700" },
     brand: { color: theme.accent, fontSize: 18, fontWeight: "900", letterSpacing: 1.5 },
-    title: { color: theme.text, fontSize: 36, fontWeight: "900" },
-    subtitle: { color: theme.muted, fontSize: 15, lineHeight: 23, marginTop: 7 },
-    languageCard: { borderWidth: 1, borderColor: theme.border, borderRadius: 18, padding: 16, gap: 14, backgroundColor: theme.surface },
+    title: { color: theme.text, fontSize: 30, lineHeight: 36, fontWeight: "900" },
+    subtitle: { color: theme.muted, fontSize: 13, lineHeight: 20, marginTop: 5 },
+    sectionLabel: { color: theme.muted, fontSize: 10, fontWeight: "900", letterSpacing: 1.4, marginTop: 2 },
+    languageCard: { borderWidth: 1, borderColor: theme.border, borderRadius: 22, padding: 15, gap: 13, backgroundColor: theme.surface },
     cardHeading: { flexDirection: "row", alignItems: "center", gap: 12 },
     cardHeadingCopy: { flex: 1 },
-    iconShell: { width: 38, height: 38, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: theme.chip },
+    iconShell: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: theme.chip, borderWidth: 1, borderColor: theme.border },
     languageOptions: { flexDirection: "row", gap: 10 },
     languageOption: { flex: 1, minHeight: 48, borderWidth: 1, borderColor: theme.border, borderRadius: 14, alignItems: "center", justifyContent: "center" },
     languageOptionActive: { borderColor: theme.accent, backgroundColor: "#C9A96218" },
     languageOptionText: { color: theme.muted, fontSize: 14, fontWeight: "800" },
     languageOptionTextActive: { color: theme.accent },
-    pushCard: { borderWidth: 1, borderColor: theme.border, borderRadius: 18, padding: 16, gap: 13, backgroundColor: theme.surface },
+    pushCard: { borderWidth: 1, borderColor: theme.border, borderRadius: 22, padding: 15, gap: 13, backgroundColor: theme.surface },
     pushHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
     pushCopy: { flex: 1 },
     statusDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: theme.grayMuted },
@@ -129,12 +132,12 @@ function createStyles(theme: typeof darkTheme) {
     pushButtonDisabled: { opacity: 0.55 },
     pushButtonText: { color: theme.background, fontSize: 14, fontWeight: "900" },
     pushMessage: { color: theme.muted, fontSize: 11, lineHeight: 17 },
-    group: { borderWidth: 1, borderColor: theme.border, borderRadius: 18, overflow: "hidden", backgroundColor: theme.surface },
-    row: { minHeight: 82, paddingHorizontal: 14, paddingVertical: 14, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, borderBottomWidth: 1, borderBottomColor: theme.border },
+    group: { borderWidth: 1, borderColor: theme.border, borderRadius: 22, overflow: "hidden", backgroundColor: theme.surface },
+    row: { minHeight: 72, paddingHorizontal: 14, paddingVertical: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, borderBottomWidth: 1, borderBottomColor: theme.border },
     rowLast: { borderBottomWidth: 0 },
     rowLead: { flex: 1, flexDirection: "row", alignItems: "center", gap: 12 },
     rowText: { flex: 1 },
-    rowTitle: { color: theme.text, fontSize: 16, fontWeight: "800" },
+    rowTitle: { color: theme.text, fontSize: 15, fontWeight: "800" },
     rowSubtitle: { color: theme.muted, fontSize: 12, lineHeight: 18, marginTop: 4 },
     signOut: { minHeight: 54, borderRadius: 14, borderWidth: 1, borderColor: "#C84F4F66", alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 9 },
     signOutText: { color: "#E59A9A", fontSize: 15, fontWeight: "900" },
