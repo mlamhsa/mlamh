@@ -18,6 +18,10 @@ type ChannelJob = {
   payload: unknown;
 };
 
+function supportedEmailPayload(kind: unknown) {
+  return kind === "outreach_email" || kind === "external_reply";
+}
+
 export async function runGovernedChannelWorker({ maxJobs = 2 }: { maxJobs?: number } = {}) {
   const executionSettings = await getExternalExecutionSettings();
   if (!executionSettings.productionEnabled && !executionSettings.testMode.enabled) {
@@ -70,8 +74,8 @@ export async function runGovernedChannelWorker({ maxJobs = 2 }: { maxJobs?: numb
       }
 
       if (row.channel === "email") {
-        if (payload.kind !== "outreach_email") {
-          skipped.push({ id: row.id, channel: row.channel, reason: "email_job_requires_supported_outreach_payload" });
+        if (!supportedEmailPayload(payload.kind)) {
+          skipped.push({ id: row.id, channel: row.channel, reason: "email_job_requires_supported_payload" });
           continue;
         }
         if (row.status === "scheduled") {

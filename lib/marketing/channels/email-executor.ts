@@ -43,6 +43,42 @@ async function assertDailyEmailLimit(limit: number) {
   if ((count ?? 0) >= limit) throw new Error("Email execution blocked: daily_email_limit_reached.");
 }
 
+async function resolveSupportSubject(payload: Record<string, unknown>) {
+  const explicit = stringValue(payload.subject);
+  if (explicit) return explicit;
+  if (payload.kind !== "external_reply") return null;
+
+  const sourceReference = stringValue(payload.source_reference);
+  const ticketNumber = sourceReference?.startsWith("support-ticket:")
+    ? sourceReference.slice("support-ticket:".length).trim()
+    : null;
+  if (!ticketNumber) return "رد من فريق ملامح";
+
+  const db = createAdminClient();
+  const { data } = await db.from("support_tickets")
+    .select("subject")
+    .eq("ticket_number", ticketNumber)
+    .maybeSingle();
+  const ticketSubject = stringValue(data?.subject);
+  return ticketSubject ? `رد: ${ticketSubject}` : "رد من فريق ملامح";
+}
+
+async function markSupportReplySent(payload: Record<string, unknown>, sentAt: string) {
+  if (payload.kind !== "external_reply") return;
+  const sourceReference = stringValue(payload.source_reference);
+  const ticketNumber = sourceReference?.startsWith("support-ticket:")
+    ? sourceReference.slice("support-ticket:".length).trim()
+    : null;
+  if (!ticketNumber) return;
+
+  const db = createAdminClient();
+  await db.from("support_tickets").update({
+    status: "in_progress",
+    first_response_at: sentAt,
+    updated_at: sentAt,
+  }).eq("ticket_number", ticketNumber).is("first_response_at", null);
+}
+
 export async function executeMarketingEmailJob(jobId: number) {
   const db = createAdminClient();
   const { data: job, error } = await db.from("marketing_channel_jobs")
@@ -81,11 +117,13 @@ export async function executeMarketingEmailJob(jobId: number) {
 
   const payload = objectValue(job.payload);
   const outreachId = Number(payload.outreach_id);
+  const hasOutreachId = Number.isInteger(outreachId) && outreachId > 0;
   const recipient = objectValue(payload.recipient);
   const recipientEmail = stringValue(recipient.email);
-  const text = stringValue(payload.text);
-  const subject = stringValue(payload.subject);
-  if (!Number.isInteger(outreachId) || outreachId <= 0 || !recipientEmail || !text || !subject) {
+  const text = stringValue(payload.text) ?? stringValue(payload.content);
+  const subject = await resolveSupportSubject(payload);
+  const supportedKind = payload.kind === "outreach_email" || payload.kind === "external_reply";
+  if (!supportedKind || !recipientEmail || !text || !subject || (payload.kind === "outreach_email" && !hasOutreachId)) {
     const message = "Email job payload is incomplete.";
     await db.from("marketing_channel_jobs").update({ status: "failed", retry_count: job.retry_count + 1, last_error: message, updated_at: new Date().toISOString() }).eq("id", job.id);
     throw new Error(message);
@@ -132,8 +170,9 @@ export async function executeMarketingEmailJob(jobId: number) {
       text: withMlamhEmailSignature(text),
       metadata: {
         subject,
-        outreach_id: outreachId,
+        outreach_id: hasOutreachId ? outreachId : undefined,
         lead_id: payload.lead_id,
+        source_reference: payload.source_reference,
         idempotency_key: job.idempotency_key,
         signature: "mlamh_official",
         execution_mode: controlledExecution.mode,
@@ -159,7 +198,10 @@ export async function executeMarketingEmailJob(jobId: number) {
     if (jobUpdateError) {
       throw new Error("Email was accepted by the provider but the local result could not be persisted. Manual review is required before any retry.");
     }
-    await db.from("marketing_outreach").update({ send_status: "sent", updated_at: now }).eq("id", outreachId);
+    if (hasOutreachId) {
+      await db.from("marketing_outreach").update({ send_status: "sent", updated_at: now }).eq("id", outreachId);
+    }
+    await markSupportReplySent(payload, now);
     if (controlledExecution.mode === "production" && Number.isInteger(Number(payload.lead_id)) && Number(payload.lead_id) > 0) {
       await db.from("marketing_leads").update({ stage: "contacted", last_contact_at: now, updated_at: now }).eq("id", Number(payload.lead_id)).eq("stage", "new");
     }
@@ -168,7 +210,9 @@ export async function executeMarketingEmailJob(jobId: number) {
     const message = sanitizeZohoError(executionError);
     const now = new Date().toISOString();
     await db.from("marketing_channel_jobs").update({ status: "failed", retry_count: job.retry_count + 1, last_error: message, updated_at: now }).eq("id", job.id).neq("status", "published");
-    await db.from("marketing_outreach").update({ send_status: "failed", updated_at: now }).eq("id", outreachId);
+    if (hasOutreachId) {
+      await db.from("marketing_outreach").update({ send_status: "failed", updated_at: now }).eq("id", outreachId);
+    }
     throw new Error(message);
   }
 }
