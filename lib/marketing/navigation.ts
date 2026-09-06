@@ -18,6 +18,7 @@ import {
   Plug,
   Send,
   Settings2,
+  ShieldCheck,
   Target,
   UsersRound,
   Workflow,
@@ -28,6 +29,7 @@ export type MarketingHubNavGroup = { key: string; labelAr: string; labelEn: stri
 
 export const marketingHubNavigation: MarketingHubNavItem[] = [
   { key: "overview", labelAr: "مركز القيادة", labelEn: "Command", href: "/admin/marketing", icon: BarChart3 },
+  { key: "control", labelAr: "مركز التحكم", labelEn: "Control Center", href: "/admin/marketing/control", icon: ShieldCheck },
   { key: "ai-team", labelAr: "الفريق", labelEn: "AI Team", href: "/admin/marketing/ai-team", icon: Bot },
   { key: "tasks", labelAr: "المهام", labelEn: "Tasks", href: "/admin/marketing/tasks", icon: ListTodo },
   { key: "inbox", labelAr: "الوارد", labelEn: "Inbox", href: "/admin/marketing/inbox", icon: Inbox },
@@ -55,7 +57,7 @@ export const marketingHubNavigationGroups: MarketingHubNavGroup[] = [
   { key: "decisions", labelAr: "قراراتي", labelEn: "Decisions", icon: CheckCheck, itemKeys: ["approvals", "inbox"] },
   { key: "growth", labelAr: "النمو", labelEn: "Growth", icon: Target, itemKeys: ["leads", "outreach", "follow-ups", "briefs", "talent-growth", "opportunity-growth"] },
   { key: "content-work", labelAr: "المحتوى", labelEn: "Content", icon: Megaphone, itemKeys: ["content", "creative", "social", "campaigns"] },
-  { key: "operations", labelAr: "الفريق والتنفيذ", labelEn: "Operations", icon: Workflow, itemKeys: ["ai-team", "tasks", "automation", "activity"] },
+  { key: "operations", labelAr: "الفريق والتنفيذ", labelEn: "Operations", icon: Workflow, itemKeys: ["control", "ai-team", "tasks", "automation", "activity"] },
   { key: "insights", labelAr: "القياس والإعداد", labelEn: "Insights & Setup", icon: Settings2, itemKeys: ["analytics", "experiments", "integrations", "knowledge", "settings"] },
 ];
 
