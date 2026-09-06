@@ -67,7 +67,7 @@ export default async function MarketingControlCenterPage({ searchParams }: PageP
   const testMode = settings.get("external_execution_test_mode")?.enabled === true;
   const agents = agentsResult.data ?? [];
   const integrations = integrationsResult.data ?? [];
-  const zoho = integrations.find((item) => item.provider === "zoho_mail" || item.provider === "zoho");
+  const zoho = integrations.find((item) => item.provider === "email" || item.provider === "zoho_mail" || item.provider === "zoho");
   const buffer = integrations.find((item) => item.provider === "buffer");
   const activeAgents = agents.filter((agent) => agent.is_active).length;
   const workingAgents = agents.filter((agent) => agent.status === "working").length;
