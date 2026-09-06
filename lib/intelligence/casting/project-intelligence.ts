@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isMarketActive } from "@/lib/markets/config";
-import { isCountryCode, type CountryCode } from "@/lib/markets/countries";
+import type { CountryCode } from "@/lib/markets/countries";
 import {
   calculateTalentSupplyGap,
   getTalentSupplyForBrief,
@@ -18,7 +18,6 @@ type CastingProjectRow = {
   talent_type: string | null;
   required_count: number | null;
   city: string | null;
-  country_code?: string | null;
 };
 
 type CastingRoleRow = {
@@ -52,14 +51,6 @@ export type CastingProjectIntelligence = {
   marketOperational: boolean;
   roles: CastingRoleIntelligence[];
 };
-
-function resolveCountryCode(value: unknown): CountryCode {
-  if (typeof value === "string") {
-    const normalized = value.trim().toUpperCase();
-    if (isCountryCode(normalized)) return normalized;
-  }
-  return "SA";
-}
 
 function blockerCounts(reasons: string[]) {
   const counts = new Map<string, number>();
@@ -161,7 +152,7 @@ export async function buildCastingProjectIntelligence(
   const generatedAt = new Date().toISOString();
   const { data: projectData, error: projectError } = await db
     .from("casting_projects")
-    .select("id,project_title,talent_type,required_count,city,country_code")
+    .select("id,project_title,talent_type,required_count,city")
     .eq("id", projectId)
     .maybeSingle();
 
@@ -171,7 +162,10 @@ export async function buildCastingProjectIntelligence(
   if (!projectData) return null;
 
   const project = projectData as CastingProjectRow;
-  const market = resolveCountryCode(project.country_code);
+  // Shadow V1 intentionally analyzes only the currently operational Saudi market.
+  // Casting projects do not need a second market source of truth while every
+  // non-Saudi market remains disabled.
+  const market: CountryCode = "SA";
   const marketOperational = isMarketActive(market);
 
   if (!marketOperational) {
