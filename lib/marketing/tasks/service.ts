@@ -53,6 +53,35 @@ function expectedOutputFor(taskType: string) {
   return outputs[taskType] ?? "documented_operational_output";
 }
 
+async function findTaskByIdempotencyKey(db: ReturnType<typeof createAdminClient>, idempotencyKey: string) {
+  const { data, error } = await db
+    .from("marketing_tasks")
+    .select("*")
+    .eq("idempotency_key", idempotencyKey)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(`[createMarketingTask.idempotency_lookup] ${error.message}`);
+  return data;
+}
+
+async function logDeduplicatedTask(
+  db: ReturnType<typeof createAdminClient>,
+  input: CreateMarketingTaskInput,
+  existingTask: Record<string, any>,
+  idempotencyKey: string,
+) {
+  await db.from("marketing_agent_activity").insert({
+    agent_id: input.agentId ?? existingTask.agent_id ?? null,
+    task_id: existingTask.id,
+    action: "deduplicated",
+    reason: `Skipped duplicate task: ${input.title}`,
+    channel: input.channel ?? existingTask.channel ?? "internal",
+    approval_status: existingTask.approval_status ?? "not_required",
+    result: { status: existingTask.status, idempotency_key: idempotencyKey },
+  });
+}
+
 export async function createMarketingTask(input: CreateMarketingTaskInput) {
   const db = createAdminClient();
   const approvalLevel = input.approvalLevel ?? getDefaultApprovalLevel(input.taskType);
@@ -62,25 +91,9 @@ export async function createMarketingTask(input: CreateMarketingTaskInput) {
   const idempotencyKey = input.idempotencyKey?.trim() || null;
 
   if (idempotencyKey) {
-    const { data: existingTask } = await db
-      .from("marketing_tasks")
-      .select("*")
-      .eq("idempotency_key", idempotencyKey)
-      .in("status", ["queued", "scheduled", "running", "waiting_approval"])
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
+    const existingTask = await findTaskByIdempotencyKey(db, idempotencyKey);
     if (existingTask) {
-      await db.from("marketing_agent_activity").insert({
-        agent_id: input.agentId ?? existingTask.agent_id ?? null,
-        task_id: existingTask.id,
-        action: "deduplicated",
-        reason: `Skipped duplicate open task: ${input.title}`,
-        channel: input.channel ?? existingTask.channel ?? "internal",
-        approval_status: existingTask.approval_status ?? "not_required",
-        result: { status: existingTask.status, idempotency_key: idempotencyKey },
-      });
+      await logDeduplicatedTask(db, input, existingTask, idempotencyKey);
       return existingTask;
     }
   }
@@ -121,7 +134,16 @@ export async function createMarketingTask(input: CreateMarketingTaskInput) {
     max_retries: Math.max(0, Math.min(20, input.maxRetries ?? 3)),
   }).select("*").single();
 
-  if (error) throw new Error(`[createMarketingTask] ${error.message}`);
+  if (error) {
+    if (idempotencyKey && error.code === "23505") {
+      const existingTask = await findTaskByIdempotencyKey(db, idempotencyKey);
+      if (existingTask) {
+        await logDeduplicatedTask(db, input, existingTask, idempotencyKey);
+        return existingTask;
+      }
+    }
+    throw new Error(`[createMarketingTask] ${error.message}`);
+  }
 
   if (approvalLevel !== "auto") {
     const { error: approvalError } = await db.from("marketing_approvals").insert({
