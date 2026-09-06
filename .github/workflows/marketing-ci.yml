@@ -30,6 +30,8 @@ jobs:
         run: npm ci
       - name: Marketing tests
         run: npm run test:marketing
+      - name: Intelligence tests
+        run: npm run test:intelligence
       - name: Build
         env:
           NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
