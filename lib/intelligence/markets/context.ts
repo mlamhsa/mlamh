@@ -1,5 +1,5 @@
-import { COUNTRY_CODES, COUNTRY_REGISTRY, type CountryCode } from "@/lib/markets/countries";
-import { MARKET_CONFIG } from "@/lib/markets/config";
+import { COUNTRY_CODES, COUNTRY_REGISTRY, type CountryCode } from "../../markets/countries.ts";
+import { MARKET_CONFIG } from "../../markets/config.ts";
 
 export type IntelligenceMarketContext = {
   countryCode: CountryCode;
