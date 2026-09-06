@@ -72,6 +72,12 @@ export const adminNavigation: AdminNavigationGroup[] = [
         icon: BrainCircuit,
       },
       {
+        labelAr: "ذكاء الأسواق",
+        labelEn: "Market Intelligence",
+        href: "/admin/intelligence/markets",
+        icon: Globe2,
+      },
+      {
         labelAr: "Investor Demo",
         labelEn: "Investor Demo",
         href: "/admin/intelligence/demo",

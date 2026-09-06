@@ -34,6 +34,8 @@ jobs:
         run: npm run test:intelligence
       - name: Investor demo tests
         run: node --experimental-strip-types --test lib/intelligence/demo/investor.test.ts
+      - name: Market intelligence tests
+        run: node --experimental-strip-types --test lib/intelligence/markets/health.test.ts
       - name: Build
         env:
           NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321

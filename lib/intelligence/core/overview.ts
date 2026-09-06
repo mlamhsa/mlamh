@@ -5,6 +5,10 @@ import {
   type IntelligenceMarketContext,
 } from "@/lib/intelligence/markets/context";
 import {
+  deriveMarketHealth,
+  type MarketHealthSnapshot,
+} from "@/lib/intelligence/markets/health";
+import {
   buildExecutiveBrief,
   type ExecutiveBrief,
 } from "@/lib/intelligence/executive/brief";
@@ -24,11 +28,17 @@ export type CommandCenterMarketplaceSummary = {
   activeConversations: number;
 };
 
+export type CommandCenterMarketHealth = {
+  countryCode: IntelligenceMarketContext["countryCode"];
+  health: MarketHealthSnapshot;
+};
+
 export type CommandCenterOverview = {
   generatedAt: string;
   mode: "shadow";
   readOnly: true;
   markets: IntelligenceMarketContext[];
+  marketHealth: CommandCenterMarketHealth[];
   marketplace: CommandCenterMarketplaceSummary;
   executiveBrief: ExecutiveBrief;
   criticalSignals: IntelligenceSignal[];
@@ -78,6 +88,20 @@ export async function buildCommandCenterOverview(): Promise<CommandCenterOvervie
     activeConversations: countOrThrow("active_conversations", activeConversationsResult),
   };
 
+  const markets = buildAllIntelligenceMarketContexts();
+  const marketHealth: CommandCenterMarketHealth[] = markets.map((market) => ({
+    countryCode: market.countryCode,
+    health: deriveMarketHealth({
+      operational: market.isOperational,
+      talents: market.isOperational ? marketplace.qualifiedTalents : 0,
+      publishers: market.isOperational ? marketplace.publishers : 0,
+      opportunities: market.isOperational ? marketplace.publishedOpportunities : 0,
+      applications: market.isOperational ? marketplace.applications : 0,
+      acceptedApplications: market.isOperational ? marketplace.acceptedApplications : 0,
+      connections: market.isOperational ? marketplace.activeConversations : 0,
+    }),
+  }));
+
   const criticalSignals: IntelligenceSignal[] = [];
   const recommendations: IntelligenceRecommendation[] = [];
 
@@ -112,12 +136,33 @@ export async function buildCommandCenterOverview(): Promise<CommandCenterOvervie
     });
   }
 
+  const saHealth = marketHealth.find((item) => item.countryCode === "SA")?.health;
+  if (saHealth?.available && saHealth.score !== null && saHealth.score < 65) {
+    const signalId = `market:sa-liquidity:${generatedAt}`;
+    criticalSignals.push({
+      id: signalId,
+      domain: "market",
+      type: "sa_operating_liquidity_incomplete",
+      market: "SA",
+      severity: saHealth.score < 30 ? "warning" : "info",
+      observedAt: generatedAt,
+      source: { system: "market_health_engine" },
+      facts: {
+        score: saHealth.score,
+        state: saHealth.state,
+        components: saHealth.components,
+      },
+      confidence: 1,
+      deterministic: true,
+    });
+  }
+
   const executiveBrief = buildExecutiveBrief(marketplace, generatedAt);
 
   const dataGaps: IntelligenceDataGap[] = [
     {
       key: "market_demand_history",
-      description: "Historical demand-weighted market health is not yet calculated in Shadow V1.",
+      description: "Historical demand-weighted market health is not yet calculated; the current score reflects only observable operating-loop presence.",
     },
     {
       key: "city_supply_matrix",
@@ -129,7 +174,8 @@ export async function buildCommandCenterOverview(): Promise<CommandCenterOvervie
     generatedAt,
     mode: "shadow",
     readOnly: true,
-    markets: buildAllIntelligenceMarketContexts(),
+    markets,
+    marketHealth,
     marketplace,
     executiveBrief,
     criticalSignals,
