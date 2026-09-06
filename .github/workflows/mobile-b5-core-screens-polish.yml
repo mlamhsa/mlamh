@@ -1,0 +1,45 @@
+name: Mobile B5 Core Screens Polish
+
+on:
+  push:
+    branches:
+      - feat/mobile-platform-phase0
+    paths:
+      - .github/workflows/mobile-b5-core-screens-polish.yml
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/mobile-platform-phase0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+
+      - name: Apply core screens polish
+        run: python .github/scripts/apply_b5_core_screens_polish.py
+
+      - name: Validate mobile
+        working-directory: apps/mobile
+        run: |
+          npm ci
+          npx expo-doctor
+          npm run typecheck
+          npm run release:preflight
+
+      - name: Commit validated changes
+        run: |
+          rm .github/workflows/mobile-b5-core-screens-polish.yml .github/scripts/apply_b5_core_screens_polish.py
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/mobile/app/opportunities/index.tsx apps/mobile/app/applications/index.tsx apps/mobile/app/messages/index.tsx .github/workflows/mobile-b5-core-screens-polish.yml .github/scripts/apply_b5_core_screens_polish.py
+          git commit -m "feat(mobile): polish discover applications and messages"
+          git push origin HEAD:feat/mobile-platform-phase0
