@@ -257,7 +257,7 @@ async function mirrorIntoSupportTicket(conversation: Record<string, unknown>, co
 
   const { error } = await db.from("support_messages").insert({
     ticket_id: ticket.id,
-    sender_type: "customer",
+    sender_type: "guest",
     message: content,
     is_read: false,
   });
@@ -485,5 +485,5 @@ export async function syncZohoInboundEmails({ day, limit = 20 }: { day: string; 
     updated_at: now,
   }).eq("provider", "email");
 
-  return { enabled: true, reason: null, ingested, duplicates, ignored, taskIds };
+  return { enabled: true, reason: "ok", ingested, duplicates, ignored, taskIds };
 }
