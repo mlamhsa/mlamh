@@ -71,6 +71,12 @@ export const adminNavigation: AdminNavigationGroup[] = [
         href: "/admin/intelligence",
         icon: BrainCircuit,
       },
+      {
+        labelAr: "Investor Demo",
+        labelEn: "Investor Demo",
+        href: "/admin/intelligence/demo",
+        icon: Sparkles,
+      },
     ],
   },
   {
