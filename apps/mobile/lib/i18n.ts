@@ -1,8 +1,12 @@
 import { getLocales } from "expo-localization";
 
+import { readStoredLocale } from "@/lib/locale-preference";
+
 export type AppLocale = "ar" | "en";
 
 export function getDeviceLocale(): AppLocale {
+  const stored = readStoredLocale();
+  if (stored) return stored;
   const languageCode = getLocales()[0]?.languageCode;
   return languageCode === "ar" ? "ar" : "en";
 }
