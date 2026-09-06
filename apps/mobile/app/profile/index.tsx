@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
+import { Bell, Camera, Settings } from "lucide-react-native";
 
 import { AppTabBar } from "@/components/AppTabBar";
 import { ScreenSkeleton } from "@/components/ScreenSkeleton";
@@ -54,9 +55,9 @@ export default function ProfileScreen() {
         <View><Text style={styles.eyebrow}>{isArabic ? "ملامح" : "MLAMH"}</Text><Text style={styles.pageTitle}>{isArabic ? "ملفي" : "Profile"}</Text></View>
         <View style={styles.headerActions}>
           <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "الإشعارات" : "Notifications"} onPress={() => router.push("/notifications")} style={styles.iconButton}>
-            <Text style={styles.iconGlyph}>🔔</Text>{unreadCount > 0 ? <View style={styles.badge}><Text style={styles.badgeText}>{unreadCount > 99 ? "99+" : unreadCount}</Text></View> : null}
+            <Bell size={20} strokeWidth={1.9} color={theme.text} />{unreadCount > 0 ? <View style={styles.badge}><Text style={styles.badgeText}>{unreadCount > 99 ? "99+" : unreadCount}</Text></View> : null}
           </Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "الإعدادات" : "Settings"} onPress={() => router.push("/profile/settings")} style={styles.iconButton}><Text style={styles.iconGlyph}>⚙︎</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "الإعدادات" : "Settings"} onPress={() => router.push("/profile/settings")} style={styles.iconButton}><Settings size={20} strokeWidth={1.9} color={theme.text} /></Pressable>
         </View>
       </View>
 
@@ -64,7 +65,7 @@ export default function ProfileScreen() {
         <View style={styles.identitySection}>
           <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "تعديل صورة الملف" : "Edit profile photo"} onPress={() => router.push("/profile/media")} style={styles.avatarWrap}>
             {profile.imageUrl ? <Image source={{ uri: profile.imageUrl }} style={styles.avatar} resizeMode="cover" /> : <View style={styles.avatarPlaceholder}><Text style={styles.avatarInitial}>{profile.displayName.slice(0, 1)}</Text></View>}
-            <View style={styles.photoEdit}><Text style={styles.photoEditText}>＋</Text></View>
+            <View style={styles.photoEdit}><Camera size={17} strokeWidth={2.2} color={theme.background} /></View>
           </Pressable>
           <Text accessibilityRole="header" style={styles.name}>{profile.displayName}</Text>
           <Text style={styles.category}>{profile.category}</Text>

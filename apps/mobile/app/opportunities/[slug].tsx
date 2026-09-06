@@ -115,7 +115,7 @@ export default function OpportunityDetailScreen() {
       </View>
 
       <Section title={isArabic ? "عن الفرصة" : "About the opportunity"} styles={styles} isRtl={isRtl}>
-        <Text style={[styles.description, { textAlign: isRtl ? "right" : "left" }]}>{item.description || (isArabic ? "لا يوجد وصف متاح لهذه الفرصة." : "No description is available for this opportunity.")}</Text>
+        <Text style={[styles.description, { textAlign: isRtl ? "right" : "left" }]}>{item.description ? normalizeDisplayText(item.description) : (isArabic ? "لا يوجد وصف متاح لهذه الفرصة." : "No description is available for this opportunity.")}</Text>
       </Section>
 
       <Section title={isArabic ? "التفاصيل الأساسية" : "Key details"} styles={styles} isRtl={isRtl}>
@@ -147,6 +147,7 @@ function Section({ title, children, styles, isRtl }: { title: string; children: 
 function Fact({ label, value, styles }: { label: string; value: string; styles: ReturnType<typeof createStyles> }) { return <View style={styles.fact}><Text numberOfLines={2} style={styles.factValue}>{value}</Text><Text style={styles.factLabel}>{label}</Text></View>; }
 function Meta({ label, value, styles }: { label: string; value: string; styles: ReturnType<typeof createStyles> }) { return <View style={styles.metaItem}><Text style={styles.metaLabel}>{label}</Text><Text style={styles.metaValue}>{value}</Text></View>; }
 
+function normalizeDisplayText(value: string) { return value.replace(/\\n/g, "\n").replace(/\r\n/g, "\n").trim(); }
 function formatDate(value: string | null | undefined, locale: "ar" | "en") { if (!value) return null; const date = new Date(value); if (Number.isNaN(date.getTime())) return null; return new Intl.DateTimeFormat(locale === "ar" ? "ar-SA-u-nu-latn" : "en-US", { year: "numeric", month: "short", day: "numeric" }).format(date); }
 function formatType(value: string, ar: boolean) { const key = value.toLowerCase(); if (key === "actor") return ar ? "ممثل / ممثلة" : "Actor"; if (key === "model") return ar ? "مودل" : "Model"; return value.replaceAll("_", " "); }
 function formatGender(value: string | null, ar: boolean) { if (!value || value === "any" || value === "all") return ar ? "الجميع" : "Any"; if (value === "male") return ar ? "ذكر" : "Male"; if (value === "female") return ar ? "أنثى" : "Female"; return value; }
