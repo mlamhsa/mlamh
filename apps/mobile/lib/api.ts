@@ -30,6 +30,7 @@ export type TalentProfileUpdateResult = { ok: true; id: number } | { ok: false; 
 export type GalleryUploadTicket = { ok: true; bucket: string; path: string; token: string; maxBytes: number } | { ok: false; code: string };
 export type GalleryFinalizeResult = { ok: true; url: string; gallery: string[] } | { ok: false; code: string };
 export type GalleryPrimaryResult = { ok: true; url: string } | { ok: false; code: string };
+export type GalleryReorderResult = { ok: true; gallery: string[] } | { ok: false; code: string };
 export type GalleryDeleteResult = { ok: true; gallery: string[]; primaryUrl: string | null } | { ok: false; code: string };
 
 function requireApiBaseUrl() {
@@ -96,6 +97,7 @@ export async function updateTalentProfile(locale: AppLocale, input: MobileTalent
 export async function createTalentGalleryUpload(mimeType: string, size: number): Promise<GalleryUploadTicket> { return authedMutation<GalleryUploadTicket>("/api/talent/me/media", "POST", { ok: false, code: "REQUEST_FAILED" }, { mimeType, size }); }
 export async function finalizeTalentGalleryUpload(path: string): Promise<GalleryFinalizeResult> { return authedMutation<GalleryFinalizeResult>("/api/talent/me/media", "PUT", { ok: false, code: "REQUEST_FAILED" }, { path }); }
 export async function setTalentPrimaryImage(url: string): Promise<GalleryPrimaryResult> { return authedMutation<GalleryPrimaryResult>("/api/talent/me/media", "PATCH", { ok: false, code: "REQUEST_FAILED" }, { url }); }
+export async function reorderTalentGallery(urls: string[]): Promise<GalleryReorderResult> { return authedMutation<GalleryReorderResult>("/api/talent/me/media", "PATCH", { ok: false, code: "REQUEST_FAILED" }, { action: "reorder", urls }); }
 export async function deleteTalentGalleryImage(url: string): Promise<GalleryDeleteResult> { return authedMutation<GalleryDeleteResult>("/api/talent/me/media", "DELETE", { ok: false, code: "REQUEST_FAILED" }, { url }); }
 export async function uploadTalentGalleryBuffer(body: ArrayBuffer, mimeType = "image/jpeg"): Promise<GalleryFinalizeResult> { const ticket = await createTalentGalleryUpload(mimeType, body.byteLength); if (!ticket.ok) return ticket; const { error } = await supabase.storage.from(ticket.bucket).uploadToSignedUrl(ticket.path, ticket.token, body, { contentType: mimeType }); if (error) return { ok: false, code: "UPLOAD_FAILED" }; return finalizeTalentGalleryUpload(ticket.path); }
 

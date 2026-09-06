@@ -102,7 +102,7 @@ export default function ProfileSettingsScreen() {
 function createStyles(theme: typeof darkTheme) {
   return StyleSheet.create({
     screen: { flex: 1, backgroundColor: theme.background },
-    content: { width: "100%", maxWidth: 680, alignSelf: "center", paddingHorizontal: 20, paddingTop: 36, paddingBottom: 50, gap: 22 },
+    content: { width: "100%", maxWidth: 680, alignSelf: "center", paddingHorizontal: 20, paddingTop: 18, paddingBottom: 50, gap: 18 },
     top: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
     rowRtl: { flexDirection: "row-reverse" },
     textRtl: { textAlign: "right" },

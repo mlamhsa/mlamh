@@ -71,6 +71,21 @@ export async function setMobileGalleryPrimary({ userId, url }: { userId: string;
   return { ok: true as const, url: signedUrl };
 }
 
+export async function reorderMobileGallery({ userId, urls }: { userId: string; urls: unknown }) {
+  const talent = await getTalent(userId); if (!talent.ok) return talent;
+  if (!Array.isArray(urls) || urls.length !== talent.gallery.length) return { ok: false as const, code: "INVALID_GALLERY_ORDER" as const };
+  const owned = urls.map((url) => getOwnedReference(talent.talentId, talent.gallery, url));
+  if (owned.some((item) => !item)) return { ok: false as const, code: "IMAGE_NOT_FOUND" as const };
+  const paths = owned.map((item) => item!.path);
+  if (new Set(paths).size !== paths.length) return { ok: false as const, code: "INVALID_GALLERY_ORDER" as const };
+  const currentPaths = new Set(talent.gallery.map((item) => getTalentGalleryPath(item)).filter(Boolean));
+  if (paths.some((path) => !currentPaths.has(path))) return { ok: false as const, code: "INVALID_GALLERY_ORDER" as const };
+  const orderedReferences = owned.map((item) => item!.reference);
+  const { error } = await talent.supabase.from("talents").update({ gallery_images: orderedReferences }).eq("id", talent.talentId);
+  if (error) return { ok: false as const, code: "UPDATE_FAILED" as const };
+  return { ok: true as const, gallery: await signTalentMediaReferences(orderedReferences, talent.supabase) };
+}
+
 export async function deleteMobileGalleryImage({ userId, url }: { userId: string; url: unknown }) {
   const talent = await getTalent(userId); if (!talent.ok) return talent;
   const owned = getOwnedReference(talent.talentId, talent.gallery, url); if (!owned) return { ok: false as const, code: "IMAGE_NOT_FOUND" as const };
