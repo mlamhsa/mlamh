@@ -1,0 +1,45 @@
+name: Mobile B5 Profile Settings Polish
+
+on:
+  push:
+    branches:
+      - feat/mobile-platform-phase0
+    paths:
+      - .github/workflows/mobile-b5-profile-settings-polish.yml
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/mobile-platform-phase0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+
+      - name: Apply polish patch
+        run: python scripts/b5_profile_settings_polish.py
+
+      - name: Validate mobile
+        working-directory: apps/mobile
+        run: |
+          npm ci
+          npx expo-doctor
+          npm run typecheck
+          npm run release:preflight
+
+      - name: Commit validated changes
+        run: |
+          rm scripts/b5_profile_settings_polish.py .github/workflows/mobile-b5-profile-settings-polish.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/mobile/app/profile/index.tsx apps/mobile/app/profile/settings.tsx apps/mobile/app/profile/edit.tsx scripts/b5_profile_settings_polish.py .github/workflows/mobile-b5-profile-settings-polish.yml
+          git commit -m "feat(mobile): refine premium profile and settings hierarchy"
+          git push origin HEAD:feat/mobile-platform-phase0
