@@ -11,12 +11,9 @@ function safeExecutionError(error: unknown) {
   return message.slice(0, 500);
 }
 
-function targetRequiresVisual(target: string | undefined, contentType: string | null | undefined) {
+function targetRequiresVisual(target: string | undefined, _contentType: string | null | undefined) {
   const normalizedTarget = (target ?? "").toLowerCase();
-  const normalizedType = (contentType ?? "").toLowerCase();
-  if (normalizedTarget === "instagram") return true;
-  if (normalizedTarget === "facebook") return ["reel", "story", "carousel", "video"].includes(normalizedType);
-  return false;
+  return normalizedTarget === "instagram" || normalizedTarget === "facebook";
 }
 
 async function assertVisualReadiness(contentId: number | null, target: string | undefined, payloadAssetUrls: string[]) {
