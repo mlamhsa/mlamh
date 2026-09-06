@@ -165,8 +165,8 @@ export async function buildCommandCenterOverview(): Promise<CommandCenterOvervie
       description: "Historical demand-weighted market health is not yet calculated; the current score reflects only observable operating-loop presence.",
     },
     {
-      key: "city_supply_matrix",
-      description: "City-level supply gap aggregation is deferred to a later Talent Supply Intelligence slice.",
+      key: "historical_supply_pressure",
+      description: "Talent Supply Intelligence now provides current role-and-city baseline coverage, but longitudinal supply-pressure trends are not yet stored.",
     },
   ];
 
