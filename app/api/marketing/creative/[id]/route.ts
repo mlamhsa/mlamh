@@ -91,7 +91,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
     }),
     createElement(
       "div",
-      { style: { display: "flex", flexDirection: "column", gap: 18, zIndex: 2 } },
+      { style: { display: "flex", flexDirection: "column", gap: 18 } },
       createElement(
         "div",
         { style: { display: "flex", alignItems: "center", gap: 18 } },
@@ -102,7 +102,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
     ),
     createElement(
       "div",
-      { style: { display: "flex", flexDirection: "column", gap: vertical ? 38 : 26, zIndex: 2, maxWidth: vertical ? 900 : 980 } },
+      { style: { display: "flex", flexDirection: "column", gap: vertical ? 38 : 26, maxWidth: vertical ? 900 : 980 } },
       createElement("div", {
         style: {
           fontSize: vertical ? 78 : 64,
@@ -117,7 +117,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
     ),
     createElement(
       "div",
-      { style: { display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 28, zIndex: 2 } },
+      { style: { display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 28 } },
       createElement(
         "div",
         { style: { display: "flex", flexDirection: "column", gap: 10 } },
