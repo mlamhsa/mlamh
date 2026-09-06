@@ -1,0 +1,48 @@
+export const APPLICATION_STATUSES = [
+  "pending",
+  "reviewing",
+  "shortlisted",
+  "accepted",
+  "rejected",
+] as const;
+
+export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
+export type FinalApplicationStatus = Extract<
+  ApplicationStatus,
+  "accepted" | "rejected"
+>;
+
+const VALID_TRANSITIONS: Record<ApplicationStatus, readonly ApplicationStatus[]> = {
+  pending: ["reviewing", "shortlisted", "accepted", "rejected"],
+  reviewing: ["shortlisted", "accepted", "rejected"],
+  shortlisted: ["reviewing", "accepted", "rejected"],
+  accepted: [],
+  rejected: [],
+};
+
+export function isApplicationStatus(value: string): value is ApplicationStatus {
+  return APPLICATION_STATUSES.includes(value as ApplicationStatus);
+}
+
+export function normalizeApplicationStatus(
+  value: string | null | undefined,
+): ApplicationStatus {
+  return value && isApplicationStatus(value) ? value : "pending";
+}
+
+export function canTransitionApplicationStatus(
+  current: ApplicationStatus,
+  next: ApplicationStatus,
+) {
+  return VALID_TRANSITIONS[current].includes(next);
+}
+
+export function shouldCreateConversation(status: ApplicationStatus) {
+  return status === "accepted";
+}
+
+export function isFinalApplicationStatus(
+  status: ApplicationStatus,
+): status is FinalApplicationStatus {
+  return status === "accepted" || status === "rejected";
+}
