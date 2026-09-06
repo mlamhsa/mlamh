@@ -1,0 +1,147 @@
+name: Mobile Multi-select Media
+
+on:
+  push:
+    branches:
+      - feat/mobile-platform-phase0
+    paths:
+      - .github/workflows/mobile-multiselect-media.yml
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: feat/mobile-platform-phase0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+
+      - name: Apply multi-select portfolio upload
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path('apps/mobile/app/profile/media.tsx')
+          text = path.read_text()
+
+          text = text.replace(
+            '  const [phase, setPhase] = useState<UploadPhase>("idle");\n  const [error, setError] = useState<string | null>(null);',
+            '  const [phase, setPhase] = useState<UploadPhase>("idle");\n  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);\n  const [error, setError] = useState<string | null>(null);'
+          )
+
+          start = text.index('  async function addImage() {')
+          end = text.index('\n\n  async function makePrimary', start)
+          new_fn = '''  async function addImage() {
+    if (phase !== "idle" || gallery.length >= MAX_GALLERY) return;
+    setError(null);
+    setUploadProgress(null);
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        setError(isArabic ? "نحتاج إذن الوصول للصور لاختيار صور من جهازك." : "Photo access is required to choose images.");
+        return;
+      }
+
+      const remaining = MAX_GALLERY - gallery.length;
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsMultipleSelection: true,
+        allowsEditing: false,
+        orderedSelection: true,
+        selectionLimit: remaining,
+        quality: 1,
+      });
+      if (result.canceled || !result.assets.length) return;
+
+      const assets = result.assets.slice(0, remaining);
+      setUploadProgress({ current: 0, total: assets.length });
+      let nextPrimaryUrl = primaryUrl;
+
+      for (let index = 0; index < assets.length; index += 1) {
+        const asset = assets[index];
+        setUploadProgress({ current: index + 1, total: assets.length });
+        setPhase("preparing");
+
+        const actions = asset.width > 2000 ? [{ resize: { width: 2000 } }] : [];
+        const normalized = await ImageManipulator.manipulateAsync(asset.uri, actions, { compress: 0.82, format: ImageManipulator.SaveFormat.JPEG });
+        const localResponse = await fetch(normalized.uri);
+        const buffer = await localResponse.arrayBuffer();
+        if (buffer.byteLength > 10 * 1024 * 1024) {
+          setError(isArabic ? `الصورة ${index + 1} كبيرة جدًا بعد المعالجة.` : `Image ${index + 1} is still too large after processing.`);
+          break;
+        }
+
+        setPhase("uploading");
+        const upload = await uploadTalentGalleryBuffer(buffer, "image/jpeg");
+        if (!upload.ok) {
+          setError(uploadError(upload.code));
+          break;
+        }
+        setGallery(upload.gallery);
+
+        if (!nextPrimaryUrl) {
+          setPhase("finalizing");
+          const primary = await setTalentPrimaryImage(upload.url);
+          if (primary.ok) {
+            nextPrimaryUrl = primary.url;
+            setPrimaryUrl(primary.url);
+          }
+        }
+      }
+    } catch {
+      setError(isArabic ? "تعذر تجهيز الصور أو رفعها." : "Unable to process or upload the selected images.");
+    } finally {
+      setPhase("idle");
+      setUploadProgress(null);
+    }
+  }'''
+          text = text[:start] + new_fn + text[end:]
+
+          text = text.replace(
+            '  const phaseLabel = phase === "preparing"\n    ? (isArabic ? "جارٍ تجهيز الصورة…" : "Preparing photo…")\n    : phase === "uploading"\n      ? (isArabic ? "جارٍ رفع الصورة…" : "Uploading photo…")\n      : phase === "finalizing"\n        ? (isArabic ? "جارٍ تعيين صورة الملف…" : "Setting profile photo…")\n        : null;',
+            '  const progressSuffix = uploadProgress ? ` ${uploadProgress.current}/${uploadProgress.total}` : "";\n  const phaseLabel = phase === "preparing"\n    ? `${isArabic ? "جارٍ تجهيز الصورة" : "Preparing photo"}${progressSuffix}…`\n    : phase === "uploading"\n      ? `${isArabic ? "جارٍ رفع الصورة" : "Uploading photo"}${progressSuffix}…`\n      : phase === "finalizing"\n        ? `${isArabic ? "جارٍ تعيين صورة الملف" : "Setting profile photo"}${progressSuffix}…`\n        : null;'
+          )
+
+          text = text.replace(
+            '<Text style={styles.addButtonText}>{isArabic ? "إضافة صورة" : "Add photo"}</Text>',
+            '<Text style={styles.addButtonText}>{isArabic ? "إضافة صور" : "Add photos"}</Text>'
+          )
+          text = text.replace(
+            '"الحد الأقصى 12 صورة. يتم تحسين الصور قبل الرفع." : "Maximum 12 images. Images are optimized before upload."',
+            '"يمكنك اختيار عدة صور دفعة واحدة حتى حد 12 صورة. يتم تحسين الصور قبل الرفع." : "Select multiple images at once, up to the 12-image limit. Images are optimized before upload."'
+          )
+
+          path.write_text(text)
+          PY
+
+      - name: Install dependencies
+        working-directory: apps/mobile
+        run: npm ci
+
+      - name: Validate mobile
+        working-directory: apps/mobile
+        run: |
+          npx expo-doctor
+          npm run typecheck
+          npm run release:preflight
+
+      - name: Commit validated change and remove workflow
+        run: |
+          rm .github/workflows/mobile-multiselect-media.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/mobile/app/profile/media.tsx .github/workflows/mobile-multiselect-media.yml
+          git commit -m "feat(mobile): support multi-select portfolio uploads"
+          git push origin HEAD:feat/mobile-platform-phase0
