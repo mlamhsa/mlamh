@@ -9,13 +9,21 @@ import { saveEditableApprovalMessageAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
+type PageProps = { searchParams: Promise<{ approval_id?: string }> };
+
 function record(value: unknown) {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 }
-function text(value: unknown) { return typeof value === "string" ? value : ""; }
+function text(value: unknown) {
+  return typeof value === "string"
+    ? value.replace(/\\+(?:r\\+n|n|r)/g, "\n").replace(/\n{3,}/g, "\n\n").trim()
+    : "";
+}
 
-export default async function EditableApprovalsPage() {
+export default async function EditableApprovalsPage({ searchParams }: PageProps) {
   await requireMarketingAdminAccess("marketing.approve");
+  const { approval_id: approvalIdParam } = await searchParams;
+  const requestedApprovalId = Number(approvalIdParam);
   const db = createAdminClient();
   const [{ data: approvals }, emailStatus, whatsappStatus] = await Promise.all([
     db.from("marketing_approvals").select("id,task_id,status,reason,proposed_action,channel,created_at").eq("status", "pending").order("created_at", { ascending: false }).limit(100),
@@ -29,35 +37,38 @@ export default async function EditableApprovalsPage() {
     : { data: [] };
   const taskMap = new Map((tasks ?? []).map((task) => [task.id, task]));
 
-  const editable = rows.flatMap((approval) => {
+  const editableAll = rows.flatMap((approval) => {
     const task = taskMap.get(approval.task_id);
     if (!task) return [];
     const proposed = record(approval.proposed_action);
     if (task.task_type !== "first_outreach" && proposed.kind !== "external_reply") return [];
     return [{ approval, task, proposed }];
   });
-  const outreachCount = editable.filter((item) => item.task.task_type === "first_outreach").length;
-  const replyCount = editable.filter((item) => item.proposed.kind === "external_reply").length;
+  const editable = Number.isInteger(requestedApprovalId) && requestedApprovalId > 0
+    ? editableAll.filter((item) => item.approval.id === requestedApprovalId)
+    : editableAll;
+  const outreachCount = editableAll.filter((item) => item.task.task_type === "first_outreach").length;
+  const replyCount = editableAll.filter((item) => item.proposed.kind === "external_reply").length;
 
   return <AdminPageContainer>
     <div className="mb-4"><Link href="/admin/marketing/approvals?lang=ar" className="text-xs text-gold/70 hover:text-gold">← العودة إلى مركز القرارات</Link></div>
     <AdminPageHeader eyebrow="MLAMH · HUMAN EDIT LAYER" title="تعديل الرسائل قبل الموافقة" description="أي رسالة بشرية قابلة للتحرير يجب أن تصل لك بصيغة تستطيع تعديلها قبل الاعتماد. الحفظ لا يرسل شيئًا؛ التنفيذ يبقى خلف بوابة الموافقة." />
 
-    <AdminGrid className="mb-6 md:grid-cols-3"><AdminStatCard label="رسائل قابلة للتعديل" value={editable.length}/><AdminStatCard label="Outreach" value={outreachCount}/><AdminStatCard label="ردود العملاء" value={replyCount}/></AdminGrid>
+    <AdminGrid className="mb-6 md:grid-cols-3"><AdminStatCard label="رسائل قابلة للتعديل" value={editableAll.length}/><AdminStatCard label="Outreach" value={outreachCount}/><AdminStatCard label="ردود العملاء" value={replyCount}/></AdminGrid>
 
     <div className="space-y-5">
-      {editable.length === 0 ? <AdminCard className="p-7 text-sm text-white/45">لا توجد رسائل Pending قابلة للتعديل الآن.</AdminCard> : editable.map(({ approval, task, proposed }) => {
+      {editable.length === 0 ? <AdminCard className="p-7 text-sm text-white/45">لا توجد رسالة Pending قابلة للتعديل بهذا الرقم الآن.</AdminCard> : editable.map(({ approval, task, proposed }) => {
         const input = record(task.input);
         const externalReply = proposed.kind === "external_reply";
         const channelDrafts = record(proposed.channel_drafts);
-        const message = text(input.message) || text(proposed.message) || text(proposed.content);
+        const message = text(input.message) || text(input.content) || text(proposed.message) || text(proposed.content);
         const subject = text(input.subject) || text(proposed.subject);
         const emailDraft = text(channelDrafts.email) || text(proposed.email_draft);
         const whatsappDraft = text(channelDrafts.whatsapp) || text(proposed.whatsapp_draft);
         const executiveSummary = text(proposed.executive_summary);
         const linkedinTarget = text(input.linkedin_profile_url);
 
-        return <AdminCard key={approval.id} className="overflow-hidden">
+        return <AdminCard id={`approval-${approval.id}`} key={approval.id} className="overflow-hidden">
           <div className="flex flex-wrap items-start justify-between gap-4 border-b border-white/[0.07] p-5">
             <div><div className="flex flex-wrap gap-2"><AdminBadge variant="warning">بانتظار قرارك</AdminBadge><AdminBadge variant="muted">{externalReply ? "Client reply" : task.channel ?? "Outreach"}</AdminBadge></div><h2 className="mt-3 text-lg font-medium text-white">{task.title ?? approval.reason ?? `Approval #${approval.id}`}</h2><p className="mt-1 text-xs text-white/35">Approval #{approval.id} · Task #{task.id}{task.lead_id ? ` · Lead #${task.lead_id}` : ""}</p></div>
             {linkedinTarget ? <a href={linkedinTarget} target="_blank" rel="noreferrer" className="rounded-lg border border-blue-300/20 px-3 py-2 text-xs text-blue-200">فتح LinkedIn</a> : null}

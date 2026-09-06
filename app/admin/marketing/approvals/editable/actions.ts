@@ -9,8 +9,17 @@ function record(value: unknown) {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 }
 
+function normalizeHumanText(value: string) {
+  return value
+    .replace(/\\r\\n/g, "\n")
+    .replace(/\\n/g, "\n")
+    .replace(/\\t/g, "\t")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 function text(value: FormDataEntryValue | null) {
-  return typeof value === "string" ? value.trim() : "";
+  return typeof value === "string" ? normalizeHumanText(value) : "";
 }
 
 function revalidate() {

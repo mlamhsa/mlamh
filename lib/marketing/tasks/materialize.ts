@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { containsLiveTalentCountClaim } from "@/lib/marketing/channels/external-copy-policy";
 import { createMarketingTask } from "@/lib/marketing/tasks/service";
 
 type SourceTask = {
@@ -44,6 +45,21 @@ function validLinkedInProfile(value: unknown) {
   }
 }
 
+function publicSiteUrl() {
+  const explicit = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, "");
+  if (explicit) return explicit.startsWith("http") ? explicit : `https://${explicit}`;
+  const vercel = process.env.VERCEL_URL?.trim().replace(/\/$/, "");
+  if (vercel) return vercel.startsWith("http") ? vercel : `https://${vercel}`;
+  return "https://mlamh.net";
+}
+
+function creativeAspectRatio(target: SocialTarget, contentType: string | null) {
+  const type = (contentType ?? "").toLowerCase();
+  if (["story", "reel", "video"].includes(type)) return "9:16";
+  if (target === "facebook") return "1.91:1";
+  return "1:1";
+}
+
 async function ensureCreativeProductionTask({
   task,
   contentId,
@@ -73,7 +89,7 @@ async function ensureCreativeProductionTask({
     agentId: "sarah",
     taskType: "creative_brief",
     title: `Creative production: ${title}`,
-    objective: `Prepare a production-ready ${target} visual for this MLAMH social post. The visual must follow MLAMH brand identity and must be completed before any social publishing approval is created.`,
+    objective: `Prepare a production-ready ${target} visual for this MLAMH social post. Use MLAMH brand identity, keep the design simple and premium, and never use current talent counts as external social proof. The visual must be completed before any social publishing approval is created.`,
     channel: target,
     approvalLevel: "auto",
     contentId,
@@ -92,6 +108,7 @@ async function ensureCreativeProductionTask({
         accent: "#8C6A2D",
       },
       publishing_gate: "creative_required",
+      external_copy_policy: "Do not mention current MLAMH talent counts in external copy or visuals.",
     },
     metadata: {
       source_task_id: task.id,
@@ -125,6 +142,7 @@ async function materializeContentStrategy(task: SourceTask, output: Record<strin
       const caption = text(item.caption);
       const channel = text(item.channel);
       if (!title || !caption || (channel !== "instagram" && channel !== "facebook")) return [];
+      if (containsLiveTalentCountClaim(`${title}\n${caption}`)) return [];
 
       const target = channel as SocialTarget;
       const rawCta = text(item.cta);
@@ -155,6 +173,7 @@ async function materializeContentStrategy(task: SourceTask, output: Record<strin
           source_item_index: index,
           autonomous: true,
           creative_required: true,
+          external_copy_policy: "no_live_talent_counts",
         },
       }];
     });
@@ -200,6 +219,142 @@ async function materializeContentStrategy(task: SourceTask, output: Record<strin
     outreachCreated: 0,
     approvalsCreated: 0,
     creativeTasksCreated,
+  };
+}
+
+async function materializeCreativeBrief(task: SourceTask, output: Record<string, unknown>) {
+  const db = createAdminClient();
+  const { data: sourceTask, error: taskError } = await db
+    .from("marketing_tasks")
+    .select("content_id,campaign_id,channel,input")
+    .eq("id", task.id)
+    .maybeSingle();
+  if (taskError || !sourceTask?.content_id) {
+    return { contentCreated: 0, outreachCreated: 0, approvalsCreated: 0, creativeCreated: 0, socialApprovalsCreated: 0 };
+  }
+
+  const { data: content, error: contentError } = await db
+    .from("marketing_content")
+    .select("id,title,hook,caption,cta,content_type,channel,asset_references,campaign_id")
+    .eq("id", sourceTask.content_id)
+    .maybeSingle();
+  if (contentError || !content) {
+    return { contentCreated: 0, outreachCreated: 0, approvalsCreated: 0, creativeCreated: 0, socialApprovalsCreated: 0 };
+  }
+
+  const input = record(sourceTask.input);
+  const targetValue = (text(input.target) ?? text(sourceTask.channel) ?? text(content.channel))?.toLowerCase();
+  if (targetValue !== "instagram" && targetValue !== "facebook") {
+    return { contentCreated: 0, outreachCreated: 0, approvalsCreated: 0, creativeCreated: 0, socialApprovalsCreated: 0 };
+  }
+  const target = targetValue as SocialTarget;
+  const caption = text(content.caption) ?? "";
+  const title = text(content.title) ?? text(content.hook) ?? `MLAMH content #${content.id}`;
+  if (!caption || containsLiveTalentCountClaim(`${title}\n${caption}`)) {
+    return { contentCreated: 0, outreachCreated: 0, approvalsCreated: 0, creativeCreated: 0, socialApprovalsCreated: 0, blockedByCopyPolicy: true };
+  }
+
+  const { data: existingCreative } = await db
+    .from("marketing_creatives")
+    .select("id,preview_path,storage_path,status")
+    .eq("content_id", content.id)
+    .eq("platform", target)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  let creativeId = existingCreative?.id ?? null;
+  let creativeCreated = 0;
+  if (!creativeId) {
+    const { data: created, error } = await db.from("marketing_creatives").insert({
+      content_id: content.id,
+      campaign_id: sourceTask.campaign_id ?? content.campaign_id ?? null,
+      type: "image",
+      platform: target,
+      aspect_ratio: creativeAspectRatio(target, content.content_type),
+      status: "approved",
+      storage_path: null,
+      preview_path: null,
+      created_by_agent_id: task.agent_id ?? "sarah",
+      version: 1,
+      metadata: {
+        source: "mlamh_brand_renderer",
+        source_task_id: task.id,
+        autonomous: true,
+        generated_template: "mlamh_premium_v1",
+        ai_brief: output,
+      },
+    }).select("id").single();
+    if (error || !created) throw new Error(`[marketing_materialize.creative] ${error?.message ?? "insert failed"}`);
+    creativeId = created.id;
+    creativeCreated = 1;
+  }
+
+  const assetUrl = `${publicSiteUrl()}/api/marketing/creative/${creativeId}`;
+  const existingAssets = Array.isArray(content.asset_references)
+    ? content.asset_references.filter((value): value is string => typeof value === "string" && Boolean(value.trim()))
+    : [];
+  const assetReferences = [...new Set([...existingAssets, assetUrl])];
+  const now = new Date().toISOString();
+
+  const { error: creativeUpdateError } = await db.from("marketing_creatives").update({
+    status: "approved",
+    preview_path: assetUrl,
+    updated_at: now,
+  }).eq("id", creativeId);
+  if (creativeUpdateError) throw new Error(`[marketing_materialize.creative.update] ${creativeUpdateError.message}`);
+
+  const { error: contentUpdateError } = await db.from("marketing_content").update({
+    asset_references: assetReferences,
+    status: "review",
+    updated_at: now,
+  }).eq("id", content.id);
+  if (contentUpdateError) throw new Error(`[marketing_materialize.creative.content] ${contentUpdateError.message}`);
+
+  const socialTask = await createMarketingTask({
+    agentId: "reem",
+    taskType: "social_publish",
+    title: `Review social publish · ${title}`,
+    objective: `Review the completed ${target} visual and final copy before external publishing. The visual is required and Buffer execution remains approval-gated.`,
+    priority: "high",
+    channel: "buffer",
+    approvalLevel: "approval_required",
+    contentId: content.id,
+    campaignId: sourceTask.campaign_id ?? content.campaign_id ?? null,
+    parentTaskId: task.id,
+    source: "autonomous_materializer",
+    input: {
+      provider: "buffer",
+      target,
+      text: caption,
+      caption,
+      cta: text(content.cta),
+      asset_urls: assetReferences,
+      content_id: content.id,
+      source_task_id: task.id,
+      creative_id: creativeId,
+      visual_required: true,
+      test_mode: false,
+    },
+    metadata: {
+      source_task_id: task.id,
+      autonomous: true,
+      creative_id: creativeId,
+      visual_verified: true,
+      external_copy_policy: "no_live_talent_counts",
+    },
+    idempotencyKey: `social-publish-content-${content.id}-${target}`,
+  });
+
+  return {
+    contentCreated: 0,
+    outreachCreated: 0,
+    approvalsCreated: 1,
+    creativeCreated,
+    socialApprovalsCreated: 1,
+    creativeId,
+    socialTaskId: socialTask.id,
+    assetUrl,
   };
 }
 
@@ -346,7 +501,7 @@ async function materializeOutboundEmail(task: SourceTask, output: Record<string,
     const leadId = numberValue(draft.lead_id);
     const subject = text(draft.subject);
     const message = text(draft.message);
-    if (!leadId || !subject || !message) continue;
+    if (!leadId || !subject || !message || containsLiveTalentCountClaim(`${subject}\n${message}`)) continue;
 
     const { data: lead } = await db
       .from("marketing_leads")
@@ -435,6 +590,7 @@ async function materializeOutreachPreparation(task: SourceTask, output: Record<s
     const message = text(draft.message);
     const subject = text(draft.subject);
     if (!leadId || !message || (channel !== "linkedin" && channel !== "email")) continue;
+    if (containsLiveTalentCountClaim(`${subject ?? ""}\n${message}`)) continue;
 
     const { data: lead } = await db.from("marketing_leads").select("id,contact_id,organization,stage").eq("id", leadId).in("stage", ["new", "qualified"]).maybeSingle();
     if (!lead?.contact_id) continue;
@@ -521,6 +677,7 @@ async function materializeOutreachPreparation(task: SourceTask, output: Record<s
 export async function materializeMarketingTaskOutput(task: SourceTask, output: unknown) {
   const value = record(output);
   if (task.task_type === "content_strategy") return materializeContentStrategy(task, value);
+  if (task.task_type === "creative_brief") return materializeCreativeBrief(task, value);
   if (task.task_type === "outbound_email") return materializeOutboundEmail(task, value);
   if (task.task_type === "outreach_preparation") return materializeOutreachPreparation(task, value);
   return { contentCreated: 0, outreachCreated: 0, approvalsCreated: 0 };

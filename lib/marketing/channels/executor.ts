@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getMarketingChannelAdapter } from "./adapters";
 import { evaluateControlledExecution, getExternalExecutionSettings } from "./controlled-execution";
 import { evaluateChannelExecutionPolicy } from "./execution-policy";
+import { assertExternalMarketingCopyPolicy } from "./external-copy-policy";
 import { sanitizeSocialCopy } from "./social-copy";
 
 function safeExecutionError(error: unknown) {
@@ -55,6 +56,7 @@ export async function executeMarketingChannelJob(jobId: number, mode: "publish_n
   const payload = (job.payload ?? {}) as Record<string, unknown>;
   const target = typeof payload.target === "string" ? payload.target : undefined;
   const assetUrls = Array.isArray(payload.asset_urls) ? payload.asset_urls.filter((value): value is string => typeof value === "string" && Boolean(value.trim())) : [];
+  const approvedText = assertExternalMarketingCopyPolicy(sanitizeSocialCopy(payload.text));
   await assertVisualReadiness(job.content_id, target, assetUrls);
 
   const executionSettings = await getExternalExecutionSettings();
@@ -111,7 +113,7 @@ export async function executeMarketingChannelJob(jobId: number, mode: "publish_n
   try {
     const result = await adapter.publish({
       contentId: job.content_id,
-      text: sanitizeSocialCopy(payload.text),
+      text: approvedText,
       assetUrls: assetUrls.length ? assetUrls : undefined,
       scheduledAt: mode === "schedule" ? job.scheduled_at : null,
       idempotencyKey: job.idempotency_key,
