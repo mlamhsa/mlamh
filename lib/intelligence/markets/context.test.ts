@@ -5,6 +5,7 @@ import {
   buildAllIntelligenceMarketContexts,
   buildIntelligenceMarketContext,
 } from "./context.ts";
+import { buildExecutiveBrief } from "../executive/brief.ts";
 
 test("Saudi Arabia is the only operational intelligence market", () => {
   const markets = buildAllIntelligenceMarketContexts();
@@ -31,4 +32,52 @@ test("intelligence context reuses market feature flags", () => {
   assert.equal(sa.capabilities.payments, true);
   assert.equal(ae.capabilities.applications, false);
   assert.equal(ae.capabilities.payments, false);
+});
+
+test("executive brief derives loop metrics without inventing unavailable rates", () => {
+  const brief = buildExecutiveBrief(
+    {
+      talentProfiles: 20,
+      qualifiedTalents: 10,
+      publishers: 3,
+      publishedOpportunities: 0,
+      applications: 0,
+      acceptedApplications: 0,
+      activeConversations: 0,
+    },
+    "2026-09-06T08:00:00.000Z",
+  );
+
+  const qualifiedRate = brief.metrics.find((metric) => metric.key === "qualified_talent_rate");
+  const applicationsPerOpportunity = brief.metrics.find(
+    (metric) => metric.key === "applications_per_opportunity",
+  );
+
+  assert.equal(qualifiedRate?.value, 50);
+  assert.equal(applicationsPerOpportunity?.value, null);
+  assert.equal(brief.operatingLoop.complete, false);
+  assert.equal(brief.priorities[0]?.key, "restore_live_demand");
+});
+
+test("executive brief marks the core loop complete only when every stage is present", () => {
+  const brief = buildExecutiveBrief({
+    talentProfiles: 40,
+    qualifiedTalents: 30,
+    publishers: 5,
+    publishedOpportunities: 4,
+    applications: 20,
+    acceptedApplications: 5,
+    activeConversations: 3,
+  });
+
+  assert.equal(brief.operatingLoop.complete, true);
+  assert.equal(brief.priorities.at(-1)?.key, "operating_loop_active");
+  assert.equal(
+    brief.metrics.find((metric) => metric.key === "application_acceptance_rate")?.value,
+    25,
+  );
+  assert.equal(
+    brief.metrics.find((metric) => metric.key === "applications_per_opportunity")?.value,
+    5,
+  );
 });
