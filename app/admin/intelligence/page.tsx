@@ -36,6 +36,22 @@ function statusLabel(
   return isArabic ? "غير مفعّل" : "Not activated";
 }
 
+function metricLabel(isArabic: boolean, key: string) {
+  const labels: Record<string, { ar: string; en: string }> = {
+    qualified_talent_rate: { ar: "نسبة المواهب المؤهلة", en: "Qualified talent rate" },
+    application_acceptance_rate: { ar: "معدل قبول الطلبات", en: "Application acceptance rate" },
+    applications_per_opportunity: { ar: "طلبات لكل فرصة", en: "Applications per opportunity" },
+    conversation_followthrough_rate: { ar: "تحول القبول إلى تواصل", en: "Acceptance-to-conversation rate" },
+  };
+  const label = labels[key];
+  return label ? (isArabic ? label.ar : label.en) : key;
+}
+
+function metricValue(value: number | null, unit: "percent" | "ratio") {
+  if (value === null) return "N/A";
+  return unit === "percent" ? `${value}%` : value.toFixed(1);
+}
+
 export default async function AdminIntelligencePage({ searchParams }: PageProps) {
   await requireAdminAccess();
 
@@ -43,6 +59,7 @@ export default async function AdminIntelligencePage({ searchParams }: PageProps)
   const isArabic = lang !== "en";
   const language = isArabic ? "ar" : "en";
   const overview = await buildCommandCenterOverview();
+  const executive = overview.executiveBrief;
 
   return (
     <AdminPageContainer>
@@ -71,6 +88,88 @@ export default async function AdminIntelligencePage({ searchParams }: PageProps)
         </span>
       </div>
 
+      <AdminCard className="mb-8 overflow-hidden border-gold/20 bg-[radial-gradient(circle_at_top_right,rgba(212,160,23,0.09),transparent_42%),rgba(255,255,255,0.025)]">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.24em] text-gold/70">CEO Intelligence</p>
+            <h2 className="mt-2 text-2xl font-light text-white">
+              {isArabic ? "الموجز التنفيذي للسعودية" : "Saudi Executive Brief"}
+            </h2>
+            <p className="mt-2 max-w-2xl text-xs leading-6 text-white/40">
+              {isArabic
+                ? "قراءة حتمية للحلقة الأساسية: عرض مؤهل → فرص منشورة → تقديمات → اختيارات → تواصل. لا يستخدم هذا القسم نموذجًا لغويًا لحساب الحقائق."
+                : "A deterministic read of the core loop: qualified supply → published demand → applications → selections → connections. No language model calculates these facts."}
+            </p>
+          </div>
+          <span
+            className={`rounded-full border px-3 py-1.5 text-[11px] font-medium ${
+              executive.operatingLoop.complete
+                ? "border-emerald-400/25 bg-emerald-400/[0.08] text-emerald-200"
+                : "border-amber-300/20 bg-amber-300/[0.07] text-amber-100/80"
+            }`}
+          >
+            {executive.operatingLoop.complete
+              ? isArabic
+                ? "الحلقة الأساسية نشطة"
+                : "Core loop active"
+              : isArabic
+                ? "الحلقة تحتاج متابعة"
+                : "Core loop needs attention"}
+          </span>
+        </div>
+
+        <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {executive.metrics.map((metric) => (
+            <div
+              key={metric.key}
+              className="rounded-xl border border-white/[0.07] bg-black/20 p-4"
+            >
+              <p className="text-xs text-white/35">{metricLabel(isArabic, metric.key)}</p>
+              <p className="mt-2 text-2xl font-light text-white" dir="ltr">
+                {metricValue(metric.value, metric.unit)}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-6 border-t border-white/[0.07] pt-5">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h3 className="text-sm font-medium text-white/75">
+              {isArabic ? "أولويات تشغيلية مؤكدة" : "Confirmed operating priorities"}
+            </h3>
+            <span className="text-[10px] uppercase tracking-[0.18em] text-white/25">
+              DETERMINISTIC
+            </span>
+          </div>
+
+          <div className="space-y-3">
+            {executive.priorities.map((priority, index) => (
+              <div
+                key={priority.key}
+                className="flex gap-4 rounded-xl border border-white/[0.07] bg-white/[0.02] p-4"
+              >
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-gold/20 bg-gold/[0.06] text-xs text-gold">
+                  {String(index + 1).padStart(2, "0")}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-medium text-white/80">
+                      {isArabic ? priority.titleAr : priority.title}
+                    </p>
+                    <span className="text-[10px] uppercase tracking-wider text-white/30">
+                      {priority.severity}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs leading-5 text-white/40">
+                    {isArabic ? priority.summaryAr : priority.summary}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </AdminCard>
+
       <Link
         href={`/admin/intelligence/casting?lang=${language}`}
         className="mb-8 block rounded-2xl border border-gold/20 bg-gradient-to-r from-gold/[0.08] to-transparent p-5 transition hover:border-gold/35 hover:bg-gold/[0.09]"
@@ -82,12 +181,12 @@ export default async function AdminIntelligencePage({ searchParams }: PageProps)
               {isArabic ? "تحليل الـBrief والعرض المؤهل" : "Brief & Qualified Supply Analysis"}
             </h2>
             <p className="mt-1 text-xs leading-5 text-white/40">
-              {isArabic
-                ? "Brief → Qualified → Sendable → Supply Gap → Recommendation"
-                : "Brief → Qualified → Sendable → Supply Gap → Recommendation"}
+              Brief → Qualified → Sendable → Supply Gap → Recommendation
             </p>
           </div>
-          <span className="text-xs font-medium text-gold">{isArabic ? "فتح مساحة التحليل ←" : "Open workspace →"}</span>
+          <span className="text-xs font-medium text-gold">
+            {isArabic ? "فتح مساحة التحليل ←" : "Open workspace →"}
+          </span>
         </div>
       </Link>
 
