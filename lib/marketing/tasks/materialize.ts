@@ -27,6 +27,23 @@ function numberValue(value: unknown) {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
+function contactRole(metadata: unknown) {
+  const value = record(metadata);
+  return text(value.job_title) ?? text(value.role) ?? text(value.title);
+}
+
+function validLinkedInProfile(value: unknown) {
+  const raw = text(value);
+  if (!raw) return null;
+  try {
+    const url = new URL(raw);
+    const host = url.hostname.toLowerCase().replace(/^www\./, "");
+    return url.protocol === "https:" && host === "linkedin.com" ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 async function ensureCreativeProductionTask({
   task,
   contentId,
@@ -213,7 +230,7 @@ async function ensureOutreachApproval({
   let approvalTaskId = existingTask?.id ?? null;
   if (!approvalTaskId) {
     const approvalTask = await createMarketingTask({
-      agentId: "dana",
+      agentId: "layan",
       taskType: "first_outreach",
       title: `First outreach · ${organization}`,
       objective: "Review the AI-prepared first publisher/client outreach before external delivery.",
@@ -249,6 +266,70 @@ async function ensureOutreachApproval({
     })
     .eq("id", outreachId);
 
+  return Boolean(approval?.id);
+}
+
+async function ensureLinkedInOutreachApproval({
+  task,
+  leadId,
+  organization,
+  profileUrl,
+  message,
+  outreachId,
+  contactName,
+  role,
+}: {
+  task: SourceTask;
+  leadId: number;
+  organization: string;
+  profileUrl: string;
+  message: string;
+  outreachId: number;
+  contactName: string | null;
+  role: string | null;
+}) {
+  const db = createAdminClient();
+  const idempotencyKey = `outreach:${outreachId}:first_linkedin`;
+  const { data: existingTask } = await db.from("marketing_tasks").select("id").eq("idempotency_key", idempotencyKey).maybeSingle();
+  let approvalTaskId = existingTask?.id ?? null;
+
+  if (!approvalTaskId) {
+    const approvalTask = await createMarketingTask({
+      agentId: "layan",
+      taskType: "first_outreach",
+      title: `LinkedIn outreach · ${organization}`,
+      objective: "Review the AI-prepared LinkedIn first-touch message before Sawsan sends it manually from her approved LinkedIn profile.",
+      priority: "high",
+      channel: "linkedin",
+      approvalLevel: "approval_required",
+      source: "autonomous_materializer",
+      leadId,
+      input: {
+        outreach_id: outreachId,
+        lead_id: leadId,
+        channel: "linkedin",
+        message,
+        linkedin_profile_url: profileUrl,
+        sender_profile: "sawsan",
+        sender_profile_name: "Sawsan Ahdadi",
+        sender_role: "Business Development",
+        execution_mode: "manual_linkedin",
+        contact_name: contactName,
+        contact_role: role,
+        source_task_id: task.id,
+      },
+      metadata: { source_task_id: task.id, autonomous: true, execution_mode: "manual_linkedin", automated_send: false },
+      idempotencyKey,
+    });
+    approvalTaskId = approvalTask.id;
+  }
+
+  const { data: approval } = await db.from("marketing_approvals").select("id").eq("task_id", approvalTaskId).maybeSingle();
+  await db.from("marketing_outreach").update({
+    send_status: approval?.id ? "waiting_approval" : "draft",
+    approval_id: approval?.id ?? null,
+    updated_at: new Date().toISOString(),
+  }).eq("id", outreachId);
   return Boolean(approval?.id);
 }
 
@@ -339,9 +420,108 @@ async function materializeOutboundEmail(task: SourceTask, output: Record<string,
   return { contentCreated: 0, outreachCreated, approvalsCreated };
 }
 
+async function materializeOutreachPreparation(task: SourceTask, output: Record<string, unknown>) {
+  const drafts = Array.isArray(output.outreach_drafts) ? output.outreach_drafts.slice(0, 3) : [];
+  if (!drafts.length) return { contentCreated: 0, outreachCreated: 0, approvalsCreated: 0 };
+
+  const db = createAdminClient();
+  let outreachCreated = 0;
+  let approvalsCreated = 0;
+
+  for (const raw of drafts) {
+    const draft = record(raw);
+    const leadId = numberValue(draft.lead_id);
+    const channel = text(draft.channel)?.toLowerCase();
+    const message = text(draft.message);
+    const subject = text(draft.subject);
+    if (!leadId || !message || (channel !== "linkedin" && channel !== "email")) continue;
+
+    const { data: lead } = await db.from("marketing_leads").select("id,contact_id,organization,stage").eq("id", leadId).in("stage", ["new", "qualified"]).maybeSingle();
+    if (!lead?.contact_id) continue;
+
+    const { count: suppressed } = await db.from("marketing_outreach").select("id", { count: "exact", head: true }).eq("lead_id", leadId).in("reply_status", ["not_interested", "blocked"]);
+    if ((suppressed ?? 0) > 0) continue;
+
+    const { data: contact } = await db.from("marketing_contacts").select("contact_name,email,linkedin_url,metadata").eq("id", lead.contact_id).maybeSingle();
+    const contactName = text(contact?.contact_name);
+    const role = contactRole(contact?.metadata);
+    if (!contactName) continue;
+
+    if (channel === "linkedin") {
+      const profileUrl = validLinkedInProfile(contact?.linkedin_url);
+      if (!profileUrl) continue;
+      const { data: existing } = await db.from("marketing_outreach").select("id,approval_id,send_status").eq("lead_id", leadId).eq("channel", "linkedin").in("send_status", ["draft", "waiting_approval", "approved", "scheduled", "sent"]).order("created_at", { ascending: false }).limit(1).maybeSingle();
+      if (existing?.send_status === "sent" || existing?.approval_id) continue;
+
+      let outreachId = existing?.id ?? null;
+      if (!outreachId) {
+        const { data: outreach, error } = await db.from("marketing_outreach").insert({
+          lead_id: leadId,
+          template_key: "ai_personalized_linkedin_first_touch",
+          personalization: {
+            message,
+            subject: null,
+            recipient_email: null,
+            linkedin_profile_url: profileUrl,
+            sender_profile: "sawsan",
+            contact_name: contactName,
+            contact_role: role,
+            source_task_id: task.id,
+          },
+          metadata: {
+            source: "marketing_ai",
+            source_task_id: task.id,
+            autonomous: true,
+            execution_mode: "manual_linkedin",
+            sender_profile: "sawsan",
+            automated_send: false,
+          },
+          channel: "linkedin",
+          send_status: "draft",
+          reply_status: "none",
+        }).select("id").single();
+        if (error || !outreach) throw new Error(`[marketing_materialize.linkedin] ${error?.message ?? "insert failed"}`);
+        outreachId = outreach.id;
+        outreachCreated += 1;
+      }
+
+      const approved = await ensureLinkedInOutreachApproval({ task, leadId, organization: lead.organization, profileUrl, message, outreachId, contactName, role });
+      if (approved) approvalsCreated += 1;
+      continue;
+    }
+
+    const recipientEmail = text(contact?.email);
+    if (!recipientEmail || !subject) continue;
+    const { data: existing } = await db.from("marketing_outreach").select("id,approval_id,send_status").eq("lead_id", leadId).eq("channel", "email").in("send_status", ["draft", "waiting_approval", "approved", "scheduled", "sent"]).order("created_at", { ascending: false }).limit(1).maybeSingle();
+    if (existing?.send_status === "sent" || existing?.approval_id) continue;
+
+    let outreachId = existing?.id ?? null;
+    if (!outreachId) {
+      const { data: outreach, error } = await db.from("marketing_outreach").insert({
+        lead_id: leadId,
+        template_key: "ai_personalized_first_outreach",
+        personalization: { subject, message, recipient_email: recipientEmail, source_task_id: task.id },
+        channel: "email",
+        send_status: "draft",
+        reply_status: "none",
+        metadata: { source: "marketing_ai", source_task_id: task.id, autonomous: true },
+      }).select("id").single();
+      if (error || !outreach) throw new Error(`[marketing_materialize.email] ${error?.message ?? "insert failed"}`);
+      outreachId = outreach.id;
+      outreachCreated += 1;
+    }
+
+    const approved = await ensureOutreachApproval({ task, leadId, organization: lead.organization, recipientEmail, subject, message, outreachId });
+    if (approved) approvalsCreated += 1;
+  }
+
+  return { contentCreated: 0, outreachCreated, approvalsCreated };
+}
+
 export async function materializeMarketingTaskOutput(task: SourceTask, output: unknown) {
   const value = record(output);
   if (task.task_type === "content_strategy") return materializeContentStrategy(task, value);
   if (task.task_type === "outbound_email") return materializeOutboundEmail(task, value);
+  if (task.task_type === "outreach_preparation") return materializeOutreachPreparation(task, value);
   return { contentCreated: 0, outreachCreated: 0, approvalsCreated: 0 };
 }

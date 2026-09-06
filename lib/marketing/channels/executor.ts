@@ -10,6 +10,43 @@ function safeExecutionError(error: unknown) {
   return message.slice(0, 500);
 }
 
+function targetRequiresVisual(target: string | undefined, contentType: string | null | undefined) {
+  const normalizedTarget = (target ?? "").toLowerCase();
+  const normalizedType = (contentType ?? "").toLowerCase();
+  if (normalizedTarget === "instagram") return true;
+  if (normalizedTarget === "facebook") return ["reel", "story", "carousel", "video"].includes(normalizedType);
+  return false;
+}
+
+async function assertVisualReadiness(contentId: number | null, target: string | undefined, payloadAssetUrls: string[]) {
+  if (!contentId) return;
+  const db = createAdminClient();
+  const { data: content } = await db.from("marketing_content").select("id,content_type,asset_references").eq("id", contentId).maybeSingle();
+  if (!targetRequiresVisual(target, content?.content_type)) return;
+
+  const contentAssets = Array.isArray(content?.asset_references)
+    ? content.asset_references.filter((value): value is string => typeof value === "string" && Boolean(value.trim()))
+    : [];
+  if (payloadAssetUrls.length > 0 || contentAssets.length > 0) return;
+
+  const { data: creatives } = await db
+    .from("marketing_creatives")
+    .select("platform,status,storage_path,preview_path")
+    .eq("content_id", contentId);
+  const hasReadyCreative = (creatives ?? []).some((creative) => {
+    const platform = (creative.platform ?? "").toLowerCase();
+    const platformMatches = !platform || platform === target || platform === "buffer" || platform === "social";
+    const ready = ["ready", "approved", "published"].includes((creative.status ?? "").toLowerCase());
+    const hasAsset = Boolean(creative.storage_path?.trim() || creative.preview_path?.trim());
+    return platformMatches && ready && hasAsset;
+  });
+  if (!hasReadyCreative) {
+    throw new Error(`Channel execution blocked: visual_required_for_${target ?? "social"}.`);
+  }
+
+  throw new Error(`Channel execution blocked: creative_asset_not_attached_to_job.`);
+}
+
 export async function executeMarketingChannelJob(jobId: number, mode: "publish_now" | "schedule" = "publish_now") {
   const db = createAdminClient();
   const { data: job, error } = await db.from("marketing_channel_jobs").select("id,content_id,task_id,approval_id,channel,status,scheduled_at,payload,retry_count,idempotency_key,external_post_id").eq("id", jobId).single();
@@ -17,6 +54,9 @@ export async function executeMarketingChannelJob(jobId: number, mode: "publish_n
 
   const payload = (job.payload ?? {}) as Record<string, unknown>;
   const target = typeof payload.target === "string" ? payload.target : undefined;
+  const assetUrls = Array.isArray(payload.asset_urls) ? payload.asset_urls.filter((value): value is string => typeof value === "string" && Boolean(value.trim())) : [];
+  await assertVisualReadiness(job.content_id, target, assetUrls);
+
   const executionSettings = await getExternalExecutionSettings();
   const controlledExecution = job.channel === "buffer"
     ? evaluateControlledExecution({
@@ -71,7 +111,7 @@ export async function executeMarketingChannelJob(jobId: number, mode: "publish_n
     const result = await adapter.publish({
       contentId: job.content_id,
       text: sanitizeSocialCopy(payload.text),
-      assetUrls: Array.isArray(payload.asset_urls) ? payload.asset_urls.filter((value): value is string => typeof value === "string") : undefined,
+      assetUrls: assetUrls.length ? assetUrls : undefined,
       scheduledAt: mode === "schedule" ? job.scheduled_at : null,
       idempotencyKey: job.idempotency_key,
       target,

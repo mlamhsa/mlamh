@@ -32,18 +32,78 @@ export function getDefaultApprovalLevel(taskType: string): MarketingApprovalLeve
   return "auto";
 }
 
+function defaultSlaHours(priority: MarketingTaskPriority) {
+  if (priority === "urgent") return 4;
+  if (priority === "high") return 12;
+  if (priority === "low") return 72;
+  return 24;
+}
+
+function expectedOutputFor(taskType: string) {
+  const outputs: Record<string, string> = {
+    lead_enrichment: "verified_contact_readiness",
+    outreach_preparation: "review_ready_outreach",
+    content_strategy: "production_ready_content_drafts",
+    creative_brief: "publishable_creative_asset",
+    social_publish: "approved_channel_job",
+    growth_analytics: "decision_ready_insight",
+    growth_strategy: "prioritized_marketing_direction",
+    community_growth: "qualified_talent_growth_actions",
+  };
+  return outputs[taskType] ?? "documented_operational_output";
+}
+
 export async function createMarketingTask(input: CreateMarketingTaskInput) {
   const db = createAdminClient();
   const approvalLevel = input.approvalLevel ?? getDefaultApprovalLevel(input.taskType);
+  const priority = input.priority ?? "normal";
   const status = input.scheduledAt ? "scheduled" : approvalLevel === "auto" ? "queued" : "waiting_approval";
   const approvalStatus = approvalLevel === "auto" ? "not_required" : "pending";
+  const idempotencyKey = input.idempotencyKey?.trim() || null;
+
+  if (idempotencyKey) {
+    const { data: existingTask } = await db
+      .from("marketing_tasks")
+      .select("*")
+      .eq("idempotency_key", idempotencyKey)
+      .in("status", ["queued", "scheduled", "running", "waiting_approval"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (existingTask) {
+      await db.from("marketing_agent_activity").insert({
+        agent_id: input.agentId ?? existingTask.agent_id ?? null,
+        task_id: existingTask.id,
+        action: "deduplicated",
+        reason: `Skipped duplicate open task: ${input.title}`,
+        channel: input.channel ?? existingTask.channel ?? "internal",
+        approval_status: existingTask.approval_status ?? "not_required",
+        result: { status: existingTask.status, idempotency_key: idempotencyKey },
+      });
+      return existingTask;
+    }
+  }
+
+  const createdAt = new Date();
+  const dueAt = new Date(createdAt.getTime() + defaultSlaHours(priority) * 60 * 60 * 1000).toISOString();
+  const metadata = {
+    ...(input.metadata ?? {}),
+    operational_contract: {
+      expected_output: expectedOutputFor(input.taskType),
+      sla_hours: defaultSlaHours(priority),
+      due_at: dueAt,
+      dependency_task_id: input.parentTaskId ?? null,
+      entity: input.leadId ? { type: "lead", id: input.leadId } : input.contentId ? { type: "content", id: input.contentId } : input.campaignId ? { type: "campaign", id: input.campaignId } : null,
+    },
+  };
 
   const { data: task, error } = await db.from("marketing_tasks").insert({
     agent_id: input.agentId ?? null,
     task_type: input.taskType,
     title: input.title,
     objective: input.objective ?? null,
-    priority: input.priority ?? "normal",
+    priority,
     status,
     channel: input.channel ?? null,
     source: input.source ?? null,
@@ -56,8 +116,8 @@ export async function createMarketingTask(input: CreateMarketingTaskInput) {
     lead_id: input.leadId ?? null,
     content_id: input.contentId ?? null,
     conversation_id: input.conversationId ?? null,
-    metadata: input.metadata ?? {},
-    idempotency_key: input.idempotencyKey ?? null,
+    metadata,
+    idempotency_key: idempotencyKey,
     max_retries: Math.max(0, Math.min(20, input.maxRetries ?? 3)),
   }).select("*").single();
 
@@ -78,7 +138,7 @@ export async function createMarketingTask(input: CreateMarketingTaskInput) {
   }
 
   if (input.agentId) {
-    const agentStatus = status === "waiting_approval" ? "waiting_approval" : status === "scheduled" ? "scheduled" : "scheduled";
+    const agentStatus = status === "waiting_approval" ? "waiting_approval" : "scheduled";
     await db.from("marketing_agents").update({
       current_task_id: task.id,
       status: agentStatus,
@@ -94,7 +154,7 @@ export async function createMarketingTask(input: CreateMarketingTaskInput) {
     reason: input.objective ?? input.title,
     channel: input.channel ?? "internal",
     approval_status: approvalStatus,
-    result: { status },
+    result: { status, expected_output: expectedOutputFor(input.taskType), due_at: dueAt },
   });
 
   return task;
