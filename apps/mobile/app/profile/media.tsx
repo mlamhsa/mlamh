@@ -24,6 +24,7 @@ export default function TalentMediaScreen() {
   const [loading, setLoading] = useState(true);
   const [busyUrl, setBusyUrl] = useState<string | null>(null);
   const [phase, setPhase] = useState<UploadPhase>("idle");
+  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -63,43 +64,65 @@ export default function TalentMediaScreen() {
   async function addImage() {
     if (phase !== "idle" || gallery.length >= MAX_GALLERY) return;
     setError(null);
+    setUploadProgress(null);
     try {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) {
-        setError(isArabic ? "نحتاج إذن الوصول للصور لاختيار صورة من جهازك." : "Photo access is required to choose an image.");
-        return;
-      }
-      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsEditing: true, aspect: [4, 5], quality: 1, selectionLimit: 1 });
-      if (result.canceled || !result.assets[0]) return;
-
-      setPhase("preparing");
-      const asset = result.assets[0];
-      const actions = asset.width > 2000 ? [{ resize: { width: 2000 } }] : [];
-      const normalized = await ImageManipulator.manipulateAsync(asset.uri, actions, { compress: 0.82, format: ImageManipulator.SaveFormat.JPEG });
-      const localResponse = await fetch(normalized.uri);
-      const buffer = await localResponse.arrayBuffer();
-      if (buffer.byteLength > 10 * 1024 * 1024) {
-        setError(isArabic ? "حجم الصورة كبير جدًا بعد المعالجة." : "The image is still too large after processing.");
+        setError(isArabic ? "نحتاج إذن الوصول للصور لاختيار صور من جهازك." : "Photo access is required to choose images.");
         return;
       }
 
-      setPhase("uploading");
-      const upload = await uploadTalentGalleryBuffer(buffer, "image/jpeg");
-      if (!upload.ok) {
-        setError(uploadError(upload.code));
-        return;
-      }
-      setGallery(upload.gallery);
+      const remaining = MAX_GALLERY - gallery.length;
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsMultipleSelection: true,
+        allowsEditing: false,
+        orderedSelection: true,
+        selectionLimit: remaining,
+        quality: 1,
+      });
+      if (result.canceled || !result.assets.length) return;
 
-      if (!primaryUrl) {
-        setPhase("finalizing");
-        const primary = await setTalentPrimaryImage(upload.url);
-        if (primary.ok) setPrimaryUrl(primary.url);
+      const assets = result.assets.slice(0, remaining);
+      setUploadProgress({ current: 0, total: assets.length });
+      let nextPrimaryUrl = primaryUrl;
+
+      for (let index = 0; index < assets.length; index += 1) {
+        const asset = assets[index];
+        setUploadProgress({ current: index + 1, total: assets.length });
+        setPhase("preparing");
+
+        const actions = asset.width > 2000 ? [{ resize: { width: 2000 } }] : [];
+        const normalized = await ImageManipulator.manipulateAsync(asset.uri, actions, { compress: 0.82, format: ImageManipulator.SaveFormat.JPEG });
+        const localResponse = await fetch(normalized.uri);
+        const buffer = await localResponse.arrayBuffer();
+        if (buffer.byteLength > 10 * 1024 * 1024) {
+          setError(isArabic ? `الصورة ${index + 1} كبيرة جدًا بعد المعالجة.` : `Image ${index + 1} is still too large after processing.`);
+          break;
+        }
+
+        setPhase("uploading");
+        const upload = await uploadTalentGalleryBuffer(buffer, "image/jpeg");
+        if (!upload.ok) {
+          setError(uploadError(upload.code));
+          break;
+        }
+        setGallery(upload.gallery);
+
+        if (!nextPrimaryUrl) {
+          setPhase("finalizing");
+          const primary = await setTalentPrimaryImage(upload.url);
+          if (primary.ok) {
+            nextPrimaryUrl = primary.url;
+            setPrimaryUrl(primary.url);
+          }
+        }
       }
     } catch {
-      setError(isArabic ? "تعذر تجهيز الصورة أو رفعها." : "Unable to process or upload the image.");
+      setError(isArabic ? "تعذر تجهيز الصور أو رفعها." : "Unable to process or upload the selected images.");
     } finally {
       setPhase("idle");
+      setUploadProgress(null);
     }
   }
 
@@ -153,12 +176,13 @@ export default function TalentMediaScreen() {
 
   if (loading) return <ScreenSkeleton variant="profile" locale={locale} label={isArabic ? "جارٍ تحميل معرض الصور" : "Loading portfolio media"} />;
 
+  const progressSuffix = uploadProgress ? ` ${uploadProgress.current}/${uploadProgress.total}` : "";
   const phaseLabel = phase === "preparing"
-    ? (isArabic ? "جارٍ تجهيز الصورة…" : "Preparing photo…")
+    ? `${isArabic ? "جارٍ تجهيز الصورة" : "Preparing photo"}${progressSuffix}…`
     : phase === "uploading"
-      ? (isArabic ? "جارٍ رفع الصورة…" : "Uploading photo…")
+      ? `${isArabic ? "جارٍ رفع الصورة" : "Uploading photo"}${progressSuffix}…`
       : phase === "finalizing"
-        ? (isArabic ? "جارٍ تعيين صورة الملف…" : "Setting profile photo…")
+        ? `${isArabic ? "جارٍ تعيين صورة الملف" : "Setting profile photo"}${progressSuffix}…`
         : null;
 
   return <ScrollView style={styles.screen} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={[styles.content, { direction: isRtl ? "rtl" : "ltr" }]}>
@@ -196,9 +220,9 @@ export default function TalentMediaScreen() {
     {phaseLabel ? <Text style={styles.phase}>{phaseLabel}</Text> : null}
 
     <Pressable disabled={phase !== "idle" || gallery.length >= MAX_GALLERY} onPress={() => void addImage()} style={[styles.addButton, (phase !== "idle" || gallery.length >= MAX_GALLERY) && styles.disabled]}>
-      {phase !== "idle" ? <ActivityIndicator color={theme.background} /> : <Text style={styles.addButtonText}>{isArabic ? "إضافة صورة" : "Add photo"}</Text>}
+      {phase !== "idle" ? <ActivityIndicator color={theme.background} /> : <Text style={styles.addButtonText}>{isArabic ? "إضافة صور" : "Add photos"}</Text>}
     </Pressable>
-    <Text style={styles.helper}>{isArabic ? "الحد الأقصى 12 صورة. يتم تحسين الصور قبل الرفع." : "Maximum 12 images. Images are optimized before upload."}</Text>
+    <Text style={styles.helper}>{isArabic ? "يمكنك اختيار عدة صور دفعة واحدة حتى حد 12 صورة. يتم تحسين الصور قبل الرفع." : "Select multiple images at once, up to the 12-image limit. Images are optimized before upload."}</Text>
   </ScrollView>;
 }
 
