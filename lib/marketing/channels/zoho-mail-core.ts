@@ -11,6 +11,7 @@ export const MLAMH_ZOHO_MAIL_ADDRESS = "hello@mlamh.net";
 export const ZOHO_MAIL_PHASE1_SCOPES = [
   "ZohoMail.accounts.READ",
   "ZohoMail.messages.CREATE",
+  "ZohoMail.messages.READ",
 ] as const;
 
 export type ZohoMailRuntimeConfig = {

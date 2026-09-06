@@ -1,5 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { runGovernedChannelWorker } from "@/lib/marketing/channels/autonomous-executor";
+import { syncZohoInboundEmails } from "@/lib/marketing/channels/zoho-inbound";
+import { processDanaInboundEmailTask } from "@/lib/marketing/inbound/dana-email";
 import { createMarketingTask } from "@/lib/marketing/tasks/service";
 import { runMarketingTaskById } from "@/lib/marketing/tasks/runner";
 
@@ -287,6 +289,26 @@ async function reflectQueuedAgents(tasks: RunnableDailyTask[]) {
 
 export async function runAutonomousMarketingCycle({ maxTasks = 3, maxChannelJobs = 2 }: { maxTasks?: number; maxChannelJobs?: number } = {}) {
   const seeded = await seedDailyMarketingCycle();
+
+  let inbound = { enabled: false, reason: "not_run", ingested: 0, duplicates: 0, ignored: 0, taskIds: [] as number[] };
+  const inboundProcessed: Array<{ taskId: number; status: string; approvalTaskId?: number | null; error?: string }> = [];
+  try {
+    inbound = await syncZohoInboundEmails({ day: seeded.day, limit: 20 });
+    for (const taskId of inbound.taskIds) {
+      const result = await processDanaInboundEmailTask(taskId);
+      inboundProcessed.push(result);
+    }
+  } catch (error) {
+    inbound = {
+      enabled: false,
+      reason: error instanceof Error ? error.message.slice(0, 160) : "zoho_inbound_failed",
+      ingested: 0,
+      duplicates: 0,
+      ignored: 0,
+      taskIds: [],
+    };
+  }
+
   const allRunnable = await getRunnableDailyTasks(seeded.day, 8);
   await reflectQueuedAgents(allRunnable);
 
@@ -302,6 +324,8 @@ export async function runAutonomousMarketingCycle({ maxTasks = 3, maxChannelJobs
 
   return {
     ...seeded,
+    inbound,
+    inboundProcessed,
     executed,
     channels,
     remainingForNextTick: remaining.length > 0,

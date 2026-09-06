@@ -114,7 +114,7 @@ export async function persistZohoDurableConnection({
   const { error } = await db.from("marketing_integrations").upsert({
     provider: "email",
     status: "connected",
-    capabilities: { send: true, receive: false, tracking: false },
+    capabilities: { send: true, receive: true, tracking: false },
     configuration_state: configurationState,
     last_sync_at: now,
     last_success_at: now,
@@ -148,7 +148,7 @@ export async function persistZohoConnectionError(error: unknown) {
   }, { onConflict: "provider" });
 }
 
-async function defaultConnectionState(): Promise<ZohoConnectionState> {
+export async function getZohoMailConnectionState(): Promise<ZohoConnectionState> {
   const db = createAdminClient();
   const { data, error } = await db.from("marketing_integrations")
     .select("status,configuration_state")
@@ -166,7 +166,7 @@ async function defaultConnectionState(): Promise<ZohoConnectionState> {
   };
 }
 
-async function getDurableZohoAccessToken(): Promise<string> {
+export async function getZohoDurableAccessToken(): Promise<string> {
   try {
     const db = createAdminClient();
     const { data, error } = await db.from("marketing_integrations")
@@ -192,6 +192,6 @@ async function getDurableZohoAccessToken(): Promise<string> {
 }
 
 export const zohoMailServerAdapter = createZohoMailAdapter({
-  getAccessToken: getDurableZohoAccessToken,
-  getConnectionState: defaultConnectionState,
+  getAccessToken: getZohoDurableAccessToken,
+  getConnectionState: getZohoMailConnectionState,
 });

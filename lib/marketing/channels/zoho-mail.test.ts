@@ -20,7 +20,7 @@ const config: ZohoMailRuntimeConfig = {
   redirectUri: "https://mlamh.net/api/marketing/integrations/zoho/callback",
 };
 
-test("Zoho OAuth request uses configured base URL, PKCE, and only Phase 1 scopes", () => {
+test("Zoho OAuth request uses configured base URL, PKCE, and inbound-capable scopes", () => {
   const request = createZohoOAuthRequest(config);
   const url = new URL(request.authorizationUrl);
   assert.equal(url.origin, "https://accounts.example.test");
@@ -30,7 +30,8 @@ test("Zoho OAuth request uses configured base URL, PKCE, and only Phase 1 scopes
   assert.equal(url.searchParams.get("code_challenge_method"), "S256");
   assert.ok(url.searchParams.get("code_challenge"));
   assert.ok(request.codeVerifier.length > 40);
-  assert.equal(url.searchParams.get("scope")?.includes("messages.READ"), false);
+  assert.equal(url.searchParams.get("scope")?.includes("ZohoMail.messages.READ"), true);
+  assert.equal(url.searchParams.get("scope")?.includes("ZohoMail.messages.CREATE"), true);
 });
 
 test("email outreach idempotency key is deterministic", () => {
