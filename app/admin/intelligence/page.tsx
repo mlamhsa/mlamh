@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import {
   AdminCard,
   AdminGrid,
@@ -39,6 +41,7 @@ export default async function AdminIntelligencePage({ searchParams }: PageProps)
 
   const { lang = "ar" } = await searchParams;
   const isArabic = lang !== "en";
+  const language = isArabic ? "ar" : "en";
   const overview = await buildCommandCenterOverview();
 
   return (
@@ -67,6 +70,26 @@ export default async function AdminIntelligencePage({ searchParams }: PageProps)
           READ ONLY
         </span>
       </div>
+
+      <Link
+        href={`/admin/intelligence/casting?lang=${language}`}
+        className="mb-8 block rounded-2xl border border-gold/20 bg-gradient-to-r from-gold/[0.08] to-transparent p-5 transition hover:border-gold/35 hover:bg-gold/[0.09]"
+      >
+        <p className="text-[10px] uppercase tracking-[0.24em] text-gold/70">Casting Intelligence</p>
+        <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-xl font-light text-white">
+              {isArabic ? "تحليل الـBrief والعرض المؤهل" : "Brief & Qualified Supply Analysis"}
+            </h2>
+            <p className="mt-1 text-xs leading-5 text-white/40">
+              {isArabic
+                ? "Brief → Qualified → Sendable → Supply Gap → Recommendation"
+                : "Brief → Qualified → Sendable → Supply Gap → Recommendation"}
+            </p>
+          </div>
+          <span className="text-xs font-medium text-gold">{isArabic ? "فتح مساحة التحليل ←" : "Open workspace →"}</span>
+        </div>
+      </Link>
 
       <AdminGrid className="mb-8 md:grid-cols-2 xl:grid-cols-4">
         <AdminStatCard
