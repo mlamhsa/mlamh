@@ -61,7 +61,7 @@ function recommendationFor(signal: IntelligenceSignal, funnel: GrowthFunnelSnaps
     insufficient_data: {
       title: "Increase measurable acquisition",
       summary: "Attributed traffic is still too sparse for strong growth decisions. Prioritize consistent UTM-tagged acquisition before scaling conclusions.",
-      priority: "normal" as const,
+      priority: "medium" as const,
     },
     registration_leak: {
       title: "Fix visit-to-registration conversion",
@@ -81,7 +81,7 @@ function recommendationFor(signal: IntelligenceSignal, funnel: GrowthFunnelSnaps
     healthy: {
       title: "Scale the strongest measurable loop",
       summary: "Recorded traffic, registrations, applications, and demand briefs are all moving. Repeat the best measured sources before expanding activity randomly.",
-      priority: "normal" as const,
+      priority: "medium" as const,
     },
   }[funnel.state];
 
