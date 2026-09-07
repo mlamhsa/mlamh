@@ -51,3 +51,14 @@ test("current governed support intake emits one verified brief outcome only for 
   assert.match(adapter, /outcome_verified_server_side:\s*true/);
   assert.match(adapter, /trackMarketingEvent/);
 });
+
+test("channel quality decision view is read-only and uses recorded marketing outcomes", () => {
+  const page = source("app/admin/marketing/channel-quality/page.tsx");
+  assert.match(page, /buildChannelQuality/);
+  assert.match(page, /marketing_events/);
+  assert.match(page, /brief_received/);
+  assert.doesNotMatch(page, /\.insert\(/);
+  assert.doesNotMatch(page, /\.upsert\(/);
+  assert.doesNotMatch(page, /\.update\(/);
+  assert.doesNotMatch(page, /\.delete\(/);
+});
