@@ -7,13 +7,25 @@ delete process.env.OPENAI_API_KEY;
 delete process.env.MARKETING_AI_DISABLED;
 delete process.env.MARKETING_AI_MODEL;
 
-const { getMarketingAIConfigurationState, getMarketingAIProvider } = await import("./provider.ts");
+const { expiredFreeModelFallback, getMarketingAIConfigurationState, getMarketingAIProvider } = await import("./provider.ts");
 
 const originalFetch = globalThis.fetch;
 
 test.after(() => {
   globalThis.fetch = originalFetch;
   delete process.env.AI_GATEWAY_API_KEY;
+});
+
+test("expired promotional free model aliases fall back only for permanent free-tier removal errors", () => {
+  assert.equal(
+    expiredFreeModelFallback(
+      "minimax/minimax-m2.7-free",
+      "Model 'minimax/minimax-m2.7-free' not found. If you were using its free tier, that has ended.",
+    ),
+    "openai/gpt-5.6-luna",
+  );
+  assert.equal(expiredFreeModelFallback("minimax/minimax-m2.7-free", "gateway unavailable"), null);
+  assert.equal(expiredFreeModelFallback("minimax/minimax-m2.7", "Model not found"), null);
 });
 
 test("lead enrichment uses Vercel AI Gateway Responses API with staged web research and preserves source evidence", async () => {
