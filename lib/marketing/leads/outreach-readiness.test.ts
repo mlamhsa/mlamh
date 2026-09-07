@@ -85,3 +85,15 @@ test("orchestrator, AI grounding and materializer consume the shared readiness c
   assert.match(runner, /missing_fields: readiness\.missingFields/);
   assert.match(materializer, /if \(!readiness\.isReady\) continue/);
 });
+
+test("main marketing orchestrator applies CEO-approved contact auto-verification after the autonomous cycle", () => {
+  const route = source("app/api/marketing/orchestrator/route.ts");
+  const autoMaterializer = source("lib/marketing/leads/auto-materialize.ts");
+
+  assert.match(route, /materializeAutoVerifiedLeadResearch/);
+  assert.match(route, /const result = await runAutonomousMarketingCycle/);
+  assert.match(route, /const contactAutoVerification = await materializeAutoVerifiedLeadResearch/);
+  assert.match(autoMaterializer, /ceo_approved_auto_verification_policy/);
+  assert.match(autoMaterializer, /external_send_allowed: false/);
+  assert.match(autoMaterializer, /getOutreachReadiness\(current\)\.isReady/);
+});
