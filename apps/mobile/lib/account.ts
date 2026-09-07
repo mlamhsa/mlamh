@@ -24,6 +24,12 @@ export type MobileAccountContext = {
   countryCode: string | null;
 };
 
+export type MobileAccountType = MobileAccountContext["type"];
+
+type SetMobileAccountTypeResult =
+  | { ok: true; accountType: MobileAccountType }
+  | { ok: false; code: string; accountType?: MobileAccountType };
+
 function isAccountContext(value: unknown): value is MobileAccountContext {
   if (!value || typeof value !== "object") return false;
   const account = value as Partial<MobileAccountContext>;
@@ -51,6 +57,49 @@ export async function getMobileAccountContext() {
   if (!payload || typeof payload !== "object") return null;
   const account = (payload as { account?: unknown }).account;
   return isAccountContext(account) ? account : null;
+}
+
+export async function setMobileAccountType(accountType: MobileAccountType): Promise<SetMobileAccountTypeResult> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) return { ok: false, code: "UNAUTHENTICATED" };
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/api/account/type`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ accountType }),
+    });
+  } catch {
+    return { ok: false, code: "NETWORK_ERROR" };
+  }
+
+  const raw = await response.text().catch(() => "");
+  let payload: unknown = null;
+  if (raw) {
+    try { payload = JSON.parse(raw); } catch { payload = null; }
+  }
+
+  const result = payload && typeof payload === "object"
+    ? payload as { ok?: unknown; code?: unknown; accountType?: unknown }
+    : null;
+  const returnedType = result?.accountType === "talent" || result?.accountType === "publisher"
+    ? result.accountType
+    : undefined;
+
+  if (!response.ok || result?.ok !== true) {
+    return {
+      ok: false,
+      code: typeof result?.code === "string" ? result.code : `HTTP_${response.status}`,
+      ...(returnedType ? { accountType: returnedType } : {}),
+    };
+  }
+
+  return { ok: true, accountType: returnedType ?? accountType };
 }
 
 export async function resolveMobileMarket() {
