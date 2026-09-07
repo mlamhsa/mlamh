@@ -4,6 +4,7 @@ import { AdminCard, AdminGrid, AdminPageContainer, AdminPageHeader, AdminStatCar
 import { getAdminLanguage } from "@/lib/admin/i18n";
 import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { getEmailFeedbackSnapshot, type EmailFeedbackDiagnosis } from "@/lib/marketing/analytics/email-feedback";
+import { getExternalExecutionSettings } from "@/lib/marketing/channels/controlled-execution";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
@@ -48,6 +49,12 @@ function eventLabel(name: string, isArabic: boolean) {
   return item ? (isArabic ? item.ar : item.en) : name.replaceAll("_", " ");
 }
 
+function statusPill(active: boolean) {
+  return active
+    ? "border-emerald-300/20 bg-emerald-300/[0.06] text-emerald-100/80"
+    : "border-white/10 bg-white/[0.03] text-white/45";
+}
+
 export default async function EmailOperationsPage({ searchParams }: PageProps) {
   await requireAdminAccess();
   const { lang } = await searchParams;
@@ -55,8 +62,9 @@ export default async function EmailOperationsPage({ searchParams }: PageProps) {
   const isArabic = language === "ar";
   const db = createAdminClient();
 
-  const [feedback, eventsResult, followUpsResult] = await Promise.all([
+  const [feedback, execution, eventsResult, followUpsResult, integrationsResult] = await Promise.all([
     getEmailFeedbackSnapshot({ days: 30 }),
+    getExternalExecutionSettings(),
     db.from("marketing_events")
       .select("id,event_name,entity_type,entity_id,metadata,occurred_at")
       .in("event_name", ["email_bounce_detected", "email_auto_reply_detected", "email_follow_up_due", "email_inbound_classified"])
@@ -67,12 +75,22 @@ export default async function EmailOperationsPage({ searchParams }: PageProps) {
       .contains("metadata", { email_follow_up: true })
       .order("created_at", { ascending: false })
       .limit(20),
+    db.from("marketing_integrations")
+      .select("provider,status,last_sync_at,last_success_at,last_error,metadata")
+      .in("provider", ["email", "buffer", "linkedin"]),
   ]);
 
   const events = eventsResult.data ?? [];
   const followUps = followUpsResult.data ?? [];
+  const integrations = integrationsResult.data ?? [];
+  const integrationMap = new Map(integrations.map((item) => [item.provider, item]));
+  const emailIntegration = integrationMap.get("email");
+  const bufferIntegration = integrationMap.get("buffer");
+  const linkedInIntegration = integrationMap.get("linkedin");
   const pendingFollowUps = followUps.filter((item) => !["completed", "cancelled", "failed"].includes((item.status ?? "").toLowerCase()));
   const diagnosis = diagnosisCopy[feedback.diagnosis];
+  const emailProductionEnabled = execution.productionEnabled && execution.productionChannels.includes("email");
+  const bufferProductionEnabled = execution.productionEnabled && execution.productionChannels.includes("buffer");
 
   return <AdminPageContainer>
     <AdminPageHeader
@@ -80,6 +98,20 @@ export default async function EmailOperationsPage({ searchParams }: PageProps) {
       title={isArabic ? "تشغيل البريد" : "Email Operations"}
       description={isArabic ? "رؤية تشغيلية لمسار البريد: الإرسال، الردود البشرية، الارتداد، الردود الآلية، المتابعات والتوجيه — بدون إرسال تلقائي." : "Operational visibility across sending, human replies, bounces, auto-replies, follow-ups and routing — with no automatic external send."}
     />
+
+    <AdminCard className="mb-6 overflow-hidden border-gold/15">
+      <div className="border-b border-white/[0.07] p-5">
+        <p className="text-[10px] uppercase tracking-[0.2em] text-gold/60">{isArabic ? "حالة التنفيذ الفعلية" : "LIVE EXECUTION STATE"}</p>
+        <h2 className="mt-1 text-lg text-white">{isArabic ? "القنوات والقيود الحالية" : "Channels and controls"}</h2>
+      </div>
+      <div className="grid gap-px bg-white/[0.06] md:grid-cols-2 xl:grid-cols-4">
+        <div className="bg-black/20 p-5"><div className="flex items-center justify-between gap-3"><p className="text-xs text-white/40">Email Production</p><span className={`rounded-full border px-2.5 py-1 text-[11px] ${statusPill(emailProductionEnabled)}`}>{emailProductionEnabled ? "ON" : "OFF"}</span></div><p className="mt-3 text-sm text-white/65">{emailIntegration?.status ?? "unknown"}</p><p className="mt-1 text-xs text-white/30">{isArabic ? `الحد اليومي: ${execution.dailyEmailLimit}` : `Daily limit: ${execution.dailyEmailLimit}`}</p></div>
+        <div className="bg-black/20 p-5"><div className="flex items-center justify-between gap-3"><p className="text-xs text-white/40">Buffer Production</p><span className={`rounded-full border px-2.5 py-1 text-[11px] ${statusPill(bufferProductionEnabled)}`}>{bufferProductionEnabled ? "ON" : "OFF"}</span></div><p className="mt-3 text-sm text-white/65">{bufferIntegration?.status ?? "unknown"}</p><p className="mt-1 text-xs text-white/30">{isArabic ? "الاتصال لا يعني السماح بالنشر" : "Connected does not mean publishing is enabled"}</p></div>
+        <div className="bg-black/20 p-5"><div className="flex items-center justify-between gap-3"><p className="text-xs text-white/40">LinkedIn</p><span className={`rounded-full border px-2.5 py-1 text-[11px] ${statusPill(linkedInIntegration?.status === "connected")}`}>{linkedInIntegration?.status === "connected" ? "CONNECTED" : "MANUAL"}</span></div><p className="mt-3 text-sm text-white/65">{linkedInIntegration?.status ?? "setup_required"}</p><p className="mt-1 text-xs text-white/30">{isArabic ? "لا يوجد إرسال تلقائي" : "No automatic sending"}</p></div>
+        <div className="bg-black/20 p-5"><div className="flex items-center justify-between gap-3"><p className="text-xs text-white/40">Test Mode</p><span className={`rounded-full border px-2.5 py-1 text-[11px] ${statusPill(execution.testMode.enabled)}`}>{execution.testMode.enabled ? "ON" : "OFF"}</span></div><p className="mt-3 text-sm text-white/65">{execution.testMode.emailAllowlist.length} email allowlist</p><p className="mt-1 text-xs text-white/30">{execution.testMode.bufferTargets.join(", ") || "—"}</p></div>
+      </div>
+      <div className="border-t border-white/[0.06] px-5 py-3 text-xs text-white/30">{isArabic ? "هذه الحالة تُقرأ مباشرة من إعدادات Production والتكاملات، وليست وصفًا ثابتًا في الواجهة." : "This state is read directly from Production execution settings and integrations, not hard-coded UI copy."}</div>
+    </AdminCard>
 
     <AdminGrid className="mb-6 md:grid-cols-4">
       <AdminStatCard label={isArabic ? "رسائل منشورة · 30 يوم" : "Published · 30d"} value={feedback.published} />
