@@ -57,7 +57,8 @@ export default function TalentProfileJourneyScreen() {
   const reviewReady = readiness?.isReady ?? false;
   const submitted = profile ? reviewSubmitted(profile) : false;
   const approved = profile?.approvalStatus === "approved";
-  const progress = approved || submitted ? 100 : reviewReady ? 90 : hasCore ? 65 : hasPhoto ? 45 : 25;
+  const completedJourneySteps = 1 + (hasCore ? 1 : 0) + (hasPhoto ? 1 : 0) + (submitted ? 1 : 0);
+  const progress = completedJourneySteps * 25;
   const BackIcon = isRtl ? ArrowRight : ArrowLeft;
 
   if (loading) return <SafeAreaView style={styles.screen}><View style={styles.center}><ActivityIndicator color={theme.accent}/><Text style={styles.loadingText}>{isArabic ? "نجهز رحلتك" : "Preparing your journey"}</Text></View></SafeAreaView>;
@@ -87,9 +88,9 @@ export default function TalentProfileJourneyScreen() {
       <Text style={[styles.subtitle, isRtl && styles.textRtl]}>{approved ? (isArabic ? "استمر في تطوير معرضك وبياناتك، واستكشف الفرص المناسبة لك." : "Keep your portfolio fresh and explore opportunities that fit you.") : submitted ? (isArabic ? "أنجزت المطلوب حاليًا. لا تحتاج لإعادة الإرسال؛ سنحدث الحالة هنا عند اتخاذ قرار المراجعة." : "You’ve completed the current setup. No need to resubmit; this screen updates when review status changes.") : (isArabic ? "نمشي معك خطوة بخطوة. ركّز على البيانات المطلوبة أولًا، ثم الصور، وبعدها أرسل ملفك للمراجعة." : "We’ll guide you step by step: required details first, then your portfolio, then review submission.")}</Text>
 
       <View style={styles.progressCard}>
-        <View style={[styles.progressCopy, isRtl && styles.rowRtl]}><Text style={[styles.progressLabel, isRtl && styles.textRtl]}>{isArabic ? "تقدم الإعداد" : "Setup progress"}</Text><Text style={styles.progressValue}>{progress}%</Text></View>
+        <View style={[styles.progressCopy, isRtl && styles.rowRtl]}><Text style={[styles.progressLabel, isRtl && styles.textRtl]}>{isArabic ? "تقدم رحلة الإعداد" : "Setup journey progress"}</Text><Text style={styles.progressValue}>{progress}%</Text></View>
         <View accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 100, now: progress }} style={styles.track}><View style={[styles.fill, { width: `${progress}%` }]} /></View>
-        <Text style={[styles.progressHint, isRtl && styles.textRtl]}>{approved ? (isArabic ? "معتمد" : "Approved") : submitted ? (isArabic ? "قيد المراجعة" : "Under review") : reviewReady ? (isArabic ? "جاهز للإرسال" : "Ready to submit") : (isArabic ? "أكمل الخطوة الحالية للانتقال تلقائيًا" : "Complete the current step to move forward")}</Text>
+        <Text style={[styles.progressHint, isRtl && styles.textRtl]}>{approved ? (isArabic ? "معتمد" : "Approved") : submitted ? (isArabic ? "تمت خطوات الإعداد والملف قيد المراجعة" : "Setup complete and profile is under review") : reviewReady ? (isArabic ? "3 من 4 خطوات مكتملة — جاهز للإرسال" : "3 of 4 steps complete — ready to submit") : (isArabic ? "هذه نسبة خطوات الإعداد وليست نسبة اكتمال الملف" : "This tracks setup steps, not profile completion")}</Text>
       </View>
 
       {error ? <View style={styles.errorCard}><Text style={[styles.errorText, isRtl && styles.textRtl]}>{error}</Text><Pressable onPress={() => void load()} style={styles.retry}><Text style={styles.retryText}>{isArabic ? "إعادة المحاولة" : "Try again"}</Text></Pressable></View> : null}
