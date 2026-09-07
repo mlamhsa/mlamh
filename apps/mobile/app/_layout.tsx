@@ -3,7 +3,7 @@ import * as Linking from "expo-linking";
 import { type ErrorBoundaryProps, type Href, router, Stack, usePathname } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
-import { SafeAreaProvider } from "react-native-safe-area-context";
+import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { getMobileAccountContext } from "@/lib/account";
 import { getAccountHomeHref } from "@/lib/account-routing";
@@ -34,7 +34,9 @@ async function resolvePostAuthHref(): Promise<Href> {
   const accountHref = getAccountHomeHref(account);
   if (accountHref) return accountHref;
   const { data: { user } } = await supabase.auth.getUser();
-  return user?.user_metadata?.account_type === "publisher" ? "/publisher/setup" : "/onboarding";
+  if (user?.user_metadata?.account_type === "publisher") return "/publisher/setup";
+  if (user?.user_metadata?.account_type === "talent") return "/onboarding";
+  return "/signup";
 }
 
 async function routeIncomingUrl(url: string) {
@@ -64,6 +66,7 @@ export function ErrorBoundary({ retry }: ErrorBoundaryProps) {
 function RootNavigator() {
   const { locale } = useAppLocale();
   const pathname = usePathname();
+  const insets = useSafeAreaInsets();
   const [transitioning, setTransitioning] = useState(false);
   const initialPath = useRef(true);
 
@@ -81,7 +84,7 @@ function RootNavigator() {
     <StatusBar style="light" />
     <View style={navigationStyles.root}>
       <Stack key={locale} screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#050505" }, animation: "fade", animationDuration: 180, gestureEnabled: true }} />
-      {transitioning ? <View pointerEvents="none" accessibilityLiveRegion="polite" style={navigationStyles.feedback}>
+      {transitioning ? <View pointerEvents="none" accessibilityLiveRegion="polite" style={[navigationStyles.feedback, { top: insets.top + 12 }, locale === "ar" && navigationStyles.feedbackRtl]}>
         <ActivityIndicator size="small" color="#C9A962" />
         <Text style={[navigationStyles.feedbackText, locale === "ar" && navigationStyles.feedbackTextRtl]}>{locale === "ar" ? "جارٍ فتح الصفحة…" : "Opening…"}</Text>
       </View> : null}
@@ -106,7 +109,8 @@ export default function RootLayout() {
 
 const navigationStyles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#050505" },
-  feedback: { position: "absolute", top: 58, alignSelf: "center", zIndex: 100, minHeight: 38, paddingHorizontal: 14, borderRadius: 19, borderWidth: 1, borderColor: "#C9A96233", backgroundColor: "#15130FEE", flexDirection: "row", alignItems: "center", gap: 8 },
+  feedback: { position: "absolute", alignSelf: "center", zIndex: 100, minHeight: 38, paddingHorizontal: 14, borderRadius: 19, borderWidth: 1, borderColor: "#C9A96233", backgroundColor: "#15130FEE", flexDirection: "row", alignItems: "center", gap: 8 },
+  feedbackRtl: { flexDirection: "row-reverse" },
   feedbackText: { color: "#F5F5F0", fontSize: 11, fontWeight: "800" },
   feedbackTextRtl: { writingDirection: "rtl", textAlign: "right" },
 });
