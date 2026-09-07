@@ -119,6 +119,19 @@ async function selectAccountTypeAction(
     );
   }
 
+  if (
+    accountType === "publisher" &&
+    String(
+      formData.get(
+        "publisher_intent_confirmed",
+      ) ?? "",
+    ) !== "yes"
+  ) {
+    redirect(
+      `/${locale}/join/account-type?error=publisher_confirmation`,
+    );
+  }
+
   const authClient =
     await createServerSupabaseClient();
 
@@ -517,8 +530,8 @@ if (
 
             <p className="mx-auto mt-4 max-w-2xl text-sm leading-7 text-white/45">
               {isRtl
-                ? "اختر المسار المناسب لك. يمكنك استكمال بقية بياناتك لاحقًا من لوحة التحكم."
-                : "Choose the right path. You can complete the rest of your information later from your dashboard."}
+                ? "إذا كنت ممثلًا أو مودل وتريد التقدم للفرص، اختر مسار الموهبة. اختر مسار الناشر فقط إذا كنت تريد نشر فرص والبحث عن مواهب لمشروعك."
+                : "If you are an actor or model applying to opportunities, choose Talent. Choose Publisher only if you need to publish opportunities and find talent for a project."}
             </p>
           </div>
 
@@ -542,13 +555,19 @@ if (
 
               <button
                 type="submit"
-                className="group h-full min-h-[280px] w-full rounded-[2rem] border border-white/10 bg-white/[0.035] p-8 text-start transition hover:border-gold/40 hover:bg-gold/[0.05]"
+                className="group h-full min-h-[320px] w-full rounded-[2rem] border border-gold/30 bg-gold/[0.055] p-8 text-start transition hover:border-gold/60 hover:bg-gold/[0.08]"
               >
-                <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-full border border-gold/20 bg-gold/[0.06] text-gold">
+                <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-full border border-gold/25 bg-gold/[0.08] text-gold">
                   <Sparkles
                     size={24}
                   />
                 </div>
+
+                <p className="mb-3 text-xs uppercase tracking-[0.18em] text-gold/75">
+                  {isRtl
+                    ? "للممثلين والمودلز والمواهب"
+                    : "For actors, models and talent"}
+                </p>
 
                 <h2 className="text-3xl font-light text-white">
                   {isRtl
@@ -556,10 +575,10 @@ if (
                     : "I am Talent"}
                 </h2>
 
-                <p className="mt-4 text-sm leading-7 text-white/45">
+                <p className="mt-4 text-sm leading-7 text-white/55">
                   {isRtl
-                    ? "أنشئ ملفك المهني، اعرض أعمالك، وتقدم على الفرص المناسبة."
-                    : "Create your professional profile, showcase your work, and apply to opportunities."}
+                    ? "أنشئ ملفك المهني، اعرض أعمالك، وتقدم على الفرص المناسبة. إذا كنت تبحث عن فرصة تمثيل أو مودل، فهذا هو المسار الصحيح."
+                    : "Create your professional profile, showcase your work, and apply to opportunities. If you are looking for acting or modeling opportunities, this is the correct path."}
                 </p>
 
                 <p className="mt-8 text-xs uppercase tracking-[0.22em] text-gold">
@@ -570,29 +589,52 @@ if (
               </button>
             </form>
 
-            <div className="rounded-[2rem] border border-white/10 bg-white/[0.035] p-8">
-              <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-full border border-gold/20 bg-gold/[0.06] text-gold">
+            <form
+              action={
+                selectAccountTypeAction
+              }
+              className="rounded-[2rem] border border-white/10 bg-white/[0.035] p-8"
+            >
+              <input
+                type="hidden"
+                name="locale"
+                value={locale}
+              />
+
+              <input
+                type="hidden"
+                name="account_type"
+                value="publisher"
+              />
+
+              <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-full border border-white/15 bg-white/[0.04] text-white/70">
                 <BriefcaseBusiness
                   size={24}
                 />
               </div>
 
+              <p className="mb-3 text-xs uppercase tracking-[0.18em] text-white/40">
+                {isRtl
+                  ? "للجهات وأصحاب المشاريع"
+                  : "For organizations and project owners"}
+              </p>
+
               <h2 className="text-3xl font-light text-white">
                 {isRtl
-                  ? "أنا ناشر"
-                  : "I am Publisher"}
+                  ? "أريد نشر فرص والبحث عن مواهب"
+                  : "I want to publish opportunities"}
               </h2>
 
               <p className="mt-4 text-sm leading-7 text-white/45">
                 {isRtl
-                  ? "انشر الفرص وابحث عن المواهب المناسبة لمشاريعك."
-                  : "Publish opportunities and discover the right talent for your projects."}
+                  ? "هذا المسار مخصص لمن لديه مشروع أو تصوير أو حملة ويريد نشر فرصة واستقبال طلبات المواهب. إذا كنت تريد التقدم للفرص، اختر «أنا موهبة» بدلًا من ذلك."
+                  : "This path is for people or organizations with a project, production or campaign who want to publish an opportunity and receive talent applications. If you want to apply to opportunities, choose Talent instead."}
               </p>
 
               <p className="mt-7 text-xs uppercase tracking-[0.2em] text-gold">
                 {isRtl
-                  ? "اختر نوع الناشر"
-                  : "Select publisher type"}
+                  ? "1. اختر صفتك كناشر"
+                  : "1. Select publisher type"}
               </p>
 
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -602,60 +644,73 @@ if (
                       type.icon;
 
                     return (
-                      <form
+                      <label
                         key={
                           type.value
                         }
-                        action={
-                          selectAccountTypeAction
-                        }
+                        className="flex min-h-16 cursor-pointer items-center gap-3 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-start transition has-[:checked]:border-gold/50 has-[:checked]:bg-gold/[0.08] hover:border-gold/30"
                       >
                         <input
-                          type="hidden"
-                          name="locale"
-                          value={
-                            locale
-                          }
-                        />
-
-                        <input
-                          type="hidden"
-                          name="account_type"
-                          value="publisher"
-                        />
-
-                        <input
-                          type="hidden"
+                          type="radio"
                           name="publisher_type"
                           value={
                             type.value
                           }
+                          required
+                          className="sr-only"
                         />
 
-                        <button
-                          type="submit"
-                          className="flex min-h-16 w-full items-center gap-3 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-start transition hover:border-gold/40 hover:bg-gold/[0.06]"
-                        >
-                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-gold/20 bg-gold/[0.05] text-gold">
-                            <Icon
-                              size={
-                                17
-                              }
-                            />
-                          </span>
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-gold/20 bg-gold/[0.05] text-gold">
+                          <Icon
+                            size={
+                              17
+                            }
+                          />
+                        </span>
 
-                          <span className="text-sm text-white/75">
-                            {isRtl
-                              ? type.ar
-                              : type.en}
-                          </span>
-                        </button>
-                      </form>
+                        <span className="text-sm text-white/75">
+                          {isRtl
+                            ? type.ar
+                            : type.en}
+                        </span>
+                      </label>
                     );
                   },
                 )}
               </div>
-            </div>
+
+              <div className="mt-7 rounded-2xl border border-amber-300/15 bg-amber-300/[0.04] p-4">
+                <p className="text-xs uppercase tracking-[0.18em] text-amber-100/60">
+                  {isRtl
+                    ? "2. تأكيد قبل إنشاء حساب الناشر"
+                    : "2. Confirm before creating a publisher account"}
+                </p>
+
+                <label className="mt-3 flex cursor-pointer items-start gap-3 text-sm leading-6 text-white/65">
+                  <input
+                    type="checkbox"
+                    name="publisher_intent_confirmed"
+                    value="yes"
+                    required
+                    className="mt-1 h-4 w-4 shrink-0 accent-[#D4A017]"
+                  />
+                  <span>
+                    {isRtl
+                      ? "أؤكد أنني أريد نشر فرص أو البحث عن مواهب لمشروع، ولست هنا للتقديم على فرص كممثل أو مودل."
+                      : "I confirm that I want to publish opportunities or find talent for a project, and I am not here to apply to opportunities as an actor or model."}
+                  </span>
+                </label>
+              </div>
+
+              <button
+                type="submit"
+                className="mt-6 w-full rounded-2xl border border-gold/35 bg-gold/[0.1] px-5 py-4 text-sm font-medium text-gold transition hover:border-gold/60 hover:bg-gold/[0.14]"
+              >
+                {isRtl
+                  ? "تأكيد وإنشاء حساب ناشر"
+                  : "Confirm and create Publisher account"}
+              </button>
+            </form>
           </div>
         </div>
       </div>
