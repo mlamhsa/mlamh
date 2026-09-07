@@ -1,3 +1,5 @@
+import { getOutreachReadiness } from "@/lib/marketing/leads/outreach-readiness";
+
 export type DemandLeadFact = {
   id: number;
   contact_id?: number | null;
@@ -75,12 +77,6 @@ function clean(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
-function contactRole(metadata: unknown) {
-  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return null;
-  const row = metadata as Record<string, unknown>;
-  return clean(row.job_title) ?? clean(row.role) ?? clean(row.title);
-}
-
 function pct(part: number, total: number) {
   return total > 0 ? Math.round((part / total) * 100) : null;
 }
@@ -89,10 +85,12 @@ function ids(rows: Array<number | null | undefined>) {
   return new Set(rows.filter((value): value is number => Number.isInteger(value) && Number(value) > 0));
 }
 
+function intersect(a: Set<number>, b: Set<number>) {
+  return new Set([...a].filter((value) => b.has(value)));
+}
+
 function intersectCount(a: Set<number>, b: Set<number>) {
-  let total = 0;
-  for (const value of a) if (b.has(value)) total += 1;
-  return total;
+  return intersect(a, b).size;
 }
 
 export function buildDemandQuality(input: DemandQualityInput): DemandQualitySnapshot {
@@ -108,16 +106,22 @@ export function buildDemandQuality(input: DemandQualityInput): DemandQualitySnap
     if (!lead.contact_id) continue;
     const contact = contactById.get(lead.contact_id);
     if (!contact) continue;
-    const hasName = Boolean(clean(contact.contact_name));
-    const hasRole = Boolean(contactRole(contact.metadata));
-    const hasChannel = Boolean(clean(contact.email) || clean(contact.linkedin_url));
-    if (hasName && hasRole && hasChannel) ready.add(lead.id);
+    if (getOutreachReadiness(contact).isReady) ready.add(lead.id);
   }
 
-  const prepared = ids(input.outreach.map((row) => row.lead_id));
-  const sent = ids(input.outreach.filter((row) => row.send_status === "sent").map((row) => row.lead_id));
-  const replied = ids(input.outreach.filter((row) => clean(row.reply_status) && row.reply_status !== "none").map((row) => row.lead_id));
-  const positive = ids(input.outreach.filter((row) => row.reply_status === "qualified" || row.outcome === "interested").map((row) => row.lead_id));
+  // Quality progression is sequential. Historical outreach rows that were created
+  // before a lead satisfied the shared readiness contract remain raw evidence in
+  // marketing_outreach, but they do not count as a successful prepared/sent stage.
+  const preparedEvidence = ids(input.outreach.map((row) => row.lead_id));
+  const sentEvidence = ids(input.outreach.filter((row) => row.send_status === "sent").map((row) => row.lead_id));
+  const repliedEvidence = ids(input.outreach.filter((row) => clean(row.reply_status) && row.reply_status !== "none").map((row) => row.lead_id));
+  const positiveEvidence = ids(input.outreach.filter((row) => row.reply_status === "qualified" || row.outcome === "interested").map((row) => row.lead_id));
+
+  const prepared = intersect(ready, preparedEvidence);
+  const sent = intersect(prepared, sentEvidence);
+  const replied = intersect(sent, repliedEvidence);
+  const positive = intersect(replied, positiveEvidence);
+
   const brief = ids(input.briefs.map((row) => row.lead_id));
   const completeBrief = ids(input.briefs.filter((row) => row.status === "complete").map((row) => row.lead_id));
   const opportunity = ids(input.briefs.filter((row) => row.opportunity_id !== null && row.opportunity_id !== undefined).map((row) => row.lead_id));
@@ -129,8 +133,8 @@ export function buildDemandQuality(input: DemandQualityInput): DemandQualitySnap
   const readyLeadCount = intersectCount(leadIds, ready);
   const preparedLeadCount = intersectCount(leadIds, prepared);
   const sentLeadCount = intersectCount(leadIds, sent);
-  const repliedLeadCount = intersectCount(sent, replied);
-  const positiveReplyLeadCount = intersectCount(replied, positive);
+  const repliedLeadCount = intersectCount(leadIds, replied);
+  const positiveReplyLeadCount = intersectCount(leadIds, positive);
   const briefLeadCount = intersectCount(leadIds, brief);
   const completeBriefLeadCount = intersectCount(leadIds, completeBrief);
   const opportunityLeadCount = intersectCount(leadIds, opportunity);
