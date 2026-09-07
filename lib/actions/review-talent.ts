@@ -5,6 +5,7 @@ import { createEvent } from "@/lib/events/create-event";
 
 import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getTalentProfileReviewReadiness } from "@/lib/talent/profile-review-readiness";
 
 type ReviewDecision =
   | "approved"
@@ -90,18 +91,33 @@ async function updateTalentReviewStatus({
     createAdminClient();
 
   /*
-   * 1. قراءة الموهبة والحالة الحالية.
-   * image_url يُقرأ هنا أيضًا لأن الاعتماد والنشر
-   * ممنوعان إذا لم توجد صورة شخصية.
+   * 1. قراءة الموهبة والحالة الحالية وحقول الجاهزية.
+   * الاعتماد اليدوي يستخدم نفس قاعدة الجاهزية المعتمدة
+   * لإرسال الملف وللتقديم على الفرص.
    */
   const {
     data: talent,
     error: talentError,
   } = await adminClient
     .from("talents")
-    .select(
-      "id, user_id, status, published, image_url",
-    )
+    .select(`
+      id,
+      user_id,
+      status,
+      published,
+      image_url,
+      name_ar,
+      name_en,
+      primary_role,
+      category_slug,
+      category_en,
+      category_ar,
+      city_slug,
+      gender,
+      nationality,
+      nationality_slug,
+      date_of_birth
+    `)
     .eq("id", id)
     .maybeSingle();
 
@@ -140,17 +156,27 @@ async function updateTalentReviewStatus({
     };
   }
 
-  if (
-    decision === "approved" &&
-    !String(talent.image_url ?? "").trim()
-  ) {
-    return {
-      success: false,
-      message:
-        locale === "ar"
-          ? "لا يمكن اعتماد أو نشر ملف الموهبة قبل رفع صورة شخصية. اطلب من الموهبة إضافة صورة ثم أعد المراجعة."
-          : "The talent profile cannot be approved or published until a profile photo is uploaded. Ask the talent to add a photo, then review the profile again.",
-    };
+  if (decision === "approved") {
+    const readiness =
+      getTalentProfileReviewReadiness(talent);
+
+    if (!readiness.canSubmitForReview) {
+      const missingFields = readiness.missingRequirements
+        .map((requirement) =>
+          locale === "ar"
+            ? requirement.ar
+            : requirement.en,
+        )
+        .join(locale === "ar" ? "، " : ", ");
+
+      return {
+        success: false,
+        message:
+          locale === "ar"
+            ? `لا يمكن اعتماد أو نشر الملف قبل اكتمال المتطلبات الأساسية: ${missingFields}`
+            : `The profile cannot be approved or published until the required information is complete: ${missingFields}`,
+      };
+    }
   }
 
   /*
@@ -399,37 +425,39 @@ async function updateTalentReviewStatus({
           : "The review history could not be saved, so the decision was rolled back.",
     };
   }
-/*
- * 7. إنشاء حدث النظام.
- *
- * createEvent يقوم بـ:
- * - تسجيل الحدث في events
- * - تمريره إلى NotificationHandler
- * - إنشاء إشعار للمستخدم المستهدف
- */
-const eventType =
-  decision === "approved"
-    ? "talent_approved"
-    : decision === "changes_requested"
-      ? "talent_changes_requested"
-      : "talent_rejected";
 
-await createEvent({
-  type: eventType,
-  target: "talent",
-  targetId: talent.id,
-  actorId: adminUser.id,
-  metadata: {
-    locale,
-    talent_id: id,
-    profile_id: profile.id,
-    reason: reason ?? null,
-    admin_note: adminNote ?? null,
-  },
-});
   /*
- * 8. تحديث الصفحات المتأثرة.
- */
+   * 7. إنشاء حدث النظام.
+   *
+   * createEvent يقوم بـ:
+   * - تسجيل الحدث في events
+   * - تمريره إلى NotificationHandler
+   * - إنشاء إشعار للمستخدم المستهدف
+   */
+  const eventType =
+    decision === "approved"
+      ? "talent_approved"
+      : decision === "changes_requested"
+        ? "talent_changes_requested"
+        : "talent_rejected";
+
+  await createEvent({
+    type: eventType,
+    target: "talent",
+    targetId: talent.id,
+    actorId: adminUser.id,
+    metadata: {
+      locale,
+      talent_id: id,
+      profile_id: profile.id,
+      reason: reason ?? null,
+      admin_note: adminNote ?? null,
+    },
+  });
+
+  /*
+   * 8. تحديث الصفحات المتأثرة.
+   */
   revalidateTalentReviewPaths(id);
 
   const successMessage =
