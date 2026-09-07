@@ -46,7 +46,7 @@ Status: ACTIVE
 - NEXT — Strengthen lead-to-opportunity attribution where telemetry gaps remain.
 
 ### B. Talent acquisition and activation
-Status: ACTIVE
+Status: CORE LOOP IMPLEMENTED
 - DONE — Lifetime talent activation funnel upgraded from raw counts to conversion diagnostics.
 - DONE — 7-day registration cohort added for completion, submission and approval progression.
 - DONE — Largest current activation bottleneck is derived from observed funnel drop-off rather than guessed.
@@ -54,18 +54,21 @@ Status: ACTIVE
 - DONE — Funnel math is covered by unit tests, including zero-denominator and activity-overlap cases.
 - DONE — Talent Growth remains read-only; no Production DML is introduced by the diagnostics page.
 - DONE — Explicit account-role selection telemetry added at the governed join decision point.
-- DONE — Talent Growth now separates Talent vs Publisher selections from the instrumentation start date instead of inferring historical intent.
-- NEXT — Add correction telemetry only if a governed account-role correction flow is introduced; do not infer mistakes from publisher share alone.
-- NEXT — Opportunity-led acquisition and referral/sharing loop measurement.
-- NEXT — Qualified supply gap reporting inside the growth view.
+- DONE — Talent Growth separates Talent vs Publisher selections from the instrumentation start date instead of inferring historical intent.
+- DONE — Opportunity share actions already use the existing share event; shared links now carry first-party MLAMH attribution.
+- DONE — Opportunity views can identify verified traffic arriving through a tracked MLAMH share link and channel.
+- DONE — Opportunity Growth reports share activity, attributed shared-link views and views-per-share without claiming a messaging-platform click equals a visit.
+- DONE — Qualified supply-gap reporting reuses Dana's persisted `talent_supply_gap` snapshot rather than running a parallel matching engine.
+- DEFERRED — Account-role correction telemetry until a governed correction flow exists; publisher share alone is not evidence of a mistake.
+- NEXT — Carry first-party acquisition attribution farther into signup/application outcomes under the shared attribution workstream.
 
 ### C. Organic content and distribution
-Status: NEXT
-- Content strategy tied to growth goals.
-- Opportunity social distribution.
-- Channel-specific copy.
-- Reusable creative system.
-- Organic social measurement.
+Status: VERIFIED FOUNDATION / NEXT MEASUREMENT
+- VERIFIED — Existing Content Studio has content objectives, AI drafts, copy → creative → approval → publishing flow.
+- VERIFIED — Existing Social Scheduler preserves approval before publishing and supports channel-specific execution.
+- VERIFIED — Opportunity sharing provides an organic distribution path with first-party share/view measurement.
+- NEXT — Link published organic content to attributed visits and marketplace outcomes consistently.
+- NEXT — Add channel/content performance diagnostics only where recorded external or first-party evidence exists.
 
 ### D. SEO and discovery
 Status: NEXT
@@ -91,6 +94,7 @@ Status: ACTIVE FOUNDATION
 - Email feedback diagnostics.
 - Channel quality, not only traffic volume.
 - Marketplace outcomes as north-star evidence.
+- DONE — First-party opportunity-share source/channel attribution at the shared-link view layer.
 
 ## Deferred until prerequisites exist
 - Paid ads and ad creative at scale.
