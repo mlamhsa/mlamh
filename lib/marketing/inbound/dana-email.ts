@@ -1,6 +1,7 @@
 import { getMarketingAIProvider } from "@/lib/marketing/ai/provider";
 import { createMarketingTask } from "@/lib/marketing/tasks/service";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { applyDanaInboundEmailQualityGuard } from "./dana-email-quality";
 
 function record(value: unknown) {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -94,6 +95,7 @@ async function createReplyApproval({
       executive_summary: text(analysis.executive_summary),
       intent: text(analysis.intent),
       updated_requirements: record(analysis.updated_requirements),
+      quality_flags: Array.isArray(analysis.quality_flags) ? analysis.quality_flags : [],
       follow_up_needed: analysis.follow_up_needed === true,
       client_language: text(analysis.client_language) ?? "ar",
       sender_identity: "MLAMH Team | Partnerships & Casting",
@@ -104,6 +106,7 @@ async function createReplyApproval({
       inbound_email: true,
       provider: "zoho_mail",
       requires_ceo: requiresCeo,
+      quality_flags: Array.isArray(analysis.quality_flags) ? analysis.quality_flags : [],
     },
     idempotencyKey: `dana-inbound-reply-approval:${text(input.zoho_message_id) ?? taskId}`,
     maxRetries: 0,
@@ -145,7 +148,7 @@ export async function processDanaInboundEmailTask(taskId: number) {
       messages: [
         {
           role: "system",
-          content: "You are Dana, MLAMH's inbound commercial and client-response operator. Read the supplied inbound email together with the existing MLAMH conversation and lead context. Never invent facts, talent availability, prices, dates, commitments, relationships, or actions. Preserve the customer's language. Extract only changes actually stated by the customer. Draft a concise, professional response that advances the conversation. If the message involves pricing, discounts, partnership terms, contracts, legal matters, guarantees, ad spend, sponsorship, or a binding commercial commitment, set requires_ceo=true and do not make or accept the commitment in the draft. Return JSON only with: executive_summary, intent, client_language, updated_requirements, observed_facts, missing_information, reply_draft, requires_ceo, follow_up_needed, recommended_next_action. Never claim the reply was sent.",
+          content: "You are Dana, MLAMH's inbound commercial and client-response operator. Read the supplied inbound email together with the existing MLAMH conversation and lead context. Never invent facts, talent availability, prices, dates, commitments, relationships, identities, or actions. Preserve the customer's language. Extract only changes actually stated by the customer. Never infer that two display names represent different people, assistants, colleagues, or unauthorized senders unless the customer explicitly says so. Never infer whether a budget is total or per talent unless the inbound message explicitly states the basis. If the budget basis is unclear, mark it unspecified and ask one concise clarification question. Draft a concise, professional response that advances the conversation. If the customer language is Arabic, every human-readable response field must be Arabic; Latin characters are allowed only for proper nouns, email addresses, URLs, product names, currency codes, or technical identifiers. Never output Chinese, Japanese, or Korean characters. If the message involves pricing, discounts, partnership terms, contracts, legal matters, guarantees, ad spend, sponsorship, or a binding commercial commitment, set requires_ceo=true and do not make or accept the commitment in the draft. Return JSON only with: executive_summary, intent, client_language, updated_requirements, observed_facts, missing_information, reply_draft, requires_ceo, follow_up_needed, recommended_next_action. Never claim the reply was sent.",
         },
         {
           role: "user",
@@ -164,11 +167,17 @@ export async function processDanaInboundEmailTask(taskId: number) {
 
     let parsed: Record<string, unknown> = {};
     try { parsed = record(JSON.parse(response.content)); } catch { parsed = { executive_summary: response.content }; }
+    const inbound = record(task.input);
+    parsed = applyDanaInboundEmailQualityGuard({
+      analysis: parsed,
+      inboundContent: text(inbound.content) ?? "",
+    });
+
     const materialized = await createReplyApproval({
       taskId: task.id,
       conversationId: task.conversation_id,
       leadId: task.lead_id ?? null,
-      input: record(task.input),
+      input: inbound,
       analysis: parsed,
     });
 
@@ -210,6 +219,7 @@ export async function processDanaInboundEmailTask(taskId: number) {
         conversation_id: task.conversation_id,
         approval_task_id: materialized.approvalTaskId,
         requires_ceo: bool(parsed.requires_ceo),
+        quality_flags: Array.isArray(parsed.quality_flags) ? parsed.quality_flags : [],
         provider: response.provider,
         model: response.model ?? null,
       },
