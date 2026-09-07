@@ -3,7 +3,13 @@ import type { Href } from "expo-router";
 const ALLOWED_MLAMH_ORIGINS = new Set(["https://mlamh.net", "https://www.mlamh.net"]);
 const SAFE_RELATIVE_BASE = "https://mlamh.net";
 const APP_SCHEME = "mlamh:";
-const SUPPORT_PATHS = new Set(["support", "privacy", "terms", "refund-policy", "complaints"]);
+const SUPPORT_PATHS = new Set(["support", "complaints"]);
+const LEGAL_PATHS: Record<string, "privacy" | "terms" | "refund"> = {
+  privacy: "privacy",
+  terms: "terms",
+  refund: "refund",
+  "refund-policy": "refund",
+};
 
 function getPathSegments(rawUrl: string) {
   if (typeof rawUrl !== "string" || rawUrl.length === 0 || rawUrl.length > 2048) return null;
@@ -46,6 +52,9 @@ export function getMobileHrefFromUrl(rawUrl: string): Href | null {
   if (segments[0] === "applications") return "/applications" as Href;
   if (segments[0] === "notifications") return "/notifications" as Href;
   if (segments[0] === "profile") return "/profile" as Href;
+  if (segments[0] && LEGAL_PATHS[segments[0]]) {
+    return { pathname: "/legal", params: { section: LEGAL_PATHS[segments[0]] } } as Href;
+  }
   if (segments[0] && SUPPORT_PATHS.has(segments[0])) return "/support" as Href;
   if (segments.length === 0 || segments[0] === "home") return "/opportunities" as Href;
   return null;
