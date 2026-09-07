@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
+import { Image, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { type Href, router, useLocalSearchParams } from "expo-router";
 import { ArrowLeft, ArrowRight, Eye, EyeOff, LockKeyhole, Mail } from "lucide-react-native";
@@ -11,6 +11,9 @@ import { useAppLocale } from "@/lib/locale-context";
 import { getSafePostLoginPath } from "@/lib/post-login-route";
 import { supabase } from "@/lib/supabase";
 import { darkTheme } from "@/lib/theme";
+
+const BRAND_LOGO_AR = require("../assets/logo.ar.png");
+const BRAND_LOGO_EN = require("../assets/logo.en.png");
 
 async function resolvePostLoginDestination(nextParam?: string): Promise<Href> {
   const account = await getMobileAccountContext().catch(() => null);
@@ -92,15 +95,16 @@ export default function LoginScreen() {
   }
 
   const textAlign = isRtl ? "right" : "left";
+  const brandSource = isArabic ? BRAND_LOGO_AR : BRAND_LOGO_EN;
   return <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.screen}>
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.scrollContent, compact && styles.scrollContentCompact]} showsVerticalScrollIndicator={false}>
-        <View style={[styles.content, compact && styles.contentCompact, { direction: isRtl ? "rtl" : "ltr" }]}>
+        <View style={[styles.content, compact && styles.contentCompact]}>
           <View style={[styles.topRow, compact && styles.topRowCompact, isRtl && styles.topRowRtl]}>
             <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "رجوع" : "Back"} onPress={() => router.back()} hitSlop={12} style={styles.iconButton}>
               {isRtl ? <ArrowRight size={22} color={theme.text} strokeWidth={1.8} /> : <ArrowLeft size={22} color={theme.text} strokeWidth={1.8} />}
             </Pressable>
-            <View style={styles.brandLockup}><Text style={styles.brandWordmark}>MLAMH</Text></View>
+            <View style={styles.brandLockup}><Image source={brandSource} resizeMode="contain" style={[styles.brandLogo, compact && styles.brandLogoCompact]} /></View>
             <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "English" : "العربية"} onPress={() => changeLocale(isArabic ? "en" : "ar")} style={styles.languageButton}><Text style={[styles.languageButtonText, isArabic && styles.arabicText]}>{isArabic ? "EN" : "العربية"}</Text></Pressable>
           </View>
 
@@ -156,8 +160,9 @@ function createStyles(theme: typeof darkTheme) { return StyleSheet.create({
   iconButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, borderColor: theme.border, alignItems: "center", justifyContent: "center", backgroundColor: theme.surface },
   languageButton: { minWidth: 42, height: 42, paddingHorizontal: 10, borderRadius: 21, borderWidth: 1, borderColor: theme.border, alignItems: "center", justifyContent: "center", backgroundColor: theme.surface },
   languageButtonText: { color: theme.accent, fontSize: 11, fontWeight: "800" },
-  brandLockup: { alignItems: "center", justifyContent: "center" },
-  brandWordmark: { color: theme.accent, fontSize: 18, fontWeight: "900", letterSpacing: 3.2 },
+  brandLockup: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 8 },
+  brandLogo: { width: 132, height: 52 },
+  brandLogoCompact: { width: 112, height: 44 },
   header: { gap: 7 },
   eyebrow: { color: theme.accent, fontSize: 10, fontWeight: "900", letterSpacing: 2.6 },
   arabicEyebrow: { letterSpacing: 0, writingDirection: "rtl" },
@@ -175,18 +180,18 @@ function createStyles(theme: typeof darkTheme) { return StyleSheet.create({
   forgotLink: { color: theme.accent, fontSize: 11, fontWeight: "700" },
   errorBox: { borderWidth: 1, borderColor: "#C84F4F66", backgroundColor: "#C84F4F14", borderRadius: 12, padding: 12 },
   error: { color: "#E59A9A", fontSize: 13, lineHeight: 20 },
-  primaryButton: { backgroundColor: theme.accent, borderRadius: 14, minHeight: 54, alignItems: "center", justifyContent: "center" },
+  primaryButton: { backgroundColor: theme.accent, minHeight: 54, borderRadius: 14, alignItems: "center", justifyContent: "center", paddingHorizontal: 18 },
   primaryButtonText: { color: theme.background, fontSize: 15, fontWeight: "900", textAlign: "center" },
   dividerRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   dividerLine: { flex: 1, height: 1, backgroundColor: theme.border },
-  dividerText: { color: theme.muted, fontSize: 9, fontWeight: "800" },
-  googleButton: { minHeight: 52, borderWidth: 1, borderColor: "#C9A96255", borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: "#C9A9620D" },
-  googleButtonText: { color: theme.text, fontSize: 13, textAlign: "center", fontWeight: "700" },
-  secondaryButton: { minHeight: 52, borderWidth: 1, borderColor: theme.border, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: theme.surface },
-  signupLink: { color: theme.text, fontSize: 13, textAlign: "center", fontWeight: "700" },
-  footnote: { color: theme.muted, fontSize: 8, fontWeight: "800", letterSpacing: 2, textAlign: "center", marginTop: 2 },
+  dividerText: { color: theme.muted, fontSize: 10, fontWeight: "800" },
+  googleButton: { minHeight: 52, borderRadius: 14, borderWidth: 1, borderColor: theme.border, alignItems: "center", justifyContent: "center", backgroundColor: theme.surface, paddingHorizontal: 18 },
+  googleButtonText: { color: theme.text, fontSize: 14, fontWeight: "800", textAlign: "center" },
+  secondaryButton: { minHeight: 44, alignItems: "center", justifyContent: "center" },
+  signupLink: { color: theme.accent, fontSize: 12, fontWeight: "800", textAlign: "center" },
+  footnote: { color: "#6F6F69", fontSize: 9, fontWeight: "800", letterSpacing: 2, textAlign: "center", paddingTop: 4 },
   arabicFootnote: { letterSpacing: 0, writingDirection: "rtl" },
-  disabled: { opacity: 0.4 },
-  pressed: { opacity: 0.8 },
   arabicText: { letterSpacing: 0, writingDirection: "rtl" },
+  disabled: { opacity: .45 },
+  pressed: { opacity: .82 },
 }); }
