@@ -38,9 +38,13 @@ export async function updateMobileTalentProfile({ userId, locale, input }: { use
   const readyToTravel = normalizeBoolean(input.readyToTravel); const hasPassport = normalizeBoolean(input.hasPassport); const hasCar = normalizeBoolean(input.hasCar); const workOutsideCity = normalizeBoolean(input.workOutsideCity); const workOutsideCountry = normalizeBoolean(input.workOutsideCountry);
 
   let city: (typeof SAUDI_CITIES)[number] | null | undefined = undefined;
-  if (input.citySlug === null || input.citySlug === "") city = null;
-  else if (input.citySlug !== undefined && typeof input.citySlug === "string") city = SAUDI_CITIES.find((item) => item.slug === input.citySlug.trim()) ?? undefined;
-  const cityInvalid = input.citySlug !== undefined && input.citySlug !== null && input.citySlug !== "" && !city;
+  const rawCitySlug = input.citySlug;
+  if (rawCitySlug === null || rawCitySlug === "") city = null;
+  else if (typeof rawCitySlug === "string") {
+    const normalizedCitySlug = rawCitySlug.trim();
+    city = SAUDI_CITIES.find((item) => item.slug === normalizedCitySlug) ?? undefined;
+  }
+  const cityInvalid = rawCitySlug !== undefined && rawCitySlug !== null && rawCitySlug !== "" && !city;
 
   const fields = [primaryRole,displayName,bio,skills,languages,dialects,modelingTypes,gender,availability,eyeColor,hairColor,hairType,skinColor,clothingSize,dateOfBirth,nationality,height,weight,shoeSize,actingAgeMin,actingAgeMax,experienceYears,readyToTravel,hasPassport,hasCar,workOutsideCity,workOutsideCountry];
   if (fields.some((field) => !field.ok) || cityInvalid) return { ok: false as const, code: "INVALID_INPUT" as const };
