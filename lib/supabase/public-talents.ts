@@ -1,4 +1,7 @@
+import { cache } from "react";
+
 import { getCachedValue } from "@/lib/cache/public-talents";
+import { findNationality } from "@/lib/data/nationalities";
 import type { CountryCode } from "@/lib/markets/countries";
 import {
   canExposePublicMarket,
@@ -24,6 +27,12 @@ type GetPublicTalentsOptions = {
   category?: string;
   city?: string;
   countryCode?: CountryCode;
+  gender?: string;
+  nationality?: string;
+  ageMin?: number | null;
+  ageMax?: number | null;
+  heightMin?: number | null;
+  heightMax?: number | null;
 };
 
 type GetPublicTalentsResult = {
@@ -119,6 +128,61 @@ function matchesCity(talent: Talent, city?: string) {
   );
 }
 
+function matchesGender(talent: Talent, gender?: string) {
+  if (!gender) return true;
+  return String(talent.gender ?? "").trim().toLowerCase() === gender.toLowerCase();
+}
+
+function matchesNationality(talent: Talent, nationality?: string) {
+  const requested = nationality?.trim();
+  if (!requested) return true;
+  const target = findNationality(requested);
+  const candidate = findNationality(talent.nationality_slug) ?? findNationality(talent.nationality);
+  if (target && candidate) return target.slug === candidate.slug;
+  const normalizedRequested = requested.toLowerCase();
+  return [talent.nationality_slug, talent.nationality]
+    .some((value) => String(value ?? "").trim().toLowerCase() === normalizedRequested);
+}
+
+function ageFromDob(dateOfBirth?: string | null) {
+  if (!dateOfBirth) return null;
+  const birth = new Date(dateOfBirth);
+  if (Number.isNaN(birth.getTime())) return null;
+  const now = new Date();
+  let age = now.getUTCFullYear() - birth.getUTCFullYear();
+  const monthDelta = now.getUTCMonth() - birth.getUTCMonth();
+  if (monthDelta < 0 || (monthDelta === 0 && now.getUTCDate() < birth.getUTCDate())) age -= 1;
+  return age >= 0 ? age : null;
+}
+
+function matchesAdvancedFilters(talent: Talent, options: GetPublicTalentsOptions) {
+  if (!matchesGender(talent, options.gender)) return false;
+  if (!matchesNationality(talent, options.nationality)) return false;
+
+  const age = ageFromDob(talent.date_of_birth);
+  if (options.ageMin != null && (age == null || age < options.ageMin)) return false;
+  if (options.ageMax != null && (age == null || age > options.ageMax)) return false;
+
+  const height = typeof talent.height_cm === "number" ? talent.height_cm : Number(talent.height_cm);
+  if (options.heightMin != null && (!Number.isFinite(height) || height < options.heightMin)) return false;
+  if (options.heightMax != null && (!Number.isFinite(height) || height > options.heightMax)) return false;
+  return true;
+}
+
+function formatDateUtc(date: Date) {
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function birthdayCutoff(yearsAgo: number, addDay = false) {
+  const now = new Date();
+  const date = new Date(Date.UTC(now.getUTCFullYear() - yearsAgo, now.getUTCMonth(), now.getUTCDate()));
+  if (addDay) date.setUTCDate(date.getUTCDate() + 1);
+  return formatDateUtc(date);
+}
+
 function applyTalentMarketFilter<T extends { or: Function; eq: Function }>(
   query: T,
   countryCode: CountryCode,
@@ -126,6 +190,26 @@ function applyTalentMarketFilter<T extends { or: Function; eq: Function }>(
   return (countryCode === "SA"
     ? query.or("base_country_code.eq.SA,base_country_code.is.null")
     : query.eq("base_country_code", countryCode)) as T;
+}
+
+function applyAdvancedDbFilters<T extends { eq: Function; gte: Function; lte: Function; or: Function }>(
+  query: T,
+  options: GetPublicTalentsOptions,
+): T {
+  let next = query;
+  if (options.gender) next = next.eq("gender", options.gender) as T;
+  if (options.heightMin != null) next = next.gte("height_cm", options.heightMin) as T;
+  if (options.heightMax != null) next = next.lte("height_cm", options.heightMax) as T;
+  if (options.ageMin != null) next = next.lte("date_of_birth", birthdayCutoff(options.ageMin)) as T;
+  if (options.ageMax != null) next = next.gte("date_of_birth", birthdayCutoff(options.ageMax + 1, true)) as T;
+
+  const nationality = findNationality(options.nationality);
+  if (nationality) {
+    next = next.or(
+      `nationality_slug.eq.${nationality.slug},nationality.eq.${nationality.slug},nationality.eq.${nationality.en},nationality.eq.${nationality.ar}`,
+    ) as T;
+  }
+  return next;
 }
 
 function toPublicTalent(candidate: PublicTalentCandidate): Talent {
@@ -160,7 +244,16 @@ export function passesPublicTalentVisibilityPolicy(talent: TalentQualificationIn
 
 type VisiblePublishedCandidateOptions = GetPublicTalentsOptions & { collectAll?: boolean };
 
-async function getVisiblePublishedCandidates({ page = 1, pageSize = 12, search, category, city, countryCode = DEFAULT_PUBLIC_MARKET, collectAll = false }: VisiblePublishedCandidateOptions = {}): Promise<{ talents: Talent[]; total: number }> {
+async function getVisiblePublishedCandidates(options: VisiblePublishedCandidateOptions = {}): Promise<{ talents: Talent[]; total: number }> {
+  const {
+    page = 1,
+    pageSize = 12,
+    search,
+    category,
+    city,
+    countryCode = DEFAULT_PUBLIC_MARKET,
+    collectAll = false,
+  } = options;
   if (!canExposePublicMarket(countryCode, "publicTalentDirectory")) return { talents: [], total: 0 };
   const supabase = createAdminClient();
   const targetFrom = (page - 1) * pageSize;
@@ -171,12 +264,20 @@ async function getVisiblePublishedCandidates({ page = 1, pageSize = 12, search, 
   while (true) {
     let query = supabase.from("talents").select("*").eq("published", true).in("status", ["approved", "active"]).or("primary_role.in.(actor,model),category_slug.in.(actor,model)");
     query = applyTalentMarketFilter(query, countryCode);
+    query = applyAdvancedDbFilters(query, options);
     const { data, error } = await query.order("featured", { ascending: false, nullsFirst: false }).order("sort_order", { ascending: true, nullsFirst: false }).order("id", { ascending: false }).range(offset, offset + PUBLIC_DIRECTORY_BATCH_SIZE - 1);
     if (error) throw new Error(`[public-talents:candidates] ${error.message}`);
     const rows = (data ?? []) as Talent[];
     const candidates = await attachProfileApprovalContext(rows);
     for (const candidate of candidates) {
-      if (!canExposePublicTalent(candidate, countryCode) || !passesPublicTalentVisibilityPolicy(candidate) || !matchesSearch(candidate, search) || !matchesCategory(candidate, category) || !matchesCity(candidate, city)) continue;
+      if (
+        !canExposePublicTalent(candidate, countryCode) ||
+        !passesPublicTalentVisibilityPolicy(candidate) ||
+        !matchesSearch(candidate, search) ||
+        !matchesCategory(candidate, category) ||
+        !matchesCity(candidate, city) ||
+        !matchesAdvancedFilters(candidate, options)
+      ) continue;
       if (collectAll || (total >= targetFrom && total < targetTo)) talents.push(toPublicTalent(candidate));
       total += 1;
     }
@@ -203,16 +304,59 @@ async function getPublishedTalentCandidateBySlug(slug: string, countryCode: Coun
   return qualifySingleTalentCandidate(data as Talent | null, countryCode);
 }
 
-export async function getPublicTalents({ page = 1, pageSize = 12, search, category, city, countryCode = DEFAULT_PUBLIC_MARKET }: GetPublicTalentsOptions = {}): Promise<GetPublicTalentsResult> {
+export async function getPublicTalents(options: GetPublicTalentsOptions = {}): Promise<GetPublicTalentsResult> {
+  const {
+    page = 1,
+    pageSize = 12,
+    search,
+    category,
+    city,
+    countryCode = DEFAULT_PUBLIC_MARKET,
+    gender,
+    nationality,
+    ageMin,
+    ageMax,
+    heightMin,
+    heightMax,
+  } = options;
   const safePage = Math.max(1, page);
   const safePageSize = Math.min(Math.max(pageSize, 1), 48);
   const normalizedSearch = normalizeSearchValue(search);
   const normalizedCategory = normalizeSearchValue(category);
   const normalizedCity = normalizeSearchValue(city);
+  const normalizedGender = normalizeSearchValue(gender)?.toLowerCase();
+  const normalizedNationality = normalizeSearchValue(nationality);
   if (!canExposePublicMarket(countryCode, "publicTalentDirectory")) return { talents: [], total: 0, totalPages: 1, currentPage: safePage, pageSize: safePageSize };
-  const cacheKey = ["public-talents-v8", countryCode, safePage, safePageSize, normalizedSearch ?? "all", normalizedCategory ?? "all", normalizedCity ?? "all"].join(":");
+  const cacheKey = [
+    "public-talents-v9",
+    countryCode,
+    safePage,
+    safePageSize,
+    normalizedSearch ?? "all",
+    normalizedCategory ?? "all",
+    normalizedCity ?? "all",
+    normalizedGender ?? "all",
+    normalizedNationality ?? "all",
+    ageMin ?? "all",
+    ageMax ?? "all",
+    heightMin ?? "all",
+    heightMax ?? "all",
+  ].join(":");
   return getCachedValue(cacheKey, async () => {
-    const { talents, total } = await getVisiblePublishedCandidates({ page: safePage, pageSize: safePageSize, search: normalizedSearch, category: normalizedCategory, city: normalizedCity, countryCode });
+    const { talents, total } = await getVisiblePublishedCandidates({
+      page: safePage,
+      pageSize: safePageSize,
+      search: normalizedSearch,
+      category: normalizedCategory,
+      city: normalizedCity,
+      countryCode,
+      gender: normalizedGender,
+      nationality: normalizedNationality,
+      ageMin,
+      ageMax,
+      heightMin,
+      heightMax,
+    });
     return { talents, total, totalPages: Math.max(1, Math.ceil(total / safePageSize)), currentPage: safePage, pageSize: safePageSize };
   });
 }
