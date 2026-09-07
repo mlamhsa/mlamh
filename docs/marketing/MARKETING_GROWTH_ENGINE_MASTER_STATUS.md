@@ -31,7 +31,7 @@ Work progresses in one ordered stream. A task moves to DONE only when implementa
 - Campaigns and content.
 - Social and creative surfaces.
 - Analytics and experiments.
-- Talent Growth, Publisher Growth, Opportunity Growth, Channel Quality, Demand Quality and Landing Quality.
+- Talent Growth, Publisher Growth, Opportunity Growth, Channel Quality, Demand Quality, Landing Quality and AI Search Visibility.
 - Knowledge / Playbooks.
 - Integrations and marketing control.
 
@@ -81,7 +81,7 @@ Status: VERIFIED FOUNDATION / MEASUREMENT GATED
 - NEXT — Continue channel-level outcome measurement using existing UTM evidence; do not invent content-level clicks or conversions.
 
 ### D. SEO and discovery
-Status: TECHNICAL BASELINE IMPLEMENTED / SA INDEX MARKET
+Status: TECHNICAL + AI REFERRAL BASELINE IMPLEMENTED / SA INDEX MARKET
 - VERIFIED — Dynamic sitemap covers public locale roots, talent directory, opportunity directory, casting, guides, publisher pages, approved talent profiles, available talent categories/cities and opportunity intent routes.
 - VERIFIED — Market SEO gating prevents exposing a disabled market through the sitemap; the current indexed SEO market remains Saudi Arabia (`SA`).
 - VERIFIED — Robots excludes admin, API, auth, dashboards, login and join surfaces from indexing.
@@ -92,9 +92,13 @@ Status: TECHNICAL BASELINE IMPLEMENTED / SA INDEX MARKET
 - VERIFIED — Paid/open opportunity pages expose JobPosting schema with title, description, datePosted, validThrough, hiring organization and city; unpaid opportunities are intentionally excluded from JobPosting markup.
 - DONE — Public opportunity records normalize `application_deadline -> deadline -> expires_at`, so legacy expiry data reaches the existing page/application status and JobPosting `validThrough` logic instead of silently appearing evergreen.
 - DONE — Active opportunity sitemap and opportunity-intent sitemap exclude records whose known application/expiry deadline has passed.
+- DONE — Opportunity acting/modeling intent pages use active inventory only and return `noindex, follow` when no active matching inventory exists, preventing thin empty intent pages from remaining indexable.
+- DONE — AI Search Visibility classifies only explicit referral/source evidence from ChatGPT, Perplexity, Microsoft Copilot, Gemini and Claude and reports observed page views, linkable sessions and verified downstream outcomes.
+- DONE — AI Search outcome rates are computed only when an observed AI referral session ID can be linked to the verified server outcome; missing linkage remains blank rather than inferred.
+- POLICY — Ordinary Google traffic is not classified as AI-search evidence because a Google referrer alone cannot prove an AI Overview or AI Mode origin.
+- POLICY — Zero recorded AI referrals does not prove zero AI visibility because some AI surfaces may omit or suppress measurable referrer data.
 - POLICY — The current JobPosting `addressCountry: SA` remains aligned with the current `SEO_MARKET = SA`; it must become market-derived before another country becomes indexable.
-- NEXT — Programmatic SEO only where pages have unique user value and real inventory.
-- NEXT — AI-search visibility diagnostics after technical baseline is complete.
+- NEXT — Use accumulated AI Search Visibility evidence to identify which public page families actually receive measurable AI referrals before making AI-specific content changes.
 
 ### E. Experimentation and CRO
 Status: LANDING BASELINE IMPLEMENTED / EXPERIMENT GATED
@@ -114,7 +118,7 @@ Status: LANDING BASELINE IMPLEMENTED / EXPERIMENT GATED
 - POLICY — No automatic experiment launch, no dark patterns and no privacy-policy bypasses.
 
 ### F. Attribution and feedback loop
-Status: ACTIVE / MARKETPLACE OUTCOME + LANDING BRIDGE IMPLEMENTED
+Status: ACTIVE / MARKETPLACE OUTCOME + LANDING + AI REFERRAL BRIDGE IMPLEMENTED
 - VERIFIED — Existing first-party attribution tracker persists UTM source/medium/campaign/content/term and records attributable page views.
 - DONE — First-party opportunity-share source/channel attribution at the shared-link view layer.
 - DONE — Opportunity share URLs use the existing UTM model (`utm_source`, `utm_medium`, `utm_campaign`, `utm_content`).
@@ -125,6 +129,7 @@ Status: ACTIVE / MARKETPLACE OUTCOME + LANDING BRIDGE IMPLEMENTED
 - DONE — `brief_received` is emitted by the current governed Support commercial-intake adapter only after Dana creates a new verified brief chain; duplicate demand intake is excluded.
 - DONE — Channel Quality uses the existing `marketing_events` store to compare visits, registrations, applications and verified briefs by source/campaign without adding a second analytics database.
 - DONE — Landing Quality uses the same store and first-party session context; no second CRO analytics database is introduced.
+- DONE — AI Search Visibility also uses the existing `marketing_events` referrer/source/session evidence; no separate AI analytics database or client-declared conversion event is introduced.
 - DONE — Channel evidence is ranked by outcome depth (`verified demand` > `talent conversion` > `registration` > `traffic`) rather than an invented composite score.
 - NEXT — Extend comparable brief attribution to any additional verified source adapters.
 - NEXT — Use production evidence to determine which source/campaign/landing page deserves a controlled experiment or more distribution.

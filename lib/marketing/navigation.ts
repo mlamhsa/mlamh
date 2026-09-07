@@ -53,6 +53,7 @@ export const marketingHubNavigation: MarketingHubNavItem[] = [
   { key: "analytics", labelAr: "التحليلات", labelEn: "Analytics", href: "/admin/marketing/analytics", icon: Activity },
   { key: "channel-quality", labelAr: "جودة القنوات", labelEn: "Channel Quality", href: "/admin/marketing/channel-quality", icon: Target },
   { key: "landing-quality", labelAr: "جودة صفحات الوصول", labelEn: "Landing Quality", href: "/admin/marketing/landing-quality", icon: Target },
+  { key: "ai-search-visibility", labelAr: "رؤية البحث بالذكاء الاصطناعي", labelEn: "AI Search Visibility", href: "/admin/marketing/ai-search-visibility", icon: BrainCircuit },
   { key: "email-operations", labelAr: "تشغيل البريد", labelEn: "Email Operations", href: "/admin/marketing/email-operations", icon: Activity },
   { key: "experiments", labelAr: "التجارب", labelEn: "Experiments", href: "/admin/marketing/experiments", icon: Beaker },
   { key: "integrations", labelAr: "التكاملات", labelEn: "Integrations", href: "/admin/marketing/integrations", icon: Plug },
@@ -66,7 +67,7 @@ export const marketingHubNavigationGroups: MarketingHubNavGroup[] = [
   { key: "growth", labelAr: "النمو", labelEn: "Growth", icon: Target, itemKeys: ["leads", "demand-quality", "outreach", "follow-ups", "briefs", "talent-growth", "publisher-growth", "opportunity-growth"] },
   { key: "content-work", labelAr: "المحتوى", labelEn: "Content", icon: Megaphone, itemKeys: ["content-review", "content", "creative", "social", "campaigns"] },
   { key: "operations", labelAr: "الفريق والتنفيذ", labelEn: "Operations", icon: Workflow, itemKeys: ["control", "ai-team", "tasks", "automation", "activity"] },
-  { key: "insights", labelAr: "القياس والإعداد", labelEn: "Insights & Setup", icon: Settings2, itemKeys: ["analytics", "channel-quality", "landing-quality", "email-operations", "experiments", "integrations", "knowledge", "settings"] },
+  { key: "insights", labelAr: "القياس والإعداد", labelEn: "Insights & Setup", icon: Settings2, itemKeys: ["analytics", "channel-quality", "landing-quality", "ai-search-visibility", "email-operations", "experiments", "integrations", "knowledge", "settings"] },
 ];
 
 export const marketingHubCoreEntities = [
