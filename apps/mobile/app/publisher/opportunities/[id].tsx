@@ -115,7 +115,7 @@ export default function PublisherOpportunityDetailScreen() {
       <View style={[styles.topRow, rowRtl]}><Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel={isArabic ? "رجوع" : "Back"} style={styles.backButton}><BackIcon size={21} color={theme.text} strokeWidth={1.9} /></Pressable><Text style={[styles.topLabel, textRtl]}>{isArabic ? "إدارة الفرصة" : "Manage opportunity"}</Text></View>
       {detail ? <>
         <View style={styles.hero}>
-          <Text style={[styles.eyebrow, isArabic && styles.noTracking, textRtl]}>MLAMH FOR BUSINESS</Text>
+          <Text style={[styles.eyebrow, isArabic && styles.noTracking, textRtl]}>{isArabic ? "ملامح للأعمال" : "MLAMH FOR BUSINESS"}</Text>
           <Text accessibilityRole="header" style={[styles.title, compact && styles.titleCompact, textRtl]}>{detail.opportunity.title}</Text>
           <Text style={[styles.heroMeta, textRtl]}>{[detail.opportunity.city, detail.opportunity.countryCode].filter(Boolean).join(" · ")}</Text>
           <View style={[styles.badges, rowRtl]}><Text style={styles.goldBadge}>{opportunityTypeLabel(detail.opportunity.opportunityType, locale)}</Text><Text style={styles.outlineBadge}>{statusLabel(status, locale)}</Text></View>
@@ -155,7 +155,7 @@ function OpportunityFacts({ detail, locale, isRtl, styles, compact }: { detail: 
   const compensation = o.compensationType === "unpaid" ? (ar ? "بدون مقابل" : "Unpaid") : o.compensationType === "negotiable" ? (ar ? "حسب الاتفاق" : "Negotiable") : [o.budget, o.currency].filter(Boolean).join(" ") || (ar ? "غير محدد" : "Not specified");
   return <View style={[styles.card, compact && styles.cardCompact]}>
     <Text style={[styles.sectionEyebrow, ar && styles.noTracking, isRtl && styles.textRtl]}>{ar ? "التفاصيل" : "DETAILS"}</Text>
-    <Text style={[styles.sectionTitle, isRtl && styles.textRtl]}>{ar ? "تفاصيل الـBrief" : "Brief details"}</Text>
+    <Text style={[styles.sectionTitle, isRtl && styles.textRtl]}>{ar ? "تفاصيل موجز الفرصة" : "Brief details"}</Text>
     <Text style={[styles.body, isRtl && styles.textRtl]}>{o.description}</Text>
     <View style={[styles.factGrid, isRtl && styles.rowRtl]}>
       <Fact label={ar ? "المقابل" : "Compensation"} value={compensation} styles={styles} isRtl={isRtl} />
@@ -214,16 +214,16 @@ function statusLabel(status: string, locale: "ar" | "en") { const ar: Record<str
 
 function createStyles(theme: typeof darkTheme) { return StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.background },
-  content: { width: "100%", maxWidth: 720, alignSelf: "center", paddingHorizontal: 18, paddingTop: 8, paddingBottom: 34, gap: 15 },
-  contentCompact: { paddingHorizontal: 14, gap: 12 },
+  content: { width: "100%", maxWidth: 720, alignSelf: "center", paddingHorizontal: 18, paddingTop: 18, paddingBottom: 40, gap: 15 },
+  contentCompact: { paddingHorizontal: 14, paddingTop: 14, gap: 12 },
   rowRtl: { flexDirection: "row-reverse" },
   textRtl: { textAlign: "right", writingDirection: "rtl" },
-  noTracking: { letterSpacing: 0 },
+  noTracking: { letterSpacing: 0, writingDirection: "rtl" },
   flexOne: { flex: 1 },
-  topRow: { minHeight: 46, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  topRow: { minHeight: 50, flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 2 },
   backButton: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, alignItems: "center", justifyContent: "center" },
   topLabel: { color: theme.muted, fontSize: 11, fontWeight: "700" },
-  hero: { paddingVertical: 4, gap: 7 },
+  hero: { paddingVertical: 2, gap: 7, marginBottom: 2 },
   eyebrow: { color: theme.accent, fontSize: 9, fontWeight: "900", letterSpacing: 1.5 },
   title: { color: theme.text, fontSize: 30, lineHeight: 37, fontWeight: "800" },
   titleCompact: { fontSize: 25, lineHeight: 31 },
