@@ -156,6 +156,6 @@ test("Publisher Growth establishes a read-only CRO baseline and keeps opportunit
 test("Talent SEO fallback does not advertise private media to public crawlers", () => {
   const metadata = source("lib/seo/talent-metadata.ts");
   assert.match(metadata, /المعلومات المهنية العامة/);
-  assert.match(metadata, /public professional details/);
+  assert.match(metadata, /public professional information/);
   assert.doesNotMatch(metadata, /الملف المهني والصور والمعلومات/);
 });
