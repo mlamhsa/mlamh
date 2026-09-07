@@ -1,4 +1,4 @@
-import { getOutreachReadiness } from "@/lib/marketing/leads/outreach-readiness";
+import { getOutreachReadiness } from "../leads/outreach-readiness.ts";
 
 export type DemandLeadFact = {
   id: number;
