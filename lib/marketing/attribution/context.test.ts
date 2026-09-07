@@ -7,7 +7,7 @@ import {
   parseMarketingAttributionCookie,
   sanitizeMarketingAttribution,
   serializeMarketingAttribution,
-} from "@/lib/marketing/attribution/context";
+} from "./context.ts";
 
 function source(path: string) {
   return readFileSync(new URL(`../../../${path}`, import.meta.url), "utf8");
