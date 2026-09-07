@@ -4,6 +4,7 @@ import { AdminCard, AdminGrid, AdminPageContainer, AdminPageHeader, AdminStatCar
 import { getAdminLanguage } from "@/lib/admin/i18n";
 import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { getEmailFeedbackSnapshot, type EmailFeedbackDiagnosis } from "@/lib/marketing/analytics/email-feedback";
+import { evaluateEmailHealth, type EmailHealthAlertCode } from "@/lib/marketing/analytics/email-health";
 import { getExternalExecutionSettings } from "@/lib/marketing/channels/controlled-execution";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -38,6 +39,15 @@ const diagnosisCopy: Record<EmailFeedbackDiagnosis, { tone: string; ar: string; 
   },
 };
 
+const healthAlertCopy: Record<EmailHealthAlertCode, { ar: string; en: string }> = {
+  integration_unavailable: { ar: "تكامل البريد غير متصل بينما Email Production مفعّل.", en: "Email integration is unavailable while Email Production is enabled." },
+  integration_stale: { ar: "آخر نجاح لتكامل البريد أصبح قديمًا؛ راجع Zoho قبل أي Outreach جديد.", en: "The last successful email integration activity is stale; review Zoho before new outreach." },
+  bounce_rate_high: { ar: "معدل الارتداد تجاوز 10% بعينة قابلة للتقييم.", en: "Observed bounce rate is at or above 10% on a usable sample." },
+  low_reply_rate: { ar: "معدل الرد البشري أقل من 10% بعينة قابلة للتقييم.", en: "Observed human reply rate is below 10% on a usable sample." },
+  followups_due: { ar: "توجد Follow-ups مستحقة أو مهام متابعة تنتظر المراجعة.", en: "Governed follow-ups are due or waiting for review." },
+  insufficient_sample: { ar: "حجم العينة ما زال صغيرًا؛ لا تُستنتج جودة الاستهداف أو الرسائل منه.", en: "The sample is still too small for targeting or messaging conclusions." },
+};
+
 function eventLabel(name: string, isArabic: boolean) {
   const map: Record<string, { ar: string; en: string }> = {
     email_bounce_detected: { ar: "Bounce مسجل", en: "Bounce detected" },
@@ -53,6 +63,13 @@ function statusPill(active: boolean) {
   return active
     ? "border-emerald-300/20 bg-emerald-300/[0.06] text-emerald-100/80"
     : "border-white/10 bg-white/[0.03] text-white/45";
+}
+
+function healthTone(level: "ok" | "observe" | "warning" | "critical") {
+  if (level === "critical") return "border-red-300/20 bg-red-300/[0.045]";
+  if (level === "warning") return "border-amber-300/20 bg-amber-300/[0.04]";
+  if (level === "ok") return "border-emerald-300/15 bg-emerald-300/[0.035]";
+  return "border-white/10 bg-white/[0.025]";
 }
 
 export default async function EmailOperationsPage({ searchParams }: PageProps) {
@@ -91,6 +108,16 @@ export default async function EmailOperationsPage({ searchParams }: PageProps) {
   const diagnosis = diagnosisCopy[feedback.diagnosis];
   const emailProductionEnabled = execution.productionEnabled && execution.productionChannels.includes("email");
   const bufferProductionEnabled = execution.productionEnabled && execution.productionChannels.includes("buffer");
+  const health = evaluateEmailHealth({
+    published: feedback.published,
+    humanInbound: feedback.humanInbound,
+    bounces: feedback.bounces,
+    followUpsDue: feedback.followUpsDue,
+    pendingFollowUpTasks: pendingFollowUps.length,
+    emailProductionEnabled,
+    integrationStatus: emailIntegration?.status,
+    lastSuccessAt: emailIntegration?.last_success_at,
+  });
 
   return <AdminPageContainer>
     <AdminPageHeader
@@ -111,6 +138,24 @@ export default async function EmailOperationsPage({ searchParams }: PageProps) {
         <div className="bg-black/20 p-5"><div className="flex items-center justify-between gap-3"><p className="text-xs text-white/40">Test Mode</p><span className={`rounded-full border px-2.5 py-1 text-[11px] ${statusPill(execution.testMode.enabled)}`}>{execution.testMode.enabled ? "ON" : "OFF"}</span></div><p className="mt-3 text-sm text-white/65">{execution.testMode.emailAllowlist.length} email allowlist</p><p className="mt-1 text-xs text-white/30">{execution.testMode.bufferTargets.join(", ") || "—"}</p></div>
       </div>
       <div className="border-t border-white/[0.06] px-5 py-3 text-xs text-white/30">{isArabic ? "هذه الحالة تُقرأ مباشرة من إعدادات Production والتكاملات، وليست وصفًا ثابتًا في الواجهة." : "This state is read directly from Production execution settings and integrations, not hard-coded UI copy."}</div>
+    </AdminCard>
+
+    <AdminCard className={`mb-6 border ${healthTone(health.level)} p-5`}>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-[10px] uppercase tracking-[0.2em] text-gold/60">{isArabic ? "EMAIL HEALTH GUARD" : "EMAIL HEALTH GUARD"}</p>
+          <h2 className="mt-1 text-lg text-white">{isArabic ? "تنبيهات تشغيلية محسوبة" : "Computed operational alerts"}</h2>
+          <p className="mt-2 text-xs leading-6 text-white/40">{isArabic ? "هذه الإشارات محسوبة لحظيًا ولا تُنشئ سجلات Alerts ولا توقف الإرسال تلقائيًا. عند الخطر تعرض توصية Hold فقط لتطبيقها عبر الحوكمة والاعتماد." : "These signals are computed live. They do not persist alerts or automatically stop sending; critical health only recommends a governed hold."}</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <span className="rounded-full border border-white/10 px-3 py-1.5 text-xs text-white/55">{health.level}</span>
+          <span className="rounded-full border border-white/10 px-3 py-1.5 text-xs text-white/55">{health.guardState.replaceAll("_", " ")}</span>
+        </div>
+      </div>
+      <div className="mt-5 grid gap-3 md:grid-cols-2">
+        {health.alerts.length === 0 ? <div className="rounded-xl border border-emerald-300/15 bg-emerald-300/[0.03] p-4 text-sm text-emerald-100/70">{isArabic ? "لا توجد تنبيهات تشغيلية محسوبة الآن." : "No computed operational alerts right now."}</div> : health.alerts.map((alert) => <div key={alert.code} className={`rounded-xl border p-4 ${alert.level === "critical" ? "border-red-300/15 bg-red-300/[0.035]" : alert.level === "warning" ? "border-amber-300/15 bg-amber-300/[0.035]" : "border-white/10 bg-white/[0.02]"}`}><div className="flex items-start justify-between gap-3"><p className="text-sm leading-6 text-white/70">{isArabic ? healthAlertCopy[alert.code].ar : healthAlertCopy[alert.code].en}</p><span className="shrink-0 text-[10px] uppercase tracking-wide text-white/35">{alert.level}</span></div>{alert.value !== undefined ? <p className="mt-2 text-xs tabular-nums text-white/30">{String(alert.value)}</p> : null}</div>)}
+      </div>
+      <div className="mt-4 text-xs text-white/30">{isArabic ? `آخر نجاح للبريد: ${emailIntegration?.last_success_at ? new Date(emailIntegration.last_success_at).toLocaleString("ar-SA") : "غير متاح"} · العمر: ${health.integrationAgeHours ?? "—"} ساعة` : `Last email success: ${emailIntegration?.last_success_at ? new Date(emailIntegration.last_success_at).toLocaleString("en-US") : "unavailable"} · age: ${health.integrationAgeHours ?? "—"}h`}</div>
     </AdminCard>
 
     <AdminGrid className="mb-6 md:grid-cols-4">
