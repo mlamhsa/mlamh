@@ -28,5 +28,33 @@ export const marketingPlaybookCatalog: MarketingPlaybookCatalogItem[] = [
   { key: "customer-research", titleAr: "بحث العملاء والمستخدمين", titleEn: "Customer Research", category: "research", status: "later", version: 1, sourceSkill: "customer-research", purpose: "Capture recurring needs, objections, language, and friction from real Talent and Publisher interactions and feed validated learning back into playbooks.", approval: "auto", outcome: "Messaging and product growth decisions grounded in observed user evidence." },
 ];
 
+const taskPlaybookKeys: Record<string, string[]> = {
+  lead_enrichment: ["product-positioning-audience", "publisher-prospecting"],
+  outreach_preparation: ["product-positioning-audience", "publisher-prospecting", "governed-cold-outreach"],
+  outbound_email: ["product-positioning-audience", "governed-cold-outreach"],
+  email_followup: ["product-positioning-audience", "email-followup-reply-handling"],
+  content_strategy: ["product-positioning-audience", "content-strategy-brand-voice", "analytics-attribution"],
+  community_growth: ["product-positioning-audience", "talent-onboarding-activation", "referral-sharing-loops"],
+  growth_analytics: ["product-positioning-audience", "analytics-attribution", "experiment-design"],
+  growth_strategy: ["product-positioning-audience", "analytics-attribution", "experiment-design"],
+  acquisition_plan: ["product-positioning-audience", "publisher-prospecting", "analytics-attribution"],
+  seo_audit: ["product-positioning-audience", "seo-audit"],
+};
+
 export const approvedMarketingPlaybooks = marketingPlaybookCatalog.filter((item) => item.status === "approved");
 export const nextMarketingPlaybooks = marketingPlaybookCatalog.filter((item) => item.status === "next");
+
+export function marketingPlaybooksForTask(taskType: string) {
+  const keys = taskPlaybookKeys[taskType] ?? ["product-positioning-audience"];
+  return keys
+    .map((key) => marketingPlaybookCatalog.find((item) => item.key === key))
+    .filter((item): item is MarketingPlaybookCatalogItem => Boolean(item))
+    .map((item) => ({
+      key: item.key,
+      version: item.version,
+      status: item.status,
+      purpose: item.purpose,
+      approval: item.approval,
+      measurable_outcome: item.outcome,
+    }));
+}
