@@ -32,7 +32,6 @@ async function resolvePostAuthHref(): Promise<Href> {
   const account = await getMobileAccountContext().catch(() => null);
   const accountHref = getAccountHomeHref(account);
   if (accountHref) return accountHref;
-
   const { data: { user } } = await supabase.auth.getUser();
   return user?.user_metadata?.account_type === "publisher" ? "/publisher/setup" : "/onboarding";
 }
@@ -41,10 +40,7 @@ async function routeIncomingUrl(url: string) {
   const callbackType = getAuthCallbackType(url);
   const consumedAuth = await consumeNativeAuthCallback(url);
   if (consumedAuth) {
-    if (callbackType === "recovery") {
-      router.replace("/reset-password");
-      return;
-    }
+    if (callbackType === "recovery") { router.replace("/reset-password"); return; }
     router.replace(await resolvePostAuthHref());
     return;
   }
@@ -75,7 +71,8 @@ export default function RootLayout() {
     const removePushObserver = installPushDeepLinkObserver(openUrl);
     return () => { active = false; linkingSubscription.remove(); removePushObserver(); };
   }, []);
-  return <SafeAreaProvider><NotificationSyncProvider><StatusBar style="light" /><Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#050505" } }} /></NotificationSyncProvider></SafeAreaProvider>;
+
+  return <SafeAreaProvider><NotificationSyncProvider><StatusBar style="light" /><Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#050505" }, animation: "fade", animationDuration: 180, gestureEnabled: true }} /></NotificationSyncProvider></SafeAreaProvider>;
 }
 
 const errorStyles = StyleSheet.create({
