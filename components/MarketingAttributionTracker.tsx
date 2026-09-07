@@ -25,6 +25,8 @@ function getSessionId() {
 
 function readAttribution(
   searchParams: URLSearchParams,
+  landingPath: string,
+  anonymousSessionId: string,
 ): MarketingAttributionContext {
   return sanitizeMarketingAttribution({
     source: searchParams.get("utm_source"),
@@ -32,6 +34,8 @@ function readAttribution(
     campaign: searchParams.get("utm_campaign"),
     content: searchParams.get("utm_content"),
     term: searchParams.get("utm_term"),
+    landingPath,
+    anonymousSessionId,
   });
 }
 
@@ -47,11 +51,17 @@ function persistAttribution(value: MarketingAttributionContext) {
 export default function MarketingAttributionTracker() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const incoming = readAttribution(params);
+    const anonymousSessionId = getSessionId();
+    const incoming = readAttribution(
+      params,
+      window.location.pathname,
+      anonymousSessionId,
+    );
+    const isAttributedLanding = hasMarketingAttribution(incoming);
 
     let attribution = incoming;
 
-    if (hasMarketingAttribution(incoming)) {
+    if (isAttributedLanding) {
       persistAttribution(incoming);
     } else {
       const saved = window.localStorage.getItem(ATTRIBUTION_KEY);
@@ -64,8 +74,6 @@ export default function MarketingAttributionTracker() {
         }
       }
     }
-
-    const anonymousSessionId = getSessionId();
 
     void fetch("/api/marketing/events", {
       method: "POST",
@@ -83,6 +91,8 @@ export default function MarketingAttributionTracker() {
         metadata: {
           path: window.location.pathname,
           query: window.location.search || null,
+          attribution_landing: isAttributedLanding,
+          landing_path: attribution.landingPath,
         },
       }),
     });
