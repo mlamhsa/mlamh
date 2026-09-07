@@ -1,6 +1,7 @@
 import { getOutreachReadiness } from "@/lib/marketing/leads/outreach-readiness";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createMarketingTask } from "@/lib/marketing/tasks/service";
+import { materializeCreativeBrief } from "@/lib/marketing/tasks/creative-materialize";
 
 type SourceTask = {
   id: number;
@@ -519,6 +520,7 @@ async function materializeOutreachPreparation(task: SourceTask, output: Record<s
 export async function materializeMarketingTaskOutput(task: SourceTask, output: unknown) {
   const value = record(output);
   if (task.task_type === "content_strategy") return materializeContentStrategy(task, value);
+  if (task.task_type === "creative_brief") return materializeCreativeBrief(task, value);
   if (task.task_type === "outbound_email") return materializeOutboundEmail(task, value);
   if (task.task_type === "outreach_preparation") return materializeOutreachPreparation(task, value);
   return { contentCreated: 0, outreachCreated: 0, approvalsCreated: 0 };
