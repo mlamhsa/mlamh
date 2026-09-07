@@ -1,4 +1,4 @@
-# Build 6 TestFlight trigger
+# Build 7 TestFlight trigger
 name: iOS TestFlight Build
 
 on:
