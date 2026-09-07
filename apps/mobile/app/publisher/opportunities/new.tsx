@@ -190,7 +190,7 @@ export default function NewPublisherOpportunityScreen() {
         <View style={styles.hero}>
           <Text style={[styles.eyebrow, isArabic && styles.noTracking, textRtl]}>{isArabic ? "ملامح للأعمال" : "MLAMH FOR BUSINESS"}</Text>
           <Text accessibilityRole="header" style={[styles.title, compact && styles.titleCompact, textRtl]}>{isArabic ? "أنشئ فرصة" : "Create opportunity"}</Text>
-          <Text style={[styles.subtitle, textRtl]}>{isArabic ? "أنشئ Brief منظمًا وواضحًا للمواهب. سنحفظه كمسودة أولًا قبل الإرسال للمراجعة." : "Create a clear structured brief for talent. It will be saved as a draft before review."}</Text>
+          <Text style={[styles.subtitle, textRtl]}>{isArabic ? "أنشئ موجز فرصة منظمًا وواضحًا للمواهب. سنحفظه كمسودة أولًا قبل الإرسال للمراجعة." : "Create a clear structured brief for talent. It will be saved as a draft before review."}</Text>
         </View>
 
         <View style={[styles.formCard, compact && styles.formCardCompact]}>
@@ -342,15 +342,15 @@ function dateFieldLabel(field: DateField | null, locale: "ar" | "en") {
 function createStyles(theme: typeof darkTheme) {
   return StyleSheet.create({
     screen: { flex: 1, backgroundColor: theme.background },
-    content: { width: "100%", maxWidth: 720, alignSelf: "center", paddingHorizontal: 18, paddingTop: 8, paddingBottom: 34, gap: 15 },
-    contentCompact: { paddingHorizontal: 14, gap: 12 },
+    content: { width: "100%", maxWidth: 720, alignSelf: "center", paddingHorizontal: 18, paddingTop: 18, paddingBottom: 40, gap: 15 },
+    contentCompact: { paddingHorizontal: 14, paddingTop: 14, gap: 12 },
     rowRtl: { flexDirection: "row-reverse" },
     textRtl: { textAlign: "right", writingDirection: "rtl" },
-    noTracking: { letterSpacing: 0 },
-    topBar: { minHeight: 46, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+    noTracking: { letterSpacing: 0, writingDirection: "rtl" },
+    topBar: { minHeight: 50, flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 2 },
     backButton: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, alignItems: "center", justifyContent: "center" },
     stepLabel: { color: theme.muted, fontSize: 11, fontWeight: "700" },
-    hero: { gap: 6, paddingVertical: 4 },
+    hero: { gap: 7, paddingVertical: 2, marginBottom: 2 },
     eyebrow: { color: theme.accent, fontSize: 9, fontWeight: "900", letterSpacing: 1.5 },
     title: { color: theme.text, fontSize: 29, lineHeight: 35, fontWeight: "800" },
     titleCompact: { fontSize: 25, lineHeight: 31 },
