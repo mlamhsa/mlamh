@@ -193,7 +193,7 @@ export default function PublisherProfileScreen() {
   const normalizedQuery = cityQuery.trim().toLowerCase();
   const filteredCities = SAUDI_CITY_OPTIONS.filter((option) => !normalizedQuery || `${option.ar} ${option.en}`.toLowerCase().includes(normalizedQuery));
 
-  return <SafeAreaView style={styles.screen} edges={["top"]}>
+  return <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.content, { direction: isRtl ? "rtl" : "ltr" }]} showsVerticalScrollIndicator={false}>
         <View style={[styles.topRow, isRtl && styles.rowRtl]}>
@@ -262,10 +262,10 @@ function publisherTypeLabel(value: string, locale: "ar" | "en") { const option =
 
 function createStyles(theme: typeof darkTheme, compact: boolean) { return StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.background },
-  content: { width: "100%", maxWidth: 720, alignSelf: "center", paddingHorizontal: compact ? 14 : 20, paddingTop: compact ? 4 : 8, paddingBottom: 60, gap: compact ? 14 : 18 },
-  rowRtl: { flexDirection: "row-reverse" }, textRtl: { textAlign: "right", writingDirection: "rtl" }, arabicText: { letterSpacing: 0 }, flexOne: { flex: 1 },
-  topRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: 46 }, iconButton: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, alignItems: "center", justifyContent: "center" }, brand: { color: theme.accent, fontSize: compact ? 11 : 12, fontWeight: "900", letterSpacing: 1.2 },
-  header: { gap: 6 }, title: { color: theme.text, fontSize: compact ? 26 : 30, lineHeight: compact ? 32 : 37, fontWeight: "800" }, subtitle: { color: theme.muted, fontSize: compact ? 11 : 12, lineHeight: compact ? 18 : 20 },
+  content: { width: "100%", maxWidth: 720, alignSelf: "center", paddingHorizontal: compact ? 14 : 20, paddingTop: compact ? 14 : 18, paddingBottom: compact ? 28 : 36, gap: compact ? 14 : 18 },
+  rowRtl: { flexDirection: "row-reverse" }, textRtl: { textAlign: "right", writingDirection: "rtl" }, arabicText: { letterSpacing: 0, writingDirection: "rtl" }, flexOne: { flex: 1 },
+  topRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: 50, marginBottom: 2 }, iconButton: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, alignItems: "center", justifyContent: "center" }, brand: { color: theme.accent, fontSize: compact ? 11 : 12, fontWeight: "900", letterSpacing: 1.2 },
+  header: { gap: 7, marginBottom: 2 }, title: { color: theme.text, fontSize: compact ? 26 : 30, lineHeight: compact ? 32 : 37, fontWeight: "800" }, subtitle: { color: theme.muted, fontSize: compact ? 11 : 12, lineHeight: compact ? 18 : 20 },
   identityCard: { gap: 12, padding: compact ? 13 : 16, borderRadius: 20, borderWidth: 1, borderColor: "#C9A96233", backgroundColor: theme.surface }, identityRow: { flexDirection: "row", alignItems: "center", gap: 12 }, logoWrap: { width: compact ? 54 : 62, height: compact ? 54 : 62 }, logo: { width: "100%", height: "100%", borderRadius: 16, backgroundColor: theme.surfaceElevated }, logoFallback: { width: "100%", height: "100%", borderRadius: 16, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surfaceElevated, alignItems: "center", justifyContent: "center" }, logoInitial: { color: theme.accent, fontSize: compact ? 21 : 24, fontWeight: "800" }, identityCopy: { flex: 1, gap: 3 }, identityName: { color: theme.text, fontSize: compact ? 16 : 18, fontWeight: "800" }, identityMeta: { color: theme.muted, fontSize: 10 },
   outlineButton: { minHeight: 46, borderRadius: 12, borderWidth: 1, borderColor: theme.accent, alignItems: "center", justifyContent: "center" }, outlineText: { color: theme.accent, fontSize: 11, fontWeight: "800" },
   section: { gap: 10, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: theme.border }, sectionTitle: { color: theme.text, fontSize: compact ? 15 : 17, fontWeight: "800" }, field: { gap: 6 }, label: { color: theme.text, fontSize: 11, fontWeight: "700" }, input: { minHeight: compact ? 46 : 48, borderRadius: 12, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, color: theme.text, paddingHorizontal: 13, paddingVertical: Platform.OS === "ios" ? 12 : 10, fontSize: 13 }, multiline: { minHeight: compact ? 84 : 96 },
