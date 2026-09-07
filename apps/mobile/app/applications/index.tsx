@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 
 import { AppTabBar } from "@/components/AppTabBar";
@@ -61,7 +62,7 @@ export default function ApplicationsScreen() {
 
   if (loading) return <ScreenSkeleton variant="list" locale={locale} label={isArabic ? "تحميل طلباتي" : "Loading applications"} />;
 
-  return <View style={styles.screen}>
+  return <SafeAreaView style={styles.screen} edges={["top"]}>
     <FlatList
       data={filteredItems}
       keyExtractor={(item) => String(item.id)}
@@ -90,9 +91,10 @@ export default function ApplicationsScreen() {
         {error ? <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "إعادة المحاولة" : "Try again"} style={styles.primaryButton} onPress={() => void load()}><Text style={styles.primaryButtonText}>{isArabic ? "إعادة المحاولة" : "Try again"}</Text></Pressable> : filter === "all" ? <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "استكشف الفرص" : "Discover opportunities"} style={styles.primaryButton} onPress={() => router.push("/opportunities")}><Text style={styles.primaryButtonText}>{isArabic ? "استكشف الفرص" : "Discover opportunities"}</Text></Pressable> : null}
       </View>}
       renderItem={({ item }) => <ApplicationCard item={item} locale={locale} styles={styles} />}
+      showsVerticalScrollIndicator={false}
     />
     <AppTabBar active="applications" locale={locale} theme={theme} notificationCount={unreadCount} />
-  </View>;
+  </SafeAreaView>;
 }
 
 function Stat({ value, label, styles, accent = false }: { value: number; label: string; styles: ReturnType<typeof createStyles>; accent?: boolean }) {
@@ -139,10 +141,10 @@ function formatOpportunityType(value: string, isArabic: boolean) {
 }
 
 function createStyles(theme: typeof darkTheme) { return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: theme.background }, content: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 30, gap: 12 }, rowRtl: { flexDirection: "row-reverse" },
-  header: { gap: 12, marginBottom: 8 }, brand: { color: theme.accent, fontSize: 17, fontWeight: "800", letterSpacing: 1.1 }, title: { color: theme.text, fontSize: 28, lineHeight: 34, fontWeight: "800" }, subtitle: { color: theme.muted, fontSize: 13, lineHeight: 20, maxWidth: 420 },
-  statsRow: { flexDirection: "row", gap: 8 }, stat: { flex: 1, minHeight: 72, gap: 3, borderWidth: 1, borderColor: theme.border, borderRadius: 16, backgroundColor: theme.surface, paddingHorizontal: 12, paddingVertical: 12, justifyContent: "center" }, statValue: { color: theme.text, fontSize: 22, fontWeight: "800" }, statValueAccent: { color: theme.accent }, statLabel: { color: theme.muted, fontSize: 10 },
-  filterRow: { flexDirection: "row", gap: 18, borderBottomWidth: 1, borderBottomColor: theme.border }, filterTab: { minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 11 }, filterTabActive: { borderBottomWidth: 2, borderBottomColor: theme.accent }, filterText: { color: theme.muted, fontSize: 11, fontWeight: "700" }, filterTextActive: { color: theme.text }, filterCount: { color: theme.muted, fontSize: 9, fontWeight: "800" }, filterCountActive: { color: theme.accent },
+  screen: { flex: 1, backgroundColor: theme.background }, content: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 30, gap: 12 }, rowRtl: { flexDirection: "row-reverse" },
+  header: { gap: 11, marginBottom: 8 }, brand: { color: theme.accent, fontSize: 12, fontWeight: "900", letterSpacing: 1.8 }, title: { color: theme.text, fontSize: 28, lineHeight: 34, fontWeight: "800" }, subtitle: { color: theme.muted, fontSize: 13, lineHeight: 20, maxWidth: 420 },
+  statsRow: { flexDirection: "row", gap: 8, marginTop: 2 }, stat: { flex: 1, minHeight: 68, gap: 3, borderWidth: 1, borderColor: theme.border, borderRadius: 16, backgroundColor: theme.surface, paddingHorizontal: 12, paddingVertical: 11, justifyContent: "center" }, statValue: { color: theme.text, fontSize: 21, fontWeight: "800" }, statValueAccent: { color: theme.accent }, statLabel: { color: theme.muted, fontSize: 10 },
+  filterRow: { flexDirection: "row", gap: 18, borderBottomWidth: 1, borderBottomColor: theme.border }, filterTab: { minHeight: 42, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 10 }, filterTabActive: { borderBottomWidth: 2, borderBottomColor: theme.accent }, filterText: { color: theme.muted, fontSize: 11, fontWeight: "700" }, filterTextActive: { color: theme.text }, filterCount: { color: theme.muted, fontSize: 9, fontWeight: "800" }, filterCountActive: { color: theme.accent },
   card: { backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border, borderRadius: 18, padding: 16, gap: 10 }, cardAccepted: { borderColor: "#16A36A77" }, cardTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, status: { color: theme.muted, fontSize: 11, fontWeight: "800" }, statusAccepted: { color: "#49C991" }, date: { color: theme.muted, fontSize: 9 }, cardTitle: { color: theme.text, fontSize: 19, lineHeight: 26, fontWeight: "700" }, metaRow: { flexDirection: "row", gap: 10, flexWrap: "wrap" }, meta: { color: theme.muted, fontSize: 10 }, acceptedHint: { color: "#49C991", fontSize: 11, fontWeight: "700" }, actionsRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 2 },
   primaryButton: { backgroundColor: theme.accent, borderRadius: 12, minHeight: 44, paddingHorizontal: 15, paddingVertical: 10, alignItems: "center", justifyContent: "center" }, primaryButtonText: { color: theme.background, fontSize: 12, fontWeight: "900" }, secondaryButton: { borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, borderRadius: 12, minHeight: 44, paddingHorizontal: 15, paddingVertical: 10, alignItems: "center", justifyContent: "center" }, secondaryButtonText: { color: theme.text, fontSize: 12, fontWeight: "700" },
   emptyState: { paddingVertical: 72, alignItems: "center", gap: 12, paddingHorizontal: 24 }, emptyTitle: { color: theme.text, fontSize: 17, fontWeight: "800", textAlign: "center", lineHeight: 24 }, emptyBody: { color: theme.muted, fontSize: 12, lineHeight: 19, textAlign: "center", maxWidth: 300 },
