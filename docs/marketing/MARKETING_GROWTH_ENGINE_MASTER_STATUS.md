@@ -31,19 +31,22 @@ Work progresses in one ordered stream. A task moves to DONE only when implementa
 - Campaigns and content.
 - Social and creative surfaces.
 - Analytics and experiments.
-- Talent Growth, Publisher Growth and Opportunity Growth.
+- Talent Growth, Publisher Growth, Opportunity Growth and Channel Quality.
 - Knowledge / Playbooks.
 - Integrations and marketing control.
 
 ## Priority Growth Engine workstreams
 ### A. Publisher demand engine
-Status: ACTIVE
+Status: ACTIVE / DEMAND OUTCOME BASELINE IMPLEMENTED
 - DONE — Prospecting framework mapped into the existing Leads / Research flow.
 - DONE — Governed cold-outreach framework mapped into existing Outreach tasks.
 - DONE — Reply classification and routing already verified in the existing email engine.
 - DONE — Follow-up / reply handling framework mapped into existing lifecycle flow.
 - DONE — Publisher Growth baseline measures publisher account -> profile -> review -> approval progression.
 - DONE — Publisher opportunity activation is measured separately from the review funnel so activity cannot distort funnel drop-off math.
+- DONE — The current governed Support commercial-intake adapter emits one `brief_received` outcome only when Dana creates a new prepared demand; deduplicated intake does not create a second outcome.
+- DONE — Brief outcome attribution failure is non-blocking for the commercial intake workflow.
+- NEXT — Extend the same verified brief-outcome contract to additional commercial source adapters when those adapters are introduced or verified.
 - NEXT — Measure prospecting quality and lead-to-brief conversion using production evidence after release.
 - NEXT — Strengthen lead-to-opportunity attribution where telemetry gaps remain.
 
@@ -62,7 +65,7 @@ Status: CORE LOOP IMPLEMENTED
 - DONE — Opportunity views can identify verified traffic arriving through a tracked MLAMH share link and channel.
 - DONE — Opportunity Growth reports share activity, attributed shared-link views and views-per-share without claiming a messaging-platform click equals a visit.
 - DONE — Qualified supply-gap reporting reuses Dana's persisted `talent_supply_gap` snapshot rather than running a parallel matching engine.
-- DONE — Verified registration and application outcomes now inherit sanitized first-party attribution after the product write succeeds.
+- DONE — Verified registration and application outcomes inherit sanitized first-party attribution after the product write succeeds.
 - DEFERRED — Account-role correction telemetry until a governed correction flow exists; publisher share alone is not evidence of a mistake.
 
 ### C. Organic content and distribution
@@ -71,7 +74,7 @@ Status: VERIFIED FOUNDATION / NEXT MEASUREMENT
 - VERIFIED — Existing Social Scheduler preserves approval before publishing and supports channel-specific execution.
 - VERIFIED — Opportunity sharing provides an organic distribution path with first-party share/view measurement.
 - NEXT — Link published organic content to attributed visits and marketplace outcomes consistently.
-- NEXT — Add channel/content performance diagnostics only where recorded external or first-party evidence exists.
+- NEXT — Add content-level outcome diagnostics only where recorded external or first-party evidence exists.
 
 ### D. SEO and discovery
 Status: VERIFIED FOUNDATION / ACTIVE
@@ -90,23 +93,26 @@ Status: ACTIVE FOUNDATION
 - DONE — Talent signup/activation baseline exists through Talent Growth lifetime + 7-day cohort diagnostics.
 - DONE — Publisher signup/activation baseline exists through Publisher Growth lifetime + 7-day cohort diagnostics.
 - DONE — Both baselines derive bottlenecks from recorded progression and avoid fabricated percentages when denominators do not exist.
-- DONE — Attributed registration and application outcomes can now support source/campaign CRO analysis without accepting client-declared success events.
+- DONE — Attributed registration and application outcomes support source/campaign CRO analysis without accepting client-declared success events.
+- DONE — Channel Quality ranks channels by deepest verified marketplace outcome rather than raw traffic and leaves rates blank when required denominators do not exist.
 - VERIFIED — Existing experiment registry already stores hypothesis, success metric, status, winner and result.
 - NEXT — Landing-page conversion review using attributed visits and recorded signup outcomes.
 - NEXT — First governed CTA/message experiment only after sufficient baseline traffic exists.
 - POLICY — No dark patterns or privacy-policy bypasses.
 
 ### F. Attribution and feedback loop
-Status: ACTIVE / OUTCOME BRIDGE IMPLEMENTED
+Status: ACTIVE / MARKETPLACE OUTCOME BASELINE IMPLEMENTED
 - VERIFIED — Existing first-party attribution tracker persists UTM source/medium/campaign/content/term and records attributable page views.
 - DONE — First-party opportunity-share source/channel attribution at the shared-link view layer.
 - DONE — Opportunity share URLs use the existing UTM model (`utm_source`, `utm_medium`, `utm_campaign`, `utm_content`).
 - DONE — Sanitized attribution is mirrored into a same-site first-party cookie so verified server actions can carry source/campaign context beyond the landing page.
 - DONE — `registration_completed` is emitted only after the selected account path is persisted; attribution recording failure cannot block registration.
 - DONE — `application_submitted` is emitted into the existing `marketing_events` layer only after the application row is successfully created; client attribution cannot declare the outcome itself.
-- DONE — Analytics can now use the same source/campaign fields for page views, registrations and applications without creating a second analytics store.
-- NEXT — Carry comparable attribution into verified commercial brief/demand outcomes where the acquisition source is knowable.
-- NEXT — Add source/campaign conversion diagnostics to the Analytics UI after sufficient production evidence exists.
+- DONE — `brief_received` is emitted by the current governed Support commercial-intake adapter only after Dana creates a new verified brief chain; duplicate demand intake is excluded.
+- DONE — Channel Quality uses the existing `marketing_events` store to compare visits, registrations, applications and verified briefs by source/campaign without adding a second analytics database.
+- DONE — Channel evidence is ranked by outcome depth (`verified demand` > `talent conversion` > `registration` > `traffic`) rather than an invented composite score.
+- NEXT — Extend comparable brief attribution to any additional verified source adapters.
+- NEXT — Use production evidence to determine which source/campaign deserves a controlled experiment or more distribution.
 - VERIFIED — Email feedback diagnostics remain part of the existing email engine.
 - POLICY — Optimize for channel quality and marketplace outcomes, not traffic volume alone.
 
