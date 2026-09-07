@@ -11,8 +11,12 @@ type LocaleContextValue = {
 
 const LocaleContext = createContext<LocaleContextValue | null>(null);
 
+function resolveInitialLocale() {
+  return readStoredLocale() ?? getDeviceLocale();
+}
+
 export function AppLocaleProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocale] = useState<AppLocale>(() => getDeviceLocale());
+  const [locale, setLocale] = useState<AppLocale>(resolveInitialLocale);
   const [hasChosenLocale, setHasChosenLocale] = useState(() => Boolean(readStoredLocale()));
   const value = useMemo<LocaleContextValue>(() => ({
     locale,
