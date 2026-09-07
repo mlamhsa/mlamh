@@ -35,38 +35,8 @@ export type GalleryDeleteResult = { ok: true; gallery: string[]; primaryUrl: str
 export type SupportTicketInput = { senderName: string; senderEmail: string; senderPhone?: string | null; category: string; subject: string; message: string; locale: AppLocale };
 export type SupportTicketResult = { ok: true; ticketNumber: string } | { ok: false; code: string };
 
-function hasValue(value: unknown) {
-  if (value === null || value === undefined) return false;
-  if (typeof value === "string") return value.trim().length > 0;
-  if (Array.isArray(value)) return value.length > 0;
-  return true;
-}
-
-function calculateMobileProfileCompletion(profile: MobileTalentProfile) {
-  let score = 0;
-  if (hasValue(profile.primaryRole)) score += 10;
-  if (hasValue(profile.imageUrl)) score += 10;
-  if (hasValue(profile.citySlug) || hasValue(profile.city)) score += 10;
-  if (hasValue(profile.dateOfBirth)) score += 5;
-  if (hasValue(profile.bio)) score += 10;
-  if (profile.languages.length > 0) score += 10;
-  if (hasValue(profile.availabilityStatus)) score += 10;
-  if (profile.gallery.length > 0) score += 5;
-  if (profile.primaryRole === "actor") {
-    if (hasValue(profile.actingAgeMin) && hasValue(profile.actingAgeMax)) score += 10;
-    if (hasValue(profile.heightCm)) score += 5;
-    if (profile.dialects.length > 0) score += 5;
-    if (profile.skills.length > 0) score += 5;
-    if (hasValue(profile.experienceYears)) score += 5;
-  }
-  if (profile.primaryRole === "model") {
-    if (profile.modelingTypes.length > 0) score += 10;
-    if (hasValue(profile.heightCm)) score += 5;
-    if (hasValue(profile.shoeSize)) score += 5;
-    if (hasValue(profile.hairColor) && hasValue(profile.eyeColor)) score += 5;
-    if (hasValue(profile.weightKg) && hasValue(profile.clothingSize) && hasValue(profile.skinColor)) score += 5;
-  }
-  return Math.max(0, Math.min(100, score));
+function normalizeServerProfileCompletion(value: number) {
+  return Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : 0;
 }
 
 function requireApiBaseUrl() {
@@ -130,7 +100,7 @@ export async function getTalentProfile(locale: AppLocale): Promise<TalentProfile
   try {
     const response = await fetch(`${API_BASE_URL}/api/talent/me?locale=${locale}`, { headers });
     const payload = (await readJson<TalentProfileResponse>(response)) ?? { ok: false as const, code: "REQUEST_FAILED" };
-    if (payload.ok) payload.item.profileCompletion = calculateMobileProfileCompletion(payload.item);
+    if (payload.ok) payload.item.profileCompletion = normalizeServerProfileCompletion(payload.item.profileCompletion);
     return payload;
   } catch { return { ok: false, code: "REQUEST_FAILED" }; }
 }
