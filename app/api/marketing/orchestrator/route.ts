@@ -5,6 +5,7 @@ import { prepareDueEmailFollowUps } from "@/lib/marketing/automation/email-follo
 import { syncZohoRecentInboundEmails } from "@/lib/marketing/channels/zoho-inbound-recent";
 import { processDanaInboundEmailTask } from "@/lib/marketing/inbound/dana-email";
 import { materializeAutoVerifiedLeadResearch } from "@/lib/marketing/leads/auto-materialize";
+import { recoverFreeCapacityOutreachDrafts } from "@/lib/marketing/outreach/deterministic-recovery";
 import { recoverStaleAutonomousRunningTasks } from "@/lib/marketing/tasks/recover-stale";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -60,7 +61,8 @@ export async function GET(request: Request) {
     const emailFeedback = await getEmailFeedbackSnapshot({ days: 30 });
     const result = await runAutonomousMarketingCycle({ maxTasks: 3 });
     const contactAutoVerification = await materializeAutoVerifiedLeadResearch({ limit: 12 });
-    return NextResponse.json({ ok: true, recovery, inbound, inboundProcessed, followUps, emailFeedback, contactAutoVerification, result });
+    const deterministicOutreachRecovery = await recoverFreeCapacityOutreachDrafts({ limit: 6 });
+    return NextResponse.json({ ok: true, recovery, inbound, inboundProcessed, followUps, emailFeedback, contactAutoVerification, deterministicOutreachRecovery, result });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Marketing orchestrator failed";
     console.error("[marketing-orchestrator]", message);
