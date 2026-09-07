@@ -1,7 +1,18 @@
 export type MobileAccountKind = "talent" | "publisher";
 
 const SHARED_EXACT = new Set(["/casting", "/notifications", "/support"]);
-const TALENT_EXACT = new Set(["/opportunities", "/applications", "/messages", "/profile", "/talents"]);
+const TALENT_EXACT = new Set([
+  "/opportunities",
+  "/applications",
+  "/messages",
+  "/profile",
+  "/profile/journey",
+  "/profile/edit",
+  "/profile/media",
+  "/profile/review",
+  "/onboarding",
+  "/talents",
+]);
 const PUBLISHER_EXACT = new Set(["/publisher", "/publisher/profile", "/publisher/verification", "/publisher/messages", "/talents"]);
 
 function normalizePath(value: unknown) {
