@@ -81,3 +81,16 @@ test("Knowledge page surfaces native playbooks without Production writes", () =>
   assert.doesNotMatch(page, /\.update\(/);
   assert.doesNotMatch(page, /\.delete\(/);
 });
+
+test("Talent Growth diagnoses activation from existing telemetry without writing Production data", () => {
+  const page = source("app/admin/marketing/talent-growth/page.tsx");
+  assert.match(page, /buildTalentActivationFunnel/);
+  assert.match(page, /talentActivationSummary/);
+  assert.match(page, /talent_profile_recovery_reminder_sent/);
+  assert.match(page, /incomplete_registration_reminder_sent/);
+  assert.match(page, /Role clarity monitoring/);
+  assert.doesNotMatch(page, /\.insert\(/);
+  assert.doesNotMatch(page, /\.upsert\(/);
+  assert.doesNotMatch(page, /\.update\(/);
+  assert.doesNotMatch(page, /\.delete\(/);
+});
