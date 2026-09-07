@@ -46,6 +46,8 @@ This document separates mobile code readiness from backend deployment readiness.
 4. `POST /api/support`
    - Used by the native Support form.
    - Route is branch-only.
+   - The route calls the database RPCs `consume_support_rate_limit` and `create_support_ticket_with_message`.
+   - No definitions for those RPCs are tracked in the current `main` tree. Therefore Support must **not** be classified as code-only until the production database is separately verified to contain both RPCs. No migration or DML is authorized by this document.
 
 5. `/api/mobile/talents` and `/api/mobile/talents/[slug]`
    - Used by the native public Talent Directory and Talent Detail screens.
@@ -72,6 +74,61 @@ This document separates mobile code readiness from backend deployment readiness.
 
 Presence on `main` does not by itself prove the production deployment is on the same commit. Production deployment must be checked separately before release.
 
+## Minimal backend release package classification
+
+The Build 10 backend package should be split by dependency class instead of deploying every PR #112 change together.
+
+### A. Core code-only candidate package
+
+Subject to a final production-schema compatibility check, these routes/services are code-only candidates because the reviewed implementation uses existing application tables/columns and does not rely on any of the four new PR #112 migrations merely to expose the HTTP contract:
+
+- `/api/account/type`
+- `/api/talent/me/review`
+- `/api/publisher/me`
+- `/api/publisher/onboarding`
+- `/api/publisher/profile`
+- `/api/publisher/verification`
+- `/api/publisher/opportunities`
+- `/api/publisher/opportunities/[id]`
+- `/api/mobile/talents`
+- `/api/mobile/talents/[slug]`
+- optional `/api/mobile/profile-options`
+- their referenced server libraries under `lib/accounts`, `lib/talents`, `lib/talent`, `lib/publishers`, `lib/mobile` and related existing contracts.
+
+This classification means **candidate for a code-only backend release**, not authorization to deploy it.
+
+### B. Support — separate database prerequisite gate
+
+`/api/support` is not included in the code-only classification yet. The route depends on two RPCs whose definitions were not found in the current `main` repository tree:
+
+- `consume_support_rate_limit`
+- `create_support_ticket_with_message`
+
+Before Support is released, verify those functions exist in the production database and have the expected signatures/permissions. If they do not exist, define a separately reviewed database change. Do not infer or execute a migration automatically.
+
+### C. Database/security changes explicitly separated from the minimal backend contract
+
+The four PR #112 migrations are **not prerequisites merely to expose the core HTTP routes above** and must not be bundled into a Build 10 backend deploy by default:
+
+1. `20260903130500_fix_talent_notification_rls.sql`
+   - Notification RLS/index hardening.
+   - Treat as a separate security rollout.
+
+2. `20260903131000_mobile_push_devices.sql`
+   - Creates `mobile_push_devices` and its RLS/indexes.
+   - Relevant to push-device registration, not required for core account type/review/publisher/talent-directory contracts.
+   - Roll out separately when push registration is intentionally enabled.
+
+3. `20260904001000_harden_talent_public_read_privacy.sql`
+   - Revokes direct client reads and hardens talent-table RLS.
+   - Important privacy work, but a separate security/cutover decision from the minimal mobile backend contract.
+
+4. `20260904001500_prepare_private_talent_gallery.sql`
+   - Private gallery bucket preparation only.
+   - Explicitly excluded from Build 10 contract rollout. No private gallery cutover is authorized.
+
+No Supabase migration, DML, RLS change, bucket change or private-gallery cutover is authorized as part of this audit.
+
 ## Non-backend Build 10 device gates
 
 - iOS DOB picker: Gregorian only and all visible digits Latin `0–9`; native iOS spinner behavior still requires physical-device validation or replacement with a controlled picker if it ignores `nu-latn`.
@@ -84,7 +141,7 @@ Presence on `main` does not by itself prove the production deployment is on the 
 - Talent journey continuity: onboarding → profile data → media → review.
 - Publisher onboarding/profile/verification/opportunity lifecycle E2E after required backend routes are deployed.
 - Native legal content must be synchronized with the authoritative full legal text before public release.
-- Native Support E2E after `/api/support` deployment.
+- Native Support E2E after its RPC prerequisite and `/api/support` deployment are verified.
 
 ## Build 10 decision rule
 
