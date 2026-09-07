@@ -1,20 +1,33 @@
-import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 
 import { getMobileAccountContext } from "@/lib/account";
-import { getDeviceLocale, isRtlLocale } from "@/lib/i18n";
+import { isRtlLocale } from "@/lib/i18n";
+import { useAppLocale } from "@/lib/locale-context";
 import { supabase } from "@/lib/supabase";
 import { darkTheme } from "@/lib/theme";
 
 export default function WelcomeScreen() {
-  const locale = getDeviceLocale();
+  const { locale, changeLocale } = useAppLocale();
   const isArabic = locale === "ar";
   const isRtl = isRtlLocale(locale);
   const theme = darkTheme;
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [checking, setChecking] = useState(true);
+  const pulse = useRef(new Animated.Value(0.35)).current;
+
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1, duration: 700, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0.35, duration: 700, useNativeDriver: true }),
+      ]),
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [pulse]);
 
   useEffect(() => {
     let active = true;
@@ -38,7 +51,13 @@ export default function WelcomeScreen() {
   }, []);
 
   if (checking) {
-    return <View style={styles.centered}><Text style={[styles.loadingBrand, isArabic && styles.arabicText]}>{isArabic ? "ملامح" : "MLAMH"}</Text><ActivityIndicator size="small" color={theme.accent} /></View>;
+    return <View style={styles.splash}>
+      <View style={styles.splashMark}>
+        <Text style={[styles.splashBrand, isArabic && styles.arabicText]}>{isArabic ? "ملامح" : "MLAMH"}</Text>
+        <View style={styles.splashRule} />
+        <Animated.View style={[styles.splashPulse, { opacity: pulse }]} />
+      </View>
+    </View>;
   }
 
   const textAlign = isRtl ? "right" : "left";
@@ -48,8 +67,14 @@ export default function WelcomeScreen() {
     <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
       <View style={styles.content}>
         <View style={[styles.topRow, isRtl && styles.topRowRtl]}>
-          <Text style={[styles.brand, isArabic && styles.arabicText]}>{isArabic ? "ملامح" : "MLAMH"}</Text>
-          <Text style={[styles.platform, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "المواهب والفرص" : "Talent & Opportunities"}</Text>
+          <View style={styles.brandBlock}>
+            <Text style={[styles.brand, isArabic && styles.arabicText]}>{isArabic ? "ملامح" : "MLAMH"}</Text>
+            <Text style={[styles.platform, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "المواهب والفرص" : "Talent & Opportunities"}</Text>
+          </View>
+          <View accessibilityLabel={isArabic ? "تغيير اللغة" : "Change language"} style={styles.localeSwitch}>
+            <Pressable onPress={() => changeLocale("ar")} style={[styles.localeOption, locale === "ar" && styles.localeOptionActive]}><Text style={[styles.localeText, locale === "ar" && styles.localeTextActive, styles.arabicText]}>ع</Text></Pressable>
+            <Pressable onPress={() => changeLocale("en")} style={[styles.localeOption, locale === "en" && styles.localeOptionActive]}><Text style={[styles.localeText, locale === "en" && styles.localeTextActive]}>EN</Text></Pressable>
+          </View>
         </View>
 
         <View style={[styles.hero, { alignItems: horizontalAlign }]}>
@@ -85,14 +110,23 @@ function ValueItem({ number, title, body, styles, isArabic, isRtl }: { number: s
 
 function createStyles(theme: typeof darkTheme) { return StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.background },
-  centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 14, backgroundColor: theme.background },
-  loadingBrand: { color: theme.accent, fontSize: 19, fontWeight: "800", letterSpacing: 1.4 },
+  splash: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: theme.background },
+  splashMark: { alignItems: "center", gap: 9, transform: [{ translateY: -12 }] },
+  splashBrand: { color: theme.accent, fontSize: 28, lineHeight: 36, fontWeight: "900", letterSpacing: 4.2 },
+  splashRule: { width: 36, height: 1, backgroundColor: "#C9A96266" },
+  splashPulse: { width: 5, height: 5, borderRadius: 3, backgroundColor: theme.accent },
   scrollContent: { flexGrow: 1, justifyContent: "center" },
   content: { width: "100%", maxWidth: 560, alignSelf: "center", paddingHorizontal: 22, paddingTop: 18, paddingBottom: 28, gap: 24 },
-  topRow: { minHeight: 42, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 16 },
+  topRow: { minHeight: 48, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 16 },
   topRowRtl: { flexDirection: "row-reverse" },
-  brand: { color: theme.accent, fontSize: 21, fontWeight: "800", letterSpacing: 1.2 },
-  platform: { color: theme.muted, fontSize: 11, fontWeight: "600" },
+  brandBlock: { gap: 1 },
+  brand: { color: theme.accent, fontSize: 21, fontWeight: "900", letterSpacing: 1.2 },
+  platform: { color: theme.muted, fontSize: 10, fontWeight: "600" },
+  localeSwitch: { flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, borderRadius: 18, padding: 3, gap: 2 },
+  localeOption: { minWidth: 35, height: 30, paddingHorizontal: 8, borderRadius: 15, alignItems: "center", justifyContent: "center" },
+  localeOptionActive: { backgroundColor: "#C9A9621F", borderWidth: 1, borderColor: "#C9A96266" },
+  localeText: { color: theme.muted, fontSize: 11, fontWeight: "800" },
+  localeTextActive: { color: theme.accent },
   hero: { gap: 10, paddingTop: 8 },
   kicker: { color: theme.accent, fontSize: 11, lineHeight: 16, fontWeight: "800", letterSpacing: 1.5 },
   headline: { color: theme.text, fontSize: 35, lineHeight: 43, fontWeight: "700", maxWidth: 510 },
