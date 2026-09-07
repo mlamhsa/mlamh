@@ -18,6 +18,8 @@ type TabDefinition = {
   icon: LucideIcon;
 };
 
+// Keep the physical order stable. In Arabic this makes the right-most tab Profile,
+// followed by Messages, Applications, then Opportunities — the expected RTL order.
 const tabs: TabDefinition[] = [
   { key: "discover", path: "/opportunities", ar: "الفرص", en: "Discover", icon: Search },
   { key: "applications", path: "/applications", ar: "طلباتي", en: "Applications", icon: ClipboardList },
@@ -30,9 +32,8 @@ export function AppTabBar({ active, locale, theme = darkTheme }: { active: TabKe
   const { width } = useWindowDimensions();
   const compact = width <= 360;
   const styles = createStyles(theme);
-  const isArabic = locale === "ar";
   return <View style={[styles.outer, compact && styles.outerCompact, { paddingBottom: Math.max(insets.bottom, 8) }]}>
-    <View accessibilityRole="tablist" style={[styles.shell, isArabic && styles.shellRtl, compact && styles.shellCompact]}>
+    <View accessibilityRole="tablist" style={[styles.shell, compact && styles.shellCompact]}>
       {tabs.map((tab) => <Tab key={tab.key} tab={tab} active={active} locale={locale} theme={theme} styles={styles} compact={compact} />)}
     </View>
   </View>;
@@ -60,7 +61,6 @@ function createStyles(theme: Theme) {
     outer: { backgroundColor: theme.background, paddingHorizontal: 12, paddingTop: 7 },
     outerCompact: { paddingHorizontal: 7 },
     shell: { minHeight: 68, flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: theme.border, borderRadius: 24, backgroundColor: theme.nav, paddingHorizontal: 6, paddingVertical: 6 },
-    shellRtl: { flexDirection: "row-reverse" },
     shellCompact: { minHeight: 64, borderRadius: 21, paddingHorizontal: 4, paddingVertical: 5 },
     tab: { flex: 1, minHeight: 54, borderRadius: 18, alignItems: "center", justifyContent: "center", gap: 5, paddingHorizontal: 4 },
     tabCompact: { minHeight: 50, borderRadius: 16, gap: 3, paddingHorizontal: 2 },

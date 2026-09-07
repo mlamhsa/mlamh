@@ -33,6 +33,46 @@ export type GalleryPrimaryResult = { ok: true; url: string } | { ok: false; code
 export type GalleryReorderResult = { ok: true; gallery: string[] } | { ok: false; code: string };
 export type GalleryDeleteResult = { ok: true; gallery: string[]; primaryUrl: string | null } | { ok: false; code: string };
 
+function hasValue(value: unknown) {
+  if (value === null || value === undefined) return false;
+  if (typeof value === "string") return value.trim().length > 0;
+  if (Array.isArray(value)) return value.length > 0;
+  return true;
+}
+
+// Build the completion score from fields the mobile client actually receives and edits.
+// This intentionally avoids the legacy persisted profile_completion column returned by
+// older production API revisions, so TestFlight always reflects the live profile state.
+function calculateMobileProfileCompletion(profile: MobileTalentProfile) {
+  let score = 0;
+  if (hasValue(profile.primaryRole)) score += 10;
+  if (hasValue(profile.imageUrl)) score += 10;
+  if (hasValue(profile.citySlug) || hasValue(profile.city)) score += 10;
+  if (hasValue(profile.dateOfBirth)) score += 5;
+  if (hasValue(profile.bio)) score += 10;
+  if (profile.languages.length > 0) score += 10;
+  if (hasValue(profile.availabilityStatus)) score += 10;
+  if (profile.gallery.length > 0) score += 5;
+
+  if (profile.primaryRole === "actor") {
+    if (hasValue(profile.actingAgeMin) && hasValue(profile.actingAgeMax)) score += 10;
+    if (hasValue(profile.heightCm)) score += 5;
+    if (profile.dialects.length > 0) score += 5;
+    if (profile.skills.length > 0) score += 5;
+    if (hasValue(profile.experienceYears)) score += 5;
+  }
+
+  if (profile.primaryRole === "model") {
+    if (profile.modelingTypes.length > 0) score += 10;
+    if (hasValue(profile.heightCm)) score += 5;
+    if (hasValue(profile.shoeSize)) score += 5;
+    if (hasValue(profile.hairColor) && hasValue(profile.eyeColor)) score += 5;
+    if (hasValue(profile.weightKg) && hasValue(profile.clothingSize) && hasValue(profile.skinColor)) score += 5;
+  }
+
+  return Math.max(0, Math.min(100, score));
+}
+
 function requireApiBaseUrl() {
   const configured = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
   if (!configured) throw new Error("Missing EXPO_PUBLIC_API_BASE_URL for this mobile environment.");
@@ -90,7 +130,12 @@ export async function getMyApplications(locale: AppLocale): Promise<Applications
 
 export async function getTalentProfile(locale: AppLocale): Promise<TalentProfileResponse> {
   const headers = await authHeaders(); if (!headers) return { ok: false, code: "UNAUTHENTICATED" };
-  try { const response = await fetch(`${API_BASE_URL}/api/talent/me?locale=${locale}`, { headers }); return (await readJson<TalentProfileResponse>(response)) ?? { ok: false, code: "REQUEST_FAILED" }; } catch { return { ok: false, code: "REQUEST_FAILED" }; }
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/talent/me?locale=${locale}`, { headers });
+    const payload = (await readJson<TalentProfileResponse>(response)) ?? { ok: false as const, code: "REQUEST_FAILED" };
+    if (payload.ok) payload.item.profileCompletion = calculateMobileProfileCompletion(payload.item);
+    return payload;
+  } catch { return { ok: false, code: "REQUEST_FAILED" }; }
 }
 
 export async function updateTalentProfile(locale: AppLocale, input: MobileTalentProfileUpdateInput): Promise<TalentProfileUpdateResult> { return authedMutation<TalentProfileUpdateResult>(`/api/talent/me?locale=${locale}`, "PATCH", { ok: false, code: "REQUEST_FAILED" }, input); }
