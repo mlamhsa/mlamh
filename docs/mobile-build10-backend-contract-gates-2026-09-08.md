@@ -46,8 +46,11 @@ This document separates mobile code readiness from backend deployment readiness.
 4. `POST /api/support`
    - Used by the native Support form.
    - Route is branch-only.
-   - The route calls the database RPCs `consume_support_rate_limit` and `create_support_ticket_with_message`.
-   - No definitions for those RPCs are tracked in the current `main` tree. Therefore Support must **not** be classified as code-only until the production database is separately verified to contain both RPCs. No migration or DML is authorized by this document.
+   - Production database verification on 2026-09-08 confirmed both required RPCs exist with the signatures expected by the route and are executable by `service_role`:
+     - `consume_support_rate_limit(p_key_hash text, p_limit integer, p_window_seconds integer)`
+     - `create_support_ticket_with_message(p_user_id uuid, p_profile_id bigint, p_sender_name text, p_sender_email text, p_sender_phone text, p_category text, p_subject text, p_message text, p_locale text, p_source text)`
+   - `support_tickets` and `support_messages` are also present in production.
+   - Therefore Support no longer has an unresolved database prerequisite for this route. Runtime E2E remains required after the route is deployed.
 
 5. `/api/mobile/talents` and `/api/mobile/talents/[slug]`
    - Used by the native public Talent Directory and Talent Detail screens.
@@ -74,13 +77,28 @@ This document separates mobile code readiness from backend deployment readiness.
 
 Presence on `main` does not by itself prove the production deployment is on the same commit. Production deployment must be checked separately before release.
 
+## Production schema compatibility audit — 2026-09-08
+
+A read-only audit was run directly against the production Supabase project. No migration, DML, RLS change, bucket mutation or function invocation was performed.
+
+Verified existing production contracts used by the candidate package:
+
+- `profiles` contains the mobile account/onboarding/review fields used by the branch code, including `account_type`, `display_name`, `phone`, `status`, `onboarding_status`, `onboarding_step`, `approval_status`, `profile_completed_at`, and timestamps.
+- `talents` contains the current review-readiness/profile/mobile-directory fields, including `user_id`, `image_url`, `primary_role`, `city_slug`, `gender`, `date_of_birth`, `nationality`/`nationality_slug`, `base_country_code`, profile/detail attributes and publication/status fields.
+- `publishers` contains the mobile onboarding/profile/verification fields used by the branch code, including `profile_id`, `publisher_type`, `company_name`, `contact_name`, `city`, social/contact fields, `profile_image_url`, `status`, `verified`, the verification-state fields and `country_code`.
+- `opportunities` contains the fields used by native Publisher opportunity creation, including `publisher_id`, `status`, `published`, `posting_mode`, `compensation_type`, `country_code`, `currency`, `managed_by_mlamh`, demographic requirements, dates, `role_requirements`, `required_count` and draft metadata.
+- Storage bucket `publisher-assets` exists in production and is public, matching the current publisher-logo upload implementation.
+- Support RPCs and support tables are present as described above.
+
+Result: no missing production table/column/bucket/function dependency was found in the reviewed core code-only candidate package. This clears the **schema-compatibility audit gate**, but it is not authorization to deploy and does not replace route-level runtime E2E.
+
 ## Minimal backend release package classification
 
 The Build 10 backend package should be split by dependency class instead of deploying every PR #112 change together.
 
-### A. Core code-only candidate package
+### A. Core code-only candidate package — production schema compatibility verified
 
-Subject to a final production-schema compatibility check, these routes/services are code-only candidates because the reviewed implementation uses existing application tables/columns and does not rely on any of the four new PR #112 migrations merely to expose the HTTP contract:
+The following routes/services are code-only candidates against the currently verified production schema and do not rely on any of the four new PR #112 migrations merely to expose the HTTP contract:
 
 - `/api/account/type`
 - `/api/talent/me/review`
@@ -92,21 +110,13 @@ Subject to a final production-schema compatibility check, these routes/services 
 - `/api/publisher/opportunities/[id]`
 - `/api/mobile/talents`
 - `/api/mobile/talents/[slug]`
+- `/api/support`
 - optional `/api/mobile/profile-options`
 - their referenced server libraries under `lib/accounts`, `lib/talents`, `lib/talent`, `lib/publishers`, `lib/mobile` and related existing contracts.
 
 This classification means **candidate for a code-only backend release**, not authorization to deploy it.
 
-### B. Support — separate database prerequisite gate
-
-`/api/support` is not included in the code-only classification yet. The route depends on two RPCs whose definitions were not found in the current `main` repository tree:
-
-- `consume_support_rate_limit`
-- `create_support_ticket_with_message`
-
-Before Support is released, verify those functions exist in the production database and have the expected signatures/permissions. If they do not exist, define a separately reviewed database change. Do not infer or execute a migration automatically.
-
-### C. Database/security changes explicitly separated from the minimal backend contract
+### B. Database/security changes explicitly separated from the minimal backend contract
 
 The four PR #112 migrations are **not prerequisites merely to expose the core HTTP routes above** and must not be bundled into a Build 10 backend deploy by default:
 
@@ -141,7 +151,7 @@ No Supabase migration, DML, RLS change, bucket change or private-gallery cutover
 - Talent journey continuity: onboarding → profile data → media → review.
 - Publisher onboarding/profile/verification/opportunity lifecycle E2E after required backend routes are deployed.
 - Native legal content must be synchronized with the authoritative full legal text before public release.
-- Native Support E2E after its RPC prerequisite and `/api/support` deployment are verified.
+- Native Support E2E after `/api/support` deployment.
 
 ## Build 10 decision rule
 
