@@ -35,13 +35,22 @@ async function getOpportunityLocale(): Promise<"ar" | "en"> {
   }
 }
 
-function localizeOpportunity(
+export function normalizePublicOpportunity(
   opportunity: Opportunity,
   locale: "ar" | "en",
 ): Opportunity {
-  if (locale !== "en") return opportunity;
-  return {
+  const normalized = {
     ...opportunity,
+    application_deadline:
+      opportunity.application_deadline?.trim()
+      || opportunity.deadline?.trim()
+      || opportunity.expires_at?.trim()
+      || null,
+  };
+
+  if (locale !== "en") return normalized;
+  return {
+    ...normalized,
     title: opportunity.title_en?.trim() || opportunity.title,
     description: opportunity.description_en?.trim() || opportunity.description,
   };
@@ -78,7 +87,7 @@ export async function getPublishedOpportunities(
 
   return ((data ?? []) as Opportunity[])
     .filter((opportunity) => canExposePublicRecord(opportunity, countryCode, "publicOpportunities"))
-    .map((opportunity) => localizeOpportunity(opportunity, locale))
+    .map((opportunity) => normalizePublicOpportunity(opportunity, locale))
     .sort(compareFeaturedThenNewest);
 }
 
@@ -147,7 +156,7 @@ export async function getOpportunityBySlug(
 
   const opportunity = data as Opportunity;
   if (!canExposePublicRecord(opportunity, countryCode, "publicOpportunities")) return null;
-  return localizeOpportunity(opportunity, locale);
+  return normalizePublicOpportunity(opportunity, locale);
 }
 
 export async function getPublishedOpportunityByIdentifier(
@@ -179,5 +188,5 @@ export async function getPublishedOpportunityByIdentifier(
 
   const opportunity = data as Opportunity;
   if (!canExposePublicRecord(opportunity, countryCode, "publicOpportunities")) return null;
-  return localizeOpportunity(opportunity, locale);
+  return normalizePublicOpportunity(opportunity, locale);
 }
