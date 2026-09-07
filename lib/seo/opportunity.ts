@@ -75,7 +75,6 @@ export function buildOpportunityJobPosting({
     || record.publisher_name?.trim()
     || record.company?.trim()
     || null;
-  const budget = Number(record.budget);
   const deadline = getOpportunityDeadline(record);
 
   return {
@@ -101,17 +100,5 @@ export function buildOpportunityJobPosting({
           },
         }
       : undefined,
-    baseSalary:
-      record.compensation_type === "fixed" && Number.isFinite(budget) && budget > 0
-        ? {
-            "@type": "MonetaryAmount",
-            currency: getOpportunityCurrency(record),
-            value: {
-              "@type": "QuantitativeValue",
-              value: budget,
-              unitText: "DAY",
-            },
-          }
-        : undefined,
   };
 }
