@@ -1,3 +1,4 @@
+# Build 8 RC monitor — paired Android + iOS EAS builds
 name: Mobile RC Build Monitor
 
 on:
@@ -18,8 +19,8 @@ jobs:
         working-directory: apps/mobile
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-      ANDROID_BUILD_ID: 20b40f74-bd2a-4de9-85dc-04606d43c60d
-      IOS_BUILD_ID: e605332c-4b30-416e-95e1-1ac9e3fd30e0
+      ANDROID_BUILD_ID: 21868fdb-4658-411e-9ef1-0213f26f176b
+      IOS_BUILD_ID: 19194c6b-f664-4cf8-99c0-7377cf6d943a
     steps:
       - name: Checkout
         uses: actions/checkout@v4
