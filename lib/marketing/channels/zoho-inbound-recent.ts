@@ -6,6 +6,7 @@ import {
 } from "./zoho-mail";
 import { normalizeZohoBaseUrl } from "./zoho-mail-core";
 import { htmlEmailToPlainText } from "./zoho-inbound";
+import { classifyInboundEmailAutomation, inboundAutomationEventName } from "./email-inbound-telemetry";
 
 type ZohoSearchMessage = {
   messageId?: string | number;
@@ -61,11 +62,6 @@ function zohoDate(day: string, subtractDays: number) {
   return `${String(parsed.getUTCDate()).padStart(2, "0")}-${months[parsed.getUTCMonth()]}-${parsed.getUTCFullYear()}`;
 }
 
-function automatedSender(email: string) {
-  const local = email.split("@")[0] ?? "";
-  return /^(mailer-daemon|postmaster|bounce|bounces|no-?reply|do-?not-?reply)$/i.test(local);
-}
-
 async function fetchZohoJson<T>(url: string, accessToken: string): Promise<T> {
   const response = await fetch(url, {
     headers: {
@@ -78,6 +74,33 @@ async function fetchZohoJson<T>(url: string, accessToken: string): Promise<T> {
   const payload = await response.json().catch(() => ({})) as T;
   if (!response.ok) throw new Error(`Zoho inbound recent request failed with status ${response.status}.`);
   return payload;
+}
+
+async function recordAutomationTelemetry(input: {
+  kind: "bounce" | "auto_reply" | "bulk";
+  senderEmail: string | null;
+  subject: string | null;
+  messageId: string;
+  threadId: string | null;
+  receivedAt: string;
+}) {
+  const db = createAdminClient();
+  await db.from("marketing_events").insert({
+    event_name: inboundAutomationEventName(input.kind),
+    source: "marketing_hub",
+    medium: "email",
+    entity_type: "email_message",
+    entity_id: input.messageId,
+    metadata: {
+      provider: "zoho_mail",
+      automation_kind: input.kind,
+      sender_email: input.senderEmail,
+      subject: input.subject,
+      thread_id: input.threadId,
+      action: "ignored_no_task_no_reply",
+    },
+    occurred_at: input.receivedAt,
+  });
 }
 
 async function findConversation(senderEmail: string, inReplyTo: string | null) {
@@ -162,8 +185,17 @@ async function ingestRecentMessage(message: ZohoSearchMessage, params: {
   const messageId = String(message.messageId ?? "").trim();
   const folderId = String(message.folderId ?? "").trim();
   const senderEmail = normalizeEmail(message.fromAddress);
-  if (!messageId || !folderId || !senderEmail || senderEmail === "hello@mlamh.net" || automatedSender(senderEmail)) {
+  const subject = text(message.subject);
+  const threadId = text(message.threadId == null ? null : String(message.threadId));
+  const received = receivedAt(message);
+  if (!messageId || !folderId || !senderEmail || senderEmail === "hello@mlamh.net") {
     return { status: "ignored" as const };
+  }
+
+  const senderAutomation = classifyInboundEmailAutomation({ senderEmail, subject });
+  if (senderAutomation === "bounce" || senderAutomation === "auto_reply") {
+    await recordAutomationTelemetry({ kind: senderAutomation, senderEmail, subject, messageId, threadId, receivedAt: received });
+    return { status: senderAutomation as "bounce" | "auto_reply" };
   }
 
   const { data: duplicate } = await db.from("marketing_messages")
@@ -183,8 +215,10 @@ async function ingestRecentMessage(message: ZohoSearchMessage, params: {
   const headers = headerResponse.data?.headerContent;
   const autoSubmitted = headerValue(headers, "Auto-Submitted");
   const precedence = headerValue(headers, "Precedence");
-  if ((autoSubmitted && autoSubmitted.toLowerCase() !== "no") || /^(bulk|list|junk)$/i.test(precedence ?? "")) {
-    return { status: "ignored" as const };
+  const automation = classifyInboundEmailAutomation({ senderEmail, subject, autoSubmitted, precedence });
+  if (automation) {
+    await recordAutomationTelemetry({ kind: automation, senderEmail, subject, messageId, threadId, receivedAt: received });
+    return { status: automation as "bounce" | "auto_reply" | "bulk" };
   }
 
   const content = htmlEmailToPlainText(contentResponse.data?.content ?? message.summary ?? "");
@@ -192,8 +226,6 @@ async function ingestRecentMessage(message: ZohoSearchMessage, params: {
 
   const inReplyTo = headerValue(headers, "In-Reply-To");
   const internetMessageId = headerValue(headers, "Message-Id");
-  const threadId = text(message.threadId == null ? null : String(message.threadId));
-  const received = receivedAt(message);
   const conversation = await findConversation(senderEmail, inReplyTo);
   if (!conversation) return { status: "unmatched" as const };
 
@@ -209,12 +241,12 @@ async function ingestRecentMessage(message: ZohoSearchMessage, params: {
     metadata: {
       provider: "zoho_mail",
       sender_email: senderEmail,
-      subject: text(message.subject),
+      subject,
       folder_id: folderId,
       thread_id: threadId,
       internet_message_id: internetMessageId,
       in_reply_to: inReplyTo,
-      poller: "recent_window_v2",
+      poller: "recent_window_v3_telemetry",
     },
   }).select("id").single();
   if (error || !inserted) throw new Error(`[zoho_recent.message] ${error?.message ?? "insert failed"}`);
@@ -244,7 +276,7 @@ async function ingestRecentMessage(message: ZohoSearchMessage, params: {
   const task = await createMarketingTask({
     agentId: "dana",
     taskType: "inbound_email_reply",
-    title: `Inbound email reply · ${text(message.subject) ?? senderEmail}`,
+    title: `Inbound email reply · ${subject ?? senderEmail}`,
     objective: "Analyze this inbound email in context, update the commercial understanding, and prepare the safest useful reply draft. Do not send anything. Escalate pricing, partnership, legal, guarantees, discounts, spend, or commitments for CEO review.",
     priority: "urgent",
     channel: "email",
@@ -255,7 +287,7 @@ async function ingestRecentMessage(message: ZohoSearchMessage, params: {
       inbound_message_id: inserted.id,
       zoho_message_id: messageId,
       sender: { name: text(message.sender), email: senderEmail },
-      subject: text(message.subject),
+      subject,
       content,
       in_reply_to: inReplyTo,
       internet_message_id: internetMessageId,
@@ -268,7 +300,7 @@ async function ingestRecentMessage(message: ZohoSearchMessage, params: {
         metadata: record(conversation.metadata),
       },
     },
-    metadata: { day: params.day, inbound_email: true, provider: "zoho_mail", poller: "recent_window_v2", outcome: "approval_ready_reply" },
+    metadata: { day: params.day, inbound_email: true, provider: "zoho_mail", poller: "recent_window_v3_telemetry", outcome: "approval_ready_reply" },
     idempotencyKey: `zoho-inbound-reply:${messageId}`,
     maxRetries: 1,
   });
@@ -279,7 +311,7 @@ async function ingestRecentMessage(message: ZohoSearchMessage, params: {
 export async function syncZohoRecentInboundEmails({ day, limit = 50 }: { day: string; limit?: number }) {
   const connection = await getZohoMailConnectionState();
   if (connection.status !== "connected" || !connection.accountId || !connection.apiBaseUrl) {
-    return { enabled: false, reason: "zoho_connection_incomplete", ingested: 0, duplicates: 0, ignored: 0, unmatched: 0, taskIds: [] as number[] };
+    return { enabled: false, reason: "zoho_connection_incomplete", ingested: 0, duplicates: 0, ignored: 0, unmatched: 0, bounces: 0, autoReplies: 0, bulk: 0, taskIds: [] as number[] };
   }
 
   const accessToken = await getZohoDurableAccessToken();
@@ -298,6 +330,9 @@ export async function syncZohoRecentInboundEmails({ day, limit = 50 }: { day: st
   let duplicates = 0;
   let ignored = 0;
   let unmatched = 0;
+  let bounces = 0;
+  let autoReplies = 0;
+  let bulk = 0;
   const taskIds: number[] = [];
   for (const message of list.data) {
     const result = await ingestRecentMessage(message, {
@@ -311,6 +346,9 @@ export async function syncZohoRecentInboundEmails({ day, limit = 50 }: { day: st
       taskIds.push(result.taskId);
     } else if (result.status === "duplicate") duplicates += 1;
     else if (result.status === "unmatched") unmatched += 1;
+    else if (result.status === "bounce") bounces += 1;
+    else if (result.status === "auto_reply") autoReplies += 1;
+    else if (result.status === "bulk") bulk += 1;
     else ignored += 1;
   }
 
@@ -323,5 +361,5 @@ export async function syncZohoRecentInboundEmails({ day, limit = 50 }: { day: st
     updated_at: now,
   }).eq("provider", "email");
 
-  return { enabled: true, reason: "ok", ingested, duplicates, ignored, unmatched, taskIds };
+  return { enabled: true, reason: "ok", ingested, duplicates, ignored, unmatched, bounces, autoReplies, bulk, taskIds };
 }
