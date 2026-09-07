@@ -49,7 +49,10 @@ export default function WelcomeScreen() {
         router.replace(account.onboardingStatus === "completed" && account.entityId ? "/opportunities" : "/onboarding");
         return;
       }
-      router.replace(session.user.user_metadata?.account_type === "publisher" ? "/publisher/setup" : "/onboarding");
+      const metadataType = session.user.user_metadata?.account_type;
+      if (metadataType === "publisher") { router.replace("/publisher/setup"); return; }
+      if (metadataType === "talent") { router.replace("/onboarding"); return; }
+      router.replace("/account-type");
     })();
     return () => { active = false; };
   }, []);
