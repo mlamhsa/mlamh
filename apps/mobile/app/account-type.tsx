@@ -95,7 +95,7 @@ export default function AccountTypeScreen() {
         <View style={[styles.header, { alignItems: isRtl ? "flex-end" : "flex-start" }]}>
           <Text style={[styles.eyebrow, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "خطوة واحدة قبل البدء" : "ONE STEP TO START"}</Text>
           <Text accessibilityRole="header" style={[styles.title, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "كيف ستستخدم ملامح؟" : "How will you use MLAMH?"}</Text>
-          <Text style={[styles.subtitle, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "اختر نوع حسابك لنجهّز لك التجربة المناسبة. يثبت نوع الحساب عند إكمال الإعداد." : "Choose your account type so we can prepare the right experience. Your role is finalized when setup is completed."}</Text>
+          <Text style={[styles.subtitle, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "اختر نوع حسابك. بعد المتابعة سنحفظ اختيارك ونفتح لك مسار الإعداد المناسب." : "Choose your account type. After you continue, we’ll save your choice and open the right setup path."}</Text>
         </View>
 
         <View accessibilityRole="radiogroup" style={styles.cards}>
