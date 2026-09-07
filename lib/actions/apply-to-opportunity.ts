@@ -1,7 +1,15 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
+
 import { trackEvent } from "@/lib/events/track-event";
+import {
+  MARKETING_ATTRIBUTION_COOKIE,
+  hasMarketingAttribution,
+  parseMarketingAttributionCookie,
+} from "@/lib/marketing/attribution/context";
+import { trackMarketingEvent } from "@/lib/marketing/events/track";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getTalentProfileReadiness } from "@/lib/talent/profile-review-readiness";
@@ -23,34 +31,63 @@ const RESTRICTED_ACCOUNT_STATUSES = new Set([
   "disabled",
 ]);
 
+async function recordAttributedApplication({
+  userId,
+  applicationId,
+  opportunityId,
+  talentId,
+  locale,
+}: {
+  userId: string;
+  applicationId: string | number;
+  opportunityId: string | number;
+  talentId: string | number;
+  locale: "ar" | "en";
+}) {
+  try {
+    const cookieStore = await cookies();
+    const attribution = parseMarketingAttributionCookie(
+      cookieStore.get(MARKETING_ATTRIBUTION_COOKIE)?.value,
+    );
+
+    await trackMarketingEvent({
+      eventName: "application_submitted",
+      userId,
+      source: attribution.source,
+      medium: attribution.medium,
+      campaign: attribution.campaign,
+      content: attribution.content,
+      term: attribution.term,
+      entityType: "application",
+      entityId: String(applicationId),
+      metadata: {
+        opportunity_id: String(opportunityId),
+        talent_id: String(talentId),
+        locale,
+        attribution_present: hasMarketingAttribution(attribution),
+        outcome_verified_server_side: true,
+      },
+    });
+  } catch (error) {
+    console.error("[applyToOpportunityAction.marketingAttribution]", error);
+  }
+}
+
 export async function applyToOpportunityAction(
   _prevState: ApplyResult | null,
   formData: FormData,
 ): Promise<ApplyResult> {
-  const opportunityId = Number(
-    formData.get("opportunity_id"),
-  );
+  const opportunityId = Number(formData.get("opportunity_id"));
+  const locale = formData.get("locale") === "en" ? "en" : "ar";
 
-  const locale =
-    formData.get("locale") === "en"
-      ? "en"
-      : "ar";
-
-  if (
-    !Number.isInteger(opportunityId) ||
-    opportunityId <= 0
-  ) {
+  if (!Number.isInteger(opportunityId) || opportunityId <= 0) {
     return {
       status: "error",
-      message:
-        locale === "ar"
-          ? "بيانات الفرصة غير صحيحة."
-          : "Invalid opportunity.",
+      message: locale === "ar" ? "بيانات الفرصة غير صحيحة." : "Invalid opportunity.",
     };
   }
 
-  const authClient =
-    await createServerSupabaseClient();
+  const authClient = await createServerSupabaseClient();
   const adminClient = createAdminClient();
 
   const {
@@ -61,10 +98,7 @@ export async function applyToOpportunityAction(
   if (userError || !user) {
     return {
       status: "unauthorized",
-      message:
-        locale === "ar"
-          ? "يرجى تسجيل الدخول أولاً."
-          : "Please login first.",
+      message: locale === "ar" ? "يرجى تسجيل الدخول أولاً." : "Please login first.",
     };
   }
 
@@ -73,26 +107,17 @@ export async function applyToOpportunityAction(
     target: "opportunity",
     targetId: opportunityId,
     actorId: user.id,
-    metadata: {
-      logged_in: true,
-    },
+    metadata: { logged_in: true },
   });
-  
-  const {
-    data: profile,
-    error: profileError,
-  } = await adminClient
-  .from("profiles")
-.select("account_type, status, approval_status, phone")
-  .eq("user_id", user.id)
-  .maybeSingle();
+
+  const { data: profile, error: profileError } = await adminClient
+    .from("profiles")
+    .select("account_type, status, approval_status, phone")
+    .eq("user_id", user.id)
+    .maybeSingle();
 
   if (profileError) {
-    console.error(
-      "Apply opportunity profile lookup error:",
-      profileError,
-    );
-
+    console.error("Apply opportunity profile lookup error:", profileError);
     return {
       status: "error",
       message:
@@ -102,10 +127,7 @@ export async function applyToOpportunityAction(
     };
   }
 
-  if (
-    !profile ||
-    profile.account_type !== "talent"
-  ) {
+  if (!profile || profile.account_type !== "talent") {
     return {
       status: "not_talent",
       message:
@@ -115,11 +137,7 @@ export async function applyToOpportunityAction(
     };
   }
 
-  if (
-    RESTRICTED_ACCOUNT_STATUSES.has(
-      profile.status ?? "",
-    )
-  ) {
+  if (RESTRICTED_ACCOUNT_STATUSES.has(profile.status ?? "")) {
     return {
       status: "unauthorized",
       message:
@@ -139,10 +157,7 @@ export async function applyToOpportunityAction(
     };
   }
 
-  const {
-    data: talent,
-    error: talentError,
-  } = await adminClient
+  const { data: talent, error: talentError } = await adminClient
     .from("talents")
     .select(`
       id,
@@ -166,11 +181,7 @@ export async function applyToOpportunityAction(
     .maybeSingle();
 
   if (talentError) {
-    console.error(
-      "Apply opportunity talent lookup error:",
-      talentError,
-    );
-
+    console.error("Apply opportunity talent lookup error:", talentError);
     return {
       status: "error",
       message:
@@ -190,30 +201,21 @@ export async function applyToOpportunityAction(
     };
   }
 
-  const profileReadiness =
-  getTalentProfileReadiness({
+  const profileReadiness = getTalentProfileReadiness({
     ...talent,
     phone: profile.phone,
   });
 
   if (!profileReadiness.isReady) {
-    console.log(
-      "[Talent profile readiness]",
-      {
-        talentId: talent.id,
-        primaryRole: talent.primary_role,
-        missingRequirements:
-          profileReadiness.missingRequirements,
-      },
-    );
-    const missingLabels =
-      profileReadiness.missingRequirements
-        .map((requirement) =>
-          locale === "ar"
-            ? requirement.ar
-            : requirement.en,
-        )
-        .join(locale === "ar" ? "، " : ", ");
+    console.log("[Talent profile readiness]", {
+      talentId: talent.id,
+      primaryRole: talent.primary_role,
+      missingRequirements: profileReadiness.missingRequirements,
+    });
+
+    const missingLabels = profileReadiness.missingRequirements
+      .map((requirement) => (locale === "ar" ? requirement.ar : requirement.en))
+      .join(locale === "ar" ? "، " : ", ");
 
     return {
       status: "not_talent",
@@ -224,21 +226,14 @@ export async function applyToOpportunityAction(
     };
   }
 
-  const {
-    data: opportunity,
-    error: opportunityError,
-  } = await adminClient
+  const { data: opportunity, error: opportunityError } = await adminClient
     .from("opportunities")
     .select("id, slug, status, published, created_at, application_days")
     .eq("id", opportunityId)
     .maybeSingle();
 
   if (opportunityError) {
-    console.error(
-      "Apply opportunity lookup error:",
-      opportunityError,
-    );
-
+    console.error("Apply opportunity lookup error:", opportunityError);
     return {
       status: "error",
       message:
@@ -251,8 +246,7 @@ export async function applyToOpportunityAction(
   const isAvailable =
     opportunity &&
     opportunity.published === true &&
-    (opportunity.status === "open" ||
-      opportunity.status === "published");
+    (opportunity.status === "open" || opportunity.status === "published");
 
   if (!isAvailable) {
     return {
@@ -264,26 +258,15 @@ export async function applyToOpportunityAction(
     };
   }
 
-  if (
-    opportunity.created_at &&
-    opportunity.application_days
-  ) {
-    const createdAt = new Date(
-      opportunity.created_at,
-    );
-  
-    const applicationDeadline =
-      new Date(createdAt);
-  
+  if (opportunity.created_at && opportunity.application_days) {
+    const createdAt = new Date(opportunity.created_at);
+    const applicationDeadline = new Date(createdAt);
     applicationDeadline.setDate(
-      applicationDeadline.getDate() +
-        opportunity.application_days,
+      applicationDeadline.getDate() + opportunity.application_days,
     );
-  
+
     if (
-      !Number.isNaN(
-        applicationDeadline.getTime(),
-      ) &&
+      !Number.isNaN(applicationDeadline.getTime()) &&
       new Date() > applicationDeadline
     ) {
       return {
@@ -295,23 +278,17 @@ export async function applyToOpportunityAction(
       };
     }
   }
-  
-  const {
-    data: existingApplication,
-    error: existingApplicationError,
-  } = await adminClient
-    .from("opportunity_applications")
-    .select("id")
-    .eq("opportunity_id", opportunity.id)
-    .eq("talent_id", talent.id)
-    .maybeSingle();
+
+  const { data: existingApplication, error: existingApplicationError } =
+    await adminClient
+      .from("opportunity_applications")
+      .select("id")
+      .eq("opportunity_id", opportunity.id)
+      .eq("talent_id", talent.id)
+      .maybeSingle();
 
   if (existingApplicationError) {
-    console.error(
-      "Existing application lookup error:",
-      existingApplicationError,
-    );
-
+    console.error("Existing application lookup error:", existingApplicationError);
     return {
       status: "error",
       message:
@@ -331,10 +308,7 @@ export async function applyToOpportunityAction(
     };
   }
 
-  const {
-    data: insertedApplication,
-    error: insertError,
-  } = await adminClient
+  const { data: insertedApplication, error: insertError } = await adminClient
     .from("opportunity_applications")
     .insert({
       opportunity_id: opportunity.id,
@@ -343,7 +317,7 @@ export async function applyToOpportunityAction(
     })
     .select("id")
     .single();
-  
+
   if (insertError) {
     if (insertError.code === "23505") {
       return {
@@ -354,12 +328,8 @@ export async function applyToOpportunityAction(
             : "You have already applied to this opportunity.",
       };
     }
-  
-    console.error(
-      "Apply opportunity insert error:",
-      insertError,
-    );
-  
+
+    console.error("Apply opportunity insert error:", insertError);
     return {
       status: "error",
       message:
@@ -368,7 +338,7 @@ export async function applyToOpportunityAction(
           : "Something went wrong while applying. Please try again.",
     };
   }
-  
+
   await trackEvent({
     type: "application_submitted",
     target: "application",
@@ -381,27 +351,23 @@ export async function applyToOpportunityAction(
     },
   });
 
+  await recordAttributedApplication({
+    userId: user.id,
+    applicationId: insertedApplication.id,
+    opportunityId: opportunity.id,
+    talentId: talent.id,
+    locale,
+  });
+
   if (opportunity.slug) {
-    revalidatePath(
-      `/${locale}/opportunities/${opportunity.slug}`,
-    );
+    revalidatePath(`/${locale}/opportunities/${opportunity.slug}`);
   }
 
-  revalidatePath(
-    `/${locale}/talent-dashboard/applications`,
-  );
-  revalidatePath(
-    `/${locale}/talent-dashboard`,
-  );
+  revalidatePath(`/${locale}/talent-dashboard/applications`);
+  revalidatePath(`/${locale}/talent-dashboard`);
+  revalidatePath(`/admin/opportunities/${opportunity.id}`);
+  revalidatePath("/admin/opportunity-applications");
 
-  revalidatePath(
-    `/admin/opportunities/${opportunity.id}`,
-  );
-  
-  revalidatePath(
-    "/admin/opportunity-applications",
-  );
-  
   return {
     status: "success",
     message:

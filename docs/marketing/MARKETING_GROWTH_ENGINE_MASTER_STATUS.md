@@ -62,8 +62,8 @@ Status: CORE LOOP IMPLEMENTED
 - DONE — Opportunity views can identify verified traffic arriving through a tracked MLAMH share link and channel.
 - DONE — Opportunity Growth reports share activity, attributed shared-link views and views-per-share without claiming a messaging-platform click equals a visit.
 - DONE — Qualified supply-gap reporting reuses Dana's persisted `talent_supply_gap` snapshot rather than running a parallel matching engine.
+- DONE — Verified registration and application outcomes now inherit sanitized first-party attribution after the product write succeeds.
 - DEFERRED — Account-role correction telemetry until a governed correction flow exists; publisher share alone is not evidence of a mistake.
-- NEXT — Carry first-party acquisition attribution farther into signup/application outcomes under the shared attribution workstream.
 
 ### C. Organic content and distribution
 Status: VERIFIED FOUNDATION / NEXT MEASUREMENT
@@ -90,18 +90,23 @@ Status: ACTIVE FOUNDATION
 - DONE — Talent signup/activation baseline exists through Talent Growth lifetime + 7-day cohort diagnostics.
 - DONE — Publisher signup/activation baseline exists through Publisher Growth lifetime + 7-day cohort diagnostics.
 - DONE — Both baselines derive bottlenecks from recorded progression and avoid fabricated percentages when denominators do not exist.
+- DONE — Attributed registration and application outcomes can now support source/campaign CRO analysis without accepting client-declared success events.
 - VERIFIED — Existing experiment registry already stores hypothesis, success metric, status, winner and result.
 - NEXT — Landing-page conversion review using attributed visits and recorded signup outcomes.
 - NEXT — First governed CTA/message experiment only after sufficient baseline traffic exists.
 - POLICY — No dark patterns or privacy-policy bypasses.
 
 ### F. Attribution and feedback loop
-Status: ACTIVE FOUNDATION
+Status: ACTIVE / OUTCOME BRIDGE IMPLEMENTED
 - VERIFIED — Existing first-party attribution tracker persists UTM source/medium/campaign/content/term and records attributable page views.
 - DONE — First-party opportunity-share source/channel attribution at the shared-link view layer.
-- DONE — Opportunity share URLs now also use the existing UTM model (`utm_source`, `utm_medium`, `utm_campaign`, `utm_content`).
-- NEXT — Carry attribution from visits into registration/application/brief outcomes consistently.
-- NEXT — Normalize campaign -> signup/application/brief linkage without creating a second analytics store.
+- DONE — Opportunity share URLs use the existing UTM model (`utm_source`, `utm_medium`, `utm_campaign`, `utm_content`).
+- DONE — Sanitized attribution is mirrored into a same-site first-party cookie so verified server actions can carry source/campaign context beyond the landing page.
+- DONE — `registration_completed` is emitted only after the selected account path is persisted; attribution recording failure cannot block registration.
+- DONE — `application_submitted` is emitted into the existing `marketing_events` layer only after the application row is successfully created; client attribution cannot declare the outcome itself.
+- DONE — Analytics can now use the same source/campaign fields for page views, registrations and applications without creating a second analytics store.
+- NEXT — Carry comparable attribution into verified commercial brief/demand outcomes where the acquisition source is knowable.
+- NEXT — Add source/campaign conversion diagnostics to the Analytics UI after sufficient production evidence exists.
 - VERIFIED — Email feedback diagnostics remain part of the existing email engine.
 - POLICY — Optimize for channel quality and marketplace outcomes, not traffic volume alone.
 

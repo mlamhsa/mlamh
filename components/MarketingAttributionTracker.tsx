@@ -2,16 +2,17 @@
 
 import { useEffect } from "react";
 
+import {
+  MARKETING_ATTRIBUTION_COOKIE,
+  hasMarketingAttribution,
+  sanitizeMarketingAttribution,
+  serializeMarketingAttribution,
+  type MarketingAttributionContext,
+} from "@/lib/marketing/attribution/context";
+
 const ATTRIBUTION_KEY = "mlamh_marketing_attribution";
 const SESSION_KEY = "mlamh_anonymous_session_id";
-
-type Attribution = {
-  source: string | null;
-  medium: string | null;
-  campaign: string | null;
-  content: string | null;
-  term: string | null;
-};
+const ATTRIBUTION_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
 
 function getSessionId() {
   const existing = window.localStorage.getItem(SESSION_KEY);
@@ -22,24 +23,25 @@ function getSessionId() {
   return created;
 }
 
-function readAttribution(searchParams: URLSearchParams): Attribution {
-  return {
+function readAttribution(
+  searchParams: URLSearchParams,
+): MarketingAttributionContext {
+  return sanitizeMarketingAttribution({
     source: searchParams.get("utm_source"),
     medium: searchParams.get("utm_medium"),
     campaign: searchParams.get("utm_campaign"),
     content: searchParams.get("utm_content"),
     term: searchParams.get("utm_term"),
-  };
+  });
 }
 
-function hasAttribution(value: Attribution) {
-  return Boolean(
-    value.source ||
-      value.medium ||
-      value.campaign ||
-      value.content ||
-      value.term,
-  );
+function persistAttribution(value: MarketingAttributionContext) {
+  const sanitized = sanitizeMarketingAttribution(value);
+  if (!hasMarketingAttribution(sanitized)) return;
+
+  window.localStorage.setItem(ATTRIBUTION_KEY, JSON.stringify(sanitized));
+  const secure = window.location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = `${MARKETING_ATTRIBUTION_COOKIE}=${serializeMarketingAttribution(sanitized)}; Path=/; Max-Age=${ATTRIBUTION_MAX_AGE_SECONDS}; SameSite=Lax${secure}`;
 }
 
 export default function MarketingAttributionTracker() {
@@ -49,13 +51,14 @@ export default function MarketingAttributionTracker() {
 
     let attribution = incoming;
 
-    if (hasAttribution(incoming)) {
-      window.localStorage.setItem(ATTRIBUTION_KEY, JSON.stringify(incoming));
+    if (hasMarketingAttribution(incoming)) {
+      persistAttribution(incoming);
     } else {
       const saved = window.localStorage.getItem(ATTRIBUTION_KEY);
       if (saved) {
         try {
-          attribution = JSON.parse(saved) as Attribution;
+          attribution = sanitizeMarketingAttribution(JSON.parse(saved));
+          persistAttribution(attribution);
         } catch {
           window.localStorage.removeItem(ATTRIBUTION_KEY);
         }
