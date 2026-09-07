@@ -29,7 +29,7 @@ test("prospecting quality uses the same contact readiness gate as the lead works
   assert.equal(result.researchToReadyRate, 33);
 });
 
-test("outbound conversion is based on distinct leads and explicit recorded outcomes", () => {
+test("outbound conversion is based on distinct ready leads and explicit recorded outcomes", () => {
   const result = buildDemandQuality({
     leads: [
       { id: 1, contact_id: 11 },
@@ -65,6 +65,30 @@ test("outbound conversion is based on distinct leads and explicit recorded outco
   assert.equal(result.sentToReplyRate, 50);
   assert.equal(result.sentToBriefRate, 100);
   assert.equal(result.briefToOpportunityRate, 50);
+});
+
+test("historical outreach evidence does not count as prepared quality when the contact is not ready", () => {
+  const result = buildDemandQuality({
+    leads: [{ id: 1, contact_id: 11 }],
+    contacts: [
+      { id: 11, contact_name: "A", email: "a@example.com", metadata: {} },
+    ],
+    tasks: [{ lead_id: 1, task_type: "lead_enrichment", status: "completed" }],
+    outreach: [{ lead_id: 1, send_status: "draft", reply_status: "none" }],
+    briefs: [],
+  });
+
+  assert.equal(result.researchedLeads, 1);
+  assert.equal(result.outreachReadyLeads, 0);
+  assert.equal(result.outreachPreparedLeads, 0);
+  assert.equal(result.researchToReadyRate, 0);
+  assert.equal(result.readyToPreparedRate, null);
+  assert.deepEqual(result.largestObservedDrop, {
+    from: "researched",
+    to: "outreach_ready",
+    rate: 0,
+    lost: 1,
+  });
 });
 
 test("conversion rates fail closed when denominators do not exist", () => {
