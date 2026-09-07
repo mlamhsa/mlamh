@@ -8,10 +8,10 @@ import { runApprovedSandboxJobsForApproval } from "@/lib/marketing/channels/run-
 import { createAdminClient } from "@/lib/supabase/admin";
 
 type ApprovalDecision = "approved" | "rejected" | "cancelled" | "scheduled";
-type TaskRow = { id: number; task_type: string; content_id: number | null; campaign_id: number | null; lead_id: number | null; channel: string | null; input: unknown };
+type TaskRow = { id: number; agent_id: string | null; task_type: string; content_id: number | null; campaign_id: number | null; lead_id: number | null; channel: string | null; input: unknown };
 
 function revalidateMarketingApprovalViews() {
-  for (const path of ["/admin/marketing/approvals", "/admin/marketing/tasks", "/admin/marketing/activity", "/admin/marketing/content", "/admin/marketing/social", "/admin/marketing/campaigns", "/admin/marketing/outreach"]) revalidatePath(path);
+  for (const path of ["/admin/marketing/approvals", "/admin/marketing/approvals/ceo", "/admin/marketing/tasks", "/admin/marketing/activity", "/admin/marketing/content", "/admin/marketing/social", "/admin/marketing/campaigns", "/admin/marketing/outreach"]) revalidatePath(path);
 }
 
 function toRecord(value: unknown) {
@@ -55,6 +55,25 @@ function enrichExternalReplyAction(formData: FormData, proposedAction: unknown, 
   };
 }
 
+async function settleExternalReplyTask(task: TaskRow, decision: ApprovalDecision, now: string) {
+  const db = createAdminClient();
+  const approved = decision === "approved" || decision === "scheduled";
+  const taskPatch = approved
+    ? { approval_status: "approved", status: "completed", completed_at: now, scheduled_at: null, locked_at: null, locked_by: null, updated_at: now }
+    : { approval_status: decision === "rejected" ? "rejected" : "cancelled", status: "cancelled", scheduled_at: null, locked_at: null, locked_by: null, updated_at: now };
+  const { error: taskError } = await db.from("marketing_tasks").update(taskPatch).eq("id", task.id);
+  if (taskError) throw new Error(`[external reply task settle] ${taskError.message}`);
+
+  if (task.agent_id) {
+    const { error: agentError } = await db.from("marketing_agents").update({
+      status: "idle",
+      current_task_id: null,
+      updated_at: now,
+    }).eq("id", task.agent_id).eq("current_task_id", task.id);
+    if (agentError) throw new Error(`[external reply agent release] ${agentError.message}`);
+  }
+}
+
 async function applyExternalReplySideEffect({ approvalId, task, proposedAction, decision, executeAfter }: { approvalId: number; task: TaskRow; proposedAction: unknown; decision: ApprovalDecision; executeAfter: string | null }) {
   const db = createAdminClient();
   const action = toRecord(proposedAction);
@@ -84,6 +103,7 @@ async function applyExternalReplySideEffect({ approvalId, task, proposedAction, 
       }, { onConflict: "idempotency_key" });
       if (error) throw new Error(`[external reply job:${channel}] ${error.message}`);
     }
+    await settleExternalReplyTask(task, decision, now);
     return;
   }
 
@@ -91,6 +111,7 @@ async function applyExternalReplySideEffect({ approvalId, task, proposedAction, 
     .eq("approval_id", approvalId)
     .in("status", ["draft", "waiting_approval", "approved", "scheduled", "failed"]);
   if (error) throw new Error(`[external reply job cancel] ${error.message}`);
+  await settleExternalReplyTask(task, decision, now);
 }
 
 async function applyApprovalSideEffects({ approvalId, task, proposedAction, decision, executeAfter }: { approvalId: number; task: TaskRow; proposedAction: unknown; decision: ApprovalDecision; executeAfter: string | null }) {
@@ -170,7 +191,7 @@ async function decideApproval(formData: FormData, decision: ApprovalDecision) {
   const { data: approval, error: readError } = await db.from("marketing_approvals").select("id,task_id,status,approval_level,channel,proposed_action").eq("id", approvalId).single();
   if (readError || !approval) throw new Error("Approval not found.");
   if (approval.status !== "pending") throw new Error("Approval is no longer pending.");
-  const { data: task, error: taskReadError } = await db.from("marketing_tasks").select("id,task_type,content_id,campaign_id,lead_id,channel,input").eq("id", approval.task_id).single();
+  const { data: task, error: taskReadError } = await db.from("marketing_tasks").select("id,agent_id,task_type,content_id,campaign_id,lead_id,channel,input").eq("id", approval.task_id).single();
   if (taskReadError || !task) throw new Error("Approval task not found.");
 
   const decisionNote = String(formData.get("decision_note") ?? "").trim() || null;
