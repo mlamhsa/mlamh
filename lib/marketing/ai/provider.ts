@@ -144,6 +144,16 @@ function attachResearchSources(content: string, sources: Array<{ url: string; ti
   }
 }
 
+const LEAD_RESEARCH_GUIDANCE = `You may use web search only to research publicly available professional/business contact information relevant to the supplied company lead.
+Use a staged search strategy instead of stopping after one exact-name query:
+1. Entity resolution: search the exact organization name with city/country and service keywords, then identify the official company website and reputable company LinkedIn page when available. Search English and Arabic/transliterated name variants when the lead name may be localized or ambiguous.
+2. Company evidence: inspect official About, Team, Leadership, Contact, Services and relevant job/casting pages to confirm the entity, website, public business email and the kinds of roles likely to own talent/casting or partnerships.
+3. Decision-maker discovery: search named employees from reputable company pages together with the company name and decision roles. Prioritize Founder/CEO, Producer/Executive Producer, Casting Director/Manager, Head of Production, Business Development, Partnerships and closely related roles.
+4. Person verification: prefer a personal LinkedIn /in/ profile or official company/team page that explicitly supports the person's current company and professional role. A company LinkedIn page may identify employee names, but it is not a personal outreach channel. A job posting proves the company needs a role, not that a named person currently holds it.
+5. Evidence quality: prefer official company sources and LinkedIn professional pages. A reputable public business directory may be used as secondary evidence, but do not rely on gated data or inferred contact details. Never infer an email format from a domain or a title from a generic team inbox.
+6. Fail closed: if you cannot source a real person + professional role + public business email or personal LinkedIn profile, return the partial company evidence and missing fields instead of fabricating readiness.
+For each researched lead, return lead_research items with lead_id, readiness_status, candidate_contact {name, role, public_business_email, public_linkedin_url, company_website}, source_evidence [{url,title,claim}], confidence, missing_fields, remaining_gaps. Every non-null candidate field must be supported by claim-level source evidence; otherwise use null. Never claim that a candidate has been verified into MLAMH records, approved, or contacted.`;
+
 class ResponsesMarketingProvider implements MarketingAIProvider {
   public readonly id: string;
   private readonly apiKey: string;
@@ -177,7 +187,7 @@ class ResponsesMarketingProvider implements MarketingAIProvider {
       input.unshift({
         type: "message",
         role: "developer",
-        content: "You may use web search only to research publicly available professional/business contact information relevant to the supplied company lead. Prefer official company websites and reputable public business/professional pages. Do not scrape gated pages, bypass access controls, infer private contact details, or collect sensitive personal data. For each researched lead, return lead_research items with lead_id, readiness_status, candidate_contact {name, role, public_business_email, public_linkedin_url, company_website}, source_evidence [{url,title,claim}], confidence, missing_fields, remaining_gaps. A candidate field is usable only when supported by source evidence; otherwise use null. Never claim that a candidate has been verified into MLAMH records or contacted.",
+        content: LEAD_RESEARCH_GUIDANCE,
       });
     }
 
@@ -242,7 +252,11 @@ class ResponsesMarketingProvider implements MarketingAIProvider {
       usage,
       metadata: {
         ...(request.metadata ?? {}),
-        ...(leadResearch ? { web_search_used: true, web_source_count: webSources.length } : {}),
+        ...(leadResearch ? {
+          web_search_used: true,
+          web_source_count: webSources.length,
+          research_strategy: "entity_resolution_then_decision_maker_v1",
+        } : {}),
       },
     };
   }

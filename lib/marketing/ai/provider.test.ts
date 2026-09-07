@@ -16,7 +16,7 @@ test.after(() => {
   delete process.env.AI_GATEWAY_API_KEY;
 });
 
-test("lead enrichment uses Vercel AI Gateway Responses API with web search and preserves source evidence", async () => {
+test("lead enrichment uses Vercel AI Gateway Responses API with staged web research and preserves source evidence", async () => {
   let capturedUrl = "";
   let capturedInit: RequestInit | undefined;
 
@@ -88,6 +88,13 @@ test("lead enrichment uses Vercel AI Gateway Responses API with web search and p
   assert.deepEqual(body.tools, [{ type: "web_search" }]);
   assert.equal(body.input[0]?.role, "developer");
   assert.match(body.input[0]?.content ?? "", /publicly available professional\/business contact information/i);
+  assert.match(body.input[0]?.content ?? "", /Entity resolution/i);
+  assert.match(body.input[0]?.content ?? "", /English and Arabic\/transliterated name variants/i);
+  assert.match(body.input[0]?.content ?? "", /Decision-maker discovery/i);
+  assert.match(body.input[0]?.content ?? "", /Founder\/CEO, Producer\/Executive Producer, Casting Director\/Manager/i);
+  assert.match(body.input[0]?.content ?? "", /company LinkedIn page may identify employee names, but it is not a personal outreach channel/i);
+  assert.match(body.input[0]?.content ?? "", /Never infer an email format/i);
+  assert.match(body.input[0]?.content ?? "", /Fail closed/i);
   assert.equal(body.input[1]?.role, "developer");
   assert.match(body.input[1]?.content ?? "", /Return valid JSON only/i);
 
@@ -96,6 +103,7 @@ test("lead enrichment uses Vercel AI Gateway Responses API with web search and p
   assert.equal(response.provider, "vercel-ai-gateway");
   assert.equal(response.metadata?.web_search_used, true);
   assert.equal(response.metadata?.web_source_count, 1);
+  assert.equal(response.metadata?.research_strategy, "entity_resolution_then_decision_maker_v1");
   assert.deepEqual(response.usage, { input_tokens: 10, output_tokens: 20, total_tokens: 30 });
 });
 
