@@ -46,13 +46,16 @@ Status: ACTIVE
 - NEXT — Strengthen lead-to-opportunity attribution where telemetry gaps remain.
 
 ### B. Talent acquisition and activation
-Status: NEXT
-- Signup conversion diagnostics.
-- Talent-vs-Publisher role clarity monitoring.
-- Talent onboarding activation.
-- Opportunity-led acquisition.
-- Referral/sharing loop.
-- Qualified supply gap reporting.
+Status: ACTIVE
+- DONE — Lifetime talent activation funnel upgraded from raw counts to conversion diagnostics.
+- DONE — 7-day registration cohort added for completion, submission and approval progression.
+- DONE — Largest current activation bottleneck is derived from observed funnel drop-off rather than guessed.
+- DONE — Existing incomplete-registration and talent-profile recovery reminder telemetry is surfaced and reused instead of creating a duplicate lifecycle system.
+- DONE — Funnel math is covered by unit tests, including zero-denominator and activity-overlap cases.
+- DONE — Talent Growth remains read-only; no Production DML is introduced by the diagnostics page.
+- NEXT — Instrument explicit account-role selection / correction telemetry so accidental Talent-vs-Publisher selection can be measured historically.
+- NEXT — Opportunity-led acquisition and referral/sharing loop measurement.
+- NEXT — Qualified supply gap reporting inside the growth view.
 
 ### C. Organic content and distribution
 Status: NEXT
