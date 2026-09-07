@@ -1,1 +1,0 @@
-This route is admin-only. It never auto-converts accounts; conversion requires explicit admin confirmation and is restricted to likely talent misregistrations with no publisher opportunities and no verified publisher status.
