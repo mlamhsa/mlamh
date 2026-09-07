@@ -20,8 +20,15 @@ async function resolvePostLoginDestination(nextParam?: string): Promise<Href> {
   if (account) {
     const safeNext = getSafePostLoginPath(nextParam, account.type);
     if (safeNext) return safeNext as Href;
+    const home = getAccountHomeHref(account);
+    if (home) return home;
   }
-  return getAccountHomeHref(account) ?? "/opportunities";
+
+  const { data: { user } } = await supabase.auth.getUser();
+  const metadataType = user?.user_metadata?.account_type;
+  if (metadataType === "publisher") return "/publisher/setup";
+  if (metadataType === "talent") return "/onboarding";
+  return "/account-type";
 }
 
 function getCredentialError(isArabic: boolean, error: { code?: string; message?: string } | null) {
