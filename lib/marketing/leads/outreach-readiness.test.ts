@@ -97,3 +97,14 @@ test("main marketing orchestrator applies CEO-approved contact auto-verification
   assert.match(autoMaterializer, /external_send_allowed: false/);
   assert.match(autoMaterializer, /getOutreachReadiness\(current\)\.isReady/);
 });
+
+test("newly outreach-ready leads supersede open research and are promoted across the active pipeline", () => {
+  const orchestrator = source("lib/marketing/orchestrator.ts");
+
+  assert.match(orchestrator, /cancelSupersededLeadEnrichment/);
+  assert.match(orchestrator, /lead_now_has_outreach_ready_verified_contact/);
+  assert.match(orchestrator, /next_step: "outreach_preparation"/);
+  assert.match(orchestrator, /\.limit\(20\)/);
+  assert.match(orchestrator, /\.eq\("send_status", "sent"\)/);
+  assert.match(orchestrator, /supersededEnrichmentCancelled/);
+});
