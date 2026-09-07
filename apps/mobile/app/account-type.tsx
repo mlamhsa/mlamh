@@ -4,7 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Building2, UserRound } from "lucide-react-native";
 
-import { getMobileAccountContext } from "@/lib/account";
+import { getMobileAccountContext, setMobileAccountType } from "@/lib/account";
 import { getAccountHomeHref } from "@/lib/account-routing";
 import { isRtlLocale } from "@/lib/i18n";
 import { useAppLocale } from "@/lib/locale-context";
@@ -65,14 +65,20 @@ export default function AccountTypeScreen() {
     setSaving(true);
     setError(null);
     try {
-      const { error: updateError } = await supabase.auth.updateUser({
-        data: { account_type: selected, preferred_locale: locale },
-      });
-      if (updateError) {
+      const result = await setMobileAccountType(selected);
+      if (!result.ok) {
+        if (result.code === "ACCOUNT_TYPE_CONFLICT" && result.accountType) {
+          router.replace(result.accountType === "publisher" ? "/publisher/setup" : "/onboarding");
+          return;
+        }
+        if (result.code === "UNAUTHENTICATED") {
+          router.replace("/login");
+          return;
+        }
         setError(isArabic ? "تعذر حفظ نوع الحساب. حاول مرة أخرى." : "Unable to save your account type. Please try again.");
         return;
       }
-      router.replace(selected === "publisher" ? "/publisher/setup" : "/onboarding");
+      router.replace(result.accountType === "publisher" ? "/publisher/setup" : "/onboarding");
     } catch {
       setError(isArabic ? "تعذر حفظ نوع الحساب. تحقق من الاتصال وحاول مرة أخرى." : "Unable to save your account type. Check your connection and try again.");
     } finally {
