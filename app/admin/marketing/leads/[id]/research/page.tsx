@@ -61,7 +61,7 @@ export default async function LeadResearchReviewPage({ params }: PageProps) {
     });
   }
 
-  const reviewable = candidates.filter((candidate) => candidate.name && (candidate.email || candidate.linkedin) && candidate.sources.length > 0);
+  const reviewable = candidates.filter((candidate) => candidate.name && candidate.role && (candidate.email || candidate.linkedin) && candidate.sources.length > 0);
 
   return <AdminPageContainer>
     <div className="mb-4"><Link href={`/admin/marketing/leads/${leadId}?lang=ar`} className="text-xs text-gold/70 hover:text-gold">← العودة إلى العميل</Link></div>
@@ -80,7 +80,7 @@ export default async function LeadResearchReviewPage({ params }: PageProps) {
 
     <div className="space-y-5">
       {candidates.length === 0 ? <AdminCard className="p-7 text-sm text-white/45">لا توجد نتيجة بحث مكتملة لهذا العميل حتى الآن. سيظهر ناتج Salman هنا بعد تنفيذ مهمة Lead Enrichment المدعومة بالبحث العام.</AdminCard> : candidates.map((candidate, position) => {
-        const canApprove = Boolean(candidate.name && (candidate.email || candidate.linkedin) && candidate.sources.length > 0);
+        const canApprove = Boolean(candidate.name && candidate.role && (candidate.email || candidate.linkedin) && candidate.sources.length > 0);
         return <AdminCard key={`${candidate.taskId}-${candidate.index}-${position}`} className="overflow-hidden">
           <div className="flex flex-wrap items-start justify-between gap-4 border-b border-white/[0.07] p-5">
             <div>
@@ -105,7 +105,7 @@ export default async function LeadResearchReviewPage({ params }: PageProps) {
           </div>
 
           <div className="border-t border-white/[0.07] p-5">
-            {canApprove ? <form action={approveLeadResearchCandidateAction}><input type="hidden" name="lead_id" value={leadId}/><input type="hidden" name="task_id" value={candidate.taskId}/><input type="hidden" name="candidate_index" value={candidate.index}/><button className="rounded-xl border border-gold/30 bg-gold/10 px-5 py-3 text-sm font-medium text-gold transition hover:bg-gold/15">اعتماد Contact وتجهيزه لـOutreach</button></form> : <p className="text-sm text-amber-100/60">لن يظهر الاعتماد حتى يتوفر اسم موثق + قناة تواصل عامة + مصدر قابل للمراجعة.</p>}
+            {canApprove ? <form action={approveLeadResearchCandidateAction}><input type="hidden" name="lead_id" value={leadId}/><input type="hidden" name="task_id" value={candidate.taskId}/><input type="hidden" name="candidate_index" value={candidate.index}/><button className="rounded-xl border border-gold/30 bg-gold/10 px-5 py-3 text-sm font-medium text-gold transition hover:bg-gold/15">اعتماد Contact وتجهيزه لـOutreach</button></form> : <p className="text-sm text-amber-100/60">لن يظهر الاعتماد حتى يتوفر اسم موثق + منصب مهني موثق + قناة تواصل عامة + مصدر قابل للمراجعة.</p>}
           </div>
         </AdminCard>;
       })}

@@ -30,7 +30,8 @@ function validLinkedIn(value: unknown) {
   if (!raw) return null;
   try {
     const url = new URL(raw);
-    const host = url.hostname.toLowerCase().replace(/^www\./, "");
+    const rawHost = url.hostname.toLowerCase().replace(/^www\./, "");
+    const host = rawHost === "linkedin.com" || rawHost.endsWith(".linkedin.com") ? "linkedin.com" : rawHost;
     const isPersonProfile = /^\/in\/[^/]+\/?$/i.test(url.pathname);
     return host === "linkedin.com" && isPersonProfile ? url.toString() : null;
   } catch {
