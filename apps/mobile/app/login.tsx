@@ -73,7 +73,7 @@ export default function LoginScreen() {
     setLoading(true);
     setError(null);
     try {
-      const redirectTo = Linking.createURL("auth/callback");
+      const redirectTo = "mlamh://auth/callback";
       const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: { redirectTo, skipBrowserRedirect: true },
@@ -117,7 +117,6 @@ export default function LoginScreen() {
                 <TextInput accessibilityLabel={isArabic ? "البريد الإلكتروني" : "Email"} autoCapitalize="none" autoCorrect={false} autoComplete="email" keyboardType="email-address" returnKeyType="next" placeholder="name@example.com" placeholderTextColor={theme.muted} value={email} onChangeText={setEmail} style={[styles.input, { textAlign: "left", writingDirection: "ltr" }]} />
               </View>
             </View>
-
             <View style={styles.fieldWrap}>
               <Text style={[styles.fieldLabel, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "كلمة المرور" : "Password"}</Text>
               <View style={[styles.inputShell, isRtl && styles.rowRtl]}>
