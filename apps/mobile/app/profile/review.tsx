@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 
 import { ScreenSkeleton } from "@/components/ScreenSkeleton";
 import { getTalentProfile } from "@/lib/api";
@@ -20,6 +20,8 @@ async function readReviewResponse(response: Response): Promise<ReviewResponse | 
 }
 
 export default function ProfileReviewScreen() {
+  const params = useLocalSearchParams<{ onboarding?: string }>();
+  const onboarding = params.onboarding === "1";
   const locale = getDeviceLocale();
   const isArabic = locale === "ar";
   const isRtl = isRtlLocale(locale);
@@ -89,9 +91,10 @@ export default function ProfileReviewScreen() {
   const textAlign = isRtl ? "right" : "left";
 
   return <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
-    <ScrollView contentContainerStyle={[styles.content, compact && styles.contentCompact, { direction: isRtl ? "rtl" : "ltr" }]} showsVerticalScrollIndicator={false}>
-      <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "رجوع" : "Back"} onPress={() => router.back()} hitSlop={12} style={[styles.backButton, isRtl && styles.backButtonRtl]}><Text style={[styles.back, isArabic && styles.arabicText]}>{isArabic ? "رجوع" : "Back"}</Text></Pressable>
-      <View style={styles.header}><Text style={[styles.brand, isArabic && styles.arabicBrand, { textAlign }]}>{isArabic ? "ملامح" : "MLAMH"}</Text><Text accessibilityRole="header" style={[styles.title, compact && styles.titleCompact, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "جاهزية الملف" : "Profile readiness"}</Text><Text style={[styles.subtitle, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "أكمل المتطلبات الأساسية ثم أرسل ملفك للمراجعة. يبقى الملف خاصًا حتى يتم اعتماده." : "Complete the core requirements, then submit your profile for review. It remains private until approved."}</Text></View>
+    <ScrollView contentContainerStyle={[styles.content, compact && styles.contentCompact]} showsVerticalScrollIndicator={false}>
+      <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "رجوع" : "Back"} onPress={() => onboarding ? router.replace("/profile/journey") : router.back()} hitSlop={12} style={[styles.backButton, isRtl && styles.backButtonRtl]}><Text style={[styles.back, isArabic && styles.arabicText]}>{isArabic ? "رجوع" : "Back"}</Text></Pressable>
+      {onboarding ? <View style={styles.onboardingCard}><View style={[styles.onboardingCopy, isRtl && styles.rowRtl]}><Text style={[styles.onboardingLabel, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "الخطوة 4 من 4" : "Step 4 of 4"}</Text><Text style={styles.onboardingValue}>100%</Text></View><View style={styles.onboardingTrack}><View style={styles.onboardingFill}/></View></View> : null}
+      <View style={styles.header}><Text style={[styles.brand, isArabic && styles.arabicBrand, { textAlign }]}>{isArabic ? "ملامح" : "MLAMH"}</Text><Text accessibilityRole="header" style={[styles.title, compact && styles.titleCompact, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "جاهزية الملف" : "Profile readiness"}</Text><Text style={[styles.subtitle, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "راجع المتطلبات الأساسية ثم أرسل ملفك للمراجعة. يبقى الملف خاصًا حتى يتم اعتماده." : "Review the core requirements, then submit your profile. It remains private until approved."}</Text></View>
 
       <View accessible accessibilityLabel={isArabic ? `اكتمال الملف ${safeCompletion} بالمئة` : `Profile completion ${safeCompletion} percent`} style={[styles.card, compact && styles.cardCompact]}>
         <View style={[styles.scoreRow, isRtl && styles.rowRtl]}><Text style={[styles.cardTitle, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "اكتمال الملف" : "Profile completion"}</Text><Text style={styles.score}>{safeCompletion}%</Text></View>
@@ -101,7 +104,7 @@ export default function ProfileReviewScreen() {
 
       <View style={[styles.card, compact && styles.cardCompact]}>
         <Text style={[styles.cardTitle, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "حالة المراجعة" : "Review status"}</Text>
-        <Text accessibilityLiveRegion="polite" style={[styles.status, isArabic && styles.arabicText, { textAlign }]}>{approved ? (isArabic ? "معتمد" : "Approved") : underReview ? (isArabic ? "قيد المراجعة" : "Under review") : (isArabic ? "غير معتمد — لم يُرسل بعد" : "Not approved — not submitted yet")}</Text>
+        <Text accessibilityLiveRegion="polite" style={[styles.status, isArabic && styles.arabicText, { textAlign }]}>{approved ? (isArabic ? "معتمد" : "Approved") : underReview ? (isArabic ? "قيد المراجعة" : "Under review") : (isArabic ? "جاهز للإرسال عند اكتمال المتطلبات" : "Ready to submit when requirements are complete")}</Text>
         {underReview ? <Text style={[styles.helper, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "تم استلام ملفك، ولا تحتاج لإعادة الإرسال. ستتحدث الحالة تلقائيًا بعد قرار المراجعة." : "Your profile was received. You do not need to resubmit; the status updates after review."}</Text> : null}
         {approved ? <Text style={[styles.helper, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "تم اعتماد ملفك ويمكنه الظهور والتقديم وفق إعداداتك." : "Your profile is approved and can appear and apply according to your settings."}</Text> : null}
         {missing.length > 0 ? <View style={styles.requirements}><Text style={[styles.requirementTitle, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "أكمل هذه البيانات:" : "Complete these details:"}</Text>{missing.map((item) => <View key={item.key} style={[styles.requirementRow, isRtl && styles.rowRtl]}><Text accessibilityElementsHidden style={styles.requirementDot}>•</Text><Text style={[styles.requirement, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? item.ar : item.en}</Text></View>)}</View> : null}
@@ -109,7 +112,8 @@ export default function ProfileReviewScreen() {
       </View>
 
       {canSubmit ? <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "إرسال الملف للمراجعة" : "Submit profile for review"} accessibilityState={{ disabled: submitting, busy: submitting }} disabled={submitting} onPress={() => void submitReview()} style={({ pressed }) => [styles.primaryButton, submitting && styles.disabled, pressed && styles.pressed]}>{submitting ? <ActivityIndicator accessibilityLabel={isArabic ? "جارٍ إرسال الملف" : "Submitting profile"} color={theme.background} /> : <Text style={[styles.primaryText, isArabic && styles.arabicText]}>{isArabic ? "إرسال للمراجعة" : "Submit for review"}</Text>}</Pressable> : null}
-      <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "تعديل ملفي" : "Edit my profile"} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]} onPress={() => router.replace("/profile/edit")}><Text style={[styles.secondaryText, isArabic && styles.arabicText]}>{isArabic ? "تعديل الملف" : "Edit profile"}</Text></Pressable>
+      {onboarding && (success || underReview || approved) ? <Pressable accessibilityRole="button" onPress={() => router.replace("/profile/journey")} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}><Text style={[styles.primaryText, isArabic && styles.arabicText]}>{approved ? (isArabic ? "الانتقال إلى ملفي" : "Go to my profile") : (isArabic ? "متابعة حالة ملفي" : "Continue to profile status")}</Text></Pressable> : null}
+      <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "تعديل ملفي" : "Edit my profile"} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]} onPress={() => onboarding ? router.replace({ pathname: "/profile/edit", params: { onboarding: "1" } }) : router.replace("/profile/edit")}><Text style={[styles.secondaryText, isArabic && styles.arabicText]}>{isArabic ? "تعديل الملف" : "Edit profile"}</Text></Pressable>
     </ScrollView>
   </SafeAreaView>;
 }
@@ -122,6 +126,12 @@ function createStyles(theme: typeof darkTheme) { return StyleSheet.create({
   backButton: { minHeight: 44, alignSelf: "flex-start", justifyContent: "center" },
   backButtonRtl: { alignSelf: "flex-end" },
   back: { color: theme.muted, fontSize: 13, fontWeight: "600", paddingVertical: 8 },
+  onboardingCard: { borderWidth: 1, borderColor: "#C9A96233", borderRadius: 16, backgroundColor: "#C9A96208", padding: 12, gap: 8 },
+  onboardingCopy: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  onboardingLabel: { color: theme.text, fontSize: 11, fontWeight: "800" },
+  onboardingValue: { color: theme.accent, fontSize: 11, fontWeight: "900" },
+  onboardingTrack: { height: 4, borderRadius: 2, backgroundColor: "#FFFFFF12", overflow: "hidden" },
+  onboardingFill: { width: "100%", height: "100%", backgroundColor: theme.accent },
   header: { gap: 7, marginBottom: 2 },
   brand: { color: theme.accent, fontSize: 15, lineHeight: 20, fontWeight: "800", letterSpacing: 1.1 },
   arabicBrand: { letterSpacing: 0, writingDirection: "rtl" },
