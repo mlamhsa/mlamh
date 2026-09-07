@@ -17,7 +17,7 @@ function text(value: unknown) {
 
 export function getContactRole(metadata: unknown) {
   const value = record(metadata);
-  return text(value.job_title) ?? text(value.role) ?? text(value.title);
+  return text(value.professional_role) ?? text(value.job_title) ?? text(value.role) ?? text(value.title);
 }
 
 export function getOutreachReadiness(contact: OutreachReadinessContact | null | undefined) {
