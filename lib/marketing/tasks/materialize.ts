@@ -1,3 +1,4 @@
+import { getOutreachReadiness } from "@/lib/marketing/leads/outreach-readiness";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createMarketingTask } from "@/lib/marketing/tasks/service";
 
@@ -25,11 +26,6 @@ function text(value: unknown) {
 function numberValue(value: unknown) {
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
-}
-
-function contactRole(metadata: unknown) {
-  const value = record(metadata);
-  return text(value.job_title) ?? text(value.role) ?? text(value.title);
 }
 
 function validLinkedInProfile(value: unknown) {
@@ -365,11 +361,12 @@ async function materializeOutboundEmail(task: SourceTask, output: Record<string,
 
     const { data: contact } = await db
       .from("marketing_contacts")
-      .select("email")
+      .select("contact_name,email,linkedin_url,metadata")
       .eq("id", lead.contact_id)
       .maybeSingle();
-    const recipientEmail = text(contact?.email);
-    if (!recipientEmail) continue;
+    const readiness = getOutreachReadiness(contact);
+    if (!readiness.isReady || !readiness.email) continue;
+    const recipientEmail = readiness.email;
 
     const { data: existing } = await db
       .from("marketing_outreach")
@@ -443,12 +440,13 @@ async function materializeOutreachPreparation(task: SourceTask, output: Record<s
     if ((suppressed ?? 0) > 0) continue;
 
     const { data: contact } = await db.from("marketing_contacts").select("contact_name,email,linkedin_url,metadata").eq("id", lead.contact_id).maybeSingle();
-    const contactName = text(contact?.contact_name);
-    const role = contactRole(contact?.metadata);
-    if (!contactName) continue;
+    const readiness = getOutreachReadiness(contact);
+    if (!readiness.isReady) continue;
+    const contactName = readiness.name;
+    const role = readiness.role;
 
     if (channel === "linkedin") {
-      const profileUrl = validLinkedInProfile(contact?.linkedin_url);
+      const profileUrl = validLinkedInProfile(readiness.linkedinUrl);
       if (!profileUrl) continue;
       const { data: existing } = await db.from("marketing_outreach").select("id,approval_id,send_status").eq("lead_id", leadId).eq("channel", "linkedin").in("send_status", ["draft", "waiting_approval", "approved", "scheduled", "sent"]).order("created_at", { ascending: false }).limit(1).maybeSingle();
       if (existing?.send_status === "sent" || existing?.approval_id) continue;
@@ -490,7 +488,7 @@ async function materializeOutreachPreparation(task: SourceTask, output: Record<s
       continue;
     }
 
-    const recipientEmail = text(contact?.email);
+    const recipientEmail = readiness.email;
     if (!recipientEmail || !subject) continue;
     const { data: existing } = await db.from("marketing_outreach").select("id,approval_id,send_status").eq("lead_id", leadId).eq("channel", "email").in("send_status", ["draft", "waiting_approval", "approved", "scheduled", "sent"]).order("created_at", { ascending: false }).limit(1).maybeSingle();
     if (existing?.send_status === "sent" || existing?.approval_id) continue;
