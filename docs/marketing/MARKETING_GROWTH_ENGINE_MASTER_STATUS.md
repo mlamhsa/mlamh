@@ -73,22 +73,26 @@ Status: CORE LOOP IMPLEMENTED
 - DEFERRED — Account-role correction telemetry until a governed correction flow exists; publisher share alone is not evidence of a mistake.
 
 ### C. Organic content and distribution
-Status: VERIFIED FOUNDATION / NEXT MEASUREMENT
+Status: VERIFIED FOUNDATION / MEASUREMENT GATED
 - VERIFIED — Existing Content Studio has content objectives, AI drafts, copy -> creative -> approval -> publishing flow.
 - VERIFIED — Existing Social Scheduler preserves approval before publishing and supports channel-specific execution.
 - VERIFIED — Opportunity sharing provides an organic distribution path with first-party share/view measurement.
-- NEXT — Link published organic content to attributed visits and marketplace outcomes consistently.
-- NEXT — Add content-level outcome diagnostics only where recorded external or first-party evidence exists.
+- DEFERRED — Per-content outcome attribution until an external publishing surface carries a verifiable first-party link/content identifier; current Buffer execution is text/media based and Instagram copy deliberately avoids raw MLAMH URLs.
+- NEXT — Continue channel-level outcome measurement using existing UTM evidence; do not invent content-level clicks or conversions.
 
 ### D. SEO and discovery
-Status: VERIFIED FOUNDATION / ACTIVE
+Status: TECHNICAL BASELINE IMPLEMENTED / SA INDEX MARKET
 - VERIFIED — Dynamic sitemap covers public locale roots, talent directory, opportunity directory, casting, guides, publisher pages, approved talent profiles, available talent categories/cities and opportunity intent routes.
-- VERIFIED — Market SEO gating prevents exposing a disabled market through the sitemap.
+- VERIFIED — Market SEO gating prevents exposing a disabled market through the sitemap; the current indexed SEO market remains Saudi Arabia (`SA`).
 - VERIFIED — Robots excludes admin, API, auth, dashboards, login and join surfaces from indexing.
 - VERIFIED — Talent profile metadata has canonical/hreflang, Open Graph, Twitter and robots controls.
 - DONE — Talent metadata fallback no longer advertises private media/content to public crawlers; public metadata describes public professional details only.
 - VERIFIED — Public talent projection hides private media/links unless the governed viewer access policy grants them.
-- NEXT — Review opportunity metadata/schema coverage against current opportunity types and multi-country rollout rules.
+- VERIFIED — Opportunity detail metadata has canonical/hreflang, Open Graph, Twitter and noindex for missing records.
+- VERIFIED — Paid/open opportunity pages expose JobPosting schema with title, description, datePosted, validThrough, hiring organization and city; unpaid opportunities are intentionally excluded from JobPosting markup.
+- DONE — Public opportunity records normalize `application_deadline -> deadline -> expires_at`, so legacy expiry data reaches the existing page/application status and JobPosting `validThrough` logic instead of silently appearing evergreen.
+- DONE — Active opportunity sitemap and opportunity-intent sitemap now exclude records whose known application/expiry deadline has passed.
+- POLICY — The current JobPosting `addressCountry: SA` remains aligned with the current `SEO_MARKET = SA`; it must become market-derived before another country becomes indexable.
 - NEXT — Programmatic SEO only where pages have unique user value and real inventory.
 - NEXT — AI-search visibility diagnostics after technical baseline is complete.
 
