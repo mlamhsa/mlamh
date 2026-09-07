@@ -1,6 +1,37 @@
 export type CanonicalMobileOption = { value: string; ar: string; en: string; code?: string };
 export type MobileProfileOptionsResponse = { cities: CanonicalMobileOption[]; nationalities: CanonicalMobileOption[] };
 
+export const FALLBACK_NATIONALITY_OPTIONS: CanonicalMobileOption[] = [
+  { value: "saudi", ar: "سعودي", en: "Saudi" },
+  { value: "emirati", ar: "إماراتي", en: "Emirati" },
+  { value: "kuwaiti", ar: "كويتي", en: "Kuwaiti" },
+  { value: "qatari", ar: "قطري", en: "Qatari" },
+  { value: "bahraini", ar: "بحريني", en: "Bahraini" },
+  { value: "omani", ar: "عُماني", en: "Omani" },
+  { value: "egyptian", ar: "مصري", en: "Egyptian" },
+  { value: "jordanian", ar: "أردني", en: "Jordanian" },
+  { value: "lebanese", ar: "لبناني", en: "Lebanese" },
+  { value: "syrian", ar: "سوري", en: "Syrian" },
+  { value: "iraqi", ar: "عراقي", en: "Iraqi" },
+  { value: "palestinian", ar: "فلسطيني", en: "Palestinian" },
+  { value: "yemeni", ar: "يمني", en: "Yemeni" },
+  { value: "sudanese", ar: "سوداني", en: "Sudanese" },
+  { value: "moroccan", ar: "مغربي", en: "Moroccan" },
+  { value: "algerian", ar: "جزائري", en: "Algerian" },
+  { value: "tunisian", ar: "تونسي", en: "Tunisian" },
+  { value: "libyan", ar: "ليبي", en: "Libyan" },
+  { value: "american", ar: "أمريكي", en: "American" },
+  { value: "british", ar: "بريطاني", en: "British" },
+  { value: "canadian", ar: "كندي", en: "Canadian" },
+  { value: "french", ar: "فرنسي", en: "French" },
+  { value: "german", ar: "ألماني", en: "German" },
+  { value: "turkish", ar: "تركي", en: "Turkish" },
+  { value: "pakistani", ar: "باكستاني", en: "Pakistani" },
+  { value: "indian", ar: "هندي", en: "Indian" },
+  { value: "bangladeshi", ar: "بنغلاديشي", en: "Bangladeshi" },
+  { value: "filipino", ar: "فلبيني", en: "Filipino" },
+];
+
 function requireApiBaseUrl() {
   const configured = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
   if (!configured) throw new Error("Missing EXPO_PUBLIC_API_BASE_URL for this mobile environment.");
