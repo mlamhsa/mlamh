@@ -9,7 +9,7 @@ const testMode = {
   bufferTargets: ["instagram", "facebook"] as Array<"instagram" | "facebook">,
 };
 
-test("production execution bypasses sandbox allowlists only when the global gate is enabled", () => {
+test("production execution bypasses sandbox allowlists only for ordinary production jobs", () => {
   assert.deepEqual(evaluateControlledExecution({
     channel: "email",
     productionEnabled: true,
@@ -65,10 +65,30 @@ test("test Buffer publishing is limited to allowlisted MLAMH targets", () => {
   }), { allowed: false, reason: "test_buffer_target_not_allowlisted" });
 });
 
-test("disabled sandbox never overrides the global kill switch", () => {
+test("explicit Buffer sandbox remains test mode even when Buffer Production is enabled", () => {
+  assert.deepEqual(evaluateControlledExecution({
+    channel: "buffer",
+    productionEnabled: true,
+    testModeRequested: true,
+    testMode,
+    bufferTarget: "instagram",
+  }), { allowed: true, mode: "test" });
+});
+
+test("explicit email sandbox still enforces allowlist when Email Production is enabled", () => {
   assert.deepEqual(evaluateControlledExecution({
     channel: "email",
-    productionEnabled: false,
+    productionEnabled: true,
+    testModeRequested: true,
+    testMode,
+    recipientEmail: "client@example.com",
+  }), { allowed: false, reason: "test_email_recipient_not_allowlisted" });
+});
+
+test("disabled sandbox never falls through into Production when test mode was explicitly requested", () => {
+  assert.deepEqual(evaluateControlledExecution({
+    channel: "email",
+    productionEnabled: true,
     testModeRequested: true,
     testMode: { enabled: false, emailAllowlist: ["hello@mlamh.net"], bufferTargets: ["instagram"] },
     recipientEmail: "hello@mlamh.net",

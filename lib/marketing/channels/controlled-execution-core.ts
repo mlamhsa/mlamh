@@ -24,9 +24,7 @@ function normalizeEmail(value: string) {
   return value.trim().toLowerCase();
 }
 
-export function evaluateControlledExecution(input: ControlledExecutionInput): ControlledExecutionResult {
-  if (input.productionEnabled) return { allowed: true, mode: "production" };
-  if (!input.testModeRequested) return { allowed: false, reason: "external_execution_disabled" };
+function evaluateRequestedTestMode(input: ControlledExecutionInput): ControlledExecutionResult {
   if (!input.testMode.enabled) return { allowed: false, reason: "test_mode_disabled" };
 
   if (input.channel === "email") {
@@ -43,4 +41,13 @@ export function evaluateControlledExecution(input: ControlledExecutionInput): Co
     return { allowed: false, reason: "test_buffer_target_not_allowlisted" };
   }
   return { allowed: true, mode: "test" };
+}
+
+export function evaluateControlledExecution(input: ControlledExecutionInput): ControlledExecutionResult {
+  // An explicitly marked sandbox job must remain a sandbox job even when the
+  // same channel is also enabled for Production. This keeps QA allowlists and
+  // execution_mode semantics authoritative during controlled E2E tests.
+  if (input.testModeRequested) return evaluateRequestedTestMode(input);
+  if (input.productionEnabled) return { allowed: true, mode: "production" };
+  return { allowed: false, reason: "external_execution_disabled" };
 }
