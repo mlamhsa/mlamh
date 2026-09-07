@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { isOpportunityOpenForSeo } from "@/lib/seo/opportunity";
 import { getPublishedOpportunities } from "@/lib/supabase/opportunities";
 
 const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://mlamh.net").replace(/\/$/, "");
@@ -53,11 +54,26 @@ function resolveType(value: string): TypeKey | null {
   return value === "acting" || value === "modeling" ? value : null;
 }
 
+function activeMatches(
+  opportunities: Awaited<ReturnType<typeof getPublishedOpportunities>>,
+  type: TypeKey,
+) {
+  const config = TYPES[type];
+  return opportunities.filter(
+    (item) =>
+      config.accepted.has(String(item.opportunity_type) as never) &&
+      isOpportunityOpenForSeo(item),
+  );
+}
+
 export async function generateMetadata({ params }: { params: Promise<{ locale?: string; type: string }> }): Promise<Metadata> {
   const { locale: rawLocale, type: rawType } = await params;
   const locale = rawLocale === "en" ? "en" : "ar";
   const type = resolveType(rawType);
   if (!type) return { robots: { index: false, follow: false } };
+
+  const opportunities = await getPublishedOpportunities().catch(() => []);
+  const hasActiveInventory = activeMatches(opportunities, type).length > 0;
   const copy = TYPES[type][locale];
   const canonical = `${SITE_URL}/${locale}/opportunities/type/${type}`;
   return {
@@ -72,6 +88,9 @@ export async function generateMetadata({ params }: { params: Promise<{ locale?: 
       },
     },
     openGraph: { title: copy.title, description: copy.description, url: canonical, siteName: "MLAMH", type: "website" },
+    robots: hasActiveInventory
+      ? { index: true, follow: true }
+      : { index: false, follow: true },
   };
 }
 
@@ -85,7 +104,7 @@ export default async function OpportunityTypePage({ params }: { params: Promise<
   const config = TYPES[type];
   const copy = config[locale];
   const opportunities = await getPublishedOpportunities().catch(() => []);
-  const matches = opportunities.filter((item) => config.accepted.has(String(item.opportunity_type) as never));
+  const matches = activeMatches(opportunities, type);
 
   const breadcrumb = {
     "@context": "https://schema.org",
