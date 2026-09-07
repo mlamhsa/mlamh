@@ -27,7 +27,7 @@ export default async function TalentGrowthPage({ searchParams }: PageProps) {
   const db = createAdminClient();
   const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
-  const [registrations, complete, submitted, approved, applications, recentRegistrations, recentComplete, recentSubmitted, recentApproved, recentApplications] = await Promise.all([
+  const [registrations, complete, submitted, approved, applications, recentRegistrations, recentComplete, recentSubmitted, recentApproved, recentApplications, profileRecoveryReminders, incompleteRegistrationReminders] = await Promise.all([
     db.from("profiles").select("id", { count: "exact", head: true }).eq("account_type", "talent"),
     db.from("talents").select("id", { count: "exact", head: true }).gte("profile_completion", 100),
     db.from("profiles").select("id", { count: "exact", head: true }).eq("account_type", "talent").in("approval_status", submittedStatuses),
@@ -38,6 +38,8 @@ export default async function TalentGrowthPage({ searchParams }: PageProps) {
     db.from("profiles").select("id", { count: "exact", head: true }).eq("account_type", "talent").gte("created_at", since).in("approval_status", submittedStatuses),
     db.from("profiles").select("id", { count: "exact", head: true }).eq("account_type", "talent").gte("created_at", since).eq("approval_status", "approved"),
     db.from("opportunity_applications").select("id", { count: "exact", head: true }).gte("created_at", since),
+    db.from("events").select("id", { count: "exact", head: true }).eq("event_type", "talent_profile_recovery_reminder_sent").gte("created_at", since),
+    db.from("events").select("id", { count: "exact", head: true }).eq("event_type", "incomplete_registration_reminder_sent").gte("created_at", since),
   ]);
 
   const lifetime: TalentActivationSnapshot = {
@@ -59,6 +61,10 @@ export default async function TalentGrowthPage({ searchParams }: PageProps) {
   const lifetimeFunnel = buildTalentActivationFunnel(lifetime);
   const recentFunnel = buildTalentActivationFunnel(recent);
   const bottleneck = recentSummary.biggestBottleneck;
+  const recoverySignals = {
+    incompleteRegistration: incompleteRegistrationReminders.count ?? 0,
+    profileRecovery: profileRecoveryReminders.count ?? 0,
+  };
 
   return <AdminPageContainer>
     <AdminPageHeader
@@ -94,6 +100,11 @@ export default async function TalentGrowthPage({ searchParams }: PageProps) {
         </div>
       </AdminCard>
     </div>
+
+    <AdminCard className="mb-6 p-5">
+      <div className="flex items-center justify-between gap-4"><div><h2 className="text-lg text-white">{isArabic ? "استعادة التفعيل" : "Activation recovery"}</h2><p className="mt-1 text-xs text-white/35">{isArabic ? "نستخدم مسارات الاستعادة الموجودة أصلًا بدل إنشاء Lifecycle موازٍ." : "Existing recovery paths are reused instead of creating a parallel lifecycle system."}</p></div><AdminBadge variant="muted">7D</AdminBadge></div>
+      <div className="mt-5 grid gap-3 sm:grid-cols-2"><div className="rounded-xl border border-white/[0.07] bg-black/20 p-4"><div className="text-xs text-white/35">{isArabic ? "تذكيرات إكمال التسجيل" : "Incomplete-registration reminders"}</div><div className="mt-2 text-2xl font-semibold text-white">{recoverySignals.incompleteRegistration}</div></div><div className="rounded-xl border border-white/[0.07] bg-black/20 p-4"><div className="text-xs text-white/35">{isArabic ? "تذكيرات استعادة ملف الموهبة" : "Talent-profile recovery reminders"}</div><div className="mt-2 text-2xl font-semibold text-white">{recoverySignals.profileRecovery}</div></div></div>
+    </AdminCard>
 
     <AdminCard className="p-5"><h2 className="text-lg text-white">{isArabic ? "المسار التراكمي" : "Lifetime conversion funnel"}</h2><div className="mt-5 space-y-3">{lifetimeFunnel.map((step, index) => <div key={step.key} className="grid grid-cols-[1fr_auto_auto] gap-4 rounded-xl border border-white/[0.07] bg-black/20 px-4 py-3 text-sm"><span className="text-white/65">{stepLabel(step.key, isArabic)}</span><span className="tabular-nums text-white">{step.value}</span><span className="w-14 text-end text-gold/70">{index === 0 || step.conversionFromPrevious === null ? "—" : `${step.conversionFromPrevious}%`}</span></div>)}</div></AdminCard>
 
