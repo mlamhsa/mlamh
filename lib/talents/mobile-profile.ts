@@ -1,3 +1,4 @@
+import { TalentProfileService } from "@/lib/services/talent/TalentProfileService";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { signTalentMediaReference, signTalentMediaReferences } from "@/lib/talents/talent-media-signing";
 
@@ -59,7 +60,7 @@ export async function getMobileTalentProfile({ userId, locale }: { userId: strin
   const supabase = createAdminClient();
   const [{ data: profile, error: profileError }, { data: talent, error: talentError }] = await Promise.all([
     supabase.from("profiles").select("account_type,approval_status,status").eq("user_id", userId).maybeSingle(),
-    supabase.from("talents").select("id,slug,name_ar,name_en,display_name_ar,display_name_en,category_ar,category_en,primary_role,city_slug,city_ar,city_en,gender,date_of_birth,nationality,nationality_slug,image_url,gallery_images,photos,full_body_photos,bio_ar,bio_en,skills,languages,dialects,base_country_code,profile_completion,availability_status,height_cm,weight_kg,eye_color,hair_color,hair_type,skin_color,clothing_size,shoe_size,acting_age_min,acting_age_max,modeling_types,experience_years,ready_to_travel,has_passport,has_car,work_outside_city,work_outside_country,verified,is_verified,status,published").eq("user_id", userId).maybeSingle(),
+    supabase.from("talents").select("id,slug,name_ar,name_en,display_name_ar,display_name_en,category_ar,category_en,primary_role,city_slug,city_ar,city_en,gender,date_of_birth,nationality,nationality_slug,image_url,gallery_images,photos,full_body_photos,bio_ar,bio_en,skills,languages,dialects,base_country_code,availability_status,height_cm,weight_kg,eye_color,hair_color,hair_type,skin_color,clothing_size,shoe_size,acting_age_min,acting_age_max,modeling_types,experience_years,ready_to_travel,has_passport,has_car,work_outside_city,work_outside_country,verified,is_verified,status,published,portfolio_url,showreel_url,chest_size,waist_size,hip_size,previous_work").eq("user_id", userId).maybeSingle(),
   ]);
 
   if (profileError || talentError) return { ok: false as const, code: "PROFILE_LOOKUP_FAILED" as const };
@@ -76,6 +77,10 @@ export async function getMobileTalentProfile({ userId, locale }: { userId: strin
     signTalentMediaReferences(galleryRefs, supabase),
   ]);
   const role = talent.primary_role === "actor" || talent.primary_role === "model" ? talent.primary_role : null;
+  const profileCompletion = TalentProfileService.calculateCompletion({
+    ...talent,
+    gallery_images: galleryRefs,
+  });
 
   const item: MobileTalentProfile = {
     id: Number(talent.id),
@@ -96,7 +101,7 @@ export async function getMobileTalentProfile({ userId, locale }: { userId: strin
     languages: compactStrings(talent.languages).slice(0, 8),
     dialects: compactStrings(talent.dialects).slice(0, 8),
     baseCountryCode: talent.base_country_code ?? null,
-    profileCompletion: Math.max(0, Math.min(100, Number(talent.profile_completion ?? 0))),
+    profileCompletion: Math.max(0, Math.min(100, profileCompletion)),
     availabilityStatus: talent.availability_status ?? null,
     heightCm: nullableNumber(talent.height_cm),
     weightKg: nullableNumber(talent.weight_kg),
