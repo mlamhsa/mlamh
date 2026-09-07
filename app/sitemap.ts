@@ -1,9 +1,10 @@
 import type { MetadataRoute } from "next";
 
+import { locales } from "@/lib/i18n";
 import { canIndexMarket } from "@/lib/markets/seo";
+import { isOpportunityOpenForSeo } from "@/lib/seo/opportunity";
 import { getPublishedTalents } from "@/lib/supabase/public-talents";
 import { getPublishedOpportunities } from "@/lib/supabase/opportunities";
-import { locales } from "@/lib/i18n";
 
 const SITE_URL = (
   process.env.NEXT_PUBLIC_SITE_URL || "https://mlamh.net"
@@ -26,6 +27,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     getPublishedTalents(SEO_MARKET).catch(() => []),
     getPublishedOpportunities(SEO_MARKET).catch(() => []),
   ]);
+  const activeOpportunities = opportunities.filter((opportunity) =>
+    isOpportunityOpenForSeo(opportunity),
+  );
 
   const staticRoutes: MetadataRoute.Sitemap = locales.flatMap((locale) => [
     { url: `${SITE_URL}/${locale}`, changeFrequency: "daily", priority: 1 },
@@ -83,7 +87,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     })),
   );
 
-  const opportunityRoutes: MetadataRoute.Sitemap = opportunities
+  const opportunityRoutes: MetadataRoute.Sitemap = activeOpportunities
     .filter((opportunity) => Boolean(opportunity.slug))
     .flatMap((opportunity) => locales.map((locale) => ({
       url: `${SITE_URL}/${locale}/opportunities/${opportunity.slug}`,
@@ -91,7 +95,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.8,
     })));
 
-  const opportunityTypes = new Set(opportunities.map((opportunity) => String(opportunity.opportunity_type ?? "")));
+  const opportunityTypes = new Set(activeOpportunities.map((opportunity) => String(opportunity.opportunity_type ?? "")));
   const intentTypes = [
     opportunityTypes.has("actor") || opportunityTypes.has("actress") || opportunityTypes.has("extra") ? "acting" : null,
     opportunityTypes.has("model") ? "modeling" : null,
