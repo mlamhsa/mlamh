@@ -56,7 +56,7 @@ export default async function CeoDecisionQueuePage() {
   const rows = approvals ?? [];
   const taskIds = rows.map((row) => row.task_id);
   const { data: tasks } = taskIds.length
-    ? await db.from("marketing_tasks").select("id,task_type,lead_id,channel,title,input").in("id", taskIds)
+    ? await db.from("marketing_tasks").select("id,task_type,lead_id,channel,title,input,source").in("id", taskIds)
     : { data: [] };
   const taskMap = new Map((tasks ?? []).map((task) => [task.id, task]));
 
@@ -80,6 +80,10 @@ export default async function CeoDecisionQueuePage() {
   for (const approval of rows) {
     const task = taskMap.get(approval.task_id);
     if (!task) continue;
+    if (task.source === "controlled_test_fixture") {
+      operationalOnly += 1;
+      continue;
+    }
     const action = record(approval.proposed_action);
     const input = record(task.input);
     const lead = typeof task.lead_id === "number" ? leadMap.get(task.lead_id) ?? null : null;
