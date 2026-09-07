@@ -74,6 +74,13 @@ function directOpenAIModel(model: string) {
   return model.startsWith("openai/") ? model.slice("openai/".length) : model;
 }
 
+export function expiredFreeModelFallback(model: string, message: string) {
+  const normalized = model.trim().toLowerCase();
+  if (!normalized.endsWith("-free")) return null;
+  if (!/(model .*not found|free tier.*ended|free.*ended)/i.test(message)) return null;
+  return gatewayModel(DEFAULT_MODEL);
+}
+
 function readMarketingAIConfiguration(): MarketingAIConfiguration {
   const disabled = process.env.MARKETING_AI_DISABLED === "true";
   const requestedModel = process.env.MARKETING_AI_MODEL?.trim() || DEFAULT_MODEL;
@@ -191,30 +198,46 @@ class ResponsesMarketingProvider implements MarketingAIProvider {
       });
     }
 
-    const body: Record<string, unknown> = {
-      model: this.model,
+    const baseBody: Record<string, unknown> = {
       input,
       store: false,
     };
-    if (leadResearch) body.tools = [{ type: "web_search" }];
+    if (leadResearch) baseBody.tools = [{ type: "web_search" }];
 
-    const response = await fetch(`${this.baseUrl}/responses`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`,
-        "Content-Type": "application/json",
-        "http-referer": "https://mlamh.net",
-        "x-title": "MLAMH Marketing Hub",
-      },
-      body: JSON.stringify(body),
-      cache: "no-store",
-    });
+    const executeRequest = async (model: string) => {
+      const response = await fetch(`${this.baseUrl}/responses`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          "Content-Type": "application/json",
+          "http-referer": "https://mlamh.net",
+          "x-title": "MLAMH Marketing Hub",
+        },
+        body: JSON.stringify({ ...baseBody, model }),
+        cache: "no-store",
+      });
 
-    let payload: ResponsesPayload;
-    try {
-      payload = (await response.json()) as ResponsesPayload;
-    } catch {
-      throw new Error(`[MarketingAI.${this.id}] Invalid JSON response (HTTP ${response.status}).`);
+      let payload: ResponsesPayload;
+      try {
+        payload = (await response.json()) as ResponsesPayload;
+      } catch {
+        throw new Error(`[MarketingAI.${this.id}] Invalid JSON response (HTTP ${response.status}).`);
+      }
+      return { response, payload };
+    };
+
+    let activeModel = this.model;
+    let fallbackFromExpiredFree = false;
+    let { response, payload } = await executeRequest(activeModel);
+
+    if (!response.ok && this.id === "vercel-ai-gateway") {
+      const message = payload.error?.message || `AI request failed with HTTP ${response.status}.`;
+      const fallbackModel = expiredFreeModelFallback(activeModel, message);
+      if (fallbackModel && fallbackModel !== activeModel) {
+        activeModel = fallbackModel;
+        fallbackFromExpiredFree = true;
+        ({ response, payload } = await executeRequest(activeModel));
+      }
     }
 
     if (!response.ok) {
@@ -247,11 +270,16 @@ class ResponsesMarketingProvider implements MarketingAIProvider {
 
     return {
       content: outputText,
-      model: payload.model || this.model,
+      model: payload.model || activeModel,
       provider: this.id,
       usage,
       metadata: {
         ...(request.metadata ?? {}),
+        ...(fallbackFromExpiredFree ? {
+          expired_free_model_fallback: true,
+          requested_model: this.model,
+          fallback_model: activeModel,
+        } : {}),
         ...(leadResearch ? {
           web_search_used: true,
           web_source_count: webSources.length,
