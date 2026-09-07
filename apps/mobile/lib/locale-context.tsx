@@ -1,10 +1,11 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 
 import { type AppLocale, getDeviceLocale } from "@/lib/i18n";
-import { writeStoredLocale } from "@/lib/locale-preference";
+import { readStoredLocale, writeStoredLocale } from "@/lib/locale-preference";
 
 type LocaleContextValue = {
   locale: AppLocale;
+  hasChosenLocale: boolean;
   changeLocale: (locale: AppLocale) => boolean;
 };
 
@@ -12,15 +13,17 @@ const LocaleContext = createContext<LocaleContextValue | null>(null);
 
 export function AppLocaleProvider({ children }: { children: ReactNode }) {
   const [locale, setLocale] = useState<AppLocale>(() => getDeviceLocale());
+  const [hasChosenLocale, setHasChosenLocale] = useState(() => Boolean(readStoredLocale()));
   const value = useMemo<LocaleContextValue>(() => ({
     locale,
+    hasChosenLocale,
     changeLocale(next) {
-      if (next === locale) return true;
       if (!writeStoredLocale(next)) return false;
       setLocale(next);
+      setHasChosenLocale(true);
       return true;
     },
-  }), [locale]);
+  }), [locale, hasChosenLocale]);
 
   return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>;
 }
