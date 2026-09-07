@@ -53,8 +53,8 @@ export function buildTalentMetadata({
     : `${safeName}${category ? ` — ${category}` : ""} | MLAMH`;
 
   const fallbackDescription = isRtl
-    ? `${safeName}${category ? `، ${category}` : ""}. اكتشف الملف المهني والصور والمعلومات عبر منصة ملامح.`
-    : `Discover ${safeName}${category ? `, ${category}` : ""}. View the professional profile, media and details on MLAMH.`;
+    ? `${safeName}${category ? `، ${category}` : ""}. اكتشف المعلومات المهنية العامة للموهبة عبر منصة ملامح.`
+    : `Discover ${safeName}${category ? `, ${category}` : ""}. View the talent's public professional information on MLAMH.`;
 
   const description = cleanMetaDescription(
     bio,

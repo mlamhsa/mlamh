@@ -14,13 +14,14 @@ function buildTrackedShareUrl(channel: OpportunityShareChannel) {
   const url = new URL(window.location.href);
   url.searchParams.set("mlamh_source", "opportunity_share");
   url.searchParams.set("mlamh_channel", channel);
+  url.searchParams.set("utm_source", "referral");
+  url.searchParams.set("utm_medium", "share");
+  url.searchParams.set("utm_campaign", "opportunity_share");
+  url.searchParams.set("utm_content", channel);
   return url.toString();
 }
 
-export default function OpportunityShareButton({
-  opportunityId,
-  title,
-}: ShareButtonProps) {
+export default function OpportunityShareButton({ opportunityId, title }: ShareButtonProps) {
   function trackShare(channel: OpportunityShareChannel) {
     void trackOpportunityShareAction({ opportunityId, channel });
   }
@@ -28,10 +29,7 @@ export default function OpportunityShareButton({
   const handleShare = async () => {
     if (navigator.share) {
       try {
-        await navigator.share({
-          title,
-          url: buildTrackedShareUrl("native"),
-        });
+        await navigator.share({ title, url: buildTrackedShareUrl("native") });
         trackShare("native");
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return;
@@ -91,12 +89,8 @@ export default function OpportunityShareButton({
     <div className="space-y-3">
       <p className="text-sm text-white/45">تعرف شخصًا تناسبه هذه الفرصة؟ أرسلها له.</p>
       <div className="flex flex-wrap gap-3">
-        <button type="button" onClick={handleWhatsAppShare} className="rounded-full border border-[#25D366]/40 px-5 py-3 text-sm text-[#25D366] transition hover:bg-[#25D366] hover:text-black">
-          مشاركة عبر WhatsApp
-        </button>
-        <button type="button" onClick={handleShare} className="rounded-full border border-[#c8a45d]/40 px-5 py-3 text-sm text-[#c8a45d] transition hover:bg-[#c8a45d] hover:text-black">
-          مشاركة الفرصة
-        </button>
+        <button type="button" onClick={handleWhatsAppShare} className="rounded-full border border-[#25D366]/40 px-5 py-3 text-sm text-[#25D366] transition hover:bg-[#25D366] hover:text-black">مشاركة عبر WhatsApp</button>
+        <button type="button" onClick={handleShare} className="rounded-full border border-[#c8a45d]/40 px-5 py-3 text-sm text-[#c8a45d] transition hover:bg-[#c8a45d] hover:text-black">مشاركة الفرصة</button>
       </div>
     </div>
   );

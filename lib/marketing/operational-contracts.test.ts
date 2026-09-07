@@ -115,6 +115,9 @@ test("Opportunity sharing creates first-party attribution only after a real shar
   assert.match(share, /mlamh_source/);
   assert.match(share, /opportunity_share/);
   assert.match(share, /mlamh_channel/);
+  assert.match(share, /utm_source/);
+  assert.match(share, /utm_medium/);
+  assert.match(share, /utm_campaign/);
   assert.match(share, /await navigator\.share/);
   assert.match(share, /trackShare\("native"\)/);
   assert.match(view, /ALLOWED_SHARE_CHANNELS/);
@@ -133,4 +136,26 @@ test("Opportunity Growth reuses Dana supply snapshots and stays read-only", () =
   assert.doesNotMatch(page, /\.upsert\(/);
   assert.doesNotMatch(page, /\.update\(/);
   assert.doesNotMatch(page, /\.delete\(/);
+});
+
+test("Publisher Growth establishes a read-only CRO baseline and keeps opportunity creation outside funnel math", () => {
+  const page = source("app/admin/marketing/publisher-growth/page.tsx");
+  const diagnostics = source("lib/marketing/growth/publisher-activation.ts");
+  assert.match(page, /buildPublisherActivationFunnel/);
+  assert.match(page, /publisherActivationSummary/);
+  assert.match(page, /opportunityPublishers/);
+  assert.match(page, /CRO BASELINE/);
+  assert.match(diagnostics, /opportunityActivation/);
+  assert.doesNotMatch(diagnostics, /ordered.*opportunityPublishers/);
+  assert.doesNotMatch(page, /\.insert\(/);
+  assert.doesNotMatch(page, /\.upsert\(/);
+  assert.doesNotMatch(page, /\.update\(/);
+  assert.doesNotMatch(page, /\.delete\(/);
+});
+
+test("Talent SEO fallback does not advertise private media to public crawlers", () => {
+  const metadata = source("lib/seo/talent-metadata.ts");
+  assert.match(metadata, /المعلومات المهنية العامة/);
+  assert.match(metadata, /public professional information/);
+  assert.doesNotMatch(metadata, /الملف المهني والصور والمعلومات/);
 });
