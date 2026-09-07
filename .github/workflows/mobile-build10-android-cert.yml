@@ -89,7 +89,7 @@ jobs:
             exit 1
           fi
           "$apksigner_bin" verify --print-certs /tmp/mlamh-build10.apk | tee /tmp/cert.txt
-          fingerprint=$(grep -E 'Signer #1 certificate SHA-256 digest:' /tmp/cert.txt | head -n1 | sed -E 's/^.*digest:[[:space:]]*//' | tr '[:lower:]' '[:upper:]' | sed 's/../&:/g;s/:$//')
+          fingerprint=$(grep -E 'certificate SHA-256 digest:' /tmp/cert.txt | head -n1 | sed -E 's/^.*digest:[[:space:]]*//' | tr '[:lower:]' '[:upper:]' | sed 's/../&:/g;s/:$//')
           if [ -z "$fingerprint" ]; then
             echo "::error::Unable to extract SHA-256 certificate fingerprint."
             exit 1
