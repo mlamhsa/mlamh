@@ -48,6 +48,7 @@ export const marketingHubNavigation: MarketingHubNavItem[] = [
   { key: "approvals", labelAr: "القرارات والاعتمادات", labelEn: "Decisions", href: "/admin/marketing/approvals", icon: CheckCheck },
   { key: "automation", labelAr: "الأتمتة", labelEn: "Automation", href: "/admin/marketing/automation", icon: Workflow },
   { key: "analytics", labelAr: "التحليلات", labelEn: "Analytics", href: "/admin/marketing/analytics", icon: Activity },
+  { key: "email-operations", labelAr: "تشغيل البريد", labelEn: "Email Operations", href: "/admin/marketing/email-operations", icon: Activity },
   { key: "experiments", labelAr: "التجارب", labelEn: "Experiments", href: "/admin/marketing/experiments", icon: Beaker },
   { key: "integrations", labelAr: "التكاملات", labelEn: "Integrations", href: "/admin/marketing/integrations", icon: Plug },
   { key: "knowledge", labelAr: "المعرفة وقواعد التشغيل", labelEn: "Knowledge / Playbooks", href: "/admin/marketing/knowledge", icon: BrainCircuit },
@@ -60,7 +61,7 @@ export const marketingHubNavigationGroups: MarketingHubNavGroup[] = [
   { key: "growth", labelAr: "النمو", labelEn: "Growth", icon: Target, itemKeys: ["leads", "outreach", "follow-ups", "briefs", "talent-growth", "opportunity-growth"] },
   { key: "content-work", labelAr: "المحتوى", labelEn: "Content", icon: Megaphone, itemKeys: ["content-review", "content", "creative", "social", "campaigns"] },
   { key: "operations", labelAr: "الفريق والتنفيذ", labelEn: "Operations", icon: Workflow, itemKeys: ["control", "ai-team", "tasks", "automation", "activity"] },
-  { key: "insights", labelAr: "القياس والإعداد", labelEn: "Insights & Setup", icon: Settings2, itemKeys: ["analytics", "experiments", "integrations", "knowledge", "settings"] },
+  { key: "insights", labelAr: "القياس والإعداد", labelEn: "Insights & Setup", icon: Settings2, itemKeys: ["analytics", "email-operations", "experiments", "integrations", "knowledge", "settings"] },
 ];
 
 export const marketingHubCoreEntities = [
