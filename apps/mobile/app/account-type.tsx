@@ -24,6 +24,8 @@ export default function AccountTypeScreen() {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [checking, setChecking] = useState(true);
   const [selected, setSelected] = useState<AccountType | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -58,9 +60,24 @@ export default function AccountTypeScreen() {
   const textAlign = isRtl ? "right" : "left";
   const brandSource = isArabic ? BRAND_LOGO_AR : BRAND_LOGO_EN;
 
-  function continueWithRole() {
-    if (selected === "publisher") router.replace("/publisher/setup");
-    if (selected === "talent") router.replace("/onboarding");
+  async function continueWithRole() {
+    if (!selected || saving) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const { error: updateError } = await supabase.auth.updateUser({
+        data: { account_type: selected, preferred_locale: locale },
+      });
+      if (updateError) {
+        setError(isArabic ? "تعذر حفظ نوع الحساب. حاول مرة أخرى." : "Unable to save your account type. Please try again.");
+        return;
+      }
+      router.replace(selected === "publisher" ? "/publisher/setup" : "/onboarding");
+    } catch {
+      setError(isArabic ? "تعذر حفظ نوع الحساب. تحقق من الاتصال وحاول مرة أخرى." : "Unable to save your account type. Check your connection and try again.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   if (checking) {
@@ -82,11 +99,12 @@ export default function AccountTypeScreen() {
         </View>
 
         <View accessibilityRole="radiogroup" style={styles.cards}>
-          <RoleCard type="talent" selected={selected === "talent"} title={isArabic ? "موهبة" : "Talent"} body={isArabic ? "ممثل أو مودل يريد بناء ملف مهني والتقديم على الفرص." : "Actor or model building a professional profile and applying to opportunities."} onPress={() => setSelected("talent")} isRtl={isRtl} styles={styles} />
-          <RoleCard type="publisher" selected={selected === "publisher"} title={isArabic ? "ناشر" : "Publisher"} body={isArabic ? "فرد أو جهة تريد نشر الفرص واستقبال المتقدمين." : "Individual or organization publishing opportunities and receiving applicants."} onPress={() => setSelected("publisher")} isRtl={isRtl} styles={styles} />
+          <RoleCard type="talent" selected={selected === "talent"} title={isArabic ? "موهبة" : "Talent"} body={isArabic ? "ممثل أو مودل يريد بناء ملف مهني والتقديم على الفرص." : "Actor or model building a professional profile and applying to opportunities."} onPress={() => { setSelected("talent"); setError(null); }} isRtl={isRtl} styles={styles} />
+          <RoleCard type="publisher" selected={selected === "publisher"} title={isArabic ? "ناشر" : "Publisher"} body={isArabic ? "فرد أو جهة تريد نشر الفرص واستقبال المتقدمين." : "Individual or organization publishing opportunities and receiving applicants."} onPress={() => { setSelected("publisher"); setError(null); }} isRtl={isRtl} styles={styles} />
         </View>
 
-        <Pressable accessibilityRole="button" accessibilityState={{ disabled: !selected }} disabled={!selected} onPress={continueWithRole} style={({ pressed }) => [styles.primaryButton, !selected && styles.primaryButtonDisabled, pressed && selected && styles.pressed]}><Text style={[styles.primaryButtonText, isArabic && styles.arabicText]}>{isArabic ? "متابعة" : "Continue"}</Text></Pressable>
+        {error ? <View style={styles.errorCard}><Text accessibilityRole="alert" style={[styles.errorText, isArabic && styles.arabicText, { textAlign }]}>{error}</Text></View> : null}
+        <Pressable accessibilityRole="button" accessibilityState={{ disabled: !selected || saving, busy: saving }} disabled={!selected || saving} onPress={() => void continueWithRole()} style={({ pressed }) => [styles.primaryButton, (!selected || saving) && styles.primaryButtonDisabled, pressed && selected && !saving && styles.pressed]}><Text style={[styles.primaryButtonText, isArabic && styles.arabicText]}>{saving ? (isArabic ? "جارٍ الحفظ…" : "Saving…") : (isArabic ? "متابعة" : "Continue")}</Text></Pressable>
         <Text style={[styles.note, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "إذا كان لديك حساب قائم بالفعل، سيستخدم ملامح نوع حسابك الحالي تلقائيًا." : "If you already have an MLAMH account, your existing account type is used automatically."}</Text>
       </View>
     </ScrollView>
@@ -131,6 +149,8 @@ function createStyles(theme: typeof darkTheme) { return StyleSheet.create({
   radio: { width: 21, height: 21, borderRadius: 11, borderWidth: 1, borderColor: theme.border, alignItems: "center", justifyContent: "center" },
   radioSelected: { borderColor: theme.accent },
   radioDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: theme.accent },
+  errorCard: { borderWidth: 1, borderColor: "#C84F4F66", backgroundColor: "#C84F4F14", borderRadius: 12, padding: 12 },
+  errorText: { color: "#E59A9A", fontSize: 12, lineHeight: 18 },
   primaryButton: { minHeight: 54, borderRadius: 14, backgroundColor: theme.accent, alignItems: "center", justifyContent: "center", paddingHorizontal: 18 },
   primaryButtonDisabled: { opacity: 0.35 },
   primaryButtonText: { color: theme.background, fontSize: 15, fontWeight: "900" },
