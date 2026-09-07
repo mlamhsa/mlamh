@@ -31,13 +31,13 @@ Work progresses in one ordered stream. A task moves to DONE only when implementa
 - Campaigns and content.
 - Social and creative surfaces.
 - Analytics and experiments.
-- Talent Growth, Publisher Growth, Opportunity Growth and Channel Quality.
+- Talent Growth, Publisher Growth, Opportunity Growth, Channel Quality and Demand Quality.
 - Knowledge / Playbooks.
 - Integrations and marketing control.
 
 ## Priority Growth Engine workstreams
 ### A. Publisher demand engine
-Status: ACTIVE / DEMAND OUTCOME BASELINE IMPLEMENTED
+Status: CORE QUALITY LOOP IMPLEMENTED
 - DONE — Prospecting framework mapped into the existing Leads / Research flow.
 - DONE — Governed cold-outreach framework mapped into existing Outreach tasks.
 - DONE — Reply classification and routing already verified in the existing email engine.
@@ -46,9 +46,13 @@ Status: ACTIVE / DEMAND OUTCOME BASELINE IMPLEMENTED
 - DONE — Publisher opportunity activation is measured separately from the review funnel so activity cannot distort funnel drop-off math.
 - DONE — The current governed Support commercial-intake adapter emits one `brief_received` outcome only when Dana creates a new prepared demand; deduplicated intake does not create a second outcome.
 - DONE — Brief outcome attribution failure is non-blocking for the commercial intake workflow.
+- DONE — Demand Quality measures completed lead research, outreach readiness, prepared outreach, sent outreach, recorded replies, explicit positive replies, briefs and opportunities using distinct Lead IDs.
+- DONE — Outreach readiness reuses the existing Lead Workspace contract: named contact + professional role/title + verified email or LinkedIn channel.
+- DONE — Lead -> Brief and Brief -> Opportunity conversion are reported without fabricating percentages when a denominator is missing.
+- DONE — The largest observed demand-pipeline drop is derived from recorded progression instead of a generic benchmark.
+- DONE — Source-level Demand Quality shows which Lead source reaches ready, sent, reply and Brief outcomes.
 - NEXT — Extend the same verified brief-outcome contract to additional commercial source adapters when those adapters are introduced or verified.
-- NEXT — Measure prospecting quality and lead-to-brief conversion using production evidence after release.
-- NEXT — Strengthen lead-to-opportunity attribution where telemetry gaps remain.
+- NEXT — Use real Demand Quality evidence to improve the weakest research/outreach transition rather than increasing Lead volume blindly.
 
 ### B. Talent acquisition and activation
 Status: CORE LOOP IMPLEMENTED
@@ -95,6 +99,7 @@ Status: ACTIVE FOUNDATION
 - DONE — Both baselines derive bottlenecks from recorded progression and avoid fabricated percentages when denominators do not exist.
 - DONE — Attributed registration and application outcomes support source/campaign CRO analysis without accepting client-declared success events.
 - DONE — Channel Quality ranks channels by deepest verified marketplace outcome rather than raw traffic and leaves rates blank when required denominators do not exist.
+- DONE — Demand Quality now provides a governed B2B conversion baseline from prospecting research through Lead -> Brief -> Opportunity.
 - VERIFIED — Existing experiment registry already stores hypothesis, success metric, status, winner and result.
 - NEXT — Landing-page conversion review using attributed visits and recorded signup outcomes.
 - NEXT — First governed CTA/message experiment only after sufficient baseline traffic exists.
