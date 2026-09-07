@@ -6,6 +6,7 @@ import {
   Bot,
   BrainCircuit,
   BriefcaseBusiness,
+  Building2,
   CalendarClock,
   CheckCheck,
   ClipboardPenLine,
@@ -37,6 +38,7 @@ export const marketingHubNavigation: MarketingHubNavItem[] = [
   { key: "leads", labelAr: "العملاء المحتملون", labelEn: "Leads", href: "/admin/marketing/leads", icon: Target },
   { key: "briefs", labelAr: "البريفات", labelEn: "Briefs", href: "/admin/marketing/briefs", icon: ClipboardPenLine },
   { key: "talent-growth", labelAr: "نمو المواهب", labelEn: "Talent Growth", href: "/admin/marketing/talent-growth", icon: UsersRound },
+  { key: "publisher-growth", labelAr: "نمو الناشرين", labelEn: "Publisher Growth", href: "/admin/marketing/publisher-growth", icon: Building2 },
   { key: "opportunity-growth", labelAr: "نمو الفرص", labelEn: "Opportunity Growth", href: "/admin/marketing/opportunity-growth", icon: BriefcaseBusiness },
   { key: "content-review", labelAr: "مراجعة المحتوى", labelEn: "Review Workspace", href: "/admin/marketing/content/review", icon: ListChecks },
   { key: "content", labelAr: "المحتوى", labelEn: "Content", href: "/admin/marketing/content", icon: FileText },
@@ -58,7 +60,7 @@ export const marketingHubNavigation: MarketingHubNavItem[] = [
 
 export const marketingHubNavigationGroups: MarketingHubNavGroup[] = [
   { key: "decisions", labelAr: "قراراتي", labelEn: "Decisions", icon: CheckCheck, itemKeys: ["approvals", "inbox"] },
-  { key: "growth", labelAr: "النمو", labelEn: "Growth", icon: Target, itemKeys: ["leads", "outreach", "follow-ups", "briefs", "talent-growth", "opportunity-growth"] },
+  { key: "growth", labelAr: "النمو", labelEn: "Growth", icon: Target, itemKeys: ["leads", "outreach", "follow-ups", "briefs", "talent-growth", "publisher-growth", "opportunity-growth"] },
   { key: "content-work", labelAr: "المحتوى", labelEn: "Content", icon: Megaphone, itemKeys: ["content-review", "content", "creative", "social", "campaigns"] },
   { key: "operations", labelAr: "الفريق والتنفيذ", labelEn: "Operations", icon: Workflow, itemKeys: ["control", "ai-team", "tasks", "automation", "activity"] },
   { key: "insights", labelAr: "القياس والإعداد", labelEn: "Insights & Setup", icon: Settings2, itemKeys: ["analytics", "email-operations", "experiments", "integrations", "knowledge", "settings"] },
