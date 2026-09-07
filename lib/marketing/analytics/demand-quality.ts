@@ -155,8 +155,16 @@ export function buildDemandQuality(input: DemandQualityInput): DemandQualitySnap
   ].filter((item) => item.denominator > 0)
     .map((item) => ({ ...item, rate: Math.round((item.numerator / item.denominator) * 100), lost: Math.max(0, item.denominator - item.numerator) }));
 
-  const largestObservedDrop = transitionCandidates.length
+  const weakestTransition = transitionCandidates.length
     ? [...transitionCandidates].sort((a, b) => a.rate - b.rate || b.lost - a.lost)[0]
+    : null;
+  const largestObservedDrop = weakestTransition
+    ? {
+        from: weakestTransition.from,
+        to: weakestTransition.to,
+        rate: weakestTransition.rate,
+        lost: weakestTransition.lost,
+      }
     : null;
 
   return {
