@@ -1,8 +1,8 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as Linking from "expo-linking";
-import { type ErrorBoundaryProps, type Href, router, Stack } from "expo-router";
+import { type ErrorBoundaryProps, type Href, router, Stack, usePathname } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { getMobileAccountContext } from "@/lib/account";
@@ -63,7 +63,30 @@ export function ErrorBoundary({ retry }: ErrorBoundaryProps) {
 
 function RootNavigator() {
   const { locale } = useAppLocale();
-  return <NotificationSyncProvider><StatusBar style="light" /><Stack key={locale} screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#050505" }, animation: "fade", animationDuration: 180, gestureEnabled: true }} /></NotificationSyncProvider>;
+  const pathname = usePathname();
+  const [transitioning, setTransitioning] = useState(false);
+  const initialPath = useRef(true);
+
+  useEffect(() => {
+    if (initialPath.current) {
+      initialPath.current = false;
+      return;
+    }
+    setTransitioning(true);
+    const timer = setTimeout(() => setTransitioning(false), 260);
+    return () => clearTimeout(timer);
+  }, [pathname]);
+
+  return <NotificationSyncProvider>
+    <StatusBar style="light" />
+    <View style={navigationStyles.root}>
+      <Stack key={locale} screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#050505" }, animation: "fade", animationDuration: 180, gestureEnabled: true }} />
+      {transitioning ? <View pointerEvents="none" accessibilityLiveRegion="polite" style={navigationStyles.feedback}>
+        <ActivityIndicator size="small" color="#C9A962" />
+        <Text style={[navigationStyles.feedbackText, locale === "ar" && navigationStyles.feedbackTextRtl]}>{locale === "ar" ? "جارٍ فتح الصفحة…" : "Opening…"}</Text>
+      </View> : null}
+    </View>
+  </NotificationSyncProvider>;
 }
 
 export default function RootLayout() {
@@ -80,6 +103,13 @@ export default function RootLayout() {
 
   return <SafeAreaProvider><AppLocaleProvider><RootNavigator /></AppLocaleProvider></SafeAreaProvider>;
 }
+
+const navigationStyles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: "#050505" },
+  feedback: { position: "absolute", top: 58, alignSelf: "center", zIndex: 100, minHeight: 38, paddingHorizontal: 14, borderRadius: 19, borderWidth: 1, borderColor: "#C9A96233", backgroundColor: "#15130FEE", flexDirection: "row", alignItems: "center", gap: 8 },
+  feedbackText: { color: "#F5F5F0", fontSize: 11, fontWeight: "800" },
+  feedbackTextRtl: { writingDirection: "rtl", textAlign: "right" },
+});
 
 const errorStyles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: "#050505", alignItems: "center", justifyContent: "center", paddingHorizontal: 28, gap: 14 }, brand: { color: "#C9A962", fontSize: 13, fontWeight: "800", letterSpacing: 1.7 }, title: { color: "#F5F5F0", fontSize: 28, fontWeight: "700", textAlign: "center" }, body: { color: "#B9B6AE", fontSize: 15, lineHeight: 23, textAlign: "center", maxWidth: 360 }, button: { marginTop: 8, minHeight: 48, minWidth: 160, borderRadius: 12, backgroundColor: "#C9A962", alignItems: "center", justifyContent: "center", paddingHorizontal: 22 }, buttonText: { color: "#050505", fontSize: 14, fontWeight: "800" },
