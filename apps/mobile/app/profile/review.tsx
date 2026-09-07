@@ -104,7 +104,7 @@ export default function ProfileReviewScreen() {
   return <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
     <ScrollView contentContainerStyle={[styles.content, compact && styles.contentCompact]} showsVerticalScrollIndicator={false}>
       <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "رجوع" : "Back"} onPress={() => onboarding ? router.replace("/profile/journey") : router.back()} hitSlop={12} style={[styles.backButton, isRtl && styles.backButtonRtl]}><Text style={[styles.back, isArabic && styles.arabicText]}>{isArabic ? "رجوع" : "Back"}</Text></Pressable>
-      {onboarding ? <View style={styles.onboardingCard}><View style={[styles.onboardingCopy, isRtl && styles.rowRtl]}><Text style={[styles.onboardingLabel, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "الخطوة 4 من 4" : "Step 4 of 4"}</Text><Text style={styles.onboardingValue}>{locallyReady || underReview || approved ? "100%" : "90%"}</Text></View><View style={styles.onboardingTrack}><View style={[styles.onboardingFill, !locallyReady && !underReview && !approved && styles.onboardingFillPending]}/></View></View> : null}
+      {onboarding ? <View style={styles.onboardingCard}><View style={[styles.onboardingCopy, isRtl && styles.rowRtl]}><Text style={[styles.onboardingLabel, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "الخطوة 4 من 4" : "Step 4 of 4"}</Text><Text style={styles.onboardingValue}>{locallyReady || underReview || approved ? "100%" : "75%"}</Text></View><View style={styles.onboardingTrack}><View style={[styles.onboardingFill, !locallyReady && !underReview && !approved && styles.onboardingFillPending]}/></View><Text style={[styles.onboardingHint, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "هذه نسبة خطوات الإعداد، وليست نسبة اكتمال الملف." : "This is setup journey progress, not profile completion."}</Text></View> : null}
       <View style={styles.header}><Image source={isArabic ? BRAND_AR : BRAND_EN} resizeMode="contain" style={[styles.brandLogo, isRtl && styles.brandLogoRtl]}/><Text accessibilityRole="header" style={[styles.title, compact && styles.titleCompact, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "جاهزية الملف" : "Profile readiness"}</Text><Text style={[styles.subtitle, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "راجع المتطلبات الإلزامية ثم أرسل ملفك للمراجعة. يبقى الملف خاصًا حتى يتم اعتماده." : "Review the required fields, then submit your profile. It remains private until approved."}</Text></View>
 
       <View accessible accessibilityLabel={isArabic ? `اكتمال الملف ${safeCompletion} بالمئة` : `Profile completion ${safeCompletion} percent`} style={[styles.card, compact && styles.cardCompact]}>
@@ -144,7 +144,8 @@ function createStyles(theme: typeof darkTheme) { return StyleSheet.create({
   onboardingValue: { color: theme.accent, fontSize: 11, fontWeight: "900" },
   onboardingTrack: { height: 4, borderRadius: 2, backgroundColor: "#FFFFFF12", overflow: "hidden" },
   onboardingFill: { width: "100%", height: "100%", backgroundColor: theme.accent },
-  onboardingFillPending: { width: "90%" },
+  onboardingFillPending: { width: "75%" },
+  onboardingHint: { color: theme.muted, fontSize: 10, lineHeight: 15 },
   header: { gap: 7, marginBottom: 2 },
   brandLogo: { width: 104, height: 38, alignSelf: "flex-start" },
   brandLogoRtl: { alignSelf: "flex-end" },
