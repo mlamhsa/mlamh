@@ -39,7 +39,7 @@ async function correctPublisherRoleAction(formData: FormData) {
 
   const [{ data: profile, error: profileError }, { count: opportunityCount, error: opportunitiesError }] = await Promise.all([
     db.from("profiles")
-      .select("id,user_id,account_type")
+      .select("id,user_id,account_type,onboarding_status,onboarding_step,approval_status,profile_completed_at")
       .eq("id", publisher.profile_id)
       .maybeSingle(),
     db.from("opportunities")
@@ -63,7 +63,15 @@ async function correctPublisherRoleAction(formData: FormData) {
     redirect(`/admin/publishers/role-correction?lang=${locale}&error=not_eligible`);
   }
 
-  const { error: profileUpdateError } = await db
+  const originalProfileState = {
+    account_type: profile.account_type,
+    onboarding_status: profile.onboarding_status,
+    onboarding_step: profile.onboarding_step,
+    approval_status: profile.approval_status,
+    profile_completed_at: profile.profile_completed_at,
+  };
+
+  const { data: updatedProfile, error: profileUpdateError } = await db
     .from("profiles")
     .update({
       account_type: "talent",
@@ -73,27 +81,38 @@ async function correctPublisherRoleAction(formData: FormData) {
       profile_completed_at: null,
     })
     .eq("id", profile.id)
-    .eq("account_type", "publisher");
+    .eq("account_type", "publisher")
+    .select("id")
+    .maybeSingle();
 
-  if (profileUpdateError) {
+  if (profileUpdateError || !updatedProfile) {
     redirect(`/admin/publishers/role-correction?lang=${locale}&error=profile_update_failed`);
   }
 
-  const { error: publisherDeleteError } = await db
+  const { data: deletedPublisher, error: publisherDeleteError } = await db
     .from("publishers")
     .delete()
     .eq("id", publisher.id)
-    .eq("profile_id", profile.id);
+    .eq("profile_id", profile.id)
+    .select("id")
+    .maybeSingle();
 
-  if (publisherDeleteError) {
-    const { error: rollbackError } = await db
+  if (publisherDeleteError || !deletedPublisher) {
+    const { data: rolledBackProfile, error: rollbackError } = await db
       .from("profiles")
-      .update({ account_type: "publisher" })
+      .update(originalProfileState)
       .eq("id", profile.id)
-      .eq("account_type", "talent");
+      .eq("account_type", "talent")
+      .select("id")
+      .maybeSingle();
 
-    if (rollbackError) {
-      console.error("[role-correction] rollback failed", rollbackError);
+    if (rollbackError || !rolledBackProfile) {
+      console.error("[role-correction] full rollback failed", {
+        profileId: profile.id,
+        publisherId: publisher.id,
+        rollbackError,
+      });
+      redirect(`/admin/publishers/role-correction?lang=${locale}&error=rollback_failed`);
     }
 
     redirect(`/admin/publishers/role-correction?lang=${locale}&error=publisher_cleanup_failed`);
