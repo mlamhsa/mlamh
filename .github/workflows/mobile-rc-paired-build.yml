@@ -1,4 +1,4 @@
-# RC Build 8 corrected trigger — app build/version code 8
+# RC Build 9 trigger — app build/version code 9
 name: Mobile RC Paired Build
 
 on:
