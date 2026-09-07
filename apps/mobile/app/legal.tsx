@@ -1,15 +1,18 @@
-import { useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { Image, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { ChevronDown, ChevronLeft, ChevronRight, FileText, RotateCcw, ShieldCheck } from "lucide-react-native";
 
 import { useAppLocale } from "@/lib/locale-context";
 import { darkTheme } from "@/lib/theme";
 
 type DocumentKey = "privacy" | "terms" | "refund";
-
 type LegalSection = { arTitle: string; enTitle: string; ar: string[]; en: string[] };
+
+const BRAND_LOGO_AR = require("../assets/logo.ar.png");
+const BRAND_LOGO_EN = require("../assets/logo.en.png");
+const DOCUMENT_KEYS: DocumentKey[] = ["privacy", "terms", "refund"];
 
 const DOCUMENTS: Record<DocumentKey, { arTitle: string; enTitle: string; icon: typeof ShieldCheck; sections: LegalSection[] }> = {
   privacy: {
@@ -42,6 +45,9 @@ const DOCUMENTS: Record<DocumentKey, { arTitle: string; enTitle: string; icon: t
 };
 
 export default function LegalScreen() {
+  const params = useLocalSearchParams<{ section?: string | string[] }>();
+  const requested = Array.isArray(params.section) ? params.section[0] : params.section;
+  const initialSection: DocumentKey = DOCUMENT_KEYS.includes(requested as DocumentKey) ? requested as DocumentKey : "privacy";
   const { locale } = useAppLocale();
   const isArabic = locale === "ar";
   const isRtl = isArabic;
@@ -49,16 +55,21 @@ export default function LegalScreen() {
   const compact = width <= 360;
   const styles = useMemo(() => createStyles(darkTheme), []);
   const BackIcon = isRtl ? ChevronRight : ChevronLeft;
-  const [open, setOpen] = useState<DocumentKey | null>("privacy");
+  const [open, setOpen] = useState<DocumentKey | null>(initialSection);
+  const brandSource = isArabic ? BRAND_LOGO_AR : BRAND_LOGO_EN;
+
+  useEffect(() => {
+    if (DOCUMENT_KEYS.includes(requested as DocumentKey)) setOpen(requested as DocumentKey);
+  }, [requested]);
 
   return <SafeAreaView style={styles.screen} edges={["top", "bottom"]}><ScrollView contentContainerStyle={[styles.content, compact && styles.contentCompact]} showsVerticalScrollIndicator={false}>
-    <View style={[styles.top, isRtl && styles.rowRtl]}><Pressable accessibilityRole="button" onPress={() => router.back()} style={styles.backButton}><BackIcon size={21} color={darkTheme.text}/></Pressable><Text style={[styles.brand, isArabic && styles.noTracking]}>{isArabic ? "ملامح" : "MLAMH"}</Text></View>
+    <View style={[styles.top, isRtl && styles.rowRtl]}><Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "رجوع" : "Back"} onPress={() => router.back()} style={styles.backButton}><BackIcon size={21} color={darkTheme.text}/></Pressable><Image source={brandSource} resizeMode="contain" style={styles.brandLogo}/></View>
     <View style={[styles.hero, isRtl && styles.rowRtl]}><View style={styles.heroIcon}><ShieldCheck size={22} color={darkTheme.accent}/></View><View style={styles.heroCopy}><Text accessibilityRole="header" style={[styles.title, compact && styles.titleCompact, isRtl && styles.textRtl]}>{isArabic ? "القانوني والسياسات" : "Legal & policies"}</Text><Text style={[styles.subtitle, isRtl && styles.textRtl]}>{isArabic ? "الخصوصية والشروط والاسترداد داخل التطبيق، في مكان واحد مستقل عن مركز الدعم." : "Privacy, terms and refunds inside the app, in one place separate from support."}</Text></View></View>
 
-    {(Object.keys(DOCUMENTS) as DocumentKey[]).map((key) => { const doc = DOCUMENTS[key]; const Icon = doc.icon; const expanded = open === key; return <View key={key} style={[styles.document, expanded && styles.documentOpen]}><Pressable accessibilityRole="button" accessibilityState={{ expanded }} onPress={() => setOpen(expanded ? null : key)} style={[styles.documentHeader, isRtl && styles.rowRtl]}><View style={styles.documentIcon}><Icon size={20} color={darkTheme.accent}/></View><Text style={[styles.documentTitle, isRtl && styles.textRtl]}>{isArabic ? doc.arTitle : doc.enTitle}</Text><ChevronDown size={19} color={darkTheme.muted} style={expanded ? styles.chevronOpen : undefined}/></Pressable>{expanded ? <View style={styles.documentBody}>{doc.sections.map((section, index) => <View key={`${key}-${index}`} style={styles.section}><Text style={[styles.sectionTitle, isRtl && styles.textRtl]}>{isArabic ? section.arTitle : section.enTitle}</Text>{(isArabic ? section.ar : section.en).map((paragraph, pIndex) => <Text key={pIndex} style={[styles.paragraph, isRtl && styles.textRtl]}>{paragraph}</Text>)}</View>)}</View> : null}</View>; })}
+    {DOCUMENT_KEYS.map((key) => { const doc = DOCUMENTS[key]; const Icon = doc.icon; const expanded = open === key; return <View key={key} style={[styles.document, expanded && styles.documentOpen]}><Pressable accessibilityRole="button" accessibilityState={{ expanded }} onPress={() => setOpen(expanded ? null : key)} style={[styles.documentHeader, isRtl && styles.rowRtl]}><View style={styles.documentIcon}><Icon size={20} color={darkTheme.accent}/></View><Text style={[styles.documentTitle, isRtl && styles.textRtl]}>{isArabic ? doc.arTitle : doc.enTitle}</Text><ChevronDown size={19} color={darkTheme.muted} style={expanded ? styles.chevronOpen : undefined}/></Pressable>{expanded ? <View style={styles.documentBody}>{doc.sections.map((section, index) => <View key={`${key}-${index}`} style={styles.section}><Text style={[styles.sectionTitle, isRtl && styles.textRtl]}>{isArabic ? section.arTitle : section.enTitle}</Text>{(isArabic ? section.ar : section.en).map((paragraph, pIndex) => <Text key={pIndex} style={[styles.paragraph, isRtl && styles.textRtl]}>{paragraph}</Text>)}</View>)}</View> : null}</View>; })}
 
     <Pressable onPress={() => router.push("/support")} style={[styles.supportCard, isRtl && styles.rowRtl]}><ShieldCheck size={18} color={darkTheme.accent}/><Text style={[styles.supportText, isRtl && styles.textRtl]}>{isArabic ? "لديك استفسار قانوني أو طلب استرداد؟ افتح تذكرة دعم من داخل التطبيق." : "Have a legal question or refund request? Open a support ticket inside the app."}</Text></Pressable>
   </ScrollView></SafeAreaView>;
 }
 
-function createStyles(theme: typeof darkTheme) { return StyleSheet.create({screen:{flex:1,backgroundColor:theme.background},content:{width:"100%",maxWidth:680,alignSelf:"center",paddingHorizontal:20,paddingTop:8,paddingBottom:38,gap:15},contentCompact:{paddingHorizontal:14,gap:12},top:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",minHeight:50},rowRtl:{flexDirection:"row-reverse"},textRtl:{textAlign:"right",writingDirection:"rtl"},noTracking:{letterSpacing:0},backButton:{width:44,height:44,borderRadius:22,borderWidth:1,borderColor:theme.border,backgroundColor:theme.surface,alignItems:"center",justifyContent:"center"},brand:{color:theme.accent,fontSize:15,fontWeight:"900",letterSpacing:1.5},hero:{flexDirection:"row",alignItems:"flex-start",gap:12,borderWidth:1,borderColor:"#C9A96233",borderRadius:22,backgroundColor:"#C9A96208",padding:16},heroIcon:{width:46,height:46,borderRadius:15,borderWidth:1,borderColor:"#C9A96244",backgroundColor:"#C9A9620C",alignItems:"center",justifyContent:"center"},heroCopy:{flex:1,gap:4},title:{color:theme.text,fontSize:27,lineHeight:33,fontWeight:"900"},titleCompact:{fontSize:24,lineHeight:30},subtitle:{color:theme.muted,fontSize:12,lineHeight:19},document:{borderWidth:1,borderColor:theme.border,borderRadius:18,backgroundColor:theme.surface,overflow:"hidden"},documentOpen:{borderColor:"#C9A96255"},documentHeader:{minHeight:62,flexDirection:"row",alignItems:"center",gap:11,paddingHorizontal:14},documentIcon:{width:38,height:38,borderRadius:12,borderWidth:1,borderColor:"#C9A96233",backgroundColor:"#C9A9620A",alignItems:"center",justifyContent:"center"},documentTitle:{flex:1,color:theme.text,fontSize:15,fontWeight:"900"},chevronOpen:{transform:[{rotate:"180deg"}]},documentBody:{borderTopWidth:1,borderTopColor:theme.border,padding:15,gap:16},section:{gap:7},sectionTitle:{color:theme.accent,fontSize:13,fontWeight:"900"},paragraph:{color:theme.muted,fontSize:12,lineHeight:20},supportCard:{flexDirection:"row",alignItems:"flex-start",gap:10,borderWidth:1,borderColor:"#C9A96233",borderRadius:16,backgroundColor:"#C9A96208",padding:14},supportText:{flex:1,color:theme.text,fontSize:11,lineHeight:18,fontWeight:"700"}}); }
+function createStyles(theme: typeof darkTheme) { return StyleSheet.create({screen:{flex:1,backgroundColor:theme.background},content:{width:"100%",maxWidth:680,alignSelf:"center",paddingHorizontal:20,paddingTop:8,paddingBottom:38,gap:15},contentCompact:{paddingHorizontal:14,gap:12},top:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",minHeight:54},rowRtl:{flexDirection:"row-reverse"},textRtl:{textAlign:"right",writingDirection:"rtl"},backButton:{width:44,height:44,borderRadius:22,borderWidth:1,borderColor:theme.border,backgroundColor:theme.surface,alignItems:"center",justifyContent:"center"},brandLogo:{width:124,height:48},hero:{flexDirection:"row",alignItems:"flex-start",gap:12,borderWidth:1,borderColor:"#C9A96233",borderRadius:22,backgroundColor:"#C9A96208",padding:16},heroIcon:{width:46,height:46,borderRadius:15,borderWidth:1,borderColor:"#C9A96244",backgroundColor:"#C9A9620C",alignItems:"center",justifyContent:"center"},heroCopy:{flex:1,gap:4},title:{color:theme.text,fontSize:27,lineHeight:33,fontWeight:"900"},titleCompact:{fontSize:24,lineHeight:30},subtitle:{color:theme.muted,fontSize:12,lineHeight:19},document:{borderWidth:1,borderColor:theme.border,borderRadius:18,backgroundColor:theme.surface,overflow:"hidden"},documentOpen:{borderColor:"#C9A96255"},documentHeader:{minHeight:62,flexDirection:"row",alignItems:"center",gap:11,paddingHorizontal:14},documentIcon:{width:38,height:38,borderRadius:12,borderWidth:1,borderColor:"#C9A96233",backgroundColor:"#C9A9620A",alignItems:"center",justifyContent:"center"},documentTitle:{flex:1,color:theme.text,fontSize:15,fontWeight:"900"},chevronOpen:{transform:[{rotate:"180deg"}]},documentBody:{borderTopWidth:1,borderTopColor:theme.border,padding:15,gap:16},section:{gap:7},sectionTitle:{color:theme.accent,fontSize:13,fontWeight:"900"},paragraph:{color:theme.muted,fontSize:12,lineHeight:20},supportCard:{flexDirection:"row",alignItems:"flex-start",gap:10,borderWidth:1,borderColor:"#C9A96233",borderRadius:16,backgroundColor:"#C9A96208",padding:14},supportText:{flex:1,color:theme.text,fontSize:11,lineHeight:18,fontWeight:"700"}}); }
