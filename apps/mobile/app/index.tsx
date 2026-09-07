@@ -9,7 +9,9 @@ import { useAppLocale } from "@/lib/locale-context";
 import { supabase } from "@/lib/supabase";
 import { darkTheme } from "@/lib/theme";
 
-const BRAND_MARK = require("../assets/app-icon.png");
+const APP_MARK = require("../assets/app-icon.png");
+const LOGO_AR = require("../assets/logo.ar.png");
+const LOGO_EN = require("../assets/logo.en.png");
 
 export default function WelcomeScreen() {
   const { locale, changeLocale, hasChosenLocale } = useAppLocale();
@@ -23,12 +25,10 @@ export default function WelcomeScreen() {
 
   useEffect(() => {
     Animated.timing(reveal, { toValue: 1, duration: 420, useNativeDriver: true }).start();
-    const animation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, { toValue: 1, duration: 760, useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 0.42, duration: 760, useNativeDriver: true }),
-      ]),
-    );
+    const animation = Animated.loop(Animated.sequence([
+      Animated.timing(pulse, { toValue: 1, duration: 760, useNativeDriver: true }),
+      Animated.timing(pulse, { toValue: 0.42, duration: 760, useNativeDriver: true }),
+    ]));
     animation.start();
     return () => animation.stop();
   }, [pulse, reveal]);
@@ -56,8 +56,8 @@ export default function WelcomeScreen() {
 
   if (checking) {
     return <View style={styles.splash}>
-      <Animated.View style={[styles.splashMark, { opacity: reveal, transform: [{ translateY: -10 }, { scale: reveal.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1] }) }] }]}>
-        <View style={styles.splashLogoShell}><Image source={BRAND_MARK} resizeMode="contain" style={styles.splashLogo} /></View>
+      <Animated.View style={[styles.splashMark, { opacity: reveal, transform: [{ translateY: -8 }, { scale: reveal.interpolate({ inputRange: [0, 1], outputRange: [0.95, 1] }) }] }]}>
+        <Image source={APP_MARK} resizeMode="contain" style={styles.splashLogo} />
         <Animated.View style={[styles.splashProgress, { opacity: pulse }]} />
       </Animated.View>
     </View>;
@@ -66,7 +66,7 @@ export default function WelcomeScreen() {
   if (!hasChosenLocale) {
     return <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
       <View style={styles.languageGate}>
-        <View style={styles.languageBrandShell}><Image source={BRAND_MARK} resizeMode="contain" style={styles.languageBrand} /></View>
+        <Image source={APP_MARK} resizeMode="contain" style={styles.languageBrand} />
         <View style={styles.languageCopy}>
           <Text style={styles.languageArabicTitle}>اختر لغتك</Text>
           <Text style={styles.languageEnglishTitle}>Choose your language</Text>
@@ -86,14 +86,15 @@ export default function WelcomeScreen() {
 
   const textAlign = isRtl ? "right" : "left";
   const horizontalAlign = isRtl ? "flex-end" : "flex-start";
+  const logo = isArabic ? LOGO_AR : LOGO_EN;
 
   return <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
     <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
       <View style={styles.content}>
-        <View style={[styles.topRow, isRtl && styles.topRowRtl]}>
-          <View style={[styles.brandBlock, isRtl && styles.brandBlockRtl]}>
-            <Image source={BRAND_MARK} resizeMode="contain" style={styles.brandMark} />
-            <View style={styles.brandCopy}><Text style={[styles.platform, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "المواهب والفرص" : "Talent & Opportunities"}</Text><Text style={[styles.market, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "السعودية" : "Saudi Arabia"}</Text></View>
+        <View style={[styles.topRow, isRtl && styles.rowRtl]}>
+          <View style={[styles.brandBlock, isRtl && styles.rowRtl]}>
+            <Image source={logo} resizeMode="contain" style={styles.officialLogo} />
+            <View style={styles.marketBadge}><Text style={[styles.marketText, isArabic && styles.arabicText]}>{isArabic ? "السعودية" : "Saudi Arabia"}</Text></View>
           </View>
           <View accessibilityLabel={isArabic ? "تغيير اللغة" : "Change language"} style={styles.localeSwitch}>
             <Pressable onPress={() => changeLocale("ar")} style={[styles.localeOption, locale === "ar" && styles.localeOptionActive]}><Text style={[styles.localeText, locale === "ar" && styles.localeTextActive, styles.arabicText]}>ع</Text></Pressable>
@@ -133,61 +134,8 @@ function ValueItem({ number, title, body, styles, isArabic, isRtl }: { number: s
 }
 
 function createStyles(theme: typeof darkTheme) { return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: theme.background },
-  splash: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: theme.background },
-  splashMark: { alignItems: "center", gap: 16 },
-  splashLogoShell: { width: 116, height: 116, borderRadius: 34, alignItems: "center", justifyContent: "center" },
-  splashLogo: { width: 108, height: 108 },
-  splashProgress: { width: 28, height: 2, borderRadius: 2, backgroundColor: theme.accent },
-  languageGate: { flex: 1, width: "100%", maxWidth: 560, alignSelf: "center", paddingHorizontal: 24, paddingTop: 56, paddingBottom: 32, justifyContent: "center", gap: 30 },
-  languageBrandShell: { width: 76, height: 76, borderRadius: 24, borderWidth: 1, borderColor: "#C9A96233", backgroundColor: "#C9A96208", alignItems: "center", justifyContent: "center", alignSelf: "center" },
-  languageBrand: { width: 66, height: 66 },
-  languageCopy: { alignItems: "center", gap: 5 },
-  languageArabicTitle: { color: theme.text, fontSize: 30, lineHeight: 38, fontWeight: "800", writingDirection: "rtl", textAlign: "center" },
-  languageEnglishTitle: { color: theme.text, fontSize: 21, lineHeight: 28, fontWeight: "600", textAlign: "center" },
-  languageHint: { color: theme.muted, fontSize: 11, lineHeight: 18, textAlign: "center", marginTop: 6, maxWidth: 370 },
-  languageActions: { gap: 11 },
-  languagePrimary: { minHeight: 70, borderRadius: 20, backgroundColor: theme.accent, paddingHorizontal: 18, flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", gap: 14 },
-  languageSecondary: { minHeight: 68, borderRadius: 20, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, paddingHorizontal: 18, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 14 },
-  languageButtonCopy: { flex: 1 },
-  languagePrimaryTitle: { color: theme.background, fontSize: 17, fontWeight: "900", textAlign: "right", writingDirection: "rtl" },
-  languagePrimarySubtitle: { color: "#1B1B18A6", fontSize: 10, fontWeight: "700", textAlign: "right", writingDirection: "rtl", marginTop: 3 },
-  languageSecondaryTitle: { color: theme.text, fontSize: 16, fontWeight: "800" },
-  languageSecondarySubtitle: { color: theme.muted, fontSize: 10, marginTop: 3 },
-  languageArrow: { color: theme.background, fontSize: 22, fontWeight: "700" },
-  languageSecondaryArrow: { color: theme.accent, fontSize: 22, fontWeight: "700" },
-  scrollContent: { flexGrow: 1, justifyContent: "center" },
-  content: { width: "100%", maxWidth: 560, alignSelf: "center", paddingHorizontal: 22, paddingTop: 18, paddingBottom: 28, gap: 24 },
-  topRow: { minHeight: 52, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 16 },
-  topRowRtl: { flexDirection: "row-reverse" },
-  brandBlock: { flexDirection: "row", alignItems: "center", gap: 9 },
-  brandBlockRtl: { flexDirection: "row-reverse" },
-  brandMark: { width: 40, height: 40 },
-  brandCopy: { gap: 1 },
-  platform: { color: theme.text, fontSize: 11, lineHeight: 16, fontWeight: "800" },
-  market: { color: theme.muted, fontSize: 9, lineHeight: 13, fontWeight: "600" },
-  localeSwitch: { flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, borderRadius: 18, padding: 3, gap: 2 },
-  localeOption: { minWidth: 35, height: 30, paddingHorizontal: 8, borderRadius: 15, alignItems: "center", justifyContent: "center" },
-  localeOptionActive: { backgroundColor: "#C9A9621F", borderWidth: 1, borderColor: "#C9A96266" },
-  localeText: { color: theme.muted, fontSize: 11, fontWeight: "800" },
-  localeTextActive: { color: theme.accent },
-  hero: { gap: 10, paddingTop: 8 },
-  kicker: { color: theme.accent, fontSize: 11, lineHeight: 16, fontWeight: "800", letterSpacing: 1.5 },
-  headline: { color: theme.text, fontSize: 35, lineHeight: 43, fontWeight: "700", maxWidth: 510 },
-  subheadline: { color: theme.muted, fontSize: 15, lineHeight: 24, maxWidth: 480 },
-  valueGrid: { borderTopWidth: 1, borderTopColor: theme.border, borderBottomWidth: 1, borderBottomColor: theme.border },
-  valueItem: { paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: theme.border, gap: 4 },
-  valueNumber: { color: theme.accent, fontSize: 10, fontWeight: "800", letterSpacing: 1.3 },
-  valueNumberRtl: { letterSpacing: 1.3, writingDirection: "ltr" },
-  valueTitle: { color: theme.text, fontSize: 17, lineHeight: 23, fontWeight: "700" },
-  valueBody: { color: theme.muted, fontSize: 12, lineHeight: 18 },
-  actions: { gap: 10 },
-  primaryButton: { minHeight: 54, borderRadius: 14, backgroundColor: theme.accent, alignItems: "center", justifyContent: "center", paddingHorizontal: 18 },
-  primaryButtonText: { color: theme.background, fontSize: 15, fontWeight: "900" },
-  secondaryButton: { minHeight: 52, borderRadius: 14, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, alignItems: "center", justifyContent: "center", paddingHorizontal: 18 },
-  secondaryButtonText: { color: theme.text, fontSize: 14, fontWeight: "700" },
-  textButton: { minHeight: 40, alignItems: "center", justifyContent: "center" },
-  textButtonText: { color: theme.muted, fontSize: 12, fontWeight: "600", textAlign: "center" },
-  pressed: { opacity: 0.72 },
-  arabicText: { letterSpacing: 0, writingDirection: "rtl" },
+  screen:{flex:1,backgroundColor:theme.background},splash:{flex:1,alignItems:"center",justifyContent:"center",backgroundColor:theme.background},splashMark:{alignItems:"center",gap:16},splashLogo:{width:108,height:108},splashProgress:{width:28,height:2,borderRadius:2,backgroundColor:theme.accent},
+  languageGate:{flex:1,width:"100%",maxWidth:560,alignSelf:"center",paddingHorizontal:24,paddingTop:56,paddingBottom:32,justifyContent:"center",gap:30},languageBrand:{width:76,height:76,alignSelf:"center"},languageCopy:{alignItems:"center",gap:5},languageArabicTitle:{color:theme.text,fontSize:30,lineHeight:38,fontWeight:"800",writingDirection:"rtl",textAlign:"center"},languageEnglishTitle:{color:theme.text,fontSize:21,lineHeight:28,fontWeight:"600",textAlign:"center"},languageHint:{color:theme.muted,fontSize:11,lineHeight:18,textAlign:"center",marginTop:6,maxWidth:370},languageActions:{gap:11},languagePrimary:{minHeight:70,borderRadius:20,backgroundColor:theme.accent,paddingHorizontal:18,flexDirection:"row-reverse",alignItems:"center",justifyContent:"space-between",gap:14},languageSecondary:{minHeight:68,borderRadius:20,borderWidth:1,borderColor:theme.border,backgroundColor:theme.surface,paddingHorizontal:18,flexDirection:"row",alignItems:"center",justifyContent:"space-between",gap:14},languageButtonCopy:{flex:1},languagePrimaryTitle:{color:theme.background,fontSize:17,fontWeight:"900",textAlign:"right",writingDirection:"rtl"},languagePrimarySubtitle:{color:"#1B1B18A6",fontSize:10,fontWeight:"700",textAlign:"right",writingDirection:"rtl",marginTop:3},languageSecondaryTitle:{color:theme.text,fontSize:16,fontWeight:"800"},languageSecondarySubtitle:{color:theme.muted,fontSize:10,marginTop:3},languageArrow:{color:theme.background,fontSize:22,fontWeight:"700"},languageSecondaryArrow:{color:theme.accent,fontSize:22,fontWeight:"700"},
+  scrollContent:{flexGrow:1,justifyContent:"center"},content:{width:"100%",maxWidth:560,alignSelf:"center",paddingHorizontal:22,paddingTop:18,paddingBottom:28,gap:24},rowRtl:{flexDirection:"row-reverse"},topRow:{minHeight:58,flexDirection:"row",alignItems:"center",justifyContent:"space-between",gap:12},brandBlock:{flexDirection:"row",alignItems:"center",gap:9,flexShrink:1},officialLogo:{width:142,height:50},marketBadge:{borderWidth:1,borderColor:"#C9A96233",backgroundColor:"#C9A96208",borderRadius:999,paddingHorizontal:9,paddingVertical:5},marketText:{color:theme.muted,fontSize:9,fontWeight:"700"},localeSwitch:{flexDirection:"row",alignItems:"center",borderWidth:1,borderColor:theme.border,backgroundColor:theme.surface,borderRadius:18,padding:3,gap:2},localeOption:{minWidth:35,height:30,paddingHorizontal:8,borderRadius:15,alignItems:"center",justifyContent:"center"},localeOptionActive:{backgroundColor:"#C9A9621F",borderWidth:1,borderColor:"#C9A96266"},localeText:{color:theme.muted,fontSize:11,fontWeight:"800"},localeTextActive:{color:theme.accent},
+  hero:{gap:10,paddingTop:8},kicker:{color:theme.accent,fontSize:11,lineHeight:16,fontWeight:"800",letterSpacing:1.5},headline:{color:theme.text,fontSize:35,lineHeight:43,fontWeight:"700",maxWidth:510},subheadline:{color:theme.muted,fontSize:15,lineHeight:24,maxWidth:480},valueGrid:{borderTopWidth:1,borderTopColor:theme.border,borderBottomWidth:1,borderBottomColor:theme.border},valueItem:{paddingVertical:15,borderBottomWidth:1,borderBottomColor:theme.border,gap:4},valueNumber:{color:theme.accent,fontSize:10,fontWeight:"800",letterSpacing:1.3},valueNumberRtl:{writingDirection:"ltr"},valueTitle:{color:theme.text,fontSize:17,lineHeight:23,fontWeight:"700"},valueBody:{color:theme.muted,fontSize:12,lineHeight:18},actions:{gap:10},primaryButton:{minHeight:54,borderRadius:14,backgroundColor:theme.accent,alignItems:"center",justifyContent:"center",paddingHorizontal:18},primaryButtonText:{color:theme.background,fontSize:15,fontWeight:"900"},secondaryButton:{minHeight:52,borderRadius:14,borderWidth:1,borderColor:theme.border,backgroundColor:theme.surface,alignItems:"center",justifyContent:"center",paddingHorizontal:18},secondaryButtonText:{color:theme.text,fontSize:14,fontWeight:"700"},textButton:{minHeight:40,alignItems:"center",justifyContent:"center"},textButtonText:{color:theme.muted,fontSize:12,fontWeight:"600",textAlign:"center"},pressed:{opacity:0.72},arabicText:{letterSpacing:0,writingDirection:"rtl"},
 }); }
