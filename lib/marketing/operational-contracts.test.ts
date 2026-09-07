@@ -44,3 +44,29 @@ test("Salman research review requires sourced professional contact evidence", ()
   assert.match(actions, /Claim-level source evidence is required before a researched contact can become outreach-ready/);
   assert.match(actions, /marketing_contacts/);
 });
+
+test("Marketing Growth Engine keeps a native governed playbook catalog", () => {
+  const catalog = source("lib/marketing/knowledge/playbook-catalog.ts");
+  assert.match(catalog, /product-positioning-audience/);
+  assert.match(catalog, /publisher-prospecting/);
+  assert.match(catalog, /governed-cold-outreach/);
+  assert.match(catalog, /email-followup-reply-handling/);
+  assert.match(catalog, /analytics-attribution/);
+  assert.match(catalog, /signup-conversion-review/);
+  assert.match(catalog, /talent-onboarding-activation/);
+  assert.match(catalog, /referral-sharing-loops/);
+  assert.match(catalog, /approval_required/);
+  assert.doesNotMatch(catalog, /automated_send:\s*true/);
+});
+
+test("Knowledge page surfaces native playbooks without Production writes", () => {
+  const page = source("app/admin/marketing/knowledge/page.tsx");
+  assert.match(page, /marketingPlaybookCatalog/);
+  assert.match(page, /storedKeys/);
+  assert.match(page, /nativeOnly/);
+  assert.match(page, /MLAMH NATIVE CATALOG/);
+  assert.doesNotMatch(page, /\.insert\(/);
+  assert.doesNotMatch(page, /\.upsert\(/);
+  assert.doesNotMatch(page, /\.update\(/);
+  assert.doesNotMatch(page, /\.delete\(/);
+});
