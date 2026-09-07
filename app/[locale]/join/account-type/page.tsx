@@ -9,10 +9,17 @@ import {
   UserRound,
   Video,
 } from "lucide-react";
+import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 
 import { createEvent, EVENT_TARGETS, EVENT_TYPES } from "@/lib/events";
 import { isValidLocale, type Locale } from "@/lib/i18n";
+import {
+  MARKETING_ATTRIBUTION_COOKIE,
+  hasMarketingAttribution,
+  parseMarketingAttributionCookie,
+} from "@/lib/marketing/attribution/context";
+import { trackMarketingEvent } from "@/lib/marketing/events/track";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -48,6 +55,47 @@ async function recordAccountTypeSelection({ userId, profileId, accountType, loca
       source: "join_account_type",
     },
   });
+}
+
+async function recordAttributedRegistration({
+  userId,
+  profileId,
+  accountType,
+  locale,
+  publisherType,
+}: {
+  userId: string;
+  profileId: string | number;
+  accountType: "talent" | "publisher";
+  locale: Locale;
+  publisherType?: PublisherType;
+}) {
+  try {
+    const cookieStore = await cookies();
+    const attribution = parseMarketingAttributionCookie(
+      cookieStore.get(MARKETING_ATTRIBUTION_COOKIE)?.value,
+    );
+
+    await trackMarketingEvent({
+      eventName: "registration_completed",
+      userId,
+      source: attribution.source,
+      medium: attribution.medium,
+      campaign: attribution.campaign,
+      content: attribution.content,
+      term: attribution.term,
+      entityType: "profile",
+      entityId: String(profileId),
+      metadata: {
+        account_type: accountType,
+        locale,
+        attribution_present: hasMarketingAttribution(attribution),
+        ...(publisherType ? { publisher_type: publisherType } : {}),
+      },
+    });
+  } catch (error) {
+    console.error("[selectAccountTypeAction.registrationAttribution]", error);
+  }
 }
 
 async function selectAccountTypeAction(formData: FormData) {
@@ -145,6 +193,7 @@ async function selectAccountTypeAction(formData: FormData) {
 
   if (accountType === "talent") {
     await recordAccountTypeSelection({ userId: user.id, profileId, accountType: "talent", locale });
+    await recordAttributedRegistration({ userId: user.id, profileId, accountType: "talent", locale });
     redirect(`/${locale}/join/talent`);
   }
 
@@ -190,6 +239,7 @@ async function selectAccountTypeAction(formData: FormData) {
   }
 
   await recordAccountTypeSelection({ userId: user.id, profileId, accountType: "publisher", locale, publisherType });
+  await recordAttributedRegistration({ userId: user.id, profileId, accountType: "publisher", locale, publisherType });
   redirect(`/${locale}/publisher-dashboard`);
 }
 
@@ -219,132 +269,124 @@ export default async function AccountTypePage({ params }: PageProps) {
   if (currentProfile?.account_type === "talent") redirect(`/${locale}/talent-dashboard`);
 
   if (currentProfile?.account_type === "publisher") {
-    const { data: currentPublisher, error: currentPublisherError } = await adminClient
+    const { data: currentPublisher } = await adminClient
       .from("publishers")
       .select("id")
       .eq("profile_id", currentProfile.id)
       .maybeSingle();
 
-    if (currentPublisherError) {
-      console.error("[AccountTypePage publisher lookup]", currentPublisherError);
-    }
-
     if (currentPublisher) redirect(`/${locale}/publisher-dashboard`);
-    redirect(`/${locale}/join/publisher`);
   }
 
   return (
-    <main dir={isRtl ? "rtl" : "ltr"} className="min-h-screen bg-black px-6 py-20 text-white">
-      <div className="mx-auto flex min-h-[calc(100vh-10rem)] max-w-5xl items-center justify-center">
-        <div className="w-full">
-          <div className="mb-12 text-center">
-            <p className="text-xs uppercase tracking-[0.35em] text-gold">
-              {isRtl ? "اختر نوع الحساب" : "Choose Account Type"}
+    <main className="min-h-screen bg-[#101010] px-4 py-12 text-white sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-5xl">
+        <div className="mb-10 text-center">
+          <p className="text-xs uppercase tracking-[0.22em] text-gold/70">MLAMH</p>
+          <h1 className="mt-3 text-3xl font-light sm:text-4xl">
+            {isRtl ? "كيف تريد استخدام ملامح؟" : "How do you want to use MLAMH?"}
+          </h1>
+          <p className="mx-auto mt-4 max-w-2xl text-sm leading-7 text-white/45">
+            {isRtl
+              ? "اختر المسار الذي يطابق هدفك. يمكنك التقديم على الفرص كموهبة، أو نشر الفرص والبحث عن المواهب كناشر."
+              : "Choose the path that matches your goal. Apply to opportunities as Talent, or publish opportunities and find talent as a Publisher."}
+          </p>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          <form action={selectAccountTypeAction} className="rounded-[2rem] border border-gold/20 bg-gold/[0.04] p-8">
+            <input type="hidden" name="locale" value={locale} />
+            <input type="hidden" name="account_type" value="talent" />
+
+            <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-full border border-gold/25 bg-gold/[0.06] text-gold">
+              <UserRound size={24} />
+            </div>
+            <p className="mb-3 text-xs uppercase tracking-[0.18em] text-gold/60">
+              {isRtl ? "للممثلين والمودلز" : "For actors and models"}
             </p>
-            <h1 className="mt-4 text-4xl font-light md:text-6xl">
-              {isRtl ? "كيف تريد استخدام ملامح؟" : "How will you use MLAMH?"}
-            </h1>
-            <p className="mx-auto mt-4 max-w-2xl text-sm leading-7 text-white/45">
+            <h2 className="text-3xl font-light text-white">
+              {isRtl ? "أنا موهبة وأريد التقديم على الفرص" : "I am Talent and want to apply"}
+            </h2>
+            <p className="mt-4 text-sm leading-7 text-white/45">
               {isRtl
-                ? "إذا كنت ممثلًا أو مودل وتريد التقدم للفرص، اختر مسار الموهبة. اختر مسار الناشر فقط إذا كنت تريد نشر فرص والبحث عن مواهب لمشروعك."
-                : "If you are an actor or model applying to opportunities, choose Talent. Choose Publisher only if you need to publish opportunities and find talent for a project."}
+                ? "أنشئ ملف موهبة مهنيًا، أرسله للمراجعة، وبعد الاعتماد يمكنك التقديم على الفرص المناسبة."
+                : "Create your professional talent profile, submit it for review, and once approved you can apply to suitable opportunities."}
             </p>
-          </div>
+            <button
+              type="submit"
+              className="mt-8 w-full rounded-2xl bg-gold px-5 py-4 text-sm font-medium text-black transition hover:bg-gold-soft"
+            >
+              {isRtl ? "متابعة كموهبة" : "Continue as Talent"}
+            </button>
+          </form>
 
-          <div className="grid gap-6 lg:grid-cols-2">
-            <form action={selectAccountTypeAction}>
-              <input type="hidden" name="locale" value={locale} />
-              <input type="hidden" name="account_type" value="talent" />
-              <button
-                type="submit"
-                className="group h-full min-h-[320px] w-full rounded-[2rem] border border-gold/30 bg-gold/[0.055] p-8 text-start transition hover:border-gold/60 hover:bg-gold/[0.08]"
-              >
-                <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-full border border-gold/25 bg-gold/[0.08] text-gold">
-                  <Sparkles size={24} />
-                </div>
-                <p className="mb-3 text-xs uppercase tracking-[0.18em] text-gold/75">
-                  {isRtl ? "للممثلين والمودلز والمواهب" : "For actors, models and talent"}
-                </p>
-                <h2 className="text-3xl font-light text-white">{isRtl ? "أنا موهبة" : "I am Talent"}</h2>
-                <p className="mt-4 text-sm leading-7 text-white/55">
+          <form action={selectAccountTypeAction} className="rounded-[2rem] border border-white/10 bg-white/[0.035] p-8">
+            <input type="hidden" name="locale" value={locale} />
+            <input type="hidden" name="account_type" value="publisher" />
+
+            <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-full border border-white/15 bg-white/[0.04] text-white/70">
+              <BriefcaseBusiness size={24} />
+            </div>
+            <p className="mb-3 text-xs uppercase tracking-[0.18em] text-white/40">
+              {isRtl ? "للجهات وأصحاب المشاريع" : "For organizations and project owners"}
+            </p>
+            <h2 className="text-3xl font-light text-white">
+              {isRtl ? "أريد نشر فرص والبحث عن مواهب" : "I want to publish opportunities"}
+            </h2>
+            <p className="mt-4 text-sm leading-7 text-white/45">
+              {isRtl
+                ? "هذا المسار مخصص لمن لديه مشروع أو تصوير أو حملة ويريد نشر فرصة واستقبال طلبات المواهب. إذا كنت تريد التقدم للفرص، اختر «أنا موهبة» بدلًا من ذلك."
+                : "This path is for people or organizations with a project, production or campaign who want to publish an opportunity and receive talent applications. If you want to apply to opportunities, choose Talent instead."}
+            </p>
+
+            <p className="mt-7 text-xs uppercase tracking-[0.2em] text-gold">
+              {isRtl ? "1. اختر صفتك كناشر" : "1. Select publisher type"}
+            </p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              {publisherTypes.map((type) => {
+                const Icon = type.icon;
+                return (
+                  <label
+                    key={type.value}
+                    className="flex min-h-16 cursor-pointer items-center gap-3 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-start transition has-[:checked]:border-gold/50 has-[:checked]:bg-gold/[0.08] hover:border-gold/30"
+                  >
+                    <input type="radio" name="publisher_type" value={type.value} required className="sr-only" />
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-gold/20 bg-gold/[0.05] text-gold">
+                      <Icon size={17} />
+                    </span>
+                    <span className="text-sm text-white/75">{isRtl ? type.ar : type.en}</span>
+                  </label>
+                );
+              })}
+            </div>
+
+            <div className="mt-7 rounded-2xl border border-amber-300/15 bg-amber-300/[0.04] p-4">
+              <p className="text-xs uppercase tracking-[0.18em] text-amber-100/60">
+                {isRtl ? "2. تأكيد قبل إنشاء حساب الناشر" : "2. Confirm before creating a publisher account"}
+              </p>
+              <label className="mt-3 flex cursor-pointer items-start gap-3 text-sm leading-6 text-white/65">
+                <input
+                  type="checkbox"
+                  name="publisher_intent_confirmed"
+                  value="yes"
+                  required
+                  className="mt-1 h-4 w-4 shrink-0 accent-[#D4A017]"
+                />
+                <span>
                   {isRtl
-                    ? "أنشئ ملفك المهني، اعرض أعمالك، وتقدم على الفرص المناسبة. إذا كنت تبحث عن فرصة تمثيل أو مودل، فهذا هو المسار الصحيح."
-                    : "Create your professional profile, showcase your work, and apply to opportunities. If you are looking for acting or modeling opportunities, this is the correct path."}
-                </p>
-                <p className="mt-8 text-xs uppercase tracking-[0.22em] text-gold">
-                  {isRtl ? "إكمال كموهبة" : "Continue as Talent"}
-                </p>
-              </button>
-            </form>
+                    ? "أؤكد أنني أريد نشر فرص أو البحث عن مواهب لمشروع، ولست هنا للتقديم على فرص كممثل أو مودل."
+                    : "I confirm that I want to publish opportunities or find talent for a project, and I am not here to apply to opportunities as an actor or model."}
+                </span>
+              </label>
+            </div>
 
-            <form action={selectAccountTypeAction} className="rounded-[2rem] border border-white/10 bg-white/[0.035] p-8">
-              <input type="hidden" name="locale" value={locale} />
-              <input type="hidden" name="account_type" value="publisher" />
-
-              <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-full border border-white/15 bg-white/[0.04] text-white/70">
-                <BriefcaseBusiness size={24} />
-              </div>
-              <p className="mb-3 text-xs uppercase tracking-[0.18em] text-white/40">
-                {isRtl ? "للجهات وأصحاب المشاريع" : "For organizations and project owners"}
-              </p>
-              <h2 className="text-3xl font-light text-white">
-                {isRtl ? "أريد نشر فرص والبحث عن مواهب" : "I want to publish opportunities"}
-              </h2>
-              <p className="mt-4 text-sm leading-7 text-white/45">
-                {isRtl
-                  ? "هذا المسار مخصص لمن لديه مشروع أو تصوير أو حملة ويريد نشر فرصة واستقبال طلبات المواهب. إذا كنت تريد التقدم للفرص، اختر «أنا موهبة» بدلًا من ذلك."
-                  : "This path is for people or organizations with a project, production or campaign who want to publish an opportunity and receive talent applications. If you want to apply to opportunities, choose Talent instead."}
-              </p>
-
-              <p className="mt-7 text-xs uppercase tracking-[0.2em] text-gold">
-                {isRtl ? "1. اختر صفتك كناشر" : "1. Select publisher type"}
-              </p>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                {publisherTypes.map((type) => {
-                  const Icon = type.icon;
-                  return (
-                    <label
-                      key={type.value}
-                      className="flex min-h-16 cursor-pointer items-center gap-3 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-start transition has-[:checked]:border-gold/50 has-[:checked]:bg-gold/[0.08] hover:border-gold/30"
-                    >
-                      <input type="radio" name="publisher_type" value={type.value} required className="sr-only" />
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-gold/20 bg-gold/[0.05] text-gold">
-                        <Icon size={17} />
-                      </span>
-                      <span className="text-sm text-white/75">{isRtl ? type.ar : type.en}</span>
-                    </label>
-                  );
-                })}
-              </div>
-
-              <div className="mt-7 rounded-2xl border border-amber-300/15 bg-amber-300/[0.04] p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-amber-100/60">
-                  {isRtl ? "2. تأكيد قبل إنشاء حساب الناشر" : "2. Confirm before creating a publisher account"}
-                </p>
-                <label className="mt-3 flex cursor-pointer items-start gap-3 text-sm leading-6 text-white/65">
-                  <input
-                    type="checkbox"
-                    name="publisher_intent_confirmed"
-                    value="yes"
-                    required
-                    className="mt-1 h-4 w-4 shrink-0 accent-[#D4A017]"
-                  />
-                  <span>
-                    {isRtl
-                      ? "أؤكد أنني أريد نشر فرص أو البحث عن مواهب لمشروع، ولست هنا للتقديم على فرص كممثل أو مودل."
-                      : "I confirm that I want to publish opportunities or find talent for a project, and I am not here to apply to opportunities as an actor or model."}
-                  </span>
-                </label>
-              </div>
-
-              <button
-                type="submit"
-                className="mt-6 w-full rounded-2xl border border-gold/35 bg-gold/[0.1] px-5 py-4 text-sm font-medium text-gold transition hover:border-gold/60 hover:bg-gold/[0.14]"
-              >
-                {isRtl ? "تأكيد وإنشاء حساب ناشر" : "Confirm and create Publisher account"}
-              </button>
-            </form>
-          </div>
+            <button
+              type="submit"
+              className="mt-6 w-full rounded-2xl border border-gold/35 bg-gold/[0.1] px-5 py-4 text-sm font-medium text-gold transition hover:border-gold/60 hover:bg-gold/[0.14]"
+            >
+              {isRtl ? "تأكيد وإنشاء حساب ناشر" : "Confirm and create Publisher account"}
+            </button>
+          </form>
         </div>
       </div>
     </main>
