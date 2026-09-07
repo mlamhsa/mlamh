@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { runGovernedChannelWorker } from "@/lib/marketing/channels/autonomous-executor";
 import { syncZohoInboundEmails } from "@/lib/marketing/channels/zoho-inbound";
 import { processDanaInboundEmailTask } from "@/lib/marketing/inbound/dana-email";
+import { getOutreachReadiness } from "@/lib/marketing/leads/outreach-readiness";
 import { createMarketingTask } from "@/lib/marketing/tasks/service";
 import { runMarketingTaskById } from "@/lib/marketing/tasks/runner";
 
@@ -50,12 +51,6 @@ const DAILY_MISSIONS: DailyMission[] = [
 
 function riyadhDayKey(now = new Date()) {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Riyadh", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
-}
-
-function contactRole(contact: ContactRow | null) {
-  const metadata = contact?.metadata && typeof contact.metadata === "object" && !Array.isArray(contact.metadata) ? contact.metadata : {};
-  const value = metadata.job_title ?? metadata.role ?? metadata.title;
-  return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
 function record(value: unknown) {
@@ -144,11 +139,9 @@ async function seedLeadPreparationTasks(day: string) {
 
   for (const lead of leads) {
     const contact = lead.contact_id ? contacts.get(lead.contact_id) ?? null : null;
-    const hasNamedContact = Boolean(contact?.contact_name?.trim());
-    const hasReachableChannel = Boolean(contact?.linkedin_url?.trim() || contact?.email?.trim());
-    const role = contactRole(contact);
+    const readiness = getOutreachReadiness(contact);
 
-    if (!hasNamedContact || !hasReachableChannel) {
+    if (!readiness.isReady) {
       await createMarketingTask({
         agentId: "salman",
         taskType: "lead_enrichment",
@@ -167,11 +160,12 @@ async function seedLeadPreparationTasks(day: string) {
           opportunity_type: lead.opportunity_type,
           demand_signal: lead.demand_signal,
           current_readiness: {
-            contact_name: hasNamedContact,
-            contact_role: Boolean(role),
-            linkedin: Boolean(contact?.linkedin_url?.trim()),
-            email: Boolean(contact?.email?.trim()),
+            contact_name: Boolean(readiness.name),
+            contact_role: Boolean(readiness.role),
+            linkedin: Boolean(readiness.linkedinUrl),
+            email: Boolean(readiness.email),
             website: Boolean(contact?.website?.trim()),
+            missing_fields: readiness.missingFields,
           },
           required_output: ["verified_contact_person", "role", "best_channel", "source_evidence", "remaining_gaps"],
         },
@@ -188,7 +182,7 @@ async function seedLeadPreparationTasks(day: string) {
       title: `Prepare outreach · ${lead.organization}`,
       objective: "Prepare a concise personalized first-touch outreach draft for this verified lead. Prefer LinkedIn when a LinkedIn profile is available and use Sawsan Ahdadi / Business Development as the sender profile. Email may be prepared when available. Do not send anything, do not invent context, and do not claim a prior relationship.",
       priority: "high",
-      channel: contact?.linkedin_url ? "linkedin" : "email",
+      channel: readiness.linkedinUrl ? "linkedin" : "email",
       approvalLevel: "auto",
       leadId: lead.id,
       source: "autonomous_orchestrator",
@@ -200,10 +194,10 @@ async function seedLeadPreparationTasks(day: string) {
         opportunity_type: lead.opportunity_type,
         demand_signal: lead.demand_signal,
         contact: {
-          name: contact?.contact_name,
-          role,
-          linkedin_available: Boolean(contact?.linkedin_url?.trim()),
-          email_available: Boolean(contact?.email?.trim()),
+          name: readiness.name,
+          role: readiness.role,
+          linkedin_available: Boolean(readiness.linkedinUrl),
+          email_available: Boolean(readiness.email),
         },
         sender_profile: { name: "Sawsan Ahdadi", role: "Business Development" },
         required_output: ["recommended_channel", "message", "follow_up_plan"],

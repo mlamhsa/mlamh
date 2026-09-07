@@ -51,8 +51,13 @@ Status: CORE QUALITY LOOP IMPLEMENTED
 - DONE — Lead -> Brief and Brief -> Opportunity conversion are reported without fabricating percentages when a denominator is missing.
 - DONE — The largest observed demand-pipeline drop is derived from recorded progression instead of a generic benchmark.
 - DONE — Source-level Demand Quality shows which Lead source reaches ready, sent, reply and Brief outcomes.
+- DONE — Production evidence identified Research -> Outreach Ready as the current weakest 30-day transition: 8 researched leads and 0 ready; 11 of 16 leads had no linked contact, while all 5 linked contacts lacked a professional role/title.
+- DONE — Orchestrator, AI grounding, outreach materialization and Demand Quality now share one readiness contract: contact name + professional role/title + verified email or LinkedIn channel.
+- DONE — Missing role/name/channel routes the lead back through governed lead enrichment/review instead of advancing to outreach preparation.
+- DONE — Historical outreach rows created before readiness no longer count as successful prepared/sent quality progression.
+- POLICY — AI contact research remains review-gated and cannot directly verify contacts or backfill Production contact data.
+- NEXT — Let governed research/review create real outreach-ready inventory, then re-check Demand Quality before optimizing the next transition.
 - NEXT — Extend the same verified brief-outcome contract to additional commercial source adapters when those adapters are introduced or verified.
-- NEXT — Use real Demand Quality evidence to improve the weakest research/outreach transition rather than increasing Lead volume blindly.
 
 ### B. Talent acquisition and activation
 Status: CORE LOOP IMPLEMENTED
@@ -114,7 +119,8 @@ Status: LANDING BASELINE IMPLEMENTED / EXPERIMENT GATED
 - DONE — Landing Quality reports unique attributed landing sessions, linked verified registrations/applications and page-level conversion without guessing outcomes lacking session linkage.
 - DONE — The CRO diagnosis requires at least 5 recorded landing sessions before identifying a page for review; this threshold is only an operational review gate, not statistical significance.
 - VERIFIED — Existing experiment registry already stores hypothesis, success metric, status, winner and result.
-- NEXT — Wait for sufficient production Landing Quality evidence, then define the first governed CTA/message hypothesis around the weakest observed page.
+- GATED — First CTA/message experiment is waiting for sufficient Production Landing Quality evidence; the current 30-day baseline has no recorded `attribution_landing` sessions yet.
+- NEXT — When sufficient landing evidence exists, define the first governed CTA/message hypothesis around the weakest observed page.
 - POLICY — No automatic experiment launch, no dark patterns and no privacy-policy bypasses.
 
 ### F. Attribution and feedback loop

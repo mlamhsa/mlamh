@@ -1,5 +1,6 @@
 import { getMarketingAIProvider } from "@/lib/marketing/ai/provider";
 import { marketingPlaybooksForTask } from "@/lib/marketing/knowledge/playbook-catalog";
+import { getOutreachReadiness } from "@/lib/marketing/leads/outreach-readiness";
 import { materializeMarketingTaskOutput } from "@/lib/marketing/tasks/materialize";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -32,11 +33,6 @@ function asText(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
-function contactRole(metadata: unknown) {
-  const value = asRecord(metadata);
-  return asText(value.job_title) ?? asText(value.role) ?? asText(value.title);
-}
-
 function outputContract(taskType: string) {
   if (taskType === "content_strategy") {
     return " In addition, return content_items with up to 3 production-ready Arabic-first organic social drafts. Each item must contain: title, hook, caption, cta, content_type, channel (instagram or facebook), objective. Use only facts supplied in context and never imply a campaign was published.";
@@ -45,7 +41,7 @@ function outputContract(taskType: string) {
     return " In addition, return outreach_drafts with up to 3 professional first-contact email drafts. Each item must contain: lead_id, subject, message. Use only lead_id values supplied in lead_candidates. Do not invent contact names, claims, pricing, partnerships, discounts or prior relationships. The message is a draft only and must not claim it was sent.";
   }
   if (taskType === "outreach_preparation") {
-    return " In addition, return outreach_drafts with up to 3 review-ready first-touch drafts. Each item must contain: lead_id, channel (linkedin or email), message, and subject when channel=email. Use only lead_id values supplied in lead_candidates. Use the verified contact name/role only when supplied. Prefer LinkedIn when linkedin_available=true. The sender for LinkedIn is Sawsan Ahdadi, Business Development at MLAMH. Never claim a prior relationship and never claim the draft was sent.";
+    return " In addition, return outreach_drafts with up to 3 review-ready first-touch drafts. Each item must contain: lead_id, channel (linkedin or email), message, and subject when channel=email. Use only lead_id values supplied in lead_candidates where contact.outreach_ready=true. Use the verified contact name/role only when supplied. Prefer LinkedIn when linkedin_available=true. The sender for LinkedIn is Sawsan Ahdadi, Business Development at MLAMH. Never claim a prior relationship and never claim the draft was sent.";
   }
   if (taskType === "lead_enrichment") {
     return " In addition, return lead_research with up to 5 items. Each item must contain: lead_id, readiness_status, candidate_contact {name, role, public_business_email, public_linkedin_url, company_website}, source_evidence [{url,title,claim}], confidence, missing_fields, verified_signals, remaining_gaps. Use public professional/business sources only. Never invent a person, title, email, phone number, LinkedIn URL, website, relationship, or source. A candidate field without source evidence must be null. The result is research for human review and must never be described as an approved MLAMH contact.";
@@ -101,8 +97,7 @@ async function getLeadCandidates(taskType: string) {
 
   return rows.map((lead) => {
     const contact = lead.contact_id ? contactMap.get(lead.contact_id) : null;
-    const name = asText(contact?.contact_name);
-    const role = contactRole(contact?.metadata);
+    const readiness = getOutreachReadiness(contact);
     return {
       id: lead.id,
       organization: lead.organization,
@@ -115,12 +110,13 @@ async function getLeadCandidates(taskType: string) {
       preferred_channel: lead.channel,
       notes: lead.notes,
       contact: {
-        name,
-        role,
-        linkedin_available: Boolean(asText(contact?.linkedin_url)),
-        email_available: Boolean(asText(contact?.email)),
+        name: readiness.name,
+        role: readiness.role,
+        linkedin_available: Boolean(readiness.linkedinUrl),
+        email_available: Boolean(readiness.email),
         website_available: Boolean(asText(contact?.website)),
-        outreach_ready: Boolean(name && (asText(contact?.linkedin_url) || asText(contact?.email))),
+        outreach_ready: readiness.isReady,
+        missing_fields: readiness.missingFields,
       },
     };
   });
