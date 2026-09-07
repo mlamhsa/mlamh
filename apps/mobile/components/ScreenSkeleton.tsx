@@ -1,4 +1,4 @@
-import { StyleSheet, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
 import type { AppLocale } from "@/lib/i18n";
 import { darkTheme } from "@/lib/theme";
@@ -8,8 +8,10 @@ type Variant = "list" | "profile" | "detail" | "dashboard";
 export function ScreenSkeleton({ variant = "list", locale = "en", label }: { variant?: Variant; locale?: AppLocale; label?: string }) {
   const rows = variant === "profile" ? 3 : variant === "detail" ? 4 : variant === "dashboard" ? 4 : 5;
   const accessibilityLabel = label ?? (locale === "ar" ? "جارٍ تحميل المحتوى" : "Loading content");
+  const isArabic = locale === "ar";
   return <View style={styles.screen} accessibilityRole="progressbar" accessibilityLabel={accessibilityLabel}>
     <View importantForAccessibility="no-hide-descendants" style={styles.content}>
+      <View style={[styles.loadingRow, isArabic && styles.loadingRowRtl]}><ActivityIndicator size="small" color={darkTheme.accent}/><Text style={[styles.loadingText, isArabic && styles.loadingTextRtl]}>{accessibilityLabel}</Text></View>
       <View style={styles.brand} />
       <View style={styles.title} />
       <View style={styles.subtitle} />
@@ -22,7 +24,11 @@ export function ScreenSkeleton({ variant = "list", locale = "en", label }: { var
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: darkTheme.background },
-  content: { width: "100%", maxWidth: 720, alignSelf: "center", paddingHorizontal: 20, paddingTop: 22, paddingBottom: 32, gap: 12 },
+  content: { width: "100%", maxWidth: 720, alignSelf: "center", paddingHorizontal: 20, paddingTop: 18, paddingBottom: 32, gap: 12 },
+  loadingRow: { minHeight: 34, flexDirection: "row", alignItems: "center", gap: 9 },
+  loadingRowRtl: { flexDirection: "row-reverse", justifyContent: "flex-end" },
+  loadingText: { color: darkTheme.muted, fontSize: 11, fontWeight: "700" },
+  loadingTextRtl: { textAlign: "right", writingDirection: "rtl" },
   brand: { width: 72, height: 10, borderRadius: 5, backgroundColor: darkTheme.surfaceElevated },
   title: { width: "62%", height: 30, borderRadius: 10, backgroundColor: darkTheme.surfaceElevated },
   subtitle: { width: "84%", height: 14, borderRadius: 7, backgroundColor: darkTheme.surface },
