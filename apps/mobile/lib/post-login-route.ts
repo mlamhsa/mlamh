@@ -13,6 +13,7 @@ const TALENT_EXACT = new Set([
   "/onboarding",
   "/talents",
 ]);
+const TALENT_ONBOARDING_QUERY_EXACT = new Set(["/profile/journey", "/profile/edit", "/profile/media", "/profile/review", "/onboarding"]);
 const PUBLISHER_EXACT = new Set(["/publisher", "/publisher/profile", "/publisher/verification", "/publisher/messages", "/talents"]);
 
 function normalizePath(value: unknown) {
@@ -22,6 +23,14 @@ function normalizePath(value: unknown) {
   if (trimmed.includes("://") || trimmed.includes("\0")) return null;
   const path = trimmed.split("?")[0]?.split("#")[0] ?? "";
   return path || null;
+}
+
+function safeTalentTarget(value: unknown, path: string) {
+  if (typeof value !== "string" || !TALENT_ONBOARDING_QUERY_EXACT.has(path)) return path;
+  const trimmed = value.trim();
+  const withoutHash = trimmed.split("#")[0] ?? path;
+  const query = withoutHash.includes("?") ? withoutHash.slice(withoutHash.indexOf("?") + 1) : "";
+  return query === "onboarding=1" ? `${path}?onboarding=1` : path;
 }
 
 function matchesDynamic(path: string, prefix: string, numericOnly = false) {
@@ -45,7 +54,7 @@ export function getSafePostLoginPath(value: unknown, accountType: MobileAccountK
     return null;
   }
 
-  if (TALENT_EXACT.has(path)) return path;
+  if (TALENT_EXACT.has(path)) return safeTalentTarget(value, path);
   if (matchesDynamic(path, "/opportunities")) return path;
   if (matchesDynamic(path, "/applications", true)) return path;
   if (matchesDynamic(path, "/conversations", true)) return path;
