@@ -1,3 +1,4 @@
+# Build 8 RC TestFlight submission — submit existing EAS build only
 name: Mobile RC TestFlight Submit
 
 on:
@@ -10,7 +11,7 @@ on:
 
 jobs:
   submit-ios:
-    name: Submit iOS Build 7 to TestFlight
+    name: Submit iOS Build 8 to TestFlight
     runs-on: ubuntu-latest
     timeout-minutes: 60
     defaults:
@@ -18,7 +19,7 @@ jobs:
         working-directory: apps/mobile
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-      IOS_BUILD_ID: 6e98a5de-a1fa-4ea4-a8d1-16f8ddbfd8e9
+      IOS_BUILD_ID: 87e5dcf4-135e-4599-b1fe-976c87e2d636
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -41,27 +42,22 @@ jobs:
             exit 1
           fi
 
-      - name: Wait for iOS Build 7 to finish
+      - name: Confirm iOS Build 8 is finished
         shell: bash
         run: |
           set -euo pipefail
-          for attempt in $(seq 1 100); do
-            build_json=$(npx --yes eas-cli@latest build:view "$IOS_BUILD_ID" --json)
-            status=$(printf '%s' "$build_json" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const x=JSON.parse(s);process.stdout.write(String(x.status||"").toLowerCase())})')
-            echo "Attempt $attempt: iOS=$status"
-            case "$status" in
-              finished) exit 0 ;;
-              errored|canceled)
-                echo "::error::iOS Build 7 ended with status $status."
-                exit 1
-                ;;
-            esac
-            if [ "$attempt" -eq 100 ]; then
-              echo "::error::Timed out waiting for iOS Build 7."
-              exit 1
-            fi
-            sleep 30
-          done
+          build_json=$(npx --yes eas-cli@latest build:view "$IOS_BUILD_ID" --json)
+          status=$(printf '%s' "$build_json" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const x=JSON.parse(s);process.stdout.write(String(x.status||"").toLowerCase())})')
+          build_version=$(printf '%s' "$build_json" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const x=JSON.parse(s);process.stdout.write(String(x.appBuildVersion||""))})')
+          echo "iOS status=$status appBuildVersion=$build_version"
+          if [ "$status" != "finished" ]; then
+            echo "::error::iOS Build 8 is not finished (status=$status)."
+            exit 1
+          fi
+          if [ "$build_version" != "8" ]; then
+            echo "::error::Expected iOS appBuildVersion 8, got $build_version."
+            exit 1
+          fi
 
-      - name: Submit existing iOS Build 7 to TestFlight
+      - name: Submit existing iOS Build 8 to TestFlight
         run: npx eas-cli@latest submit --platform ios --id "$IOS_BUILD_ID" --profile testflight --non-interactive --wait
