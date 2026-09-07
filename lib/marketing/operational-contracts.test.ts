@@ -108,3 +108,29 @@ test("Account-type selection records governed role telemetry only after a valid 
   assert.match(page, /publisher_intent_confirmed/);
   assert.match(page, /allowedPublisherTypes\.has\(publisherType\)/);
 });
+
+test("Opportunity sharing creates first-party attribution only after a real share path", () => {
+  const share = source("components/opportunities/OpportunityShareButton.tsx");
+  const view = source("lib/actions/track-opportunity-view.ts");
+  assert.match(share, /mlamh_source/);
+  assert.match(share, /opportunity_share/);
+  assert.match(share, /mlamh_channel/);
+  assert.match(share, /await navigator\.share/);
+  assert.match(share, /trackShare\("native"\)/);
+  assert.match(view, /ALLOWED_SHARE_CHANNELS/);
+  assert.match(view, /acquisition_source/);
+  assert.match(view, /acquisition_channel/);
+});
+
+test("Opportunity Growth reuses Dana supply snapshots and stays read-only", () => {
+  const page = source("app/admin/marketing/opportunity-growth/page.tsx");
+  assert.match(page, /talent_supply_gap/);
+  assert.match(page, /opportunity_shared/);
+  assert.match(page, /acquisition_source/);
+  assert.match(page, /Dana's persisted matching results/);
+  assert.doesNotMatch(page, /getTalentSupplyForBrief/);
+  assert.doesNotMatch(page, /\.insert\(/);
+  assert.doesNotMatch(page, /\.upsert\(/);
+  assert.doesNotMatch(page, /\.update\(/);
+  assert.doesNotMatch(page, /\.delete\(/);
+});
