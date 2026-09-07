@@ -88,9 +88,23 @@ test("Talent Growth diagnoses activation from existing telemetry without writing
   assert.match(page, /talentActivationSummary/);
   assert.match(page, /talent_profile_recovery_reminder_sent/);
   assert.match(page, /incomplete_registration_reminder_sent/);
-  assert.match(page, /Role clarity monitoring/);
+  assert.match(page, /Account-role clarity/);
+  assert.match(page, /account_type_selected/);
   assert.doesNotMatch(page, /\.insert\(/);
   assert.doesNotMatch(page, /\.upsert\(/);
   assert.doesNotMatch(page, /\.update\(/);
   assert.doesNotMatch(page, /\.delete\(/);
+});
+
+test("Account-type selection records governed role telemetry only after a valid path is persisted", () => {
+  const page = source("app/[locale]/join/account-type/page.tsx");
+  const eventTypes = source("lib/events/event-types.ts");
+  assert.match(eventTypes, /account_type_selected/);
+  assert.match(page, /recordAccountTypeSelection/);
+  assert.match(page, /EVENT_TARGETS\.AUTH_USER/);
+  assert.match(page, /source:\s*"join_account_type"/);
+  assert.match(page, /accountType:\s*"talent"/);
+  assert.match(page, /accountType:\s*"publisher"/);
+  assert.match(page, /publisher_intent_confirmed/);
+  assert.match(page, /allowedPublisherTypes\.has\(publisherType\)/);
 });
