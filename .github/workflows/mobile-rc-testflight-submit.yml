@@ -10,7 +10,7 @@ on:
 
 jobs:
   submit-ios:
-    name: Submit iOS Build 6 to TestFlight
+    name: Submit iOS Build 7 to TestFlight
     runs-on: ubuntu-latest
     timeout-minutes: 60
     defaults:
@@ -18,7 +18,7 @@ jobs:
         working-directory: apps/mobile
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-      IOS_BUILD_ID: 196c57bc-353a-4c56-bc78-d6e6c1f9a50f
+      IOS_BUILD_ID: 6e98a5de-a1fa-4ea4-a8d1-16f8ddbfd8e9
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -41,7 +41,7 @@ jobs:
             exit 1
           fi
 
-      - name: Wait for iOS Build 6 to finish
+      - name: Wait for iOS Build 7 to finish
         shell: bash
         run: |
           set -euo pipefail
@@ -52,16 +52,16 @@ jobs:
             case "$status" in
               finished) exit 0 ;;
               errored|canceled)
-                echo "::error::iOS Build 6 ended with status $status."
+                echo "::error::iOS Build 7 ended with status $status."
                 exit 1
                 ;;
             esac
             if [ "$attempt" -eq 100 ]; then
-              echo "::error::Timed out waiting for iOS Build 6."
+              echo "::error::Timed out waiting for iOS Build 7."
               exit 1
             fi
             sleep 30
           done
 
-      - name: Submit existing iOS Build 6 to TestFlight
+      - name: Submit existing iOS Build 7 to TestFlight
         run: npx eas-cli@latest submit --platform ios --id "$IOS_BUILD_ID" --profile testflight --non-interactive --wait
