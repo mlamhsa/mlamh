@@ -92,6 +92,34 @@ Verified existing production contracts used by the candidate package:
 
 Result: no missing production table/column/bucket/function dependency was found in the reviewed core code-only candidate package. This clears the **schema-compatibility audit gate**, but it is not authorization to deploy and does not replace route-level runtime E2E.
 
+## Route-level runtime dependency audit — 2026-09-08
+
+The branch-only routes were reviewed for runtime dependencies beyond table/column presence.
+
+- `POST /api/account/type` is self-contained around authenticated request identity plus the existing `profiles` table. No external provider call or new database object is required by the route.
+- `POST /api/talent/me/review` depends on canonical readiness/completion/Fast Track logic and existing `profiles`/`talents`. Admin event emission is best-effort: event creation is wrapped in `try/catch`, so an event-write failure does not reverse a successful review submission. Runtime E2E is still required.
+- Publisher onboarding/profile routes use the authenticated user, `profiles`, `publishers`, and the existing `publisher-assets` bucket. Logo upload uses the server admin client and therefore does not depend on end-user Storage RLS for the write path.
+- Publisher opportunity creation uses static market configuration plus existing `profiles`, `publishers`, and `opportunities`; organizations must be approved and verified before creating drafts, while individual publishers do not require organization verification.
+- `POST /api/support` requires the two verified production RPCs. The commercial-intake adapter runs after the response and is wrapped in `try/catch`; failure of that secondary processing must not make ticket creation fail.
+- `/api/mobile/talents` and `/api/mobile/talents/[slug]` use server-side/admin-backed public-talent retrieval and do not require a new database object merely to answer requests.
+
+### Remaining behavior/performance gates found by the runtime audit
+
+1. **Publisher company-email verification is currently a manual/pending workflow, not an email challenge.**
+   - The mobile verification service validates that the submitted address is an organization email, rejects common public-email domains, and writes `verification_status = pending` plus the email.
+   - The reviewed path does not send a verification email, issue a token, or confirm mailbox ownership.
+   - This is acceptable only if the intended Build 10 behavior is **submit company email for manual review**. If the product copy promises an automatic email-verification link, the implementation/copy must be changed before release.
+
+2. **Advanced public-talent filters still have a scalability issue.**
+   - The simple public directory path uses batched server-side candidate retrieval.
+   - When gender/nationality/age/height filters are present, `getFilteredPublicTalents()` currently calls `getPublishedTalents()` and then applies those advanced filters in memory.
+   - `getPublishedTalents()` collects all visible published talents before filtering, so request cost grows with the full published talent population.
+   - This is not a current schema blocker, but it violates the intended DB-side filtering/pagination scalability direction and should be corrected before the directory grows materially or before a public release that advertises those advanced filters at scale.
+
+3. **Runtime E2E cannot be claimed before the branch-only routes are actually available on the production API origin.**
+   - Preview build success proves compilation/integration at build time, not production route availability.
+   - Do not mark Google role persistence, talent review submission, native Publisher lifecycle, native Support, or native Talent Directory as production-E2E complete until the approved backend code is deployed and tested against `https://mlamh.net`.
+
 ## Minimal backend release package classification
 
 The Build 10 backend package should be split by dependency class instead of deploying every PR #112 change together.
