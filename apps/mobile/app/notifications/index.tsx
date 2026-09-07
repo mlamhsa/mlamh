@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 
 import { AppTabBar } from "@/components/AppTabBar";
@@ -43,11 +44,7 @@ export default function NotificationsScreen() {
       setUnreadCount(result.unreadCount);
       void refreshBadge();
     } catch {
-      setError(
-        isArabic
-          ? "تعذر تحميل الإشعارات. تحقق من الاتصال وحاول مرة أخرى."
-          : "Unable to load notifications. Check your connection and try again.",
-      );
+      setError(isArabic ? "تعذر تحميل الإشعارات. تحقق من الاتصال وحاول مرة أخرى." : "Unable to load notifications. Check your connection and try again.");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -65,7 +62,6 @@ export default function NotificationsScreen() {
         void refreshBadge();
       }
     }
-
     const target = item.target;
     if (target.type === "conversation") return router.push(`/conversations/${target.id}`);
     if (target.type === "publisher_opportunity") return router.push(`/publisher/opportunities/${target.id}`);
@@ -78,7 +74,7 @@ export default function NotificationsScreen() {
   const visibleItems = filter === "unread" ? items.filter((item) => !item.isRead) : items;
   const readCount = Math.max(0, items.length - unreadCount);
 
-  return <View style={styles.screen}>
+  return <SafeAreaView style={styles.screen} edges={["top"]}>
     <FlatList
       data={visibleItems}
       keyExtractor={(item) => String(item.id)}
@@ -116,10 +112,8 @@ export default function NotificationsScreen() {
       ListFooterComponent={<View style={styles.footerSpace} />}
       showsVerticalScrollIndicator={false}
     />
-    {accountType === "publisher"
-      ? <PublisherTabBar active="notifications" locale={locale} theme={theme} notificationCount={unreadCount} />
-      : <AppTabBar active="notifications" locale={locale} theme={theme} notificationCount={unreadCount} />}
-  </View>;
+    {accountType === "publisher" ? <PublisherTabBar active="notifications" locale={locale} theme={theme} notificationCount={unreadCount} /> : <AppTabBar active="notifications" locale={locale} theme={theme} notificationCount={unreadCount} />}
+  </SafeAreaView>;
 }
 
 function Filter({ active, label, onPress, styles }: { active: boolean; label: string; onPress: () => void; styles: ReturnType<typeof createStyles> }) {
@@ -127,9 +121,7 @@ function Filter({ active, label, onPress, styles }: { active: boolean; label: st
 }
 
 function NotificationRow({ item, locale, isRtl, styles, onPress }: { item: MobileNotification; locale: "ar" | "en"; isRtl: boolean; styles: ReturnType<typeof createStyles>; onPress: () => void }) {
-  const date = item.createdAt
-    ? new Date(item.createdAt).toLocaleDateString(locale === "ar" ? "ar-SA-u-nu-latn" : "en-US", { month: "short", day: "numeric" })
-    : "";
+  const date = item.createdAt ? new Date(item.createdAt).toLocaleDateString(locale === "ar" ? "ar-SA-u-nu-latn" : "en-US", { month: "short", day: "numeric" }) : "";
   return <Pressable accessibilityRole="button" accessibilityLabel={`${item.title}${item.body ? `. ${item.body}` : ""}`} onPress={onPress} style={({ pressed }) => [styles.row, !item.isRead && styles.rowUnread, pressed && styles.pressed]}>
     <View style={[styles.rowTop, isRtl && styles.rowRtl]}>
       <View style={[styles.categoryPill, !item.isRead && styles.categoryPillUnread]}><Text style={[styles.category, !item.isRead && styles.categoryUnread]}>{categoryLabel(item.category, locale)}</Text></View>
@@ -142,41 +134,36 @@ function NotificationRow({ item, locale, isRtl, styles, onPress }: { item: Mobil
 }
 
 function categoryLabel(category: MobileNotification["category"], locale: "ar" | "en") {
-  const labels = {
-    application: { ar: "طلب", en: "Application" },
-    message: { ar: "رسالة", en: "Message" },
-    invitation: { ar: "دعوة", en: "Invitation" },
-    system: { ar: "ملامح", en: "MLAMH" },
-  } as const;
+  const labels = { application: { ar: "طلب", en: "Application" }, message: { ar: "رسالة", en: "Message" }, invitation: { ar: "دعوة", en: "Invitation" }, system: { ar: "ملامح", en: "MLAMH" } } as const;
   return labels[category][locale];
 }
 
 function createStyles(theme: typeof darkTheme) {
   return StyleSheet.create({
     screen: { flex: 1, backgroundColor: theme.background },
-    content: { paddingHorizontal: 18, paddingTop: 16, paddingBottom: 20 },
-    header: { gap: 15, marginBottom: 18 },
-    topRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 14 },
+    content: { paddingHorizontal: 18, paddingTop: 10, paddingBottom: 20 },
+    header: { gap: 13, marginBottom: 16 },
+    topRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 14, minHeight: 52 },
     rowRtl: { flexDirection: "row-reverse" },
     eyebrow: { color: theme.accent, fontSize: 9, fontWeight: "900", letterSpacing: 1.2 },
     title: { color: theme.text, fontSize: 28, lineHeight: 34, fontWeight: "800", marginTop: 4 },
     subtitle: { color: theme.muted, fontSize: 13, lineHeight: 21, maxWidth: 520 },
-    countBadge: { minWidth: 36, height: 36, borderRadius: 18, backgroundColor: theme.accent, alignItems: "center", justifyContent: "center", paddingHorizontal: 9 },
+    countBadge: { minWidth: 34, height: 34, borderRadius: 17, backgroundColor: theme.accent, alignItems: "center", justifyContent: "center", paddingHorizontal: 9 },
     countText: { color: theme.background, fontSize: 11, fontWeight: "900" },
-    summaryCard: { minHeight: 82, flexDirection: "row", alignItems: "stretch", borderWidth: 1, borderColor: theme.border, borderRadius: 18, backgroundColor: theme.surface, overflow: "hidden" },
-    summaryPrimary: { flex: 1.25, justifyContent: "center", paddingHorizontal: 16, paddingVertical: 14 },
-    summarySecondary: { flex: 1, justifyContent: "center", paddingHorizontal: 14, paddingVertical: 14 },
+    summaryCard: { minHeight: 78, flexDirection: "row", alignItems: "stretch", borderWidth: 1, borderColor: theme.border, borderRadius: 18, backgroundColor: theme.surface, overflow: "hidden" },
+    summaryPrimary: { flex: 1.25, justifyContent: "center", paddingHorizontal: 16, paddingVertical: 12 },
+    summarySecondary: { flex: 1, justifyContent: "center", paddingHorizontal: 14, paddingVertical: 12 },
     summaryDivider: { width: 1, backgroundColor: theme.border, marginVertical: 14 },
     summaryLabel: { color: theme.muted, fontSize: 9, fontWeight: "700" },
-    summaryValue: { color: theme.accent, fontSize: 28, fontWeight: "700", marginTop: 4 },
-    summaryValueSmall: { color: theme.text, fontSize: 22, fontWeight: "700", marginTop: 4 },
+    summaryValue: { color: theme.accent, fontSize: 26, fontWeight: "700", marginTop: 4 },
+    summaryValueSmall: { color: theme.text, fontSize: 20, fontWeight: "700", marginTop: 4 },
     filters: { flexDirection: "row", gap: 8 },
-    filter: { minHeight: 44, borderRadius: 999, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, alignItems: "center", justifyContent: "center", paddingHorizontal: 14 },
+    filter: { minHeight: 42, borderRadius: 999, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, alignItems: "center", justifyContent: "center", paddingHorizontal: 14 },
     filterActive: { borderColor: theme.accent, backgroundColor: theme.chip },
     filterText: { color: theme.muted, fontSize: 10, fontWeight: "800" },
     filterTextActive: { color: theme.accent },
-    separator: { height: 10 },
-    row: { minHeight: 128, borderWidth: 1, borderColor: theme.border, borderRadius: 19, backgroundColor: theme.surface, padding: 15, gap: 9 },
+    separator: { height: 9 },
+    row: { minHeight: 124, borderWidth: 1, borderColor: theme.border, borderRadius: 19, backgroundColor: theme.surface, padding: 15, gap: 9 },
     rowUnread: { borderColor: "#C9A96255", backgroundColor: "#C9A9620A" },
     pressed: { opacity: 0.7 },
     rowTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
