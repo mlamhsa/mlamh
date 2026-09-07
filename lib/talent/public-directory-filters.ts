@@ -77,7 +77,7 @@ function matchesNationality(talent: Talent, nationality?: string) {
   const target = findNationality(requested);
   const candidate = findNationality(talent.nationality_slug) ?? findNationality(talent.nationality);
 
-  if (target && candidate) return target.code === candidate.code;
+  if (target && candidate) return target.slug === candidate.slug;
 
   const legacyValues = [talent.nationality_slug, talent.nationality]
     .map(normalized)
