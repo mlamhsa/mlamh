@@ -32,6 +32,8 @@ export type GalleryFinalizeResult = { ok: true; url: string; gallery: string[] }
 export type GalleryPrimaryResult = { ok: true; url: string } | { ok: false; code: string };
 export type GalleryReorderResult = { ok: true; gallery: string[] } | { ok: false; code: string };
 export type GalleryDeleteResult = { ok: true; gallery: string[]; primaryUrl: string | null } | { ok: false; code: string };
+export type SupportTicketInput = { senderName: string; senderEmail: string; senderPhone?: string | null; category: string; subject: string; message: string; locale: AppLocale };
+export type SupportTicketResult = { ok: true; ticketNumber: string } | { ok: false; code: string };
 
 function hasValue(value: unknown) {
   if (value === null || value === undefined) return false;
@@ -40,9 +42,6 @@ function hasValue(value: unknown) {
   return true;
 }
 
-// Build the completion score from fields the mobile client actually receives and edits.
-// This intentionally avoids the legacy persisted profile_completion column returned by
-// older production API revisions, so TestFlight always reflects the live profile state.
 function calculateMobileProfileCompletion(profile: MobileTalentProfile) {
   let score = 0;
   if (hasValue(profile.primaryRole)) score += 10;
@@ -53,7 +52,6 @@ function calculateMobileProfileCompletion(profile: MobileTalentProfile) {
   if (profile.languages.length > 0) score += 10;
   if (hasValue(profile.availabilityStatus)) score += 10;
   if (profile.gallery.length > 0) score += 5;
-
   if (profile.primaryRole === "actor") {
     if (hasValue(profile.actingAgeMin) && hasValue(profile.actingAgeMax)) score += 10;
     if (hasValue(profile.heightCm)) score += 5;
@@ -61,7 +59,6 @@ function calculateMobileProfileCompletion(profile: MobileTalentProfile) {
     if (profile.skills.length > 0) score += 5;
     if (hasValue(profile.experienceYears)) score += 5;
   }
-
   if (profile.primaryRole === "model") {
     if (profile.modelingTypes.length > 0) score += 10;
     if (hasValue(profile.heightCm)) score += 5;
@@ -69,7 +66,6 @@ function calculateMobileProfileCompletion(profile: MobileTalentProfile) {
     if (hasValue(profile.hairColor) && hasValue(profile.eyeColor)) score += 5;
     if (hasValue(profile.weightKg) && hasValue(profile.clothingSize) && hasValue(profile.skinColor)) score += 5;
   }
-
   return Math.max(0, Math.min(100, score));
 }
 
@@ -122,6 +118,7 @@ async function authedMutation<T extends { ok: boolean }>(path: string, method: "
 }
 
 export async function applyToOpportunity(opportunityId: number): Promise<ApplyResult> { return authedMutation<ApplyResult>(`/api/opportunities/${opportunityId}/apply`, "POST", { ok: false, code: "REQUEST_FAILED" }); }
+export async function createSupportTicket(input: SupportTicketInput): Promise<SupportTicketResult> { return authedMutation<SupportTicketResult>("/api/support", "POST", { ok: false, code: "REQUEST_FAILED" }, input); }
 
 export async function getMyApplications(locale: AppLocale): Promise<ApplicationsResponse> {
   const headers = await authHeaders(); if (!headers) return { ok: false, code: "UNAUTHENTICATED" };
