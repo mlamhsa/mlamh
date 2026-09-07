@@ -1,1 +1,0 @@
-Role correction is governed: no automatic conversions. Admin confirmation is required. Only likely talent misregistrations with zero publisher opportunities and non-verified publisher status are eligible.
