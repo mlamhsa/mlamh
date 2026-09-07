@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getMarketingChannelAdapter } from "./adapters";
 import { evaluateControlledExecution, getExternalExecutionSettings } from "./controlled-execution";
 import { withMlamhEmailSignature } from "./email-signature";
+import { replyToZohoMessage } from "./zoho-reply";
 import { buildEmailOutreachIdempotencyKey, sanitizeZohoError } from "./zoho-mail-core";
 
 export { buildEmailOutreachIdempotencyKey } from "./zoho-mail-core";
@@ -165,19 +166,23 @@ export async function executeMarketingEmailJob(jobId: number) {
   }
 
   try {
-    const result = await adapter.sendMessage({
-      recipient,
-      text: withMlamhEmailSignature(text),
-      metadata: {
-        subject,
-        outreach_id: hasOutreachId ? outreachId : undefined,
-        lead_id: payload.lead_id,
-        source_reference: payload.source_reference,
-        idempotency_key: job.idempotency_key,
-        signature: "mlamh_official",
-        execution_mode: controlledExecution.mode,
-      },
-    });
+    const signedText = withMlamhEmailSignature(text);
+    const replyTarget = payload.kind === "external_reply" ? stringValue(payload.reply_to_zoho_message_id) : null;
+    const result = replyTarget
+      ? await replyToZohoMessage({ messageId: replyTarget, text: signedText })
+      : await adapter.sendMessage({
+        recipient,
+        text: signedText,
+        metadata: {
+          subject,
+          outreach_id: hasOutreachId ? outreachId : undefined,
+          lead_id: payload.lead_id,
+          source_reference: payload.source_reference,
+          idempotency_key: job.idempotency_key,
+          signature: "mlamh_official",
+          execution_mode: controlledExecution.mode,
+        },
+      });
     if (!result.ok || !result.externalId) throw new Error(result.errorMessage ?? result.errorCode ?? "Email send failed.");
 
     const now = new Date().toISOString();
@@ -187,6 +192,7 @@ export async function executeMarketingEmailJob(jobId: number) {
       provider: "zoho_mail",
       signature: "mlamh_official",
       execution_mode: controlledExecution.mode,
+      native_reply: replyTarget ? true : Boolean(objectValue(result.metadata).native_reply),
     };
     const { error: jobUpdateError } = await db.from("marketing_channel_jobs").update({
       status: "published",
