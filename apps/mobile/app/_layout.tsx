@@ -36,7 +36,7 @@ async function resolvePostAuthHref(): Promise<Href> {
   const { data: { user } } = await supabase.auth.getUser();
   if (user?.user_metadata?.account_type === "publisher") return "/publisher/setup";
   if (user?.user_metadata?.account_type === "talent") return "/onboarding";
-  return "/signup";
+  return "/account-type";
 }
 
 async function routeIncomingUrl(url: string) {
