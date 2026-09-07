@@ -383,7 +383,7 @@ function createStyles(theme: typeof darkTheme) {
     save: { backgroundColor: theme.accent, borderRadius: 14, minHeight: 52, alignItems: "center", justifyContent: "center" },
     saveText: { color: theme.background, fontSize: 13, fontWeight: "900" },
     disabled: { opacity: 0.5 },
-    modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "#000000A8" },
+    modalBackdrop: { ...StyleSheet.absoluteFill, backgroundColor: "#000000A8" },
     sheetSafe: { marginTop: "auto", backgroundColor: theme.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: "hidden" },
     sheet: { maxHeight: "68%", minHeight: 260, borderTopWidth: 1, borderColor: theme.border, paddingHorizontal: 16, paddingTop: 15, paddingBottom: 8 },
     dateSheet: { borderTopWidth: 1, borderColor: theme.border, paddingHorizontal: 16, paddingTop: 15, paddingBottom: 12 },
