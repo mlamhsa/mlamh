@@ -13,6 +13,12 @@ import { darkTheme } from "@/lib/theme";
 
 const BLOCKING_APPLY_CODES = new Set(["PROFILE_INCOMPLETE", "TALENT_NOT_APPROVED", "NOT_TALENT", "ACCOUNT_RESTRICTED"]);
 
+function getApplyApprovalStatus(result: ApplyResult | null) {
+  if (!result || result.ok) return null;
+  const value = result.details?.approvalStatus;
+  return typeof value === "string" ? value : null;
+}
+
 export default function OpportunityDetailScreen() {
   const params = useLocalSearchParams<{ slug?: string | string[] }>();
   const slug = Array.isArray(params.slug) ? params.slug[0] : params.slug;
@@ -75,10 +81,21 @@ export default function OpportunityDetailScreen() {
   function getApplyMessage(result: ApplyResult | null) {
     if (!result) return null;
     if (result.ok) return isArabic ? "تم تقديم طلبك بنجاح." : "Your application was submitted successfully.";
+    const approvalStatus = getApplyApprovalStatus(result);
+    if (result.code === "PROFILE_INCOMPLETE" && approvalStatus === "approved") {
+      return isArabic
+        ? "اعتمادك محفوظ، لكن توجد بيانات أساسية ناقصة. أكملها ثم ارجع للتقديم على الفرصة."
+        : "Your approval is preserved, but required profile details are missing. Complete them, then return to apply.";
+    }
+    if (result.code === "TALENT_NOT_APPROVED" && (approvalStatus === "pending" || approvalStatus === "submitted")) {
+      return isArabic
+        ? "ملفك قيد المراجعة حاليًا. لا تحتاج لإعادة الإرسال؛ يمكنك التقديم بعد الاعتماد."
+        : "Your profile is currently under review. No need to resubmit; you can apply once it is approved.";
+    }
     const messages: Record<string, { ar: string; en: string }> = {
       ALREADY_APPLIED: { ar: "سبق أن تقدمت على هذه الفرصة.", en: "You already applied to this opportunity." },
-      PROFILE_INCOMPLETE: { ar: "أكمل ملفك المهني أولًا ثم أرسله للمراجعة.", en: "Complete your professional profile first, then submit it for review." },
-      TALENT_NOT_APPROVED: { ar: "ملفك يحتاج الاعتماد قبل التقديم على الفرص.", en: "Your talent profile must be approved before you can apply." },
+      PROFILE_INCOMPLETE: { ar: "أكمل متطلبات ملفك الأساسية أولًا، ثم أرسله للمراجعة إذا لم يكن معتمدًا بعد.", en: "Complete your required profile details first, then submit for review if your profile is not already approved." },
+      TALENT_NOT_APPROVED: { ar: "ملفك مكتمل لكنه يحتاج الاعتماد قبل التقديم على الفرص.", en: "Your profile is complete but must be approved before you can apply." },
       NOT_TALENT: { ar: "أنشئ ملف موهبة أولًا للتقديم على الفرص.", en: "Create a talent profile before applying to opportunities." },
       ACCOUNT_RESTRICTED: { ar: "الحساب غير متاح للتقديم حاليًا.", en: "This account cannot apply right now." },
       APPLICATION_WINDOW_CLOSED: { ar: "انتهت مدة استقبال الطلبات.", en: "The application window has closed." },
@@ -111,6 +128,23 @@ export default function OpportunityDetailScreen() {
   const isBlockingResult = !applyResult?.ok && Boolean(applyResult && BLOCKING_APPLY_CODES.has(applyResult.code));
   const marketLabel = getMobileMarketLabel(item.countryCode, locale);
   const locationLabel = [item.city, marketLabel].filter(Boolean).join(" · ");
+  const gateApprovalStatus = getApplyApprovalStatus(applyResult);
+  const approvedButIncomplete = Boolean(applyResult && !applyResult.ok && applyResult.code === "PROFILE_INCOMPLETE" && gateApprovalStatus === "approved");
+  const reviewPending = Boolean(applyResult && !applyResult.ok && applyResult.code === "TALENT_NOT_APPROVED" && (gateApprovalStatus === "pending" || gateApprovalStatus === "submitted"));
+  const gateTitle = approvedButIncomplete
+    ? (isArabic ? "اعتمادك محفوظ — أكمل بياناتك" : "Your approval is preserved")
+    : reviewPending
+      ? (isArabic ? "ملفك قيد المراجعة" : "Your profile is in review")
+      : applyResult && !applyResult.ok && applyResult.code === "TALENT_NOT_APPROVED"
+        ? (isArabic ? "ملفك يحتاج الاعتماد" : "Your profile needs approval")
+        : (isArabic ? "جهّز ملفك المهني" : "Get your profile ready");
+  const gateStep = approvedButIncomplete
+    ? (isArabic ? "أكمل البيانات المطلوبة → ارجع للفرصة → قدّم مباشرة" : "Complete required details → return to the opportunity → apply")
+    : reviewPending
+      ? (isArabic ? "لا تحتاج لإعادة الإرسال → راقب حالة المراجعة → قدّم بعد الاعتماد" : "No resubmission needed → watch review status → apply after approval")
+      : applyResult && !applyResult.ok && applyResult.code === "TALENT_NOT_APPROVED"
+        ? (isArabic ? "افتح ملفك → أرسله للمراجعة إذا لم يُرسل → قدّم بعد الاعتماد" : "Open your profile → submit for review if needed → apply after approval")
+        : (isArabic ? "أكمل الملف → أرسله للمراجعة إذا لزم → بعد الاعتماد يمكنك التقديم" : "Complete profile → submit for review if needed → apply after approval");
 
   return <View style={styles.screen}>
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingTop: Math.max(insets.top + 8, 20), paddingBottom: 132 + insets.bottom }]}>
@@ -141,10 +175,10 @@ export default function OpportunityDetailScreen() {
         <View style={styles.gateCard}>
           <View style={styles.gateIcon}><LockKeyhole size={25} color={theme.accent} strokeWidth={1.8}/></View>
           <Text style={[styles.gateEyebrow, isRtl && styles.rtlText]}>{isArabic ? "قبل التقديم" : "BEFORE YOU APPLY"}</Text>
-          <Text accessibilityRole="header" style={[styles.gateTitle, isRtl && styles.rtlText]}>{applyResult && !applyResult.ok && applyResult.code === "TALENT_NOT_APPROVED" ? (isArabic ? "ملفك جاهز للخطوة التالية" : "Your profile needs one more step") : (isArabic ? "جهّز ملفك المهني" : "Get your profile ready")}</Text>
+          <Text accessibilityRole="header" style={[styles.gateTitle, isRtl && styles.rtlText]}>{gateTitle}</Text>
           <Text accessibilityRole="alert" style={[styles.gateBody, isRtl && styles.rtlText]}>{getApplyMessage(applyResult)}</Text>
-          <View style={[styles.gateSteps, isRtl && styles.rowReverse]}><CheckCircle2 size={17} color={theme.accent}/><Text style={[styles.gateStepText, isRtl && styles.rtlText]}>{isArabic ? "أكمل الملف → أرسله للمراجعة → بعد الاعتماد يمكنك التقديم" : "Complete profile → submit for review → apply after approval"}</Text></View>
-          <Pressable accessibilityRole="button" onPress={gateAction} style={({ pressed }) => [styles.primaryButton, styles.gatePrimary, pressed && styles.pressed]}><Text style={[styles.primaryButtonText, isRtl && styles.rtlText]}>{applyResult && !applyResult.ok && applyResult.code === "PROFILE_INCOMPLETE" ? (isArabic ? "إكمال الملف" : "Complete profile") : (isArabic ? "الذهاب إلى ملفي" : "Go to my profile")}</Text></Pressable>
+          <View style={[styles.gateSteps, isRtl && styles.rowReverse]}><CheckCircle2 size={17} color={theme.accent}/><Text style={[styles.gateStepText, isRtl && styles.rtlText]}>{gateStep}</Text></View>
+          <Pressable accessibilityRole="button" onPress={gateAction} style={({ pressed }) => [styles.primaryButton, styles.gatePrimary, pressed && styles.pressed]}><Text style={[styles.primaryButtonText, isRtl && styles.rtlText]}>{applyResult && !applyResult.ok && applyResult.code === "PROFILE_INCOMPLETE" ? (isArabic ? "إكمال البيانات" : "Complete profile") : (isArabic ? "الذهاب إلى ملفي" : "Go to my profile")}</Text></Pressable>
           <Pressable accessibilityRole="button" onPress={() => setGateVisible(false)} style={({ pressed }) => [styles.gateDismiss, pressed && styles.pressed]}><Text style={[styles.gateDismissText, isRtl && styles.rtlText]}>{isArabic ? "لاحقًا" : "Not now"}</Text></Pressable>
         </View>
       </View>
