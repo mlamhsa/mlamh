@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 
 import { getMobileAccountContext } from "@/lib/account";
@@ -23,58 +24,92 @@ export default function WelcomeScreen() {
       if (!session) { setChecking(false); return; }
       const account = await getMobileAccountContext().catch(() => null);
       if (!active) return;
-      if (account?.type === "publisher") { router.replace(account.onboardingStatus === "completed" && account.entityId ? "/publisher" : "/publisher/setup"); return; }
-      if (account?.type === "talent") {
-        if (account.onboardingStatus !== "completed" || !account.entityId) { router.replace("/onboarding"); return; }
-        router.replace("/opportunities"); return;
+      if (account?.type === "publisher") {
+        router.replace(account.onboardingStatus === "completed" && account.entityId ? "/publisher" : "/publisher/setup");
+        return;
       }
-      const accountType = session.user.user_metadata?.account_type;
-      router.replace(accountType === "publisher" ? "/publisher/setup" : "/onboarding");
+      if (account?.type === "talent") {
+        router.replace(account.onboardingStatus === "completed" && account.entityId ? "/opportunities" : "/onboarding");
+        return;
+      }
+      router.replace(session.user.user_metadata?.account_type === "publisher" ? "/publisher/setup" : "/onboarding");
     })();
     return () => { active = false; };
   }, []);
 
-  if (checking) return <View style={styles.centered}><Text style={[styles.loadingBrand, isArabic && styles.arabicText]}>{isArabic ? "ملامح" : "MLAMH"}</Text><ActivityIndicator size="small" color={theme.accent} /></View>;
+  if (checking) {
+    return <View style={styles.centered}><Text style={[styles.loadingBrand, isArabic && styles.arabicText]}>{isArabic ? "ملامح" : "MLAMH"}</Text><ActivityIndicator size="small" color={theme.accent} /></View>;
+  }
 
   const textAlign = isRtl ? "right" : "left";
-  return <ScrollView style={styles.screen} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-    <View style={[styles.content, { direction: isRtl ? "rtl" : "ltr" }]}>
-      <View style={[styles.topRow, isRtl && styles.topRowRtl]}><Text style={[styles.brand, isArabic && styles.arabicText]}>{isArabic ? "ملامح" : "MLAMH"}</Text><Text style={[styles.platform, isArabic && styles.arabicText]}>{isArabic ? "المواهب والفرص" : "Talent & Opportunities"}</Text></View>
+  const horizontalAlign = isRtl ? "flex-end" : "flex-start";
 
-      <View style={styles.hero}>
-        <Text style={[styles.kicker, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "منصة للمواهب وصنّاع الفرص" : "TALENT MEETS OPPORTUNITY"}</Text>
-        <Text accessibilityRole="header" style={[styles.headline, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "ملف احترافي.\nفرص حقيقية.\nتواصل في الوقت الصحيح." : "Professional profiles.\nReal opportunities.\nThe right connection."}</Text>
-        <Text style={[styles.subheadline, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "تجربة واحدة للممثلين والمودلز والجهات التي تبحث عن المواهب — من الاكتشاف إلى القبول والتواصل." : "One experience for actors, models and the organizations hiring them — from discovery to acceptance and connection."}</Text>
+  return <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
+    <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <View style={styles.content}>
+        <View style={[styles.topRow, isRtl && styles.topRowRtl]}>
+          <Text style={[styles.brand, isArabic && styles.arabicText]}>{isArabic ? "ملامح" : "MLAMH"}</Text>
+          <Text style={[styles.platform, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "المواهب والفرص" : "Talent & Opportunities"}</Text>
+        </View>
+
+        <View style={[styles.hero, { alignItems: horizontalAlign }]}>
+          <Text style={[styles.kicker, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "منصة للمواهب وصنّاع الفرص" : "TALENT MEETS OPPORTUNITY"}</Text>
+          <Text accessibilityRole="header" style={[styles.headline, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "ملف احترافي. فرص حقيقية. تواصل في الوقت الصحيح." : "Professional profiles. Real opportunities. The right connection."}</Text>
+          <Text style={[styles.subheadline, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "اكتشف الفرص، قدّم من ملفك، وتواصل بعد القبول ضمن تجربة واحدة واضحة." : "Discover, apply from your profile, and connect after acceptance in one clear experience."}</Text>
+        </View>
+
+        <View style={styles.valueGrid}>
+          <ValueItem number="01" title={isArabic ? "اكتشف" : "Discover"} body={isArabic ? "فرصًا مناسبة بدون تعقيد" : "Relevant opportunities without friction"} styles={styles} isArabic={isArabic} isRtl={isRtl} />
+          <ValueItem number="02" title={isArabic ? "قدّم" : "Apply"} body={isArabic ? "من ملف مهني موحد" : "From one professional profile"} styles={styles} isArabic={isArabic} isRtl={isRtl} />
+          <ValueItem number="03" title={isArabic ? "تواصل" : "Connect"} body={isArabic ? "بعد القبول لحماية الطرفين" : "After acceptance, for both sides"} styles={styles} isArabic={isArabic} isRtl={isRtl} />
+        </View>
+
+        <View style={styles.actions}>
+          <Pressable accessibilityRole="button" onPress={() => router.push("/signup")} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}><Text style={[styles.primaryButtonText, isArabic && styles.arabicText]}>{isArabic ? "إنشاء حساب" : "Create account"}</Text></Pressable>
+          <Pressable accessibilityRole="button" onPress={() => router.push("/opportunities")} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}><Text style={[styles.secondaryButtonText, isArabic && styles.arabicText]}>{isArabic ? "استكشف الفرص" : "Explore opportunities"}</Text></Pressable>
+          <Pressable accessibilityRole="button" onPress={() => router.push("/login")} style={({ pressed }) => [styles.textButton, pressed && styles.pressed]}><Text style={[styles.textButtonText, isArabic && styles.arabicText]}>{isArabic ? "لديك حساب؟ تسجيل الدخول" : "Already have an account? Sign in"}</Text></Pressable>
+        </View>
       </View>
-
-      <View style={styles.divider} />
-
-      <View style={styles.valueGrid}>
-        <ValueItem number="01" title={isArabic ? "اكتشف" : "Discover"} body={isArabic ? "فرصًا مناسبة بدون تعقيد" : "Relevant opportunities without friction"} styles={styles} isArabic={isArabic} align={textAlign} />
-        <ValueItem number="02" title={isArabic ? "قدّم" : "Apply"} body={isArabic ? "من ملف مهني موحد" : "From one professional profile"} styles={styles} isArabic={isArabic} align={textAlign} />
-        <ValueItem number="03" title={isArabic ? "اختر وتواصل" : "Select & Connect"} body={isArabic ? "التواصل بعد القبول لحماية الطرفين" : "Messaging unlocks after acceptance"} styles={styles} isArabic={isArabic} align={textAlign} />
-      </View>
-
-      <View style={styles.actions}>
-        <Pressable accessibilityRole="button" onPress={() => router.push("/signup")} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}><Text style={[styles.primaryButtonText, isArabic && styles.arabicText]}>{isArabic ? "انضم إلى ملامح" : "Join MLAMH"}</Text></Pressable>
-        <Pressable accessibilityRole="button" onPress={() => router.push("/opportunities")} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}><Text style={[styles.secondaryButtonText, isArabic && styles.arabicText]}>{isArabic ? "استكشف الفرص" : "Explore opportunities"}</Text></Pressable>
-        <Pressable accessibilityRole="button" onPress={() => router.push("/login")} style={({ pressed }) => [styles.textButton, pressed && styles.pressed]}><Text style={[styles.textButtonText, isArabic && styles.arabicText]}>{isArabic ? "لديك حساب؟ تسجيل الدخول" : "Already have an account? Sign in"}</Text></Pressable>
-      </View>
-
-      <Text style={[styles.footer, isArabic && styles.arabicText]}>{isArabic ? "مصمم للسعودية والخليج. مبني للتوسع عالميًا." : "Built in the GCC. Designed to scale globally."}</Text>
-    </View>
-  </ScrollView>;
+    </ScrollView>
+  </SafeAreaView>;
 }
 
-function ValueItem({ number, title, body, styles, isArabic, align }: { number: string; title: string; body: string; styles: ReturnType<typeof createStyles>; isArabic: boolean; align: "left" | "right" }) {
-  return <View style={styles.valueItem}><Text style={styles.valueNumber}>{number}</Text><Text style={[styles.valueTitle, isArabic && styles.arabicText, { textAlign: align }]}>{title}</Text><Text style={[styles.valueBody, isArabic && styles.arabicText, { textAlign: align }]}>{body}</Text></View>;
+function ValueItem({ number, title, body, styles, isArabic, isRtl }: { number: string; title: string; body: string; styles: ReturnType<typeof createStyles>; isArabic: boolean; isRtl: boolean }) {
+  const textAlign = isRtl ? "right" : "left";
+  return <View style={[styles.valueItem, { alignItems: isRtl ? "flex-end" : "flex-start" }]}>
+    <Text style={[styles.valueNumber, isRtl && styles.valueNumberRtl]}>{number}</Text>
+    <Text style={[styles.valueTitle, isArabic && styles.arabicText, { textAlign }]}>{title}</Text>
+    <Text style={[styles.valueBody, isArabic && styles.arabicText, { textAlign }]}>{body}</Text>
+  </View>;
 }
 
 function createStyles(theme: typeof darkTheme) { return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: theme.background }, centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 14, backgroundColor: theme.background }, loadingBrand: { color: theme.accent, fontSize: 19, fontWeight: "800", letterSpacing: 1.4 },
-  scrollContent: { flexGrow: 1, justifyContent: "center", paddingVertical: Platform.OS === "ios" ? 24 : 20 }, content: { width: "100%", maxWidth: 560, alignSelf: "center", paddingHorizontal: 24, paddingTop: 34, paddingBottom: 32, gap: 28 },
-  topRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 16 }, topRowRtl: { flexDirection: "row-reverse" }, brand: { color: theme.accent, fontSize: 20, fontWeight: "800", letterSpacing: 1.2 }, platform: { color: theme.muted, fontSize: 11, fontWeight: "600" },
-  hero: { gap: 13, paddingTop: 24 }, kicker: { color: theme.accent, fontSize: 11, lineHeight: 16, fontWeight: "800", letterSpacing: 1.7 }, headline: { color: theme.text, fontSize: 39, lineHeight: 46, fontWeight: "700", maxWidth: 510 }, subheadline: { color: theme.muted, fontSize: 15, lineHeight: 24, maxWidth: 480 }, divider: { height: 1, backgroundColor: theme.border },
-  valueGrid: { gap: 0, borderTopWidth: 1, borderTopColor: theme.border, borderBottomWidth: 1, borderBottomColor: theme.border }, valueItem: { paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: theme.border, gap: 3 }, valueNumber: { color: theme.accent, fontSize: 10, fontWeight: "800", letterSpacing: 1.3 }, valueTitle: { color: theme.text, fontSize: 16, lineHeight: 22, fontWeight: "700" }, valueBody: { color: theme.muted, fontSize: 12, lineHeight: 18 },
-  actions: { gap: 10 }, primaryButton: { minHeight: 54, borderRadius: 12, backgroundColor: theme.accent, alignItems: "center", justifyContent: "center", paddingHorizontal: 18 }, primaryButtonText: { color: theme.background, fontSize: 15, fontWeight: "800" }, secondaryButton: { minHeight: 50, borderRadius: 12, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, alignItems: "center", justifyContent: "center", paddingHorizontal: 18 }, secondaryButtonText: { color: theme.text, fontSize: 14, fontWeight: "700" }, textButton: { minHeight: 42, alignItems: "center", justifyContent: "center" }, textButtonText: { color: theme.muted, fontSize: 12, fontWeight: "600", textAlign: "center" }, footer: { color: theme.muted, fontSize: 10, textAlign: "center" }, pressed: { opacity: 0.72 }, arabicText: { letterSpacing: 0 },
+  screen: { flex: 1, backgroundColor: theme.background },
+  centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 14, backgroundColor: theme.background },
+  loadingBrand: { color: theme.accent, fontSize: 19, fontWeight: "800", letterSpacing: 1.4 },
+  scrollContent: { flexGrow: 1, justifyContent: "center" },
+  content: { width: "100%", maxWidth: 560, alignSelf: "center", paddingHorizontal: 22, paddingTop: 18, paddingBottom: 28, gap: 24 },
+  topRow: { minHeight: 42, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 16 },
+  topRowRtl: { flexDirection: "row-reverse" },
+  brand: { color: theme.accent, fontSize: 21, fontWeight: "800", letterSpacing: 1.2 },
+  platform: { color: theme.muted, fontSize: 11, fontWeight: "600" },
+  hero: { gap: 10, paddingTop: 8 },
+  kicker: { color: theme.accent, fontSize: 11, lineHeight: 16, fontWeight: "800", letterSpacing: 1.5 },
+  headline: { color: theme.text, fontSize: 35, lineHeight: 43, fontWeight: "700", maxWidth: 510 },
+  subheadline: { color: theme.muted, fontSize: 15, lineHeight: 24, maxWidth: 480 },
+  valueGrid: { borderTopWidth: 1, borderTopColor: theme.border, borderBottomWidth: 1, borderBottomColor: theme.border },
+  valueItem: { paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: theme.border, gap: 4 },
+  valueNumber: { color: theme.accent, fontSize: 10, fontWeight: "800", letterSpacing: 1.3 },
+  valueNumberRtl: { letterSpacing: 1.3, writingDirection: "ltr" },
+  valueTitle: { color: theme.text, fontSize: 17, lineHeight: 23, fontWeight: "700" },
+  valueBody: { color: theme.muted, fontSize: 12, lineHeight: 18 },
+  actions: { gap: 10 },
+  primaryButton: { minHeight: 54, borderRadius: 14, backgroundColor: theme.accent, alignItems: "center", justifyContent: "center", paddingHorizontal: 18 },
+  primaryButtonText: { color: theme.background, fontSize: 15, fontWeight: "900" },
+  secondaryButton: { minHeight: 52, borderRadius: 14, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, alignItems: "center", justifyContent: "center", paddingHorizontal: 18 },
+  secondaryButtonText: { color: theme.text, fontSize: 14, fontWeight: "700" },
+  textButton: { minHeight: 40, alignItems: "center", justifyContent: "center" },
+  textButtonText: { color: theme.muted, fontSize: 12, fontWeight: "600", textAlign: "center" },
+  pressed: { opacity: 0.72 },
+  arabicText: { letterSpacing: 0, writingDirection: "rtl" },
 }); }
