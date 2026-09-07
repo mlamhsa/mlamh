@@ -9,6 +9,7 @@ import { getMobileAccountContext } from "@/lib/account";
 import { getAccountHomeHref } from "@/lib/account-routing";
 import { getMobileHrefFromUrl } from "@/lib/deep-links";
 import { getDeviceLocale } from "@/lib/i18n";
+import { AppLocaleProvider, useAppLocale } from "@/lib/locale-context";
 import { NotificationSyncProvider } from "@/lib/notifications-context";
 import { installPushDeepLinkObserver, startPushSessionLifecycle } from "@/lib/push";
 import { consumeNativeAuthCallback, startAuthSessionLifecycle, supabase } from "@/lib/supabase";
@@ -60,6 +61,11 @@ export function ErrorBoundary({ retry }: ErrorBoundaryProps) {
   return <View style={errorStyles.screen} accessibilityRole="alert"><Text style={errorStyles.brand}>{isArabic ? "ملامح" : "MLAMH"}</Text><Text style={errorStyles.title}>{isArabic ? "حدث خطأ غير متوقع" : "Something went wrong"}</Text><Text style={errorStyles.body}>{isArabic ? "لم نفقد بياناتك. حاول إعادة تحميل هذه الشاشة." : "Your data is safe. Try loading this screen again."}</Text><Pressable accessibilityRole="button" style={errorStyles.button} onPress={retry}><Text style={errorStyles.buttonText}>{isArabic ? "إعادة المحاولة" : "Try again"}</Text></Pressable></View>;
 }
 
+function RootNavigator() {
+  const { locale } = useAppLocale();
+  return <NotificationSyncProvider><StatusBar style="light" /><Stack key={locale} screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#050505" }, animation: "fade", animationDuration: 180, gestureEnabled: true }} /></NotificationSyncProvider>;
+}
+
 export default function RootLayout() {
   useEffect(() => startAuthSessionLifecycle(), []);
   useEffect(() => startPushSessionLifecycle(getDeviceLocale()), []);
@@ -72,7 +78,7 @@ export default function RootLayout() {
     return () => { active = false; linkingSubscription.remove(); removePushObserver(); };
   }, []);
 
-  return <SafeAreaProvider><NotificationSyncProvider><StatusBar style="light" /><Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#050505" }, animation: "fade", animationDuration: 180, gestureEnabled: true }} /></NotificationSyncProvider></SafeAreaProvider>;
+  return <SafeAreaProvider><AppLocaleProvider><RootNavigator /></AppLocaleProvider></SafeAreaProvider>;
 }
 
 const errorStyles = StyleSheet.create({
