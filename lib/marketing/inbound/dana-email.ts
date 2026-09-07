@@ -2,6 +2,7 @@ import { getMarketingAIProvider } from "@/lib/marketing/ai/provider";
 import { createMarketingTask } from "@/lib/marketing/tasks/service";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { applyDanaInboundEmailQualityGuard } from "./dana-email-quality";
+import { classifyAndRouteInboundEmail } from "./email-classification-routing";
 
 function record(value: unknown) {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -63,6 +64,8 @@ async function createReplyApproval({
   if (!recipientEmail || !replyDraft) return { approvalTaskId: null, skipped: "missing_reply_draft_or_recipient" };
 
   const requiresCeo = bool(analysis.requires_ceo);
+  const route = text(analysis.email_route) ?? (requiresCeo ? "ceo_review" : "dana");
+  const classification = text(analysis.email_classification) ?? "general";
   const sourceReference = text(input.support_ticket_id)
     ? `support-ticket-id:${text(input.support_ticket_id)}`
     : `zoho-message:${text(input.zoho_message_id) ?? "unknown"}`;
@@ -71,9 +74,13 @@ async function createReplyApproval({
     taskType: requiresCeo ? "commercial_commitment" : "external_message",
     title: `Reply review · ${text(input.subject) ?? recipientEmail}`,
     objective: requiresCeo
-      ? "CEO review is required before any external reply because Dana detected a pricing, partnership, legal, guarantee, spend, discount, or commercial commitment signal."
-      : "Review Dana's contextual reply before external email delivery.",
-    priority: requiresCeo ? "urgent" : "high",
+      ? "CEO review is required before any external reply because Dana or the deterministic routing guard detected a pricing, partnership, legal, guarantee, spend, discount, sponsorship, or commercial commitment signal."
+      : route === "support_review"
+        ? "Review Dana's support-oriented reply before external email delivery."
+        : route === "manual_review"
+          ? "Manual review is required before any external reply. Do not create a follow-up sequence from this message."
+          : "Review Dana's contextual reply before external email delivery.",
+    priority: requiresCeo || route === "manual_review" ? "urgent" : "high",
     channel: "email",
     approvalLevel: requiresCeo ? "ceo_only" : "approval_required",
     source: "autonomous_materializer",
@@ -94,9 +101,12 @@ async function createReplyApproval({
       internet_message_id: text(input.internet_message_id),
       executive_summary: text(analysis.executive_summary),
       intent: text(analysis.intent),
+      email_classification: classification,
+      email_route: route,
+      routing_reason: text(analysis.routing_reason),
       updated_requirements: record(analysis.updated_requirements),
       quality_flags: Array.isArray(analysis.quality_flags) ? analysis.quality_flags : [],
-      follow_up_needed: analysis.follow_up_needed === true,
+      follow_up_needed: route === "manual_review" ? false : analysis.follow_up_needed === true,
       client_language: text(analysis.client_language) ?? "ar",
       sender_identity: "MLAMH Team | Partnerships & Casting",
       external_execution: false,
@@ -106,6 +116,9 @@ async function createReplyApproval({
       inbound_email: true,
       provider: "zoho_mail",
       requires_ceo: requiresCeo,
+      email_classification: classification,
+      email_route: route,
+      routing_reason: text(analysis.routing_reason),
       quality_flags: Array.isArray(analysis.quality_flags) ? analysis.quality_flags : [],
     },
     idempotencyKey: `dana-inbound-reply-approval:${text(input.zoho_message_id) ?? taskId}`,
@@ -173,6 +186,20 @@ export async function processDanaInboundEmailTask(taskId: number) {
       inboundContent: text(inbound.content) ?? "",
     });
 
+    const routing = classifyAndRouteInboundEmail({
+      analysis: parsed,
+      content: text(inbound.content),
+      subject: text(inbound.subject),
+    });
+    parsed = {
+      ...parsed,
+      requires_ceo: routing.requiresCeo,
+      email_classification: routing.classification,
+      email_route: routing.route,
+      routing_reason: routing.reason,
+      ...(routing.route === "manual_review" ? { follow_up_needed: false } : {}),
+    };
+
     const materialized = await createReplyApproval({
       taskId: task.id,
       conversationId: task.conversation_id,
@@ -182,6 +209,23 @@ export async function processDanaInboundEmailTask(taskId: number) {
     });
 
     const now = new Date().toISOString();
+    await db.from("marketing_events").insert({
+      event_name: "email_inbound_classified",
+      source: "marketing_hub",
+      medium: "email",
+      entity_type: "marketing_conversation",
+      entity_id: String(task.conversation_id),
+      metadata: {
+        task_id: task.id,
+        approval_task_id: materialized.approvalTaskId,
+        classification: routing.classification,
+        route: routing.route,
+        routing_reason: routing.reason,
+        requires_ceo: routing.requiresCeo,
+      },
+      occurred_at: now,
+    });
+
     const { error: completionError } = await db.from("marketing_tasks").update({
       status: "completed",
       output: {
@@ -218,7 +262,10 @@ export async function processDanaInboundEmailTask(taskId: number) {
       result: {
         conversation_id: task.conversation_id,
         approval_task_id: materialized.approvalTaskId,
-        requires_ceo: bool(parsed.requires_ceo),
+        requires_ceo: routing.requiresCeo,
+        email_classification: routing.classification,
+        email_route: routing.route,
+        routing_reason: routing.reason,
         quality_flags: Array.isArray(parsed.quality_flags) ? parsed.quality_flags : [],
         provider: response.provider,
         model: response.model ?? null,
