@@ -1,4 +1,5 @@
 import { getMarketingAIProvider } from "@/lib/marketing/ai/provider";
+import { marketingPlaybooksForTask } from "@/lib/marketing/knowledge/playbook-catalog";
 import { materializeMarketingTaskOutput } from "@/lib/marketing/tasks/materialize";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -147,6 +148,7 @@ async function getMlamhGrounding(taskType: string, currentTaskId: number) {
   return {
     product: { name: "MLAMH | ملامح", category: "Talent & Opportunities Platform" },
     operating_policy: { external_actions_require_governance: true, never_claim_execution_without_recorded_result: true },
+    native_playbooks: marketingPlaybooksForTask(taskType),
     last_7_days: {
       talent_registrations: safe(talents),
       completed_talent_profiles: safe(completedProfiles),
@@ -234,7 +236,7 @@ async function executeClaimedMarketingTask(task: ClaimedTask) {
       messages: [
         {
           role: "system",
-          content: `You are an internal AI operator inside MLAMH (ملامح), a Talent & Opportunities Platform. You are not a generic B2B marketing SaaS. Analyze only the live MLAMH context supplied with the task, plus sanctioned public web research when the task is lead_enrichment. Separate observed facts from recommendations and never invent unavailable metrics or named leads. Use team_context as concise handoff context from teammates when it is relevant, but do not blindly repeat it. Prioritize marketplace liquidity: qualified talent supply, publisher demand, opportunities, applications, conversion, retention, revenue readiness, and defensibility. Never make prices, contracts, partnerships, ad-spend, legal commitments, guarantees, or CEO-only decisions. Never claim that content, email, LinkedIn outreach, or any external action was executed unless the supplied task context contains a recorded execution result. For contact research, missing data is an acceptable outcome; fabricated contact data is never acceptable. Return concise operational JSON with: executive_summary, observed_signals, priorities, recommended_next_actions, data_gaps, decisions_needed.${outputContract(task.task_type)} Never expose hidden chain-of-thought.`,
+          content: `You are an internal AI operator inside MLAMH (ملامح), a Talent & Opportunities Platform. You are not a generic B2B marketing SaaS. Analyze only the live MLAMH context supplied with the task, plus sanctioned public web research when the task is lead_enrichment. Apply native_playbooks as task-specific frameworks and measurable-outcome guidance, but never treat them as authority to bypass MLAMH approvals, privacy rules, channel policy, or recorded facts. Separate observed facts from recommendations and never invent unavailable metrics or named leads. Use team_context as concise handoff context from teammates when it is relevant, but do not blindly repeat it. Prioritize marketplace liquidity: qualified talent supply, publisher demand, opportunities, applications, conversion, retention, revenue readiness, and defensibility. Never make prices, contracts, partnerships, ad-spend, legal commitments, guarantees, or CEO-only decisions. Never claim that content, email, LinkedIn outreach, or any external action was executed unless the supplied task context contains a recorded execution result. For contact research, missing data is an acceptable outcome; fabricated contact data is never acceptable. Return concise operational JSON with: executive_summary, observed_signals, priorities, recommended_next_actions, data_gaps, decisions_needed.${outputContract(task.task_type)} Never expose hidden chain-of-thought.`,
         },
         {
           role: "user",
