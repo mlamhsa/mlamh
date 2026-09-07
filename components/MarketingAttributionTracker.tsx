@@ -40,7 +40,8 @@ function persistAttribution(value: MarketingAttributionContext) {
   if (!hasMarketingAttribution(sanitized)) return;
 
   window.localStorage.setItem(ATTRIBUTION_KEY, JSON.stringify(sanitized));
-  document.cookie = `${MARKETING_ATTRIBUTION_COOKIE}=${serializeMarketingAttribution(sanitized)}; Path=/; Max-Age=${ATTRIBUTION_MAX_AGE_SECONDS}; SameSite=Lax; Secure`;
+  const secure = window.location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = `${MARKETING_ATTRIBUTION_COOKIE}=${serializeMarketingAttribution(sanitized)}; Path=/; Max-Age=${ATTRIBUTION_MAX_AGE_SECONDS}; SameSite=Lax${secure}`;
 }
 
 export default function MarketingAttributionTracker() {
