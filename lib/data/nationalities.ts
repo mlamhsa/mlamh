@@ -38,3 +38,16 @@ export function getNationalityBySlug(slug?: string | null) {
     ) ?? null
   );
 }
+
+export function findNationality(value?: string | null) {
+  const normalized = value?.trim().toLowerCase();
+  if (!normalized) return null;
+
+  return (
+    NATIONALITIES.find((nationality) =>
+      nationality.slug.toLowerCase() === normalized ||
+      nationality.en.toLowerCase() === normalized ||
+      nationality.ar === value?.trim()
+    ) ?? null
+  );
+}
