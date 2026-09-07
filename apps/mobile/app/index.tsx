@@ -144,7 +144,7 @@ function createStyles(theme: typeof darkTheme) { return StyleSheet.create({
   languageBrand: { width: 66, height: 66 },
   languageCopy: { alignItems: "center", gap: 5 },
   languageArabicTitle: { color: theme.text, fontSize: 30, lineHeight: 38, fontWeight: "800", writingDirection: "rtl", textAlign: "center" },
-  languageEnglishTitle: { color: theme.text, fontSize: 21, lineHeight: 28, fontWeight: "650", textAlign: "center" },
+  languageEnglishTitle: { color: theme.text, fontSize: 21, lineHeight: 28, fontWeight: "600", textAlign: "center" },
   languageHint: { color: theme.muted, fontSize: 11, lineHeight: 18, textAlign: "center", marginTop: 6, maxWidth: 370 },
   languageActions: { gap: 11 },
   languagePrimary: { minHeight: 70, borderRadius: 20, backgroundColor: theme.accent, paddingHorizontal: 18, flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", gap: 14 },
