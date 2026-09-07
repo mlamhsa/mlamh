@@ -6,7 +6,7 @@ Scope: Online marketing growth system for MLAMH
 ## Operating rule
 Work progresses in one ordered stream. A task moves to DONE only when implementation or evidence is verified. Related changes are batched to reduce unnecessary deployments.
 
-## Foundation
+## Foundation / Marketing Skills Integration
 - DONE — Marketing Hub structure reconciliation.
 - DONE — Marketing Command Center verification.
 - DONE — Email operations / inbound routing / analytics feedback loop verification.
@@ -14,6 +14,11 @@ Work progresses in one ordered stream. A task moves to DONE only when implementa
 - DONE — Marketing Skills gap mapping.
 - DONE — Canonical Product Marketing Context V1.
 - DONE — Marketing Skills integration map.
+- DONE — MLAMH-native governed playbook catalog.
+- DONE — Knowledge page read-only native playbook fallback; stored database playbooks remain authoritative by key.
+- DONE — Task-specific playbook mapping for existing Marketing AI workflows.
+- DONE — Runtime grounding so existing AI tasks receive relevant native playbooks without a parallel execution path.
+- DONE — Governance contract tests covering playbook integration and no Knowledge-page Production writes.
 
 ## Existing verified MLAMH systems to reuse
 - Marketing Command Center.
@@ -32,14 +37,13 @@ Work progresses in one ordered stream. A task moves to DONE only when implementa
 
 ## Priority Growth Engine workstreams
 ### A. Publisher demand engine
-Status: ACTIVE FOUNDATION
-- Prospecting framework.
-- Lead qualification.
-- Governed cold outreach.
-- Reply classification and routing.
-- Follow-up sequences.
-- Brief conversion.
-- Lead-to-opportunity attribution.
+Status: ACTIVE
+- DONE — Prospecting framework mapped into the existing Leads / Research flow.
+- DONE — Governed cold-outreach framework mapped into existing Outreach tasks.
+- DONE — Reply classification and routing already verified in the existing email engine.
+- DONE — Follow-up / reply handling framework mapped into existing lifecycle flow.
+- NEXT — Measure prospecting quality and lead-to-brief conversion using production evidence after release.
+- NEXT — Strengthen lead-to-opportunity attribution where telemetry gaps remain.
 
 ### B. Talent acquisition and activation
 Status: NEXT
@@ -89,6 +93,12 @@ Status: ACTIVE FOUNDATION
 - Churn prevention based on paid subscriptions.
 - App Store Optimization until mobile store launch readiness.
 - SMS lifecycle automation unless justified by user behavior and consent.
+
+## Deployment policy for this program
+- Batch related implementation into milestone-sized changes.
+- Do not deploy merely to test whether code builds.
+- Prefer CI validation before milestone merge.
+- Merge to main only when the batch is review-ready and the resulting deployment is worth consuming.
 
 ## Completion definition for this program
 The Online Marketing Growth Engine is considered operational when MLAMH can measure and improve the full loop:
