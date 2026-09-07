@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { runAutonomousMarketingCycle } from "@/lib/marketing/orchestrator";
+import { prepareDueEmailFollowUps } from "@/lib/marketing/automation/email-followups";
 import { syncZohoRecentInboundEmails } from "@/lib/marketing/channels/zoho-inbound-recent";
 import { processDanaInboundEmailTask } from "@/lib/marketing/inbound/dana-email";
 import { recoverStaleAutonomousRunningTasks } from "@/lib/marketing/tasks/recover-stale";
@@ -53,8 +54,9 @@ export async function GET(request: Request) {
       inboundProcessed.push(result);
     }
 
+    const followUps = await prepareDueEmailFollowUps({ limit: 20 });
     const result = await runAutonomousMarketingCycle({ maxTasks: 3 });
-    return NextResponse.json({ ok: true, recovery, inbound, inboundProcessed, result });
+    return NextResponse.json({ ok: true, recovery, inbound, inboundProcessed, followUps, result });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Marketing orchestrator failed";
     console.error("[marketing-orchestrator]", message);
