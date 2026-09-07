@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 
@@ -7,11 +7,15 @@ import { ScreenSkeleton } from "@/components/ScreenSkeleton";
 import { getTalentProfile } from "@/lib/api";
 import { MOBILE_API_BASE_URL } from "@/lib/api-config";
 import { getDeviceLocale, isRtlLocale } from "@/lib/i18n";
+import { getMobileTalentReviewReadiness } from "@/lib/profile-review-readiness";
 import { supabase } from "@/lib/supabase";
 import { darkTheme } from "@/lib/theme";
 
 type MissingRequirement = { key: string; ar: string; en: string };
 type ReviewResponse = { ok?: boolean; code?: string; message?: string; completion?: number; approvalStatus?: string; missingRequirements?: MissingRequirement[] };
+
+const BRAND_AR = require("../../assets/logo.ar.png");
+const BRAND_EN = require("../../assets/logo.en.png");
 
 async function readReviewResponse(response: Response): Promise<ReviewResponse | null> {
   const raw = await response.text().catch(() => "");
@@ -36,6 +40,7 @@ export default function ProfileReviewScreen() {
   const [message, setMessage] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [missing, setMissing] = useState<MissingRequirement[]>([]);
+  const [locallyReady, setLocallyReady] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -44,37 +49,43 @@ export default function ProfileReviewScreen() {
         const result = await getTalentProfile(locale);
         if (!active) return;
         if (!result.ok) {
-          if (result.code === "UNAUTHENTICATED") router.replace({ pathname: "/login", params: { next: "/profile/review" } });
+          if (result.code === "UNAUTHENTICATED") router.replace({ pathname: "/login", params: { next: onboarding ? "/profile/review?onboarding=1" : "/profile/review" } });
           else setMessage(isArabic ? "تعذر تحميل حالة الملف." : "Unable to load profile status.");
           return;
         }
+        const readiness = getMobileTalentReviewReadiness(result.item);
         setCompletion(result.item.profileCompletion);
         setApprovalStatus(result.item.approvalStatus);
+        setLocallyReady(readiness.isReady);
+        setMissing(readiness.missingRequirements.map(({ key, ar, en }) => ({ key, ar, en })));
       } catch {
         if (active) setMessage(isArabic ? "تعذر تحميل حالة الملف. تحقق من الاتصال وحاول مرة أخرى." : "Unable to load profile status. Check your connection and try again.");
       } finally { if (active) setLoading(false); }
     })();
     return () => { active = false; };
-  }, [isArabic, locale]);
+  }, [isArabic, locale, onboarding]);
 
   async function requestReview(accessToken: string) {
     return fetch(`${MOBILE_API_BASE_URL}/api/talent/me/review?locale=${locale}`, { method: "POST", headers: { Accept: "application/json", Authorization: `Bearer ${accessToken}` } });
   }
 
   async function submitReview() {
-    if (submitting) return;
-    setSubmitting(true); setMessage(null); setSuccess(false); setMissing([]);
+    if (submitting || !locallyReady) return;
+    setSubmitting(true); setMessage(null); setSuccess(false);
     try {
       let { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) { const refreshed = await supabase.auth.refreshSession().catch(() => null); session = refreshed?.data.session ?? null; }
-      if (!session?.access_token) { router.replace({ pathname: "/login", params: { next: "/profile/review" } }); return; }
+      if (!session?.access_token) { router.replace({ pathname: "/login", params: { next: onboarding ? "/profile/review?onboarding=1" : "/profile/review" } }); return; }
       let response = await requestReview(session.access_token);
       if (response.status === 401) { const refreshed = await supabase.auth.refreshSession().catch(() => null); const refreshedToken = refreshed?.data.session?.access_token; if (refreshedToken) response = await requestReview(refreshedToken); }
-      if (response.status === 401) { router.replace({ pathname: "/login", params: { next: "/profile/review" } }); return; }
+      if (response.status === 401) { router.replace({ pathname: "/login", params: { next: onboarding ? "/profile/review?onboarding=1" : "/profile/review" } }); return; }
       const result = await readReviewResponse(response);
       if (!result) { setMessage(isArabic ? "تعذر قراءة استجابة المراجعة. حاول مرة أخرى." : "We couldn't read the review response. Please try again."); return; }
       if (typeof result.completion === "number" && Number.isFinite(result.completion)) setCompletion(result.completion);
-      if (Array.isArray(result.missingRequirements)) setMissing(result.missingRequirements);
+      if (Array.isArray(result.missingRequirements)) {
+        setMissing(result.missingRequirements);
+        setLocallyReady(result.missingRequirements.length === 0);
+      }
       if (!response.ok || !result.ok) { setMessage(result.message ?? (isArabic ? "تعذر إرسال الملف للمراجعة." : "Unable to submit your profile for review.")); return; }
       setSuccess(true); setApprovalStatus(result.approvalStatus ?? "pending"); setMessage(result.message ?? (isArabic ? "تم إرسال ملفك للمراجعة." : "Your profile was submitted for review."));
     } catch {
@@ -86,32 +97,33 @@ export default function ProfileReviewScreen() {
 
   const underReview = approvalStatus === "pending" || approvalStatus === "submitted";
   const approved = approvalStatus === "approved";
-  const canSubmit = !underReview && !approved;
+  const canSubmit = locallyReady && !underReview && !approved;
   const safeCompletion = Math.max(0, Math.min(100, completion ?? 0));
   const textAlign = isRtl ? "right" : "left";
 
   return <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
     <ScrollView contentContainerStyle={[styles.content, compact && styles.contentCompact]} showsVerticalScrollIndicator={false}>
       <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "رجوع" : "Back"} onPress={() => onboarding ? router.replace("/profile/journey") : router.back()} hitSlop={12} style={[styles.backButton, isRtl && styles.backButtonRtl]}><Text style={[styles.back, isArabic && styles.arabicText]}>{isArabic ? "رجوع" : "Back"}</Text></Pressable>
-      {onboarding ? <View style={styles.onboardingCard}><View style={[styles.onboardingCopy, isRtl && styles.rowRtl]}><Text style={[styles.onboardingLabel, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "الخطوة 4 من 4" : "Step 4 of 4"}</Text><Text style={styles.onboardingValue}>100%</Text></View><View style={styles.onboardingTrack}><View style={styles.onboardingFill}/></View></View> : null}
-      <View style={styles.header}><Text style={[styles.brand, isArabic && styles.arabicBrand, { textAlign }]}>{isArabic ? "ملامح" : "MLAMH"}</Text><Text accessibilityRole="header" style={[styles.title, compact && styles.titleCompact, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "جاهزية الملف" : "Profile readiness"}</Text><Text style={[styles.subtitle, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "راجع المتطلبات الأساسية ثم أرسل ملفك للمراجعة. يبقى الملف خاصًا حتى يتم اعتماده." : "Review the core requirements, then submit your profile. It remains private until approved."}</Text></View>
+      {onboarding ? <View style={styles.onboardingCard}><View style={[styles.onboardingCopy, isRtl && styles.rowRtl]}><Text style={[styles.onboardingLabel, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "الخطوة 4 من 4" : "Step 4 of 4"}</Text><Text style={styles.onboardingValue}>{locallyReady || underReview || approved ? "100%" : "90%"}</Text></View><View style={styles.onboardingTrack}><View style={[styles.onboardingFill, !locallyReady && !underReview && !approved && styles.onboardingFillPending]}/></View></View> : null}
+      <View style={styles.header}><Image source={isArabic ? BRAND_AR : BRAND_EN} resizeMode="contain" style={[styles.brandLogo, isRtl && styles.brandLogoRtl]}/><Text accessibilityRole="header" style={[styles.title, compact && styles.titleCompact, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "جاهزية الملف" : "Profile readiness"}</Text><Text style={[styles.subtitle, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "راجع المتطلبات الإلزامية ثم أرسل ملفك للمراجعة. يبقى الملف خاصًا حتى يتم اعتماده." : "Review the required fields, then submit your profile. It remains private until approved."}</Text></View>
 
       <View accessible accessibilityLabel={isArabic ? `اكتمال الملف ${safeCompletion} بالمئة` : `Profile completion ${safeCompletion} percent`} style={[styles.card, compact && styles.cardCompact]}>
         <View style={[styles.scoreRow, isRtl && styles.rowRtl]}><Text style={[styles.cardTitle, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "اكتمال الملف" : "Profile completion"}</Text><Text style={styles.score}>{safeCompletion}%</Text></View>
         <View accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 100, now: safeCompletion }} style={styles.track}><View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.fill, { width: `${safeCompletion}%` }]} /></View>
-        <Text style={[styles.helper, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "النسبة مؤشر مساعد. الإرسال يعتمد على اكتمال الحقول الأساسية المطلوبة." : "The percentage is a progress indicator. Submission depends on the required core fields."}</Text>
+        <Text style={[styles.helper, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "النسبة مؤشر مساعد فقط. الإرسال يعتمد على المتطلبات الإلزامية نفسها المستخدمة في نظام المراجعة." : "The percentage is only a progress indicator. Submission uses the same required fields as the review system."}</Text>
       </View>
 
       <View style={[styles.card, compact && styles.cardCompact]}>
         <Text style={[styles.cardTitle, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "حالة المراجعة" : "Review status"}</Text>
-        <Text accessibilityLiveRegion="polite" style={[styles.status, isArabic && styles.arabicText, { textAlign }]}>{approved ? (isArabic ? "معتمد" : "Approved") : underReview ? (isArabic ? "قيد المراجعة" : "Under review") : (isArabic ? "جاهز للإرسال عند اكتمال المتطلبات" : "Ready to submit when requirements are complete")}</Text>
+        <Text accessibilityLiveRegion="polite" style={[styles.status, isArabic && styles.arabicText, { textAlign }]}>{approved ? (isArabic ? "معتمد" : "Approved") : underReview ? (isArabic ? "قيد المراجعة" : "Under review") : locallyReady ? (isArabic ? "جاهز للإرسال" : "Ready to submit") : (isArabic ? "أكمل المتطلبات أولًا" : "Complete the requirements first")}</Text>
         {underReview ? <Text style={[styles.helper, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "تم استلام ملفك، ولا تحتاج لإعادة الإرسال. ستتحدث الحالة تلقائيًا بعد قرار المراجعة." : "Your profile was received. You do not need to resubmit; the status updates after review."}</Text> : null}
         {approved ? <Text style={[styles.helper, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "تم اعتماد ملفك ويمكنه الظهور والتقديم وفق إعداداتك." : "Your profile is approved and can appear and apply according to your settings."}</Text> : null}
-        {missing.length > 0 ? <View style={styles.requirements}><Text style={[styles.requirementTitle, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "أكمل هذه البيانات:" : "Complete these details:"}</Text>{missing.map((item) => <View key={item.key} style={[styles.requirementRow, isRtl && styles.rowRtl]}><Text accessibilityElementsHidden style={styles.requirementDot}>•</Text><Text style={[styles.requirement, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? item.ar : item.en}</Text></View>)}</View> : null}
+        {!underReview && !approved && missing.length > 0 ? <View style={styles.requirements}><Text style={[styles.requirementTitle, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "أكمل هذه البيانات قبل الإرسال:" : "Complete these before submitting:"}</Text>{missing.map((item) => <View key={item.key} style={[styles.requirementRow, isRtl && styles.rowRtl]}><Text accessibilityElementsHidden style={styles.requirementDot}>•</Text><Text style={[styles.requirement, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? item.ar : item.en}</Text></View>)}</View> : null}
         {message ? <View style={[styles.messageBox, success && styles.successBox]}><Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={[styles.message, success && styles.success, isArabic && styles.arabicText, { textAlign }]}>{message}</Text></View> : null}
       </View>
 
       {canSubmit ? <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "إرسال الملف للمراجعة" : "Submit profile for review"} accessibilityState={{ disabled: submitting, busy: submitting }} disabled={submitting} onPress={() => void submitReview()} style={({ pressed }) => [styles.primaryButton, submitting && styles.disabled, pressed && styles.pressed]}>{submitting ? <ActivityIndicator accessibilityLabel={isArabic ? "جارٍ إرسال الملف" : "Submitting profile"} color={theme.background} /> : <Text style={[styles.primaryText, isArabic && styles.arabicText]}>{isArabic ? "إرسال للمراجعة" : "Submit for review"}</Text>}</Pressable> : null}
+      {!locallyReady && !underReview && !approved ? <Pressable accessibilityRole="button" onPress={() => onboarding ? router.replace({ pathname: "/profile/edit", params: { onboarding: "1" } }) : router.replace("/profile/edit")} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}><Text style={[styles.primaryText, isArabic && styles.arabicText]}>{isArabic ? "إكمال المتطلبات" : "Complete requirements"}</Text></Pressable> : null}
       {onboarding && (success || underReview || approved) ? <Pressable accessibilityRole="button" onPress={() => router.replace("/profile/journey")} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}><Text style={[styles.primaryText, isArabic && styles.arabicText]}>{approved ? (isArabic ? "الانتقال إلى ملفي" : "Go to my profile") : (isArabic ? "متابعة حالة ملفي" : "Continue to profile status")}</Text></Pressable> : null}
       <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "تعديل ملفي" : "Edit my profile"} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]} onPress={() => onboarding ? router.replace({ pathname: "/profile/edit", params: { onboarding: "1" } }) : router.replace("/profile/edit")}><Text style={[styles.secondaryText, isArabic && styles.arabicText]}>{isArabic ? "تعديل الملف" : "Edit profile"}</Text></Pressable>
     </ScrollView>
@@ -132,9 +144,10 @@ function createStyles(theme: typeof darkTheme) { return StyleSheet.create({
   onboardingValue: { color: theme.accent, fontSize: 11, fontWeight: "900" },
   onboardingTrack: { height: 4, borderRadius: 2, backgroundColor: "#FFFFFF12", overflow: "hidden" },
   onboardingFill: { width: "100%", height: "100%", backgroundColor: theme.accent },
+  onboardingFillPending: { width: "90%" },
   header: { gap: 7, marginBottom: 2 },
-  brand: { color: theme.accent, fontSize: 15, lineHeight: 20, fontWeight: "800", letterSpacing: 1.1 },
-  arabicBrand: { letterSpacing: 0, writingDirection: "rtl" },
+  brandLogo: { width: 104, height: 38, alignSelf: "flex-start" },
+  brandLogoRtl: { alignSelf: "flex-end" },
   title: { color: theme.text, fontSize: 29, lineHeight: 35, fontWeight: "800" },
   titleCompact: { fontSize: 25, lineHeight: 31 },
   subtitle: { color: theme.muted, fontSize: 13, lineHeight: 20 },
