@@ -1,0 +1,96 @@
+import { useEffect, useMemo, useState } from "react";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { router } from "expo-router";
+import { ArrowLeft, ArrowRight, Camera, Check, Circle, FileCheck2, Sparkles, UserRound } from "lucide-react-native";
+
+import { getTalentProfile, type MobileTalentProfile } from "@/lib/api";
+import { isRtlLocale } from "@/lib/i18n";
+import { useAppLocale } from "@/lib/locale-context";
+import { darkTheme } from "@/lib/theme";
+
+type StepState = "done" | "current" | "next";
+
+function coreReady(profile: MobileTalentProfile) {
+  return Boolean(profile.displayName && profile.citySlug && profile.gender && profile.dateOfBirth);
+}
+
+export default function TalentProfileJourneyScreen() {
+  const { locale } = useAppLocale();
+  const isArabic = locale === "ar";
+  const isRtl = isRtlLocale(locale);
+  const theme = darkTheme;
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const [profile, setProfile] = useState<MobileTalentProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      try {
+        const result = await getTalentProfile(locale);
+        if (!active) return;
+        if (!result.ok) {
+          if (result.code === "UNAUTHENTICATED") router.replace({ pathname: "/login", params: { next: "/profile/journey" } });
+          else setError(isArabic ? "تعذر تحميل تقدم ملفك." : "Unable to load your profile progress.");
+          return;
+        }
+        setProfile(result.item);
+      } catch {
+        if (active) setError(isArabic ? "تعذر تحميل تقدم ملفك. تحقق من الاتصال وحاول مرة أخرى." : "Unable to load your profile progress. Check your connection and try again.");
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => { active = false; };
+  }, [isArabic, locale]);
+
+  const hasCore = profile ? coreReady(profile) : false;
+  const hasPhoto = Boolean(profile?.imageUrl);
+  const reviewReady = hasCore && hasPhoto;
+  const progress = profile ? (reviewReady ? 100 : hasPhoto || hasCore ? 75 : 50) : 50;
+  const BackIcon = isRtl ? ArrowRight : ArrowLeft;
+
+  if (loading) return <SafeAreaView style={styles.screen}><View style={styles.center}><ActivityIndicator color={theme.accent}/><Text style={styles.loadingText}>{isArabic ? "نجهز رحلتك" : "Preparing your journey"}</Text></View></SafeAreaView>;
+
+  return <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
+    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <View style={[styles.topBar, isRtl && styles.rowRtl]}>
+        <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "رجوع" : "Back"} onPress={() => router.back()} style={styles.backButton}><BackIcon size={21} color={theme.text}/></Pressable>
+        <Text style={styles.brand}>MLAMH</Text>
+      </View>
+
+      <View style={[styles.eyebrowRow, isRtl && styles.rowRtl]}><Sparkles size={14} color={theme.accent}/><Text style={[styles.eyebrow, isRtl && styles.textRtl]}>{isArabic ? "بناء الملف المهني" : "PROFESSIONAL PROFILE JOURNEY"}</Text></View>
+      <Text accessibilityRole="header" style={[styles.title, isRtl && styles.textRtl]}>{isArabic ? "خلّ ملفك جاهز للفرص" : "Get your profile opportunity-ready"}</Text>
+      <Text style={[styles.subtitle, isRtl && styles.textRtl]}>{isArabic ? "نمشي معك خطوة بخطوة. ركّز على الأساسيات أولًا، ثم الصور، وبعدها أرسل ملفك للمراجعة." : "We’ll guide you step by step: core details first, then your portfolio, then review submission."}</Text>
+
+      <View style={styles.progressCard}>
+        <View style={[styles.progressCopy, isRtl && styles.rowRtl]}><Text style={[styles.progressLabel, isRtl && styles.textRtl]}>{isArabic ? "تقدم الإعداد" : "Setup progress"}</Text><Text style={styles.progressValue}>{progress}%</Text></View>
+        <View style={styles.track}><View style={[styles.fill, { width: `${progress}%` }]} /></View>
+      </View>
+
+      {error ? <View style={styles.errorCard}><Text style={[styles.errorText, isRtl && styles.textRtl]}>{error}</Text></View> : null}
+
+      <JourneyStep index="1" state="done" icon={<Check size={17} color={theme.background} strokeWidth={3}/>} title={isArabic ? "اختيار المسار" : "Choose your path"} body={isArabic ? "تم تحديد نوع الموهبة." : "Your talent type is selected."} styles={styles} isRtl={isRtl}/>
+      <JourneyStep index="2" state={hasCore ? "done" : "current"} icon={<UserRound size={18} color={hasCore ? theme.background : theme.accent}/>} title={isArabic ? "البيانات الأساسية" : "Core details"} body={hasCore ? (isArabic ? "الأساسيات مكتملة. تقدر تعدلها في أي وقت." : "Your core details are complete.") : (isArabic ? "أكمل الاسم، المدينة، الجنس وتاريخ الميلاد." : "Complete your name, city, gender and date of birth.")} action={hasCore ? (isArabic ? "مراجعة البيانات" : "Review details") : (isArabic ? "أكمل البيانات" : "Complete details")} onPress={() => router.push("/profile/edit")} styles={styles} isRtl={isRtl}/>
+      <JourneyStep index="3" state={hasPhoto ? "done" : hasCore ? "current" : "next"} icon={<Camera size={18} color={hasPhoto ? theme.background : hasCore ? theme.accent : theme.muted}/>} title={isArabic ? "الصور والمعرض" : "Photos & portfolio"} body={hasPhoto ? (isArabic ? "لديك صورة رئيسية. أضف أفضل أعمالك لملف أقوى." : "Your primary photo is set. Add your strongest work.") : (isArabic ? "أضف صورة رئيسية واضحة ثم ابنِ معرضك." : "Add a clear primary photo, then build your portfolio.")} action={isArabic ? "إدارة الصور" : "Manage photos"} onPress={() => router.push("/profile/media")} styles={styles} isRtl={isRtl}/>
+      <JourneyStep index="4" state={reviewReady ? "current" : "next"} icon={<FileCheck2 size={18} color={reviewReady ? theme.accent : theme.muted}/>} title={isArabic ? "الجاهزية والمراجعة" : "Readiness & review"} body={reviewReady ? (isArabic ? "الأساسيات والصورة جاهزة. راجع ملفك ثم أرسله للمراجعة." : "Your essentials and photo are ready. Review and submit your profile.") : (isArabic ? "تفتح هذه الخطوة بعد اكتمال البيانات الأساسية والصورة الرئيسية." : "This step is ready once your core details and primary photo are complete.")} action={reviewReady ? (isArabic ? "مراجعة الجاهزية" : "Review readiness") : undefined} onPress={reviewReady ? () => router.push("/profile/review") : undefined} styles={styles} isRtl={isRtl}/>
+
+      <View style={styles.noteCard}><Circle size={10} color={theme.accent} fill={theme.accent}/><Text style={[styles.noteText, isRtl && styles.textRtl]}>{isArabic ? "تقدر ترجع لأي خطوة لاحقًا. الهدف الآن أن نجهز ملفًا واضحًا وقابلًا للمراجعة، وليس أن تملأ كل شيء من أول مرة." : "You can refine any step later. The goal now is a clear, review-ready profile — not filling every field at once."}</Text></View>
+    </ScrollView>
+  </SafeAreaView>;
+}
+
+function JourneyStep({ index, state, icon, title, body, action, onPress, styles, isRtl }: { index: string; state: StepState; icon: React.ReactNode; title: string; body: string; action?: string; onPress?: () => void; styles: ReturnType<typeof createStyles>; isRtl: boolean }) {
+  const active = state === "current";
+  const done = state === "done";
+  return <View style={[styles.stepCard, active && styles.stepCardActive, done && styles.stepCardDone]}>
+    <View style={[styles.stepTop, isRtl && styles.rowRtl]}><View style={[styles.stepBadge, done && styles.stepBadgeDone, active && styles.stepBadgeActive]}>{icon}</View><View style={styles.stepCopy}><Text style={[styles.stepIndex, isRtl && styles.textRtl]}>{index.padStart(2, "0")}</Text><Text style={[styles.stepTitle, isRtl && styles.textRtl]}>{title}</Text><Text style={[styles.stepBody, isRtl && styles.textRtl]}>{body}</Text></View></View>
+    {action && onPress ? <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [active ? styles.primaryAction : styles.secondaryAction, pressed && styles.pressed]}><Text style={active ? styles.primaryActionText : styles.secondaryActionText}>{action}</Text></Pressable> : null}
+  </View>;
+}
+
+function createStyles(theme: typeof darkTheme) { return StyleSheet.create({
+  screen:{flex:1,backgroundColor:theme.background},content:{width:"100%",maxWidth:620,alignSelf:"center",paddingHorizontal:20,paddingTop:8,paddingBottom:34,gap:14},center:{flex:1,alignItems:"center",justifyContent:"center",gap:12},loadingText:{color:theme.muted,fontSize:13},rowRtl:{flexDirection:"row-reverse"},textRtl:{textAlign:"right",writingDirection:"rtl"},topBar:{minHeight:54,flexDirection:"row",alignItems:"center",justifyContent:"space-between"},backButton:{width:42,height:42,borderRadius:21,borderWidth:1,borderColor:theme.border,alignItems:"center",justifyContent:"center",backgroundColor:theme.surface},brand:{color:theme.accent,fontSize:12,fontWeight:"900",letterSpacing:2.4},eyebrowRow:{flexDirection:"row",alignItems:"center",gap:7,marginTop:6},eyebrow:{color:theme.accent,fontSize:10,fontWeight:"900",letterSpacing:1.6},title:{color:theme.text,fontSize:34,lineHeight:41,fontWeight:"800",marginTop:2},subtitle:{color:theme.muted,fontSize:14,lineHeight:22,maxWidth:540},progressCard:{borderWidth:1,borderColor:"#C9A96233",borderRadius:18,backgroundColor:"#C9A96208",padding:14,gap:10,marginTop:4},progressCopy:{flexDirection:"row",justifyContent:"space-between",alignItems:"center"},progressLabel:{color:theme.text,fontSize:12,fontWeight:"800"},progressValue:{color:theme.accent,fontSize:12,fontWeight:"900"},track:{height:5,borderRadius:3,backgroundColor:"#FFFFFF12",overflow:"hidden"},fill:{height:"100%",backgroundColor:theme.accent,borderRadius:3},errorCard:{borderWidth:1,borderColor:"#C84F4F55",backgroundColor:"#C84F4F12",borderRadius:16,padding:13},errorText:{color:"#E59A9A",fontSize:12,lineHeight:18},stepCard:{borderWidth:1,borderColor:theme.border,borderRadius:20,backgroundColor:theme.surface,padding:15,gap:13},stepCardActive:{borderColor:theme.accent,backgroundColor:"#C9A96209"},stepCardDone:{borderColor:"#49C99133"},stepTop:{flexDirection:"row",alignItems:"flex-start",gap:12},stepBadge:{width:38,height:38,borderRadius:19,borderWidth:1,borderColor:theme.border,alignItems:"center",justifyContent:"center",backgroundColor:"#090909"},stepBadgeActive:{borderColor:theme.accent,backgroundColor:"#C9A96212"},stepBadgeDone:{borderColor:"#49C991",backgroundColor:"#49C991"},stepCopy:{flex:1,gap:3},stepIndex:{color:theme.accent,fontSize:9,fontWeight:"900",letterSpacing:1.4},stepTitle:{color:theme.text,fontSize:16,fontWeight:"900"},stepBody:{color:theme.muted,fontSize:11,lineHeight:17},primaryAction:{minHeight:50,borderRadius:14,backgroundColor:theme.accent,alignItems:"center",justifyContent:"center"},primaryActionText:{color:theme.background,fontSize:14,fontWeight:"900"},secondaryAction:{minHeight:46,borderRadius:14,borderWidth:1,borderColor:theme.border,alignItems:"center",justifyContent:"center",backgroundColor:"#090909"},secondaryActionText:{color:theme.text,fontSize:13,fontWeight:"800"},pressed:{opacity:.82},noteCard:{flexDirection:"row",alignItems:"flex-start",gap:9,paddingHorizontal:3,paddingTop:4},noteText:{flex:1,color:"#777771",fontSize:10,lineHeight:16}
+}); }
