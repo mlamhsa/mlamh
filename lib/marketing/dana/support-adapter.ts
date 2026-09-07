@@ -1,3 +1,5 @@
+import { trackMarketingEvent } from "@/lib/marketing/events/track";
+
 import { processCommercialInquiry } from "./service";
 
 export type SupportCommercialIntakeInput = {
@@ -16,7 +18,7 @@ export type SupportCommercialIntakeInput = {
  * future Email/Instagram/WhatsApp/Website/LinkedIn adapters can map into the same service.
  */
 export async function processSupportCommercialIntake(input: SupportCommercialIntakeInput) {
-  return processCommercialInquiry({
+  const result = await processCommercialInquiry({
     sourceChannel: "support",
     sourceReference: `support-ticket:${input.ticketNumber}`,
     occurredAt: input.createdAt ?? new Date().toISOString(),
@@ -27,4 +29,28 @@ export async function processSupportCommercialIntake(input: SupportCommercialInt
     message: input.message,
     category: input.category,
   });
+
+  if (result.status === "prepared" && !result.deduplicated) {
+    try {
+      await trackMarketingEvent({
+        eventName: "brief_received",
+        source: "support",
+        medium: "commercial_inbound",
+        entityType: "brief",
+        entityId: String(result.briefId),
+        metadata: {
+          demand_key: result.demandKey,
+          lead_id: result.leadId,
+          contact_id: result.contactId,
+          conversation_id: result.conversationId,
+          source_reference: `support-ticket:${input.ticketNumber}`,
+          outcome_verified_server_side: true,
+        },
+      });
+    } catch (error) {
+      console.error("[processSupportCommercialIntake.briefAttribution]", error);
+    }
+  }
+
+  return result;
 }
