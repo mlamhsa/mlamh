@@ -1,4 +1,4 @@
-# Build 8 RC TestFlight submission — submit existing EAS build only
+# Build 9 RC TestFlight submission — submit existing EAS build only
 name: Mobile RC TestFlight Submit
 
 on:
@@ -11,7 +11,7 @@ on:
 
 jobs:
   submit-ios:
-    name: Submit iOS Build 8 to TestFlight
+    name: Submit iOS Build 9 to TestFlight
     runs-on: ubuntu-latest
     timeout-minutes: 60
     defaults:
@@ -19,7 +19,7 @@ jobs:
         working-directory: apps/mobile
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-      IOS_BUILD_ID: 87e5dcf4-135e-4599-b1fe-976c87e2d636
+      IOS_BUILD_ID: ea7c8a47-8bc9-4ff8-8e87-8852f82dd8f4
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -42,7 +42,7 @@ jobs:
             exit 1
           fi
 
-      - name: Confirm iOS Build 8 is finished
+      - name: Confirm iOS Build 9 is finished
         shell: bash
         run: |
           set -euo pipefail
@@ -51,13 +51,13 @@ jobs:
           build_version=$(printf '%s' "$build_json" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const x=JSON.parse(s);process.stdout.write(String(x.appBuildVersion||""))})')
           echo "iOS status=$status appBuildVersion=$build_version"
           if [ "$status" != "finished" ]; then
-            echo "::error::iOS Build 8 is not finished (status=$status)."
+            echo "::error::iOS Build 9 is not finished (status=$status)."
             exit 1
           fi
-          if [ "$build_version" != "8" ]; then
-            echo "::error::Expected iOS appBuildVersion 8, got $build_version."
+          if [ "$build_version" != "9" ]; then
+            echo "::error::Expected iOS appBuildVersion 9, got $build_version."
             exit 1
           fi
 
-      - name: Submit existing iOS Build 8 to TestFlight
+      - name: Submit existing iOS Build 9 to TestFlight
         run: npx eas-cli@latest submit --platform ios --id "$IOS_BUILD_ID" --profile testflight --non-interactive --wait
