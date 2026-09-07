@@ -6,7 +6,8 @@ import { ArrowLeft, ArrowRight, Eye, EyeOff, LockKeyhole, Mail } from "lucide-re
 
 import { getMobileAccountContext } from "@/lib/account";
 import { getAccountHomeHref } from "@/lib/account-routing";
-import { getDeviceLocale, isRtlLocale } from "@/lib/i18n";
+import { isRtlLocale } from "@/lib/i18n";
+import { useAppLocale } from "@/lib/locale-context";
 import { getSafePostLoginPath } from "@/lib/post-login-route";
 import { supabase } from "@/lib/supabase";
 import { darkTheme } from "@/lib/theme";
@@ -34,7 +35,7 @@ function getCredentialError(isArabic: boolean, error: { code?: string; message?:
 export default function LoginScreen() {
   const params = useLocalSearchParams<{ next?: string | string[] }>();
   const nextParam = Array.isArray(params.next) ? params.next[0] : params.next;
-  const locale = getDeviceLocale();
+  const { locale, changeLocale } = useAppLocale();
   const isArabic = locale === "ar";
   const isRtl = isRtlLocale(locale);
   const { width, height } = useWindowDimensions();
@@ -94,18 +95,18 @@ export default function LoginScreen() {
   return <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.screen}>
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.scrollContent, compact && styles.scrollContentCompact]} showsVerticalScrollIndicator={false}>
-        <View style={[styles.content, compact && styles.contentCompact]}>
+        <View style={[styles.content, compact && styles.contentCompact, { direction: isRtl ? "rtl" : "ltr" }]}>
           <View style={[styles.topRow, compact && styles.topRowCompact, isRtl && styles.topRowRtl]}>
             <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "رجوع" : "Back"} onPress={() => router.back()} hitSlop={12} style={styles.iconButton}>
               {isRtl ? <ArrowRight size={22} color={theme.text} strokeWidth={1.8} /> : <ArrowLeft size={22} color={theme.text} strokeWidth={1.8} />}
             </Pressable>
-            <View style={styles.brandLockup}><Text style={[styles.brandArabic, compact && styles.brandArabicCompact, isArabic && styles.arabicText]}>ملامح</Text><Text style={styles.brandLatin}>M L A M H</Text></View>
-            <View style={styles.headerSpacer} />
+            <View style={styles.brandLockup}><Text style={styles.brandWordmark}>MLAMH</Text></View>
+            <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "English" : "العربية"} onPress={() => changeLocale(isArabic ? "en" : "ar")} style={styles.languageButton}><Text style={[styles.languageButtonText, isArabic && styles.arabicText]}>{isArabic ? "EN" : "العربية"}</Text></Pressable>
           </View>
 
           <View style={[styles.header, { alignItems: isRtl ? "flex-end" : "flex-start" }]}>
             <Text style={[styles.eyebrow, isArabic && styles.arabicEyebrow, { textAlign }]}>{isArabic ? "مرحبًا بعودتك" : "WELCOME BACK"}</Text>
-            <Text accessibilityRole="header" style={[styles.title, compact && styles.titleCompact, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "ادخل إلى ملامح" : "Sign in to MLAMH"}</Text>
+            <Text accessibilityRole="header" style={[styles.title, compact && styles.titleCompact, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "تسجيل الدخول إلى ملامح" : "Sign in to MLAMH"}</Text>
             <Text style={[styles.subtitle, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "تابع فرصك وطلباتك ورسائلك من مكان واحد." : "Continue to your opportunities, applications and messages."}</Text>
           </View>
 
@@ -127,7 +128,6 @@ export default function LoginScreen() {
                 </Pressable>
               </View>
             </View>
-
             <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "نسيت كلمة المرور" : "Forgot password"} onPress={() => router.push("/forgot-password")} style={[styles.linkButton, isRtl && styles.linkButtonRtl]}><Text style={[styles.forgotLink, isArabic && styles.arabicText, { textAlign }]}>{isArabic ? "نسيت كلمة المرور؟" : "Forgot password?"}</Text></Pressable>
             {error ? <View style={styles.errorBox}><Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={[styles.error, isArabic && styles.arabicText, { textAlign }]}>{error}</Text></View> : null}
             <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "تسجيل الدخول" : "Sign in"} accessibilityState={{ disabled: loading, busy: loading }} disabled={loading} onPress={() => void signIn()} style={({ pressed }) => [styles.primaryButton, loading && styles.disabled, pressed && styles.pressed]}><Text style={[styles.primaryButtonText, isArabic && styles.arabicText]}>{loading ? (isArabic ? "جارٍ الدخول…" : "Signing in…") : (isArabic ? "تسجيل الدخول" : "Sign in")}</Text></Pressable>
@@ -154,11 +154,10 @@ function createStyles(theme: typeof darkTheme) { return StyleSheet.create({
   topRowRtl: { flexDirection: "row-reverse" },
   rowRtl: { flexDirection: "row-reverse" },
   iconButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, borderColor: theme.border, alignItems: "center", justifyContent: "center", backgroundColor: theme.surface },
-  headerSpacer: { width: 42 },
-  brandLockup: { alignItems: "center" },
-  brandArabic: { color: theme.accent, fontSize: 34, lineHeight: 38, fontWeight: "500" },
-  brandArabicCompact: { fontSize: 29, lineHeight: 33 },
-  brandLatin: { color: theme.accent, fontSize: 8, fontWeight: "900", letterSpacing: 3.5, marginTop: -2 },
+  languageButton: { minWidth: 42, height: 42, paddingHorizontal: 10, borderRadius: 21, borderWidth: 1, borderColor: theme.border, alignItems: "center", justifyContent: "center", backgroundColor: theme.surface },
+  languageButtonText: { color: theme.accent, fontSize: 11, fontWeight: "800" },
+  brandLockup: { alignItems: "center", justifyContent: "center" },
+  brandWordmark: { color: theme.accent, fontSize: 18, fontWeight: "900", letterSpacing: 3.2 },
   header: { gap: 7 },
   eyebrow: { color: theme.accent, fontSize: 10, fontWeight: "900", letterSpacing: 2.6 },
   arabicEyebrow: { letterSpacing: 0, writingDirection: "rtl" },
