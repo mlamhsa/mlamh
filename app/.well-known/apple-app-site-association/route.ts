@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 const BUNDLE_ID = "net.mlamh.app";
+const VERIFIED_APPLE_TEAM_ID = "ATJ4SFSJZZ";
 const LINK_PATHS = [
   "/opportunities",
   "/opportunities/*",
@@ -52,10 +53,10 @@ const LINK_PATHS = [
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const teamId = process.env.MLAMH_APPLE_TEAM_ID?.trim();
-  if (!teamId || !/^[A-Z0-9]{10}$/.test(teamId)) {
-    return new NextResponse(null, { status: 404 });
-  }
+  const configuredTeamId = process.env.MLAMH_APPLE_TEAM_ID?.trim();
+  const teamId = configuredTeamId && /^[A-Z0-9]{10}$/.test(configuredTeamId)
+    ? configuredTeamId
+    : VERIFIED_APPLE_TEAM_ID;
 
   return NextResponse.json(
     {
