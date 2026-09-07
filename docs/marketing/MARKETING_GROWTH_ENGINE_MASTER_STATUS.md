@@ -31,7 +31,7 @@ Work progresses in one ordered stream. A task moves to DONE only when implementa
 - Campaigns and content.
 - Social and creative surfaces.
 - Analytics and experiments.
-- Talent Growth and Opportunity Growth.
+- Talent Growth, Publisher Growth and Opportunity Growth.
 - Knowledge / Playbooks.
 - Integrations and marketing control.
 
@@ -42,6 +42,8 @@ Status: ACTIVE
 - DONE — Governed cold-outreach framework mapped into existing Outreach tasks.
 - DONE — Reply classification and routing already verified in the existing email engine.
 - DONE — Follow-up / reply handling framework mapped into existing lifecycle flow.
+- DONE — Publisher Growth baseline measures publisher account -> profile -> review -> approval progression.
+- DONE — Publisher opportunity activation is measured separately from the review funnel so activity cannot distort funnel drop-off math.
 - NEXT — Measure prospecting quality and lead-to-brief conversion using production evidence after release.
 - NEXT — Strengthen lead-to-opportunity attribution where telemetry gaps remain.
 
@@ -56,6 +58,7 @@ Status: CORE LOOP IMPLEMENTED
 - DONE — Explicit account-role selection telemetry added at the governed join decision point.
 - DONE — Talent Growth separates Talent vs Publisher selections from the instrumentation start date instead of inferring historical intent.
 - DONE — Opportunity share actions already use the existing share event; shared links now carry first-party MLAMH attribution.
+- DONE — Shared opportunity links also carry the existing UTM standard so they enter MLAMH's general attribution layer instead of remaining an isolated referral metric.
 - DONE — Opportunity views can identify verified traffic arriving through a tracked MLAMH share link and channel.
 - DONE — Opportunity Growth reports share activity, attributed shared-link views and views-per-share without claiming a messaging-platform click equals a visit.
 - DONE — Qualified supply-gap reporting reuses Dana's persisted `talent_supply_gap` snapshot rather than running a parallel matching engine.
@@ -64,37 +67,43 @@ Status: CORE LOOP IMPLEMENTED
 
 ### C. Organic content and distribution
 Status: VERIFIED FOUNDATION / NEXT MEASUREMENT
-- VERIFIED — Existing Content Studio has content objectives, AI drafts, copy → creative → approval → publishing flow.
+- VERIFIED — Existing Content Studio has content objectives, AI drafts, copy -> creative -> approval -> publishing flow.
 - VERIFIED — Existing Social Scheduler preserves approval before publishing and supports channel-specific execution.
 - VERIFIED — Opportunity sharing provides an organic distribution path with first-party share/view measurement.
 - NEXT — Link published organic content to attributed visits and marketplace outcomes consistently.
 - NEXT — Add channel/content performance diagnostics only where recorded external or first-party evidence exists.
 
 ### D. SEO and discovery
-Status: NEXT
-- Technical SEO audit baseline.
-- Talent profile metadata completion.
-- Opportunity discovery.
-- Multi-country site architecture.
-- Programmatic SEO only where pages have unique user value.
-- Schema and AI-search visibility.
+Status: VERIFIED FOUNDATION / ACTIVE
+- VERIFIED — Dynamic sitemap covers public locale roots, talent directory, opportunity directory, casting, guides, publisher pages, approved talent profiles, available talent categories/cities and opportunity intent routes.
+- VERIFIED — Market SEO gating prevents exposing a disabled market through the sitemap.
+- VERIFIED — Robots excludes admin, API, auth, dashboards, login and join surfaces from indexing.
+- VERIFIED — Talent profile metadata has canonical/hreflang, Open Graph, Twitter and robots controls.
+- DONE — Talent metadata fallback no longer advertises private media/content to public crawlers; public metadata describes public professional details only.
+- VERIFIED — Public talent projection hides private media/links unless the governed viewer access policy grants them.
+- NEXT — Review opportunity metadata/schema coverage against current opportunity types and multi-country rollout rules.
+- NEXT — Programmatic SEO only where pages have unique user value and real inventory.
+- NEXT — AI-search visibility diagnostics after technical baseline is complete.
 
 ### E. Experimentation and CRO
-Status: NEXT
-- Signup funnel baseline.
-- Publisher funnel baseline.
-- Landing-page conversion review.
-- Experiment registry and success criteria.
-- No dark patterns or privacy-policy bypasses.
+Status: ACTIVE FOUNDATION
+- DONE — Talent signup/activation baseline exists through Talent Growth lifetime + 7-day cohort diagnostics.
+- DONE — Publisher signup/activation baseline exists through Publisher Growth lifetime + 7-day cohort diagnostics.
+- DONE — Both baselines derive bottlenecks from recorded progression and avoid fabricated percentages when denominators do not exist.
+- VERIFIED — Existing experiment registry already stores hypothesis, success metric, status, winner and result.
+- NEXT — Landing-page conversion review using attributed visits and recorded signup outcomes.
+- NEXT — First governed CTA/message experiment only after sufficient baseline traffic exists.
+- POLICY — No dark patterns or privacy-policy bypasses.
 
 ### F. Attribution and feedback loop
 Status: ACTIVE FOUNDATION
-- UTM/source normalization.
-- Campaign -> signup/application/brief linkage.
-- Email feedback diagnostics.
-- Channel quality, not only traffic volume.
-- Marketplace outcomes as north-star evidence.
+- VERIFIED — Existing first-party attribution tracker persists UTM source/medium/campaign/content/term and records attributable page views.
 - DONE — First-party opportunity-share source/channel attribution at the shared-link view layer.
+- DONE — Opportunity share URLs now also use the existing UTM model (`utm_source`, `utm_medium`, `utm_campaign`, `utm_content`).
+- NEXT — Carry attribution from visits into registration/application/brief outcomes consistently.
+- NEXT — Normalize campaign -> signup/application/brief linkage without creating a second analytics store.
+- VERIFIED — Email feedback diagnostics remain part of the existing email engine.
+- POLICY — Optimize for channel quality and marketplace outcomes, not traffic volume alone.
 
 ## Deferred until prerequisites exist
 - Paid ads and ad creative at scale.
