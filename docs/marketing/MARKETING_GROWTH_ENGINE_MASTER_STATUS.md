@@ -31,7 +31,7 @@ Work progresses in one ordered stream. A task moves to DONE only when implementa
 - Campaigns and content.
 - Social and creative surfaces.
 - Analytics and experiments.
-- Talent Growth, Publisher Growth, Opportunity Growth, Channel Quality and Demand Quality.
+- Talent Growth, Publisher Growth, Opportunity Growth, Channel Quality, Demand Quality and Landing Quality.
 - Knowledge / Playbooks.
 - Integrations and marketing control.
 
@@ -91,37 +91,43 @@ Status: TECHNICAL BASELINE IMPLEMENTED / SA INDEX MARKET
 - VERIFIED — Opportunity detail metadata has canonical/hreflang, Open Graph, Twitter and noindex for missing records.
 - VERIFIED — Paid/open opportunity pages expose JobPosting schema with title, description, datePosted, validThrough, hiring organization and city; unpaid opportunities are intentionally excluded from JobPosting markup.
 - DONE — Public opportunity records normalize `application_deadline -> deadline -> expires_at`, so legacy expiry data reaches the existing page/application status and JobPosting `validThrough` logic instead of silently appearing evergreen.
-- DONE — Active opportunity sitemap and opportunity-intent sitemap now exclude records whose known application/expiry deadline has passed.
+- DONE — Active opportunity sitemap and opportunity-intent sitemap exclude records whose known application/expiry deadline has passed.
 - POLICY — The current JobPosting `addressCountry: SA` remains aligned with the current `SEO_MARKET = SA`; it must become market-derived before another country becomes indexable.
 - NEXT — Programmatic SEO only where pages have unique user value and real inventory.
 - NEXT — AI-search visibility diagnostics after technical baseline is complete.
 
 ### E. Experimentation and CRO
-Status: ACTIVE FOUNDATION
+Status: LANDING BASELINE IMPLEMENTED / EXPERIMENT GATED
 - DONE — Talent signup/activation baseline exists through Talent Growth lifetime + 7-day cohort diagnostics.
 - DONE — Publisher signup/activation baseline exists through Publisher Growth lifetime + 7-day cohort diagnostics.
 - DONE — Both baselines derive bottlenecks from recorded progression and avoid fabricated percentages when denominators do not exist.
 - DONE — Attributed registration and application outcomes support source/campaign CRO analysis without accepting client-declared success events.
 - DONE — Channel Quality ranks channels by deepest verified marketplace outcome rather than raw traffic and leaves rates blank when required denominators do not exist.
-- DONE — Demand Quality now provides a governed B2B conversion baseline from prospecting research through Lead -> Brief -> Opportunity.
+- DONE — Demand Quality provides a governed B2B conversion baseline from prospecting research through Lead -> Brief -> Opportunity.
+- DONE — First-party attribution context now preserves the original UTM landing path plus the existing anonymous session identifier; landing/session fields alone do not manufacture attribution.
+- DONE — Page-view telemetry marks only actual UTM entry views as `attribution_landing`; later internal page views are not counted as new landing sessions.
+- DONE — Verified server outcomes inherit landing path + anonymous session context centrally through the existing marketing-event writer.
+- DONE — Landing Quality reports unique attributed landing sessions, linked verified registrations/applications and page-level conversion without guessing outcomes lacking session linkage.
+- DONE — The CRO diagnosis requires at least 5 recorded landing sessions before identifying a page for review; this threshold is only an operational review gate, not statistical significance.
 - VERIFIED — Existing experiment registry already stores hypothesis, success metric, status, winner and result.
-- NEXT — Landing-page conversion review using attributed visits and recorded signup outcomes.
-- NEXT — First governed CTA/message experiment only after sufficient baseline traffic exists.
-- POLICY — No dark patterns or privacy-policy bypasses.
+- NEXT — Wait for sufficient production Landing Quality evidence, then define the first governed CTA/message hypothesis around the weakest observed page.
+- POLICY — No automatic experiment launch, no dark patterns and no privacy-policy bypasses.
 
 ### F. Attribution and feedback loop
-Status: ACTIVE / MARKETPLACE OUTCOME BASELINE IMPLEMENTED
+Status: ACTIVE / MARKETPLACE OUTCOME + LANDING BRIDGE IMPLEMENTED
 - VERIFIED — Existing first-party attribution tracker persists UTM source/medium/campaign/content/term and records attributable page views.
 - DONE — First-party opportunity-share source/channel attribution at the shared-link view layer.
 - DONE — Opportunity share URLs use the existing UTM model (`utm_source`, `utm_medium`, `utm_campaign`, `utm_content`).
 - DONE — Sanitized attribution is mirrored into a same-site first-party cookie so verified server actions can carry source/campaign context beyond the landing page.
+- DONE — Attribution context also preserves the original landing path and anonymous session ID only when real marketing attribution exists.
 - DONE — `registration_completed` is emitted only after the selected account path is persisted; attribution recording failure cannot block registration.
 - DONE — `application_submitted` is emitted into the existing `marketing_events` layer only after the application row is successfully created; client attribution cannot declare the outcome itself.
 - DONE — `brief_received` is emitted by the current governed Support commercial-intake adapter only after Dana creates a new verified brief chain; duplicate demand intake is excluded.
 - DONE — Channel Quality uses the existing `marketing_events` store to compare visits, registrations, applications and verified briefs by source/campaign without adding a second analytics database.
+- DONE — Landing Quality uses the same store and first-party session context; no second CRO analytics database is introduced.
 - DONE — Channel evidence is ranked by outcome depth (`verified demand` > `talent conversion` > `registration` > `traffic`) rather than an invented composite score.
 - NEXT — Extend comparable brief attribution to any additional verified source adapters.
-- NEXT — Use production evidence to determine which source/campaign deserves a controlled experiment or more distribution.
+- NEXT — Use production evidence to determine which source/campaign/landing page deserves a controlled experiment or more distribution.
 - VERIFIED — Email feedback diagnostics remain part of the existing email engine.
 - POLICY — Optimize for channel quality and marketplace outcomes, not traffic volume alone.
 

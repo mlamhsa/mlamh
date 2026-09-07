@@ -6,6 +6,8 @@ export type MarketingAttributionContext = {
   campaign: string | null;
   content: string | null;
   term: string | null;
+  landingPath: string | null;
+  anonymousSessionId: string | null;
 };
 
 const MAX_FIELD_LENGTH = 160;
@@ -15,6 +17,18 @@ function clean(value: unknown, maxLength = MAX_FIELD_LENGTH) {
   const trimmed = value.trim();
   if (!trimmed) return null;
   return trimmed.slice(0, maxLength);
+}
+
+function cleanPath(value: unknown) {
+  const path = clean(value, 240);
+  if (!path || !path.startsWith("/")) return null;
+  return path.split("?")[0]?.split("#")[0] || null;
+}
+
+function cleanSessionId(value: unknown) {
+  const sessionId = clean(value, 80);
+  if (!sessionId) return null;
+  return /^[A-Za-z0-9._:-]+$/.test(sessionId) ? sessionId : null;
 }
 
 export function sanitizeMarketingAttribution(
@@ -31,6 +45,8 @@ export function sanitizeMarketingAttribution(
     campaign: clean(input.campaign),
     content: clean(input.content),
     term: clean(input.term),
+    landingPath: cleanPath(input.landingPath),
+    anonymousSessionId: cleanSessionId(input.anonymousSessionId),
   };
 }
 
