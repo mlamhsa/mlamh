@@ -10,6 +10,12 @@ test("appends the official MLAMH signature", () => {
   assert.match(result, /W: mlamh\.net/);
 });
 
+test("normalizes escaped line breaks before sending", () => {
+  const result = withMlamhEmailSignature("مرحبًا\\n\\nهذه رسالة تجريبية");
+  assert.equal(result.includes("\\n"), false);
+  assert.match(result, /مرحبًا\n\nهذه رسالة تجريبية/);
+});
+
 test("does not duplicate an existing official signature", () => {
   const signed = `Hello\n\n${MLAMH_EMAIL_SIGNATURE}`;
   assert.equal(withMlamhEmailSignature(signed), signed);

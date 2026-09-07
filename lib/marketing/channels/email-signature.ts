@@ -7,8 +7,16 @@ export const MLAMH_EMAIL_SIGNATURE = [
   "W: mlamh.net",
 ].join("\n");
 
+function normalizeEmailBody(value: string) {
+  return value
+    .replace(/\\r\\n/g, "\n")
+    .replace(/\\n/g, "\n")
+    .replace(/\r\n/g, "\n")
+    .trim();
+}
+
 export function withMlamhEmailSignature(value: string) {
-  const body = value.trim();
+  const body = normalizeEmailBody(value);
   if (!body) return MLAMH_EMAIL_SIGNATURE;
 
   const normalized = body.toLowerCase();
