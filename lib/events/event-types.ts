@@ -14,6 +14,11 @@ export const EVENT_TYPES = {
   "message_report_reviewed",
 
   /*
+   * Registration / role telemetry
+   */
+  account_type_selected: "account_type_selected",
+
+  /*
    * Talent review workflow
    */
   talent_created: "talent_created",

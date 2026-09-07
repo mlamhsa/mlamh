@@ -27,7 +27,7 @@ export default async function TalentGrowthPage({ searchParams }: PageProps) {
   const db = createAdminClient();
   const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
-  const [registrations, complete, submitted, approved, applications, recentRegistrations, recentComplete, recentSubmitted, recentApproved, recentApplications, profileRecoveryReminders, incompleteRegistrationReminders] = await Promise.all([
+  const [registrations, complete, submitted, approved, applications, recentRegistrations, recentComplete, recentSubmitted, recentApproved, recentApplications, profileRecoveryReminders, incompleteRegistrationReminders, roleSelections, talentRoleSelections, publisherRoleSelections] = await Promise.all([
     db.from("profiles").select("id", { count: "exact", head: true }).eq("account_type", "talent"),
     db.from("talents").select("id", { count: "exact", head: true }).gte("profile_completion", 100),
     db.from("profiles").select("id", { count: "exact", head: true }).eq("account_type", "talent").in("approval_status", submittedStatuses),
@@ -40,6 +40,9 @@ export default async function TalentGrowthPage({ searchParams }: PageProps) {
     db.from("opportunity_applications").select("id", { count: "exact", head: true }).gte("created_at", since),
     db.from("events").select("id", { count: "exact", head: true }).eq("event_type", "talent_profile_recovery_reminder_sent").gte("created_at", since),
     db.from("events").select("id", { count: "exact", head: true }).eq("event_type", "incomplete_registration_reminder_sent").gte("created_at", since),
+    db.from("events").select("id", { count: "exact", head: true }).eq("event_type", "account_type_selected").gte("created_at", since),
+    db.from("events").select("id", { count: "exact", head: true }).eq("event_type", "account_type_selected").contains("metadata", { account_type: "talent" }).gte("created_at", since),
+    db.from("events").select("id", { count: "exact", head: true }).eq("event_type", "account_type_selected").contains("metadata", { account_type: "publisher" }).gte("created_at", since),
   ]);
 
   const lifetime: TalentActivationSnapshot = {
@@ -65,6 +68,12 @@ export default async function TalentGrowthPage({ searchParams }: PageProps) {
     incompleteRegistration: incompleteRegistrationReminders.count ?? 0,
     profileRecovery: profileRecoveryReminders.count ?? 0,
   };
+  const roleSignals = {
+    total: roleSelections.count ?? 0,
+    talent: talentRoleSelections.count ?? 0,
+    publisher: publisherRoleSelections.count ?? 0,
+  };
+  const publisherShare = roleSignals.total > 0 ? Math.round((roleSignals.publisher / roleSignals.total) * 100) : null;
 
   return <AdminPageContainer>
     <AdminPageHeader
@@ -101,16 +110,19 @@ export default async function TalentGrowthPage({ searchParams }: PageProps) {
       </AdminCard>
     </div>
 
-    <AdminCard className="mb-6 p-5">
-      <div className="flex items-center justify-between gap-4"><div><h2 className="text-lg text-white">{isArabic ? "استعادة التفعيل" : "Activation recovery"}</h2><p className="mt-1 text-xs text-white/35">{isArabic ? "نستخدم مسارات الاستعادة الموجودة أصلًا بدل إنشاء Lifecycle موازٍ." : "Existing recovery paths are reused instead of creating a parallel lifecycle system."}</p></div><AdminBadge variant="muted">7D</AdminBadge></div>
-      <div className="mt-5 grid gap-3 sm:grid-cols-2"><div className="rounded-xl border border-white/[0.07] bg-black/20 p-4"><div className="text-xs text-white/35">{isArabic ? "تذكيرات إكمال التسجيل" : "Incomplete-registration reminders"}</div><div className="mt-2 text-2xl font-semibold text-white">{recoverySignals.incompleteRegistration}</div></div><div className="rounded-xl border border-white/[0.07] bg-black/20 p-4"><div className="text-xs text-white/35">{isArabic ? "تذكيرات استعادة ملف الموهبة" : "Talent-profile recovery reminders"}</div><div className="mt-2 text-2xl font-semibold text-white">{recoverySignals.profileRecovery}</div></div></div>
-    </AdminCard>
+    <div className="mb-6 grid gap-5 xl:grid-cols-2">
+      <AdminCard className="p-5">
+        <div className="flex items-center justify-between gap-4"><div><h2 className="text-lg text-white">{isArabic ? "وضوح نوع الحساب" : "Account-role clarity"}</h2><p className="mt-1 text-xs text-white/35">{isArabic ? "Telemetry تبدأ من هذا الإصدار؛ لا نخلط بيانات ما قبل التتبع مع البيانات الجديدة." : "Telemetry starts with this release; pre-instrumentation history is not mixed into the new signal."}</p></div><AdminBadge variant="muted">7D</AdminBadge></div>
+        <div className="mt-5 grid gap-3 sm:grid-cols-3"><div className="rounded-xl border border-white/[0.07] bg-black/20 p-4"><div className="text-xs text-white/35">{isArabic ? "اختيارات مسجلة" : "Recorded selections"}</div><div className="mt-2 text-2xl font-semibold text-white">{roleSignals.total}</div></div><div className="rounded-xl border border-white/[0.07] bg-black/20 p-4"><div className="text-xs text-white/35">Talent</div><div className="mt-2 text-2xl font-semibold text-white">{roleSignals.talent}</div></div><div className="rounded-xl border border-white/[0.07] bg-black/20 p-4"><div className="text-xs text-white/35">Publisher</div><div className="mt-2 text-2xl font-semibold text-white">{roleSignals.publisher}</div></div></div>
+        <p className="mt-4 text-xs leading-5 text-white/35">{publisherShare === null ? (isArabic ? "لا توجد اختيارات جديدة كافية بعد. سنعرض النسبة عندما تبدأ البيانات بالدخول." : "No new role selections yet. The share appears once instrumented data starts arriving.") : (isArabic ? `نسبة Publisher من الاختيارات المسجلة: ${publisherShare}%. هذا قياس للاختيار، وليس دليلًا وحده على أن المستخدم اختار بالخطأ.` : `Publisher share of recorded selections: ${publisherShare}%. This measures selection behavior; it does not by itself prove a mistaken choice.`)}</p>
+      </AdminCard>
+
+      <AdminCard className="p-5">
+        <div className="flex items-center justify-between gap-4"><div><h2 className="text-lg text-white">{isArabic ? "استعادة التفعيل" : "Activation recovery"}</h2><p className="mt-1 text-xs text-white/35">{isArabic ? "نستخدم مسارات الاستعادة الموجودة أصلًا بدل إنشاء Lifecycle موازٍ." : "Existing recovery paths are reused instead of creating a parallel lifecycle system."}</p></div><AdminBadge variant="muted">7D</AdminBadge></div>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2"><div className="rounded-xl border border-white/[0.07] bg-black/20 p-4"><div className="text-xs text-white/35">{isArabic ? "تذكيرات إكمال التسجيل" : "Incomplete-registration reminders"}</div><div className="mt-2 text-2xl font-semibold text-white">{recoverySignals.incompleteRegistration}</div></div><div className="rounded-xl border border-white/[0.07] bg-black/20 p-4"><div className="text-xs text-white/35">{isArabic ? "تذكيرات استعادة ملف الموهبة" : "Talent-profile recovery reminders"}</div><div className="mt-2 text-2xl font-semibold text-white">{recoverySignals.profileRecovery}</div></div></div>
+      </AdminCard>
+    </div>
 
     <AdminCard className="p-5"><h2 className="text-lg text-white">{isArabic ? "المسار التراكمي" : "Lifetime conversion funnel"}</h2><div className="mt-5 space-y-3">{lifetimeFunnel.map((step, index) => <div key={step.key} className="grid grid-cols-[1fr_auto_auto] gap-4 rounded-xl border border-white/[0.07] bg-black/20 px-4 py-3 text-sm"><span className="text-white/65">{stepLabel(step.key, isArabic)}</span><span className="tabular-nums text-white">{step.value}</span><span className="w-14 text-end text-gold/70">{index === 0 || step.conversionFromPrevious === null ? "—" : `${step.conversionFromPrevious}%`}</span></div>)}</div></AdminCard>
-
-    <AdminCard className="mt-6 border-amber-300/15 bg-amber-300/[0.025] p-5">
-      <div className="text-sm font-medium text-amber-100">{isArabic ? "Role clarity monitoring" : "Role clarity monitoring"}</div>
-      <p className="mt-2 text-sm leading-6 text-white/45">{isArabic ? "إصلاح منع اختيار Publisher بالخطأ أصبح جزءًا من المنتج، لكن هذه الصفحة لن تدّعي أن المشكلة اختفت. نحتاج Event مخصص لقياس اختيار الدور وتصحيحه حتى نتابع المعدل تاريخيًا؛ إلى أن تتوفر Telemetry موثوقة تبقى هذه النقطة فجوة قياس وليست رقمًا مخمنًا." : "The guard against accidental Publisher selection is part of the product, but this page will not claim the issue has disappeared. A dedicated role-selection/correction event is still needed for historical measurement; until reliable telemetry exists, this remains a measurement gap rather than a guessed metric."}</p>
-    </AdminCard>
   </AdminPageContainer>;
 }

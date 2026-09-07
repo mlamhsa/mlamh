@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
 
+import { createEvent, EVENT_TARGETS, EVENT_TYPES } from "@/lib/events";
 import { isValidLocale, type Locale } from "@/lib/i18n";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -32,6 +33,22 @@ const publisherTypes = [
 
 type PublisherType = (typeof publisherTypes)[number]["value"];
 const allowedPublisherTypes = new Set<PublisherType>(publisherTypes.map((type) => type.value));
+
+async function recordAccountTypeSelection({ userId, profileId, accountType, locale, publisherType }: { userId: string; profileId: string | number; accountType: "talent" | "publisher"; locale: Locale; publisherType?: PublisherType }) {
+  await createEvent({
+    type: EVENT_TYPES.account_type_selected,
+    target: EVENT_TARGETS.AUTH_USER,
+    targetId: userId,
+    actorId: userId,
+    metadata: {
+      profile_id: String(profileId),
+      account_type: accountType,
+      locale,
+      ...(publisherType ? { publisher_type: publisherType } : {}),
+      source: "join_account_type",
+    },
+  });
+}
 
 async function selectAccountTypeAction(formData: FormData) {
   "use server";
@@ -122,17 +139,18 @@ async function selectAccountTypeAction(formData: FormData) {
     profileId = insertedProfile.id;
   }
 
+  if (!profileId) {
+    redirect(`/${locale}/join/account-type?error=profile`);
+  }
+
   if (accountType === "talent") {
+    await recordAccountTypeSelection({ userId: user.id, profileId, accountType: "talent", locale });
     redirect(`/${locale}/join/talent`);
   }
 
   const publisherType = String(formData.get("publisher_type") ?? "") as PublisherType;
   if (!allowedPublisherTypes.has(publisherType)) {
     redirect(`/${locale}/join/account-type?error=publisher_type`);
-  }
-
-  if (!profileId) {
-    redirect(`/${locale}/join/account-type?error=profile`);
   }
 
   const contactName =
@@ -171,6 +189,7 @@ async function selectAccountTypeAction(formData: FormData) {
     }
   }
 
+  await recordAccountTypeSelection({ userId: user.id, profileId, accountType: "publisher", locale, publisherType });
   redirect(`/${locale}/publisher-dashboard`);
 }
 
