@@ -117,6 +117,52 @@ async function cleanStaleAutonomousTasks(now = new Date()) {
   return { staleCancelled: stale.length };
 }
 
+async function cancelSupersededLeadEnrichment(lead: LeadRow) {
+  const db = createAdminClient();
+  const { data: tasks, error } = await db.from("marketing_tasks")
+    .select("id,agent_id,status,metadata")
+    .eq("lead_id", lead.id)
+    .eq("task_type", "lead_enrichment")
+    .eq("source", "autonomous_orchestrator")
+    .in("status", ["queued", "scheduled"]);
+  if (error) throw new Error(`[marketing_orchestrator.superseded_enrichment.read:${lead.id}] ${error.message}`);
+  if (!(tasks ?? []).length) return 0;
+
+  const cancelledAt = new Date().toISOString();
+  for (const task of tasks ?? []) {
+    const metadata = record(task.metadata);
+    const { error: cancelError } = await db.from("marketing_tasks").update({
+      status: "cancelled",
+      locked_at: null,
+      locked_by: null,
+      updated_at: cancelledAt,
+      metadata: {
+        ...metadata,
+        superseded_by_contact_readiness: true,
+        superseded_at: cancelledAt,
+        superseded_reason: "lead_now_has_outreach_ready_verified_contact",
+      },
+    }).eq("id", task.id).in("status", ["queued", "scheduled"]);
+    if (cancelError) throw new Error(`[marketing_orchestrator.superseded_enrichment.cancel:${task.id}] ${cancelError.message}`);
+
+    if (task.agent_id) {
+      await db.from("marketing_agents").update({ status: "idle", current_task_id: null, updated_at: cancelledAt })
+        .eq("id", task.agent_id)
+        .eq("current_task_id", task.id)
+        .in("status", ["scheduled"]);
+    }
+    await db.from("marketing_agent_activity").insert({
+      agent_id: task.agent_id,
+      task_id: task.id,
+      action: "lead_enrichment_superseded",
+      reason: `${lead.organization} now has a verified outreach-ready contact; research is no longer required.`,
+      channel: "research",
+      result: { lead_id: lead.id, previous_status: task.status, next_step: "outreach_preparation", external_execution: false },
+    });
+  }
+  return (tasks ?? []).length;
+}
+
 async function seedLeadPreparationTasks(day: string) {
   const db = createAdminClient();
   const { data: leadData, error } = await db
@@ -124,7 +170,7 @@ async function seedLeadPreparationTasks(day: string) {
     .select("id,organization,contact_id,city,demand_signal,opportunity_type,lead_score,stage")
     .in("stage", ["new", "qualified"])
     .order("lead_score", { ascending: false, nullsFirst: false })
-    .limit(8);
+    .limit(20);
   if (error) throw new Error(`[marketing_orchestrator.leads] ${error.message}`);
 
   const leads = (leadData ?? []) as LeadRow[];
@@ -136,6 +182,7 @@ async function seedLeadPreparationTasks(day: string) {
 
   let enrichmentQueued = 0;
   let outreachPrepQueued = 0;
+  let supersededEnrichmentCancelled = 0;
 
   for (const lead of leads) {
     const contact = lead.contact_id ? contacts.get(lead.contact_id) ?? null : null;
@@ -176,6 +223,14 @@ async function seedLeadPreparationTasks(day: string) {
       continue;
     }
 
+    supersededEnrichmentCancelled += await cancelSupersededLeadEnrichment(lead);
+
+    const { count: alreadySent } = await db.from("marketing_outreach")
+      .select("id", { count: "exact", head: true })
+      .eq("lead_id", lead.id)
+      .eq("send_status", "sent");
+    if ((alreadySent ?? 0) > 0) continue;
+
     await createMarketingTask({
       agentId: "layan",
       taskType: "outreach_preparation",
@@ -208,7 +263,7 @@ async function seedLeadPreparationTasks(day: string) {
     outreachPrepQueued += 1;
   }
 
-  return { enrichmentQueued, outreachPrepQueued };
+  return { enrichmentQueued, outreachPrepQueued, supersededEnrichmentCancelled };
 }
 
 export async function seedDailyMarketingCycle(now = new Date()) {
