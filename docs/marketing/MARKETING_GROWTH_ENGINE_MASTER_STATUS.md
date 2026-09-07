@@ -53,7 +53,9 @@ Status: ACTIVE
 - DONE — Existing incomplete-registration and talent-profile recovery reminder telemetry is surfaced and reused instead of creating a duplicate lifecycle system.
 - DONE — Funnel math is covered by unit tests, including zero-denominator and activity-overlap cases.
 - DONE — Talent Growth remains read-only; no Production DML is introduced by the diagnostics page.
-- NEXT — Instrument explicit account-role selection / correction telemetry so accidental Talent-vs-Publisher selection can be measured historically.
+- DONE — Explicit account-role selection telemetry added at the governed join decision point.
+- DONE — Talent Growth now separates Talent vs Publisher selections from the instrumentation start date instead of inferring historical intent.
+- NEXT — Add correction telemetry only if a governed account-role correction flow is introduced; do not infer mistakes from publisher share alone.
 - NEXT — Opportunity-led acquisition and referral/sharing loop measurement.
 - NEXT — Qualified supply gap reporting inside the growth view.
 
