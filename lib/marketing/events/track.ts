@@ -1,3 +1,6 @@
+import { cookies } from "next/headers";
+
+import { MARKETING_ATTRIBUTION_COOKIE, parseMarketingAttributionCookie } from "@/lib/marketing/attribution/context";
 import { dispatchMarketingAutomationEvent } from "@/lib/marketing/automation/dispatch";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -17,12 +20,31 @@ export type TrackMarketingEventInput = {
   occurredAt?: string;
 };
 
+async function getRequestAttributionContext() {
+  try {
+    const cookieStore = await cookies();
+    return parseMarketingAttributionCookie(
+      cookieStore.get(MARKETING_ATTRIBUTION_COOKIE)?.value,
+    );
+  } catch {
+    return parseMarketingAttributionCookie(null);
+  }
+}
+
 export async function trackMarketingEvent(input: TrackMarketingEventInput) {
   const db = createAdminClient();
+  const requestAttribution = await getRequestAttributionContext();
+  const metadata = {
+    ...(input.metadata ?? {}),
+    ...(requestAttribution.landingPath && !(input.metadata && "landing_path" in input.metadata)
+      ? { landing_path: requestAttribution.landingPath }
+      : {}),
+  };
+  const anonymousSessionId = input.anonymousSessionId ?? requestAttribution.anonymousSessionId ?? null;
   const eventPayload = {
     event_name: input.eventName,
     user_id: input.userId ?? null,
-    anonymous_session_id: input.anonymousSessionId ?? null,
+    anonymous_session_id: anonymousSessionId,
     source: input.source ?? null,
     medium: input.medium ?? null,
     campaign: input.campaign ?? null,
@@ -31,7 +53,7 @@ export async function trackMarketingEvent(input: TrackMarketingEventInput) {
     referrer: input.referrer ?? null,
     entity_type: input.entityType ?? null,
     entity_id: input.entityId ?? null,
-    metadata: input.metadata ?? {},
+    metadata,
     occurred_at: input.occurredAt ?? new Date().toISOString(),
   };
 
@@ -40,13 +62,14 @@ export async function trackMarketingEvent(input: TrackMarketingEventInput) {
 
   try {
     await dispatchMarketingAutomationEvent(input.eventName, {
-      ...input.metadata,
+      ...metadata,
       source: input.source ?? null,
       medium: input.medium ?? null,
       campaign: input.campaign ?? null,
       entity_type: input.entityType ?? null,
       entity_id: input.entityId ?? null,
       user_id: input.userId ?? null,
+      anonymous_session_id: anonymousSessionId,
     });
   } catch (automationError) {
     console.error("[trackMarketingEvent automation]", automationError);
