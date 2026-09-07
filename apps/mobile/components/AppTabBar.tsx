@@ -22,7 +22,7 @@ const tabs: TabDefinition[] = [
   { key: "discover", path: "/opportunities", ar: "الفرص", en: "Discover", icon: Search },
   { key: "applications", path: "/applications", ar: "طلباتي", en: "Applications", icon: ClipboardList },
   { key: "messages", path: "/messages", ar: "الرسائل", en: "Messages", icon: MessageCircle },
-  { key: "profile", path: "/profile", ar: "ملفي", en: "Profile", icon: UserRound },
+  { key: "profile", path: "/profile", ar: "الملف", en: "Profile", icon: UserRound },
 ];
 
 export function AppTabBar({ active, locale, theme = darkTheme }: { active: TabKey; locale: AppLocale; theme?: Theme; notificationCount?: number }) {
