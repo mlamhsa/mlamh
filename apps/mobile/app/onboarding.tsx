@@ -53,7 +53,7 @@ export default function TalentOnboardingScreen() {
         setError(attempt.result.code === "ACCOUNT_TYPE_CONFLICT" ? (isArabic ? "هذا الحساب مرتبط بنوع حساب آخر." : "This account is linked to another account type.") : (isArabic ? "تعذر حفظ نوع الموهبة. حاول مرة أخرى." : "We couldn't save your talent type. Please try again."));
         return;
       }
-      router.replace({ pathname: "/profile/edit", params: { onboarding: "1" } });
+      router.replace("/profile/journey");
     } catch {
       setError(isArabic ? "تعذر الاتصال بملامح الآن. تحقق من الإنترنت وحاول مرة أخرى." : "We couldn't reach MLAMH. Check your connection and try again.");
     } finally { setSaving(false); }
