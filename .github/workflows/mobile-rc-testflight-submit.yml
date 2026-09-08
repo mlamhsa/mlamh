@@ -1,4 +1,4 @@
-# Build 10 RC TestFlight submission — wait for and submit existing EAS build only
+# Build 11 RC TestFlight submission — wait for and submit existing EAS build only
 name: Mobile RC TestFlight Submit
 
 on:
@@ -11,7 +11,7 @@ on:
 
 jobs:
   submit-ios:
-    name: Submit iOS Build 10 to TestFlight
+    name: Submit iOS Build 11 to TestFlight
     runs-on: ubuntu-latest
     timeout-minutes: 60
     defaults:
@@ -19,7 +19,7 @@ jobs:
         working-directory: apps/mobile
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-      IOS_BUILD_ID: 6c414873-6934-4976-bf40-a4f76ff73b17
+      IOS_BUILD_ID: 8be32a40-d9e2-420a-b7e7-a4cc20bad2d9
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -42,7 +42,7 @@ jobs:
             exit 1
           fi
 
-      - name: Wait for iOS Build 10
+      - name: Wait for iOS Build 11
         shell: bash
         run: |
           set -euo pipefail
@@ -53,23 +53,23 @@ jobs:
             echo "Attempt $attempt: iOS status=$status appBuildVersion=$build_version"
             case "$status" in
               finished)
-                if [ "$build_version" != "10" ]; then
-                  echo "::error::Expected iOS appBuildVersion 10, got $build_version."
+                if [ "$build_version" != "11" ]; then
+                  echo "::error::Expected iOS appBuildVersion 11, got $build_version."
                   exit 1
                 fi
                 exit 0
                 ;;
               errored|canceled)
-                echo "::error::iOS Build 10 ended with status=$status."
+                echo "::error::iOS Build 11 ended with status=$status."
                 exit 1
                 ;;
             esac
             if [ "$attempt" -eq 100 ]; then
-              echo "::error::Timed out waiting for iOS Build 10."
+              echo "::error::Timed out waiting for iOS Build 11."
               exit 1
             fi
             sleep 30
           done
 
-      - name: Submit existing iOS Build 10 to TestFlight
+      - name: Submit existing iOS Build 11 to TestFlight
         run: npx eas-cli@latest submit --platform ios --id "$IOS_BUILD_ID" --profile testflight --non-interactive --wait
