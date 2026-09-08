@@ -34,6 +34,7 @@ export type GalleryReorderResult = { ok: true; gallery: string[] } | { ok: false
 export type GalleryDeleteResult = { ok: true; gallery: string[]; primaryUrl: string | null } | { ok: false; code: string };
 export type SupportTicketInput = { senderName: string; senderEmail: string; senderPhone?: string | null; category: string; subject: string; message: string; locale: AppLocale };
 export type SupportTicketResult = { ok: true; ticketNumber: string } | { ok: false; code: string };
+export type DeleteAccountResult = { ok: true } | { ok: false; code: string };
 
 function normalizeServerProfileCompletion(value: number) {
   return Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : 0;
@@ -89,6 +90,7 @@ async function authedMutation<T extends { ok: boolean }>(path: string, method: "
 
 export async function applyToOpportunity(opportunityId: number): Promise<ApplyResult> { return authedMutation<ApplyResult>(`/api/opportunities/${opportunityId}/apply`, "POST", { ok: false, code: "REQUEST_FAILED" }); }
 export async function createSupportTicket(input: SupportTicketInput): Promise<SupportTicketResult> { return authedMutation<SupportTicketResult>("/api/support", "POST", { ok: false, code: "REQUEST_FAILED" }, input); }
+export async function deleteAccount(): Promise<DeleteAccountResult> { return authedMutation<DeleteAccountResult>("/api/account/delete", "DELETE", { ok: false, code: "REQUEST_FAILED" }); }
 
 export async function getMyApplications(locale: AppLocale): Promise<ApplicationsResponse> {
   const headers = await authHeaders(); if (!headers) return { ok: false, code: "UNAUTHENTICATED" };
