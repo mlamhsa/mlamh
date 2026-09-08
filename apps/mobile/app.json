@@ -46,6 +46,11 @@
       "bundleIdentifier": "net.mlamh.app",
       "buildNumber": "11",
       "usesAppleSignIn": true,
+      "entitlements": {
+        "com.apple.developer.applesignin": [
+          "Default"
+        ]
+      },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "CFBundleAllowMixedLocalizations": true
