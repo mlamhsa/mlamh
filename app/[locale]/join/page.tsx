@@ -3,12 +3,10 @@ import type { Metadata } from "next";
 import {
   ArrowLeft,
   BriefcaseBusiness,
+  Drama,
   Sparkles,
 } from "lucide-react";
-import {
-  notFound,
-  redirect,
-} from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { GoogleSignupButton } from "@/components/auth/GoogleSignupButton";
 import { QuickJoinForm } from "@/components/auth/QuickJoinForm";
@@ -19,561 +17,125 @@ import {
   isValidLocale,
   type Locale,
 } from "@/lib/i18n";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 type AccountType = "talent" | "publisher";
-
-type JoinError =
-  | "missing"
-  | "invalid_name"
-  | "invalid_phone"
-  | "password_short"
-  | "password_mismatch"
-  | "terms"
-  | "email_exists"
-  | "rate_limit"
-  | "signup"
-  | "invalid_account_type";
+type SignupIntent = "actor" | "model" | "publisher";
 
 type PageProps = {
-  params: Promise<{
-    locale: string;
-  }>;
-
+  params: Promise<{ locale: string }>;
   searchParams?: Promise<{
     error?: string;
     type?: string;
+    intent?: string;
   }>;
 };
 
-function isValidAccountType(
-  value: string | undefined,
-): value is AccountType {
-  return (
-    value === "talent" ||
-    value === "publisher"
-  );
-}
-
-function getJoinErrorMessage(
-  error: string | undefined,
-  isRtl: boolean,
-) {
-  if (error === "missing") {
-    return isRtl
-      ? "أكمل جميع الحقول المطلوبة."
-      : "Please complete all required fields.";
+function parseIntent(value: string | undefined): SignupIntent | null {
+  if (value === "actor" || value === "model" || value === "publisher") {
+    return value;
   }
-
-  if (error === "invalid_name") {
-    return isRtl
-      ? "أدخل اسمًا صحيحًا يتكون من حرفين على الأقل."
-      : "Enter a valid name containing at least 2 characters.";
-  }
-  
-  if (error === "invalid_phone") {
-    return isRtl
-      ? "أدخل رقم جوال صحيحًا مع مفتاح الدولة."
-      : "Enter a valid mobile number including the country code.";
-  }
-  if (error === "password_short") {
-    return isRtl
-      ? "يجب أن تتكون كلمة المرور من ٨ أحرف على الأقل."
-      : "Your password must contain at least 8 characters.";
-  }
-
-  if (error === "password_mismatch") {
-    return isRtl
-      ? "كلمتا المرور غير متطابقتين."
-      : "The passwords do not match.";
-  }
-
-  if (error === "terms") {
-    return isRtl
-      ? "يجب الموافقة على الشروط وسياسة الخصوصية للمتابعة."
-      : "You must accept the Terms and Privacy Policy to continue.";
-  }
-
-  if (error === "email_exists") {
-    return isRtl
-      ? "يوجد حساب مرتبط بهذا البريد الإلكتروني. جرّب تسجيل الدخول."
-      : "An account already exists with this email. Try signing in.";
-  }
-
-  if (error === "rate_limit") {
-    return isRtl
-      ? "تم إجراء محاولات كثيرة. انتظر قليلًا ثم حاول مرة أخرى."
-      : "Too many attempts. Please wait a moment and try again.";
-  }
-
-  if (error === "invalid_account_type") {
-    return isRtl
-      ? "اختر نوع الحساب أولًا للمتابعة."
-      : "Choose an account type first.";
-  }
-
-  if (error === "signup") {
-    return isRtl
-      ? "تعذر إنشاء الحساب حاليًا. تحقق من البيانات وحاول مرة أخرى."
-      : "Could not create your account. Check your details and try again.";
-  }
-
   return null;
 }
 
-function getSignupErrorCode(
-  message: string | undefined,
-): JoinError {
-  const normalizedMessage = String(
-    message ?? "",
-  ).toLowerCase();
-
-  if (
-    normalizedMessage.includes(
-      "already registered",
-    ) ||
-    normalizedMessage.includes(
-      "already exists",
-    ) ||
-    normalizedMessage.includes(
-      "user already",
-    )
-  ) {
-    return "email_exists";
-  }
-
-  if (
-    normalizedMessage.includes(
-      "rate limit",
-    ) ||
-    normalizedMessage.includes(
-      "too many requests",
-    ) ||
-    normalizedMessage.includes(
-      "email rate",
-    )
-  ) {
-    return "rate_limit";
-  }
-
-  return "signup";
+function parseLegacyType(value: string | undefined): AccountType | null {
+  if (value === "talent" || value === "publisher") return value;
+  return null;
 }
 
-function getOnboardingPath(
-  locale: Locale,
-  accountType: AccountType,
-) {
+function accountTypeForIntent(intent: SignupIntent | null, legacyType: AccountType | null): AccountType | null {
+  if (intent === "publisher") return "publisher";
+  if (intent === "actor" || intent === "model") return "talent";
+  return legacyType;
+}
+
+function onboardingPath(locale: Locale, accountType: AccountType) {
   return accountType === "talent"
     ? `/${locale}/join/talent`
     : `/${locale}/join/publisher`;
 }
 
-function normalizePhoneNumber(
-  value: string,
-) {
-  const trimmedValue = value.trim();
-
-  if (!trimmedValue) {
-    return "";
+function intentCopy(intent: SignupIntent | null, accountType: AccountType, isRtl: boolean) {
+  if (intent === "actor") {
+    return {
+      eyebrow: isRtl ? "فرص تمثيل" : "ACTING OPPORTUNITIES",
+      body: isRtl
+        ? "أنشئ حسابك الأساسي، وبعد تأكيد البريد سنكمل مباشرة مسار الممثل بدون إعادة سؤالك عن تخصصك."
+        : "Create your account and, after email verification, continue directly into the actor journey without choosing your role again.",
+    };
   }
-
-  const hasInternationalPrefix =
-    trimmedValue.startsWith("+");
-
-  const digits = trimmedValue.replace(
-    /\D/g,
-    "",
-  );
-
-  if (!digits) {
-    return "";
+  if (intent === "model") {
+    return {
+      eyebrow: isRtl ? "فرص مودل" : "MODELING OPPORTUNITIES",
+      body: isRtl
+        ? "أنشئ حسابك الأساسي، وبعد تأكيد البريد سنكمل مباشرة مسار المودل بدون إعادة سؤالك عن تخصصك."
+        : "Create your account and, after email verification, continue directly into the model journey without choosing your role again.",
+    };
   }
-
-  return hasInternationalPrefix
-    ? `+${digits}`
-    : digits;
-}
-
-function isValidInternationalPhone(
-  value: string,
-) {
-  return /^\+[1-9]\d{7,14}$/.test(value);
-}
-
-async function quickJoinAction(
-  accountType: AccountType,
-  formData: FormData,
-) {
-  "use server";
-
-  const rawLocale = String(
-    formData.get("locale") ?? "ar",
-  );
-
-  const locale: Locale =
-    isValidLocale(rawLocale)
-      ? rawLocale
-      : "ar";
-
-  if (!isValidAccountType(accountType)) {
-    redirect(
-      `/${locale}/join?error=invalid_account_type`,
-    );
+  if (accountType === "publisher") {
+    return {
+      eyebrow: isRtl ? "أبحث عن مواهب" : "FIND TALENT",
+      body: isRtl
+        ? "أنشئ حسابك الأساسي، ثم أكمل بيانات الناشر واحتياج مشروعك بخطوات واضحة."
+        : "Create your account, then complete your publisher details and project needs in a guided flow.",
+    };
   }
-
-  const selectedTypeQuery =
-    `type=${accountType}`;
-
-  const fullName = String(
-    formData.get("fullName") ?? "",
-  )
-    .trim()
-    .replace(/\s+/g, " ");
-
-  const email = String(
-    formData.get("email") ?? "",
-  )
-    .trim()
-    .toLowerCase();
-
-  const rawPhone = String(
-    formData.get("phone") ?? "",
-  );
-
-  const phone =
-    normalizePhoneNumber(rawPhone);
-
-  const countryIso = String(
-    formData.get("countryIso") ?? "",
-  )
-    .trim()
-    .toUpperCase();
-
-  const countryCode = String(
-    formData.get("countryCode") ?? "",
-  ).trim();
-
-  const password = String(
-    formData.get("password") ?? "",
-  );
-
-  const passwordConfirmation = String(
-    formData.get(
-      "passwordConfirmation",
-    ) ?? "",
-  );
-
-  const acceptTerms =
-    String(
-      formData.get("acceptTerms") ?? "",
-    ) === "accepted";
-
-  if (
-    !fullName ||
-    !email ||
-    !phone ||
-    !password ||
-    !passwordConfirmation
-  ) {
-    redirect(
-      `/${locale}/join?${selectedTypeQuery}&error=missing`,
-    );
-  }
-
-  if (
-    fullName.length < 2 ||
-    fullName.length > 100
-  ) {
-    redirect(
-      `/${locale}/join?${selectedTypeQuery}&error=invalid_name`,
-    );
-  }
-
-  if (!isValidInternationalPhone(phone)) {
-    redirect(
-      `/${locale}/join?${selectedTypeQuery}&error=invalid_phone`,
-    );
-  }
-
-  if (password.length < 8) {
-    redirect(
-      `/${locale}/join?${selectedTypeQuery}&error=password_short`,
-    );
-  }
-
-  if (
-    password !== passwordConfirmation
-  ) {
-    redirect(
-      `/${locale}/join?${selectedTypeQuery}&error=password_mismatch`,
-    );
-  }
-
-  if (!acceptTerms) {
-    redirect(
-      `/${locale}/join?${selectedTypeQuery}&error=terms`,
-    );
-  }
-
-  const authClient =
-  await createServerSupabaseClient();
-
-const { data, error } =
-  await authClient.auth.signUp({
-    email,
-    password,
-
-    options: {
-      data: {
-        full_name: fullName,
-      
-        display_name:
-          accountType === "talent"
-            ? fullName
-            : null,
-      
-        contact_name:
-          accountType === "publisher"
-            ? fullName
-            : null,
-      
-        phone,
-        phone_country_iso:
-          countryIso || null,
-        phone_country_code:
-          countryCode || null,
-        phone_verified: false,
-      
-        account_type: accountType,
-
-        onboarding_status:
-          "email_verification_required",
-
-        onboarding_step:
-          "email_verification",
-
-        approval_status:
-          "not_submitted",
-
-        preferred_locale: locale,
-
-        terms_accepted: true,
-        terms_accepted_at:
-          new Date().toISOString(),
-      },
-    },
-  });
-
-console.log("SIGNUP RESULT:", {
-  hasUser: Boolean(data.user),
-  userId: data.user?.id ?? null,
-  hasSession: Boolean(data.session),
-  error: error
-    ? {
-        message: error.message,
-        name: error.name,
-        status: error.status,
-        code: error.code,
-      }
-    : null,
-});
-
-if (error) {
-  console.error("SIGNUP ERROR:", {
-    message: error.message,
-    name: error.name,
-    status: error.status,
-    code: error.code,
-  });
-
-  const errorCode =
-    getSignupErrorCode(
-      error.message,
-    );
-
-  redirect(
-    `/${locale}/join?${selectedTypeQuery}&error=${errorCode}`,
-  );
-}
-
-/*
- * عند تفعيل تأكيد البريد قد لا توجد جلسة
- * مباشرة بعد إنشاء الحساب.
- *
- * بيانات إنشاء الملف محفوظة في user_metadata
- * وسيتم استخدامها بعد تأكيد البريد وتسجيل الدخول.
- */
-if (!data.session) {
-  redirect(
-    `/${locale}/login?message=verify_email&email=${encodeURIComponent(email)}`,
-  );
-}
-
-/*
- * إذا وُجدت جلسة مباشرة، يجب أن يكون لدينا user.
- */
-if (!data.user) {
-  redirect(
-    `/${locale}/join?${selectedTypeQuery}&error=signup`,
-  );
-}
-
-const adminClient =
-  createAdminClient();
-
-const { error: profileError } =
-  await adminClient
-    .from("profiles")
-    .insert({
-      user_id: data.user.id,
-      account_type: accountType,
-      display_name:
-        accountType === "talent"
-          ? fullName
-          : null,
-      phone,
-
-      status: "active",
-
-      onboarding_status:
-        "account_created",
-
-      onboarding_step:
-        accountType === "talent"
-          ? "talent_profile"
-          : "publisher_profile",
-
-      approval_status:
-        "not_submitted",
-    });
-
-if (profileError) {
-  console.error(
-    "PROFILE INSERT ERROR:",
-    {
-      message: profileError.message,
-      code: profileError.code,
-      details: profileError.details,
-      hint: profileError.hint,
-    },
-  );
-
-  redirect(
-    `/${locale}/join?${selectedTypeQuery}&error=signup`,
-  );
-}
-
-redirect(
-  getOnboardingPath(
-    locale,
-    accountType,
-  ),
-);
-}
-
-
-export async function generateMetadata({
-  params,
-}: PageProps): Promise<Metadata> {
-  const { locale: localeParam } =
-    await params;
-
-  if (!isValidLocale(localeParam)) {
-    return {};
-  }
-
-  const dict = getDictionary(
-    localeParam as Locale,
-  );
-
   return {
-    title: `${dict.join.metadataTitle} | MLAMH`,
-    description:
-      dict.join.metadataDescription,
+    eyebrow: isRtl ? "حساب موهبة" : "TALENT ACCOUNT",
+    body: isRtl
+      ? "أنشئ حسابك الأساسي، ثم أكمل ملفك المهني وصورك خطوة بخطوة."
+      : "Create your account, then complete your professional profile and portfolio step by step.",
   };
 }
 
-export default async function JoinPage({
-  params,
-  searchParams,
-}: PageProps) {
-  const { locale: localeParam } =
-    await params;
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { locale: localeParam } = await params;
+  if (!isValidLocale(localeParam)) return {};
+  const dictionary = getDictionary(localeParam as Locale);
+  return {
+    title: `${dictionary.join.metadataTitle} | MLAMH`,
+    description: dictionary.join.metadataDescription,
+  };
+}
 
-  const resolvedSearchParams =
-    searchParams
-      ? await searchParams
-      : {};
+export default async function JoinPage({ params, searchParams }: PageProps) {
+  const { locale: localeParam } = await params;
+  const query = searchParams ? await searchParams : {};
+  if (!isValidLocale(localeParam)) notFound();
 
-  if (!isValidLocale(localeParam)) {
-    notFound();
-  }
-
-  const locale =
-    localeParam as Locale;
-
+  const locale = localeParam as Locale;
   const isRtl = locale === "ar";
+  const intent = parseIntent(query.intent);
+  const legacyType = parseLegacyType(query.type);
+  const selectedAccountType = accountTypeForIntent(intent, legacyType);
 
-  const selectedAccountType =
-    isValidAccountType(
-      resolvedSearchParams.type,
-    )
-      ? resolvedSearchParams.type
-      : null;
-
-  const authClient =
-    await createServerSupabaseClient();
-
+  const authClient = await createServerSupabaseClient();
   const {
     data: { user },
   } = await authClient.auth.getUser();
 
-  /*
-   * المستخدم المسجل مسبقًا:
-   * نقرأ نوع الحساب المحفوظ في user_metadata
-   * ونرسله مباشرة إلى مسار استكمال ملفه.
-   */
   if (user) {
-    const storedAccountType =
-      user.user_metadata
-        ?.account_type;
+    const admin = createAdminClient();
+    const { data: profile } = await admin
+      .from("profiles")
+      .select("account_type")
+      .eq("user_id", user.id)
+      .maybeSingle();
 
-    if (
-      isValidAccountType(
-        storedAccountType,
-      )
-    ) {
-      redirect(
-        getOnboardingPath(
-          locale,
-          storedAccountType,
-        ),
-      );
+    const storedType = profile?.account_type ?? user.user_metadata?.account_type;
+    if (storedType === "admin") redirect("/admin");
+    if (storedType === "talent" || storedType === "publisher") {
+      redirect(onboardingPath(locale, storedType));
     }
 
-    /*
-     * دعم الحسابات التجريبية القديمة
-     * التي لم يُحفظ نوعها داخل metadata.
-     */
-    redirect(
-      `/${locale}/join/account-type`,
-    );
+    // Backward-compatible recovery for authenticated legacy accounts that never selected a role.
+    redirect(`/${locale}/join/account-type`);
   }
 
-  const errorMessage =
-    getJoinErrorMessage(
-      resolvedSearchParams.error,
-      isRtl,
-    );
-
-  const boundQuickJoinAction =
-    selectedAccountType
-      ? quickJoinAction.bind(
-          null,
-          selectedAccountType,
-        )
-      : null;
+  const selectedCopy = selectedAccountType
+    ? intentCopy(intent, selectedAccountType, isRtl)
+    : null;
 
   return (
     <main className="relative z-[2] bg-black pb-[calc(4.75rem+env(safe-area-inset-bottom))] lg:pb-0">
@@ -586,119 +148,61 @@ export default async function JoinPage({
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(200,169,106,0.16),transparent_45%)]" />
 
         <div className="relative z-10 w-full max-w-5xl">
-          {selectedAccountType ? (
+          {selectedAccountType && selectedCopy ? (
             <div className="mx-auto w-full max-w-md rounded-[1.75rem] border border-white/10 bg-white/[0.035] p-5 shadow-2xl backdrop-blur-xl sm:rounded-[2rem] sm:p-7">
-              <div className="mb-7 sm:mb-8">
-                <Link
-                  href={`/${locale}/join`}
-                  className="mb-6 inline-flex min-h-10 items-center gap-2 rounded-full border border-white/10 px-4 text-xs text-white/55 transition hover:border-gold/40 hover:text-gold"
-                >
-                  <ArrowLeft
-                    size={15}
-                    className={
-                      isRtl
-                        ? "rotate-180"
-                        : ""
-                    }
-                  />
+              <Link
+                href={`/${locale}/join`}
+                className="mb-6 inline-flex min-h-10 items-center gap-2 rounded-full border border-white/10 px-4 text-xs text-white/55 transition hover:border-gold/40 hover:text-gold"
+              >
+                <ArrowLeft size={15} className={isRtl ? "rotate-180" : ""} />
+                {isRtl ? "تغيير الهدف" : "Change goal"}
+              </Link>
 
-                  {isRtl
-                    ? "تغيير نوع الحساب"
-                    : "Change account type"}
-                </Link>
-
-                <div className="text-center">
-                  <div className="mb-6 flex items-center justify-center gap-2">
-                    <span className="h-1.5 w-8 rounded-full bg-gold" />
-                    <span className="h-1.5 w-8 rounded-full bg-gold" />
-                    <span className="h-1.5 w-8 rounded-full bg-white/10" />
-                  </div>
-
-                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-gold/25 bg-gold/[0.08] text-gold">
-                    {selectedAccountType ===
-                    "talent" ? (
-                      <Sparkles
-                        size={21}
-                      />
-                    ) : (
-                      <BriefcaseBusiness
-                        size={21}
-                      />
-                    )}
-                  </div>
-
-                  <p className="arabic-safe mt-5 text-xs uppercase tracking-[0.3em] text-gold">
-                    {selectedAccountType ===
-                    "talent"
-                      ? isRtl
-                        ? "حساب موهبة"
-                        : "Talent account"
-                      : isRtl
-                        ? "حساب ناشر"
-                        : "Publisher account"}
-                  </p>
-
-                  <h1 className="mt-4 text-3xl font-light leading-tight sm:text-4xl">
-                    {isRtl
-                      ? "أنشئ حسابك"
-                      : "Create your account"}
-                  </h1>
-
-                  <p className="mt-3 text-sm leading-7 text-white/45">
-                    {selectedAccountType ===
-                    "talent"
-                      ? isRtl
-                        ? "أنشئ حسابك الأساسي، ثم أكمل ملفك المهني واعرض أعمالك للجهات الناشرة."
-                        : "Create your account, then complete your professional talent profile."
-                      : isRtl
-                        ? "أنشئ حسابك الأساسي، ثم أكمل ملف الجهة وابدأ إدارة فرصك."
-                        : "Create your account, then complete your publisher profile and manage opportunities."}
-                  </p>
+              <div className="mb-7 text-center">
+                <div className="mb-6 flex items-center justify-center gap-2">
+                  <span className="h-1.5 w-8 rounded-full bg-gold" />
+                  <span className="h-1.5 w-8 rounded-full bg-gold" />
+                  <span className="h-1.5 w-8 rounded-full bg-white/10" />
                 </div>
+
+                <p className="arabic-safe text-xs uppercase tracking-[0.3em] text-gold">
+                  {selectedCopy.eyebrow}
+                </p>
+                <h1 className="mt-4 text-3xl font-light leading-tight sm:text-4xl">
+                  {isRtl ? "أنشئ حسابك" : "Create your account"}
+                </h1>
+                <p className="mt-3 text-sm leading-7 text-white/45">
+                  {selectedCopy.body}
+                </p>
               </div>
 
-              {errorMessage ? (
-                <div
-                  role="alert"
-                  aria-live="polite"
-                  className="mb-5 rounded-2xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-center text-sm leading-6 text-red-300"
-                >
-                  {errorMessage}
-                </div>
-              ) : null}
-
-              {boundQuickJoinAction ? (
-                <QuickJoinForm
+              <QuickJoinForm
                 locale={locale}
                 accountType={selectedAccountType}
-                action={boundQuickJoinAction}
+                intent={intent ?? (selectedAccountType === "publisher" ? "publisher" : undefined)}
               />
-              ) : null}
 
-<GoogleSignupButton
-  locale={locale}
-  accountType={selectedAccountType}
-/>
+              <div className="my-5 flex items-center gap-3 text-[11px] text-white/30">
+                <span className="h-px flex-1 bg-white/10" />
+                <span>{isRtl ? "أو" : "OR"}</span>
+                <span className="h-px flex-1 bg-white/10" />
+              </div>
+
+              <GoogleSignupButton
+                locale={locale}
+                accountType={selectedAccountType}
+                intent={intent ?? (selectedAccountType === "publisher" ? "publisher" : undefined)}
+              />
+
               <div className="mt-8 border-t border-white/10 pt-6 text-center text-sm text-white/45">
-                {isRtl
-                  ? "لديك حساب؟"
-                  : "Already have an account?"}{" "}
-
-                <Link
-                  href={`/${locale}/login`}
-                  className="text-gold transition hover:text-gold-soft"
-                >
-                  {isRtl
-                    ? "تسجيل الدخول"
-                    : "Sign in"}
+                {isRtl ? "لديك حساب؟" : "Already have an account?"}{" "}
+                <Link href={`/${locale}/login`} className="text-gold transition hover:text-gold-soft">
+                  {isRtl ? "تسجيل الدخول" : "Sign in"}
                 </Link>
               </div>
             </div>
           ) : (
-            <AccountTypeSelection
-              locale={locale}
-              isRtl={isRtl}
-            />
+            <IntentSelection locale={locale} isRtl={isRtl} />
           )}
         </div>
       </section>
@@ -708,13 +212,7 @@ export default async function JoinPage({
   );
 }
 
-function AccountTypeSelection({
-  locale,
-  isRtl,
-}: {
-  locale: Locale;
-  isRtl: boolean;
-}) {
+function IntentSelection({ locale, isRtl }: { locale: Locale; isRtl: boolean }) {
   return (
     <div>
       <div className="mx-auto max-w-3xl text-center">
@@ -725,89 +223,53 @@ function AccountTypeSelection({
         </div>
 
         <p className="arabic-safe text-xs uppercase tracking-[0.35em] text-gold">
-          {isRtl
-            ? "ابدأ مع ملامح"
-            : "Get started with MLAMH"}
+          {isRtl ? "ابدأ بما تريد" : "START WITH YOUR GOAL"}
         </p>
-
         <h1 className="mt-5 text-4xl font-light leading-tight sm:text-5xl lg:text-6xl">
-          {isRtl
-            ? "كيف تريد استخدام ملامح؟"
-            : "How will you use MLAMH?"}
+          {isRtl ? "كيف تريد استخدام ملامح؟" : "What do you want to do on MLAMH?"}
         </h1>
-
         <p className="mx-auto mt-5 max-w-xl text-sm leading-7 text-white/45 sm:text-base">
           {isRtl
-            ? "اختر المسار المناسب لك. يمكنك إنشاء حسابك خلال لحظات ثم استكمال ملفك."
-            : "Choose the path that fits you. Create your account in moments, then complete your profile."}
+            ? "اختر هدفك، وسنجهز لك المسار المناسب بدون مصطلحات أو خطوات مكررة."
+            : "Choose your goal and we’ll prepare the right journey without duplicate setup steps."}
         </p>
       </div>
 
-      <div className="mx-auto mt-12 grid max-w-4xl gap-5 md:grid-cols-2">
-        <AccountTypeCard
-          href={`/${locale}/join?type=talent`}
-          icon={<Sparkles size={24} />}
-          title={
-            isRtl
-              ? "أنا موهبة"
-              : "I am talent"
-          }
-          description={
-            isRtl
-              ? "أنشئ ملفك، اعرض صورك وأعمالك، وتقدم إلى الفرص المناسبة."
-              : "Build your profile, showcase your work, and apply to suitable opportunities."
-          }
-          actionLabel={
-            isRtl
-              ? "التسجيل كموهبة"
-              : "Continue as talent"
-          }
+      <div className="mx-auto mt-12 grid max-w-5xl gap-5 md:grid-cols-3">
+        <IntentCard
+          href={`/${locale}/join?intent=actor`}
+          icon={<Drama size={24} />}
+          title={isRtl ? "أريد فرص تمثيل" : "I want acting opportunities"}
+          description={isRtl ? "أنشئ ملف ممثل وابدأ التقديم على الفرص المناسبة." : "Create an actor profile and apply to relevant opportunities."}
+          actionLabel={isRtl ? "ابدأ كممثل" : "Continue as actor"}
         />
-
-        <AccountTypeCard
-          href={`/${locale}/join?type=publisher`}
-          icon={
-            <BriefcaseBusiness
-              size={24}
-            />
-          }
-          title={
-            isRtl
-              ? "أنا ناشر"
-              : "I am a publisher"
-          }
-          description={
-            isRtl
-              ? "أنشئ ملف جهتك، انشر الفرص، واستقبل طلبات المواهب وأدرها."
-              : "Create your company profile, publish opportunities, and manage talent applications."
-          }
-          actionLabel={
-            isRtl
-              ? "التسجيل كناشر"
-              : "Continue as publisher"
-          }
+        <IntentCard
+          href={`/${locale}/join?intent=model`}
+          icon={<Sparkles size={24} />}
+          title={isRtl ? "أريد فرص مودل" : "I want modeling opportunities"}
+          description={isRtl ? "أنشئ ملف مودل واعرض صورك وبياناتك المهنية." : "Create a model profile and showcase your portfolio."}
+          actionLabel={isRtl ? "ابدأ كمودل" : "Continue as model"}
+        />
+        <IntentCard
+          href={`/${locale}/join?intent=publisher`}
+          icon={<BriefcaseBusiness size={24} />}
+          title={isRtl ? "أبحث عن مواهب لمشروع" : "I need talent for a project"}
+          description={isRtl ? "أنشئ حساب ناشر وأكمل احتياج مشروعك بخطوات واضحة." : "Create a publisher account and define your project needs."}
+          actionLabel={isRtl ? "ابدأ البحث عن مواهب" : "Continue to find talent"}
         />
       </div>
 
       <div className="mt-10 text-center text-sm text-white/40">
-        {isRtl
-          ? "لديك حساب بالفعل؟"
-          : "Already have an account?"}{" "}
-
-        <Link
-          href={`/${locale}/login`}
-          className="text-gold transition hover:text-gold-soft"
-        >
-          {isRtl
-            ? "تسجيل الدخول"
-            : "Sign in"}
+        {isRtl ? "لديك حساب بالفعل؟" : "Already have an account?"}{" "}
+        <Link href={`/${locale}/login`} className="text-gold transition hover:text-gold-soft">
+          {isRtl ? "تسجيل الدخول" : "Sign in"}
         </Link>
       </div>
     </div>
   );
 }
 
-function AccountTypeCard({
+function IntentCard({
   href,
   icon,
   title,
@@ -823,28 +285,17 @@ function AccountTypeCard({
   return (
     <Link
       href={href}
-      className="group flex min-h-[270px] flex-col rounded-[1.75rem] border border-white/10 bg-white/[0.025] p-6 transition duration-300 hover:-translate-y-1 hover:border-gold/45 hover:bg-gold/[0.045] sm:p-8"
+      className="group flex min-h-[285px] flex-col rounded-[1.75rem] border border-white/10 bg-white/[0.025] p-6 transition duration-300 hover:-translate-y-1 hover:border-gold/45 hover:bg-gold/[0.045] sm:p-7"
     >
       <div className="flex h-14 w-14 items-center justify-center rounded-full border border-gold/25 bg-gold/[0.08] text-gold transition group-hover:bg-gold group-hover:text-black">
         {icon}
       </div>
-
-      <h2 className="mt-8 text-3xl font-light">
-        {title}
-      </h2>
-
-      <p className="mt-4 max-w-sm text-sm leading-7 text-white/45">
-        {description}
-      </p>
-
+      <h2 className="mt-7 text-2xl font-light leading-tight sm:text-3xl">{title}</h2>
+      <p className="mt-4 text-sm leading-7 text-white/45">{description}</p>
       <div className="mt-auto flex items-center justify-between gap-4 pt-8 text-sm text-gold">
         <span>{actionLabel}</span>
-
         <span className="flex h-10 w-10 items-center justify-center rounded-full border border-gold/25 transition group-hover:bg-gold group-hover:text-black">
-          <ArrowLeft
-            size={17}
-            className="rotate-180 rtl:rotate-0"
-          />
+          <ArrowLeft size={17} className="rotate-180 rtl:rotate-0" />
         </span>
       </div>
     </Link>
