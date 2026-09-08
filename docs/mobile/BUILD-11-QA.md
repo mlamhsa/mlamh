@@ -34,6 +34,15 @@ This file is the source-of-truth tracker for the Build 11 batch. A source change
 - 🟡 Settings now reads the canonical account phone instead of Supabase Auth phone; Build 11 verification required.
 - ⏳ Admin phone and verification-state surface audit remains.
 
+## Account deletion / App Store compliance
+- ✅ In-app Settings entry for permanent account deletion added and intentionally easy to find.
+- ✅ Destructive confirmation clearly states that account/profile/photos/associated data are permanently removed.
+- ✅ Authenticated `/api/account/delete` source endpoint added.
+- ✅ Server deletion service removes owned talent gallery storage, talent/profile/privacy rows, publisher opportunities/profile data, user roles/marketing user data, then deletes the Supabase Auth user.
+- 🟡 Full deletion path requires isolated test-account verification before Build 11/App Review; do not test with a real user account.
+- 🔒 Sign in with Apple deletion must also revoke the Apple authorization token before App Store release once Apple provider configuration is complete.
+- 🔒 Production backend route exposure/release remains gated; source implementation alone is not App Review-ready until backend + Build 11 verification pass.
+
 ## Talent onboarding journey
 - ✅ Intent avoids asking Actor/Model twice where known.
 - ✅ Journey orchestrator routes to the next real incomplete step.
@@ -99,5 +108,5 @@ This file is the source-of-truth tracker for the Build 11 batch. A source change
 
 ## CI
 - Latest tracked green checkpoint `c0fa52fd44158a120370f4734cac5fa221f49f7a`: Vercel Preview success.
-- Latest source batch includes settings canonical-phone/in-place locale switching and expanded canonical nationalities; CI re-check pending.
+- Latest source batch includes permanent account deletion UI/API/service plus settings canonical-phone/in-place locale switching and expanded canonical nationalities; CI re-check pending.
 - Re-check CI after every subsequent coherent source batch before marking it green.
