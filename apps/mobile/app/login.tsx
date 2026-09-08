@@ -8,8 +8,9 @@ import { getMobileAccountContext } from "@/lib/account";
 import { getAccountHomeHref } from "@/lib/account-routing";
 import { isRtlLocale } from "@/lib/i18n";
 import { useAppLocale } from "@/lib/locale-context";
+import { goBackOrReplace } from "@/lib/navigation";
 import { getSafePostLoginPath } from "@/lib/post-login-route";
-import { supabase } from "@/lib/supabase";
+import { clearPendingSignupContext, supabase } from "@/lib/supabase";
 import { darkTheme } from "@/lib/theme";
 
 const BRAND_LOGO_AR = require("../assets/logo.ar.png");
@@ -69,6 +70,7 @@ export default function LoginScreen() {
     setLoading(true);
     setError(null);
     try {
+      await clearPendingSignupContext().catch(() => undefined);
       const { data, error: authError } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
       if (authError || !data.user) {
         setError(getCredentialError(isArabic, authError));
@@ -86,6 +88,7 @@ export default function LoginScreen() {
     setLoading(true);
     setError(null);
     try {
+      await clearPendingSignupContext().catch(() => undefined);
       const redirectTo = "mlamh://auth/callback";
       const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
         provider,
@@ -112,7 +115,7 @@ export default function LoginScreen() {
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.scrollContent, compact && styles.scrollContentCompact]} showsVerticalScrollIndicator={false}>
         <View style={[styles.content, compact && styles.contentCompact]}>
           <View style={[styles.topRow, compact && styles.topRowCompact, isRtl && styles.topRowRtl]}>
-            <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "رجوع" : "Back"} onPress={() => router.back()} hitSlop={12} style={styles.iconButton}>
+            <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "رجوع" : "Back"} onPress={() => goBackOrReplace("/")} hitSlop={12} style={styles.iconButton}>
               {isRtl ? <ArrowRight size={22} color={theme.text} strokeWidth={1.8} /> : <ArrowLeft size={22} color={theme.text} strokeWidth={1.8} />}
             </Pressable>
             <View style={styles.brandLockup}><Image source={brandSource} resizeMode="contain" style={[styles.brandLogo, compact && styles.brandLogoCompact]} /></View>
