@@ -40,12 +40,24 @@ export async function deleteMlamhAccount(userId: string) {
     if (error) return { ok: false as const, code: "DATA_DELETE_FAILED" as const };
   }
 
+  // Remove user-owned application data before deleting the canonical talent/profile rows.
+  // Financial payment records are intentionally not included here because statutory/accounting
+  // retention can require them to be retained separately from the active user account.
   const deletionSteps: Array<PromiseLike<{ error: unknown }>> = [
+    supabase.from("admin_talent_profiles").delete().eq("user_id", userId),
+    supabase.from("mobile_push_devices").delete().eq("user_id", userId),
+    supabase.from("notification_preferences").delete().eq("user_id", userId),
+    supabase.from("saved_opportunities").delete().eq("user_id", userId),
+    supabase.from("entitlements").delete().eq("user_id", userId),
+    supabase.from("support_tickets").delete().eq("user_id", userId),
+    supabase.from("talent_claim_requests").delete().eq("user_id", userId),
+    supabase.from("talent_profile_change_requests").delete().eq("user_id", userId),
     supabase.from("talent_privacy_history").delete().eq("user_id", userId),
     supabase.from("marketing_events").delete().eq("user_id", userId),
     supabase.from("marketing_approvals").delete().eq("requested_by_user_id", userId),
     supabase.from("marketing_approvals").delete().eq("decision_by_user_id", userId),
     supabase.from("user_roles").delete().eq("user_id", userId),
+    supabase.from("subscriptions").delete().eq("user_id", userId),
     supabase.from("talents").delete().eq("user_id", userId),
     supabase.from("profiles").delete().eq("user_id", userId),
   ];
