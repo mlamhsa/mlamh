@@ -7,6 +7,7 @@ import { ArrowLeft, ArrowRight, Building2, Check, ChevronLeft, ChevronRight, Dra
 import { MOBILE_API_BASE_URL } from "@/lib/api-config";
 import { isRtlLocale } from "@/lib/i18n";
 import { useAppLocale } from "@/lib/locale-context";
+import { goBackOrReplace } from "@/lib/navigation";
 import { clearPendingSignupContext, setPendingSignupContext, supabase } from "@/lib/supabase";
 import { darkTheme } from "@/lib/theme";
 
@@ -69,7 +70,7 @@ export default function SignupScreen() {
   function goBack() {
     setError(null);
     if (step === 2) { setStep(1); return; }
-    router.back();
+    goBackOrReplace("/");
   }
 
   function continueFromIntent() {
