@@ -4,6 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { ArrowLeft, ArrowRight, CheckCircle2, Mail, RotateCcw } from "lucide-react-native";
 
+import { MOBILE_API_BASE_URL } from "@/lib/api-config";
 import { isRtlLocale } from "@/lib/i18n";
 import { useAppLocale } from "@/lib/locale-context";
 import { supabase } from "@/lib/supabase";
@@ -15,6 +16,22 @@ type TalentIntent = "actor" | "model" | "";
 const BRAND_LOGO_AR = require("../assets/logo.ar.png");
 const BRAND_LOGO_EN = require("../assets/logo.en.png");
 const RESEND_SECONDS = 45;
+
+async function persistTalentIntent(accessToken: string, talentIntent: Exclude<TalentIntent, "">) {
+  const response = await fetch(`${MOBILE_API_BASE_URL}/api/talent/onboarding`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ talentType: talentIntent }),
+  });
+  const raw = await response.text().catch(() => "");
+  let payload: { ok?: boolean; code?: string } = {};
+  try { payload = raw ? JSON.parse(raw) as { ok?: boolean; code?: string } : {}; } catch { payload = {}; }
+  return { response, payload };
+}
 
 export default function VerifyEmailScreen() {
   const params = useLocalSearchParams<{ email?: string; accountType?: AccountType; talentIntent?: TalentIntent }>();
@@ -62,12 +79,34 @@ export default function VerifyEmailScreen() {
         setError(isArabic ? "الرمز غير صحيح أو انتهت صلاحيته. تحقق من الرمز أو أرسل رمزًا جديدًا." : "That code is incorrect or expired. Check it or request a new code.");
         return;
       }
-      setMessage(isArabic ? "تم تأكيد بريدك بنجاح." : "Your email has been verified.");
+
       if (accountType === "publisher") {
+        setMessage(isArabic ? "تم تأكيد بريدك بنجاح." : "Your email has been verified.");
         router.replace("/publisher/setup");
-      } else {
-        router.replace({ pathname: "/onboarding", params: talentIntent ? { intent: talentIntent } : undefined });
+        return;
       }
+
+      if (talentIntent) {
+        let attempt = await persistTalentIntent(data.session.access_token, talentIntent);
+        if (attempt.response.status === 401 || attempt.payload.code === "UNAUTHENTICATED") {
+          const { data: refreshed } = await supabase.auth.refreshSession().catch(() => ({ data: { session: null } }));
+          if (!refreshed.session?.access_token) {
+            setError(isArabic ? "تم تأكيد البريد، لكن تعذر بدء ملفك. سجّل الدخول وأكمل من حيث توقفت." : "Your email is verified, but we could not start your profile. Sign in and continue where you left off.");
+            return;
+          }
+          attempt = await persistTalentIntent(refreshed.session.access_token, talentIntent);
+        }
+        if (!attempt.response.ok || !attempt.payload.ok) {
+          setError(isArabic ? "تم تأكيد بريدك، لكن تعذر تجهيز ملف الموهبة الآن. حاول مرة أخرى." : "Your email is verified, but we could not prepare your talent profile right now. Try again.");
+          return;
+        }
+        setMessage(isArabic ? "تم تأكيد بريدك وبدء ملفك بنجاح." : "Your email is verified and your profile is ready to continue.");
+        router.replace("/profile/journey");
+        return;
+      }
+
+      setMessage(isArabic ? "تم تأكيد بريدك بنجاح." : "Your email has been verified.");
+      router.replace("/onboarding");
     } catch {
       setError(isArabic ? "تعذر تأكيد البريد الآن. تحقق من اتصالك وحاول مرة أخرى." : "We could not verify your email right now. Check your connection and try again.");
     } finally {
@@ -115,7 +154,7 @@ export default function VerifyEmailScreen() {
 
           <View style={[styles.hero, { alignItems: isRtl ? "flex-end" : "flex-start" }]}>
             <View style={styles.mailIcon}><Mail size={26} color="#C9A962" strokeWidth={1.8} /></View>
-            <Text style={[styles.eyebrow, { textAlign }]}>{isArabic ? "خطوة أخيرة" : "ONE LAST STEP"}</Text>
+            <Text style={[styles.eyebrow, { textAlign }]}>{isArabic ? "تأكيد الحساب" : "ACCOUNT VERIFICATION"}</Text>
             <Text accessibilityRole="header" style={[styles.title, { textAlign }]}>{isArabic ? "تحقق من بريدك" : "Verify your email"}</Text>
             <Text style={[styles.subtitle, { textAlign }]}>{isArabic ? "أرسلنا رمزًا مكونًا من 6 أرقام إلى" : "We sent a 6-digit code to"}</Text>
             <Text selectable style={[styles.email, { textAlign }]}>{email || "—"}</Text>
@@ -144,7 +183,7 @@ export default function VerifyEmailScreen() {
             {message ? <View style={styles.successBox}><CheckCircle2 size={18} color="#B8D8B5" /><Text accessibilityRole="alert" style={[styles.successText, { textAlign }]}>{message}</Text></View> : null}
 
             <Pressable accessibilityRole="button" accessibilityState={{ disabled: loading || token.length !== 6, busy: loading }} disabled={loading || token.length !== 6} onPress={() => void verify()} style={({ pressed }) => [styles.primaryButton, (loading || token.length !== 6) && styles.disabled, pressed && styles.pressed]}>
-              <Text style={styles.primaryText}>{loading ? (isArabic ? "جارٍ التحقق…" : "Verifying…") : (isArabic ? "تأكيد الرمز" : "Verify code")}</Text>
+              <Text style={styles.primaryText}>{loading ? (isArabic ? "جارٍ التحقق…" : "Verifying…") : (isArabic ? "تأكيد الرمز والمتابعة" : "Verify and continue")}</Text>
             </Pressable>
 
             <Pressable accessibilityRole="button" disabled={secondsLeft > 0 || resending} onPress={() => void resend()} style={({ pressed }) => [styles.resendButton, (secondsLeft > 0 || resending) && styles.resendDisabled, pressed && styles.pressed]}>
