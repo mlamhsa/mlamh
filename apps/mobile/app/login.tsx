@@ -15,6 +15,8 @@ import { darkTheme } from "@/lib/theme";
 const BRAND_LOGO_AR = require("../assets/logo.ar.png");
 const BRAND_LOGO_EN = require("../assets/logo.en.png");
 
+type SocialProvider = "google" | "apple";
+
 async function resolvePostLoginDestination(nextParam?: string): Promise<Href> {
   const account = await getMobileAccountContext().catch(() => null);
   if (account) {
@@ -38,8 +40,8 @@ function getCredentialError(isArabic: boolean, error: { code?: string; message?:
     return isArabic ? "يجب تأكيد بريدك الإلكتروني قبل تسجيل الدخول." : "Confirm your email address before signing in.";
   }
   return isArabic
-    ? "تعذر تسجيل الدخول بهذه البيانات. إذا أنشأت حسابك باستخدام Google فاختر «المتابعة باستخدام Google». وإلا تحقق من البريد وكلمة المرور."
-    : "We could not sign you in with those credentials. If you created your account with Google, use Continue with Google. Otherwise, check your email and password.";
+    ? "تعذر تسجيل الدخول بهذه البيانات. إذا أنشأت حسابك باستخدام Google أو Apple فاختر طريقة الدخول نفسها. وإلا تحقق من البريد وكلمة المرور."
+    : "We could not sign you in with those credentials. If you created your account with Google or Apple, use the same sign-in method. Otherwise, check your email and password.";
 }
 
 export default function LoginScreen() {
@@ -80,22 +82,24 @@ export default function LoginScreen() {
     }
   }
 
-  async function signInWithGoogle() {
+  async function signInWithSocial(provider: SocialProvider) {
     setLoading(true);
     setError(null);
     try {
       const redirectTo = "mlamh://auth/callback";
       const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
-        provider: "google",
+        provider,
         options: { redirectTo, skipBrowserRedirect: true },
       });
       if (oauthError || !data.url) {
-        setError(isArabic ? "تعذر بدء تسجيل الدخول باستخدام Google." : "Unable to start Google sign-in.");
+        const providerName = provider === "apple" ? "Apple" : "Google";
+        setError(isArabic ? `تعذر بدء تسجيل الدخول باستخدام ${providerName}.` : `Unable to start ${providerName} sign-in.`);
         return;
       }
       await Linking.openURL(data.url);
     } catch {
-      setError(isArabic ? "تعذر تسجيل الدخول باستخدام Google. حاول مرة أخرى." : "Unable to sign in with Google. Please try again.");
+      const providerName = provider === "apple" ? "Apple" : "Google";
+      setError(isArabic ? `تعذر تسجيل الدخول باستخدام ${providerName}. حاول مرة أخرى.` : `Unable to sign in with ${providerName}. Please try again.`);
     } finally {
       setLoading(false);
     }
@@ -145,7 +149,8 @@ export default function LoginScreen() {
           </View>
 
           <View style={styles.dividerRow}><View style={styles.dividerLine}/><Text style={[styles.dividerText, isArabic && styles.arabicText]}>{isArabic ? "أو" : "OR"}</Text><View style={styles.dividerLine}/></View>
-          <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "المتابعة باستخدام Google" : "Continue with Google"} disabled={loading} onPress={() => void signInWithGoogle()} style={({ pressed }) => [styles.googleButton, loading && styles.disabled, pressed && styles.pressed]}><Text style={[styles.googleButtonText, isArabic && styles.arabicText]}>{isArabic ? "المتابعة باستخدام Google" : "Continue with Google"}</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "المتابعة باستخدام Apple" : "Continue with Apple"} disabled={loading} onPress={() => void signInWithSocial("apple")} style={({ pressed }) => [styles.socialButton, loading && styles.disabled, pressed && styles.pressed]}><Text style={[styles.socialButtonText, isArabic && styles.arabicText]}>{isArabic ? "المتابعة باستخدام Apple" : "Continue with Apple"}</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "المتابعة باستخدام Google" : "Continue with Google"} disabled={loading} onPress={() => void signInWithSocial("google")} style={({ pressed }) => [styles.socialButton, loading && styles.disabled, pressed && styles.pressed]}><Text style={[styles.socialButtonText, isArabic && styles.arabicText]}>{isArabic ? "المتابعة باستخدام Google" : "Continue with Google"}</Text></Pressable>
           <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "إنشاء حساب" : "Create an account"} onPress={() => router.push("/signup")} style={styles.secondaryButton}><Text style={[styles.signupLink, isArabic && styles.arabicText]}>{isArabic ? "إنشاء حساب جديد" : "Create a new account"}</Text></Pressable>
           <Text style={[styles.footnote, isArabic && styles.arabicFootnote]}>{isArabic ? "موهبة حقيقية. فرص أكثر." : "REAL TALENT. MORE OPPORTUNITIES."}</Text>
         </View>
@@ -192,8 +197,8 @@ function createStyles(theme: typeof darkTheme) { return StyleSheet.create({
   dividerRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   dividerLine: { flex: 1, height: 1, backgroundColor: theme.border },
   dividerText: { color: theme.muted, fontSize: 10, fontWeight: "800" },
-  googleButton: { minHeight: 52, borderRadius: 14, borderWidth: 1, borderColor: theme.border, alignItems: "center", justifyContent: "center", backgroundColor: theme.surface, paddingHorizontal: 18 },
-  googleButtonText: { color: theme.text, fontSize: 14, fontWeight: "800", textAlign: "center" },
+  socialButton: { minHeight: 52, borderRadius: 14, borderWidth: 1, borderColor: theme.border, alignItems: "center", justifyContent: "center", backgroundColor: theme.surface, paddingHorizontal: 18 },
+  socialButtonText: { color: theme.text, fontSize: 14, fontWeight: "800", textAlign: "center" },
   secondaryButton: { minHeight: 44, alignItems: "center", justifyContent: "center" },
   signupLink: { color: theme.accent, fontSize: 12, fontWeight: "800", textAlign: "center" },
   footnote: { color: "#6F6F69", fontSize: 9, fontWeight: "800", letterSpacing: 2, textAlign: "center", paddingTop: 4 },
