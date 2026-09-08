@@ -1,4 +1,5 @@
 # RC Build 11 trigger — iOS buildNumber 11 / Android versionCode 11
+# Source freeze: Apple native auth + safe account-deletion revocation included
 name: Mobile RC Paired Build
 
 on:
