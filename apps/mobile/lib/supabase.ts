@@ -6,6 +6,7 @@ import NativeStorage from "expo-sqlite/kv-store";
 
 const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const publishableKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+const PENDING_SIGNUP_CONTEXT_KEY = "mlamh.pending-signup-context.v1";
 
 if (!url || !publishableKey) throw new Error("Missing EXPO_PUBLIC_SUPABASE_URL or EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY.");
 
@@ -16,6 +17,40 @@ const webStorage: SupportedStorage = {
 };
 
 const storage: SupportedStorage = Platform.OS === "web" ? webStorage : NativeStorage;
+
+export type PendingSignupContext = {
+  intent: "actor" | "model" | "publisher";
+  accountType: "talent" | "publisher";
+  createdAt: string;
+};
+
+export async function setPendingSignupContext(context: Omit<PendingSignupContext, "createdAt">) {
+  await storage.setItem(PENDING_SIGNUP_CONTEXT_KEY, JSON.stringify({ ...context, createdAt: new Date().toISOString() }));
+}
+
+export async function getPendingSignupContext(): Promise<PendingSignupContext | null> {
+  const raw = await storage.getItem(PENDING_SIGNUP_CONTEXT_KEY);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as Partial<PendingSignupContext>;
+    if ((parsed.intent !== "actor" && parsed.intent !== "model" && parsed.intent !== "publisher") ||
+        (parsed.accountType !== "talent" && parsed.accountType !== "publisher") ||
+        typeof parsed.createdAt !== "string") return null;
+    const ageMs = Date.now() - new Date(parsed.createdAt).getTime();
+    if (!Number.isFinite(ageMs) || ageMs < 0 || ageMs > 30 * 60 * 1000) {
+      await storage.removeItem(PENDING_SIGNUP_CONTEXT_KEY);
+      return null;
+    }
+    return parsed as PendingSignupContext;
+  } catch {
+    await storage.removeItem(PENDING_SIGNUP_CONTEXT_KEY);
+    return null;
+  }
+}
+
+export async function clearPendingSignupContext() {
+  await storage.removeItem(PENDING_SIGNUP_CONTEXT_KEY);
+}
 
 export const supabase = createClient(url, publishableKey, {
   auth: { storage, autoRefreshToken: true, persistSession: true, detectSessionInUrl: false },
