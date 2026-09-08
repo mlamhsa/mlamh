@@ -40,7 +40,7 @@ jobs:
         shell: bash
         run: |
           test -n "$EXPO_TOKEN"
-          npx eas-cli@latest submit:view "$IOS_SUBMISSION_ID" --platform ios --json > /tmp/eas-build11-submission.json
+          npx eas-cli@latest submit:view "$IOS_SUBMISSION_ID" --json > /tmp/eas-build11-submission.json
           cat /tmp/eas-build11-submission.json
           node - <<'NODE'
           const fs = require('fs');
