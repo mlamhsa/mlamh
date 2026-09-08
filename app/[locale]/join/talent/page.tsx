@@ -1,106 +1,77 @@
 import { Footer } from "@/components/Footer";
-import { TalentQuickSetupForm } from "@/components/TalentQuickSetupForm";
 import { Navbar } from "@/components/Navbar";
-
-import {
-  isValidLocale,
-  type Locale,
-} from "@/lib/i18n";
-
+import { TalentQuickSetupForm } from "@/components/TalentQuickSetupForm";
+import { isValidLocale, type Locale } from "@/lib/i18n";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { notFound, redirect } from "next/navigation";
 
+type TalentRole = "actor" | "model";
+
 type PageProps = {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ message?: string }>;
+  searchParams?: Promise<{ message?: string; intent?: string }>;
 };
 
 type ProfileRow = {
   account_type: string | null;
-  display_name: string | null;
-  phone: string | null;
   onboarding_status: string | null;
   onboarding_step: string | null;
 };
 
-export default async function JoinTalentPage({
-  params,
-  searchParams,
-}: PageProps) {
-  const { locale: localeParam } = await params;
-  const { message } = await searchParams;
+function parseTalentRole(value: unknown): TalentRole | null {
+  return value === "actor" || value === "model" ? value : null;
+}
 
-  if (!isValidLocale(localeParam)) {
-    notFound();
-  }
+export default async function JoinTalentPage({ params, searchParams }: PageProps) {
+  const { locale: localeParam } = await params;
+  const query = searchParams ? await searchParams : {};
+  if (!isValidLocale(localeParam)) notFound();
 
   const locale = localeParam as Locale;
   const isRtl = locale === "ar";
-
-  const authClient =
-    await createServerSupabaseClient();
-
+  const authClient = await createServerSupabaseClient();
   const {
     data: { user },
     error: userError,
   } = await authClient.auth.getUser();
 
   if (userError || !user) {
-    redirect(`/${locale}/join?type=talent`);
+    redirect(`/${locale}/join`);
   }
 
-  /**
-   * نتحقق من حالة استكمال الحساب قبل عرض النموذج.
-   */
-  const {
-    data: profile,
-    error: profileError,
-  } = await authClient
+  const { data: profile, error: profileError } = await authClient
     .from("profiles")
-    .select(
-      "account_type, display_name, phone, onboarding_status, onboarding_step",
-    )
+    .select("account_type, onboarding_status, onboarding_step")
     .eq("user_id", user.id)
     .maybeSingle<ProfileRow>();
 
   if (profileError) {
-    console.error(
-      "[JoinTalentPage profileLookup]",
-      profileError,
-    );
+    console.error("[JoinTalentPage profileLookup]", profileError);
   }
 
-  /**
-   * إذا اكتمل تسجيل الموهبة، لا نعرض نموذج التسجيل مرة أخرى.
-   */
-  if (
-    profile?.account_type === "talent" &&
-    profile.onboarding_status === "completed"
-  ) {
+  if (profile?.account_type === "publisher") {
+    redirect(`/${locale}/publisher-dashboard`);
+  }
+
+  if (profile?.account_type === "talent" && profile.onboarding_status === "completed") {
     redirect(`/${locale}/talent-dashboard`);
   }
 
-  /**
-   * منع حساب الناشر من الدخول إلى تسجيل الموهبة
-   * بعد اكتمال تحديد نوع حسابه.
-   */
+  // A talent entity already exists and the role step was saved: resume at the next real step.
   if (
-    profile?.account_type === "publisher" &&
-    profile.onboarding_status === "completed"
+    profile?.account_type === "talent" &&
+    profile.onboarding_status === "profile_in_progress" &&
+    profile.onboarding_step === "core_data"
   ) {
-    redirect(`/${locale}/dashboard/publisher`);
+    redirect(`/${locale}/talent-dashboard/profile`);
   }
 
-  const displayFont = isRtl
-    ? "var(--font-noto-arabic)"
-    : "var(--font-cormorant)";
-
-  const bodyFont = isRtl
-    ? "var(--font-noto-arabic)"
-    : "var(--font-dm-sans)";
-
-  const emailVerified =
-    message === "email_verified";
+  const metadataIntent = parseTalentRole(
+    user.user_metadata?.signup_intent ?? user.user_metadata?.talent_intent,
+  );
+  const queryIntent = parseTalentRole(query.intent);
+  const initialRole = metadataIntent ?? queryIntent;
+  const emailVerified = query.message === "email_verified";
 
   return (
     <main
@@ -110,98 +81,46 @@ export default async function JoinTalentPage({
       <Navbar locale={locale} />
 
       <div className="relative overflow-hidden pb-20 pt-28 md:pb-28 md:pt-32">
-        <div
-          className="pointer-events-none absolute inset-0"
-          aria-hidden="true"
-        >
+        <div className="pointer-events-none absolute inset-0" aria-hidden="true">
           <div className="absolute left-1/2 top-0 h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-gold/[0.04] blur-[100px]" />
         </div>
 
-        <div className="group relative mx-auto max-w-3xl px-4 sm:px-6 lg:max-w-4xl lg:px-10">
-          {emailVerified && (
-            <div
-              className="mb-8 rounded-2xl border border-gold/25 bg-gold/[0.06] px-5 py-4 sm:px-6"
-              role="status"
-            >
-              <div
-                className={`flex items-start gap-3 ${
-                  isRtl ? "text-right" : "text-left"
-                }`}
-              >
-                <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-gold/40 text-sm text-gold">
-                  ✓
-                </div>
-
-                <div>
-                  <p
-                    className="text-sm font-medium text-white"
-                    style={{ fontFamily: bodyFont }}
-                  >
-                    {isRtl
-                      ? "تم تأكيد بريدك الإلكتروني بنجاح"
-                      : "Your email has been verified successfully"}
-                  </p>
-
-                  <p
-                    className="mt-1 text-xs leading-6 text-gray-muted sm:text-sm"
-                    style={{ fontFamily: bodyFont }}
-                  >
-                    {isRtl
-                      ? "أكمل الآن إعداد حسابك للبدء في ملامح."
-                      : "Complete your account setup to get started with MLAMH."}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <header
-            className={`mb-10 group-has-[.talent-setup-success]:hidden sm:mb-14 md:mb-16 ${
-              isRtl ? "text-right" : "text-left"
-            }`}
-          >
-            <div
-              className={`mb-6 flex items-center gap-4 ${
-                isRtl ? "flex-row-reverse" : ""
-              }`}
-            >
-              <span className="gold-line max-w-[80px] flex-1" />
-
-              <p className="arabic-safe text-[10px] uppercase tracking-[0.4em] text-gold">
-                {isRtl
-                  ? "إعداد حساب الموهبة"
-                  : "Talent Account Setup"}
+        <div className="relative mx-auto max-w-3xl px-4 sm:px-6 lg:max-w-4xl lg:px-10">
+          {emailVerified ? (
+            <div className="mb-8 rounded-2xl border border-gold/25 bg-gold/[0.06] px-5 py-4" role="status">
+              <p className="text-sm font-medium text-white">
+                {isRtl ? "✓ تم تأكيد بريدك الإلكتروني" : "✓ Your email has been verified"}
+              </p>
+              <p className="mt-1 text-xs leading-6 text-gray-muted sm:text-sm">
+                {isRtl ? "نكمل الآن إعداد ملفك خطوة بخطوة." : "Now we'll continue your profile setup step by step."}
               </p>
             </div>
+          ) : null}
 
-            <h1
-              className="text-[clamp(2.5rem,8vw,4.5rem)] font-light leading-[1.05] text-white sm:leading-[0.95]"
-              style={{ fontFamily: displayFont }}
-            >
-              {isRtl
-                ? "إعداد ملف الموهبة"
-                : "Talent Profile Setup"}
+          <header className={`mb-10 sm:mb-14 ${isRtl ? "text-right" : "text-left"}`}>
+            <p className="arabic-safe text-[10px] uppercase tracking-[0.4em] text-gold">
+              {isRtl ? "إعداد ملف الموهبة" : "TALENT PROFILE SETUP"}
+            </p>
+            <h1 className="mt-4 text-[clamp(2.4rem,8vw,4.2rem)] font-light leading-[1.08] text-white">
+              {initialRole
+                ? (isRtl ? "نبدأ من اختيارك" : "Continue from your choice")
+                : (isRtl ? "حدد تخصصك الأساسي" : "Choose your primary role")}
             </h1>
-
-            <p
-              className="mt-6 max-w-2xl text-sm leading-7 text-gray-muted md:text-base"
-              style={{ fontFamily: bodyFont }}
-            >
-              {isRtl
-                ? "اختر تخصصك الأساسي، وسننقلك مباشرة إلى ملامح."
-                : "Choose your primary talent type, and we'll take you straight into MLAMH."}
+            <p className="mt-5 max-w-2xl text-sm leading-7 text-gray-muted md:text-base">
+              {initialRole
+                ? (isRtl
+                    ? "حفظنا اختيارك من بداية التسجيل، لذلك لن نكرر عليك نفس السؤال."
+                    : "We kept the role you chose at signup, so you won't be asked the same question again.")
+                : (isRtl
+                    ? "هذه الخطوة تظهر فقط للحسابات القديمة أو التي لم تحدد المسار أثناء التسجيل."
+                    : "This step is only needed for legacy accounts or signups without a saved role.")}
             </p>
           </header>
 
-          <TalentQuickSetupForm
-            locale={locale}
-          />
+          <TalentQuickSetupForm locale={locale} initialRole={initialRole} />
         </div>
 
-        <div
-          className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-gold/30 to-transparent"
-          aria-hidden="true"
-        />
+        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-gold/30 to-transparent" aria-hidden="true" />
       </div>
 
       <Footer locale={locale} />
