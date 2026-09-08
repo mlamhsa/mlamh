@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
@@ -19,10 +19,22 @@ export default function ForgotPasswordScreen() {
   const theme = darkTheme;
   const styles = useMemo(() => createStyles(theme, compact), [compact, theme]);
   const [email, setEmail] = useState("");
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const BackIcon = isRtl ? ArrowRight : ArrowLeft;
+
+  useEffect(() => {
+    let active = true;
+    void supabase.auth.getUser().then(({ data }) => {
+      if (!active) return;
+      const user = data.user;
+      setIsAuthenticated(Boolean(user));
+      if (user?.email) setEmail((current) => current || user.email || "");
+    });
+    return () => { active = false; };
+  }, []);
 
   async function submit() {
     const value = email.trim().toLowerCase();
@@ -48,6 +60,14 @@ export default function ForgotPasswordScreen() {
     }
   }
 
+  function leaveRecovery() {
+    if (isAuthenticated) {
+      router.back();
+      return;
+    }
+    router.replace("/login");
+  }
+
   const textAlign = isRtl ? "right" : "left";
   const disabled = loading || Boolean(message);
 
@@ -63,7 +83,7 @@ export default function ForgotPasswordScreen() {
           <View style={styles.header}>
             <Text style={[styles.eyebrow, isArabic && styles.arabicText, isRtl && styles.textRtl]}>{isArabic ? "أمان الحساب" : "ACCOUNT SECURITY"}</Text>
             <Text accessibilityRole="header" style={[styles.title, { textAlign }, isRtl && styles.textRtl]}>{isArabic ? "استعادة كلمة المرور" : "Reset your password"}</Text>
-            <Text style={[styles.subtitle, { textAlign }, isRtl && styles.textRtl]}>{isArabic ? "أدخل بريد حسابك وسنرسل رابطًا آمنًا يعيدك للتطبيق." : "Enter your account email and we'll send a secure link that returns you to the app."}</Text>
+            <Text style={[styles.subtitle, { textAlign }, isRtl && styles.textRtl]}>{isAuthenticated ? (isArabic ? "بريد حسابك ظاهر أدناه. سنرسل إليه رابطًا آمنًا لتغيير كلمة المرور." : "Your account email is shown below. We'll send a secure password-reset link to it.") : (isArabic ? "أدخل بريد حسابك وسنرسل رابطًا آمنًا يعيدك للتطبيق." : "Enter your account email and we'll send a secure link that returns you to the app.")}</Text>
           </View>
 
           <View style={styles.formCard}>
@@ -74,7 +94,7 @@ export default function ForgotPasswordScreen() {
             <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "إرسال رابط الاستعادة" : "Send recovery link"} accessibilityState={{ disabled, busy: loading }} disabled={disabled} onPress={() => void submit()} style={({ pressed }) => [styles.button, disabled && styles.disabled, pressed && !disabled && styles.pressed]}><Text style={styles.buttonText}>{loading ? (isArabic ? "جارٍ الإرسال…" : "Sending…") : message ? (isArabic ? "تم إرسال الطلب" : "Request sent") : (isArabic ? "إرسال رابط الاستعادة" : "Send recovery link")}</Text></Pressable>
           </View>
 
-          <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "العودة لتسجيل الدخول" : "Back to sign in"} onPress={() => router.replace("/login")} style={styles.secondaryButton}><Text style={styles.secondaryText}>{isArabic ? "العودة لتسجيل الدخول" : "Back to sign in"}</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={isAuthenticated ? (isArabic ? "العودة" : "Go back") : (isArabic ? "العودة لتسجيل الدخول" : "Back to sign in")} onPress={leaveRecovery} style={styles.secondaryButton}><Text style={styles.secondaryText}>{isAuthenticated ? (isArabic ? "العودة" : "Go back") : (isArabic ? "العودة لتسجيل الدخول" : "Back to sign in")}</Text></Pressable>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
