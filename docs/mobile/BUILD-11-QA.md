@@ -52,7 +52,9 @@ This file is the source-of-truth tracker for the Build 11 batch. A source change
 - ✅ Formal Journey Progress remains 25 / 50 / 75 / 100 and stays distinct from Profile Completion/Review Readiness.
 - 🟡 Profile editor now uses explicit Save & Continue, validates actual review-required fields, and warns before leaving with unsaved changes; Build 11 verification required.
 - 🟡 Mid-onboarding relaunch canonical route fix needs Build 11 physical-device verification.
-- ⏳ Web talent onboarding still needs intent-aware bypass of the old Actor/Model chooser so the web matches the mobile intent-first flow.
+- ✅ Web signup now carries Actor/Model intent into talent setup and does not ask the same role question again when the intent is known.
+- ✅ Web talent draft creation now keeps onboarding as `profile_in_progress` / `core_data` instead of incorrectly marking the account completed immediately after choosing a role.
+- 🟡 Web talent setup now routes directly to the next profile step after saving the role; preview/regression verification required.
 - ⏳ Remaining screen-by-screen copy/CTA consistency audit outside profile/publisher setup.
 
 ## Talent privacy
@@ -97,13 +99,14 @@ This file is the source-of-truth tracker for the Build 11 batch. A source change
 - ⏳ Ensure Admin publisher phone/source-of-truth and onboarding state are surfaced consistently.
 
 ## Web / route cleanup
+- ✅ Web `/join` is now intent-first with three explicit goals: Acting / Modeling / Find talent, matching the mobile product language.
 - ✅ Web quick form no longer continuously writes registration fields to session storage.
-- ✅ Web email signup now performs client-side Auth signup and routes directly to the 6-digit OTP screen rather than the legacy login/confirmation-link message.
+- ✅ Web email signup performs client-side Auth signup and routes directly to the 6-digit OTP screen rather than the legacy login/confirmation-link message.
 - ✅ Web OTP verification creates the canonical application profile before routing onward.
-- ✅ Google + Apple web signup now share one callback and required-phone completion flow.
+- ✅ Google + Apple web signup share one callback and required-phone completion flow, and now receive the selected intent.
 - ✅ OAuth callback no longer falls back to the legacy `/join/account-type` page for unresolved new accounts; it returns to canonical `/join` instead.
-- 🟡 Legacy `/join/account-type` remains for backward compatibility but should be retired only after route/regression verification.
-- ⏳ Web intent-first UI still needs Actor / Model / Find talent parity with mobile.
+- 🟡 Legacy `/join/account-type` remains only as backward-compatible recovery for authenticated old accounts with no saved account type; retire after route/regression verification.
+- 🟡 Web canonical join rewrite requires Vercel Preview/regression verification before this section is considered release-ready.
 
 ## Security / release gates
 - 🔒 PR #112 remains Draft and unmerged.
@@ -115,5 +118,5 @@ This file is the source-of-truth tracker for the Build 11 batch. A source change
 
 ## CI
 - Green checkpoint `3ad401fd4293bfdb1042bc5de304781ba5d565d5`: Vercel Preview success after the profile editor/nationality/measurements rewrite.
-- Latest source batch additionally includes guided Publisher setup plus the integrated compact RTL drag-and-drop gallery route and primary-photo feedback; CI re-check pending.
+- Latest source batch includes the canonical intent-first web join rewrite, intent-aware web talent setup, onboarding-state correction, guided Publisher setup and the compact RTL drag-and-drop gallery route.
 - Re-check CI after every subsequent coherent source batch before marking it green.
