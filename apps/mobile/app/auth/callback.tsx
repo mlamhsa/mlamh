@@ -55,7 +55,8 @@ export default function AuthCallbackScreen() {
         if (type) query.set("type", type);
         if (accessToken) query.set("access_token", accessToken);
         if (refreshToken) query.set("refresh_token", refreshToken);
-        callbackUrl = `mlamh://auth/callback${query.size ? `?${query.toString()}` : ""}`;
+        const queryString = query.toString();
+        callbackUrl = `mlamh://auth/callback${queryString ? `?${queryString}` : ""}`;
       }
 
       const consumed = await consumeNativeAuthCallback(callbackUrl);
