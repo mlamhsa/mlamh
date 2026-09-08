@@ -14,15 +14,17 @@ This file is the source-of-truth tracker for the Build 11 batch. A source change
 - ✅ Intent-first signup: Acting / Modeling / Find talent.
 - ✅ Email + password remains the credential model.
 - ✅ Mobile 6-digit Email OTP UI and verification flow.
-- ✅ Web 6-digit Email OTP screen added; canonical join handoff still being reconciled.
+- ✅ Web 6-digit Email OTP UI and canonical email-signup handoff implemented in source.
+- ✅ Web OTP verification now creates/updates the canonical `profiles` account record from verified Auth metadata before continuing onboarding.
 - ✅ Required mobile number captured for email signup.
-- ✅ Social signup completion screen requires mobile number for Google/Apple users.
+- ✅ Social signup completion requires name + canonical mobile number for Google/Apple users before onboarding.
 - ✅ Google and Apple mobile signup entries converge through the same callback/account completion path.
-- ✅ Pending social signup context has a 30-minute TTL and carries intent/locale/terms acceptance.
+- ✅ Web Google + Apple signup entries converge through `/auth/callback` and the same required-phone account-completion page.
+- ✅ Pending social signup context has a 30-minute TTL and carries intent/locale/terms acceptance on mobile.
 - ✅ No continuous field autosave in the web quick registration form; save occurs on explicit submission.
 - 🟡 Google callback source fix needs Build 11 physical-device verification.
 - 🟡 Apple OAuth source path exists; iOS app config now declares `usesAppleSignIn: true`. Apple Developer + Supabase provider configuration and real-iPhone verification remain.
-- 🔒 Production Supabase Confirm Signup template must not switch to OTP until mobile + web canonical flows are ready.
+- 🔒 Production Supabase Confirm Signup template must not switch to OTP until preview/integration verification of the new web + mobile clients passes.
 - 🔒 Existing registered accounts must remain untouched/backward-compatible.
 
 ## Account data
@@ -44,11 +46,12 @@ This file is the source-of-truth tracker for the Build 11 batch. A source change
 - 🔒 Production backend route exposure/release remains gated; source implementation alone is not App Review-ready until backend + Build 11 verification pass.
 
 ## Talent onboarding journey
-- ✅ Intent avoids asking Actor/Model twice where known.
+- ✅ Intent avoids asking Actor/Model twice where known on mobile.
 - ✅ Journey orchestrator routes to the next real incomplete step.
 - ✅ Core data → privacy when applicable → photos → review.
 - ✅ Formal Journey Progress remains 25 / 50 / 75 / 100 and stays distinct from Profile Completion/Review Readiness.
 - 🟡 Mid-onboarding relaunch canonical route fix needs Build 11 physical-device verification.
+- ⏳ Web talent onboarding still needs intent-aware bypass of the old Actor/Model chooser so the web matches the mobile intent-first flow.
 - ⏳ Final screen-by-screen copy/CTA consistency and unsaved-change guard audit.
 
 ## Talent privacy
@@ -95,10 +98,12 @@ This file is the source-of-truth tracker for the Build 11 batch. A source change
 
 ## Web / route cleanup
 - ✅ Web quick form no longer continuously writes registration fields to session storage.
-- ✅ Web OTP verification UI created.
-- ⏳ Canonical web intent-first signup handoff to OTP.
-- ⏳ Consolidate `/join`, legacy account-type, talent/publisher onboarding redirects without loops or duplicate registration states.
-- ⏳ Align Google/Apple web social signup with required-phone completion.
+- ✅ Web email signup now performs client-side Auth signup and routes directly to the 6-digit OTP screen rather than the legacy login/confirmation-link message.
+- ✅ Web OTP verification creates the canonical application profile before routing onward.
+- ✅ Google + Apple web signup now share one callback and required-phone completion flow.
+- ✅ OAuth callback no longer falls back to the legacy `/join/account-type` page for unresolved new accounts; it returns to canonical `/join` instead.
+- 🟡 Legacy `/join/account-type` remains for backward compatibility but should be retired only after route/regression verification.
+- ⏳ Web intent-first UI still needs Actor / Model / Find talent parity with mobile.
 
 ## Security / release gates
 - 🔒 PR #112 remains Draft and unmerged.
@@ -110,5 +115,5 @@ This file is the source-of-truth tracker for the Build 11 batch. A source change
 
 ## CI
 - Latest tracked green checkpoint `c0fa52fd44158a120370f4734cac5fa221f49f7a`: Vercel Preview success.
-- Latest source batch now also includes the iOS Sign in with Apple capability declaration, reusable polished single-select sheet, Arabic opportunities filter anchoring fix and comprehensive mobile nationality fallback; CI re-check pending.
+- Latest source batch includes web Email OTP canonical routing/profile creation, Google+Apple web required-phone completion, iOS Sign in with Apple capability declaration, reusable polished single-select sheet, Arabic opportunities filter anchoring and comprehensive mobile nationality fallback.
 - Re-check CI after every subsequent coherent source batch before marking it green.
