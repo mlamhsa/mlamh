@@ -50,9 +50,10 @@ This file is the source-of-truth tracker for the Build 11 batch. A source change
 - ✅ Journey orchestrator routes to the next real incomplete step.
 - ✅ Core data → privacy when applicable → photos → review.
 - ✅ Formal Journey Progress remains 25 / 50 / 75 / 100 and stays distinct from Profile Completion/Review Readiness.
+- 🟡 Profile editor now uses explicit Save & Continue, validates actual review-required fields, and warns before leaving with unsaved changes; Build 11 verification required.
 - 🟡 Mid-onboarding relaunch canonical route fix needs Build 11 physical-device verification.
 - ⏳ Web talent onboarding still needs intent-aware bypass of the old Actor/Model chooser so the web matches the mobile intent-first flow.
-- ⏳ Final screen-by-screen copy/CTA consistency and unsaved-change guard audit.
+- ⏳ Remaining screen-by-screen copy/CTA consistency audit outside profile/publisher setup.
 
 ## Talent privacy
 - ✅ Product modes defined: `public`, `verified_publishers`, `private`.
@@ -72,29 +73,28 @@ This file is the source-of-truth tracker for the Build 11 batch. A source change
 
 ## Build 10 physical-device QA carried into Build 11
 - 🟡 Opportunities Arabic filter/featured horizontal containers now anchor a full-width RTL row from the right in source; Build 11 device verification required.
-- 🟡 Opportunity details and DOB source formatters explicitly use Gregorian calendar + Latin numbering; remaining opportunity/list/date surfaces still require audit and Build 11 verification before closing this item.
+- 🟡 Opportunity details and DOB source formatters explicitly use Gregorian calendar + Latin numbering; profile DOB formatter/picker has also been hardened to Gregorian + Latin numbering. Remaining opportunity/list/date surfaces still require audit and Build 11 verification before closing this item.
 - ⏳ Gallery RTL ordering starts from right.
 - ⏳ Gallery cards/images reduced to professional mobile sizing.
 - ⏳ Gallery native drag-and-drop; remove `تقديم` / `تأخير`.
 - ⏳ Clear primary-photo feedback.
 - ✅ Gallery fullscreen safe-area: Build 10 physical-device PASS.
 - 🟡 Canonical nationality dataset expanded substantially across GCC, Arab, European, Asian, African, North/South American and Oceania markets.
-- ✅ Mobile nationality fallback is now also comprehensive, so a profile-options API outage no longer collapses the selector back to the old limited list.
-- 🟡 Reusable mobile-native single-select sheet source component prepared with search, explicit current selection, draft selection, confirm action, RTL and empty state; profile editor integration remains.
-- ⏳ Nationality selector integration in profile editor and Build 11 verification.
-- ⏳ Measurements & Appearance redesign.
+- ✅ Mobile nationality fallback is comprehensive, so a profile-options API outage no longer collapses the selector back to the old limited list.
+- 🟡 Nationality selector is now integrated into the profile editor using the polished single-select sheet with search, current selection, draft selection, explicit confirmation, RTL and empty state; Build 11 verification required.
+- 🟡 Measurements & Appearance source redesigned into optional compact metric cards plus clean selectors instead of the dense chip wall; Build 11 verification required.
+- 🟡 Required-field gold-star UX is implemented in Talent profile edit and Support, and Publisher setup now follows the same convention. Remaining forms still require audit.
 - 🟡 Settings language switching now updates in place without route replacement/relaunch; Build 11 verification required.
 - 🟡 Password recovery now prefills the signed-in account email and uses a context-aware return action; Build 11 verification required.
 - 🟡 Support email/mobile labels and values now align correctly for Arabic while preserving LTR value direction; Build 11 verification required.
 - 🟡 Legal document switching now resets scroll position to the top; Build 11 verification required.
-- ⏳ Back navigation reliability.
-- ⏳ Required-field gold-star consistency across all forms. Support form is implemented; remaining forms pending.
+- ⏳ Back navigation reliability audit across remaining auth/onboarding screens.
 - 🟡 Bottom navigation source audit confirms the physical order is Opportunities → Applications → Messages → Profile, which renders Profile at the far right for Arabic; Build 11 device verification remains required.
 
 ## Publisher onboarding
-- ⏳ Redesign as a brief/value-led guided journey.
-- ⏳ Apply required-field and step-save conventions.
-- ⏳ Ensure account phone/source-of-truth and Admin state are consistent.
+- 🟡 Publisher setup source now uses a guided step card, explicit required fields, Save & Continue, inline validation and unsaved-change guard; Build 11 verification required.
+- ⏳ Value/brief-led publisher journey beyond identity setup remains to be designed against the existing publisher APIs without inventing unsupported AI features.
+- ⏳ Ensure Admin publisher phone/source-of-truth and onboarding state are surfaced consistently.
 
 ## Web / route cleanup
 - ✅ Web quick form no longer continuously writes registration fields to session storage.
@@ -114,6 +114,6 @@ This file is the source-of-truth tracker for the Build 11 batch. A source change
 - ⏳ Security policy cleanup for the five staging advisory tables.
 
 ## CI
-- Latest tracked green checkpoint `c0fa52fd44158a120370f4734cac5fa221f49f7a`: Vercel Preview success.
-- Latest source batch includes web Email OTP canonical routing/profile creation, Google+Apple web required-phone completion, iOS Sign in with Apple capability declaration, reusable polished single-select sheet, Arabic opportunities filter anchoring and comprehensive mobile nationality fallback.
+- Green checkpoint `3ad401fd4293bfdb1042bc5de304781ba5d565d5`: Vercel Preview success after the profile editor/nationality/measurements rewrite.
+- Latest source batch additionally includes the guided Publisher setup changes; CI re-check pending.
 - Re-check CI after every subsequent coherent source batch before marking it green.
