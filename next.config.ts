@@ -66,7 +66,8 @@ export default withSentryConfig(nextConfig, {
   org: "mlamh",
   project: "mlamh-web",
   authToken: process.env.SENTRY_AUTH_TOKEN,
-  silent: true,
+  silent: false,
+  debug: true,
   telemetry: false,
   sourcemaps: {
     disable: !process.env.SENTRY_AUTH_TOKEN,
