@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   Sparkles,
   Star,
+  UserCheck,
   Users,
 } from "lucide-react";
 
@@ -76,6 +77,12 @@ export const adminNavigation: AdminNavigationGroup[] = [
     titleAr: "إدارة الحسابات",
     titleEn: "Account Management",
     items: [
+      {
+        labelAr: "التسجيل والتفعيل",
+        labelEn: "Registration & Activation",
+        href: "/admin/activation",
+        icon: UserCheck,
+      },
       {
         labelAr: "المواهب",
         labelEn: "Talents",
