@@ -1,0 +1,42 @@
+name: Mobile Build 11 TestFlight Submit
+
+on:
+  push:
+    branches:
+      - feat/mobile-platform-phase0
+    paths:
+      - ".github/workflows/mobile-build11-testflight-submit.yml"
+  workflow_dispatch:
+
+jobs:
+  submit-ios-build11:
+    name: Submit iOS Build 11 to TestFlight
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: apps/mobile
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      IOS_BUILD_ID: 84983607-c5fb-4ae3-b840-47b6d089847c
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ce38293e3de010b85791e01df3dda51c73c0c341
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.0"
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --include=dev --no-audit --no-fund
+
+      - name: Validate Expo authentication
+        run: test -n "$EXPO_TOKEN"
+
+      - name: Submit exact Build 11 to TestFlight
+        run: npx eas-cli@latest submit --platform ios --profile testflight --id "$IOS_BUILD_ID" --non-interactive
