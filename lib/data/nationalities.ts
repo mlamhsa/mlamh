@@ -13,41 +13,132 @@ export const NATIONALITIES = [
   { slug: "palestinian", ar: "فلسطيني", en: "Palestinian" },
   { slug: "yemeni", ar: "يمني", en: "Yemeni" },
   { slug: "sudanese", ar: "سوداني", en: "Sudanese" },
+  { slug: "south-sudanese", ar: "جنوب سوداني", en: "South Sudanese" },
   { slug: "moroccan", ar: "مغربي", en: "Moroccan" },
   { slug: "algerian", ar: "جزائري", en: "Algerian" },
   { slug: "tunisian", ar: "تونسي", en: "Tunisian" },
   { slug: "libyan", ar: "ليبي", en: "Libyan" },
+  { slug: "mauritanian", ar: "موريتاني", en: "Mauritanian" },
+  { slug: "somali", ar: "صومالي", en: "Somali" },
+  { slug: "djiboutian", ar: "جيبوتي", en: "Djiboutian" },
+  { slug: "comorian", ar: "قمري", en: "Comorian" },
   { slug: "american", ar: "أمريكي", en: "American" },
-  { slug: "british", ar: "بريطاني", en: "British" },
   { slug: "canadian", ar: "كندي", en: "Canadian" },
+  { slug: "mexican", ar: "مكسيكي", en: "Mexican" },
+  { slug: "brazilian", ar: "برازيلي", en: "Brazilian" },
+  { slug: "argentinian", ar: "أرجنتيني", en: "Argentinian" },
+  { slug: "chilean", ar: "تشيلي", en: "Chilean" },
+  { slug: "colombian", ar: "كولومبي", en: "Colombian" },
+  { slug: "peruvian", ar: "بيروفي", en: "Peruvian" },
+  { slug: "venezuelan", ar: "فنزويلي", en: "Venezuelan" },
+  { slug: "ecuadorian", ar: "إكوادوري", en: "Ecuadorian" },
+  { slug: "bolivian", ar: "بوليفي", en: "Bolivian" },
+  { slug: "uruguayan", ar: "أوروغواياني", en: "Uruguayan" },
+  { slug: "paraguayan", ar: "باراغواياني", en: "Paraguayan" },
+  { slug: "cuban", ar: "كوبي", en: "Cuban" },
+  { slug: "dominican", ar: "دومينيكاني", en: "Dominican" },
+  { slug: "jamaican", ar: "جامايكي", en: "Jamaican" },
+  { slug: "british", ar: "بريطاني", en: "British" },
+  { slug: "irish", ar: "أيرلندي", en: "Irish" },
   { slug: "french", ar: "فرنسي", en: "French" },
   { slug: "german", ar: "ألماني", en: "German" },
+  { slug: "spanish", ar: "إسباني", en: "Spanish" },
+  { slug: "italian", ar: "إيطالي", en: "Italian" },
+  { slug: "portuguese", ar: "برتغالي", en: "Portuguese" },
+  { slug: "dutch", ar: "هولندي", en: "Dutch" },
+  { slug: "belgian", ar: "بلجيكي", en: "Belgian" },
+  { slug: "swiss", ar: "سويسري", en: "Swiss" },
+  { slug: "austrian", ar: "نمساوي", en: "Austrian" },
+  { slug: "swedish", ar: "سويدي", en: "Swedish" },
+  { slug: "norwegian", ar: "نرويجي", en: "Norwegian" },
+  { slug: "danish", ar: "دنماركي", en: "Danish" },
+  { slug: "finnish", ar: "فنلندي", en: "Finnish" },
+  { slug: "icelandic", ar: "آيسلندي", en: "Icelandic" },
+  { slug: "polish", ar: "بولندي", en: "Polish" },
+  { slug: "czech", ar: "تشيكي", en: "Czech" },
+  { slug: "slovak", ar: "سلوفاكي", en: "Slovak" },
+  { slug: "hungarian", ar: "مجري", en: "Hungarian" },
+  { slug: "romanian", ar: "روماني", en: "Romanian" },
+  { slug: "bulgarian", ar: "بلغاري", en: "Bulgarian" },
+  { slug: "greek", ar: "يوناني", en: "Greek" },
+  { slug: "croatian", ar: "كرواتي", en: "Croatian" },
+  { slug: "serbian", ar: "صربي", en: "Serbian" },
+  { slug: "bosnian", ar: "بوسني", en: "Bosnian" },
+  { slug: "slovenian", ar: "سلوفيني", en: "Slovenian" },
+  { slug: "albanian", ar: "ألباني", en: "Albanian" },
+  { slug: "kosovar", ar: "كوسوفي", en: "Kosovar" },
+  { slug: "ukrainian", ar: "أوكراني", en: "Ukrainian" },
+  { slug: "russian", ar: "روسي", en: "Russian" },
+  { slug: "belarusian", ar: "بيلاروسي", en: "Belarusian" },
+  { slug: "moldovan", ar: "مولدوفي", en: "Moldovan" },
+  { slug: "georgian", ar: "جورجي", en: "Georgian" },
+  { slug: "armenian", ar: "أرميني", en: "Armenian" },
+  { slug: "azerbaijani", ar: "أذربيجاني", en: "Azerbaijani" },
   { slug: "turkish", ar: "تركي", en: "Turkish" },
+  { slug: "cypriot", ar: "قبرصي", en: "Cypriot" },
+  { slug: "iranian", ar: "إيراني", en: "Iranian" },
+  { slug: "afghan", ar: "أفغاني", en: "Afghan" },
   { slug: "pakistani", ar: "باكستاني", en: "Pakistani" },
   { slug: "indian", ar: "هندي", en: "Indian" },
   { slug: "bangladeshi", ar: "بنغلاديشي", en: "Bangladeshi" },
+  { slug: "sri-lankan", ar: "سريلانكي", en: "Sri Lankan" },
+  { slug: "nepalese", ar: "نيبالي", en: "Nepalese" },
+  { slug: "bhutanese", ar: "بوتاني", en: "Bhutanese" },
+  { slug: "maldivian", ar: "مالديفي", en: "Maldivian" },
+  { slug: "chinese", ar: "صيني", en: "Chinese" },
+  { slug: "japanese", ar: "ياباني", en: "Japanese" },
+  { slug: "south-korean", ar: "كوري جنوبي", en: "South Korean" },
+  { slug: "north-korean", ar: "كوري شمالي", en: "North Korean" },
+  { slug: "mongolian", ar: "منغولي", en: "Mongolian" },
+  { slug: "taiwanese", ar: "تايواني", en: "Taiwanese" },
+  { slug: "hong-konger", ar: "هونغ كونغي", en: "Hong Konger" },
+  { slug: "singaporean", ar: "سنغافوري", en: "Singaporean" },
+  { slug: "malaysian", ar: "ماليزي", en: "Malaysian" },
+  { slug: "indonesian", ar: "إندونيسي", en: "Indonesian" },
   { slug: "filipino", ar: "فلبيني", en: "Filipino" },
+  { slug: "thai", ar: "تايلندي", en: "Thai" },
+  { slug: "vietnamese", ar: "فيتنامي", en: "Vietnamese" },
+  { slug: "cambodian", ar: "كمبودي", en: "Cambodian" },
+  { slug: "laotian", ar: "لاوسي", en: "Laotian" },
+  { slug: "myanmarese", ar: "ميانماري", en: "Myanmarese" },
+  { slug: "bruneian", ar: "بروناوي", en: "Bruneian" },
+  { slug: "australian", ar: "أسترالي", en: "Australian" },
+  { slug: "new-zealander", ar: "نيوزيلندي", en: "New Zealander" },
+  { slug: "south-african", ar: "جنوب أفريقي", en: "South African" },
+  { slug: "nigerian", ar: "نيجيري", en: "Nigerian" },
+  { slug: "ghanaian", ar: "غاني", en: "Ghanaian" },
+  { slug: "kenyan", ar: "كيني", en: "Kenyan" },
+  { slug: "ethiopian", ar: "إثيوبي", en: "Ethiopian" },
+  { slug: "eritrean", ar: "إريتري", en: "Eritrean" },
+  { slug: "ugandan", ar: "أوغندي", en: "Ugandan" },
+  { slug: "tanzanian", ar: "تنزاني", en: "Tanzanian" },
+  { slug: "rwandan", ar: "رواندي", en: "Rwandan" },
+  { slug: "burundian", ar: "بوروندي", en: "Burundian" },
+  { slug: "senegalese", ar: "سنغالي", en: "Senegalese" },
+  { slug: "ivorian", ar: "إيفواري", en: "Ivorian" },
+  { slug: "cameroonian", ar: "كاميروني", en: "Cameroonian" },
+  { slug: "congolese", ar: "كونغولي", en: "Congolese" },
+  { slug: "angolan", ar: "أنغولي", en: "Angolan" },
+  { slug: "zambian", ar: "زامبي", en: "Zambian" },
+  { slug: "zimbabwean", ar: "زيمبابوي", en: "Zimbabwean" },
+  { slug: "mozambican", ar: "موزمبيقي", en: "Mozambican" },
+  { slug: "botswanan", ar: "بوتسواني", en: "Botswanan" },
+  { slug: "namibian", ar: "ناميبي", en: "Namibian" },
+  { slug: "mauritian", ar: "موريشيوسي", en: "Mauritian" },
+  { slug: "seychellois", ar: "سيشيلي", en: "Seychellois" },
 ] as const;
 
 export function getNationalityBySlug(slug?: string | null) {
   if (!slug) return null;
-
-  return (
-    NATIONALITIES.find(
-      (nationality) => nationality.slug === slug
-    ) ?? null
-  );
+  return NATIONALITIES.find((nationality) => nationality.slug === slug) ?? null;
 }
 
 export function findNationality(value?: string | null) {
   const normalized = value?.trim().toLowerCase();
   if (!normalized) return null;
-
-  return (
-    NATIONALITIES.find((nationality) =>
-      nationality.slug.toLowerCase() === normalized ||
-      nationality.en.toLowerCase() === normalized ||
-      nationality.ar === value?.trim()
-    ) ?? null
-  );
+  return NATIONALITIES.find((nationality) =>
+    nationality.slug.toLowerCase() === normalized ||
+    nationality.en.toLowerCase() === normalized ||
+    nationality.ar === value?.trim()
+  ) ?? null;
 }
