@@ -43,6 +43,39 @@ export function EmailOtpVerification({ locale, email, accountType, intent }: Pro
     router.replace(`/${locale}/join/talent${intent ? `?intent=${intent}` : ""}`);
   }
 
+  async function ensureCanonicalAccount(accessToken: string, user: { email?: string | null; user_metadata?: Record<string, unknown> }) {
+    const metadata = user.user_metadata ?? {};
+    const displayName = String(
+      metadata.full_name ??
+        metadata.display_name ??
+        metadata.contact_name ??
+        user.email?.split("@")[0] ??
+        "",
+    ).trim();
+    const phone = String(metadata.phone ?? "").trim();
+
+    if (displayName.length < 2 || !/^\+[1-9]\d{7,14}$/.test(phone)) {
+      return { ok: false as const, code: "MISSING_ACCOUNT_DETAILS" as const };
+    }
+
+    try {
+      const response = await fetch("/api/account/details", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({ displayName, phone, accountType }),
+      });
+      const payload = await response.json().catch(() => null) as { ok?: boolean; code?: string } | null;
+      if (!response.ok || !payload?.ok) return { ok: false as const, code: payload?.code ?? "ACCOUNT_DETAILS_FAILED" };
+      return { ok: true as const };
+    } catch {
+      return { ok: false as const, code: "ACCOUNT_DETAILS_FAILED" as const };
+    }
+  }
+
   async function verify() {
     if (!email) {
       setError(isRtl ? "تعذر تحديد البريد الإلكتروني. ارجع إلى التسجيل وحاول مرة أخرى." : "We could not determine your email. Return to signup and try again.");
@@ -57,11 +90,22 @@ export function EmailOtpVerification({ locale, email, accountType, intent }: Pro
     try {
       const supabase = createBrowserSupabaseClient();
       const { data, error: verifyError } = await supabase.auth.verifyOtp({ email, token, type: "email" });
-      if (verifyError || !data.session) {
+      if (verifyError || !data.session || !data.user) {
         setError(isRtl ? "الرمز غير صحيح أو انتهت صلاحيته. تحقق منه أو اطلب رمزًا جديدًا." : "That code is incorrect or expired. Check it or request a new code.");
         return;
       }
-      setMessage(isRtl ? "تم تأكيد بريدك بنجاح." : "Your email has been verified.");
+
+      const account = await ensureCanonicalAccount(data.session.access_token, data.user);
+      if (!account.ok) {
+        setError(
+          account.code === "MISSING_ACCOUNT_DETAILS"
+            ? (isRtl ? "تم تأكيد البريد، لكن بيانات الحساب الأساسية غير مكتملة. ارجع للتسجيل وأدخل الاسم ورقم الجوال." : "Your email is verified, but required account details are missing. Return to signup and add your name and mobile number.")
+            : (isRtl ? "تم تأكيد البريد، لكن تعذر تجهيز حسابك الآن. حاول مرة أخرى." : "Your email is verified, but we could not prepare your account. Please try again."),
+        );
+        return;
+      }
+
+      setMessage(isRtl ? "تم تأكيد بريدك وتجهيز حسابك بنجاح." : "Your email and account have been verified successfully.");
       await continueAfterVerification();
     } catch {
       setError(isRtl ? "تعذر تأكيد البريد الآن. تحقق من اتصالك وحاول مرة أخرى." : "We could not verify your email right now. Check your connection and try again.");
