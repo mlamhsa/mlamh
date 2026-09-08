@@ -1,25 +1,28 @@
 import { useMemo, useState } from "react";
-import { ActivityIndicator, Image, ImageBackground, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import { ArrowLeft, ArrowRight, Camera, Check, Clapperboard, Drama, Globe2, Megaphone, Star, Video } from "lucide-react-native";
+import { ArrowLeft, ArrowRight, Camera, Check, Clapperboard, Drama, Globe2, Sparkles } from "lucide-react-native";
 
 import { MOBILE_API_BASE_URL } from "@/lib/api-config";
 import { isRtlLocale } from "@/lib/i18n";
 import { useAppLocale } from "@/lib/locale-context";
+import { goBackOrReplace } from "@/lib/navigation";
 import { supabase } from "@/lib/supabase";
 import { darkTheme } from "@/lib/theme";
 
 type TalentType = "actor" | "model";
 type OnboardingResult = { ok?: boolean; code?: string };
 
-const ACTOR_IMAGE = { uri: "https://mlamh.net/images/home/hero-actor.webp" };
-const MODEL_IMAGE = { uri: "https://mlamh.net/images/home/hero-model.webp" };
 const LOGO_AR = require("../assets/logo.ar.png");
 const LOGO_EN = require("../assets/logo.en.png");
 
 async function submitTalentType(accessToken: string, talentType: TalentType) {
-  const response = await fetch(`${MOBILE_API_BASE_URL}/api/talent/onboarding`, { method: "POST", headers: { Accept: "application/json", "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` }, body: JSON.stringify({ talentType }) });
+  const response = await fetch(`${MOBILE_API_BASE_URL}/api/talent/onboarding`, {
+    method: "POST",
+    headers: { Accept: "application/json", "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify({ talentType }),
+  });
   const raw = await response.text().catch(() => "");
   let result: OnboardingResult = {};
   try { result = raw ? JSON.parse(raw) as OnboardingResult : {}; } catch { result = {}; }
@@ -30,8 +33,8 @@ export default function TalentOnboardingScreen() {
   const { locale, changeLocale } = useAppLocale();
   const isArabic = locale === "ar";
   const isRtl = isRtlLocale(locale);
-  const { width, height } = useWindowDimensions();
-  const compact = width <= 360 || height <= 720;
+  const { width } = useWindowDimensions();
+  const compact = width <= 360;
   const theme = darkTheme;
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [selected, setSelected] = useState<TalentType | null>(null);
@@ -56,58 +59,50 @@ export default function TalentOnboardingScreen() {
         return;
       }
       router.replace("/profile/journey");
-    } catch {
-      setError(isArabic ? "تعذر الاتصال بملامح الآن. تحقق من الإنترنت وحاول مرة أخرى." : "We couldn't reach MLAMH. Check your connection and try again.");
-    } finally { setSaving(false); }
+    } catch { setError(isArabic ? "تعذر الاتصال بملامح الآن. تحقق من الإنترنت وحاول مرة أخرى." : "We couldn't reach MLAMH. Check your connection and try again."); }
+    finally { setSaving(false); }
   }
 
-  const continueLabel = isArabic ? "ابدأ بناء ملفي" : "Start building my profile";
-
+  const continueLabel = isArabic ? "تأكيد المسار والمتابعة" : "Confirm path and continue";
   return <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
-    <ScrollView contentContainerStyle={[styles.scrollContent, compact && styles.scrollContentCompact]} showsVerticalScrollIndicator={false}>
-      <View style={[styles.content, compact && styles.contentCompact]}>
-        <View style={[styles.topBar, compact && styles.topBarCompact, isRtl && styles.rowReverse]}>
-          <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "رجوع" : "Back"} onPress={() => router.back()} style={styles.iconButton}>{isRtl ? <ArrowRight size={23} color={theme.text} strokeWidth={1.8} /> : <ArrowLeft size={23} color={theme.text} strokeWidth={1.8} />}</Pressable>
-          <View style={styles.brandLockup}><Image source={isArabic ? LOGO_AR : LOGO_EN} resizeMode="contain" style={[styles.brandLogo, compact && styles.brandLogoCompact]} /></View>
-          <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "English" : "العربية"} onPress={() => changeLocale(isArabic ? "en" : "ar")} style={[styles.localeBadge, isRtl && styles.rowReverse]}><Globe2 size={18} color={theme.accent} strokeWidth={1.8} /><Text style={styles.localeText}>{isArabic ? "EN" : "العربية"}</Text></Pressable>
+    <ScrollView contentContainerStyle={[styles.scrollContent, compact && styles.scrollCompact]} showsVerticalScrollIndicator={false}>
+      <View style={styles.content}>
+        <View style={[styles.topBar, isRtl && styles.rowRtl]}>
+          <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "رجوع" : "Back"} onPress={() => goBackOrReplace("/account-type")} style={styles.iconButton}>{isRtl ? <ArrowRight size={22} color={theme.text}/> : <ArrowLeft size={22} color={theme.text}/>}</Pressable>
+          <Image source={isArabic ? LOGO_AR : LOGO_EN} resizeMode="contain" style={styles.logo}/>
+          <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "English" : "العربية"} onPress={() => changeLocale(isArabic ? "en" : "ar")} style={[styles.localeButton, isRtl && styles.rowRtl]}><Globe2 size={16} color={theme.accent}/><Text style={styles.localeText}>{isArabic ? "EN" : "العربية"}</Text></Pressable>
         </View>
 
-        <View style={[styles.progressCard, isRtl && styles.rowReverse]}><View style={styles.progressTrack}><View style={styles.progressFill}/></View><Text style={[styles.progressText, isRtl && styles.textRtl]}>{isArabic ? "الخطوة 1 من 4" : "Step 1 of 4"}</Text></View>
+        <View style={[styles.stepChip, isRtl && styles.rowRtl]}><Sparkles size={15} color={theme.accent}/><Text style={[styles.stepText, isRtl && styles.textRtl]}>{isArabic ? "اختيار التخصص الأساسي" : "Choose your primary specialty"}</Text></View>
 
-        <View style={[styles.header, { alignItems: isRtl ? "flex-end" : "flex-start" }]}>
-          <Text style={[styles.eyebrow, isArabic && styles.arabicEyebrow, { textAlign: isRtl ? "right" : "left" }]}>{isArabic ? "ملف الموهبة" : "TALENT PROFILE"}</Text>
-          <Text accessibilityRole="header" style={[styles.title, compact && styles.titleCompact, isArabic && styles.arabicText, { textAlign: isRtl ? "right" : "left" }]}>{isArabic ? "اختر مسارك" : "Choose your path"}</Text>
-          <Text style={[styles.subtitle, isArabic && styles.arabicText, { textAlign: isRtl ? "right" : "left" }]}>{isArabic ? "اختر تخصصك الأساسي الآن. بعدها سنقودك خطوة بخطوة لإكمال بياناتك وصورك وتجهيز ملفك للمراجعة." : "Choose your primary talent type. We’ll then guide you through your details, portfolio and review readiness."}</Text>
+        <View style={[styles.header, isRtl && styles.alignEnd]}>
+          <Text style={[styles.eyebrow, isRtl && styles.textRtl]}>{isArabic ? "ملف الموهبة" : "TALENT PROFILE"}</Text>
+          <Text accessibilityRole="header" style={[styles.title, compact && styles.titleCompact, isRtl && styles.textRtl]}>{isArabic ? "ما هو مسارك الأساسي؟" : "What's your primary path?"}</Text>
+          <Text style={[styles.subtitle, isRtl && styles.textRtl]}>{isArabic ? "اختر مسارًا واحدًا الآن. يمكنك تطوير بقية تفاصيل ملفك في الخطوات التالية بدون شاشة طويلة أو خيارات مربكة." : "Choose one primary path now. You'll build the rest of your profile in the guided steps that follow."}</Text>
         </View>
 
         <View accessibilityRole="radiogroup" style={styles.options}>
-          <TalentChoice type="actor" active={selected === "actor"} title={isArabic ? "ممثل" : "Actor"} body={isArabic ? "للتمثيل، الإعلانات والمشاريع المرئية." : "For acting, commercials and screen projects."} bullets={isArabic ? ["التلفزيون والسينما", "الإعلانات", "المسرح"] : ["TV & Film", "Commercials", "Theatre"]} onPress={() => setSelected("actor")} styles={styles} isArabic={isArabic} isRtl={isRtl} compact={compact} />
-          <TalentChoice type="model" active={selected === "model"} title={isArabic ? "مودل" : "Model"} body={isArabic ? "للتصوير، الحملات وأعمال المودل." : "For shoots, campaigns and modeling work."} bullets={isArabic ? ["جلسات التصوير", "الحملات", "الأزياء واللايف ستايل"] : ["Photoshoots", "Campaigns", "Fashion & Lifestyle"]} onPress={() => setSelected("model")} styles={styles} isArabic={isArabic} isRtl={isRtl} compact={compact} />
+          <TalentChoice type="actor" active={selected === "actor"} title={isArabic ? "ممثل / ممثلة" : "Actor"} body={isArabic ? "للتمثيل، الإعلانات، التلفزيون والسينما." : "For acting, commercials, television and film."} hint={isArabic ? "مناسب إذا كان هدفك الأساسي فرص التمثيل." : "Best when acting is your main opportunity path."} onPress={() => { setSelected("actor"); setError(null); }} isRtl={isRtl}/>
+          <TalentChoice type="model" active={selected === "model"} title={isArabic ? "مودل" : "Model"} body={isArabic ? "للتصوير، الحملات، الأزياء واللايف ستايل." : "For shoots, campaigns, fashion and lifestyle work."} hint={isArabic ? "مناسب إذا كان هدفك الأساسي أعمال المودل." : "Best when modeling is your main opportunity path."} onPress={() => { setSelected("model"); setError(null); }} isRtl={isRtl}/>
         </View>
 
-        <View style={[styles.journeyNote, isRtl && styles.rowReverse]}><View style={styles.journeyDot}/><Text style={[styles.journeyText, isArabic && styles.arabicText, { textAlign: isRtl ? "right" : "left" }]}>{isArabic ? "بعد الاختيار: البيانات الأساسية ← الصور ← الجاهزية والمراجعة" : "Next: core details → portfolio photos → readiness & review"}</Text></View>
-        {error ? <View style={styles.errorBox}><Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={[styles.error, isArabic && styles.arabicText, { textAlign: isRtl ? "right" : "left" }]}>{error}</Text></View> : null}
-        <Pressable accessibilityRole="button" accessibilityLabel={continueLabel} accessibilityState={{ disabled: !selected || saving, busy: saving }} disabled={!selected || saving} onPress={() => void continueOnboarding()} style={({ pressed }) => [styles.primaryButton, compact && styles.primaryButtonCompact, (!selected || saving) && styles.disabled, pressed && selected && !saving && styles.pressed]}>
-          {saving ? <ActivityIndicator accessibilityLabel={isArabic ? "جارٍ حفظ الاختيار" : "Saving selection"} color={theme.background} /> : <View style={[styles.primaryButtonRow, isRtl && styles.rowReverse]}><Text style={[styles.primaryText, isArabic && styles.arabicText]}>{continueLabel}</Text>{isRtl ? <ArrowLeft size={22} color={theme.background} strokeWidth={2} /> : <ArrowRight size={22} color={theme.background} strokeWidth={2} />}</View>}
-        </Pressable>
-        <View style={styles.footerDividerRow}><View style={styles.footerLine} /><Text style={[styles.footnote, isArabic && styles.arabicFootnote]}>{isArabic ? "موهبة حقيقية. فرص أكثر." : "REAL TALENT. MORE OPPORTUNITIES."}</Text><View style={styles.footerLine} /></View>
+        {selected ? <View style={[styles.selectionNote, isRtl && styles.rowRtl]}><Check size={16} color={theme.accent}/><Text style={[styles.selectionText, isRtl && styles.textRtl]}>{selected === "actor" ? (isArabic ? "تم اختيار مسار التمثيل" : "Acting path selected") : (isArabic ? "تم اختيار مسار المودل" : "Modeling path selected")}</Text></View> : null}
+        {error ? <View style={styles.errorBox}><Text accessibilityRole="alert" style={[styles.error, isRtl && styles.textRtl]}>{error}</Text></View> : null}
+
+        <Pressable accessibilityRole="button" accessibilityLabel={continueLabel} accessibilityState={{ disabled: !selected || saving, busy: saving }} disabled={!selected || saving} onPress={() => void continueOnboarding()} style={({ pressed }) => [styles.primaryButton, (!selected || saving) && styles.disabled, pressed && selected && !saving && styles.pressed]}>{saving ? <ActivityIndicator color={theme.background}/> : <Text style={styles.primaryText}>{continueLabel}</Text>}</Pressable>
+        <Text style={[styles.nextHint, isRtl && styles.textRtl]}>{isArabic ? "التالي: بياناتك الأساسية والمهنية، ثم الخصوصية عند الحاجة، ثم الصور والمراجعة." : "Next: core and professional details, privacy when needed, photos, then review."}</Text>
       </View>
     </ScrollView>
   </SafeAreaView>;
 }
 
-function TalentChoice({ type, active, title, body, bullets, onPress, styles, isArabic, isRtl, compact }: { type: TalentType; active: boolean; title: string; body: string; bullets: string[]; onPress: () => void; styles: ReturnType<typeof createStyles>; isArabic: boolean; isRtl: boolean; compact: boolean }) {
-  const image = type === "actor" ? ACTOR_IMAGE : MODEL_IMAGE;
-  const bulletIcons = type === "actor" ? [Clapperboard, Video, Drama] : [Camera, Megaphone, Star];
-  return <Pressable accessibilityRole="radio" accessibilityLabel={title} accessibilityHint={body} accessibilityState={{ selected: active }} onPress={onPress} style={({ pressed }) => [styles.choice, compact && styles.choiceCompact, active && styles.choiceActive, pressed && styles.choicePressed]}>
-    <ImageBackground source={image} resizeMode="cover" style={styles.choiceImage} imageStyle={styles.choiceImageRadius}>
-      <View style={styles.choiceOverlay} />
-      <View style={[styles.choiceContent, compact && styles.choiceContentCompact, isRtl && styles.choiceContentRtl]}><View style={[styles.radio, active && styles.radioActive]}>{active ? <Check size={15} color={themeBackground} strokeWidth={3} /> : null}</View><View style={[styles.choiceCopy, compact && styles.choiceCopyCompact]}><Text style={[styles.choiceTitle, compact && styles.choiceTitleCompact, isArabic && styles.arabicText, { textAlign: isRtl ? "right" : "left" }]}>{title}</Text><View style={[styles.goldRule, isRtl && styles.goldRuleRtl]} /><Text style={[styles.choiceBody, isArabic && styles.arabicText, { textAlign: isRtl ? "right" : "left" }]}>{body}</Text><View style={styles.bulletList}>{bullets.map((item, index) => { const Icon = bulletIcons[index]; return <View key={item} style={[styles.bulletRow, isRtl && styles.rowReverse]}><Icon size={compact ? 15 : 17} color="#D4AF6A" strokeWidth={1.6} /><Text style={[styles.bulletText, isArabic && styles.arabicText, { textAlign: isRtl ? "right" : "left" }]}>{item}</Text></View>; })}</View></View></View>
-    </ImageBackground>
+function TalentChoice({ type, active, title, body, hint, onPress, isRtl }: { type: TalentType; active: boolean; title: string; body: string; hint: string; onPress: () => void; isRtl: boolean }) {
+  const Icon = type === "actor" ? Clapperboard : Camera;
+  return <Pressable accessibilityRole="radio" accessibilityState={{ selected: active }} onPress={onPress} style={({ pressed }) => [stylesStatic.choice, active && stylesStatic.choiceActive, pressed && stylesStatic.pressed]}>
+    <View style={[stylesStatic.choiceRow, isRtl && stylesStatic.rowRtl]}><View style={[stylesStatic.choiceIcon, active && stylesStatic.choiceIconActive]}>{type === "actor" ? <Drama size={24} color={active ? "#C9A962" : "#ECEAE2"}/> : <Icon size={24} color={active ? "#C9A962" : "#ECEAE2"}/>}</View><View style={stylesStatic.choiceCopy}><Text style={[stylesStatic.choiceTitle, isRtl && stylesStatic.textRtl]}>{title}</Text><Text style={[stylesStatic.choiceBody, isRtl && stylesStatic.textRtl]}>{body}</Text><Text style={[stylesStatic.choiceHint, isRtl && stylesStatic.textRtl]}>{hint}</Text></View><View style={[stylesStatic.radio, active && stylesStatic.radioActive]}>{active ? <Check size={14} color="#050505" strokeWidth={3}/> : null}</View></View>
   </Pressable>;
 }
 
-const themeBackground = "#050505";
-function createStyles(theme: typeof darkTheme) { return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: theme.background }, scrollContent: { flexGrow: 1, paddingVertical: Platform.OS === "ios" ? 10 : 8 }, scrollContentCompact:{paddingVertical:4}, content: { width: "100%", maxWidth: 560, alignSelf: "center", paddingHorizontal: 22, paddingTop: 8, paddingBottom: 26, gap: 18 }, contentCompact:{paddingHorizontal:14,paddingTop:4,paddingBottom:16,gap:12}, topBar: { minHeight: 86, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 }, topBarCompact:{minHeight:64,gap:8}, rowReverse: { flexDirection: "row-reverse" }, textRtl:{textAlign:"right",writingDirection:"rtl"}, iconButton: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" }, brandLockup: { alignItems: "center", justifyContent: "center", flex: 1, minHeight: 54 }, brandLogo: { width: 150, height: 58 }, brandLogoCompact: { width: 124, height: 48 }, localeBadge: { minWidth: 62, height: 42, flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 7, paddingHorizontal:6 }, localeText: { color: theme.text, fontSize: 14, fontWeight: "600" }, progressCard:{flexDirection:"row",alignItems:"center",gap:10}, progressTrack:{flex:1,height:3,borderRadius:2,backgroundColor:"#FFFFFF14",overflow:"hidden"},progressFill:{width:"25%",height:"100%",backgroundColor:theme.accent},progressText:{color:theme.muted,fontSize:10,fontWeight:"700"}, header: { gap: 8, marginTop: 2 }, eyebrow: { color: theme.accent, fontSize: 11, lineHeight: 16, fontWeight: "800", letterSpacing: 4 }, arabicEyebrow:{letterSpacing:0,writingDirection:"rtl"}, title: { color: theme.text, fontSize: 40, lineHeight: 46, fontWeight: "400", letterSpacing: -1.1 }, titleCompact:{fontSize:30,lineHeight:36}, subtitle: { color: theme.muted, fontSize: 15, lineHeight: 23, maxWidth: 480 }, options: { gap: 14 }, choice: { height: 226, borderRadius: 20, overflow: "hidden", borderWidth: 1, borderColor: "#FFFFFF26", backgroundColor: theme.surface }, choiceCompact:{height:198,borderRadius:18}, choiceActive: { borderColor: theme.accent, borderWidth: 1.5 }, choicePressed: { opacity: 0.9 }, choiceImage: { flex: 1 }, choiceImageRadius: { borderRadius: 19 }, choiceOverlay: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: "rgba(3,3,3,0.44)" }, choiceContent: { flex: 1, padding: 18, flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "flex-start" }, choiceContentCompact:{padding:14}, choiceContentRtl: { flexDirection: "row" }, choiceCopy: { width: "56%", paddingTop: 2 }, choiceCopyCompact:{width:"65%"}, choiceTitle: { color: theme.text, fontSize: 31, lineHeight: 36, fontWeight: "400" }, choiceTitleCompact:{fontSize:25,lineHeight:30}, goldRule: { width: 34, height: 2, backgroundColor: theme.accent, marginTop: 10, marginBottom: 12 }, goldRuleRtl:{alignSelf:"flex-end"}, choiceBody: { color: "#DDD9D0", fontSize: 13, lineHeight: 18 }, bulletList: { gap: 6, marginTop: 12 }, bulletRow: { flexDirection: "row", alignItems: "center", gap: 8 }, bulletText: { color: "#E6E0D5", fontSize: 12, lineHeight: 16, flexShrink:1 }, radio: { width: 28, height: 28, borderRadius: 14, borderWidth: 1.5, borderColor: "#FFFFFF66", backgroundColor: "#05050588", alignItems: "center", justifyContent: "center" }, radioActive: { borderColor: theme.accent, backgroundColor: theme.accent }, journeyNote:{flexDirection:"row",alignItems:"center",gap:9,borderTopWidth:1,borderBottomWidth:1,borderColor:"#FFFFFF10",paddingVertical:11},journeyDot:{width:6,height:6,borderRadius:3,backgroundColor:theme.accent},journeyText:{flex:1,color:theme.muted,fontSize:10,lineHeight:16}, errorBox: { borderWidth: 1, borderColor: "#C84F4F66", backgroundColor: "#C84F4F14", borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12 }, error: { color: "#E59A9A", fontSize: 13, lineHeight: 19 }, primaryButton: { backgroundColor: theme.accent, borderRadius: 14, minHeight: 60, paddingHorizontal: 22, alignItems: "center", justifyContent: "center", marginTop: 2 }, primaryButtonCompact:{minHeight:54,paddingHorizontal:16}, primaryButtonRow: { width: "100%", flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, primaryText: { color: theme.background, fontSize: 17, lineHeight: 22, fontWeight: "800", flex: 1, textAlign: "center" }, disabled: { opacity: 0.38 }, pressed: { opacity: 0.84 }, footerDividerRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 12, paddingTop: 4 }, footerLine: { width: 40, height: 1, backgroundColor: "#C9A96255" }, footnote: { color: "#7F7B73", fontSize: 9, lineHeight: 14, textAlign: "center", letterSpacing: 2.8 }, arabicFootnote:{letterSpacing:0,writingDirection:"rtl"}, arabicText: { letterSpacing: 0, writingDirection:"rtl" },
-}); }
+const stylesStatic = StyleSheet.create({ choice:{borderWidth:1,borderColor:"#2B2B27",borderRadius:20,backgroundColor:"#141412",padding:16},choiceActive:{borderColor:"#C9A962",backgroundColor:"#1B1811"},pressed:{opacity:.84},choiceRow:{flexDirection:"row",alignItems:"center",gap:13},rowRtl:{flexDirection:"row-reverse"},textRtl:{textAlign:"right",writingDirection:"rtl"},choiceIcon:{width:48,height:48,borderRadius:15,backgroundColor:"#22221F",alignItems:"center",justifyContent:"center"},choiceIconActive:{backgroundColor:"#2A2417"},choiceCopy:{flex:1,gap:4},choiceTitle:{color:"#F5F5F0",fontSize:17,fontWeight:"900"},choiceBody:{color:"#BBB9B1",fontSize:12,lineHeight:18},choiceHint:{color:"#7F7E77",fontSize:10,lineHeight:16},radio:{width:26,height:26,borderRadius:13,borderWidth:1.5,borderColor:"#5C5C55",alignItems:"center",justifyContent:"center"},radioActive:{backgroundColor:"#C9A962",borderColor:"#C9A962"} });
+
+function createStyles(theme: typeof darkTheme) { return StyleSheet.create({ screen:{flex:1,backgroundColor:theme.background},scrollContent:{flexGrow:1,paddingVertical:10},scrollCompact:{paddingVertical:4},content:{width:"100%",maxWidth:560,alignSelf:"center",paddingHorizontal:20,paddingBottom:26,gap:16},topBar:{minHeight:66,flexDirection:"row",alignItems:"center",justifyContent:"space-between",gap:10},rowRtl:{flexDirection:"row-reverse"},alignEnd:{alignItems:"flex-end"},textRtl:{textAlign:"right",writingDirection:"rtl"},iconButton:{width:42,height:42,borderRadius:21,borderWidth:1,borderColor:theme.border,backgroundColor:theme.surface,alignItems:"center",justifyContent:"center"},logo:{width:120,height:40},localeButton:{minWidth:56,height:40,paddingHorizontal:9,borderRadius:20,borderWidth:1,borderColor:theme.border,flexDirection:"row",gap:6,alignItems:"center",justifyContent:"center"},localeText:{color:theme.text,fontSize:11,fontWeight:"800"},stepChip:{alignSelf:"stretch",minHeight:42,borderRadius:14,borderWidth:1,borderColor:"#C9A96232",backgroundColor:"#C9A96209",paddingHorizontal:12,flexDirection:"row",alignItems:"center",gap:8},stepText:{color:theme.accent,fontSize:11,fontWeight:"800"},header:{gap:7},eyebrow:{color:theme.accent,fontSize:10,fontWeight:"900",letterSpacing:1.4},title:{color:theme.text,fontSize:32,lineHeight:39,fontWeight:"800"},titleCompact:{fontSize:28,lineHeight:35},subtitle:{color:theme.muted,fontSize:13,lineHeight:21},options:{gap:11},selectionNote:{minHeight:44,borderRadius:14,borderWidth:1,borderColor:"#C9A96235",backgroundColor:"#C9A96208",paddingHorizontal:12,flexDirection:"row",alignItems:"center",gap:8},selectionText:{flex:1,color:theme.text,fontSize:11,fontWeight:"800"},errorBox:{borderWidth:1,borderColor:"#C84F4F66",backgroundColor:"#C84F4F14",borderRadius:14,padding:12},error:{color:"#E59A9A",fontSize:12,lineHeight:18},primaryButton:{minHeight:56,borderRadius:15,backgroundColor:theme.accent,alignItems:"center",justifyContent:"center",marginTop:2},primaryText:{color:theme.background,fontSize:15,fontWeight:"900"},nextHint:{color:theme.muted,fontSize:10,lineHeight:16,textAlign:"center"},disabled:{opacity:.38},pressed:{opacity:.84} }); }
