@@ -80,6 +80,7 @@ jobs:
       EXPO_PUBLIC_API_BASE_URL: https://mlamh.net
       EXPO_PUBLIC_DEFAULT_MARKET: SA
       EXPO_PUBLIC_EAS_PROJECT_ID: ca757cb1-e91c-4e8c-a3a9-6cee885e483a
+      EXPO_DEBUG: "1"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -111,6 +112,21 @@ jobs:
       - name: Release preflight strict
         run: npm run release:preflight:strict
 
+      - name: Validate Sign in with Apple entitlement
+        shell: bash
+        run: |
+          npx expo config --type introspect --json > /tmp/mlamh-expo-config.json
+          node - <<'NODE'
+          const fs = require('fs');
+          const config = JSON.parse(fs.readFileSync('/tmp/mlamh-expo-config.json', 'utf8'));
+          const values = config?.ios?.entitlements?.['com.apple.developer.applesignin'];
+          if (!Array.isArray(values) || !values.includes('Default')) {
+            console.error('::error::Missing com.apple.developer.applesignin=Default in introspected Expo config.');
+            process.exit(1);
+          }
+          console.log('Confirmed Sign in with Apple entitlement in introspected Expo config.');
+          NODE
+
       - name: Validate iOS production bundle
         run: npx expo export --platform ios --output-dir dist-ios --clear
 
@@ -122,4 +138,4 @@ jobs:
           git restore package.json
 
       - name: Start iOS TestFlight EAS build
-        run: npx eas-cli@latest build --platform ios --profile testflight --non-interactive --no-wait
+        run: npx eas-cli@latest build --platform ios --profile testflight --non-interactive --no-wait --verbose-logs
