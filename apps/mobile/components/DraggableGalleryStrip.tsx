@@ -51,17 +51,32 @@ export function DraggableGalleryStrip({
   const originIndexRef = useRef<number | null>(null);
   const currentIndexRef = useRef<number | null>(null);
   const originalItemsRef = useRef<string[]>(items);
+  const draftItemsRef = useRef<string[]>(items);
+  const scrollRef = useRef<ScrollView | null>(null);
+  const didPositionRtlRef = useRef(false);
 
   useEffect(() => {
-    if (draggingIndex === null && !saving) setDraftItems(items);
+    if (draggingIndex !== null || saving) return;
+    setDraftItems(items);
+    draftItemsRef.current = items;
   }, [draggingIndex, items, saving]);
 
+  useEffect(() => {
+    if (!isRtl) didPositionRtlRef.current = false;
+  }, [isRtl]);
+
+  function positionRtlStart() {
+    if (!isRtl || didPositionRtlRef.current || draftItems.length === 0) return;
+    didPositionRtlRef.current = true;
+    requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: false }));
+  }
+
   function beginDrag(index: number, pageX: number) {
-    if (disabled || saving || draftItems.length < 2) return;
+    if (disabled || saving || draftItemsRef.current.length < 2) return;
     startXRef.current = pageX;
     originIndexRef.current = index;
     currentIndexRef.current = index;
-    originalItemsRef.current = [...draftItems];
+    originalItemsRef.current = [...draftItemsRef.current];
     setDraggingIndex(index);
     setDragOffset(0);
     onSelect(index);
@@ -75,11 +90,13 @@ export function DraggableGalleryStrip({
     setDragOffset(physicalDelta);
 
     const shift = Math.round(logicalDelta / Math.max(step, 1));
-    const target = Math.max(0, Math.min(draftItems.length - 1, originIndexRef.current + shift));
+    const target = Math.max(0, Math.min(draftItemsRef.current.length - 1, originIndexRef.current + shift));
     const current = currentIndexRef.current ?? originIndexRef.current;
     if (target === current) return;
 
-    setDraftItems((previous) => moveItem(previous, current, target));
+    const next = moveItem(draftItemsRef.current, current, target);
+    draftItemsRef.current = next;
+    setDraftItems(next);
     currentIndexRef.current = target;
     setDraggingIndex(target);
     onSelect(target);
@@ -88,7 +105,7 @@ export function DraggableGalleryStrip({
 
   async function finishDrag() {
     if (originIndexRef.current === null) return;
-    const next = [...draftItems];
+    const next = [...draftItemsRef.current];
     const changed = next.some((item, index) => item !== originalItemsRef.current[index]);
     setDragOffset(0);
     setDraggingIndex(null);
@@ -98,18 +115,23 @@ export function DraggableGalleryStrip({
     if (!changed) return;
     setSaving(true);
     const ok = await onReorder(next).catch(() => false);
-    if (!ok) setDraftItems(originalItemsRef.current);
+    if (!ok) {
+      draftItemsRef.current = originalItemsRef.current;
+      setDraftItems(originalItemsRef.current);
+    }
     setSaving(false);
   }
 
   return (
     <View style={styles.wrapper}>
       <ScrollView
+        ref={scrollRef}
         horizontal
         scrollEnabled={draggingIndex === null && !saving}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={[styles.content, isRtl && styles.contentRtl]}
         keyboardShouldPersistTaps="handled"
+        onContentSizeChange={positionRtlStart}
       >
         {draftItems.map((uri, index) => {
           const primary = uri === primaryUrl;
@@ -166,7 +188,7 @@ export function DraggableGalleryStrip({
 function createStyles(theme: typeof darkTheme) {
   return StyleSheet.create({
     wrapper: { gap: 8 },
-    content: { gap: GAP, paddingRight: 22, paddingVertical: 4 },
+    content: { gap: GAP, paddingRight: 22, paddingVertical: 4, minWidth: "100%" },
     contentRtl: { flexDirection: "row-reverse", paddingRight: 0, paddingLeft: 22 },
     rowRtl: { flexDirection: "row-reverse" },
     textRtl: { textAlign: "right", writingDirection: "rtl" },
