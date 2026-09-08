@@ -1,10 +1,12 @@
 import * as Sentry from "@sentry/nextjs";
 
-const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
+const DEFAULT_SENTRY_DSN =
+  "https://c28ffcb92f580d9a1bf98382797f8e95@o4512051431800832.ingest.de.sentry.io/4512051443400784";
+const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN ?? DEFAULT_SENTRY_DSN;
 
 Sentry.init({
   dsn,
-  enabled: Boolean(dsn) && process.env.NODE_ENV === "production",
+  enabled: process.env.NODE_ENV === "production",
   environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV,
   sendDefaultPii: false,
   tracesSampleRate: 0,
