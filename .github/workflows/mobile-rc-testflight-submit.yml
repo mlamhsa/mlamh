@@ -60,6 +60,7 @@ jobs:
                 exit 0
                 ;;
               errored|canceled)
+                printf '%s' "$build_json" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const x=JSON.parse(s);console.log(JSON.stringify({id:x.id,status:x.status,error:x.error,artifacts:x.artifacts,appBuildVersion:x.appBuildVersion},null,2))})'
                 echo "::error::iOS Build 11 ended with status=$status."
                 exit 1
                 ;;
