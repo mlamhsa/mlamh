@@ -6,6 +6,7 @@ import { ArrowLeft, ArrowRight, Building2, Check, UserRound } from "lucide-react
 
 import { MOBILE_API_BASE_URL } from "@/lib/api-config";
 import { getDeviceLocale, isRtlLocale } from "@/lib/i18n";
+import { goBackOrReplace } from "@/lib/navigation";
 import { supabase } from "@/lib/supabase";
 import { darkTheme } from "@/lib/theme";
 
@@ -35,14 +36,18 @@ export default function PublisherSetupScreen() {
   const BackIcon = isRtl ? ArrowRight : ArrowLeft;
   const dirty = mode !== null || publisherType !== null;
 
+  function exitSetup() {
+    goBackOrReplace("/signup");
+  }
+
   function leaveSetup() {
-    if (!dirty || saving) { router.back(); return; }
+    if (!dirty || saving) { exitSetup(); return; }
     Alert.alert(
       isArabic ? "لديك تغييرات غير محفوظة" : "You have unsaved changes",
       isArabic ? "لم يتم حفظ اختيارات هذه الخطوة بعد." : "Your choices on this step have not been saved yet.",
       [
         { text: isArabic ? "إلغاء" : "Cancel", style: "cancel" },
-        { text: isArabic ? "الخروج بدون حفظ" : "Leave without saving", style: "destructive", onPress: () => router.back() },
+        { text: isArabic ? "الخروج بدون حفظ" : "Leave without saving", style: "destructive", onPress: exitSetup },
         { text: isArabic ? "حفظ والمتابعة" : "Save & continue", onPress: () => void continueSetup() },
       ],
     );
