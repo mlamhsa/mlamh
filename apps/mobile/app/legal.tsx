@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Image, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
@@ -24,14 +24,29 @@ export default function LegalScreen() {
   const styles = useMemo(() => createStyles(darkTheme), []);
   const BackIcon = isRtl ? ChevronRight : ChevronLeft;
   const [open, setOpen] = useState<LegalDocumentKey | null>(initialSection);
+  const scrollRef = useRef<ScrollView>(null);
   const brandSource = isArabic ? BRAND_LOGO_AR : BRAND_LOGO_EN;
 
+  function resetScrollPosition() {
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({ y: 0, animated: false });
+    });
+  }
+
+  function toggleDocument(key: LegalDocumentKey) {
+    const next = open === key ? null : key;
+    setOpen(next);
+    if (next) resetScrollPosition();
+  }
+
   useEffect(() => {
-    if (LEGAL_DOCUMENT_KEYS.includes(requested as LegalDocumentKey)) setOpen(requested as LegalDocumentKey);
+    if (!LEGAL_DOCUMENT_KEYS.includes(requested as LegalDocumentKey)) return;
+    setOpen(requested as LegalDocumentKey);
+    resetScrollPosition();
   }, [requested]);
 
   return <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
-    <ScrollView contentContainerStyle={[styles.content, compact && styles.contentCompact]} showsVerticalScrollIndicator={false}>
+    <ScrollView ref={scrollRef} contentContainerStyle={[styles.content, compact && styles.contentCompact]} showsVerticalScrollIndicator={false}>
       <View style={[styles.top, isRtl && styles.rowRtl]}>
         <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "رجوع" : "Back"} onPress={() => router.back()} style={styles.backButton}>
           <BackIcon size={21} color={darkTheme.text} />
@@ -52,7 +67,7 @@ export default function LegalScreen() {
         const Icon = ICONS[key];
         const expanded = open === key;
         return <View key={key} style={[styles.document, expanded && styles.documentOpen]}>
-          <Pressable accessibilityRole="button" accessibilityState={{ expanded }} onPress={() => setOpen(expanded ? null : key)} style={[styles.documentHeader, isRtl && styles.rowRtl]}>
+          <Pressable accessibilityRole="button" accessibilityState={{ expanded }} onPress={() => toggleDocument(key)} style={[styles.documentHeader, isRtl && styles.rowRtl]}>
             <View style={styles.documentIcon}><Icon size={20} color={darkTheme.accent} /></View>
             <View style={styles.documentHeading}>
               <Text style={[styles.documentTitle, isRtl && styles.textRtl]}>{isArabic ? doc.arTitle : doc.enTitle}</Text>
