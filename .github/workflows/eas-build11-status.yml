@@ -10,13 +10,16 @@ on:
 
 jobs:
   inspect-builds:
-    name: Inspect EAS Build 11
+    name: Wait for paired EAS Build 11
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: apps/mobile
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      IOS_BUILD_ID: 84983607-c5fb-4ae3-b840-47b6d089847c
+      ANDROID_BUILD_ID: 18c0e658-c978-4ccf-bc65-7ac1b03f606b
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -31,22 +34,20 @@ jobs:
       - name: Install dependencies
         run: npm ci --include=dev --no-audit --no-fund
 
-      - name: Query recent EAS builds
+      - name: Wait for Build 11 terminal status
         shell: bash
         run: |
+          set -euo pipefail
           test -n "$EXPO_TOKEN"
-          npx eas-cli@latest build:list --limit 20 --json --non-interactive > /tmp/eas-builds.json
-          node - <<'NODE'
+          for attempt in $(seq 1 50); do
+            npx eas-cli@latest build:list --limit 20 --json --non-interactive > /tmp/eas-builds.json
+            node - <<'NODE'
           const fs = require('fs');
           const builds = JSON.parse(fs.readFileSync('/tmp/eas-builds.json', 'utf8'));
-          const target = builds.filter((b) => {
-            const ios11 = b.platform === 'IOS' && String(b.appBuildVersion ?? b.buildNumber ?? '') === '11';
-            const android11 = b.platform === 'ANDROID' && String(b.appBuildVersion ?? b.versionCode ?? '') === '11';
-            const commitMatch = b.gitCommitHash === 'ce38293e3de010b85791e01df3dda51c73c0c341';
-            return ios11 || android11 || commitMatch;
-          });
+          const ids = new Set([process.env.IOS_BUILD_ID, process.env.ANDROID_BUILD_ID]);
+          const target = builds.filter((b) => ids.has(b.id));
           fs.writeFileSync('/tmp/eas-build11.json', JSON.stringify(target, null, 2));
-          console.log(JSON.stringify(target.map((b) => ({
+          const summary = target.map((b) => ({
             id: b.id,
             platform: b.platform,
             status: b.status,
@@ -56,19 +57,39 @@ jobs:
             gitCommitHash: b.gitCommitHash,
             createdAt: b.createdAt,
             updatedAt: b.updatedAt,
+            completedAt: b.completedAt,
             artifacts: b.artifacts,
-          })), null, 2));
-          if (target.length < 2) {
-            console.error(`Expected paired Build 11 records; found ${target.length}.`);
-            process.exitCode = 2;
-          }
+            error: b.error,
+          }));
+          console.log(JSON.stringify(summary, null, 2));
+          if (target.length !== 2) process.exit(3);
+          if (target.some((b) => ['ERRORED', 'CANCELED'].includes(b.status))) process.exit(4);
+          if (target.every((b) => b.status === 'FINISHED')) process.exit(0);
+          process.exit(2);
           NODE
+            rc=$?
+            if [ "$rc" -eq 0 ]; then
+              echo "Both Build 11 candidates are FINISHED."
+              exit 0
+            fi
+            if [ "$rc" -eq 4 ]; then
+              echo "::error::A Build 11 candidate reached a failed terminal state."
+              exit 1
+            fi
+            if [ "$rc" -eq 3 ]; then
+              echo "::warning::Could not resolve both expected Build 11 IDs yet."
+            fi
+            echo "Build 11 still running; attempt ${attempt}/50."
+            sleep 30
+          done
+          echo "::error::Timed out waiting for Build 11 terminal status."
+          exit 1
 
       - name: Upload EAS status snapshot
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: eas-build11-status
+          name: eas-build11-final-status
           path: /tmp/eas-build11.json
           if-no-files-found: error
           retention-days: 3
