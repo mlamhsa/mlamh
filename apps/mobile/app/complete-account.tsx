@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { ArrowLeft, ArrowRight, CheckCircle2, Phone, UserRound } from "lucide-react-native";
@@ -13,6 +13,7 @@ import { darkTheme } from "@/lib/theme";
 
 type AccountType = "talent" | "publisher";
 type SignupIntent = "actor" | "model" | "publisher";
+type InitialAccountDraft = { name: string; phone: string };
 
 type ApiResult = { ok?: boolean; code?: string };
 
@@ -55,6 +56,7 @@ export default function CompleteAccountScreen() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [initialDraft, setInitialDraft] = useState<InitialAccountDraft | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -65,14 +67,35 @@ export default function CompleteAccountScreen() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!active) return;
       const metadata = user?.user_metadata ?? {};
-      setName(String(metadata.full_name ?? metadata.name ?? metadata.display_name ?? metadata.contact_name ?? "").trim());
-      setPhone(String(metadata.phone ?? "").trim());
+      const hydratedName = String(metadata.full_name ?? metadata.name ?? metadata.display_name ?? metadata.contact_name ?? "").trim();
+      const hydratedPhone = String(metadata.phone ?? "").trim();
+      setName(hydratedName);
+      setPhone(hydratedPhone);
+      setInitialDraft({ name: hydratedName, phone: hydratedPhone });
       setEmail(user?.email ?? "");
       setLoadingUser(false);
     }
     void hydrate();
     return () => { active = false; };
   }, []);
+
+  const isDirty = Boolean(initialDraft) && (name !== initialDraft?.name || phone !== initialDraft?.phone);
+
+  function leaveAccountCompletion() {
+    if (!isDirty || saving) {
+      goBackOrReplace("/signup");
+      return;
+    }
+    Alert.alert(
+      isArabic ? "لديك تغييرات غير محفوظة" : "You have unsaved changes",
+      isArabic ? "احفظ بيانات الحساب قبل الخروج، أو اخرج بدون حفظ." : "Save your account details before leaving, or leave without saving.",
+      [
+        { text: isArabic ? "إلغاء" : "Cancel", style: "cancel" },
+        { text: isArabic ? "الخروج بدون حفظ" : "Leave without saving", style: "destructive", onPress: () => goBackOrReplace("/signup") },
+        { text: isArabic ? "حفظ والمتابعة" : "Save & continue", onPress: () => void saveAndContinue() },
+      ],
+    );
+  }
 
   async function saveAndContinue() {
     const normalizedName = name.trim().replace(/\s+/g, " ");
@@ -106,6 +129,7 @@ export default function CompleteAccountScreen() {
           : (isArabic ? "تعذر حفظ بيانات حسابك. حاول مرة أخرى." : "We could not save your account details. Try again."));
         return;
       }
+      setInitialDraft({ name: normalizedName, phone: normalizedPhone });
 
       if (accountType === "publisher") {
         router.replace("/publisher/setup");
@@ -139,7 +163,7 @@ export default function CompleteAccountScreen() {
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.content}>
             <View style={[styles.topRow, isRtl && styles.rowRtl]}>
-              <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "رجوع" : "Back"} onPress={() => goBackOrReplace("/signup")} style={styles.iconButton}>
+              <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "رجوع" : "Back"} onPress={leaveAccountCompletion} style={styles.iconButton}>
                 <BackIcon size={22} color={darkTheme.text} strokeWidth={1.8} />
               </Pressable>
               <Text style={styles.brand}>{isArabic ? "ملامح" : "MLAMH"}</Text>
@@ -177,14 +201,14 @@ export default function CompleteAccountScreen() {
                   <Text style={[styles.label, { textAlign }]}>{isArabic ? "رقم الجوال" : "Mobile number"}<Text style={styles.required}> *</Text></Text>
                   <View style={[styles.inputShell, isRtl && styles.rowRtl]}>
                     <Phone size={18} color={darkTheme.muted} />
-                    <TextInput autoComplete="tel" keyboardType="phone-pad" value={phone} onChangeText={(value) => { setPhone(value); setError(null); }} placeholder="+9665XXXXXXXX" placeholderTextColor="#777770" style={[styles.input, { textAlign: "left", writingDirection: "ltr" }]} />
+                    <TextInput autoComplete="tel" keyboardType="phone-pad" value={phone} onChangeText={(value) => { setPhone(value); setError(null); }} placeholder="+9665XXXXXXXX" placeholderTextColor="#777770" style={[styles.input, { textAlign, writingDirection: "ltr" }]} />
                   </View>
                   <Text style={[styles.helper, { textAlign }]}>{isArabic ? "استخدم الصيغة الدولية مثل +9665XXXXXXXX" : "Use international format, for example +9665XXXXXXXX"}</Text>
                 </View>
 
                 <View style={styles.fieldWrap}>
                   <Text style={[styles.label, { textAlign }]}>{isArabic ? "البريد الإلكتروني" : "Email"}</Text>
-                  <View style={styles.readonlyField}><Text selectable style={styles.readonlyText}>{email || "—"}</Text><CheckCircle2 size={17} color="#8DBA8B" /></View>
+                  <View style={styles.readonlyField}><Text selectable style={[styles.readonlyText, { textAlign }]}>{email || "—"}</Text><CheckCircle2 size={17} color="#8DBA8B" /></View>
                 </View>
 
                 <Text style={[styles.requiredLegend, { textAlign }]}>{isArabic ? "* حقل مطلوب" : "* Required field"}</Text>
@@ -231,7 +255,7 @@ function createStyles() {
     inputShell: { minHeight: 52, borderRadius: 14, borderWidth: 1, borderColor: "#32322E", backgroundColor: "#0D0D0C", flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 13 },
     input: { flex: 1, color: darkTheme.text, fontSize: 14, paddingVertical: 12 },
     readonlyField: { minHeight: 52, borderRadius: 14, borderWidth: 1, borderColor: "#2C332C", backgroundColor: "#0F130F", flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, paddingHorizontal: 13 },
-    readonlyText: { flex: 1, color: "#C9C9C2", fontSize: 14, textAlign: "left", writingDirection: "ltr" },
+    readonlyText: { flex: 1, color: "#C9C9C2", fontSize: 14, writingDirection: "ltr" },
     errorBox: { borderRadius: 14, padding: 12, backgroundColor: "#281718", borderWidth: 1, borderColor: "#5A2C30" },
     errorText: { color: "#F2B8B5", fontSize: 13, lineHeight: 20 },
     primaryButton: { minHeight: 54, borderRadius: 16, backgroundColor: darkTheme.accent, alignItems: "center", justifyContent: "center", marginTop: 4 },
