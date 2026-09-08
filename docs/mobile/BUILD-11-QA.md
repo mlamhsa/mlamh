@@ -22,6 +22,7 @@ This file is the source-of-truth tracker for the Build 11 batch. A source change
 - ✅ Web Google + Apple signup entries converge through `/auth/callback` and the same required-phone account-completion page.
 - ✅ Pending social signup context has a 30-minute TTL and carries intent/locale/terms acceptance on mobile.
 - ✅ No continuous field autosave in the web quick registration form; save occurs on explicit submission.
+- 🟡 Native OTP and Complete Account back actions now use a safe `back-or-replace` fallback instead of depending on navigation history; Build 11 device verification required.
 - 🟡 Google callback source fix needs Build 11 physical-device verification.
 - 🟡 Apple OAuth source path exists; iOS app config now declares `usesAppleSignIn: true`. Apple Developer + Supabase provider configuration and real-iPhone verification remain.
 - 🔒 Production Supabase Confirm Signup template must not switch to OTP until preview/integration verification of the new web + mobile clients passes.
@@ -34,7 +35,10 @@ This file is the source-of-truth tracker for the Build 11 batch. A source change
 - ✅ Phone remains unverified until future SMS OTP (`phone_verified_at` null).
 - 🟡 Support now reads the canonical account phone for prefill; Build 11 verification required.
 - 🟡 Settings now reads the canonical account phone instead of Supabase Auth phone; Build 11 verification required.
-- ⏳ Admin phone and verification-state surface audit remains.
+- ✅ Admin navigation now includes a dedicated Registration & Activation surface.
+- 🟡 Admin Activation source shows canonical phone, account type, onboarding status/step, approval state and recent update, with filters for Talent/Publisher and onboarding state; Preview verification required.
+- 🟡 Admin Activation reads Build 11 talent privacy columns only as a fail-safe secondary query: if Production intentionally lacks the privacy schema, the page continues working and clearly marks privacy as unavailable instead of crashing.
+- ⏳ Phone SMS verification state should be surfaced in Admin only after a confirmed canonical verification column/contract is deployed; do not infer verification from phone presence.
 
 ## Account deletion / App Store compliance
 - ✅ In-app Settings entry for permanent account deletion added and intentionally easy to find.
@@ -66,10 +70,12 @@ This file is the source-of-truth tracker for the Build 11 batch. A source change
 - ✅ Public profile access policy understands profile/photo visibility.
 - ✅ Public projection strips photos when photo visibility is not public.
 - ✅ Privacy policy tests added.
+- ✅ Exact Build 11 privacy schema confirmed in source: `talents.profile_visibility`, `photo_visibility`, `allow_search_indexing`, `allow_mlamh_share`, `require_private_share_approval` plus `talent_privacy_history`.
 - ✅ Staging-only schema migration applied to MLAMH Staging (`aempbsenymvxwbxkxdxf`).
+- 🟡 Admin Activation can surface profile privacy when the connected schema supports it and degrades safely before Production schema rollout.
 - 🔒 Production privacy migration is NOT applied.
 - 🔒 Private gallery/storage delivery is NOT cut over yet; do not claim private URLs are secure until signed/private delivery is implemented and verified.
-- ⏳ Admin privacy filters/status/history UI.
+- ⏳ Dedicated Admin privacy filters/history detail UI beyond Activation overview.
 - ⏳ SEO/sitemap/OG/social creative audit for non-public profiles.
 - ⏳ Matching/shortlist controlled-sharing audit.
 
@@ -90,13 +96,13 @@ This file is the source-of-truth tracker for the Build 11 batch. A source change
 - 🟡 Password recovery now prefills the signed-in account email and uses a context-aware return action; Build 11 verification required.
 - 🟡 Support email/mobile labels and values now align correctly for Arabic while preserving LTR value direction; Build 11 verification required.
 - 🟡 Legal document switching now resets scroll position to the top; Build 11 verification required.
-- ⏳ Back navigation reliability audit across remaining auth/onboarding screens.
+- 🟡 Back-navigation reliability hardening is now implemented for Email OTP, Complete Account and Publisher Setup using a shared safe fallback; Signup root and legacy Talent chooser remain to audit before closing the item.
 - 🟡 Bottom navigation source audit confirms the physical order is Opportunities → Applications → Messages → Profile, which renders Profile at the far right for Arabic; Build 11 device verification remains required.
 
 ## Publisher onboarding
-- 🟡 Publisher setup source now uses a guided step card, explicit required fields, Save & Continue, inline validation and unsaved-change guard; Build 11 verification required.
+- 🟡 Publisher setup source now uses a guided step card, explicit required fields, Save & Continue, inline validation, unsaved-change guard and safe back fallback; Build 11 verification required.
 - ⏳ Value/brief-led publisher journey beyond identity setup remains to be designed against the existing publisher APIs without inventing unsupported AI features.
-- ⏳ Ensure Admin publisher phone/source-of-truth and onboarding state are surfaced consistently.
+- 🟡 Admin Activation now exposes Publisher canonical phone and onboarding state consistently with Talent accounts; preview verification required.
 
 ## Web / route cleanup
 - ✅ Web `/join` is now intent-first with three explicit goals: Acting / Modeling / Find talent, matching the mobile product language.
@@ -107,6 +113,7 @@ This file is the source-of-truth tracker for the Build 11 batch. A source change
 - ✅ OAuth callback no longer falls back to the legacy `/join/account-type` page for unresolved new accounts; it returns to canonical `/join` instead.
 - 🟡 Legacy `/join/account-type` remains only as backward-compatible recovery for authenticated old accounts with no saved account type; retire after route/regression verification.
 - 🟡 Web canonical join rewrite requires Vercel Preview/regression verification before this section is considered release-ready.
+- ⏳ Remove stale/dead server signup action code still retained in `/join/page.tsx` after confirming no compatibility route references it.
 
 ## Security / release gates
 - 🔒 PR #112 remains Draft and unmerged.
@@ -118,5 +125,5 @@ This file is the source-of-truth tracker for the Build 11 batch. A source change
 
 ## CI
 - Green checkpoint `3ad401fd4293bfdb1042bc5de304781ba5d565d5`: Vercel Preview success after the profile editor/nationality/measurements rewrite.
-- Latest source batch includes the canonical intent-first web join rewrite, intent-aware web talent setup, onboarding-state correction, guided Publisher setup and the compact RTL drag-and-drop gallery route.
+- Latest source batch now also includes safe back-navigation hardening and the Admin Registration & Activation dashboard with privacy-schema-safe degradation.
 - Re-check CI after every subsequent coherent source batch before marking it green.
