@@ -4,6 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Bell, ChevronLeft, ChevronRight, Images, KeyRound, Languages, LifeBuoy, LogOut, Mail, Phone, Scale, Smartphone, SlidersHorizontal, UserRound } from "lucide-react-native";
 
+import { getMobileAccountContext } from "@/lib/account";
 import { isRtlLocale } from "@/lib/i18n";
 import { useAppLocale } from "@/lib/locale-context";
 import { preparePushRegistration, signOutMobile } from "@/lib/push";
@@ -30,11 +31,15 @@ export default function ProfileSettingsScreen() {
 
   useEffect(() => {
     let active = true;
-    void supabase.auth.getUser().then(({ data }) => {
+    void (async () => {
+      const [{ data }, account] = await Promise.all([
+        supabase.auth.getUser(),
+        getMobileAccountContext().catch(() => null),
+      ]);
       if (!active) return;
       setEmail(data.user?.email ?? "—");
-      setPhone(data.user?.phone ?? (isArabic ? "غير مضاف" : "Not added"));
-    });
+      setPhone(account?.phone ?? (isArabic ? "غير مضاف" : "Not added"));
+    })();
     return () => { active = false; };
   }, [isArabic]);
 
@@ -42,7 +47,7 @@ export default function ProfileSettingsScreen() {
     if (next === locale || switchingLocale) return;
     setSwitchingLocale(true);
     if (!changeLocale(next)) { setSwitchingLocale(false); return; }
-    requestAnimationFrame(() => router.replace("/profile/settings"));
+    requestAnimationFrame(() => setSwitchingLocale(false));
   }
 
   async function enableNotifications() {
@@ -88,7 +93,7 @@ export default function ProfileSettingsScreen() {
 
       <Text style={sectionLabelStyle}>{isArabic ? "التفضيلات" : "PREFERENCES"}</Text>
       <View style={styles.card}>
-        <View style={[styles.cardHeading, isRtl && styles.rowRtl]}><View style={styles.iconShell}><Languages size={19} strokeWidth={1.9} color={theme.accent} /></View><View style={styles.cardHeadingCopy}><Text style={[styles.rowTitle, isRtl && styles.textRtl]}>{isArabic ? "اللغة" : "Language"}</Text><Text style={[styles.rowSubtitle, isRtl && styles.textRtl]}>{isArabic ? "يتغير التطبيق بالكامل فور اختيار اللغة." : "The whole app switches immediately."}</Text></View></View>
+        <View style={[styles.cardHeading, isRtl && styles.rowRtl]}><View style={styles.iconShell}><Languages size={19} strokeWidth={1.9} color={theme.accent} /></View><View style={styles.cardHeadingCopy}><Text style={[styles.rowTitle, isRtl && styles.textRtl]}>{isArabic ? "اللغة" : "Language"}</Text><Text style={[styles.rowSubtitle, isRtl && styles.textRtl]}>{isArabic ? "تتغير اللغة فورًا مع بقائك في الصفحة الحالية." : "Language changes instantly while keeping you on the current page."}</Text></View></View>
         <View style={styles.languageOptions}><Pressable disabled={switchingLocale} onPress={() => chooseLocale("ar")} style={[styles.languageOption, locale === "ar" && styles.languageOptionActive]}><Text style={[styles.languageOptionText, locale === "ar" && styles.languageOptionTextActive]}>العربية</Text></Pressable><Pressable disabled={switchingLocale} onPress={() => chooseLocale("en")} style={[styles.languageOption, locale === "en" && styles.languageOptionActive]}><Text style={[styles.languageOptionText, locale === "en" && styles.languageOptionTextActive]}>English</Text></Pressable></View>
         {switchingLocale ? <View style={[styles.inline, isRtl && styles.rowRtl]}><ActivityIndicator size="small" color={theme.accent}/><Text style={[styles.microcopy, isRtl && styles.textRtl]}>{isArabic ? "جارٍ تطبيق اللغة…" : "Applying language…"}</Text></View> : null}
       </View>
