@@ -126,8 +126,8 @@ export async function completeMobileTalentOnboarding(
     .from("profiles")
     .update({
       account_type: "talent",
-      onboarding_status: "completed",
-      onboarding_step: "dashboard",
+      onboarding_status: "profile_in_progress",
+      onboarding_step: "talent_profile",
       updated_at: new Date().toISOString(),
     })
     .eq("id", profileId)

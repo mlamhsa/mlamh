@@ -79,8 +79,6 @@ export async function getHomepageTalentsWithFeaturedEntitlements<T extends Talen
 
   const state = await loadFeaturedEntitlementState(talents);
   if (!state) {
-    // Keep the homepage talent section available if entitlement lookup fails,
-    // while failing closed on the paid Featured badge itself.
     return talents.map((talent) => ({ ...talent, featured: false }));
   }
 
