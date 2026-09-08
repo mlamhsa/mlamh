@@ -4,6 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { ArrowLeft, ArrowRight, Building2, Check, ChevronLeft, ChevronRight, Drama, Sparkles, UserRound } from "lucide-react-native";
 
+import { MOBILE_API_BASE_URL } from "@/lib/api-config";
 import { isRtlLocale } from "@/lib/i18n";
 import { useAppLocale } from "@/lib/locale-context";
 import { clearPendingSignupContext, setPendingSignupContext, supabase } from "@/lib/supabase";
@@ -12,6 +13,7 @@ import { darkTheme } from "@/lib/theme";
 type SignupIntent = "actor" | "model" | "publisher";
 type AccountType = "talent" | "publisher";
 type SocialProvider = "google" | "apple";
+type ApiResult = { ok?: boolean; code?: string };
 
 const BRAND_LOGO_AR = require("../assets/logo.ar.png");
 const BRAND_LOGO_EN = require("../assets/logo.en.png");
@@ -24,6 +26,22 @@ function normalizePhone(value: string) {
 
 function isValidPhone(value: string) {
   return /^\+[1-9]\d{7,14}$/.test(value);
+}
+
+async function postJson(accessToken: string, path: string, body: unknown) {
+  const response = await fetch(`${MOBILE_API_BASE_URL}${path}`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(body),
+  });
+  const raw = await response.text().catch(() => "");
+  let result: ApiResult = {};
+  try { result = raw ? JSON.parse(raw) as ApiResult : {}; } catch { result = {}; }
+  return { response, result };
 }
 
 export default function SignupScreen() {
@@ -87,6 +105,31 @@ export default function SignupScreen() {
     } finally { setLoading(false); }
   }
 
+  async function continueImmediateEmailSession(accessToken: string, normalizedName: string, normalizedPhone: string) {
+    if (!intent) return false;
+    const accountAttempt = await postJson(accessToken, "/api/account/details", {
+      displayName: normalizedName,
+      phone: normalizedPhone,
+      accountType,
+    });
+    if (!accountAttempt.response.ok || !accountAttempt.result.ok) return false;
+
+    if (accountType === "publisher") {
+      router.replace("/publisher/setup");
+      return true;
+    }
+
+    if (intent === "actor" || intent === "model") {
+      const talentAttempt = await postJson(accessToken, "/api/talent/onboarding", { talentType: intent });
+      if (!talentAttempt.response.ok || !talentAttempt.result.ok) return false;
+      router.replace("/profile/journey");
+      return true;
+    }
+
+    router.replace("/onboarding");
+    return true;
+  }
+
   async function signUpWithEmail() {
     if (!intent || loading) return;
     const normalizedEmail = email.trim().toLowerCase();
@@ -136,7 +179,8 @@ export default function SignupScreen() {
       }
 
       if (data.session) {
-        router.replace({ pathname: "/complete-account", params: { accountType, intent } });
+        const continued = await continueImmediateEmailSession(data.session.access_token, normalizedName, normalizedPhone).catch(() => false);
+        if (!continued) router.replace({ pathname: "/complete-account", params: { accountType, intent } });
         return;
       }
 
