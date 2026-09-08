@@ -7,7 +7,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { getMobileAccountContext } from "@/lib/account";
 import { getAccountHomeHref } from "@/lib/account-routing";
 import { useAppLocale } from "@/lib/locale-context";
-import { consumeNativeAuthCallback, supabase } from "@/lib/supabase";
+import { clearPendingSignupContext, consumeNativeAuthCallback, getPendingSignupContext, supabase } from "@/lib/supabase";
 import { darkTheme } from "@/lib/theme";
 
 function firstParam(value: string | string[] | undefined) {
@@ -75,6 +75,19 @@ export default function AuthCallbackScreen() {
       }
 
       if (consumed || session) {
+        const pendingSignup = await getPendingSignupContext().catch(() => null);
+        if (pendingSignup) {
+          const existingAccount = await getMobileAccountContext().catch(() => null);
+          await clearPendingSignupContext().catch(() => undefined);
+          if (!existingAccount) {
+            router.replace({
+              pathname: "/complete-account",
+              params: { accountType: pendingSignup.accountType, intent: pendingSignup.intent },
+            });
+            return;
+          }
+        }
+
         router.replace(await resolvePostAuthHref());
         return;
       }
