@@ -68,7 +68,7 @@ This file is the source-of-truth tracker for the Build 11 batch. A source change
 - ⏳ Matching/shortlist controlled-sharing audit.
 
 ## Build 10 physical-device QA carried into Build 11
-- ⏳ Opportunities Arabic filters start visually from right.
+- 🟡 Opportunities Arabic filter/featured horizontal containers now anchor a full-width RTL row from the right in source; Build 11 device verification required.
 - 🟡 Opportunity details and DOB source formatters explicitly use Gregorian calendar + Latin numbering; remaining opportunity/list/date surfaces still require audit and Build 11 verification before closing this item.
 - ⏳ Gallery RTL ordering starts from right.
 - ⏳ Gallery cards/images reduced to professional mobile sizing.
@@ -109,5 +109,5 @@ This file is the source-of-truth tracker for the Build 11 batch. A source change
 
 ## CI
 - Latest tracked green checkpoint `c0fa52fd44158a120370f4734cac5fa221f49f7a`: Vercel Preview success.
-- Latest source batch includes permanent account deletion UI/API/service, canonical phone/in-place locale switching, expanded canonical nationalities and comprehensive mobile fallback; CI re-check pending.
+- Latest source batch now also includes the Arabic opportunities filter anchoring fix and comprehensive mobile nationality fallback; CI re-check pending.
 - Re-check CI after every subsequent coherent source batch before marking it green.
