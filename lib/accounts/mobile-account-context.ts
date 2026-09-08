@@ -6,7 +6,7 @@ export async function getMobileAccountContext(userId: string) {
   const supabase = createAdminClient();
   const { data: profile, error } = await supabase
     .from("profiles")
-    .select("id,account_type,display_name,approval_status,status,onboarding_status")
+    .select("id,account_type,display_name,phone,phone_verified_at,approval_status,status,onboarding_status,onboarding_step")
     .eq("user_id", userId)
     .maybeSingle();
 
@@ -41,9 +41,12 @@ export async function getMobileAccountContext(userId: string) {
     account: {
       type: profile.account_type as MobileAccountType,
       displayName: profile.display_name ?? null,
+      phone: profile.phone ?? null,
+      phoneVerified: Boolean(profile.phone_verified_at),
       approvalStatus: profile.approval_status ?? null,
       status: profile.status ?? null,
       onboardingStatus: profile.onboarding_status ?? null,
+      onboardingStep: profile.onboarding_step ?? null,
       entityId,
       countryCode,
     },
