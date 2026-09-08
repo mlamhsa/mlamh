@@ -1,4 +1,4 @@
-# RC Build 10 trigger — app build/version code 10
+# RC Build 11 trigger — iOS buildNumber 11 / Android versionCode 11
 name: Mobile RC Paired Build
 
 on:
