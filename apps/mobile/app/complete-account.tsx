@@ -7,6 +7,7 @@ import { ArrowLeft, ArrowRight, CheckCircle2, Phone, UserRound } from "lucide-re
 import { MOBILE_API_BASE_URL } from "@/lib/api-config";
 import { isRtlLocale } from "@/lib/i18n";
 import { useAppLocale } from "@/lib/locale-context";
+import { goBackOrReplace } from "@/lib/navigation";
 import { supabase } from "@/lib/supabase";
 import { darkTheme } from "@/lib/theme";
 
@@ -138,7 +139,7 @@ export default function CompleteAccountScreen() {
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.content}>
             <View style={[styles.topRow, isRtl && styles.rowRtl]}>
-              <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "رجوع" : "Back"} onPress={() => router.back()} style={styles.iconButton}>
+              <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "رجوع" : "Back"} onPress={() => goBackOrReplace("/signup")} style={styles.iconButton}>
                 <BackIcon size={22} color={darkTheme.text} strokeWidth={1.8} />
               </Pressable>
               <Text style={styles.brand}>{isArabic ? "ملامح" : "MLAMH"}</Text>
