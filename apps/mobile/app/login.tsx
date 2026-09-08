@@ -6,6 +6,7 @@ import { ArrowLeft, ArrowRight, Eye, EyeOff, LockKeyhole, Mail } from "lucide-re
 
 import { getMobileAccountContext } from "@/lib/account";
 import { getAccountHomeHref } from "@/lib/account-routing";
+import { signInWithNativeApple } from "@/lib/apple-auth";
 import { isRtlLocale } from "@/lib/i18n";
 import { useAppLocale } from "@/lib/locale-context";
 import { goBackOrReplace } from "@/lib/navigation";
@@ -60,6 +61,7 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const showApple = Platform.OS === "ios";
 
   async function signIn() {
     const normalizedEmail = email.trim().toLowerCase();
@@ -89,6 +91,17 @@ export default function LoginScreen() {
     setError(null);
     try {
       await clearPendingSignupContext().catch(() => undefined);
+
+      if (provider === "apple" && Platform.OS === "ios") {
+        const nativeResult = await signInWithNativeApple();
+        if (!nativeResult.ok) {
+          if (!nativeResult.canceled) setError(isArabic ? "تعذر تسجيل الدخول باستخدام Apple. حاول مرة أخرى." : "Unable to sign in with Apple. Please try again.");
+          return;
+        }
+        router.replace(await resolvePostLoginDestination(nextParam));
+        return;
+      }
+
       const redirectTo = "mlamh://auth/callback";
       const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
         provider,
@@ -152,7 +165,7 @@ export default function LoginScreen() {
           </View>
 
           <View style={styles.dividerRow}><View style={styles.dividerLine}/><Text style={[styles.dividerText, isArabic && styles.arabicText]}>{isArabic ? "أو" : "OR"}</Text><View style={styles.dividerLine}/></View>
-          <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "المتابعة باستخدام Apple" : "Continue with Apple"} disabled={loading} onPress={() => void signInWithSocial("apple")} style={({ pressed }) => [styles.socialButton, loading && styles.disabled, pressed && styles.pressed]}><Text style={[styles.socialButtonText, isArabic && styles.arabicText]}>{isArabic ? "المتابعة باستخدام Apple" : "Continue with Apple"}</Text></Pressable>
+          {showApple ? <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "المتابعة باستخدام Apple" : "Continue with Apple"} disabled={loading} onPress={() => void signInWithSocial("apple")} style={({ pressed }) => [styles.socialButton, loading && styles.disabled, pressed && styles.pressed]}><Text style={[styles.socialButtonText, isArabic && styles.arabicText]}>{isArabic ? "المتابعة باستخدام Apple" : "Continue with Apple"}</Text></Pressable> : null}
           <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "المتابعة باستخدام Google" : "Continue with Google"} disabled={loading} onPress={() => void signInWithSocial("google")} style={({ pressed }) => [styles.socialButton, loading && styles.disabled, pressed && styles.pressed]}><Text style={[styles.socialButtonText, isArabic && styles.arabicText]}>{isArabic ? "المتابعة باستخدام Google" : "Continue with Google"}</Text></Pressable>
           <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "إنشاء حساب" : "Create an account"} onPress={() => router.push("/signup")} style={styles.secondaryButton}><Text style={[styles.signupLink, isArabic && styles.arabicText]}>{isArabic ? "إنشاء حساب جديد" : "Create a new account"}</Text></Pressable>
           <Text style={[styles.footnote, isArabic && styles.arabicFootnote]}>{isArabic ? "موهبة حقيقية. فرص أكثر." : "REAL TALENT. MORE OPPORTUNITIES."}</Text>
