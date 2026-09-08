@@ -31,7 +31,7 @@ export async function completeMobileTalentOnboarding(
   const admin = createAdminClient();
   const { data: existingProfile, error: profileLookupError } = await admin
     .from("profiles")
-    .select("id,account_type,display_name")
+    .select("id,account_type,display_name,phone")
     .eq("user_id", userId)
     .maybeSingle();
 
@@ -43,7 +43,9 @@ export async function completeMobileTalentOnboarding(
   const metadataName = String(
     userMetadata?.display_name ?? userMetadata?.full_name ?? "",
   ).trim();
+  const metadataPhone = String(userMetadata?.phone ?? "").trim() || null;
   const displayName = String(existingProfile?.display_name || metadataName || email || "Talent").trim() || "Talent";
+  const canonicalPhone = existingProfile?.phone || metadataPhone;
 
   let profileId = existingProfile?.id ?? null;
   if (!profileId) {
@@ -53,6 +55,7 @@ export async function completeMobileTalentOnboarding(
         user_id: userId,
         account_type: "talent",
         display_name: displayName,
+        phone: canonicalPhone,
         status: "active",
         onboarding_status: "profile_in_progress",
         onboarding_step: "talent_profile",
@@ -126,6 +129,8 @@ export async function completeMobileTalentOnboarding(
     .from("profiles")
     .update({
       account_type: "talent",
+      display_name: displayName,
+      phone: canonicalPhone,
       onboarding_status: "profile_in_progress",
       onboarding_step: "talent_profile",
       updated_at: new Date().toISOString(),
