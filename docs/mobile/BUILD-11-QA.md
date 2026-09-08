@@ -17,14 +17,14 @@ This file is the source-of-truth tracker for the Build 11 batch. A source change
 - ✅ Verified email flow creates/updates canonical account data before onboarding.
 - ✅ Required mobile number is collected for email registration and social registration completion.
 - ✅ Google and Apple signup converge through shared callback/account-completion logic.
-- ✅ Email signup with an immediate Supabase session now persists canonical account details and Actor/Model intent directly instead of duplicating the path chooser.
+- ✅ Email signup with an immediate Supabase session persists canonical account details and Actor/Model intent directly instead of duplicating the path chooser.
 - ✅ Pending social signup context has a 30-minute TTL and carries intent/locale/terms acceptance.
-- ✅ Cancelled/failed OAuth now clears stale pending signup state and returns to signup/login instead of leaving a stuck callback.
+- ✅ Cancelled/failed OAuth clears stale pending signup state and returns to signup/login instead of leaving a stuck callback.
 - ✅ Normal password/Google/Apple login clears stale signup context before authentication.
 - ✅ Signup/Login/OTP/Complete Account critical back actions use safe fallback navigation instead of depending only on router history.
 - 🟡 Google callback and all new auth convergence behavior require Build 11 physical-device verification.
 - 🟡 Apple OAuth source path exists and iOS config declares `usesAppleSignIn: true`; Apple Developer + Supabase provider configuration and real-iPhone verification remain.
-- 🔒 Production Supabase Confirm Signup template must not switch to OTP until integration verification of the new web + mobile clients passes.
+- 🔒 Production Supabase Confirm Signup template must not switch to OTP until the controlled release/configuration gate is approved.
 - 🔒 Existing registered accounts remain untouched/backward-compatible.
 
 ## Account data
@@ -51,9 +51,9 @@ This file is the source-of-truth tracker for the Build 11 batch. A source change
 - ✅ New intent-first registration avoids asking Actor/Model twice when known.
 - ✅ Journey orchestrator routes to the next real incomplete step: core data → female privacy reassurance when needed → photos → review.
 - ✅ Formal Journey Progress remains 25 / 50 / 75 / 100 and is separate from Profile Completion and Review Readiness.
-- ✅ Social account completion now describes registration itself as Step 2 of 2; it no longer invents a conflicting 5-step total.
-- ✅ Legacy Actor/Model fallback chooser has been redesigned into compact mobile-native cards, explicit current selection and a clear CTA; image-dominant long cards were removed.
-- ✅ Legacy path chooser back action now uses a safe fallback.
+- ✅ Social account completion describes registration itself as Step 2 of 2; it no longer invents a conflicting 5-step total.
+- ✅ Legacy Actor/Model fallback chooser is redesigned into compact mobile-native cards, explicit current selection and a clear CTA; image-dominant long cards removed.
+- ✅ Legacy path chooser back action uses a safe fallback.
 - 🟡 Profile editor uses explicit Save & Continue, validates review-required fields and warns before unsaved exit; Build 11 verification required.
 - 🟡 Mid-onboarding relaunch canonical route fix requires Build 11 physical-device verification.
 - ✅ Web carries Actor/Model intent into talent setup and no longer marks onboarding completed immediately after role selection.
@@ -65,8 +65,8 @@ This file is the source-of-truth tracker for the Build 11 batch. A source change
 - ✅ Restricted visibility does not make a talent incomplete or unqualified for matching/readiness.
 - ✅ Authenticated privacy GET/PATCH API + privacy history exist.
 - ✅ Public projection strips non-public photos.
-- ✅ `verified_publishers` now checks the actual Publisher verification state (`publishers.verified` / `verification_status`) in addition to approved/active account state; approved-but-unverified publishers no longer receive restricted access.
-- ✅ Viewer-aware talent profile lookup now allows a genuinely verified publisher to open a `verified_publishers` profile while anonymous/unverified viewers cannot.
+- ✅ `verified_publishers` checks actual Publisher verification state (`publishers.verified` / `verification_status`) in addition to approved/active account state; approved-but-unverified publishers do not receive restricted access.
+- ✅ Viewer-aware talent profile lookup allows a genuinely verified publisher to open a `verified_publishers` profile while anonymous/unverified viewers cannot.
 - ✅ Private profiles remain owner/admin-only in profile browsing.
 - ✅ Privacy tests cover verified vs unverified publishers, guests, private profiles and restricted photos.
 - ✅ Public directory and sitemap continue to use public-only talent candidates.
@@ -80,7 +80,7 @@ This file is the source-of-truth tracker for the Build 11 batch. A source change
 
 ## Build 10 physical-device QA carried into Build 11
 - 🟡 Opportunities Arabic filter and featured horizontal containers anchor from the right in source.
-- 🟡 Opportunity details/list and DOB source formatters use Gregorian calendar + Latin numbering; verify all visible date/number surfaces on Build 11.
+- 🟡 Opportunity details/list, Publisher brief date picker and DOB source formatters use Gregorian calendar + Latin numbering; verify all visible date/number surfaces on Build 11.
 - 🟡 Gallery logical first image begins from the right in Arabic and cards are compact.
 - 🟡 Long-press horizontal drag reorder is RTL-aware with scale/vibration feedback and auto-save on drop; textual reorder buttons removed.
 - 🟡 Primary-photo feedback updates immediately with badge/state/non-blocking confirmation.
@@ -88,18 +88,20 @@ This file is the source-of-truth tracker for the Build 11 batch. A source change
 - ✅ Nationality canonical/fallback datasets are substantially expanded.
 - 🟡 Nationality selector has search, current selection, draft selection, explicit confirmation, RTL and empty state.
 - 🟡 Measurements & Appearance redesigned into compact metrics/selectors.
-- 🟡 Gold required-star UX is implemented in core registration/profile/support/publisher setup surfaces; opportunity-form regression remains in Build 11 QA.
+- 🟡 Gold required-star UX is implemented in registration, profile, support, publisher setup and the required Publisher opportunity brief fields.
+- 🟡 Publisher opportunity numeric inputs normalize Arabic/Persian digits to Latin digits before saving.
 - 🟡 Settings language switching updates in place without route replacement/relaunch.
 - 🟡 Password recovery prefills signed-in email and uses context-aware return.
 - 🟡 Support email/mobile fields align correctly in Arabic while values preserve readable LTR direction.
 - 🟡 Legal document switching resets scroll to top.
-- 🟡 Back-navigation hardening now covers Login, Signup, Email OTP, Complete Account, Publisher Setup and legacy Talent chooser; Build 11 device verification required.
+- 🟡 Back-navigation hardening covers Login, Signup, Email OTP, Complete Account, Publisher Setup, Publisher Create Opportunity and legacy Talent chooser; Build 11 device verification required.
 - 🟡 Bottom-nav source ordering renders Profile at far right for Arabic; Build 11 device verification required.
 
 ## Publisher onboarding
 - 🟡 Publisher setup uses a guided identity step, required fields, Save & Continue, inline validation, unsaved-change guard and safe back fallback.
 - ✅ Existing opportunity creation backend rules were audited before changing product assumptions: title/description/type are hard validated; market/verification gates remain server-enforced.
-- 🟡 Current Create Opportunity experience already acts as the supported structured brief path and must be regression-tested before a deeper onboarding redesign.
+- ✅ Create Opportunity marks the backend-required title/category/description fields with gold required indicators and validates title/description locally before API submission.
+- 🟡 Current Create Opportunity experience is the supported structured brief path and must be regression-tested before a deeper onboarding redesign.
 - ⏳ A larger brief-led publisher onboarding redesign can be a post-Build-11 product iteration; do not invent unsupported AI generation in this release batch.
 - 🟡 Admin Activation exposes Publisher canonical phone/onboarding state consistently with Talent.
 
@@ -112,7 +114,7 @@ This file is the source-of-truth tracker for the Build 11 batch. A source change
 - ✅ OAuth callback no longer falls back to legacy `/join/account-type` for unresolved new users.
 - ✅ The stale server signup action is no longer present in the current `/join/page.tsx` source.
 - 🟡 Legacy `/join/account-type` remains backward-compatible recovery only for authenticated old accounts without a saved type; retire after regression verification.
-- 🟡 Canonical join rewrite requires Vercel Preview/regression verification before release readiness.
+- 🟡 Canonical join rewrite requires Preview/regression verification before release readiness.
 
 ## Security / release gates
 - 🔒 PR #112 remains Draft and unmerged.
@@ -122,8 +124,10 @@ This file is the source-of-truth tracker for the Build 11 batch. A source change
 - 🔒 Do not enable RLS blindly on `marketing_events`, `roles`, `permissions`, `role_permissions`, `user_roles`; policies must be designed and validated first.
 - ⏳ Security policy cleanup for those five advisory tables is intentionally separate from Build 11 because an incorrect RLS change could break runtime access.
 
-## CI / final gates
-- Green checkpoint `3ad401fd4293bf1042bc5de304781ba5d565d5` (profile editor/nationality/measurements batch).
-- Current source batch includes auth cancellation/back-navigation hardening, corrected verified-publisher privacy semantics, coherent registration progress and fallback talent-path redesign.
-- Re-check Vercel on the exact latest head before calling the source batch green.
+## Build 11 release-prep state
+- ✅ `apps/mobile/app.json` is prepared with iOS `buildNumber: 11` and Android `versionCode: 11`.
+- ✅ Source implementation batch is frozen as a Build 11 candidate pending exact-head Preview success and controlled Production/configuration gates.
+- 🔒 TestFlight/preview builds point to Production Supabase/API, so Build 11 cannot correctly exercise the new signup/privacy/deletion contracts until the required selective backend/schema/configuration changes are approved and released.
+- 🔒 Required controlled gates before meaningful Build 11 device QA: expose selected new backend contracts, apply the reviewed Production privacy schema, switch the Production signup email template to OTP, configure Apple provider/Apple Developer when ready.
+- 🟡 Account deletion then requires an isolated disposable test account.
 - No physical-device QA item is closed merely because source/Preview passes.
