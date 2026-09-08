@@ -74,11 +74,11 @@ This file is the source-of-truth tracker for the Build 11 batch. A source change
 ## Build 10 physical-device QA carried into Build 11
 - 🟡 Opportunities Arabic filter/featured horizontal containers now anchor a full-width RTL row from the right in source; Build 11 device verification required.
 - 🟡 Opportunity details and DOB source formatters explicitly use Gregorian calendar + Latin numbering; profile DOB formatter/picker has also been hardened to Gregorian + Latin numbering. Remaining opportunity/list/date surfaces still require audit and Build 11 verification before closing this item.
-- ⏳ Gallery RTL ordering starts from right.
-- ⏳ Gallery cards/images reduced to professional mobile sizing.
-- ⏳ Gallery native drag-and-drop; remove `تقديم` / `تأخير`.
-- ⏳ Clear primary-photo feedback.
-- ✅ Gallery fullscreen safe-area: Build 10 physical-device PASS.
+- 🟡 Gallery RTL ordering is implemented in the new draggable strip so the logical first image starts from the right in Arabic; Build 11 device verification required.
+- 🟡 Gallery cards/images are reduced to compact mobile-native sizing so multiple photos remain visible; Build 11 verification required.
+- 🟡 Native-feeling long-press horizontal drag reorder is integrated in source with RTL-aware movement, subtle scale/vibration feedback and auto-save on drop; textual `تقديم` / `تأخير` controls are removed from the active route. Build 11 physical-device verification required.
+- 🟡 Primary-photo feedback now updates the top primary card immediately, keeps the `الرئيسية` badge/`هذه الصورة الرئيسية` state, and shows a short non-blocking confirmation; Build 11 verification required.
+- ✅ Gallery fullscreen safe-area: Build 10 physical-device PASS; the new route preserves the same safe-area treatment and must be regression-checked on Build 11.
 - 🟡 Canonical nationality dataset expanded substantially across GCC, Arab, European, Asian, African, North/South American and Oceania markets.
 - ✅ Mobile nationality fallback is comprehensive, so a profile-options API outage no longer collapses the selector back to the old limited list.
 - 🟡 Nationality selector is now integrated into the profile editor using the polished single-select sheet with search, current selection, draft selection, explicit confirmation, RTL and empty state; Build 11 verification required.
@@ -115,5 +115,5 @@ This file is the source-of-truth tracker for the Build 11 batch. A source change
 
 ## CI
 - Green checkpoint `3ad401fd4293bfdb1042bc5de304781ba5d565d5`: Vercel Preview success after the profile editor/nationality/measurements rewrite.
-- Latest source batch additionally includes the guided Publisher setup changes; CI re-check pending.
+- Latest source batch additionally includes guided Publisher setup plus the integrated compact RTL drag-and-drop gallery route and primary-photo feedback; CI re-check pending.
 - Re-check CI after every subsequent coherent source batch before marking it green.
