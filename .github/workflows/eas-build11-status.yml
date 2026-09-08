@@ -37,11 +37,12 @@ jobs:
       - name: Wait for Build 11 terminal status
         shell: bash
         run: |
-          set -euo pipefail
+          set -uo pipefail
           test -n "$EXPO_TOKEN"
           for attempt in $(seq 1 50); do
-            npx eas-cli@latest build:list --limit 20 --json --non-interactive > /tmp/eas-builds.json
-            node - <<'NODE'
+            npx eas-cli@latest build:list --limit 20 --json --non-interactive > /tmp/eas-builds.json || exit 1
+            rc=0
+            node - <<'NODE' || rc=$?
           const fs = require('fs');
           const builds = JSON.parse(fs.readFileSync('/tmp/eas-builds.json', 'utf8'));
           const ids = new Set([process.env.IOS_BUILD_ID, process.env.ANDROID_BUILD_ID]);
@@ -67,7 +68,6 @@ jobs:
           if (target.every((b) => b.status === 'FINISHED')) process.exit(0);
           process.exit(2);
           NODE
-            rc=$?
             if [ "$rc" -eq 0 ]; then
               echo "Both Build 11 candidates are FINISHED."
               exit 0
