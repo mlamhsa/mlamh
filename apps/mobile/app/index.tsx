@@ -4,6 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 
 import { getMobileAccountContext } from "@/lib/account";
+import { getAccountHomeHref } from "@/lib/account-routing";
 import { isRtlLocale } from "@/lib/i18n";
 import { useAppLocale } from "@/lib/locale-context";
 import { supabase } from "@/lib/supabase";
@@ -41,12 +42,9 @@ export default function WelcomeScreen() {
       if (!session) { setChecking(false); return; }
       const account = await getMobileAccountContext().catch(() => null);
       if (!active) return;
-      if (account?.type === "publisher") {
-        router.replace(account.onboardingStatus === "completed" && account.entityId ? "/publisher" : "/publisher/setup");
-        return;
-      }
-      if (account?.type === "talent") {
-        router.replace(account.onboardingStatus === "completed" && account.entityId ? "/opportunities" : "/onboarding");
+      const accountHome = getAccountHomeHref(account);
+      if (accountHome) {
+        router.replace(accountHome);
         return;
       }
       const metadataType = session.user.user_metadata?.account_type;
