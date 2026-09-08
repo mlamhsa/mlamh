@@ -10,11 +10,7 @@ export type TalentPrivacySettings = {
   requirePrivateShareApproval: boolean;
 };
 
-const VISIBILITY_RANK: Record<TalentVisibility, number> = {
-  public: 0,
-  verified_publishers: 1,
-  private: 2,
-};
+const VISIBILITY_RANK: Record<TalentVisibility, number> = { public: 0, verified_publishers: 1, private: 2 };
 
 function isVisibility(value: unknown): value is TalentVisibility {
   return value === "public" || value === "verified_publishers" || value === "private";
@@ -25,15 +21,12 @@ export function normalizeTalentPrivacyInput(input: unknown): TalentPrivacySettin
   const value = input as Record<string, unknown>;
   if (!isVisibility(value.profileVisibility) || !isVisibility(value.photoVisibility)) return null;
   if (typeof value.allowMlamhShare !== "boolean" || typeof value.requirePrivateShareApproval !== "boolean") return null;
-
-  // Media may be more restrictive than the profile, never less restrictive.
   if (VISIBILITY_RANK[value.photoVisibility] < VISIBILITY_RANK[value.profileVisibility]) return null;
 
-  const allowSearchIndexing = value.profileVisibility === "public" && value.allowSearchIndexing === true;
   return {
     profileVisibility: value.profileVisibility,
     photoVisibility: value.photoVisibility,
-    allowSearchIndexing,
+    allowSearchIndexing: value.profileVisibility === "public" && value.allowSearchIndexing === true,
     allowMlamhShare: value.allowMlamhShare,
     requirePrivateShareApproval: value.requirePrivateShareApproval,
   };
@@ -65,7 +58,18 @@ export async function getTalentPrivacySettings(userId: string) {
 
   if (error) return { ok: false as const, code: "PRIVACY_LOOKUP_FAILED" as const };
   if (!data) return { ok: false as const, code: "TALENT_NOT_FOUND" as const };
-  return { ok: true as const, item: mapPrivacy(data as Parameters<typeof mapPrivacy>[0]) };
+
+  const { count, error: historyError } = await admin
+    .from("talent_privacy_history")
+    .select("id", { count: "exact", head: true })
+    .eq("talent_id", data.id);
+  if (historyError) return { ok: false as const, code: "PRIVACY_HISTORY_LOOKUP_FAILED" as const };
+
+  return {
+    ok: true as const,
+    item: mapPrivacy(data as Parameters<typeof mapPrivacy>[0]),
+    configured: (count ?? 0) > 0,
+  };
 }
 
 export async function updateTalentPrivacySettings(userId: string, input: unknown, source = "user") {
@@ -73,11 +77,7 @@ export async function updateTalentPrivacySettings(userId: string, input: unknown
   if (!normalized) return { ok: false as const, code: "INVALID_INPUT" as const };
 
   const admin = createAdminClient();
-  const { data: talent, error: lookupError } = await admin
-    .from("talents")
-    .select("id")
-    .eq("user_id", userId)
-    .maybeSingle();
+  const { data: talent, error: lookupError } = await admin.from("talents").select("id").eq("user_id", userId).maybeSingle();
   if (lookupError) return { ok: false as const, code: "PRIVACY_LOOKUP_FAILED" as const };
   if (!talent) return { ok: false as const, code: "TALENT_NOT_FOUND" as const };
 
@@ -92,13 +92,8 @@ export async function updateTalentPrivacySettings(userId: string, input: unknown
   const { error: updateError } = await admin.from("talents").update(dbValues).eq("id", talent.id).eq("user_id", userId);
   if (updateError) return { ok: false as const, code: "PRIVACY_UPDATE_FAILED" as const };
 
-  const { error: historyError } = await admin.from("talent_privacy_history").insert({
-    talent_id: talent.id,
-    user_id: userId,
-    ...dbValues,
-    source,
-  });
+  const { error: historyError } = await admin.from("talent_privacy_history").insert({ talent_id: talent.id, user_id: userId, ...dbValues, source });
   if (historyError) return { ok: false as const, code: "PRIVACY_HISTORY_FAILED" as const };
 
-  return { ok: true as const, item: normalized };
+  return { ok: true as const, item: normalized, configured: true as const };
 }
