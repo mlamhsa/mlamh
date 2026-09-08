@@ -21,7 +21,7 @@ This file is the source-of-truth tracker for the Build 11 batch. A source change
 - ✅ Pending social signup context has a 30-minute TTL and carries intent/locale/terms acceptance.
 - ✅ No continuous field autosave in the web quick registration form; save occurs on explicit submission.
 - 🟡 Google callback source fix needs Build 11 physical-device verification.
-- 🟡 Apple OAuth source path exists; Apple Developer + Supabase provider configuration and real-iPhone verification remain.
+- 🟡 Apple OAuth source path exists; iOS app config now declares `usesAppleSignIn: true`. Apple Developer + Supabase provider configuration and real-iPhone verification remain.
 - 🔒 Production Supabase Confirm Signup template must not switch to OTP until mobile + web canonical flows are ready.
 - 🔒 Existing registered accounts must remain untouched/backward-compatible.
 
@@ -109,5 +109,5 @@ This file is the source-of-truth tracker for the Build 11 batch. A source change
 
 ## CI
 - Latest tracked green checkpoint `c0fa52fd44158a120370f4734cac5fa221f49f7a`: Vercel Preview success.
-- Latest source batch now also includes the Arabic opportunities filter anchoring fix and comprehensive mobile nationality fallback; CI re-check pending.
+- Latest source batch now also includes the iOS Sign in with Apple capability declaration, Arabic opportunities filter anchoring fix and comprehensive mobile nationality fallback; CI re-check pending.
 - Re-check CI after every subsequent coherent source batch before marking it green.
