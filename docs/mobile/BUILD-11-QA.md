@@ -77,7 +77,8 @@ This file is the source-of-truth tracker for the Build 11 batch. A source change
 - ✅ Gallery fullscreen safe-area: Build 10 physical-device PASS.
 - 🟡 Canonical nationality dataset expanded substantially across GCC, Arab, European, Asian, African, North/South American and Oceania markets.
 - ✅ Mobile nationality fallback is now also comprehensive, so a profile-options API outage no longer collapses the selector back to the old limited list.
-- ⏳ Nationality selector mobile-native interaction redesign: stable sheet, clearer current selection/search, explicit confirmation behavior.
+- 🟡 Reusable mobile-native single-select sheet source component prepared with search, explicit current selection, draft selection, confirm action, RTL and empty state; profile editor integration remains.
+- ⏳ Nationality selector integration in profile editor and Build 11 verification.
 - ⏳ Measurements & Appearance redesign.
 - 🟡 Settings language switching now updates in place without route replacement/relaunch; Build 11 verification required.
 - 🟡 Password recovery now prefills the signed-in account email and uses a context-aware return action; Build 11 verification required.
@@ -109,5 +110,5 @@ This file is the source-of-truth tracker for the Build 11 batch. A source change
 
 ## CI
 - Latest tracked green checkpoint `c0fa52fd44158a120370f4734cac5fa221f49f7a`: Vercel Preview success.
-- Latest source batch now also includes the iOS Sign in with Apple capability declaration, Arabic opportunities filter anchoring fix and comprehensive mobile nationality fallback; CI re-check pending.
+- Latest source batch now also includes the iOS Sign in with Apple capability declaration, reusable polished single-select sheet, Arabic opportunities filter anchoring fix and comprehensive mobile nationality fallback; CI re-check pending.
 - Re-check CI after every subsequent coherent source batch before marking it green.
