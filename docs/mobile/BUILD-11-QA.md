@@ -69,13 +69,14 @@ This file is the source-of-truth tracker for the Build 11 batch. A source change
 
 ## Build 10 physical-device QA carried into Build 11
 - ⏳ Opportunities Arabic filters start visually from right.
-- ⏳ All opportunity/DOB UI dates use Gregorian calendar + Latin digits 0–9.
+- 🟡 Opportunity details and DOB source formatters explicitly use Gregorian calendar + Latin numbering; remaining opportunity/list/date surfaces still require audit and Build 11 verification before closing this item.
 - ⏳ Gallery RTL ordering starts from right.
 - ⏳ Gallery cards/images reduced to professional mobile sizing.
 - ⏳ Gallery native drag-and-drop; remove `تقديم` / `تأخير`.
 - ⏳ Clear primary-photo feedback.
 - ✅ Gallery fullscreen safe-area: Build 10 physical-device PASS.
-- 🟡 Canonical nationality dataset expanded substantially across GCC, Arab, European, Asian, African, North/South American and Oceania markets. Selector interaction polish still pending.
+- 🟡 Canonical nationality dataset expanded substantially across GCC, Arab, European, Asian, African, North/South American and Oceania markets.
+- ✅ Mobile nationality fallback is now also comprehensive, so a profile-options API outage no longer collapses the selector back to the old limited list.
 - ⏳ Nationality selector mobile-native interaction redesign: stable sheet, clearer current selection/search, explicit confirmation behavior.
 - ⏳ Measurements & Appearance redesign.
 - 🟡 Settings language switching now updates in place without route replacement/relaunch; Build 11 verification required.
@@ -84,7 +85,7 @@ This file is the source-of-truth tracker for the Build 11 batch. A source change
 - 🟡 Legal document switching now resets scroll position to the top; Build 11 verification required.
 - ⏳ Back navigation reliability.
 - ⏳ Required-field gold-star consistency across all forms. Support form is implemented; remaining forms pending.
-- ⏳ Bottom navigation Arabic visual order audit.
+- 🟡 Bottom navigation source audit confirms the physical order is Opportunities → Applications → Messages → Profile, which renders Profile at the far right for Arabic; Build 11 device verification remains required.
 
 ## Publisher onboarding
 - ⏳ Redesign as a brief/value-led guided journey.
@@ -108,5 +109,5 @@ This file is the source-of-truth tracker for the Build 11 batch. A source change
 
 ## CI
 - Latest tracked green checkpoint `c0fa52fd44158a120370f4734cac5fa221f49f7a`: Vercel Preview success.
-- Latest source batch includes permanent account deletion UI/API/service plus settings canonical-phone/in-place locale switching and expanded canonical nationalities; CI re-check pending.
+- Latest source batch includes permanent account deletion UI/API/service, canonical phone/in-place locale switching, expanded canonical nationalities and comprehensive mobile fallback; CI re-check pending.
 - Re-check CI after every subsequent coherent source batch before marking it green.
