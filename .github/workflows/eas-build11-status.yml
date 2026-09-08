@@ -1,0 +1,74 @@
+name: EAS Build 11 Status
+
+on:
+  push:
+    branches:
+      - feat/mobile-platform-phase0
+    paths:
+      - ".github/workflows/eas-build11-status.yml"
+  workflow_dispatch:
+
+jobs:
+  inspect-builds:
+    name: Inspect EAS Build 11
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.0"
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --include=dev --no-audit --no-fund
+
+      - name: Query recent EAS builds
+        shell: bash
+        run: |
+          test -n "$EXPO_TOKEN"
+          npx eas-cli@latest build:list --limit 20 --json --non-interactive > /tmp/eas-builds.json
+          node - <<'NODE'
+          const fs = require('fs');
+          const builds = JSON.parse(fs.readFileSync('/tmp/eas-builds.json', 'utf8'));
+          const target = builds.filter((b) => {
+            const ios11 = b.platform === 'IOS' && String(b.appBuildVersion ?? b.buildNumber ?? '') === '11';
+            const android11 = b.platform === 'ANDROID' && String(b.appBuildVersion ?? b.versionCode ?? '') === '11';
+            const commitMatch = b.gitCommitHash === 'ce38293e3de010b85791e01df3dda51c73c0c341';
+            return ios11 || android11 || commitMatch;
+          });
+          fs.writeFileSync('/tmp/eas-build11.json', JSON.stringify(target, null, 2));
+          console.log(JSON.stringify(target.map((b) => ({
+            id: b.id,
+            platform: b.platform,
+            status: b.status,
+            profile: b.buildProfile,
+            appBuildVersion: b.appBuildVersion,
+            appVersion: b.appVersion,
+            gitCommitHash: b.gitCommitHash,
+            createdAt: b.createdAt,
+            updatedAt: b.updatedAt,
+            artifacts: b.artifacts,
+          })), null, 2));
+          if (target.length < 2) {
+            console.error(`Expected paired Build 11 records; found ${target.length}.`);
+            process.exitCode = 2;
+          }
+          NODE
+
+      - name: Upload EAS status snapshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eas-build11-status
+          path: /tmp/eas-build11.json
+          if-no-files-found: error
+          retention-days: 3
