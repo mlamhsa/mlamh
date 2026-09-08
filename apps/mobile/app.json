@@ -44,6 +44,7 @@
       "supportsTablet": false,
       "bundleIdentifier": "net.mlamh.app",
       "buildNumber": "10",
+      "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
