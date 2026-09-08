@@ -4,6 +4,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { ArrowLeft, ArrowRight, Building2, Check, ChevronLeft, ChevronRight, Drama, Sparkles, UserRound } from "lucide-react-native";
 
+import { getMobileAccountContext } from "@/lib/account";
+import { getAccountHomeHref } from "@/lib/account-routing";
+import { signInWithNativeApple } from "@/lib/apple-auth";
 import { MOBILE_API_BASE_URL } from "@/lib/api-config";
 import { isRtlLocale } from "@/lib/i18n";
 import { useAppLocale } from "@/lib/locale-context";
@@ -66,6 +69,7 @@ export default function SignupScreen() {
   const textAlign = isRtl ? "right" : "left";
   const BackIcon = isRtl ? ArrowRight : ArrowLeft;
   const NextIcon = isRtl ? ChevronLeft : ChevronRight;
+  const showApple = Platform.OS === "ios";
 
   function goBack() {
     setError(null);
@@ -82,12 +86,48 @@ export default function SignupScreen() {
     setStep(2);
   }
 
+  async function finishNativeAppleSignup(termsAcceptedAt: string) {
+    const nativeResult = await signInWithNativeApple();
+    if (!nativeResult.ok) {
+      await clearPendingSignupContext().catch(() => undefined);
+      if (!nativeResult.canceled) setError(isArabic ? "تعذر التسجيل باستخدام Apple. حاول مرة أخرى." : "Unable to sign up with Apple. Please try again.");
+      return;
+    }
+
+    const existingAccount = await getMobileAccountContext().catch(() => null);
+    if (existingAccount) {
+      await clearPendingSignupContext().catch(() => undefined);
+      router.replace(getAccountHomeHref(existingAccount) ?? "/");
+      return;
+    }
+
+    await supabase.auth.updateUser({ data: {
+      account_type: accountType,
+      signup_intent: intent,
+      talent_intent: intent === "actor" || intent === "model" ? intent : null,
+      preferred_locale: locale,
+      terms_accepted: true,
+      terms_accepted_at: termsAcceptedAt,
+      onboarding_status: "account_details_required",
+      onboarding_step: "account_details",
+      approval_status: "not_submitted",
+    }}).catch(() => undefined);
+    await clearPendingSignupContext().catch(() => undefined);
+    router.replace({ pathname: "/complete-account", params: { accountType, intent } });
+  }
+
   async function signUpWithSocial(provider: SocialProvider) {
     if (!intent || loading) return;
     setLoading(true); setError(null);
     const termsAcceptedAt = new Date().toISOString();
     try {
       await setPendingSignupContext({ intent, accountType, preferredLocale: locale, termsAcceptedAt });
+
+      if (provider === "apple" && Platform.OS === "ios") {
+        await finishNativeAppleSignup(termsAcceptedAt);
+        return;
+      }
+
       const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
         provider,
         options: { redirectTo: "mlamh://auth/callback", skipBrowserRedirect: true },
@@ -230,8 +270,8 @@ export default function SignupScreen() {
             <View style={styles.socialCard}>
               <Text style={[styles.socialTitle,{textAlign}]}>{isArabic ? "تسجيل سريع" : "Quick signup"}</Text>
               <Pressable disabled={loading} onPress={()=>void signUpWithSocial("google")} style={({pressed})=>[styles.socialButton,loading&&styles.disabled,pressed&&styles.pressed]}><Text style={styles.socialButtonText}>{isArabic?"المتابعة باستخدام Google":"Continue with Google"}</Text></Pressable>
-              <Pressable disabled={loading} onPress={()=>void signUpWithSocial("apple")} style={({pressed})=>[styles.appleButton,loading&&styles.disabled,pressed&&styles.pressed]}><Text style={styles.appleButtonText}>{isArabic?"المتابعة باستخدام Apple":"Continue with Apple"}</Text></Pressable>
-              <Text style={[styles.socialConsent,{textAlign}]}>{isArabic?"بالمتابعة باستخدام Google أو Apple فإنك توافق على شروط الاستخدام وسياسة الخصوصية.":"By continuing with Google or Apple, you agree to the Terms of Use and Privacy Policy."}</Text>
+              {showApple ? <Pressable disabled={loading} onPress={()=>void signUpWithSocial("apple")} style={({pressed})=>[styles.appleButton,loading&&styles.disabled,pressed&&styles.pressed]}><Text style={styles.appleButtonText}>{isArabic?"المتابعة باستخدام Apple":"Continue with Apple"}</Text></Pressable> : null}
+              <Text style={[styles.socialConsent,{textAlign}]}>{showApple ? (isArabic?"بالمتابعة باستخدام Google أو Apple فإنك توافق على شروط الاستخدام وسياسة الخصوصية.":"By continuing with Google or Apple, you agree to the Terms of Use and Privacy Policy.") : (isArabic?"بالمتابعة باستخدام Google فإنك توافق على شروط الاستخدام وسياسة الخصوصية.":"By continuing with Google, you agree to the Terms of Use and Privacy Policy.")}</Text>
               <View style={[styles.legalLinks,isRtl&&styles.rowRtl]}><Pressable onPress={()=>router.push({pathname:"/legal",params:{section:"terms"}})}><Text style={styles.legalLink}>{isArabic?"الشروط":"Terms"}</Text></Pressable><Text style={styles.legalDot}>·</Text><Pressable onPress={()=>router.push({pathname:"/legal",params:{section:"privacy"}})}><Text style={styles.legalLink}>{isArabic?"الخصوصية":"Privacy"}</Text></Pressable></View>
             </View>
 
