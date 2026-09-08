@@ -28,7 +28,14 @@ async function resolvePostAuthHref(): Promise<Href> {
 export default function AuthCallbackScreen() {
   const { locale } = useAppLocale();
   const isArabic = locale === "ar";
-  const params = useLocalSearchParams<{ code?: string | string[]; type?: string | string[]; access_token?: string | string[]; refresh_token?: string | string[] }>();
+  const params = useLocalSearchParams<{
+    code?: string | string[];
+    type?: string | string[];
+    access_token?: string | string[];
+    refresh_token?: string | string[];
+    error?: string | string[];
+    error_description?: string | string[];
+  }>();
   const styles = useMemo(() => createStyles(), []);
   const [message, setMessage] = useState(isArabic ? "جارٍ إكمال تسجيل الدخول…" : "Completing sign in…");
 
@@ -40,6 +47,15 @@ export default function AuthCallbackScreen() {
       const type = firstParam(params.type);
       const accessToken = firstParam(params.access_token);
       const refreshToken = firstParam(params.refresh_token);
+      const callbackError = firstParam(params.error);
+
+      if (callbackError) {
+        const pendingSignup = await getPendingSignupContext().catch(() => null);
+        await clearPendingSignupContext().catch(() => undefined);
+        if (!active) return;
+        router.replace(pendingSignup ? "/signup" : "/login");
+        return;
+      }
 
       let callbackUrl = await Linking.getInitialURL();
       if (!callbackUrl?.startsWith("mlamh://auth/callback")) {
@@ -89,12 +105,16 @@ export default function AuthCallbackScreen() {
         return;
       }
 
-      setMessage(isArabic ? "تعذر إكمال تسجيل الدخول. عد إلى شاشة الدخول وحاول مرة أخرى." : "We could not complete sign in. Return to the sign-in screen and try again.");
+      const pendingSignup = await getPendingSignupContext().catch(() => null);
+      await clearPendingSignupContext().catch(() => undefined);
+      if (!active) return;
+      setMessage(isArabic ? "تعذر إكمال المصادقة. سنعيدك للمحاولة مرة أخرى." : "We could not complete authentication. Returning you so you can try again.");
+      setTimeout(() => router.replace(pendingSignup ? "/signup" : "/login"), 700);
     }
 
     void finishAuth();
     return () => { active = false; };
-  }, [isArabic, locale, params.access_token, params.code, params.refresh_token, params.type]);
+  }, [isArabic, locale, params.access_token, params.code, params.error, params.error_description, params.refresh_token, params.type]);
 
   return <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
     <View style={styles.content}>
