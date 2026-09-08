@@ -58,7 +58,7 @@ export async function POST(request: Request) {
         phone,
         account_type: accountType,
         onboarding_status: "profile_in_progress",
-        onboarding_step: "account_details_completed",
+        onboarding_step: "account_details",
         updated_at: new Date().toISOString(),
       })
       .eq("id", existingProfile.id)
@@ -72,7 +72,7 @@ export async function POST(request: Request) {
       phone,
       status: "active",
       onboarding_status: "profile_in_progress",
-      onboarding_step: "account_details_completed",
+      onboarding_step: "account_details",
       approval_status: "not_submitted",
     });
     if (insertError) return NextResponse.json({ ok: false, code: "PROFILE_CREATE_FAILED" }, { status: 500 });
