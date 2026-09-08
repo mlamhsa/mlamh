@@ -30,6 +30,7 @@ This file is the source-of-truth tracker for the Build 11 batch. A source change
 - ✅ Account context exposes phone, phone verification state and onboarding step.
 - ✅ Account details API creates/updates the profile after auth and social signup.
 - ✅ Phone remains unverified until future SMS OTP (`phone_verified_at` null).
+- 🟡 Support now reads the canonical account phone for prefill; Build 11 verification required.
 - ⏳ Settings/Admin surfaces must be audited to consistently show canonical phone and verification state.
 
 ## Talent onboarding journey
@@ -67,11 +68,11 @@ This file is the source-of-truth tracker for the Build 11 batch. A source change
 - ⏳ Nationality selector comprehensive/mobile-native redesign.
 - ⏳ Measurements & Appearance redesign.
 - ⏳ In-place language switching without app relaunch.
-- ⏳ Password recovery authenticated-context behavior.
-- ⏳ Support form RTL alignment.
-- ⏳ Legal document tab switch resets scroll to top.
+- 🟡 Password recovery now prefills the signed-in account email and uses a context-aware return action; Build 11 verification required.
+- 🟡 Support email/mobile labels and values now align correctly for Arabic while preserving LTR value direction; Build 11 verification required.
+- 🟡 Legal document switching now resets scroll position to the top; Build 11 verification required.
 - ⏳ Back navigation reliability.
-- ⏳ Required-field gold-star consistency across all forms.
+- ⏳ Required-field gold-star consistency across all forms. Support form is implemented; remaining forms pending.
 - ⏳ Bottom navigation Arabic visual order audit.
 
 ## Publisher onboarding
@@ -96,4 +97,5 @@ This file is the source-of-truth tracker for the Build 11 batch. A source change
 
 ## CI
 - Latest tracked checkpoint `c0fa52fd44158a120370f4734cac5fa221f49f7a`: Vercel Preview success.
+- Latest source batch through `f9ca01e261c85360f92a4e9e00c5a25910f263db`; CI re-check pending.
 - Re-check CI after every subsequent coherent source batch before marking it green.
