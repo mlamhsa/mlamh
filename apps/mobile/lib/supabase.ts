@@ -22,6 +22,8 @@ export type PendingSignupContext = {
   intent: "actor" | "model" | "publisher";
   accountType: "talent" | "publisher";
   createdAt: string;
+  termsAcceptedAt?: string;
+  preferredLocale?: "ar" | "en";
 };
 
 export async function setPendingSignupContext(context: Omit<PendingSignupContext, "createdAt">) {
