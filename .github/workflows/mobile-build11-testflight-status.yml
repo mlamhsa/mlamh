@@ -10,15 +10,16 @@ on:
 
 jobs:
   inspect-testflight:
-    name: Inspect Build 11 TestFlight status
+    name: Wait for Build 11 TestFlight readiness
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 35
     defaults:
       run:
         working-directory: apps/mobile
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
       IOS_BUILD_ID: 84983607-c5fb-4ae3-b840-47b6d089847c
+      IOS_SUBMISSION_ID: 779bd93e-5dc6-4ea5-bc49-352f3e97a491
     steps:
       - name: Checkout release source
         uses: actions/checkout@v4
@@ -35,26 +36,68 @@ jobs:
       - name: Install dependencies
         run: npm ci --include=dev --no-audit --no-fund
 
-      - name: Query iOS submissions
+      - name: Verify exact iOS submission finished
         shell: bash
         run: |
           test -n "$EXPO_TOKEN"
-          npx eas-cli@latest submit:list --platform ios --limit 10 --json --non-interactive > /tmp/eas-ios-submissions.json
-          cat /tmp/eas-ios-submissions.json
+          npx eas-cli@latest submit:view "$IOS_SUBMISSION_ID" --platform ios --json > /tmp/eas-build11-submission.json
+          cat /tmp/eas-build11-submission.json
+          node - <<'NODE'
+          const fs = require('fs');
+          const submission = JSON.parse(fs.readFileSync('/tmp/eas-build11-submission.json', 'utf8'));
+          if (submission.id !== process.env.IOS_SUBMISSION_ID) throw new Error('Unexpected submission id');
+          if (submission.status !== 'FINISHED') throw new Error(`Submission not finished: ${submission.status}`);
+          if (submission.submittedBuild?.id !== process.env.IOS_BUILD_ID) throw new Error('Submission does not target Build 11');
+          NODE
 
-      - name: Query App Store / TestFlight status
+      - name: Wait for Build 11 to become valid in TestFlight
         shell: bash
         run: |
-          npx eas-cli@latest submit:status --platform ios --profile testflight --json --non-interactive > /tmp/eas-testflight-status.json
-          cat /tmp/eas-testflight-status.json
+          set -uo pipefail
+          for attempt in $(seq 1 50); do
+            rc=0
+            npx eas-cli@latest submit:status --platform ios --profile testflight --json --non-interactive > /tmp/eas-testflight-status.json || rc=$?
+            if [ "$rc" -ne 0 ]; then
+              echo "::warning::TestFlight status query failed on attempt ${attempt}; retrying."
+              sleep 30
+              continue
+            fi
+            cat /tmp/eas-testflight-status.json
+            node_rc=0
+            node - <<'NODE' || node_rc=$?
+          const fs = require('fs');
+          const status = JSON.parse(fs.readFileSync('/tmp/eas-testflight-status.json', 'utf8'));
+          const builds = status?.ios?.testFlightBuilds ?? [];
+          const build = builds.find((b) => String(b.buildNumber) === '11');
+          if (!build) process.exit(2);
+          console.log('BUILD11_TESTFLIGHT=' + JSON.stringify(build));
+          fs.writeFileSync('/tmp/build11-testflight-ready.json', JSON.stringify(build, null, 2));
+          if (build.processingState === 'VALID' && !build.expired) process.exit(0);
+          if (['INVALID', 'FAILED'].includes(build.processingState)) process.exit(4);
+          process.exit(3);
+          NODE
+            if [ "$node_rc" -eq 0 ]; then
+              echo "Build 11 is VALID in TestFlight."
+              exit 0
+            fi
+            if [ "$node_rc" -eq 4 ]; then
+              echo "::error::Build 11 reached an invalid TestFlight processing state."
+              exit 1
+            fi
+            echo "Build 11 is still being processed by Apple; attempt ${attempt}/50."
+            sleep 30
+          done
+          echo "::error::Timed out waiting for Build 11 to become VALID in TestFlight."
+          exit 1
 
       - name: Upload status snapshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: build11-testflight-status
+          name: build11-testflight-final-status
           path: |
-            /tmp/eas-ios-submissions.json
+            /tmp/eas-build11-submission.json
             /tmp/eas-testflight-status.json
+            /tmp/build11-testflight-ready.json
           if-no-files-found: warn
           retention-days: 3
