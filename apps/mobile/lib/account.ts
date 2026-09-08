@@ -17,9 +17,12 @@ const DEFAULT_MARKET = process.env.EXPO_PUBLIC_DEFAULT_MARKET?.trim().toUpperCas
 export type MobileAccountContext = {
   type: "talent" | "publisher";
   displayName: string | null;
+  phone: string | null;
+  phoneVerified: boolean;
   approvalStatus: string | null;
   status: string | null;
   onboardingStatus: string | null;
+  onboardingStep: string | null;
   entityId: number | null;
   countryCode: string | null;
 };
