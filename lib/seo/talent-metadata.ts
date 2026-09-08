@@ -7,6 +7,12 @@ const SITE_URL = (
   process.env.NEXT_PUBLIC_SITE_URL || "https://mlamh.net"
 ).replace(/\/$/, "");
 
+type TalentPrivacyMetadata = Talent & {
+  profile_visibility?: "public" | "verified_publishers" | "private" | null;
+  photo_visibility?: "public" | "verified_publishers" | "private" | null;
+  allow_search_indexing?: boolean | null;
+};
+
 function cleanMetaDescription(
   value: string | null | undefined,
   fallback: string,
@@ -32,6 +38,12 @@ export function buildTalentMetadata({
   locale: Locale;
 }): Metadata {
   const isRtl = locale === "ar";
+  const privacyTalent = talent as TalentPrivacyMetadata;
+  const profileVisibility = privacyTalent.profile_visibility ?? "public";
+  const photoVisibility = privacyTalent.photo_visibility ?? "public";
+  const isPublicProfile = profileVisibility === "public";
+  const mayIndex = privacyTalent.allow_search_indexing !== false && isPublicProfile;
+  const mayExposePhoto = isPublicProfile && photoVisibility === "public";
 
   const name = isRtl
     ? talent.name_ar || talent.name_en
@@ -53,13 +65,15 @@ export function buildTalentMetadata({
     : `${safeName}${category ? ` — ${category}` : ""} | MLAMH`;
 
   const fallbackDescription = isRtl
-    ? `${safeName}${category ? `، ${category}` : ""}. اكتشف الملف المهني والصور والمعلومات عبر منصة ملامح.`
-    : `Discover ${safeName}${category ? `, ${category}` : ""}. View the professional profile, media and details on MLAMH.`;
+    ? `${safeName}${category ? `، ${category}` : ""}. اكتشف الملف المهني عبر منصة ملامح.`
+    : `Discover ${safeName}${category ? `, ${category}` : ""}. View the professional profile on MLAMH.`;
 
-  const description = cleanMetaDescription(
-    bio,
-    fallbackDescription,
-  );
+  // Non-public profiles must not leak private bio copy into social/search metadata.
+  const description = isPublicProfile
+    ? cleanMetaDescription(bio, fallbackDescription)
+    : isRtl
+      ? "ملف موهبة على منصة ملامح. تفاصيل الملف متاحة وفق إعدادات الخصوصية الخاصة بالموهبة."
+      : "A talent profile on MLAMH. Profile details are available according to the talent's privacy settings.";
 
   const canonicalSlug = talent.slug || "";
 
@@ -81,11 +95,14 @@ export function buildTalentMetadata({
       )}`
     : `${SITE_URL}/en/talent`;
 
-  const image =
-    talent.image_url || `${SITE_URL}/og-image.png`;
+  // Never place a restricted talent photo in OG/Twitter metadata.
+  const image = mayExposePhoto && talent.image_url
+    ? talent.image_url
+    : `${SITE_URL}/og-image.png`;
 
   const isIndexable = Boolean(
-    talent.slug &&
+    mayIndex &&
+      talent.slug &&
       talent.published &&
       talent.status === "approved",
   );
@@ -114,8 +131,8 @@ export function buildTalentMetadata({
         {
           url: image,
           width: 1200,
-          height: talent.image_url ? 1600 : 630,
-          alt: safeName,
+          height: mayExposePhoto && talent.image_url ? 1600 : 630,
+          alt: isPublicProfile ? safeName : (isRtl ? "ملامح" : "MLAMH"),
         },
       ],
     },
@@ -129,7 +146,9 @@ export function buildTalentMetadata({
 
     robots: {
       index: isIndexable,
-      follow: true,
+      follow: isPublicProfile,
+      noarchive: !isPublicProfile,
+      noimageindex: !mayExposePhoto,
     },
   };
 }
