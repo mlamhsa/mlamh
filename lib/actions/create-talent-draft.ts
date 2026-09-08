@@ -121,13 +121,6 @@ export async function createTalentDraftAction(
           "Talent"
       ).trim() || "Talent";
 
-      const googleAvatarUrl =
-  String(
-    user.user_metadata?.avatar_url ||
-      user.user_metadata?.picture ||
-      "",
-  ).trim() || null;
-
     const {
       data: existingTalent,
       error: talentLookupError,
@@ -208,7 +201,10 @@ export async function createTalentDraftAction(
             primary_role:
               selectedCategory.slug,
 
-            image_url: googleAvatarUrl,
+            // OAuth provider avatars are account metadata, not a professional
+            // talent profile photo. Keep image_url empty until the talent
+            // explicitly uploads/selects a profile image in MLAMH.
+            image_url: null,
 
             slug,
 

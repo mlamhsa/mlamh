@@ -52,6 +52,10 @@ export async function applyToOpportunity(
     return { ok: false, code: "ACCOUNT_RESTRICTED" };
   }
 
+  if (profile.approval_status !== "approved") {
+    return { ok: false, code: "TALENT_NOT_APPROVED" };
+  }
+
   const { data: talent, error: talentError } = await adminClient
     .from("talents")
     .select(`
@@ -89,9 +93,6 @@ export async function applyToOpportunity(
     phone: profile.phone,
   });
 
-  // Readiness is evaluated before approval so every client can show the most
-  // actionable next step. This also covers legacy approved profiles that may
-  // still be missing a newly-required field without revoking their approval.
   if (!profileReadiness.isReady) {
     console.log("[Talent profile readiness]", {
       talentId: talent.id,
@@ -103,17 +104,8 @@ export async function applyToOpportunity(
       ok: false,
       code: "PROFILE_INCOMPLETE",
       details: {
-        approvalStatus: profile.approval_status ?? null,
         missingRequirements: profileReadiness.missingRequirements,
       },
-    };
-  }
-
-  if (profile.approval_status !== "approved") {
-    return {
-      ok: false,
-      code: "TALENT_NOT_APPROVED",
-      details: { approvalStatus: profile.approval_status ?? null },
     };
   }
 

@@ -1,3 +1,4 @@
+import { NATIONALITIES } from "@/lib/data/nationalities";
 import { SAUDI_CITIES } from "@/lib/data/saudi-cities";
 import { TALENT_CATEGORIES } from "@/lib/data/talent-categories";
 
@@ -55,6 +56,42 @@ export function nullableNumberValue(
     : null;
 }
 
+export function positiveNullableNumberValue(
+  formData: FormData,
+  key: string,
+  existingValue?: number | string | null,
+) {
+  const value = stringValue(formData, key);
+
+  if (!value) {
+    return null;
+  }
+
+  const numberValue = Number(value);
+
+  if (!Number.isFinite(numberValue)) {
+    throw new Error(`${key} must be a valid number.`);
+  }
+
+  if (numberValue > 0) {
+    return numberValue;
+  }
+
+  const existingNumber =
+    existingValue === null || existingValue === undefined || existingValue === ""
+      ? null
+      : Number(existingValue);
+
+  // Preserve a legacy invalid value when the user has not changed it. This
+  // avoids blocking unrelated profile edits while still rejecting any new or
+  // modified zero/negative measurement.
+  if (existingNumber !== null && Number.isFinite(existingNumber) && existingNumber === numberValue) {
+    return numberValue;
+  }
+
+  throw new Error(`${key} must be greater than zero.`);
+}
+
 export function booleanValue(
   formData: FormData,
   key: string
@@ -85,13 +122,6 @@ function isValidDateParts(
 }
 
 function normalizeDateValue(value: string) {
-  /*
-   * الصيغة القياسية القادمة من:
-   * <input type="date" />
-   *
-   * مثال:
-   * 1989-08-07
-   */
   const standardDateMatch = value.match(
     /^(\d{4})-(\d{2})-(\d{2})$/
   );
@@ -110,15 +140,6 @@ function normalizeDateValue(value: string) {
     return `${standardDateMatch[1]}-${standardDateMatch[2]}-${standardDateMatch[3]}`;
   }
 
-  /*
-   * دعم القيم المكتوبة يدويًا بصيغة:
-   * DDMMYYYY
-   *
-   * مثال:
-   * 07081989
-   * تصبح:
-   * 1989-08-07
-   */
   const compactDateMatch = value.match(
     /^(\d{2})(\d{2})(\d{4})$/
   );
@@ -137,12 +158,6 @@ function normalizeDateValue(value: string) {
     return `${compactDateMatch[3]}-${compactDateMatch[2]}-${compactDateMatch[1]}`;
   }
 
-  /*
-   * دعم صيغة:
-   * DD/MM/YYYY
-   * أو:
-   * DD-MM-YYYY
-   */
   const separatedDateMatch = value.match(
     /^(\d{2})[/-](\d{2})[/-](\d{4})$/
   );
@@ -242,6 +257,44 @@ export function getSelectedCity(
     city_ar: city.ar,
     city_en: city.en,
   };
+}
+
+export function getSelectedNationality(
+  formData: FormData,
+  existingValue?: string | null,
+) {
+  const rawNationality = stringValue(formData, "nationality_slug");
+
+  // Incomplete profiles are allowed to autosave before nationality is chosen.
+  // Readiness still requires nationality before review submission.
+  if (!rawNationality) {
+    return {
+      slug: null,
+      isLegacy: false,
+    };
+  }
+
+  const nationalitySlug = rawNationality.toLowerCase();
+  const nationality = NATIONALITIES.find(
+    (item) => item.slug.toLowerCase() === nationalitySlug,
+  );
+
+  if (nationality) {
+    return {
+      slug: nationality.slug,
+      isLegacy: false,
+    };
+  }
+
+  const normalizedExisting = (existingValue ?? "").trim().toLowerCase();
+  if (normalizedExisting && normalizedExisting === nationalitySlug) {
+    return {
+      slug: existingValue!.trim(),
+      isLegacy: true,
+    };
+  }
+
+  throw new Error("Invalid nationality selected.");
 }
 
 export function getSelectedCategory(

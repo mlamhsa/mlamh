@@ -30,6 +30,33 @@ export async function createAdminLocalizedOpportunityFormAction(
     throw new Error("عنوان ووصف الفرصة مطلوبان.");
   }
 
+  const adminClient = createAdminClient();
+  const marketingBriefIdRaw = Number(formData.get("marketing_brief_id"));
+  const marketingBriefId = Number.isInteger(marketingBriefIdRaw) && marketingBriefIdRaw > 0
+    ? marketingBriefIdRaw
+    : null;
+  let linkedLeadId: number | null = null;
+
+  if (marketingBriefId) {
+    const { data: brief, error: briefError } = await adminClient
+      .from("marketing_briefs")
+      .select("id,status,opportunity_id,lead_id")
+      .eq("id", marketingBriefId)
+      .single();
+
+    if (briefError || !brief) {
+      throw new Error("تعذر العثور على البريف المرتبط.");
+    }
+    if (brief.status !== "complete") {
+      throw new Error("يجب أن يكون البريف مكتملًا قبل تحويله إلى فرصة.");
+    }
+    if (brief.opportunity_id) {
+      throw new Error("هذا البريف مرتبط بفرصة بالفعل.");
+    }
+
+    linkedLeadId = typeof brief.lead_id === "number" ? brief.lead_id : null;
+  }
+
   const translated = await translateOpportunityContent({
     sourceLanguage: "ar",
     title: titleAr,
@@ -149,6 +176,7 @@ export async function createAdminLocalizedOpportunityFormAction(
         sourceType === "client" ? clientCompanyName : null,
       content_source_language: "ar",
       translation_mode: "automatic",
+      marketing_brief_id: marketingBriefId,
     },
     publishNow: false,
   });
@@ -159,7 +187,6 @@ export async function createAdminLocalizedOpportunityFormAction(
     throw new Error("تعذر إنشاء الفرصة.");
   }
 
-  const adminClient = createAdminClient();
   const { error } = await adminClient
     .from("opportunities")
     .update({
@@ -177,7 +204,44 @@ export async function createAdminLocalizedOpportunityFormAction(
     );
   }
 
+  if (marketingBriefId) {
+    const now = new Date().toISOString();
+    const { error: briefLinkError } = await adminClient
+      .from("marketing_briefs")
+      .update({
+        opportunity_id: opportunityId,
+        status: "converted",
+        updated_at: now,
+      })
+      .eq("id", marketingBriefId)
+      .eq("status", "complete")
+      .is("opportunity_id", null);
+
+    if (briefLinkError) {
+      throw new Error(`[link marketing brief] ${briefLinkError.message}`);
+    }
+
+    if (linkedLeadId) {
+      const { error: leadError } = await adminClient
+        .from("marketing_leads")
+        .update({
+          stage: "opportunity",
+          brief_status: "complete",
+          next_action_at: null,
+          updated_at: now,
+        })
+        .eq("id", linkedLeadId);
+
+      if (leadError) {
+        throw new Error(`[advance marketing lead] ${leadError.message}`);
+      }
+    }
+  }
+
   revalidatePath("/admin/opportunities");
+  revalidatePath("/admin/marketing/briefs");
+  revalidatePath("/admin/marketing/leads");
+  revalidatePath("/admin/marketing");
   revalidatePath("/ar/opportunities");
   revalidatePath("/en/opportunities");
   revalidatePath("/ar");
