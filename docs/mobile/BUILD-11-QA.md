@@ -31,7 +31,8 @@ This file is the source-of-truth tracker for the Build 11 batch. A source change
 - ✅ Account details API creates/updates the profile after auth and social signup.
 - ✅ Phone remains unverified until future SMS OTP (`phone_verified_at` null).
 - 🟡 Support now reads the canonical account phone for prefill; Build 11 verification required.
-- ⏳ Settings/Admin surfaces must be audited to consistently show canonical phone and verification state.
+- 🟡 Settings now reads the canonical account phone instead of Supabase Auth phone; Build 11 verification required.
+- ⏳ Admin phone and verification-state surface audit remains.
 
 ## Talent onboarding journey
 - ✅ Intent avoids asking Actor/Model twice where known.
@@ -65,9 +66,10 @@ This file is the source-of-truth tracker for the Build 11 batch. A source change
 - ⏳ Gallery native drag-and-drop; remove `تقديم` / `تأخير`.
 - ⏳ Clear primary-photo feedback.
 - ✅ Gallery fullscreen safe-area: Build 10 physical-device PASS.
-- ⏳ Nationality selector comprehensive/mobile-native redesign.
+- 🟡 Canonical nationality dataset expanded substantially across GCC, Arab, European, Asian, African, North/South American and Oceania markets. Selector interaction polish still pending.
+- ⏳ Nationality selector mobile-native interaction redesign: stable sheet, clearer current selection/search, explicit confirmation behavior.
 - ⏳ Measurements & Appearance redesign.
-- ⏳ In-place language switching without app relaunch.
+- 🟡 Settings language switching now updates in place without route replacement/relaunch; Build 11 verification required.
 - 🟡 Password recovery now prefills the signed-in account email and uses a context-aware return action; Build 11 verification required.
 - 🟡 Support email/mobile labels and values now align correctly for Arabic while preserving LTR value direction; Build 11 verification required.
 - 🟡 Legal document switching now resets scroll position to the top; Build 11 verification required.
@@ -96,6 +98,6 @@ This file is the source-of-truth tracker for the Build 11 batch. A source change
 - ⏳ Security policy cleanup for the five staging advisory tables.
 
 ## CI
-- Latest tracked checkpoint `c0fa52fd44158a120370f4734cac5fa221f49f7a`: Vercel Preview success.
-- Latest source batch through `f9ca01e261c85360f92a4e9e00c5a25910f263db`; CI re-check pending.
+- Latest tracked green checkpoint `c0fa52fd44158a120370f4734cac5fa221f49f7a`: Vercel Preview success.
+- Latest source batch includes settings canonical-phone/in-place locale switching and expanded canonical nationalities; CI re-check pending.
 - Re-check CI after every subsequent coherent source batch before marking it green.
