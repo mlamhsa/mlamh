@@ -3,61 +3,59 @@ import assert from "node:assert/strict";
 
 import {
   canRequestTalentFromProfile,
+  canViewTalentPhotos,
   canViewTalentPrivateContent,
+  canViewTalentProfile,
   hideTalentPrivateContent,
 } from "./public-profile-access.ts";
-import type { Talent } from "../types/talent.ts";
 
-const talent: Talent = {
-  id: 1,
-  user_id: "talent-user",
-  name_en: "Talent",
-  name_ar: "موهبة",
-  category_en: "Model",
-  category_ar: "عارض",
-  image_url: "https://cdn.example.com/profile.jpg",
-  featured: false,
-  sort_order: null,
-  published: true,
-  status: "approved",
-  instagram: "https://instagram.com/example",
-  tiktok: "example",
-  snapchat: "example",
-  whatsapp: "+966500000000",
-  portfolio_url: "https://portfolio.example.com",
-  portfolio_links: ["https://portfolio.example.com/work"],
-  video_intro: "https://video.example.com/intro",
-  showreel_url: "https://video.example.com/showreel",
+const approvedPublisher = {
+  userId: "publisher-1",
+  accountType: "publisher",
+  approvalStatus: "approved",
+  profileStatus: "active",
 };
 
-test("public projection removes private media and external talent links", () => {
+const guest = { userId: null, accountType: null };
+
+test("approved publisher can access gated private content", () => {
+  assert.equal(canViewTalentPrivateContent(approvedPublisher, "talent-1"), true);
+  assert.equal(canRequestTalentFromProfile(approvedPublisher), true);
+});
+
+test("guest cannot access private content", () => {
+  assert.equal(canViewTalentPrivateContent(guest, "talent-1"), false);
+});
+
+test("verified-only profile is hidden from guests and visible to approved publishers", () => {
+  const talent = { user_id: "talent-1", profile_visibility: "verified_publishers" as const };
+  assert.equal(canViewTalentProfile(guest, talent), false);
+  assert.equal(canViewTalentProfile(approvedPublisher, talent), true);
+});
+
+test("private profile is not exposed to publisher profile browsing", () => {
+  const talent = { user_id: "talent-1", profile_visibility: "private" as const };
+  assert.equal(canViewTalentProfile(approvedPublisher, talent), false);
+  assert.equal(canViewTalentProfile({ userId: "talent-1", accountType: "talent" }, talent), true);
+});
+
+test("verified-only photos stay hidden from public projection", () => {
+  const talent = {
+    id: 1,
+    name_en: "Talent",
+    name_ar: "موهبة",
+    category_en: "Actor",
+    category_ar: "ممثل",
+    image_url: "https://example.com/photo.jpg",
+    gallery_images: ["https://example.com/photo.jpg"],
+    featured: false,
+    sort_order: 1,
+    published: true,
+    photo_visibility: "verified_publishers" as const,
+  };
   const projected = hideTalentPrivateContent(talent);
-  assert.equal(projected.instagram, null);
-  assert.equal(projected.tiktok, null);
-  assert.equal(projected.snapchat, null);
-  assert.equal(projected.whatsapp, null);
-  assert.equal(projected.portfolio_url, null);
-  assert.equal(projected.portfolio_links, null);
-  assert.equal(projected.video_intro, null);
-  assert.equal(projected.showreel_url, null);
-  assert.equal(projected.private_access_granted, false);
-});
-
-test("approved active publisher can view private talent content", () => {
-  assert.equal(canViewTalentPrivateContent({ userId: "publisher-user", accountType: "publisher", approvalStatus: "approved", profileStatus: "active" }, talent.user_id), true);
-});
-
-test("pending or inactive publisher cannot view private talent content", () => {
-  assert.equal(canViewTalentPrivateContent({ userId: "publisher-user", accountType: "publisher", approvalStatus: "pending", profileStatus: "active" }, talent.user_id), false);
-  assert.equal(canViewTalentPrivateContent({ userId: "publisher-user", accountType: "publisher", approvalStatus: "approved", profileStatus: "suspended" }, talent.user_id), false);
-});
-
-test("talent owner and admin can view private talent content", () => {
-  assert.equal(canViewTalentPrivateContent({ userId: "talent-user", accountType: "talent" }, talent.user_id), true);
-  assert.equal(canViewTalentPrivateContent({ userId: "admin-user", accountType: "admin" }, talent.user_id), true);
-});
-
-test("only approved active publisher can request talent from profile", () => {
-  assert.equal(canRequestTalentFromProfile({ userId: "publisher-user", accountType: "publisher", approvalStatus: "approved", profileStatus: "active" }), true);
-  assert.equal(canRequestTalentFromProfile({ userId: "publisher-user", accountType: "publisher", approvalStatus: "pending", profileStatus: "active" }), false);
+  assert.equal(projected.image_url, "");
+  assert.deepEqual(projected.gallery_images, []);
+  assert.equal(canViewTalentPhotos(guest, talent), false);
+  assert.equal(canViewTalentPhotos(approvedPublisher, talent), true);
 });
