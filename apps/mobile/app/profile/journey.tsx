@@ -1,134 +1,134 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import { ArrowLeft, ArrowRight, Camera, Check, Circle, FileCheck2, Sparkles, UserRound } from "lucide-react-native";
+import { CheckCircle2, FileCheck2, ShieldCheck } from "lucide-react-native";
 
 import { getTalentProfile, type MobileTalentProfile } from "@/lib/api";
-import { isRtlLocale } from "@/lib/i18n";
+import { MOBILE_API_BASE_URL } from "@/lib/api-config";
 import { useAppLocale } from "@/lib/locale-context";
 import { getMobileTalentReviewReadiness } from "@/lib/profile-review-readiness";
+import { supabase } from "@/lib/supabase";
 import { darkTheme } from "@/lib/theme";
-
-type StepState = "done" | "current" | "next";
-
-const BRAND_AR = require("../../assets/logo.ar.png");
-const BRAND_EN = require("../../assets/logo.en.png");
 
 function reviewSubmitted(profile: MobileTalentProfile) {
   return ["submitted", "pending", "approved"].includes(profile.approvalStatus ?? "");
 }
 
+async function getPrivacyConfigured() {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) return false;
+  try {
+    const response = await fetch(`${MOBILE_API_BASE_URL}/api/talent/me/privacy`, {
+      headers: { Accept: "application/json", Authorization: `Bearer ${session.access_token}` },
+    });
+    const payload = await response.json().catch(() => null) as { configured?: boolean } | null;
+    return response.ok && payload?.configured === true;
+  } catch { return false; }
+}
+
 export default function TalentProfileJourneyScreen() {
   const { locale } = useAppLocale();
   const isArabic = locale === "ar";
-  const isRtl = isRtlLocale(locale);
-  const theme = darkTheme;
-  const styles = useMemo(() => createStyles(theme), [theme]);
+  const styles = useMemo(() => createStyles(), []);
   const [profile, setProfile] = useState<MobileTalentProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const [routing, setRouting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async (refresh = false) => {
-    refresh ? setRefreshing(true) : setLoading(true);
-    setError(null);
-    try {
-      const result = await getTalentProfile(locale);
-      if (!result.ok) {
-        if (result.code === "UNAUTHENTICATED") router.replace({ pathname: "/login", params: { next: "/profile/journey" } });
-        else setError(isArabic ? "تعذر تحميل تقدم ملفك." : "Unable to load your profile progress.");
-        return;
+  useEffect(() => {
+    let active = true;
+    async function loadAndRoute() {
+      setLoading(true); setError(null);
+      try {
+        const result = await getTalentProfile(locale);
+        if (!active) return;
+        if (!result.ok) {
+          if (result.code === "UNAUTHENTICATED") router.replace({ pathname: "/login", params: { next: "/profile/journey" } });
+          else setError(isArabic ? "تعذر تحميل رحلة ملفك." : "Unable to load your profile journey.");
+          return;
+        }
+
+        const item = result.item;
+        setProfile(item);
+        const readiness = getMobileTalentReviewReadiness(item);
+        const hasPhoto = readiness.requirements.find((requirement) => requirement.key === "profile_image")?.completed ?? false;
+        const hasCore = readiness.requirements.filter((requirement) => requirement.key !== "profile_image").every((requirement) => requirement.completed);
+        const submitted = reviewSubmitted(item);
+        const approved = item.approvalStatus === "approved";
+
+        if (submitted || approved) return;
+
+        setRouting(true);
+        if (!hasCore) {
+          router.replace({ pathname: "/profile/edit", params: { onboarding: "1" } });
+          return;
+        }
+
+        if (item.gender === "female") {
+          const privacyConfigured = await getPrivacyConfigured();
+          if (!active) return;
+          if (!privacyConfigured) {
+            router.replace({ pathname: "/profile/privacy", params: { onboarding: "1" } });
+            return;
+          }
+        }
+
+        if (!hasPhoto) {
+          router.replace({ pathname: "/profile/media", params: { onboarding: "1" } });
+          return;
+        }
+
+        if (readiness.isReady) {
+          router.replace({ pathname: "/profile/review", params: { onboarding: "1" } });
+          return;
+        }
+
+        router.replace({ pathname: "/profile/edit", params: { onboarding: "1" } });
+      } catch {
+        if (active) setError(isArabic ? "تعذر تحميل رحلة ملفك. تحقق من الاتصال وحاول مرة أخرى." : "Unable to load your profile journey. Check your connection and try again.");
+      } finally {
+        if (active) { setLoading(false); setRouting(false); }
       }
-      setProfile(result.item);
-    } catch {
-      setError(isArabic ? "تعذر تحميل تقدم ملفك. تحقق من الاتصال وحاول مرة أخرى." : "Unable to load your profile progress. Check your connection and try again.");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
     }
+    void loadAndRoute();
+    return () => { active = false; };
   }, [isArabic, locale]);
 
-  useEffect(() => { void load(); }, [load]);
+  if (loading || routing || !profile) return <SafeAreaView style={styles.screen}><View style={styles.center}><ActivityIndicator color={darkTheme.accent}/><Text style={styles.loadingText}>{isArabic ? "نجهز خطوتك التالية…" : "Preparing your next step…"}</Text></View></SafeAreaView>;
 
-  const readiness = profile ? getMobileTalentReviewReadiness(profile) : null;
-  const hasPhoto = readiness?.requirements.find((requirement) => requirement.key === "profile_image")?.completed ?? false;
-  const hasCore = readiness ? readiness.requirements.filter((requirement) => requirement.key !== "profile_image").every((requirement) => requirement.completed) : false;
-  const reviewReady = readiness?.isReady ?? false;
-  const submitted = profile ? reviewSubmitted(profile) : false;
-  const approved = profile?.approvalStatus === "approved";
-  const approvedNeedsCompletion = approved && !reviewReady;
-  const completedJourneySteps = 1 + (hasCore ? 1 : 0) + (hasPhoto ? 1 : 0) + (submitted ? 1 : 0);
-  const progress = completedJourneySteps * 25;
-  const BackIcon = isRtl ? ArrowRight : ArrowLeft;
+  const readiness = getMobileTalentReviewReadiness(profile);
+  const hasPhoto = readiness.requirements.find((requirement) => requirement.key === "profile_image")?.completed ?? false;
+  const hasCore = readiness.requirements.filter((requirement) => requirement.key !== "profile_image").every((requirement) => requirement.completed);
+  const submitted = reviewSubmitted(profile);
+  const approved = profile.approvalStatus === "approved";
+  const completedSteps = 1 + (hasCore ? 1 : 0) + (hasPhoto ? 1 : 0) + (submitted ? 1 : 0);
+  const progress = Math.min(100, completedSteps * 25);
 
-  if (loading) return <SafeAreaView style={styles.screen}><View style={styles.center}><ActivityIndicator color={theme.accent}/><Text style={styles.loadingText}>{isArabic ? "نجهز رحلتك" : "Preparing your journey"}</Text></View></SafeAreaView>;
+  if (error) return <SafeAreaView style={styles.screen}><View style={styles.center}><Text style={styles.errorText}>{error}</Text><Pressable onPress={()=>router.replace("/profile")} style={styles.secondaryButton}><Text style={styles.secondaryText}>{isArabic?"العودة للملف":"Back to profile"}</Text></Pressable></View></SafeAreaView>;
 
-  const reviewState: StepState = submitted ? "done" : reviewReady ? "current" : "next";
-  const reviewBody = approvedNeedsCompletion
-    ? (isArabic ? "اعتمادك محفوظ. أكمل المتطلبات الناقصة حتى يصبح ملفك جاهزًا للتقديم على الفرص." : "Your approval is preserved. Complete the missing requirements to make your profile ready to apply.")
-    : approved
-      ? (isArabic ? "ملفك معتمد وجاهز للظهور والتقديم حسب إعداداتك." : "Your profile is approved and ready to appear and apply according to your settings.")
-      : submitted
-        ? (isArabic ? "تم إرسال ملفك للمراجعة. راقب التنبيهات لأي تحديث." : "Your profile is under review. Watch notifications for updates.")
-        : reviewReady
-          ? (isArabic ? "كل متطلبات المراجعة جاهزة. راجع ملفك ثم أرسله." : "All review requirements are ready. Review your profile, then submit it.")
-          : (isArabic ? "تفتح هذه الخطوة بعد اكتمال المتطلبات الأساسية والصورة الرئيسية." : "This step unlocks once the required profile details and primary photo are complete.");
+  const title = approved
+    ? (readiness.isReady ? (isArabic ? "ملفك جاهز للفرص" : "Your profile is opportunity-ready") : (isArabic ? "اعتمادك محفوظ" : "Your approval is preserved"))
+    : submitted
+      ? (isArabic ? "ملفك وصل للمراجعة" : "Your profile is under review")
+      : (isArabic ? "ملفك جاهز للإرسال" : "Your profile is ready to submit");
 
-  const title = approvedNeedsCompletion
-    ? (isArabic ? "اعتمادك محفوظ — أكمل ملفك" : "Approval preserved — complete your profile")
-    : approved
-      ? (isArabic ? "ملفك جاهز للفرص" : "Your profile is opportunity-ready")
-      : submitted
-        ? (isArabic ? "ملفك وصل للمراجعة" : "Your profile is in review")
-        : (isArabic ? "خلّ ملفك جاهز للفرص" : "Get your profile opportunity-ready");
+  const body = approved
+    ? (readiness.isReady ? (isArabic ? "يمكنك استكشاف الفرص والتقديم حسب إعدادات ملفك." : "You can explore and apply to opportunities according to your profile settings.") : (isArabic ? "لا تحتاج لإعادة المراجعة. أكمل المتطلبات الحالية ثم عد للفرص." : "No new review is needed. Complete the current requirements, then return to opportunities."))
+    : submitted
+      ? (isArabic ? "تم إرسال ملفك بنجاح. سنحدث حالته هنا عند انتهاء المراجعة." : "Your profile was submitted successfully. We'll update its status here when review is complete.")
+      : (isArabic ? "راجع ملفك ثم أرسله للمراجعة." : "Review your profile, then submit it for review.");
 
-  const subtitle = approvedNeedsCompletion
-    ? (isArabic ? "لا تحتاج لإعادة المراجعة. أكمل البيانات أو الصورة الناقصة، وبعدها ارجع للفرص وابدأ التقديم." : "You do not need another review. Complete the missing details or photo, then return to opportunities and apply.")
-    : approved
-      ? (isArabic ? "استمر في تطوير معرضك وبياناتك، واستكشف الفرص المناسبة لك." : "Keep your portfolio fresh and explore opportunities that fit you.")
-      : submitted
-        ? (isArabic ? "أنجزت المطلوب حاليًا. لا تحتاج لإعادة الإرسال؛ سنحدث الحالة هنا عند اتخاذ قرار المراجعة." : "You’ve completed the current setup. No need to resubmit; this screen updates when review status changes.")
-        : (isArabic ? "نمشي معك خطوة بخطوة. ركّز على البيانات المطلوبة أولًا، ثم الصور، وبعدها أرسل ملفك للمراجعة." : "We’ll guide you step by step: required details first, then your portfolio, then review submission.");
-
-  return <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
-    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={theme.accent}/>}>
-      <View style={[styles.topBar, isRtl && styles.rowRtl]}>
-        <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "رجوع" : "Back"} onPress={() => router.replace("/profile")} style={styles.backButton}><BackIcon size={21} color={theme.text}/></Pressable>
-        <Image source={isArabic ? BRAND_AR : BRAND_EN} resizeMode="contain" style={styles.brandLogo}/>
-      </View>
-
-      <View style={[styles.eyebrowRow, isRtl && styles.rowRtl]}><Sparkles size={14} color={theme.accent}/><Text style={[styles.eyebrow, isRtl && styles.textRtl]}>{isArabic ? "بناء الملف المهني" : "PROFESSIONAL PROFILE JOURNEY"}</Text></View>
-      <Text accessibilityRole="header" style={[styles.title, isRtl && styles.textRtl]}>{title}</Text>
-      <Text style={[styles.subtitle, isRtl && styles.textRtl]}>{subtitle}</Text>
-
-      <View style={styles.progressCard}>
-        <View style={[styles.progressCopy, isRtl && styles.rowRtl]}><Text style={[styles.progressLabel, isRtl && styles.textRtl]}>{isArabic ? "تقدم رحلة الإعداد" : "Setup journey progress"}</Text><Text style={styles.progressValue}>{progress}%</Text></View>
-        <View accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 100, now: progress }} style={styles.track}><View style={[styles.fill, { width: `${progress}%` }]} /></View>
-        <Text style={[styles.progressHint, isRtl && styles.textRtl]}>{approvedNeedsCompletion ? (isArabic ? "الاعتماد محفوظ — توجد متطلبات حالية تحتاج إكمالًا" : "Approval preserved — current requirements still need completion") : approved ? (isArabic ? "معتمد وجاهز" : "Approved and ready") : submitted ? (isArabic ? "تمت خطوات الإعداد والملف قيد المراجعة" : "Setup complete and profile is under review") : reviewReady ? (isArabic ? "3 من 4 خطوات مكتملة — جاهز للإرسال" : "3 of 4 steps complete — ready to submit") : (isArabic ? "هذه نسبة خطوات الإعداد وليست نسبة اكتمال الملف" : "This tracks setup steps, not profile completion")}</Text>
-      </View>
-
-      {error ? <View style={styles.errorCard}><Text style={[styles.errorText, isRtl && styles.textRtl]}>{error}</Text><Pressable onPress={() => void load()} style={styles.retry}><Text style={styles.retryText}>{isArabic ? "إعادة المحاولة" : "Try again"}</Text></Pressable></View> : null}
-
-      <JourneyStep index="1" state="done" icon={<Check size={17} color={theme.background} strokeWidth={3}/>} title={isArabic ? "اختيار المسار" : "Choose your path"} body={isArabic ? "تم تحديد نوع الموهبة." : "Your talent type is selected."} styles={styles} isRtl={isRtl}/>
-      <JourneyStep index="2" state={hasCore ? "done" : "current"} icon={hasCore ? <Check size={17} color={theme.background} strokeWidth={3}/> : <UserRound size={18} color={theme.accent}/>} title={isArabic ? "البيانات الأساسية" : "Core details"} body={hasCore ? (isArabic ? "متطلبات البيانات الأساسية مكتملة. تقدر تعدلها في أي وقت." : "Your required profile details are complete.") : (isArabic ? "أكمل الاسم، المدينة، الجنس، الجنسية وتاريخ الميلاد." : "Complete your name, city, gender, nationality and date of birth.")} action={hasCore ? (isArabic ? "مراجعة البيانات" : "Review details") : (isArabic ? "أكمل البيانات" : "Complete details")} onPress={() => router.push({ pathname: "/profile/edit", params: { onboarding: "1" } })} styles={styles} isRtl={isRtl}/>
-      <JourneyStep index="3" state={hasPhoto ? "done" : hasCore ? "current" : "next"} icon={hasPhoto ? <Check size={17} color={theme.background} strokeWidth={3}/> : <Camera size={18} color={hasCore ? theme.accent : theme.muted}/>} title={isArabic ? "الصور والمعرض" : "Photos & portfolio"} body={hasPhoto ? (isArabic ? "لديك صورة رئيسية. أضف أفضل أعمالك لملف أقوى." : "Your primary photo is set. Add your strongest work.") : (isArabic ? "أضف صورة رئيسية واضحة ثم ابنِ معرضك." : "Add a clear primary photo, then build your portfolio.")} action={hasCore || hasPhoto ? (isArabic ? "إدارة الصور" : "Manage photos") : undefined} onPress={hasCore || hasPhoto ? () => router.push({ pathname: "/profile/media", params: { onboarding: "1" } }) : undefined} styles={styles} isRtl={isRtl}/>
-      <JourneyStep index="4" state={reviewState} icon={submitted ? <Check size={17} color={theme.background} strokeWidth={3}/> : <FileCheck2 size={18} color={reviewReady ? theme.accent : theme.muted}/>} title={isArabic ? "الجاهزية والمراجعة" : "Readiness & review"} body={reviewBody} action={approvedNeedsCompletion ? (isArabic ? "إكمال المتطلبات" : "Complete requirements") : submitted ? (isArabic ? "عرض حالة الملف" : "View profile status") : reviewReady ? (isArabic ? "مراجعة الجاهزية" : "Review readiness") : undefined} onPress={approvedNeedsCompletion ? () => router.push(hasPhoto ? "/profile/edit" : "/profile/media") : submitted ? () => router.replace("/profile") : reviewReady ? () => router.push({ pathname: "/profile/review", params: { onboarding: "1" } }) : undefined} styles={styles} isRtl={isRtl}/>
-
-      <View style={styles.noteCard}><Circle size={10} color={theme.accent} fill={theme.accent}/><Text style={[styles.noteText, isRtl && styles.textRtl]}>{isArabic ? "تقدر ترجع لأي خطوة لاحقًا. الهدف الآن أن نجهز ملفًا واضحًا وقابلًا للمراجعة، وليس أن تملأ كل شيء من أول مرة." : "You can refine any step later. The goal now is a clear, review-ready profile — not filling every field at once."}</Text></View>
-    </ScrollView>
+  return <SafeAreaView style={styles.screen} edges={["top","bottom"]}>
+    <View style={styles.content}>
+      <View style={styles.statusIcon}>{approved ? <CheckCircle2 size={30} color={darkTheme.accent}/> : submitted ? <ShieldCheck size={30} color={darkTheme.accent}/> : <FileCheck2 size={30} color={darkTheme.accent}/>}</View>
+      <Text accessibilityRole="header" style={styles.title}>{title}</Text>
+      <Text style={styles.body}>{body}</Text>
+      <View style={styles.progressCard}><View style={styles.progressRow}><Text style={styles.progressLabel}>{isArabic?"تقدم رحلة الإعداد":"Setup journey progress"}</Text><Text style={styles.progressValue}>{progress}%</Text></View><View style={styles.track}><View style={[styles.fill,{width:`${progress}%`}]} /></View><Text style={styles.progressHint}>{isArabic?"هذه نسبة رحلة الإعداد وليست نسبة اكتمال الملف.":"This is setup journey progress, not profile completion."}</Text></View>
+      {approved && !readiness.isReady ? <Pressable onPress={()=>router.replace(hasPhoto?"/profile/edit":"/profile/media")} style={styles.primaryButton}><Text style={styles.primaryText}>{isArabic?"إكمال المتطلبات":"Complete requirements"}</Text></Pressable> : !submitted ? <Pressable onPress={()=>router.replace({pathname:"/profile/review",params:{onboarding:"1"}})} style={styles.primaryButton}><Text style={styles.primaryText}>{isArabic?"مراجعة الملف والإرسال":"Review and submit"}</Text></Pressable> : <Pressable onPress={()=>router.replace("/opportunities")} style={styles.primaryButton}><Text style={styles.primaryText}>{isArabic?"استكشف الفرص":"Explore opportunities"}</Text></Pressable>}
+      <Pressable onPress={()=>router.replace("/profile")} style={styles.secondaryButton}><Text style={styles.secondaryText}>{isArabic?"عرض ملفي":"View my profile"}</Text></Pressable>
+    </View>
   </SafeAreaView>;
 }
 
-function JourneyStep({ index, state, icon, title, body, action, onPress, styles, isRtl }: { index: string; state: StepState; icon: React.ReactNode; title: string; body: string; action?: string; onPress?: () => void; styles: ReturnType<typeof createStyles>; isRtl: boolean }) {
-  const active = state === "current";
-  const done = state === "done";
-  return <View style={[styles.stepCard, active && styles.stepCardActive, done && styles.stepCardDone]}>
-    <View style={[styles.stepTop, isRtl && styles.rowRtl]}><View style={[styles.stepBadge, done && styles.stepBadgeDone, active && styles.stepBadgeActive]}>{icon}</View><View style={styles.stepCopy}><Text style={[styles.stepIndex, isRtl && styles.textRtl]}>{index.padStart(2, "0")}</Text><Text style={[styles.stepTitle, isRtl && styles.textRtl]}>{title}</Text><Text style={[styles.stepBody, isRtl && styles.textRtl]}>{body}</Text></View></View>
-    {action && onPress ? <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [active ? styles.primaryAction : styles.secondaryAction, pressed && styles.pressed]}><Text style={active ? styles.primaryActionText : styles.secondaryActionText}>{action}</Text></Pressable> : null}
-  </View>;
-}
-
-function createStyles(theme: typeof darkTheme) { return StyleSheet.create({
-  screen:{flex:1,backgroundColor:theme.background},content:{width:"100%",maxWidth:620,alignSelf:"center",paddingHorizontal:20,paddingTop:8,paddingBottom:34,gap:14},center:{flex:1,alignItems:"center",justifyContent:"center",gap:12},loadingText:{color:theme.muted,fontSize:13},rowRtl:{flexDirection:"row-reverse"},textRtl:{textAlign:"right",writingDirection:"rtl"},topBar:{minHeight:54,flexDirection:"row",alignItems:"center",justifyContent:"space-between"},backButton:{width:42,height:42,borderRadius:21,borderWidth:1,borderColor:theme.border,alignItems:"center",justifyContent:"center",backgroundColor:theme.surface},brandLogo:{width:92,height:34},eyebrowRow:{flexDirection:"row",alignItems:"center",gap:7,marginTop:6},eyebrow:{color:theme.accent,fontSize:10,fontWeight:"900",letterSpacing:1.6},title:{color:theme.text,fontSize:34,lineHeight:41,fontWeight:"800",marginTop:2},subtitle:{color:theme.muted,fontSize:14,lineHeight:22,maxWidth:540},progressCard:{borderWidth:1,borderColor:"#C9A96233",borderRadius:18,backgroundColor:"#C9A96208",padding:14,gap:10,marginTop:4},progressCopy:{flexDirection:"row",justifyContent:"space-between",alignItems:"center"},progressLabel:{color:theme.text,fontSize:12,fontWeight:"800"},progressValue:{color:theme.accent,fontSize:12,fontWeight:"900"},progressHint:{color:theme.muted,fontSize:10,lineHeight:15},track:{height:5,borderRadius:3,backgroundColor:"#FFFFFF12",overflow:"hidden"},fill:{height:"100%",backgroundColor:theme.accent,borderRadius:3},errorCard:{borderWidth:1,borderColor:"#C84F4F55",backgroundColor:"#C84F4F12",borderRadius:16,padding:13,gap:10},errorText:{color:"#E59A9A",fontSize:12,lineHeight:18},retry:{alignSelf:"flex-start",paddingVertical:4},retryText:{color:theme.accent,fontSize:12,fontWeight:"800"},stepCard:{borderWidth:1,borderColor:theme.border,borderRadius:20,backgroundColor:theme.surface,padding:15,gap:13},stepCardActive:{borderColor:theme.accent,backgroundColor:"#C9A96209"},stepCardDone:{borderColor:"#49C99133"},stepTop:{flexDirection:"row",alignItems:"flex-start",gap:12},stepBadge:{width:38,height:38,borderRadius:19,borderWidth:1,borderColor:theme.border,alignItems:"center",justifyContent:"center",backgroundColor:"#090909"},stepBadgeActive:{borderColor:theme.accent,backgroundColor:"#C9A96212"},stepBadgeDone:{borderColor:"#49C991",backgroundColor:"#49C991"},stepCopy:{flex:1,gap:3},stepIndex:{color:theme.accent,fontSize:9,fontWeight:"900",letterSpacing:1.4},stepTitle:{color:theme.text,fontSize:16,fontWeight:"900"},stepBody:{color:theme.muted,fontSize:11,lineHeight:17},primaryAction:{minHeight:50,borderRadius:14,backgroundColor:theme.accent,alignItems:"center",justifyContent:"center"},primaryActionText:{color:theme.background,fontSize:14,fontWeight:"900"},secondaryAction:{minHeight:46,borderRadius:14,borderWidth:1,borderColor:theme.border,alignItems:"center",justifyContent:"center",backgroundColor:"#090909"},secondaryActionText:{color:theme.text,fontSize:13,fontWeight:"800"},pressed:{opacity:.82},noteCard:{flexDirection:"row",alignItems:"flex-start",gap:9,paddingHorizontal:3,paddingTop:4},noteText:{flex:1,color:"#777771",fontSize:10,lineHeight:16}
-}); }
+function createStyles(){return StyleSheet.create({screen:{flex:1,backgroundColor:darkTheme.background},center:{flex:1,alignItems:"center",justifyContent:"center",paddingHorizontal:28,gap:14},loadingText:{color:darkTheme.muted,fontSize:14},content:{flex:1,width:"100%",maxWidth:560,alignSelf:"center",paddingHorizontal:22,justifyContent:"center",gap:18},statusIcon:{width:66,height:66,borderRadius:33,borderWidth:1,borderColor:"#4D4023",backgroundColor:"#1E1B14",alignItems:"center",justifyContent:"center",alignSelf:"center"},title:{color:darkTheme.text,fontSize:30,lineHeight:38,fontWeight:"800",textAlign:"center"},body:{color:"#AAA9A1",fontSize:14,lineHeight:22,textAlign:"center"},progressCard:{borderRadius:18,borderWidth:1,borderColor:"#292925",backgroundColor:"#151513",padding:16,gap:10},progressRow:{flexDirection:"row",alignItems:"center",justifyContent:"space-between"},progressLabel:{color:darkTheme.text,fontSize:12,fontWeight:"700"},progressValue:{color:darkTheme.accent,fontSize:14,fontWeight:"900"},track:{height:4,borderRadius:2,backgroundColor:"#2A2A26",overflow:"hidden"},fill:{height:"100%",backgroundColor:darkTheme.accent},progressHint:{color:"#85857E",fontSize:10,lineHeight:16},primaryButton:{minHeight:54,borderRadius:16,backgroundColor:darkTheme.accent,alignItems:"center",justifyContent:"center"},primaryText:{color:"#10100E",fontSize:15,fontWeight:"800"},secondaryButton:{minHeight:46,borderRadius:14,borderWidth:1,borderColor:"#343430",alignItems:"center",justifyContent:"center"},secondaryText:{color:darkTheme.text,fontSize:13,fontWeight:"700"},errorText:{color:"#F2B8B5",fontSize:13,lineHeight:20,textAlign:"center"}})}
