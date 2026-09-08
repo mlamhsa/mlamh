@@ -32,8 +32,9 @@ export function evaluateTalentFastTrackApproval({
   const reasons: string[] = [];
 
   /*
-   * 35% يسمح بالإرسال للمراجعة.
-   * Fast Track يحتاج جودة أعلى.
+   * إرسال الملف للمراجعة لا يعتمد على نسبة مئوية؛
+   * بل على اكتمال متطلبات الجاهزية الإلزامية.
+   * Fast Track فقط يحتاج اكتمالًا أعلى (70%+) إضافة إلى إشارات الجودة أدناه.
    */
   if (completion < 70) {
     reasons.push(

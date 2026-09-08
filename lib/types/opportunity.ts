@@ -40,9 +40,6 @@ export type Opportunity = {
   featured_until?: string | null;
   managed_by_mlamh?: boolean | null;
 
-  application_start_date?: string | null;
-  application_deadline?: string | null;
-  deadline?: string | null;
   expires_at?: string | null;
 
   created_at: string;
