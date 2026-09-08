@@ -10,6 +10,7 @@
     "plugins": [
       "expo-router",
       "expo-localization",
+      "expo-apple-authentication",
       [
         "expo-splash-screen",
         {
@@ -46,7 +47,8 @@
       "buildNumber": "11",
       "usesAppleSignIn": true,
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleAllowMixedLocalizations": true
       },
       "associatedDomains": [
         "applinks:mlamh.net",
