@@ -1,61 +1,61 @@
 import type { Talent } from "@/lib/types/talent";
 
-const INACTIVE_PROFILE_STATUSES = new Set([
-  "suspended",
-  "blocked",
-  "banned",
-  "disabled",
-]);
+const INACTIVE_PROFILE_STATUSES = new Set(["suspended", "blocked", "banned", "disabled"]);
+const INACTIVE_PUBLISHER_STATUSES = new Set(["suspended", "blocked", "banned", "disabled", "rejected"]);
 
 export type TalentProfileViewer = {
   userId: string | null;
   accountType: string | null;
   approvalStatus?: string | null;
   profileStatus?: string | null;
+  publisherVerified?: boolean | null;
+  publisherVerificationStatus?: string | null;
+  publisherStatus?: string | null;
 };
 
-export function canViewTalentPrivateContent(
-  viewer: TalentProfileViewer,
-  talentUserId?: string | null,
-) {
-  if (!viewer.userId) return false;
-
-  if (talentUserId && viewer.userId === talentUserId) {
-    return true;
-  }
-
-  if (viewer.accountType === "admin") {
-    return true;
-  }
-
-  if (viewer.accountType !== "publisher") {
-    return false;
-  }
-
-  if (viewer.approvalStatus !== "approved") {
-    return false;
-  }
-
-  return !INACTIVE_PROFILE_STATUSES.has(
-    viewer.profileStatus?.trim().toLowerCase() ?? "",
-  );
+function isActiveVerifiedPublisher(viewer: TalentProfileViewer) {
+  const profileApproved = viewer.approvalStatus === "approved";
+  const publisherVerified = viewer.publisherVerified === true || viewer.publisherVerificationStatus === "verified";
+  const profileActive = !INACTIVE_PROFILE_STATUSES.has(viewer.profileStatus?.trim().toLowerCase() ?? "");
+  const publisherActive = !INACTIVE_PUBLISHER_STATUSES.has(viewer.publisherStatus?.trim().toLowerCase() ?? "");
+  return viewer.accountType === "publisher" && profileApproved && publisherVerified && profileActive && publisherActive;
 }
 
-export function canRequestTalentFromProfile(
-  viewer: TalentProfileViewer,
-) {
-  return (
-    viewer.accountType === "publisher" &&
-    viewer.approvalStatus === "approved" &&
-    !INACTIVE_PROFILE_STATUSES.has(
-      viewer.profileStatus?.trim().toLowerCase() ?? "",
-    )
-  );
+export function canViewTalentProfile(viewer: TalentProfileViewer, talent: Pick<Talent, "user_id" | "profile_visibility">) {
+  if (viewer.userId && talent.user_id && viewer.userId === talent.user_id) return true;
+  if (viewer.accountType === "admin") return true;
+
+  const visibility = talent.profile_visibility ?? "public";
+  if (visibility === "public") return true;
+  if (visibility === "verified_publishers") return isActiveVerifiedPublisher(viewer);
+  return false;
+}
+
+export function canViewTalentPrivateContent(viewer: TalentProfileViewer, talentUserId?: string | null) {
+  if (!viewer.userId) return false;
+  if (talentUserId && viewer.userId === talentUserId) return true;
+  if (viewer.accountType === "admin") return true;
+  return isActiveVerifiedPublisher(viewer);
+}
+
+export function canViewTalentPhotos(viewer: TalentProfileViewer, talent: Pick<Talent, "user_id" | "photo_visibility">) {
+  if (viewer.userId && talent.user_id && viewer.userId === talent.user_id) return true;
+  if (viewer.accountType === "admin") return true;
+  const visibility = talent.photo_visibility ?? "public";
+  if (visibility === "public") return true;
+  if (visibility === "verified_publishers") return isActiveVerifiedPublisher(viewer);
+  return false;
+}
+
+export function canRequestTalentFromProfile(viewer: TalentProfileViewer) {
+  return isActiveVerifiedPublisher(viewer);
 }
 
 export function hideTalentPrivateContent(talent: Talent): Talent {
+  const hidePhotos = (talent.photo_visibility ?? "public") !== "public";
   return {
     ...talent,
+    ...(hidePhotos ? { image_url: "", gallery_images: [], photos: [], full_body_photos: [] } : {}),
     whatsapp: null,
     instagram: null,
     tiktok: null,
@@ -69,8 +69,5 @@ export function hideTalentPrivateContent(talent: Talent): Talent {
 }
 
 export function grantTalentPrivateContent(talent: Talent): Talent {
-  return {
-    ...talent,
-    private_access_granted: true,
-  };
+  return { ...talent, private_access_granted: true };
 }
