@@ -6,6 +6,7 @@ import { Bell, ChevronLeft, ChevronRight, Images, KeyRound, Languages, LifeBuoy,
 
 import { deleteAccount } from "@/lib/api";
 import { getMobileAccountContext } from "@/lib/account";
+import { revokeNativeAppleAuthorizationForDeletion } from "@/lib/apple-auth";
 import { isRtlLocale } from "@/lib/i18n";
 import { useAppLocale } from "@/lib/locale-context";
 import { preparePushRegistration, signOutMobile } from "@/lib/push";
@@ -98,6 +99,22 @@ export default function ProfileSettingsScreen() {
     if (deletingAccount) return;
     setDeletingAccount(true);
     setDeleteError(null);
+
+    const appleRevocation = await revokeNativeAppleAuthorizationForDeletion();
+    if (!appleRevocation.ok) {
+      setDeletingAccount(false);
+      if (appleRevocation.canceled) {
+        setDeleteError(isArabic ? "أُلغي تأكيد Apple، لذلك لم يتم حذف الحساب." : "Apple confirmation was canceled, so your account was not deleted.");
+        return;
+      }
+      if (appleRevocation.code === "APPLE_REVOCATION_NOT_CONFIGURED") {
+        setDeleteError(isArabic ? "حذف حساب Apple غير متاح مؤقتًا حتى يكتمل إعداد Apple الآمن. لم يتم حذف أي بيانات." : "Apple account deletion is temporarily unavailable until secure Apple revocation is configured. No data was deleted.");
+        return;
+      }
+      setDeleteError(isArabic ? "تعذر إلغاء تفويض Apple بأمان، لذلك لم يتم حذف الحساب. حاول مرة أخرى." : "We could not securely revoke Apple authorization, so your account was not deleted. Please try again.");
+      return;
+    }
+
     const result = await deleteAccount();
     if (!result.ok) {
       setDeletingAccount(false);
