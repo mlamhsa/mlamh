@@ -11,10 +11,12 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import {
   canViewTalentPrivateContent,
+  canViewTalentProfile,
   grantTalentPrivateContent,
   hideTalentPrivateContent,
 } from "@/lib/talent/public-profile-access";
 import {
+  evaluateTalentQualification,
   isTalentPubliclyVisible,
   type TalentQualificationInput,
 } from "@/lib/talent/qualification";
@@ -287,10 +289,16 @@ async function getVisiblePublishedCandidates(options: VisiblePublishedCandidateO
   return { talents, total };
 }
 
-async function qualifySingleTalentCandidate(talent: Talent | null, countryCode: CountryCode = DEFAULT_PUBLIC_MARKET): Promise<PublicTalentCandidate | null> {
+async function qualifySingleTalentCandidate(
+  talent: Talent | null,
+  countryCode: CountryCode = DEFAULT_PUBLIC_MARKET,
+  requirePublicVisibility = true,
+): Promise<PublicTalentCandidate | null> {
   if (!talent || !canExposePublicTalent(talent, countryCode)) return null;
   const [candidate] = await attachProfileApprovalContext([talent]);
-  return candidate && passesPublicTalentVisibilityPolicy(candidate) ? candidate : null;
+  if (!candidate) return null;
+  if (requirePublicVisibility) return passesPublicTalentVisibilityPolicy(candidate) ? candidate : null;
+  return evaluateTalentQualification(candidate).qualified ? candidate : null;
 }
 
 async function getPublishedTalentCandidateBySlug(slug: string, countryCode: CountryCode = DEFAULT_PUBLIC_MARKET): Promise<PublicTalentCandidate | null> {
@@ -301,7 +309,7 @@ async function getPublishedTalentCandidateBySlug(slug: string, countryCode: Coun
   query = applyTalentMarketFilter(query, countryCode);
   const { data, error } = await query.maybeSingle();
   if (error) throw new Error(`[getPublishedTalentBySlug] ${error.message}`);
-  return qualifySingleTalentCandidate(data as Talent | null, countryCode);
+  return qualifySingleTalentCandidate(data as Talent | null, countryCode, false);
 }
 
 export async function getPublicTalents(options: GetPublicTalentsOptions = {}): Promise<GetPublicTalentsResult> {
@@ -369,7 +377,7 @@ export async function getPublishedTalentById(id: number, countryCode: CountryCod
     query = applyTalentMarketFilter(query, countryCode);
     const { data, error } = await query.maybeSingle();
     if (error) throw new Error(`[getPublishedTalentById] ${error.message}`);
-    const candidate = await qualifySingleTalentCandidate(data as Talent | null, countryCode);
+    const candidate = await qualifySingleTalentCandidate(data as Talent | null, countryCode, true);
     return candidate ? toPublicTalent(candidate) : null;
   });
 }
@@ -381,14 +389,47 @@ export async function getPublishedTalentBySlug(slug: string, countryCode: Countr
 export async function getPublishedTalentBySlugForViewer(slug: string, countryCode: CountryCode = DEFAULT_PUBLIC_MARKET): Promise<Talent | null> {
   const candidate = await getPublishedTalentCandidateBySlug(slug, countryCode);
   if (!candidate) return null;
+
+  const anonymousViewer = { userId: null, accountType: null };
   const authClient = await createServerSupabaseClient();
   const { data: { user }, error: authError } = await authClient.auth.getUser();
-  if (authError || !user) return toPublicTalent(candidate);
+  if (authError || !user) return canViewTalentProfile(anonymousViewer, candidate) ? toPublicTalent(candidate) : null;
   if (candidate.user_id && candidate.user_id === user.id) return toPrivateTalent(candidate);
+
   const adminClient = createAdminClient();
-  const { data: profile, error: profileError } = await adminClient.from("profiles").select("account_type, approval_status, status").eq("user_id", user.id).maybeSingle();
-  if (profileError || !profile) return toPublicTalent(candidate);
-  return canViewTalentPrivateContent({ userId: user.id, accountType: profile.account_type, approvalStatus: profile.approval_status, profileStatus: profile.status }, candidate.user_id) ? toPrivateTalent(candidate) : toPublicTalent(candidate);
+  const { data: profile, error: profileError } = await adminClient
+    .from("profiles")
+    .select("id, account_type, approval_status, status")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (profileError || !profile) return canViewTalentProfile(anonymousViewer, candidate) ? toPublicTalent(candidate) : null;
+
+  let publisherVerified: boolean | null = null;
+  let publisherVerificationStatus: string | null = null;
+  let publisherStatus: string | null = null;
+  if (profile.account_type === "publisher") {
+    const { data: publisher } = await adminClient
+      .from("publishers")
+      .select("verified, verification_status, status")
+      .eq("profile_id", profile.id)
+      .maybeSingle();
+    publisherVerified = publisher?.verified ?? null;
+    publisherVerificationStatus = publisher?.verification_status ?? null;
+    publisherStatus = publisher?.status ?? null;
+  }
+
+  const viewer = {
+    userId: user.id,
+    accountType: profile.account_type,
+    approvalStatus: profile.approval_status,
+    profileStatus: profile.status,
+    publisherVerified,
+    publisherVerificationStatus,
+    publisherStatus,
+  };
+
+  if (!canViewTalentProfile(viewer, candidate)) return null;
+  return canViewTalentPrivateContent(viewer, candidate.user_id) ? toPrivateTalent(candidate) : toPublicTalent(candidate);
 }
 
 export async function getPublishedTalents(countryCode: CountryCode = DEFAULT_PUBLIC_MARKET): Promise<Talent[]> {
