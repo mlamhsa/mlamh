@@ -7,6 +7,7 @@ import { ArrowLeft, ArrowRight, CheckCircle2, Mail, RotateCcw } from "lucide-rea
 import { MOBILE_API_BASE_URL } from "@/lib/api-config";
 import { isRtlLocale } from "@/lib/i18n";
 import { useAppLocale } from "@/lib/locale-context";
+import { goBackOrReplace } from "@/lib/navigation";
 import { supabase } from "@/lib/supabase";
 import { darkTheme } from "@/lib/theme";
 
@@ -120,7 +121,7 @@ export default function VerifyEmailScreen() {
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.screen}>
       <View style={styles.content}>
         <View style={[styles.topRow, isRtl && styles.rowRtl]}>
-          <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "رجوع" : "Back"} onPress={() => router.back()} style={styles.iconButton}>{isRtl ? <ArrowRight size={22} color={darkTheme.text} /> : <ArrowLeft size={22} color={darkTheme.text} />}</Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "رجوع" : "Back"} onPress={() => goBackOrReplace("/signup")} style={styles.iconButton}>{isRtl ? <ArrowRight size={22} color={darkTheme.text} /> : <ArrowLeft size={22} color={darkTheme.text} />}</Pressable>
           <Image source={isArabic ? BRAND_LOGO_AR : BRAND_LOGO_EN} resizeMode="contain" style={styles.logo} />
           <Pressable accessibilityRole="button" onPress={() => changeLocale(isArabic ? "en" : "ar")} style={styles.languageButton}><Text style={styles.languageText}>{isArabic ? "EN" : "العربية"}</Text></Pressable>
         </View>
@@ -140,7 +141,7 @@ export default function VerifyEmailScreen() {
           <Pressable accessibilityRole="button" disabled={loading || token.length !== 6} onPress={() => void verify()} style={({ pressed }) => [styles.primaryButton, (loading || token.length !== 6) && styles.disabled, pressed && styles.pressed]}>{loading ? <ActivityIndicator color="#10100E" /> : <Text style={styles.primaryText}>{isArabic ? "تأكيد الرمز والمتابعة" : "Verify and continue"}</Text>}</Pressable>
           <Pressable accessibilityRole="button" disabled={secondsLeft > 0 || resending} onPress={() => void resend()} style={({ pressed }) => [styles.resendButton, (secondsLeft > 0 || resending) && styles.resendDisabled, pressed && styles.pressed]}><RotateCcw size={16} color={secondsLeft > 0 ? "#777770" : darkTheme.accent} /><Text style={[styles.resendText, secondsLeft > 0 && styles.resendTextDisabled]}>{resending ? (isArabic ? "جارٍ الإرسال…" : "Sending…") : secondsLeft > 0 ? (isArabic ? `إعادة الإرسال خلال ${secondsLeft} ثانية` : `Resend in ${secondsLeft}s`) : (isArabic ? "إعادة إرسال الرمز" : "Resend code")}</Text></Pressable>
           <View style={styles.hintBox}><Text style={[styles.hintText, { textAlign }]}>{isArabic ? "لم تجد الرسالة؟ تحقق من Spam / Junk قبل طلب رمز جديد." : "Can't find the email? Check Spam / Junk before requesting a new code."}</Text></View>
-          <Pressable accessibilityRole="button" onPress={() => router.back()} style={styles.changeEmailButton}><Text style={styles.changeEmailText}>{isArabic ? "تغيير البريد الإلكتروني" : "Change email address"}</Text></Pressable>
+          <Pressable accessibilityRole="button" onPress={() => goBackOrReplace("/signup")} style={styles.changeEmailButton}><Text style={styles.changeEmailText}>{isArabic ? "تغيير البريد الإلكتروني" : "Change email address"}</Text></Pressable>
         </View>
       </View>
     </KeyboardAvoidingView>
