@@ -24,43 +24,23 @@ export async function createTalentDraftAction(
   _prevState: CreateTalentDraftState,
   formData: FormData
 ): Promise<CreateTalentDraftState> {
-  const localeValue = String(
-    formData.get("locale") ?? "ar"
+  const localeValue = String(formData.get("locale") ?? "ar");
+  const locale: Locale = isValidLocale(localeValue) ? localeValue : "ar";
+  const primaryRole = String(formData.get("primary_role") ?? "").trim();
+  const selectedCategory = TALENT_CATEGORIES.find(
+    (category) => category.slug === primaryRole,
   );
-
-  const locale: Locale =
-    isValidLocale(localeValue)
-      ? localeValue
-      : "ar";
-
-  const primaryRole = String(
-    formData.get("primary_role") ?? ""
-  ).trim();
-
-  const selectedCategory =
-    TALENT_CATEGORIES.find(
-      (category) =>
-        category.slug === primaryRole &&
-        (category.slug === "actor" ||
-          category.slug === "model")
-    );
 
   if (!selectedCategory) {
     return {
       success: false,
-      message:
-        locale === "ar"
-          ? "اختر تخصصك للمتابعة."
-          : "Choose your talent type to continue.",
+      message: locale === "ar" ? "اختر نوع موهبتك للمتابعة." : "Choose your talent type to continue.",
     };
   }
 
   try {
-    const authClient =
-      await createServerSupabaseClient();
-
+    const authClient = await createServerSupabaseClient();
     const adminClient = createAdminClient();
-
     const {
       data: { user },
       error: userError,
@@ -69,211 +49,123 @@ export async function createTalentDraftAction(
     if (userError || !user) {
       return {
         success: false,
-        message:
-          locale === "ar"
-            ? "يرجى تسجيل الدخول أولًا."
-            : "Please sign in first.",
+        message: locale === "ar" ? "يرجى تسجيل الدخول أولًا." : "Please sign in first.",
       };
     }
 
-    const {
-      data: profile,
-      error: profileError,
-    } = await adminClient
+    const { data: profile, error: profileError } = await adminClient
       .from("profiles")
       .select("id, display_name, account_type")
       .eq("user_id", user.id)
       .maybeSingle();
 
     if (profileError) {
-      console.error(
-        "[createTalentDraftAction profile]",
-        profileError
-      );
-
+      console.error("[createTalentDraftAction profile]", profileError);
       return {
         success: false,
-        message:
-          locale === "ar"
-            ? "تعذر تحميل بيانات حسابك."
-            : "Unable to load your account.",
+        message: locale === "ar" ? "تعذر تحميل بيانات حسابك." : "Unable to load your account.",
       };
     }
 
-    if (
-      profile?.account_type &&
-      profile.account_type !== "talent"
-    ) {
+    if (profile?.account_type && profile.account_type !== "talent") {
       return {
         success: false,
-        message:
-          locale === "ar"
-            ? "نوع هذا الحساب لا يسمح بإنشاء ملف موهبة."
-            : "This account cannot create a talent profile.",
+        message: locale === "ar" ? "نوع هذا الحساب لا يسمح بإنشاء ملف موهبة." : "This account cannot create a talent profile.",
       };
     }
 
-    const displayName =
-      String(
-        profile?.display_name ||
-          user.user_metadata?.display_name ||
-          user.user_metadata?.full_name ||
-          "Talent"
-      ).trim() || "Talent";
+    const displayName = String(
+      profile?.display_name ||
+        user.user_metadata?.display_name ||
+        user.user_metadata?.full_name ||
+        "Talent"
+    ).trim() || "Talent";
 
-    const {
-      data: existingTalent,
-      error: talentLookupError,
-    } = await adminClient
+    const { data: existingTalent, error: talentLookupError } = await adminClient
       .from("talents")
       .select("id")
       .eq("user_id", user.id)
       .maybeSingle();
 
     if (talentLookupError) {
-      console.error(
-        "[createTalentDraftAction talentLookup]",
-        talentLookupError
-      );
-
+      console.error("[createTalentDraftAction talentLookup]", talentLookupError);
       return {
         success: false,
-        message:
-          locale === "ar"
-            ? "تعذر تجهيز ملف الموهبة."
-            : "Unable to prepare your talent profile.",
+        message: locale === "ar" ? "تعذر تجهيز ملف الموهبة." : "Unable to prepare your talent profile.",
       };
     }
 
     if (existingTalent) {
-      const { error: updateError } =
-        await adminClient
-          .from("talents")
-          .update({
-            category_slug:
-              selectedCategory.slug,
-            category_en:
-              selectedCategory.en,
-            category_ar:
-              selectedCategory.ar,
-            primary_role:
-              selectedCategory.slug,
-          })
-          .eq("id", existingTalent.id)
-          .eq("user_id", user.id);
+      const { error: updateError } = await adminClient
+        .from("talents")
+        .update({
+          category_slug: selectedCategory.slug,
+          category_en: selectedCategory.en,
+          category_ar: selectedCategory.ar,
+          primary_role: selectedCategory.slug,
+        })
+        .eq("id", existingTalent.id)
+        .eq("user_id", user.id);
 
       if (updateError) {
-        console.error(
-          "[createTalentDraftAction updateTalent]",
-          updateError
-        );
-
+        console.error("[createTalentDraftAction updateTalent]", updateError);
         return {
           success: false,
-          message:
-            locale === "ar"
-              ? "تعذر تحديث تخصصك."
-              : "Unable to update your talent type.",
+          message: locale === "ar" ? "تعذر تحديث نوع موهبتك." : "Unable to update your talent type.",
         };
       }
     } else {
-      const slug = createTalentSlug(
-        displayName,
-        user.id
-      );
-
-      const { error: insertError } =
-        await adminClient
-          .from("talents")
-          .insert({
-            user_id: user.id,
-
-            name_en: displayName,
-            name_ar: displayName,
-
-            category_slug:
-              selectedCategory.slug,
-            category_en:
-              selectedCategory.en,
-            category_ar:
-              selectedCategory.ar,
-
-            primary_role:
-              selectedCategory.slug,
-
-            // OAuth provider avatars are account metadata, not a professional
-            // talent profile photo. Keep image_url empty until the talent
-            // explicitly uploads/selects a profile image in MLAMH.
-            image_url: null,
-
-            slug,
-
-            status: "draft",
-            published: false,
-            verified: false,
-            featured: false,
-
-            profile_completion: 0,
-          });
+      const slug = createTalentSlug(displayName, user.id);
+      const { error: insertError } = await adminClient.from("talents").insert({
+        user_id: user.id,
+        name_en: displayName,
+        name_ar: displayName,
+        category_slug: selectedCategory.slug,
+        category_en: selectedCategory.en,
+        category_ar: selectedCategory.ar,
+        primary_role: selectedCategory.slug,
+        image_url: null,
+        slug,
+        status: "draft",
+        published: false,
+        verified: false,
+        featured: false,
+        profile_completion: 0,
+      });
 
       if (insertError) {
-        console.error(
-          "[createTalentDraftAction insertTalent]",
-          insertError
-        );
-
+        console.error("[createTalentDraftAction insertTalent]", insertError);
         return {
           success: false,
-          message:
-            locale === "ar"
-              ? "تعذر إنشاء ملف الموهبة."
-              : "Unable to create your talent profile.",
+          message: locale === "ar" ? "تعذر إنشاء ملف الموهبة." : "Unable to create your talent profile.",
         };
       }
     }
 
-    const { error: onboardingError } =
-      await adminClient
-        .from("profiles")
-        .update({
-          account_type: "talent",
-          onboarding_status: "completed",
-          onboarding_step: "dashboard",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("user_id", user.id);
+    const { error: onboardingError } = await adminClient
+      .from("profiles")
+      .update({
+        account_type: "talent",
+        onboarding_status: "profile_in_progress",
+        onboarding_step: "core_data",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("user_id", user.id);
 
     if (onboardingError) {
-      console.error(
-        "[createTalentDraftAction onboarding]",
-        onboardingError
-      );
-
+      console.error("[createTalentDraftAction onboarding]", onboardingError);
       return {
         success: false,
-        message:
-          locale === "ar"
-            ? "تم إنشاء الملف لكن تعذر إنهاء إعداد الحساب."
-            : "The profile was created, but account setup could not be completed.",
+        message: locale === "ar" ? "تم إنشاء الملف لكن تعذر تحديث حالة الحساب." : "The profile was created, but account status could not be updated.",
       };
     }
 
-    return {
-      success: true,
-      message: null,
-    };
+    return { success: true, message: null };
   } catch (error) {
-    console.error(
-      "[createTalentDraftAction]",
-      error
-    );
-
+    console.error("[createTalentDraftAction]", error);
     return {
       success: false,
-      message:
-        locale === "ar"
-          ? "حدث خطأ غير متوقع. حاول مرة أخرى."
-          : "An unexpected error occurred. Please try again.",
+      message: locale === "ar" ? "حدث خطأ غير متوقع. حاول مرة أخرى." : "An unexpected error occurred. Please try again.",
     };
   }
 }
