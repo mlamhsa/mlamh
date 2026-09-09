@@ -1,12 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Bell, ChevronLeft, ChevronRight, Images, KeyRound, Languages, LifeBuoy, LogOut, Mail, Phone, Scale, Smartphone, SlidersHorizontal, Trash2, UserRound } from "lucide-react-native";
 
-import { deleteAccount } from "@/lib/api";
 import { getMobileAccountContext } from "@/lib/account";
-import { revokeNativeAppleAuthorizationForDeletion } from "@/lib/apple-auth";
 import { isRtlLocale } from "@/lib/i18n";
 import { useAppLocale } from "@/lib/locale-context";
 import { preparePushRegistration, signOutMobile } from "@/lib/push";
@@ -22,8 +20,6 @@ export default function ProfileSettingsScreen() {
   const theme = darkTheme;
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [signingOut, setSigningOut] = useState(false);
-  const [deletingAccount, setDeletingAccount] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [switchingLocale, setSwitchingLocale] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
   const [pushMessage, setPushMessage] = useState<string | null>(null);
@@ -82,51 +78,6 @@ export default function ProfileSettingsScreen() {
     finally { setSigningOut(false); }
   }
 
-  function confirmDeleteAccount() {
-    if (deletingAccount) return;
-    setDeleteError(null);
-    Alert.alert(
-      isArabic ? "حذف الحساب نهائيًا؟" : "Delete your account permanently?",
-      isArabic
-        ? "سيتم حذف حسابك وملفك وصورك والبيانات المرتبطة به نهائيًا. لا يمكن التراجع عن هذا الإجراء."
-        : "Your account, profile, photos and associated data will be permanently deleted. This action cannot be undone.",
-      [
-        { text: isArabic ? "إلغاء" : "Cancel", style: "cancel" },
-        { text: isArabic ? "حذف الحساب" : "Delete account", style: "destructive", onPress: () => void performDeleteAccount() },
-      ],
-    );
-  }
-
-  async function performDeleteAccount() {
-    if (deletingAccount) return;
-    setDeletingAccount(true);
-    setDeleteError(null);
-
-    const appleRevocation = await revokeNativeAppleAuthorizationForDeletion();
-    if (!appleRevocation.ok) {
-      setDeletingAccount(false);
-      if (appleRevocation.canceled) {
-        setDeleteError(isArabic ? "أُلغي تأكيد Apple، لذلك لم يتم حذف الحساب." : "Apple confirmation was canceled, so your account was not deleted.");
-        return;
-      }
-      if (appleRevocation.code === "APPLE_REVOCATION_NOT_CONFIGURED") {
-        setDeleteError(isArabic ? "حذف حساب Apple غير متاح مؤقتًا حتى يكتمل إعداد Apple الآمن. لم يتم حذف أي بيانات." : "Apple account deletion is temporarily unavailable until secure Apple revocation is configured. No data was deleted.");
-        return;
-      }
-      setDeleteError(isArabic ? "تعذر إلغاء تفويض Apple بأمان، لذلك لم يتم حذف الحساب. حاول مرة أخرى." : "We could not securely revoke Apple authorization, so your account was not deleted. Please try again.");
-      return;
-    }
-
-    const result = await deleteAccount();
-    if (!result.ok) {
-      setDeletingAccount(false);
-      setDeleteError(isArabic ? "تعذر حذف الحساب الآن. حاول مرة أخرى، وإذا استمرت المشكلة تواصل مع الدعم." : "We couldn't delete your account right now. Try again, or contact support if the problem continues.");
-      return;
-    }
-    await supabase.auth.signOut().catch(() => undefined);
-    router.replace("/");
-  }
-
   const sectionLabelStyle = [styles.sectionLabel, isArabic && styles.sectionLabelArabic, isRtl && styles.textRtl];
 
   return <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
@@ -163,19 +114,16 @@ export default function ProfileSettingsScreen() {
       <Text style={sectionLabelStyle}>{isArabic ? "القانوني" : "LEGAL"}</Text>
       <View style={styles.group}><SettingsRow title={isArabic ? "القانوني والسياسات" : "Legal & policies"} subtitle={isArabic ? "الخصوصية والشروط وسياسة الاسترداد داخل التطبيق" : "Privacy, terms and refund policy inside the app"} icon={Scale} onPress={() => router.push("/legal")} isRtl={isRtl} ForwardIcon={ForwardIcon} styles={styles} theme={theme} last /></View>
 
-      <Text style={[...sectionLabelStyle, styles.dangerSectionLabel]}>{isArabic ? "الحساب" : "ACCOUNT"}</Text>
-      <View style={styles.dangerCard}>
-        <View style={[styles.dangerHeading, isRtl && styles.rowRtl]}><View style={styles.dangerIcon}><Trash2 size={19} color="#E59A9A" /></View><View style={styles.dangerCopy}><Text style={[styles.dangerTitle, isRtl && styles.textRtl]}>{isArabic ? "حذف الحساب" : "Delete account"}</Text><Text style={[styles.dangerBody, isRtl && styles.textRtl]}>{isArabic ? "يحذف حسابك وملفك وصورك والبيانات المرتبطة به نهائيًا." : "Permanently deletes your account, profile, photos and associated data."}</Text></View></View>
-        {deleteError ? <Text accessibilityRole="alert" style={[styles.deleteError, isRtl && styles.textRtl]}>{deleteError}</Text> : null}
-        <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "حذف الحساب نهائيًا" : "Delete account permanently"} disabled={deletingAccount} onPress={confirmDeleteAccount} style={[styles.deleteButton, deletingAccount && styles.disabled]}>{deletingAccount ? <ActivityIndicator color="#E59A9A" /> : <Text style={styles.deleteButtonText}>{isArabic ? "حذف الحساب نهائيًا" : "Delete account permanently"}</Text>}</Pressable>
-      </View>
+      <Text style={sectionLabelStyle}>{isArabic ? "الجلسة" : "SESSION"}</Text>
+      <Pressable disabled={signingOut} style={[styles.signOut, isRtl && styles.rowRtl, signingOut && styles.disabled]} onPress={() => void signOut()}>{signingOut ? <ActivityIndicator color={theme.text} /> : <><LogOut size={18} strokeWidth={1.9} color={theme.text} /><View style={styles.signOutCopy}><Text style={[styles.signOutText,isRtl&&styles.textRtl]}>{isArabic ? "تسجيل الخروج" : "Sign out"}</Text><Text style={[styles.signOutHint,isRtl&&styles.textRtl]}>{isArabic ? "يمكنك تسجيل الدخول مرة أخرى في أي وقت." : "You can sign back in at any time."}</Text></View></>}</Pressable>
 
-      <Pressable disabled={signingOut || deletingAccount} style={[styles.signOut, isRtl && styles.rowRtl, (signingOut || deletingAccount) && styles.disabled]} onPress={() => void signOut()}>{signingOut ? <ActivityIndicator color="#E59A9A" /> : <><LogOut size={18} strokeWidth={1.9} color="#E59A9A" /><Text style={styles.signOutText}>{isArabic ? "تسجيل الخروج" : "Sign out"}</Text></>}</Pressable>
+      <Text style={[...sectionLabelStyle, styles.dangerSectionLabel]}>{isArabic ? "منطقة حساسة" : "DANGER ZONE"}</Text>
+      <View style={styles.group}><SettingsRow title={isArabic ? "حذف الحساب" : "Delete account"} subtitle={isArabic ? "إجراء نهائي منفصل عن تسجيل الخروج" : "A permanent action, separate from signing out"} icon={Trash2} onPress={() => router.push("/account/delete")} isRtl={isRtl} ForwardIcon={ForwardIcon} styles={styles} theme={theme} last danger /></View>
     </ScrollView>
   </SafeAreaView>;
 }
 
 function AccountDetail({ icon: Icon, label, value, isRtl, styles, theme }: { icon: typeof UserRound; label: string; value: string; isRtl: boolean; styles: ReturnType<typeof createStyles>; theme: typeof darkTheme }) { return <View style={[styles.accountRow, isRtl && styles.rowRtl]}><View style={styles.iconShell}><Icon size={18} color={theme.accent} strokeWidth={1.9}/></View><View style={styles.accountCopy}><Text style={[styles.accountLabel, isRtl && styles.textRtl]}>{label}</Text><Text numberOfLines={1} style={[styles.accountValue, isRtl && styles.textRtl]}>{value}</Text></View></View>; }
-function SettingsRow({ title, subtitle, icon: RowIcon, onPress, isRtl, ForwardIcon, styles, theme, last = false }: { title: string; subtitle: string; icon: typeof Bell; onPress: () => void; isRtl: boolean; ForwardIcon: typeof ChevronLeft; styles: ReturnType<typeof createStyles>; theme: typeof darkTheme; last?: boolean }) { return <Pressable style={[styles.row, last && styles.rowLast, isRtl && styles.rowRtl]} onPress={onPress}><View style={[styles.rowLead, isRtl && styles.rowRtl]}><View style={styles.iconShell}><RowIcon size={19} strokeWidth={1.9} color={theme.accent}/></View><View style={styles.rowText}><Text style={[styles.rowTitle, isRtl && styles.textRtl]}>{title}</Text><Text style={[styles.rowSubtitle, isRtl && styles.textRtl]}>{subtitle}</Text></View></View><ForwardIcon size={18} strokeWidth={1.8} color={theme.muted}/></Pressable>; }
+function SettingsRow({ title, subtitle, icon: RowIcon, onPress, isRtl, ForwardIcon, styles, theme, last = false, danger = false }: { title: string; subtitle: string; icon: typeof Bell; onPress: () => void; isRtl: boolean; ForwardIcon: typeof ChevronLeft; styles: ReturnType<typeof createStyles>; theme: typeof darkTheme; last?: boolean; danger?: boolean }) { return <Pressable style={[styles.row, last && styles.rowLast, isRtl && styles.rowRtl]} onPress={onPress}><View style={[styles.rowLead, isRtl && styles.rowRtl]}><View style={[styles.iconShell,danger&&styles.dangerIcon]}><RowIcon size={19} strokeWidth={1.9} color={danger?theme.danger:theme.accent}/></View><View style={styles.rowText}><Text style={[styles.rowTitle,danger&&styles.dangerText,isRtl&&styles.textRtl]}>{title}</Text><Text style={[styles.rowSubtitle,isRtl&&styles.textRtl]}>{subtitle}</Text></View></View><ForwardIcon size={18} strokeWidth={1.8} color={danger?theme.danger:theme.muted}/></Pressable>; }
 
-function createStyles(theme: typeof darkTheme) { return StyleSheet.create({screen:{flex:1,backgroundColor:theme.background},content:{width:"100%",maxWidth:680,alignSelf:"center",paddingHorizontal:20,paddingTop:12,paddingBottom:42,gap:17},contentCompact:{paddingHorizontal:14,gap:14},top:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",minHeight:54},rowRtl:{flexDirection:"row-reverse"},textRtl:{textAlign:"right",writingDirection:"rtl"},backButton:{width:44,height:44,borderRadius:22,borderWidth:1,borderColor:theme.border,backgroundColor:theme.surface,alignItems:"center",justifyContent:"center"},brand:{color:theme.accent,fontSize:15,fontWeight:"900",letterSpacing:1.7},brandArabic:{letterSpacing:0},hero:{flexDirection:"row",alignItems:"center",gap:12,borderWidth:1,borderColor:"#C9A96233",borderRadius:22,backgroundColor:"#C9A96208",padding:16},heroIcon:{width:46,height:46,borderRadius:15,borderWidth:1,borderColor:"#C9A96244",backgroundColor:"#C9A9620C",alignItems:"center",justifyContent:"center"},heroCopy:{flex:1},title:{color:theme.text,fontSize:28,lineHeight:34,fontWeight:"900"},subtitle:{color:theme.muted,fontSize:12,lineHeight:18,marginTop:3},sectionLabel:{color:theme.muted,fontSize:9,fontWeight:"900",letterSpacing:1.5,marginTop:3},sectionLabelArabic:{letterSpacing:0,fontSize:12},accountCard:{borderWidth:1,borderColor:theme.border,borderRadius:20,backgroundColor:theme.surface,overflow:"hidden"},accountRow:{minHeight:70,flexDirection:"row",alignItems:"center",gap:12,paddingHorizontal:15,borderBottomWidth:1,borderBottomColor:theme.border},accountCopy:{flex:1},accountLabel:{color:theme.muted,fontSize:10,fontWeight:"700",marginBottom:4},accountValue:{color:theme.text,fontSize:14,fontWeight:"800"},card:{borderWidth:1,borderColor:theme.border,borderRadius:20,padding:15,gap:13,backgroundColor:theme.surface},cardHeading:{flexDirection:"row",alignItems:"center",gap:12},cardHeadingCopy:{flex:1},iconShell:{width:42,height:42,borderRadius:14,alignItems:"center",justifyContent:"center",backgroundColor:"#C9A9620B",borderWidth:1,borderColor:"#C9A96233"},languageOptions:{flexDirection:"row",gap:9},languageOption:{flex:1,minHeight:46,borderWidth:1,borderColor:theme.border,borderRadius:14,alignItems:"center",justifyContent:"center"},languageOptionActive:{borderColor:theme.accent,backgroundColor:"#C9A96218"},languageOptionText:{color:theme.muted,fontSize:13,fontWeight:"800"},languageOptionTextActive:{color:theme.accent},inline:{flexDirection:"row",alignItems:"center",gap:8},microcopy:{color:theme.muted,fontSize:11,lineHeight:17},statusDot:{width:9,height:9,borderRadius:5,backgroundColor:theme.grayMuted},statusDotEnabled:{backgroundColor:theme.accent},pushButton:{minHeight:48,borderRadius:14,backgroundColor:theme.accent,alignItems:"center",justifyContent:"center"},pushButtonText:{color:theme.background,fontSize:13,fontWeight:"900"},group:{borderWidth:1,borderColor:theme.border,borderRadius:20,backgroundColor:theme.surface,overflow:"hidden"},row:{minHeight:72,paddingHorizontal:15,flexDirection:"row",alignItems:"center",justifyContent:"space-between",gap:12,borderBottomWidth:1,borderBottomColor:theme.border},rowLast:{borderBottomWidth:0},rowLead:{flex:1,flexDirection:"row",alignItems:"center",gap:12},rowText:{flex:1},rowTitle:{color:theme.text,fontSize:14,fontWeight:"900"},rowSubtitle:{color:theme.muted,fontSize:11,lineHeight:17,marginTop:3},dangerSectionLabel:{color:"#E59A9A"},dangerCard:{borderWidth:1,borderColor:"#C84F4F55",borderRadius:20,backgroundColor:"#C84F4F0A",padding:15,gap:13},dangerHeading:{flexDirection:"row",alignItems:"flex-start",gap:12},dangerIcon:{width:42,height:42,borderRadius:14,alignItems:"center",justifyContent:"center",backgroundColor:"#C84F4F12",borderWidth:1,borderColor:"#C84F4F44"},dangerCopy:{flex:1,gap:4},dangerTitle:{color:"#F2B0B0",fontSize:14,fontWeight:"900"},dangerBody:{color:theme.muted,fontSize:11,lineHeight:18},deleteButton:{minHeight:50,borderRadius:14,borderWidth:1,borderColor:"#C84F4F88",alignItems:"center",justifyContent:"center",backgroundColor:"#C84F4F10"},deleteButtonText:{color:"#E59A9A",fontSize:13,fontWeight:"900"},deleteError:{color:"#E59A9A",fontSize:11,lineHeight:18},signOut:{minHeight:56,borderRadius:17,borderWidth:1,borderColor:"#C84F4F66",flexDirection:"row",alignItems:"center",justifyContent:"center",gap:9,marginTop:4},signOutText:{color:"#E59A9A",fontSize:14,fontWeight:"900"},disabled:{opacity:.55}}); }
+function createStyles(theme: typeof darkTheme) { return StyleSheet.create({screen:{flex:1,backgroundColor:theme.background},content:{width:"100%",maxWidth:680,alignSelf:"center",paddingHorizontal:20,paddingTop:12,paddingBottom:42,gap:17},contentCompact:{paddingHorizontal:14,gap:14},top:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",minHeight:54},rowRtl:{flexDirection:"row-reverse"},textRtl:{textAlign:"right",writingDirection:"rtl"},backButton:{width:44,height:44,borderRadius:22,borderWidth:1,borderColor:theme.border,backgroundColor:theme.surface,alignItems:"center",justifyContent:"center"},brand:{color:theme.accent,fontSize:15,fontWeight:"900",letterSpacing:1.7},brandArabic:{letterSpacing:0},hero:{flexDirection:"row",alignItems:"center",gap:12,borderWidth:1,borderColor:"#C9A96233",borderRadius:22,backgroundColor:"#C9A96208",padding:16},heroIcon:{width:46,height:46,borderRadius:15,borderWidth:1,borderColor:"#C9A96244",backgroundColor:"#C9A9620C",alignItems:"center",justifyContent:"center"},heroCopy:{flex:1},title:{color:theme.text,fontSize:28,lineHeight:34,fontWeight:"900"},subtitle:{color:theme.muted,fontSize:12,lineHeight:18,marginTop:3},sectionLabel:{color:theme.muted,fontSize:9,fontWeight:"900",letterSpacing:1.5,marginTop:3},sectionLabelArabic:{letterSpacing:0,fontSize:12},accountCard:{borderWidth:1,borderColor:theme.border,borderRadius:20,backgroundColor:theme.surface,overflow:"hidden"},accountRow:{minHeight:70,flexDirection:"row",alignItems:"center",gap:12,paddingHorizontal:15,borderBottomWidth:1,borderBottomColor:theme.border},accountCopy:{flex:1},accountLabel:{color:theme.muted,fontSize:10,fontWeight:"700",marginBottom:4},accountValue:{color:theme.text,fontSize:14,fontWeight:"800"},card:{borderWidth:1,borderColor:theme.border,borderRadius:20,padding:15,gap:13,backgroundColor:theme.surface},cardHeading:{flexDirection:"row",alignItems:"center",gap:12},cardHeadingCopy:{flex:1},iconShell:{width:42,height:42,borderRadius:14,alignItems:"center",justifyContent:"center",backgroundColor:"#C9A9620B",borderWidth:1,borderColor:"#C9A96233"},languageOptions:{flexDirection:"row",gap:9},languageOption:{flex:1,minHeight:46,borderWidth:1,borderColor:theme.border,borderRadius:14,alignItems:"center",justifyContent:"center"},languageOptionActive:{borderColor:theme.accent,backgroundColor:"#C9A96218"},languageOptionText:{color:theme.muted,fontSize:13,fontWeight:"800"},languageOptionTextActive:{color:theme.accent},inline:{flexDirection:"row",alignItems:"center",gap:8},microcopy:{color:theme.muted,fontSize:11,lineHeight:17},statusDot:{width:9,height:9,borderRadius:5,backgroundColor:theme.grayMuted},statusDotEnabled:{backgroundColor:theme.accent},pushButton:{minHeight:48,borderRadius:14,backgroundColor:theme.accent,alignItems:"center",justifyContent:"center"},pushButtonText:{color:theme.background,fontSize:13,fontWeight:"900"},group:{borderWidth:1,borderColor:theme.border,borderRadius:20,backgroundColor:theme.surface,overflow:"hidden"},row:{minHeight:72,paddingHorizontal:15,flexDirection:"row",alignItems:"center",justifyContent:"space-between",gap:12,borderBottomWidth:1,borderBottomColor:theme.border},rowLast:{borderBottomWidth:0},rowLead:{flex:1,flexDirection:"row",alignItems:"center",gap:12},rowText:{flex:1},rowTitle:{color:theme.text,fontSize:14,fontWeight:"900"},rowSubtitle:{color:theme.muted,fontSize:11,lineHeight:17,marginTop:3},signOut:{minHeight:68,borderRadius:18,borderWidth:1,borderColor:theme.border,backgroundColor:theme.surface,flexDirection:"row",alignItems:"center",gap:11,paddingHorizontal:15},signOutCopy:{flex:1},signOutText:{color:theme.text,fontSize:14,fontWeight:"900"},signOutHint:{color:theme.muted,fontSize:10,lineHeight:16,marginTop:3},dangerSectionLabel:{color:theme.danger},dangerIcon:{borderColor:"#E59A9A44",backgroundColor:theme.dangerSurface},dangerText:{color:theme.danger},disabled:{opacity:.55}}); }
