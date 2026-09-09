@@ -1,0 +1,34 @@
+name: Build 14 Opportunity Syntax Fix
+on:
+  push:
+    branches: [feat/mobile-platform-phase0]
+    paths: [.github/workflows/build14-opportunity-syntax-fix.yml]
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/mobile-platform-phase0
+      - name: Repair malformed opportunity date formatter
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('apps/mobile/app/opportunities/[slug].tsx')
+          t=p.read_text(encoding='utf-8')
+          bad='function formatDate(value: string | null | undefined, locale: "ar" | "en") { return formatGregorianDate(value, locale, { year: "numeric", month: "short", day: "numeric" }); }).format(date); }'
+          good='function formatDate(value: string | null | undefined, locale: "ar" | "en") { return formatGregorianDate(value, locale, { year: "numeric", month: "short", day: "numeric" }); }'
+          if bad not in t:
+              raise SystemExit('Expected malformed formatter was not found')
+          p.write_text(t.replace(bad, good), encoding='utf-8')
+          PY
+      - name: Commit change
+        run: |
+          git config user.name "MLAMH Build 14"
+          git config user.email "actions@users.noreply.github.com"
+          git add 'apps/mobile/app/opportunities/[slug].tsx'
+          git commit -m "mobile: repair opportunity date formatter"
+          git push origin HEAD:feat/mobile-platform-phase0
