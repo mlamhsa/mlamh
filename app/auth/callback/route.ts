@@ -79,8 +79,27 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${origin}/${locale}/login?error=oauth_profile`);
   }
 
-  if (profile?.account_type && profile.phone?.trim()) {
-    return NextResponse.redirect(`${origin}/${locale}/dashboard-router`);
+  const existingAccountType =
+    profile?.account_type === "talent" || profile?.account_type === "publisher"
+      ? profile.account_type
+      : null;
+
+  // If this email already belongs to an MLAMH account, the existing account is
+  // authoritative. OAuth may attach Google to the same Supabase Auth user, but
+  // it must never start a second talent/publisher onboarding journey or change
+  // the account type selected previously.
+  if (existingAccountType) {
+    if (profile?.phone?.trim()) {
+      return NextResponse.redirect(`${origin}/${locale}/dashboard-router`);
+    }
+
+    return NextResponse.redirect(
+      completeAccountUrl(origin, locale, {
+        type: existingAccountType,
+        intent: existingAccountType === "publisher" ? "publisher" : null,
+        provider,
+      }),
+    );
   }
 
   if (isSignup && accountType === "talent" && provider === "email") {
@@ -117,12 +136,6 @@ export async function GET(request: Request) {
   if (isSignup && isValidAccountType) {
     return NextResponse.redirect(
       completeAccountUrl(origin, locale, { type: accountType, intent, provider }),
-    );
-  }
-
-  if (profile?.account_type === "talent" || profile?.account_type === "publisher") {
-    return NextResponse.redirect(
-      completeAccountUrl(origin, locale, { type: profile.account_type, intent, provider }),
     );
   }
 
