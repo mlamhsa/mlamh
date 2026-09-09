@@ -22,6 +22,11 @@ export async function GET(request: Request) {
       ageMax: url.searchParams.get("ageMax") || undefined,
       heightMin: url.searchParams.get("heightMin") || undefined,
       heightMax: url.searchParams.get("heightMax") || undefined,
+      language: url.searchParams.get("language") || undefined,
+      dialect: url.searchParams.get("dialect") || undefined,
+      skill: url.searchParams.get("skill") || undefined,
+      availability: url.searchParams.get("availability") || undefined,
+      readyToTravel: url.searchParams.get("readyToTravel") || undefined,
     });
 
     return NextResponse.json({
