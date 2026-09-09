@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
+import { TalentProfileApprovalReadinessV1 } from "@/components/talent-dashboard/TalentProfileApprovalReadinessV1";
 import { TalentResidenceCountrySelectorV1 } from "@/components/talent-dashboard/TalentResidenceCountrySelectorV1";
 import { TalentRoleSelectorV1 } from "@/components/talent-dashboard/TalentRoleSelectorV1";
 import { TalentVisibilitySelectorV1 } from "@/components/talent-dashboard/TalentVisibilitySelectorV1";
@@ -305,6 +306,30 @@ function ensurePrivacyNavLink() {
   nav.appendChild(link);
 }
 
+function prepareApprovalReadinessPortal() {
+  const specializationLink = document.querySelector<HTMLAnchorElement>('nav a[href="#specialization"]');
+  const nav = specializationLink?.closest("nav");
+  if (!nav?.parentElement) return null;
+
+  let portal = nav.parentElement.querySelector<HTMLElement>(
+    "[data-mlamh-approval-readiness-v1]",
+  );
+
+  if (!portal) {
+    const legacyReadiness = nav.previousElementSibling;
+    if (legacyReadiness instanceof HTMLElement && legacyReadiness.tagName === "SECTION") {
+      legacyReadiness.hidden = true;
+      legacyReadiness.dataset.legacyApprovalReadiness = "1";
+    }
+
+    portal = document.createElement("div");
+    portal.dataset.mlamhApprovalReadinessV1 = "1";
+    nav.insertAdjacentElement("beforebegin", portal);
+  }
+
+  return portal;
+}
+
 function markRequiredFields() {
   const ar = isArabicPage();
 
@@ -350,15 +375,17 @@ function enhancePage(residence: OwnTalentResidence | null) {
 
   const rolePortal = prepareRoleSelectorPortal();
   const privacyPortal = preparePrivacyPortal();
+  const readinessPortal = prepareApprovalReadinessPortal();
   ensurePrivacyNavLink();
 
-  return { rolePortal, privacyPortal, residencePortal };
+  return { rolePortal, privacyPortal, residencePortal, readinessPortal };
 }
 
 export function TalentProfileEditorEnhancer() {
   const [rolePortal, setRolePortal] = useState<HTMLElement | null>(null);
   const [privacyPortal, setPrivacyPortal] = useState<HTMLElement | null>(null);
   const [residencePortal, setResidencePortal] = useState<HTMLElement | null>(null);
+  const [readinessPortal, setReadinessPortal] = useState<HTMLElement | null>(null);
   const [locale, setLocale] = useState<"ar" | "en">("ar");
   const [residence, setResidence] = useState<OwnTalentResidence | null>(null);
 
@@ -384,6 +411,7 @@ export function TalentProfileEditorEnhancer() {
     setRolePortal(initial.rolePortal);
     setPrivacyPortal(initial.privacyPortal);
     setResidencePortal(initial.residencePortal);
+    setReadinessPortal(initial.readinessPortal);
 
     const handleInput = () => updateDataQualityNotice();
     document.addEventListener("input", handleInput, true);
@@ -394,6 +422,9 @@ export function TalentProfileEditorEnhancer() {
       if (next.privacyPortal) setPrivacyPortal((current) => current ?? next.privacyPortal);
       if (next.residencePortal) {
         setResidencePortal((current) => current ?? next.residencePortal);
+      }
+      if (next.readinessPortal) {
+        setReadinessPortal((current) => current ?? next.readinessPortal);
       }
     });
     observer.observe(document.body, { childList: true, subtree: true });
@@ -406,6 +437,12 @@ export function TalentProfileEditorEnhancer() {
 
   return (
     <>
+      {readinessPortal
+        ? createPortal(
+            <TalentProfileApprovalReadinessV1 locale={locale} />,
+            readinessPortal,
+          )
+        : null}
       {rolePortal
         ? createPortal(<TalentRoleSelectorV1 locale={locale} />, rolePortal)
         : null}
