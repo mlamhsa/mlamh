@@ -24,6 +24,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 type Locale = "ar" | "en";
 
 type ExistingTalentData = {
+  base_country_code?: string | null;
   nationality_slug?: string | null;
   nationality?: string | null;
   height_cm?: number | string | null;
@@ -144,7 +145,9 @@ function buildTalentSharedPayload(
   existingTalent?: ExistingTalentData,
 ) {
   const selectedCategory = getSelectedCategory(formData);
-  const selectedCity = getSelectedCity(formData);
+  const residenceCountryCode =
+    normalizeComparable(existingTalent?.base_country_code).toUpperCase() || "SA";
+  const selectedCity = getSelectedCity(formData, residenceCountryCode);
   const selectedNationality = getSelectedNationality(
     formData,
     existingTalent?.nationality_slug ?? existingTalent?.nationality ?? null,
@@ -162,9 +165,10 @@ function buildTalentSharedPayload(
     acting_age_max: nullableNumberValue(formData, "acting_age_max"),
     modeling_types: modelingTypes,
 
-    // The active web market is Saudi Arabia. Keep country and city semantics
-    // consistent server-side rather than trusting a hidden browser field.
-    base_country_code: "SA",
+    // Preserve the residence country already chosen during signup. The profile
+    // editor currently edits the city only, so it must never reset non-SA users
+    // back to Saudi Arabia during autosave.
+    base_country_code: selectedCity.base_country_code,
     city_slug: selectedCity.city_slug,
     city_en: selectedCity.city_en,
     city_ar: selectedCity.city_ar,
@@ -283,7 +287,7 @@ export async function createOwnTalentProfileAction(formData: FormData) {
   if (
     !createdTalent.category_slug ||
     !createdTalent.city_slug ||
-    createdTalent.base_country_code !== "SA"
+    !createdTalent.base_country_code
   ) {
     throw new Error(
       "[createOwnTalentProfileAction] Talent profile was created, but market/category/city data was not saved correctly.",
@@ -320,6 +324,7 @@ export async function updateOwnTalentProfileAction(formData: FormData) {
       .select(`
         id,
         slug,
+        base_country_code,
         nationality_slug,
         nationality,
         height_cm,
@@ -378,7 +383,7 @@ export async function updateOwnTalentProfileAction(formData: FormData) {
   if (
     !updatedTalent.category_slug ||
     !updatedTalent.city_slug ||
-    updatedTalent.base_country_code !== "SA"
+    !updatedTalent.base_country_code
   ) {
     throw new Error(
       "[updateOwnTalentProfileAction] Talent profile was updated, but market/category/city data was not saved correctly.",
