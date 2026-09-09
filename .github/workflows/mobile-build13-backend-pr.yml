@@ -1,0 +1,18 @@
+name: Prepare Build 13 Backend Compatibility PR
+
+on:
+  push:
+    branches:
+      - feat/mobile-platform-phase0
+    paths:
+      - ".github/workflows/mobile-build13-backend-pr.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  note:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Build 13 backend compatibility is prepared in a separate branch/PR; mobile PR remains unmerged."
