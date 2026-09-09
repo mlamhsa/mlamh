@@ -10,7 +10,6 @@ export type MobilePublicTalent = {
   city: string | null;
   countryCode: string | null;
   imageUrl: string | null;
-  galleryImages: string[];
   featured: boolean;
   verified: boolean;
   gender: string | null;
@@ -24,6 +23,11 @@ export type MobilePublicTalent = {
   experienceYears: number | null;
   availabilityStatus: string | null;
   readyToTravel: boolean | null;
+};
+
+export type MobileTalentDetail = MobilePublicTalent & {
+  /** Returned only by the detail endpoint after photo-visibility policy is applied. */
+  galleryImages: string[];
 };
 
 export type TalentAccessSummary = {
@@ -110,14 +114,14 @@ export async function getMobileTalents(locale: AppLocale, filters: TalentDirecto
   };
 }
 
-export async function getMobileTalent(locale: AppLocale, slug: string) {
+export async function getMobileTalent(locale: AppLocale, slug: string): Promise<MobileTalentDetail> {
   const normalizedSlug = slug.trim();
   if (!normalizedSlug) throw new Error("INVALID_TALENT_SLUG");
   let response: Response;
   try { response = await fetch(`${MOBILE_API_BASE_URL}/api/mobile/talents/${encodeURIComponent(normalizedSlug)}?locale=${locale}`, { headers: await viewerHeaders() }); }
   catch { throw new Error("NETWORK_UNAVAILABLE"); }
   const parsed = await readJson(response);
-  const payload = parsed && typeof parsed === "object" ? parsed as { ok?: boolean; item?: MobilePublicTalent; code?: string } : {};
+  const payload = parsed && typeof parsed === "object" ? parsed as { ok?: boolean; item?: MobileTalentDetail; code?: string } : {};
   if (!response.ok || payload.ok !== true || !payload.item) throw new Error(payload.code || `TALENT_LOOKUP_FAILED:${response.status}`);
-  return payload.item;
+  return { ...payload.item, galleryImages: Array.isArray(payload.item.galleryImages) ? payload.item.galleryImages : [] };
 }
