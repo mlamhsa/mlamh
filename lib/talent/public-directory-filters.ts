@@ -16,8 +16,10 @@ export type PublicTalentDirectoryFilters = {
   heightMax?: string;
 };
 
-const PUBLIC_CATEGORIES = new Set(TALENT_CATEGORIES.map((category) => category.slug));
-const PUBLIC_GENDERS = new Set(["male", "female"]);
+const PUBLIC_CATEGORIES: Set<string> = new Set(
+  TALENT_CATEGORIES.map((category) => category.slug),
+);
+const PUBLIC_GENDERS: Set<string> = new Set(["male", "female"]);
 
 function normalized(value?: string | null) {
   return value?.trim().toLowerCase() || "";
