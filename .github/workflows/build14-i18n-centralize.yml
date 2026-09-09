@@ -1,0 +1,88 @@
+name: Build 14 I18n Centralize
+
+on:
+  push:
+    branches:
+      - feat/mobile-platform-phase0
+    paths:
+      - ".github/workflows/build14-i18n-centralize.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  centralize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/mobile-platform-phase0
+      - name: Centralize visible number and date formatting
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          # Talent profile edit: central Latin digits + Gregorian display helper.
+          path = Path('apps/mobile/app/profile/edit.tsx')
+          text = path.read_text(encoding='utf-8')
+          text = text.replace(
+              'import { isRtlLocale } from "@/lib/i18n";',
+              'import { formatGregorianDate, isRtlLocale, toLatinDigits } from "@/lib/i18n";'
+          )
+          text = text.replace(
+              'function latinDigits(value: string) { return value.replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d))).replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d))); }\nfunction numericInput(value: string) { return latinDigits(value).replace(/[^0-9.]/g, ""); }\nfunction integerInput(value: string) { return latinDigits(value).replace(/[^0-9]/g, ""); }\nfunction toNumber(value: string) { const normalized = latinDigits(value).trim(); return normalized ? Number(normalized) : null; }',
+              'function numericInput(value: string) { return toLatinDigits(value).replace(/[^0-9.]/g, ""); }\nfunction integerInput(value: string) { return toLatinDigits(value).replace(/[^0-9]/g, ""); }\nfunction toNumber(value: string) { const normalized = toLatinDigits(value).trim(); return normalized ? Number(normalized) : null; }'
+          )
+          old = '''function formatDate(value: string, locale: "ar" | "en") {
+  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(value)) return locale === "ar" ? "اختر تاريخ الميلاد" : "Choose date of birth";
+  const date = new Date(`${value}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return locale === "ar" ? "اختر تاريخ الميلاد" : "Choose date of birth";
+  return new Intl.DateTimeFormat(locale === "ar" ? "ar-SA-u-ca-gregory-nu-latn" : "en-US-u-ca-gregory-nu-latn", { year: "numeric", month: "long", day: "numeric" }).format(date);
+}'''
+          new = '''function formatDate(value: string, locale: "ar" | "en") {
+  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(value)) return locale === "ar" ? "اختر تاريخ الميلاد" : "Choose date of birth";
+  return formatGregorianDate(`${value}T12:00:00`, locale, { year: "numeric", month: "long", day: "numeric" }) ?? (locale === "ar" ? "اختر تاريخ الميلاد" : "Choose date of birth");
+}'''
+          text = text.replace(old, new)
+          path.write_text(text, encoding='utf-8')
+
+          # Casting: use the one central digit normalizer.
+          path = Path('apps/mobile/app/casting.tsx')
+          text = path.read_text(encoding='utf-8')
+          text = text.replace(
+              'import { isRtlLocale } from "@/lib/i18n";',
+              'import { isRtlLocale, toLatinDigits } from "@/lib/i18n";'
+          )
+          old = '''function normalizeDigits(value: string) {
+  return value
+    .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)))
+    .replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)));
+}'''
+          text = text.replace(old, 'function normalizeDigits(value: string) { return toLatinDigits(value); }')
+          path.write_text(text, encoding='utf-8')
+
+          # Opportunity detail: use central Gregorian formatter.
+          path = Path('apps/mobile/app/opportunities/[slug].tsx')
+          text = path.read_text(encoding='utf-8')
+          text = text.replace(
+              'import { isRtlLocale } from "@/lib/i18n";',
+              'import { formatGregorianDate, isRtlLocale } from "@/lib/i18n";'
+          )
+          old = 'function formatDate(value: string | null | undefined, locale: "ar" | "en") { if (!value) return null; const date = new Date(value); if (Number.isNaN(date.getTime())) return null; return new Intl.DateTimeFormat(locale === "ar" ? "ar-SA-u-ca-gregory-nu-latn" : "en-US-u-ca-gregory-nu-latn", { year: "numeric", month: "short", day: "numeric" }).format(date); }'
+          new = 'function formatDate(value: string | null | undefined, locale: "ar" | "en") { return formatGregorianDate(value, locale, { year: "numeric", month: "short", day: "numeric" }); }'
+          text = text.replace(old, new)
+          path.write_text(text, encoding='utf-8')
+          PY
+      - name: Commit centralization
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "No formatting changes needed."
+            exit 0
+          fi
+          git config user.name "MLAMH Build 14"
+          git config user.email "actions@users.noreply.github.com"
+          git add apps/mobile/app
+          git commit -m "mobile: centralize Latin digits and Gregorian dates"
+          git push origin HEAD:feat/mobile-platform-phase0
