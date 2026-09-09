@@ -83,7 +83,7 @@ function RootNavigator() {
   return <NotificationSyncProvider>
     <StatusBar style="light" />
     <View style={navigationStyles.root}>
-      <Stack key={locale} screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#050505" }, animation: "fade", animationDuration: 180, gestureEnabled: true }} />
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#050505" }, animation: "fade", animationDuration: 180, gestureEnabled: true }} />
       {transitioning ? <View pointerEvents="none" accessibilityLiveRegion="polite" style={[navigationStyles.feedback, { top: insets.top + 12 }, locale === "ar" && navigationStyles.feedbackRtl]}>
         <ActivityIndicator size="small" color="#C9A962" />
         <Text style={[navigationStyles.feedbackText, locale === "ar" && navigationStyles.feedbackTextRtl]}>{locale === "ar" ? "جارٍ فتح الصفحة…" : "Opening…"}</Text>
