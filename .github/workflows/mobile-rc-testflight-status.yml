@@ -33,7 +33,7 @@ jobs:
         run: npm ci --include=dev --no-audit --no-fund
 
       - name: EAS submission status
-        run: npx eas-cli@latest submit:view "$SUBMISSION_ID" --platform ios --json
+        run: npx eas-cli@latest submit:view "$SUBMISSION_ID" --json
 
       - name: App Store / TestFlight status
         run: npx eas-cli@latest submit:status --platform ios --profile testflight --json --non-interactive
