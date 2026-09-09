@@ -3,7 +3,6 @@ import type { ConversationDetailResponse, MobileMessage, SendMessageResult } fro
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const MAX_MESSAGE_LENGTH = 4000;
-
 type Context = { role: "talent" | "publisher"; admin: ReturnType<typeof createAdminClient>; conversation: any };
 
 async function getContext(userId: string, conversationId: number): Promise<Context | null> {
@@ -11,22 +10,24 @@ async function getContext(userId: string, conversationId: number): Promise<Conte
   const admin = createAdminClient();
   const { data: profile } = await admin.from("profiles").select("id,account_type,approval_status,status").eq("user_id", userId).maybeSingle();
   if (!profile || profile.approval_status !== "approved" || isRestrictedAccountStatus(profile.status)) return null;
-
   if (profile.account_type === "talent") {
     const { data: talent } = await admin.from("talents").select("id,status").eq("user_id", userId).maybeSingle();
     if (!talent || isRestrictedAccountStatus(talent.status)) return null;
     const { data: conversation } = await admin.from("conversations").select("id,opportunity_id,publisher_id,talent_id,conversation_type,status").eq("id", conversationId).eq("talent_id", talent.id).maybeSingle();
     return conversation ? { role: "talent", admin, conversation } : null;
   }
-
   if (profile.account_type === "publisher") {
     const { data: publisher } = await admin.from("publishers").select("id,status").eq("profile_id", profile.id).maybeSingle();
     if (!publisher || isRestrictedAccountStatus(publisher.status)) return null;
     const { data: conversation } = await admin.from("conversations").select("id,opportunity_id,publisher_id,talent_id,conversation_type,status").eq("id", conversationId).eq("publisher_id", publisher.id).eq("conversation_type", "publisher_talent").maybeSingle();
     return conversation ? { role: "publisher", admin, conversation } : null;
   }
-
   return null;
+}
+
+async function messageCount(context: Context) {
+  const { count } = await context.admin.from("messages").select("id", { head: true, count: "exact" }).eq("conversation_id", context.conversation.id);
+  return count ?? 0;
 }
 
 export async function getUserConversationDetail(userId: string, conversationId: number): Promise<ConversationDetailResponse | null> {
@@ -44,7 +45,8 @@ export async function getUserConversationDetail(userId: string, conversationId: 
     ? (conversation.conversation_type === "mlamh_talent" ? "MLAMH" : publisherResult.data?.company_name || publisherResult.data?.contact_name || "Publisher")
     : talentResult.data?.display_name_ar || talentResult.data?.display_name_en || talentResult.data?.name_ar || talentResult.data?.name_en || "Talent";
   const messages: MobileMessage[] = (messagesResult.data ?? []).map((message) => ({ id: message.id, conversationId: message.conversation_id, senderUserId: message.sender_user_id, body: message.body, readAt: message.read_at ?? null, createdAt: message.created_at, isMine: message.sender_user_id === userId }));
-  return { conversation: { id: conversation.id, opportunityId: conversation.opportunity_id, opportunityTitle: opportunityResult.data?.title ?? null, partyName, status: conversation.status }, messages };
+  const canSend = conversation.status === "active" && (role === "publisher" || messages.length > 0);
+  return { conversation: { id: conversation.id, opportunityId: conversation.opportunity_id, opportunityTitle: opportunityResult.data?.title ?? null, partyName, status: conversation.status, participantRole: role, startPolicy: "publisher_starts", canSend }, messages };
 }
 
 export async function sendUserMessage(userId: string, conversationId: number, rawBody: unknown): Promise<SendMessageResult> {
@@ -55,6 +57,7 @@ export async function sendUserMessage(userId: string, conversationId: number, ra
   const context = await getContext(userId, conversationId);
   if (!context) return { ok: false, code: "NOT_FOUND" };
   if (context.conversation.status !== "active") return { ok: false, code: "CONVERSATION_NOT_ACTIVE" };
+  if (context.role === "talent" && await messageCount(context) === 0) return { ok: false, code: "PUBLISHER_MUST_START" };
   const { data, error } = await context.admin.from("messages").insert({ conversation_id: conversationId, sender_user_id: userId, body }).select("id,conversation_id,sender_user_id,body,read_at,created_at").single();
   if (error || !data) return { ok: false, code: "INSERT_FAILED" };
   await context.admin.from("conversations").update({ updated_at: new Date().toISOString() }).eq("id", conversationId);
