@@ -31,6 +31,17 @@ Talent Flow V1 closeout requires a real inbox smoke test proving the hosted Supa
 ### Google signup
 Use reliable Google-provided fields and then show a required-data completion screen containing only missing fields. Google and email users end with the same data model and permissions.
 
+### Duplicate-account guard across providers
+An email address represents one MLAMH account regardless of whether the user originally registered with Google or email/password.
+
+Rules:
+- Before email/password signup, check Supabase Auth for an existing user with the normalized email.
+- If the email already exists, do not start a second registration flow.
+- Show a clear existing-account message with direct actions for Sign in and Forgot password.
+- If the existing identity is Google-only, explain that the account was created with Google and direct the user to sign in with the same Google account.
+- If a user starts Google OAuth with an email that already belongs to an MLAMH account, the existing account type/profile remains authoritative. OAuth may attach an identity to the same Auth user, but must not create a second talent/publisher onboarding journey or change the existing account type.
+- Existing registered talent data is never rewritten merely because the user attempted another signup method.
+
 ## Required signup data
 - Full name
 - Mobile number
