@@ -95,6 +95,30 @@ export async function ensureTalentAccountFromSignupData(
   const city = country.cities.find((item) => item.value === data.citySlug)!;
   const now = new Date().toISOString();
 
+  /*
+   * Legacy-safety rule:
+   * this helper belongs to the NEW Talent Flow only. If a Talent row already
+   * exists for the auth user, never rewrite it from signup metadata. Existing
+   * talents keep their current category, city, nationality, privacy, status,
+   * publication state and profile data. Incomplete legacy accounts are handled
+   * by the recovery/reminder flow instead of silent backfills.
+   */
+  const { data: existingTalent, error: talentLookupError } = await admin
+    .from("talents")
+    .select("id")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (talentLookupError) throw new Error(`[ensureTalentAccount.talentLookup] ${talentLookupError.message}`);
+
+  if (existingTalent) {
+    return {
+      ok: true as const,
+      created: false as const,
+      preservedExistingTalent: true as const,
+      talentId: existingTalent.id,
+    };
+  }
+
   const { data: profile, error: profileLookupError } = await admin
     .from("profiles")
     .select("id,account_type,approval_status")
@@ -127,41 +151,24 @@ export async function ensureTalentAccountFromSignupData(
     if (error) throw new Error(`[ensureTalentAccount.profileInsert] ${error.message}`);
   }
 
-  const { data: existingTalent, error: talentLookupError } = await admin
+  const { data: createdTalent, error: insertError } = await admin
     .from("talents")
-    .select("id,status,published")
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (talentLookupError) throw new Error(`[ensureTalentAccount.talentLookup] ${talentLookupError.message}`);
-
-  const talentPayload = {
-    name_en: data.displayName,
-    name_ar: data.displayName,
-    category_slug: category.slug,
-    category_en: category.en,
-    category_ar: category.ar,
-    primary_role: category.slug,
-    base_country_code: country.code,
-    city_slug: city.value,
-    city_en: city.en,
-    city_ar: city.ar,
-    nationality_slug: data.nationality,
-    nationality: data.nationality,
-    gender: data.gender,
-    profile_visibility: data.profileVisibility,
-  };
-
-  if (existingTalent) {
-    const { error } = await admin
-      .from("talents")
-      .update(talentPayload)
-      .eq("id", existingTalent.id)
-      .eq("user_id", userId);
-    if (error) throw new Error(`[ensureTalentAccount.talentUpdate] ${error.message}`);
-  } else {
-    const { error } = await admin.from("talents").insert({
+    .insert({
       user_id: userId,
-      ...talentPayload,
+      name_en: data.displayName,
+      name_ar: data.displayName,
+      category_slug: category.slug,
+      category_en: category.en,
+      category_ar: category.ar,
+      primary_role: category.slug,
+      base_country_code: country.code,
+      city_slug: city.value,
+      city_en: city.en,
+      city_ar: city.ar,
+      nationality_slug: data.nationality,
+      nationality: data.nationality,
+      gender: data.gender,
+      profile_visibility: data.profileVisibility,
       image_url: null,
       slug: createTalentSlug(data.displayName, userId),
       status: "draft",
@@ -169,9 +176,16 @@ export async function ensureTalentAccountFromSignupData(
       verified: false,
       featured: false,
       profile_completion: 0,
-    });
-    if (error) throw new Error(`[ensureTalentAccount.talentInsert] ${error.message}`);
-  }
+    })
+    .select("id")
+    .single();
 
-  return { ok: true as const };
+  if (insertError) throw new Error(`[ensureTalentAccount.talentInsert] ${insertError.message}`);
+
+  return {
+    ok: true as const,
+    created: true as const,
+    preservedExistingTalent: false as const,
+    talentId: createdTalent.id,
+  };
 }
