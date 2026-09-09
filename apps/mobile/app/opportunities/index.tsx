@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { ArrowUpRight, Bell, Clock3, MapPin, Search, SearchX, Sparkles } from "lucide-react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AppTabBar } from "@/components/AppTabBar";
 import { ScreenSkeleton } from "@/components/ScreenSkeleton";
@@ -10,161 +10,33 @@ import { resolveMobileMarket } from "@/lib/account";
 import { getNotifications, getPublicOpportunities, type MobileOpportunity } from "@/lib/api";
 import { formatGregorianDate, getDeviceLocale, isRtlLocale } from "@/lib/i18n";
 import { getMobileMarketLabel } from "@/lib/market-labels";
-import { darkTheme } from "@/lib/theme";
+import { darkTheme, radii, spacing, typography } from "@/lib/theme";
 
 type FilterKey = "all" | "actor" | "model";
 
 export default function OpportunitiesScreen() {
-  const locale = getDeviceLocale();
-  const isArabic = locale === "ar";
-  const isRtl = isRtlLocale(locale);
-  const { width } = useWindowDimensions();
-  const compact = width <= 360;
-  const theme = darkTheme;
-  const styles = useMemo(() => createStyles(theme), [theme]);
-  const insets = useSafeAreaInsets();
-  const [items, setItems] = useState<MobileOpportunity[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<FilterKey>("all");
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [market, setMarket] = useState("SA");
-  const [lastUpdatedAt, setLastUpdatedAt] = useState(() => Date.now());
-
-  const load = useCallback(async (refresh = false) => {
-    refresh ? setRefreshing(true) : setLoading(true);
-    setError(null);
-    try {
-      const resolvedMarket = await resolveMobileMarket();
-      setMarket(resolvedMarket);
-      const [response, notifications] = await Promise.all([
-        getPublicOpportunities(locale, resolvedMarket),
-        getNotifications().catch(() => null),
-      ]);
-      setItems(response.items);
-      setUnreadCount(notifications?.unreadCount ?? 0);
-      setLastUpdatedAt(Date.now());
-    } catch {
-      setError(isArabic ? "تعذر تحميل الفرص الآن." : "Unable to load opportunities right now.");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [isArabic, locale]);
-
-  useEffect(() => { void load(); }, [load]);
-
-  const filtered = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    return items.filter((item) => {
-      const type = item.opportunityType.toLowerCase();
-      const matchesFilter = filter === "all" || type.includes(filter);
-      const haystack = `${item.title} ${item.companyName} ${item.city ?? ""} ${item.opportunityType}`.toLowerCase();
-      return matchesFilter && (!needle || haystack.includes(needle));
-    });
-  }, [filter, items, query]);
-
-  const featured = filtered.filter((item) => item.featured).slice(0, 4);
-  const regular = filtered.filter((item) => !item.featured);
-  const newTodayCount = items.filter((item) => isWithinHours(item.createdAt, 24)).length;
-  const closingSoonCount = items.filter((item) => isDeadlineWithinHours(item.applicationDeadline, 72)).length;
-  const marketLabel = getMobileMarketLabel(market, locale) ?? (isArabic ? "السعودية" : "Saudi Arabia");
-  const filterOrder: FilterKey[] = isRtl ? ["model", "actor", "all"] : ["all", "actor", "model"];
-
-  if (loading) return <ScreenSkeleton variant="list" locale={locale} />;
-
-  return <View style={styles.screen}>
-    <FlatList
-      data={regular}
-      keyExtractor={(item) => String(item.id)}
-      contentContainerStyle={[styles.content, compact && styles.contentCompact, { paddingTop: Math.max(insets.top + 16, 28) }]}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={theme.accent} colors={[theme.accent]} />}
-      ListHeaderComponent={<View>
-        <View style={[styles.topBar, isRtl && styles.rowRtl]}>
-          <View style={[styles.titleBlock, isRtl && styles.alignEnd]}>
-            <Text style={[styles.brand, isArabic && styles.arabicText]}>{isArabic ? "ملامح" : "MLAMH"}</Text>
-            <Text accessibilityRole="header" style={[styles.pageTitle, compact && styles.pageTitleCompact, isRtl && styles.rtlText]}>{isArabic ? "الفرص" : "Opportunities"}</Text>
-            <Text style={[styles.pageSubtitle, isRtl && styles.rtlText]}>{isArabic ? "فرص جديدة ومناسبة لك، من مكان واحد." : "Fresh, relevant opportunities in one place."}</Text>
-          </View>
-          <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "التنبيهات" : "Notifications"} onPress={() => router.push("/notifications")} style={({ pressed }) => [styles.notificationButton, pressed && styles.pressed]}>
-            <Bell size={20} strokeWidth={1.9} color={theme.text} />
-            {unreadCount > 0 ? <View style={[styles.notificationBadge, isRtl && styles.notificationBadgeRtl]}><Text style={styles.notificationBadgeText}>{Math.min(unreadCount, 99)}</Text></View> : null}
-          </Pressable>
-        </View>
-
-        <View style={[styles.marketRow, isRtl && styles.rowRtl]}>
-          <View style={[styles.marketCopy, isRtl && styles.alignEnd]}><Text style={[styles.marketEyebrow, isArabic && styles.arabicText]}>{isArabic ? "السوق الحالي" : "CURRENT MARKET"}</Text><Text style={[styles.marketLabel, isRtl && styles.rtlText]}>{marketLabel}</Text></View>
-          <Text style={[styles.marketCount, isRtl && styles.rtlText]}>{isArabic ? `${filtered.length} فرصة` : `${filtered.length} opportunities`}</Text>
-        </View>
-
-        <TodayPulse locale={locale} isRtl={isRtl} styles={styles} newTodayCount={newTodayCount} closingSoonCount={closingSoonCount} unreadCount={unreadCount} lastUpdatedAt={lastUpdatedAt} />
-
-        <View style={[styles.searchBox, isRtl && styles.rowRtl]}>
-          <Search size={18} strokeWidth={1.9} color={theme.muted} />
-          <TextInput value={query} onChangeText={setQuery} placeholder={isArabic ? "ابحث عن فرصة أو جهة" : "Search opportunities or companies"} placeholderTextColor={theme.muted} style={[styles.searchInput, isRtl && styles.rtlText]} autoCapitalize="none" returnKeyType="search" />
-        </View>
-
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.filters, isRtl && styles.filtersRtl]}>
-          {filterOrder.map((key) => <FilterChip key={key} active={filter === key} label={key === "all" ? (isArabic ? "الكل" : "All") : key === "actor" ? (isArabic ? "تمثيل" : "Acting") : (isArabic ? "مودل" : "Modeling")} onPress={() => setFilter(key)} styles={styles} isRtl={isRtl} />)}
-        </ScrollView>
-
-        {featured.length > 0 ? <View style={styles.featuredSection}>
-          <View style={[styles.sectionHeader, isRtl && styles.rowRtl]}><View style={[styles.sectionCopy, isRtl && styles.alignEnd]}><Text style={[styles.sectionEyebrow, isArabic && styles.arabicText]}>{isArabic ? "مختارة لك" : "CURATED"}</Text><Text style={[styles.sectionTitle, isRtl && styles.rtlText]}>{isArabic ? "فرص مميزة" : "Featured opportunities"}</Text></View><Sparkles size={18} color={theme.accent} strokeWidth={1.8} /></View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.featuredRow, isRtl && styles.filtersRtl]}>{featured.map((item) => <FeaturedCard key={item.id} item={item} locale={locale} styles={styles} isRtl={isRtl} compact={compact} />)}</ScrollView>
-        </View> : null}
-
-        <View style={[styles.latestHeader, isRtl && styles.rowRtl]}><View style={[styles.sectionCopy, isRtl && styles.alignEnd]}><Text style={[styles.sectionEyebrow, isArabic && styles.arabicText]}>{isArabic ? "الآن" : "NOW"}</Text><Text style={[styles.sectionTitle, isRtl && styles.rtlText]}>{isArabic ? "أحدث الفرص" : "Latest opportunities"}</Text></View><Text style={styles.sectionCount}>{regular.length}</Text></View>
-      </View>}
-      ListEmptyComponent={<View style={styles.emptyState}><View style={styles.emptyIcon}><SearchX size={24} color={theme.accent} /></View><Text style={[styles.emptyTitle, isRtl && styles.rtlText]}>{error ?? (isArabic ? "لا توجد فرص مطابقة حاليًا" : "No matching opportunities right now")}</Text><Text style={[styles.emptyBody, isRtl && styles.rtlText]}>{error ? (isArabic ? "تحقق من الاتصال ثم حاول مرة أخرى." : "Check your connection and try again.") : (isArabic ? "جرّب تعديل البحث أو التصنيف." : "Try adjusting your search or category.")}</Text>{error ? <Pressable style={styles.retryButton} onPress={() => void load()}><Text style={[styles.retryText, isRtl && styles.rtlText]}>{isArabic ? "إعادة المحاولة" : "Try again"}</Text></Pressable> : null}</View>}
-      renderItem={({ item }) => <OpportunityCard item={item} locale={locale} styles={styles} isRtl={isRtl} compact={compact} />}
-      showsVerticalScrollIndicator={false}
-    />
-    <AppTabBar active="discover" locale={locale} theme={theme} notificationCount={unreadCount} />
-  </View>;
+  const locale=getDeviceLocale(),ar=locale==="ar",rtl=isRtlLocale(locale);const{width}=useWindowDimensions();const compact=width<=360;
+  const[items,setItems]=useState<MobileOpportunity[]>([]),[unread,setUnread]=useState(0),[query,setQuery]=useState(""),[filter,setFilter]=useState<FilterKey>("all"),[loading,setLoading]=useState(true),[refreshing,setRefreshing]=useState(false),[error,setError]=useState<string|null>(null),[market,setMarket]=useState("SA");
+  const load=useCallback(async(refresh=false)=>{refresh?setRefreshing(true):setLoading(true);setError(null);try{const resolved=await resolveMobileMarket();setMarket(resolved);const[response,notes]=await Promise.all([getPublicOpportunities(locale,resolved),getNotifications().catch(()=>null)]);setItems(response.items);setUnread(notes?.unreadCount??0);}catch{setError(ar?"تعذر تحميل الفرص الآن.":"Unable to load opportunities right now.");}finally{setLoading(false);setRefreshing(false);}},[ar,locale]);
+  useEffect(()=>{void load()},[load]);
+  const filtered=useMemo(()=>{const needle=query.trim().toLowerCase();return items.filter((item)=>{const type=item.opportunityType.toLowerCase();const category=filter==="all"||type.includes(filter);const haystack=`${item.title} ${item.companyName} ${item.city??""} ${item.opportunityType}`.toLowerCase();return category&&(!needle||haystack.includes(needle));});},[filter,items,query]);
+  const featured=filtered.filter((item)=>item.featured).slice(0,3),regular=filtered.filter((item)=>!item.featured),marketLabel=getMobileMarketLabel(market,locale)??(ar?"السعودية":"Saudi Arabia");
+  const order:FilterKey[]=rtl?["model","actor","all"]:["all","actor","model"];
+  if(loading)return <ScreenSkeleton variant="list" locale={locale}/>;
+  return <SafeAreaView style={s.screen} edges={["top"]}>
+    <FlatList data={regular} keyExtractor={(item)=>String(item.id)} contentContainerStyle={[s.content,compact&&s.contentCompact]} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={()=>void load(true)} tintColor={darkTheme.accent}/>} ListHeaderComponent={<View style={s.header}>
+      <View style={[s.top,rtl&&s.rowRtl]}><View style={s.flex}><Text style={[s.brand,txt(rtl)]}>{ar?"ملامح":"MLAMH"}</Text><Text accessibilityRole="header" style={[s.title,compact&&s.titleCompact,txt(rtl)]}>{ar?"الفرص":"Opportunities"}</Text><Text style={[s.subtitle,txt(rtl)]}>{ar?`فرص مهنية في ${marketLabel}. ابحث وقدّم من ملف واحد.`:`Professional opportunities in ${marketLabel}. Search and apply from one profile.`}</Text></View><Pressable accessibilityRole="button" accessibilityLabel={ar?"الإشعارات":"Notifications"} onPress={()=>router.push("/notifications")} style={s.bell}><Bell size={20} color={darkTheme.text}/>{unread>0?<View style={[s.badge,rtl&&s.badgeRtl]}><Text style={s.badgeText}>{Math.min(unread,99)}</Text></View>:null}</Pressable></View>
+      <View style={[s.search,rtl&&s.rowRtl]}><Search size={18} color={darkTheme.muted}/><TextInput value={query} onChangeText={setQuery} placeholder={ar?"ابحث عن فرصة أو جهة":"Search opportunities or companies"} placeholderTextColor={darkTheme.muted} style={[s.searchInput,txt(rtl)]} returnKeyType="search"/></View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[s.filters,rtl&&s.filtersRtl]}>{order.map((key)=><Pressable key={key} onPress={()=>setFilter(key)} style={[s.filter,filter===key&&s.filterActive]}><Text style={[s.filterText,filter===key&&s.filterTextActive]}>{key==="all"?(ar?"الكل":"All"):key==="actor"?(ar?"تمثيل":"Acting"):(ar?"مودل":"Modeling")}</Text></Pressable>)}</ScrollView>
+      {featured.length>0?<View style={s.featuredSection}><View style={[s.sectionHead,rtl&&s.rowRtl]}><Text style={[s.sectionTitle,txt(rtl)]}>{ar?"فرص مختارة":"Featured"}</Text><Sparkles size={17} color={darkTheme.accent}/></View><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[s.featuredRow,rtl&&s.filtersRtl]}>{featured.map((item)=><FeaturedCard key={item.id} item={item} locale={locale}/>)}</ScrollView></View>:null}
+      <View style={[s.sectionHead,rtl&&s.rowRtl]}><Text style={[s.sectionTitle,txt(rtl)]}>{query.trim()||filter!=="all"?(ar?"النتائج":"Results"):(ar?"أحدث الفرص":"Latest opportunities")}</Text><Text style={s.count}>{filtered.length}</Text></View>
+    </View>} renderItem={({item})=><OpportunityCard item={item} locale={locale}/>} ItemSeparatorComponent={()=><View style={{height:10}}/>} ListEmptyComponent={<View style={s.empty}><SearchX size={24} color={darkTheme.accent}/><Text style={[s.emptyTitle,txt(rtl)]}>{error??(ar?"لا توجد فرص مطابقة حاليًا":"No matching opportunities right now")}</Text><Text style={[s.emptyBody,txt(rtl)]}>{error?(ar?"تحقق من الاتصال ثم حاول مرة أخرى.":"Check your connection and try again."):(ar?"جرّب تعديل البحث أو التصنيف.":"Try adjusting your search or category.")}</Text>{error?<Pressable style={s.retry} onPress={()=>void load()}><Text style={s.retryText}>{ar?"إعادة المحاولة":"Try again"}</Text></Pressable>:null}</View>} ListFooterComponent={<View style={{height:16}}/>} showsVerticalScrollIndicator={false}/>
+    <AppTabBar active="discover" locale={locale} notificationCount={unread}/>
+  </SafeAreaView>;
 }
-
-function TodayPulse({ locale, isRtl, styles, newTodayCount, closingSoonCount, unreadCount, lastUpdatedAt }: { locale: "ar" | "en"; isRtl: boolean; styles: ReturnType<typeof createStyles>; newTodayCount: number; closingSoonCount: number; unreadCount: number; lastUpdatedAt: number }) {
-  const ar = locale === "ar";
-  return <View style={styles.todayCard}><View style={[styles.todayHeader, isRtl && styles.rowRtl]}><View style={[styles.liveLabel, isRtl && styles.rowRtl]}><View style={styles.liveDot}/><Text style={[styles.todayEyebrow, isRtl && styles.rtlText]}>{ar ? "اليوم في ملامح" : "TODAY ON MLAMH"}</Text></View><Text style={[styles.updatedText, isRtl && styles.rtlText]}>{ar ? `محدّث ${formatRelativeTime(lastUpdatedAt, locale)}` : `Updated ${formatRelativeTime(lastUpdatedAt, locale)}`}</Text></View><View style={[styles.pulseMetrics, isRtl && styles.rowRtl]}><PulseMetric value={newTodayCount} label={ar ? "جديدة اليوم" : "New today"} styles={styles}/><View style={styles.pulseDivider}/><PulseMetric value={closingSoonCount} label={ar ? "تنتهي قريبًا" : "Closing soon"} styles={styles}/><View style={styles.pulseDivider}/><Pressable onPress={() => router.push("/notifications")} style={styles.pulseMetric}><Text style={[styles.pulseValue, unreadCount > 0 && styles.pulseValueAccent]}>{unreadCount}</Text><Text style={[styles.pulseLabel, isRtl && styles.rtlText]}>{ar ? "تحديثات لك" : "Updates for you"}</Text></Pressable></View></View>;
-}
-function PulseMetric({ value, label, styles }: { value: number; label: string; styles: ReturnType<typeof createStyles> }) { return <View style={styles.pulseMetric}><Text style={styles.pulseValue}>{value}</Text><Text style={styles.pulseLabel}>{label}</Text></View>; }
-function FilterChip({ active, label, onPress, styles, isRtl }: { active: boolean; label: string; onPress: () => void; styles: ReturnType<typeof createStyles>; isRtl: boolean }) { return <Pressable accessibilityRole="button" accessibilityState={{ selected: active }} onPress={onPress} style={[styles.filterChip, active && styles.filterChipActive]}><Text style={[styles.filterChipText, active && styles.filterChipTextActive, isRtl && styles.rtlText]}>{label}</Text></Pressable>; }
-
-function FeaturedCard({ item, locale, styles, isRtl, compact }: { item: MobileOpportunity; locale: "ar" | "en"; styles: ReturnType<typeof createStyles>; isRtl: boolean; compact: boolean }) {
-  const ar = locale === "ar";
-  const compensation = item.budget && item.currency ? `${item.budget} ${item.currency}` : (ar ? "حسب الاتفاق" : "By agreement");
-  const location = [item.city, getMobileMarketLabel(item.countryCode, locale)].filter(Boolean).join(" · ");
-  const signals = opportunitySignals(item, locale);
-  return <Pressable onPress={() => router.push(`/opportunities/${item.slug}`)} style={({ pressed }) => [styles.featuredCard, compact && styles.featuredCardCompact, pressed && styles.cardPressed]}>
-    <View style={[styles.featuredAccent, isRtl && styles.featuredAccentRtl]}/>
-    <View style={[styles.featuredTop, isRtl && styles.rowRtl]}><View style={[styles.signalRow, isRtl && styles.rowRtl]}><Text style={[styles.featuredBadge, isRtl && styles.rtlText]}>{ar ? "مميزة" : "Featured"}</Text>{signals.slice(0, 1).map((signal) => <Text key={signal} style={[styles.signalBadge, isRtl && styles.rtlText]}>{signal}</Text>)}</View><ArrowUpRight size={18} color={themeText} style={isRtl ? styles.iconRtl : undefined}/></View>
-    <Text numberOfLines={2} style={[styles.featuredTitle, compact && styles.featuredTitleCompact, isRtl && styles.rtlText]}>{item.title}</Text>
-    <Text numberOfLines={1} style={[styles.company, isRtl && styles.rtlText]}>{item.companyName}</Text>
-    <View style={styles.featuredBottom}><View style={[styles.locationRow, isRtl && styles.rowRtl]}><MapPin size={14} color="#8F8F89"/><Text numberOfLines={1} style={[styles.meta, isRtl && styles.rtlText]}>{location}</Text></View><View style={[styles.timeRow, isRtl && styles.rowRtl]}><Clock3 size={13} color="#8F8F89"/><Text style={[styles.timeText, isRtl && styles.rtlText]}>{formatRelativeTime(item.createdAt, locale)}</Text><Text style={styles.compensation}>{compensation}</Text></View></View>
-  </Pressable>;
-}
-
-const themeText = "#F5F5F0";
-function OpportunityCard({ item, locale, styles, isRtl, compact }: { item: MobileOpportunity; locale: "ar" | "en"; styles: ReturnType<typeof createStyles>; isRtl: boolean; compact: boolean }) {
-  const ar = locale === "ar";
-  const location = [item.city, getMobileMarketLabel(item.countryCode, locale)].filter(Boolean).join(" · ") || (ar ? "مرن" : "Flexible");
-  const signals = opportunitySignals(item, locale);
-  return <Pressable onPress={() => router.push(`/opportunities/${item.slug}`)} style={({ pressed }) => [styles.card, compact && styles.cardCompact, pressed && styles.cardPressed]}>
-    <View style={[styles.cardHeader, isRtl && styles.rowRtl]}><View style={[styles.signalRow, isRtl && styles.rowRtl]}><View style={styles.typePill}><Text style={[styles.typeBadge, isRtl && styles.rtlText]}>{formatType(item.opportunityType, ar)}</Text></View>{signals.slice(0, 1).map((signal) => <Text key={signal} style={[styles.signalBadge, isRtl && styles.rtlText]}>{signal}</Text>)}</View><View style={styles.openIcon}><ArrowUpRight size={17} color={themeText} style={isRtl ? styles.iconRtl : undefined}/></View></View>
-    <Text numberOfLines={2} style={[styles.cardTitle, compact && styles.cardTitleCompact, isRtl && styles.rtlText]}>{item.title}</Text>
-    <Text numberOfLines={1} style={[styles.company, isRtl && styles.rtlText]}>{item.companyName}</Text>
-    <View style={[styles.cardFooter, isRtl && styles.rowRtl]}><View style={[styles.locationRow, isRtl && styles.rowRtl]}><MapPin size={14} color="#8F8F89"/><Text numberOfLines={1} style={[styles.meta, isRtl && styles.rtlText]}>{location}</Text></View><View style={[styles.timeRow, isRtl && styles.rowRtl]}><Clock3 size={13} color="#8F8F89"/><Text style={[styles.timeText, isRtl && styles.rtlText]}>{formatRelativeTime(item.createdAt, locale)}</Text></View></View>
-  </Pressable>;
-}
-
-function formatType(value: string, ar: boolean) { const key = value.toLowerCase(); if (key.includes("actor")) return ar ? "تمثيل" : "Acting"; if (key.includes("model")) return ar ? "مودل" : "Modeling"; return value.replaceAll("_", " "); }
-function isWithinHours(value: string | number | null | undefined, hours: number) { const timestamp = typeof value === "number" ? value : value ? new Date(value).getTime() : NaN; return Number.isFinite(timestamp) && Date.now() - timestamp >= 0 && Date.now() - timestamp <= hours * 3600000; }
-function isDeadlineWithinHours(value: string | null | undefined, hours: number) { if (!value) return false; const timestamp = new Date(value).getTime(); return Number.isFinite(timestamp) && timestamp - Date.now() >= 0 && timestamp - Date.now() <= hours * 3600000; }
-function opportunitySignals(item: MobileOpportunity, locale: "ar" | "en") { const ar = locale === "ar"; const signals: string[] = []; if (isWithinHours(item.createdAt, 24)) signals.push(ar ? "جديد" : "New"); if (isDeadlineWithinHours(item.applicationDeadline, 72)) signals.push(ar ? "ينتهي قريبًا" : "Closing soon"); return signals; }
-function formatRelativeTime(value: string | number, locale: "ar" | "en") { const timestamp = typeof value === "number" ? value : new Date(value).getTime(); if (!Number.isFinite(timestamp)) return locale === "ar" ? "الآن" : "now"; const minutes = Math.max(0, Math.floor((Date.now() - timestamp) / 60000)); if (minutes < 1) return locale === "ar" ? "الآن" : "now"; if (minutes < 60) return locale === "ar" ? `منذ ${minutes} د` : `${minutes}m ago`; const hours = Math.floor(minutes / 60); if (hours < 24) return locale === "ar" ? `منذ ${hours} س` : `${hours}h ago`; const days = Math.floor(hours / 24); if (days === 1) return locale === "ar" ? "أمس" : "yesterday"; if (days < 7) return locale === "ar" ? `منذ ${days} أيام` : `${days}d ago`; return formatGregorianDate(timestamp, locale, { month: "short", day: "numeric" }) ?? (locale === "ar" ? "الآن" : "now"); }
-
-function createStyles(theme: typeof darkTheme) { return StyleSheet.create({
-  screen:{flex:1,backgroundColor:theme.background},content:{paddingHorizontal:20,paddingBottom:118,gap:14},contentCompact:{paddingHorizontal:14,paddingBottom:106},rowRtl:{flexDirection:"row-reverse"},rtlText:{textAlign:"right",writingDirection:"rtl"},arabicText:{letterSpacing:0,writingDirection:"rtl",textAlign:"right"},alignEnd:{alignItems:"flex-end"},topBar:{minHeight:74,flexDirection:"row",alignItems:"flex-start",justifyContent:"space-between",gap:18},titleBlock:{flex:1,gap:5},brand:{color:theme.accent,fontSize:12,fontWeight:"900",letterSpacing:2},pageTitle:{color:theme.text,fontSize:30,lineHeight:36,fontWeight:"800"},pageTitleCompact:{fontSize:27,lineHeight:32},pageSubtitle:{color:theme.muted,fontSize:13,lineHeight:20,maxWidth:390},notificationButton:{width:44,height:44,borderRadius:22,borderWidth:1,borderColor:theme.border,backgroundColor:theme.surface,alignItems:"center",justifyContent:"center",position:"relative"},notificationBadge:{position:"absolute",top:-3,right:-3,minWidth:18,height:18,borderRadius:9,paddingHorizontal:4,backgroundColor:theme.accent,alignItems:"center",justifyContent:"center"},notificationBadgeRtl:{right:undefined,left:-3},notificationBadgeText:{color:theme.background,fontSize:8,fontWeight:"900"},marketRow:{flexDirection:"row",alignItems:"flex-end",justifyContent:"space-between",marginTop:18,borderWidth:1,borderColor:"#C9A96226",borderRadius:18,backgroundColor:"#C9A96206",padding:14},marketCopy:{flexShrink:1},marketEyebrow:{color:theme.accent,fontSize:8,fontWeight:"900",letterSpacing:1.4},marketLabel:{color:theme.text,fontSize:15,fontWeight:"800",marginTop:3},marketCount:{color:theme.muted,fontSize:11},todayCard:{marginTop:10,borderWidth:1,borderColor:"#C9A96242",borderRadius:19,backgroundColor:theme.surface,padding:14,gap:13},todayHeader:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",gap:10},liveLabel:{flexDirection:"row",alignItems:"center",gap:7},liveDot:{width:7,height:7,borderRadius:4,backgroundColor:"#49C991"},todayEyebrow:{color:theme.text,fontSize:10,fontWeight:"900"},updatedText:{color:theme.muted,fontSize:9},pulseMetrics:{flexDirection:"row",alignItems:"stretch"},pulseMetric:{flex:1,minHeight:54,alignItems:"center",justifyContent:"center",gap:3,paddingHorizontal:4},pulseDivider:{width:1,backgroundColor:theme.border,marginVertical:5},pulseValue:{color:theme.text,fontSize:20,fontWeight:"800"},pulseValueAccent:{color:theme.accent},pulseLabel:{color:theme.muted,fontSize:9,fontWeight:"700",textAlign:"center"},searchBox:{marginTop:10,minHeight:54,borderWidth:1,borderColor:theme.border,borderRadius:16,backgroundColor:theme.surface,paddingHorizontal:14,flexDirection:"row",alignItems:"center",gap:10},searchInput:{flex:1,color:theme.text,fontSize:14,paddingVertical:12},filters:{gap:8,paddingTop:12,paddingBottom:8},filtersRtl:{minWidth:"100%",justifyContent:"flex-end"},filterChip:{minHeight:38,paddingHorizontal:16,borderRadius:19,borderWidth:1,borderColor:theme.border,backgroundColor:theme.surface,alignItems:"center",justifyContent:"center"},filterChipActive:{borderColor:theme.accent,backgroundColor:theme.chip},filterChipText:{color:theme.muted,fontSize:12,fontWeight:"700"},filterChipTextActive:{color:theme.accent},featuredSection:{marginTop:14,gap:11},sectionHeader:{flexDirection:"row",alignItems:"center",justifyContent:"space-between"},sectionCopy:{flexShrink:1},sectionEyebrow:{color:theme.accent,fontSize:8,fontWeight:"900",letterSpacing:1.5},sectionTitle:{color:theme.text,fontSize:19,lineHeight:25,fontWeight:"800",marginTop:2},featuredRow:{gap:10,paddingBottom:4},featuredCard:{width:292,minHeight:204,borderRadius:20,borderWidth:1,borderColor:"#C9A96255",backgroundColor:theme.surfaceElevated,padding:18,gap:9,overflow:"hidden"},featuredCardCompact:{width:258,minHeight:194,padding:15},featuredAccent:{position:"absolute",left:0,top:0,bottom:0,width:3,backgroundColor:theme.accent},featuredAccentRtl:{left:undefined,right:0},featuredTop:{flexDirection:"row",alignItems:"center",justifyContent:"space-between"},signalRow:{flexDirection:"row",alignItems:"center",gap:6,flexWrap:"wrap",flexShrink:1},featuredBadge:{color:theme.accent,fontSize:10,fontWeight:"900"},signalBadge:{color:"#49C991",backgroundColor:"#49C99112",borderWidth:1,borderColor:"#49C99144",borderRadius:999,overflow:"hidden",paddingHorizontal:8,paddingVertical:4,fontSize:8,fontWeight:"900"},featuredTitle:{color:theme.text,fontSize:21,lineHeight:28,fontWeight:"800"},featuredTitleCompact:{fontSize:19,lineHeight:25},featuredBottom:{marginTop:"auto",gap:7},locationRow:{flexDirection:"row",alignItems:"center",gap:6,flexShrink:1},timeRow:{flexDirection:"row",alignItems:"center",gap:5},company:{color:theme.text,fontSize:12,fontWeight:"700",opacity:.88},meta:{color:theme.muted,fontSize:11,flexShrink:1},timeText:{color:theme.muted,fontSize:9},compensation:{color:theme.accent,fontSize:12,fontWeight:"800",marginStart:"auto"},latestHeader:{flexDirection:"row",alignItems:"flex-end",justifyContent:"space-between",marginTop:20,marginBottom:2},sectionCount:{color:theme.muted,fontSize:11},card:{borderWidth:1,borderColor:theme.border,backgroundColor:theme.surface,borderRadius:18,padding:16,gap:9,marginBottom:2},cardCompact:{padding:13,gap:8},cardPressed:{transform:[{scale:.992}],opacity:.9},cardHeader:{flexDirection:"row",alignItems:"center",justifyContent:"space-between"},typePill:{borderWidth:1,borderColor:"#C9A96244",backgroundColor:"#C9A9620C",borderRadius:999,paddingHorizontal:10,paddingVertical:5},typeBadge:{color:theme.accent,fontSize:9,fontWeight:"900"},openIcon:{width:32,height:32,borderRadius:16,borderWidth:1,borderColor:theme.border,alignItems:"center",justifyContent:"center"},iconRtl:{transform:[{scaleX:-1}]},cardTitle:{color:theme.text,fontSize:18,lineHeight:25,fontWeight:"800"},cardTitleCompact:{fontSize:17,lineHeight:23},cardFooter:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",gap:10},emptyState:{borderWidth:1,borderColor:theme.border,backgroundColor:theme.surface,borderRadius:20,padding:26,alignItems:"center",gap:9,marginTop:8},emptyIcon:{width:48,height:48,borderRadius:24,borderWidth:1,borderColor:"#C9A96255",backgroundColor:"#C9A9620A",alignItems:"center",justifyContent:"center"},emptyTitle:{color:theme.text,fontSize:16,lineHeight:23,fontWeight:"800",textAlign:"center"},emptyBody:{color:theme.muted,fontSize:12,lineHeight:19,textAlign:"center"},retryButton:{minHeight:44,paddingHorizontal:18,borderRadius:12,borderWidth:1,borderColor:theme.accent,alignItems:"center",justifyContent:"center",marginTop:6},retryText:{color:theme.accent,fontSize:12,fontWeight:"800"},pressed:{opacity:.78}
-}); }
+function FeaturedCard({item,locale}:{item:MobileOpportunity;locale:"ar"|"en"}){const rtl=locale==="ar",ar=locale==="ar",location=[item.city,getMobileMarketLabel(item.countryCode,locale)].filter(Boolean).join(" · "),comp=item.budget&&item.currency?`${item.budget} ${item.currency}`:(ar?"حسب الاتفاق":"By agreement");return <Pressable onPress={()=>router.push(`/opportunities/${item.slug}`)} style={({pressed})=>[s.featuredCard,pressed&&s.pressed]}><View style={[s.cardTop,rtl&&s.rowRtl]}><Text style={s.featuredBadge}>{ar?"مميزة":"Featured"}</Text><ArrowUpRight size={17} color={darkTheme.text} style={rtl?{transform:[{scaleX:-1}]}:undefined}/></View><Text numberOfLines={2} style={[s.featuredTitle,txt(rtl)]}>{item.title}</Text><Text numberOfLines={1} style={[s.company,txt(rtl)]}>{item.companyName}</Text><View style={s.cardBottom}><View style={[s.metaRow,rtl&&s.rowRtl]}><MapPin size={13} color={darkTheme.muted}/><Text numberOfLines={1} style={[s.meta,txt(rtl)]}>{location}</Text></View><Text style={[s.comp,txt(rtl)]}>{comp}</Text></View></Pressable>}
+function OpportunityCard({item,locale}:{item:MobileOpportunity;locale:"ar"|"en"}){const rtl=locale==="ar",ar=locale==="ar",location=[item.city,getMobileMarketLabel(item.countryCode,locale)].filter(Boolean).join(" · ")||(ar?"مرن":"Flexible");return <Pressable onPress={()=>router.push(`/opportunities/${item.slug}`)} style={({pressed})=>[s.card,pressed&&s.pressed]}><View style={[s.cardTop,rtl&&s.rowRtl]}><View style={s.type}><Text style={s.typeText}>{formatType(item.opportunityType,ar)}</Text></View><ArrowUpRight size={17} color={darkTheme.text} style={rtl?{transform:[{scaleX:-1}]}:undefined}/></View><Text numberOfLines={2} style={[s.cardTitle,txt(rtl)]}>{item.title}</Text><Text numberOfLines={1} style={[s.company,txt(rtl)]}>{item.companyName}</Text><View style={[s.cardFooter,rtl&&s.rowRtl]}><View style={[s.metaRow,rtl&&s.rowRtl]}><MapPin size={13} color={darkTheme.muted}/><Text numberOfLines={1} style={[s.meta,txt(rtl)]}>{location}</Text></View><View style={[s.metaRow,rtl&&s.rowRtl]}><Clock3 size={12} color={darkTheme.muted}/><Text style={s.time}>{relative(item.createdAt,locale)}</Text></View></View></Pressable>}
+function formatType(value:string,ar:boolean){const key=value.toLowerCase();if(key.includes("actor"))return ar?"تمثيل":"Acting";if(key.includes("model"))return ar?"مودل":"Modeling";return value.replaceAll("_"," ")}
+function relative(value:string|number,locale:"ar"|"en"){const ts=typeof value==="number"?value:new Date(value).getTime();if(!Number.isFinite(ts))return locale==="ar"?"الآن":"now";const mins=Math.max(0,Math.floor((Date.now()-ts)/60000));if(mins<1)return locale==="ar"?"الآن":"now";if(mins<60)return locale==="ar"?`منذ ${mins} د`:`${mins}m ago`;const h=Math.floor(mins/60);if(h<24)return locale==="ar"?`منذ ${h} س`:`${h}h ago`;const d=Math.floor(h/24);if(d<7)return locale==="ar"?`منذ ${d} أيام`:`${d}d ago`;return formatGregorianDate(ts,locale,{month:"short",day:"numeric"})??""}
+function txt(rtl:boolean){return{textAlign:rtl?"right" as const:"left" as const,writingDirection:rtl?"rtl" as const:"ltr" as const}}
+const s=StyleSheet.create({screen:{flex:1,backgroundColor:darkTheme.background},content:{paddingHorizontal:spacing.lg,paddingBottom:112},contentCompact:{paddingHorizontal:14},header:{paddingTop:8,paddingBottom:16,gap:13},top:{flexDirection:"row",alignItems:"flex-start",gap:14},rowRtl:{flexDirection:"row-reverse"},flex:{flex:1,minWidth:0},brand:{color:darkTheme.accent,fontSize:10,fontWeight:"900"},title:{...typography.pageTitle,color:darkTheme.text,marginTop:3},titleCompact:{fontSize:25,lineHeight:31},subtitle:{...typography.body,color:darkTheme.muted,marginTop:5,maxWidth:430},bell:{width:44,height:44,borderRadius:22,borderWidth:1,borderColor:darkTheme.border,backgroundColor:darkTheme.surface,alignItems:"center",justifyContent:"center"},badge:{position:"absolute",right:-3,top:-3,minWidth:18,height:18,borderRadius:9,backgroundColor:darkTheme.accent,alignItems:"center",justifyContent:"center",paddingHorizontal:4},badgeRtl:{right:undefined,left:-3},badgeText:{color:darkTheme.background,fontSize:8,fontWeight:"900"},search:{minHeight:52,borderWidth:1,borderColor:darkTheme.border,borderRadius:radii.md,backgroundColor:darkTheme.surface,paddingHorizontal:13,flexDirection:"row",alignItems:"center",gap:9},searchInput:{flex:1,color:darkTheme.text,fontSize:13,paddingVertical:10},filters:{gap:7,paddingVertical:2},filtersRtl:{minWidth:"100%",justifyContent:"flex-end"},filter:{minHeight:36,borderRadius:18,borderWidth:1,borderColor:darkTheme.border,backgroundColor:darkTheme.surface,paddingHorizontal:14,alignItems:"center",justifyContent:"center"},filterActive:{borderColor:darkTheme.accent,backgroundColor:darkTheme.chip},filterText:{color:darkTheme.muted,fontSize:10,fontWeight:"800"},filterTextActive:{color:darkTheme.accent},featuredSection:{gap:9,marginTop:2},sectionHead:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",gap:10},sectionTitle:{color:darkTheme.text,fontSize:18,fontWeight:"900"},count:{color:darkTheme.muted,fontSize:10},featuredRow:{gap:9,paddingVertical:2},featuredCard:{width:276,minHeight:178,borderRadius:radii.xl,borderWidth:1,borderColor:"#C9A96255",backgroundColor:darkTheme.surfaceElevated,padding:15,gap:8},pressed:{opacity:.72},cardTop:{flexDirection:"row",alignItems:"center",justifyContent:"space-between"},featuredBadge:{color:darkTheme.accent,fontSize:9,fontWeight:"900"},featuredTitle:{color:darkTheme.text,fontSize:18,lineHeight:24,fontWeight:"900"},company:{color:darkTheme.muted,fontSize:11,fontWeight:"700"},cardBottom:{marginTop:"auto",gap:6},metaRow:{flexDirection:"row",alignItems:"center",gap:5},meta:{color:darkTheme.muted,fontSize:9,flexShrink:1},comp:{color:darkTheme.accent,fontSize:11,fontWeight:"900"},card:{borderWidth:1,borderColor:darkTheme.border,borderRadius:radii.lg,backgroundColor:darkTheme.surface,padding:14,gap:7},type:{borderWidth:1,borderColor:"#C9A96244",backgroundColor:"#C9A9620C",borderRadius:999,paddingHorizontal:9,paddingVertical:4},typeText:{color:darkTheme.accent,fontSize:8,fontWeight:"900"},cardTitle:{color:darkTheme.text,fontSize:17,lineHeight:23,fontWeight:"900"},cardFooter:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",gap:10,marginTop:2},time:{color:darkTheme.muted,fontSize:8},empty:{minHeight:280,alignItems:"center",justifyContent:"center",gap:9,padding:24},emptyTitle:{color:darkTheme.text,fontSize:16,fontWeight:"900",textAlign:"center"},emptyBody:{color:darkTheme.muted,fontSize:11,lineHeight:18,textAlign:"center",maxWidth:320},retry:{minHeight:44,borderRadius:radii.md,borderWidth:1,borderColor:darkTheme.accent,paddingHorizontal:16,alignItems:"center",justifyContent:"center"},retryText:{color:darkTheme.accent,fontSize:11,fontWeight:"900"}});
