@@ -8,6 +8,7 @@ export type MobilePublicTalent = {
   city: string | null;
   countryCode: string | null;
   imageUrl: string | null;
+  galleryImages: string[];
   featured: boolean;
   verified: boolean;
   gender: string | null;
@@ -56,6 +57,7 @@ export function toMobilePublicTalent(talent: Talent, locale: "ar" | "en"): Mobil
     city: city ?? null,
     countryCode: talent.base_country_code ?? null,
     imageUrl: talent.image_url || null,
+    galleryImages: [...new Set([...(Array.isArray(talent.gallery_images) ? talent.gallery_images : []), ...(Array.isArray(talent.photos) ? talent.photos : []), ...(Array.isArray(talent.full_body_photos) ? talent.full_body_photos : [])].filter((value): value is string => typeof value === "string" && Boolean(value.trim())))].slice(0, 12),
     featured: Boolean(talent.featured),
     verified: Boolean(talent.verified || talent.is_verified),
     gender: talent.gender ?? null,

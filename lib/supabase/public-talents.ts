@@ -35,6 +35,11 @@ type GetPublicTalentsOptions = {
   ageMax?: number | null;
   heightMin?: number | null;
   heightMax?: number | null;
+  language?: string;
+  dialect?: string;
+  skill?: string;
+  availability?: string;
+  readyToTravel?: boolean;
 };
 
 type GetPublicTalentsResult = {
@@ -160,6 +165,12 @@ function ageFromDob(dateOfBirth?: string | null) {
 function matchesAdvancedFilters(talent: Talent, options: GetPublicTalentsOptions) {
   if (!matchesGender(talent, options.gender)) return false;
   if (!matchesNationality(talent, options.nationality)) return false;
+  const includes = (values: string[] | null | undefined, requested?: string) => !requested || (Array.isArray(values) && values.some((value) => value.toLowerCase().includes(requested.toLowerCase())));
+  if (!includes(talent.languages, options.language)) return false;
+  if (!includes(talent.dialects, options.dialect)) return false;
+  if (!includes(talent.skills, options.skill)) return false;
+  if (options.availability && String(talent.availability_status ?? "").toLowerCase() !== options.availability.toLowerCase()) return false;
+  if (options.readyToTravel === true && talent.ready_to_travel !== true) return false;
 
   const age = ageFromDob(talent.date_of_birth);
   if (options.ageMin != null && (age == null || age < options.ageMin)) return false;
