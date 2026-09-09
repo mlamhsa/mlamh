@@ -1,3 +1,5 @@
+import { TALENT_CATEGORIES } from "@/lib/data/talent-categories";
+
 export type TalentQualificationReason =
   | "missing_profile_approval"
   | "inactive_profile"
@@ -38,11 +40,21 @@ export type TalentQualificationEvaluation = {
   role: string | null;
 };
 
-const VALID_TALENT_STATUSES = new Set(["approved", "active"]);
-const VALID_PRIMARY_ROLES = new Set(["actor", "model"]);
-const VALID_CATEGORY_SLUGS = new Set(["actor", "model"]);
+export type TalentQualificationOptions = {
+  /**
+   * Public discovery requires published=true. Private Brief/managed-casting supply
+   * deliberately sets this to false so approved private talents remain matchable
+   * without ever becoming public.
+   */
+  requirePublished?: boolean;
+};
 
-function text(value: unknown) { return typeof value === "string" ? value.trim() : ""; }
+const VALID_TALENT_STATUSES = new Set(["approved", "active"]);
+const VALID_TALENT_ROLES = new Set(TALENT_CATEGORIES.map((category) => category.slug));
+
+function text(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
 
 function isValidHttpUrl(value: unknown) {
   const candidate = text(value);
@@ -50,7 +62,9 @@ function isValidHttpUrl(value: unknown) {
   try {
     const url = new URL(candidate);
     return (url.protocol === "https:" || url.protocol === "http:") && url.hostname !== "localhost" && url.hostname !== "127.0.0.1";
-  } catch { return false; }
+  } catch {
+    return false;
+  }
 }
 
 function normalizeGalleryImages(value: string[] | string | null | undefined) {
@@ -60,20 +74,24 @@ function normalizeGalleryImages(value: string[] | string | null | undefined) {
   try {
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) return parsed.map(text).filter(Boolean);
-  } catch { /* legacy single URL */ }
+  } catch {
+    // legacy single URL
+  }
   return [raw];
 }
 
-export function getValidTalentImage(talent: Pick<TalentQualificationInput, "image_url" | "gallery_images">): string | null {
+export function getValidTalentImage(
+  talent: Pick<TalentQualificationInput, "image_url" | "gallery_images">,
+): string | null {
   if (isValidHttpUrl(talent.image_url)) return text(talent.image_url);
   return normalizeGalleryImages(talent.gallery_images).find(isValidHttpUrl) ?? null;
 }
 
 function getTalentRole(talent: TalentQualificationInput) {
   const primaryRole = text(talent.primary_role).toLowerCase();
-  if (primaryRole) return VALID_PRIMARY_ROLES.has(primaryRole) ? primaryRole : null;
+  if (primaryRole) return VALID_TALENT_ROLES.has(primaryRole) ? primaryRole : null;
   const categorySlug = text(talent.category_slug).toLowerCase();
-  return VALID_CATEGORY_SLUGS.has(categorySlug) ? categorySlug : null;
+  return VALID_TALENT_ROLES.has(categorySlug) ? categorySlug : null;
 }
 
 function hasApprovedProfile(talent: TalentQualificationInput) {
@@ -82,17 +100,21 @@ function hasApprovedProfile(talent: TalentQualificationInput) {
   return talent.published === true && VALID_TALENT_STATUSES.has(text(talent.status).toLowerCase());
 }
 
-export function evaluateTalentQualification(talent: TalentQualificationInput): TalentQualificationEvaluation {
+export function evaluateTalentQualification(
+  talent: TalentQualificationInput,
+  options: TalentQualificationOptions = {},
+): TalentQualificationEvaluation {
   const reasons: TalentQualificationReason[] = [];
   const status = text(talent.status).toLowerCase();
   const profileStatus = text(talent.profile_status).toLowerCase();
   const image = getValidTalentImage(talent);
   const role = getTalentRole(talent);
+  const requirePublished = options.requirePublished ?? true;
 
   if (!hasApprovedProfile(talent)) reasons.push("missing_profile_approval");
   if (profileStatus && profileStatus !== "active") reasons.push("inactive_profile");
   if (!VALID_TALENT_STATUSES.has(status)) reasons.push("invalid_talent_status");
-  if (talent.published !== true) reasons.push("not_published");
+  if (requirePublished && talent.published !== true) reasons.push("not_published");
   if (!image) reasons.push("missing_image");
   if (!text(talent.display_name_ar) && !text(talent.display_name_en) && !text(talent.name_ar) && !text(talent.name_en)) reasons.push("missing_name");
   if (!role) reasons.push("missing_role");
@@ -105,7 +127,7 @@ export function evaluateTalentQualification(talent: TalentQualificationInput): T
 const REASON_LABELS: Record<TalentQualificationReason, { ar: string; en: string }> = {
   missing_image: { ar: "أضف صورة", en: "Add a photo" },
   missing_city: { ar: "حدد مدينتك", en: "Choose your city" },
-  missing_role: { ar: "حدد تخصصك", en: "Choose your specialty" },
+  missing_role: { ar: "حدد نوع موهبتك", en: "Choose your talent type" },
   missing_name: { ar: "أكمل البيانات المطلوبة", en: "Complete required details" },
   missing_profile_approval: { ar: "أكمل البيانات المطلوبة", en: "Complete required details" },
   inactive_profile: { ar: "أكمل البيانات المطلوبة", en: "Complete required details" },
@@ -113,7 +135,10 @@ const REASON_LABELS: Record<TalentQualificationReason, { ar: string; en: string 
   not_published: { ar: "أكمل البيانات المطلوبة", en: "Complete required details" },
 };
 
-export function getTalentQualificationReasons(input: TalentQualificationInput | TalentQualificationEvaluation, locale: "ar" | "en" = "ar"): string[] {
+export function getTalentQualificationReasons(
+  input: TalentQualificationInput | TalentQualificationEvaluation,
+  locale: "ar" | "en" = "ar",
+): string[] {
   const evaluation = "reasons" in input ? input : evaluateTalentQualification(input);
   return Array.from(new Set(evaluation.reasons.map((reason) => REASON_LABELS[reason][locale])));
 }
@@ -121,5 +146,5 @@ export function getTalentQualificationReasons(input: TalentQualificationInput | 
 export function isTalentPubliclyVisible(talent: TalentQualificationInput) {
   const visibility = text(talent.profile_visibility).toLowerCase();
   const isPublicByPrivacy = !visibility || visibility === "public";
-  return isPublicByPrivacy && evaluateTalentQualification(talent).qualified;
+  return isPublicByPrivacy && evaluateTalentQualification(talent, { requirePublished: true }).qualified;
 }
