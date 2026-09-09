@@ -7,6 +7,7 @@ import { Bell, ChevronLeft, ChevronRight, Images, KeyRound, Languages, LifeBuoy,
 import { getMobileAccountContext } from "@/lib/account";
 import { isRtlLocale } from "@/lib/i18n";
 import { useAppLocale } from "@/lib/locale-context";
+import { leaveAuthenticatedScreen } from "@/lib/navigation";
 import { preparePushRegistration, signOutMobile } from "@/lib/push";
 import { supabase } from "@/lib/supabase";
 import { darkTheme } from "@/lib/theme";
@@ -78,11 +79,12 @@ export default function ProfileSettingsScreen() {
     finally { setSigningOut(false); }
   }
 
+  const homeRoute = accountType === "publisher" ? "/publisher" : "/profile";
   const sectionLabelStyle = [styles.sectionLabel, isArabic && styles.sectionLabelArabic, isRtl && styles.textRtl];
 
   return <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
     <ScrollView contentContainerStyle={[styles.content, compact && styles.contentCompact]} showsVerticalScrollIndicator={false}>
-      <View style={[styles.top, isRtl && styles.rowRtl]}><Pressable accessibilityRole="button" onPress={() => router.back()} style={styles.backButton}><BackIcon size={20} strokeWidth={1.9} color={theme.text} /></Pressable><Text style={[styles.brand, isArabic && styles.brandArabic]}>{isArabic ? "ملامح" : "MLAMH"}</Text></View>
+      <View style={[styles.top, isRtl && styles.rowRtl]}><Pressable accessibilityRole="button" onPress={() => leaveAuthenticatedScreen(homeRoute)} style={styles.backButton}><BackIcon size={20} strokeWidth={1.9} color={theme.text} /></Pressable><Text style={[styles.brand, isArabic && styles.brandArabic]}>{isArabic ? "ملامح" : "MLAMH"}</Text></View>
       <View style={[styles.hero, isRtl && styles.rowRtl]}><View style={styles.heroIcon}><SlidersHorizontal size={21} color={theme.accent} strokeWidth={1.8} /></View><View style={styles.heroCopy}><Text style={[styles.title, isRtl && styles.textRtl]}>{isArabic ? "الإعدادات" : "Settings"}</Text><Text style={[styles.subtitle, isRtl && styles.textRtl]}>{isArabic ? "بيانات حسابك، اللغة، التنبيهات والخصوصية في مكان واحد." : "Your account, language, alerts and privacy in one place."}</Text></View></View>
 
       <Text style={sectionLabelStyle}>{isArabic ? "بيانات الحساب" : "ACCOUNT DETAILS"}</Text>
