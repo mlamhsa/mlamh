@@ -15,7 +15,7 @@ type Props = {
 
 const RESEND_SECONDS = 45;
 
-export function EmailOtpVerification({ locale, email, accountType, intent }: Props) {
+export function EmailOtpVerification({ locale, email, accountType }: Props) {
   const router = useRouter();
   const isRtl = locale === "ar";
   const [token, setToken] = useState("");
@@ -40,18 +40,12 @@ export function EmailOtpVerification({ locale, email, accountType, intent }: Pro
       router.replace(`/${locale}/join/publisher`);
       return;
     }
-    router.replace(`/${locale}/join/talent${intent ? `?intent=${intent}` : ""}`);
+    router.replace(`/${locale}/dashboard-router`);
   }
 
   async function ensureCanonicalAccount(accessToken: string, user: { email?: string | null; user_metadata?: Record<string, unknown> }) {
     const metadata = user.user_metadata ?? {};
-    const displayName = String(
-      metadata.full_name ??
-        metadata.display_name ??
-        metadata.contact_name ??
-        user.email?.split("@")[0] ??
-        "",
-    ).trim();
+    const displayName = String(metadata.full_name ?? metadata.display_name ?? metadata.contact_name ?? user.email?.split("@")[0] ?? "").trim();
     const phone = String(metadata.phone ?? "").trim();
 
     if (displayName.length < 2 || !/^\+[1-9]\d{7,14}$/.test(phone)) {
@@ -72,7 +66,7 @@ export function EmailOtpVerification({ locale, email, accountType, intent }: Pro
       if (!response.ok || !payload?.ok) return { ok: false as const, code: payload?.code ?? "ACCOUNT_DETAILS_FAILED" };
       return { ok: true as const };
     } catch {
-      return { ok: false as const, code: "ACCOUNT_DETAILS_FAILED" as const };
+      return { ok: false as const, code: "ACCOUNT_DETAILS_FAILED" };
     }
   }
 
@@ -97,9 +91,13 @@ export function EmailOtpVerification({ locale, email, accountType, intent }: Pro
 
       const account = await ensureCanonicalAccount(data.session.access_token, data.user);
       if (!account.ok) {
+        if (account.code === "MISSING_TALENT_SIGNUP_DATA" && accountType === "talent") {
+          router.replace(`/${locale}/join/complete-account?type=talent&provider=email`);
+          return;
+        }
         setError(
           account.code === "MISSING_ACCOUNT_DETAILS"
-            ? (isRtl ? "تم تأكيد البريد، لكن بيانات الحساب الأساسية غير مكتملة. ارجع للتسجيل وأدخل الاسم ورقم الجوال." : "Your email is verified, but required account details are missing. Return to signup and add your name and mobile number.")
+            ? (isRtl ? "تم تأكيد البريد، لكن بيانات الحساب الأساسية غير مكتملة. أكمل البيانات المطلوبة للمتابعة." : "Your email is verified, but required account details are missing. Complete them to continue.")
             : (isRtl ? "تم تأكيد البريد، لكن تعذر تجهيز حسابك الآن. حاول مرة أخرى." : "Your email is verified, but we could not prepare your account. Please try again."),
         );
         return;
@@ -142,34 +140,15 @@ export function EmailOtpVerification({ locale, email, accountType, intent }: Pro
 
         <div className="rounded-3xl border border-white/10 bg-white/[0.025] p-5 sm:p-7">
           <label htmlFor="email-otp" className="mb-2 block text-sm text-white/70">{isRtl ? "رمز التحقق" : "Verification code"} <span className="text-gold">*</span></label>
-          <input
-            id="email-otp"
-            value={token}
-            onChange={(event) => { setToken(normalizeOtp(event.currentTarget.value)); setError(""); }}
-            onKeyDown={(event) => { if (event.key === "Enter") void verify(); }}
-            type="text"
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            maxLength={6}
-            placeholder="000000"
-            dir="ltr"
-            className="min-h-16 w-full rounded-2xl border border-gold/30 bg-black/40 px-4 text-center text-3xl font-semibold tracking-[0.35em] text-white outline-none transition placeholder:text-white/20 focus:border-gold"
-          />
+          <input id="email-otp" value={token} onChange={(event) => { setToken(normalizeOtp(event.currentTarget.value)); setError(""); }} onKeyDown={(event) => { if (event.key === "Enter") void verify(); }} type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="000000" dir="ltr" className="min-h-16 w-full rounded-2xl border border-gold/30 bg-black/40 px-4 text-center text-3xl font-semibold tracking-[0.35em] text-white outline-none transition placeholder:text-white/20 focus:border-gold" />
           <p className="mt-2 text-xs text-white/35"><span className="text-gold">*</span> {isRtl ? "حقل مطلوب" : "Required field"}</p>
 
           {error ? <div role="alert" className="mt-4 rounded-2xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm text-red-200">{error}</div> : null}
           {message ? <div role="status" className="mt-4 rounded-2xl border border-emerald-300/20 bg-emerald-300/10 px-4 py-3 text-sm text-emerald-100">{message}</div> : null}
 
-          <button type="button" onClick={() => void verify()} disabled={loading || token.length !== 6} className="mt-5 min-h-14 w-full rounded-2xl bg-gold px-5 text-sm font-semibold text-black transition hover:bg-[#e0bd73] disabled:cursor-not-allowed disabled:opacity-50">
-            {loading ? (isRtl ? "جارٍ التحقق..." : "Verifying...") : (isRtl ? "تأكيد الرمز والمتابعة" : "Verify and continue")}
-          </button>
-
-          <button type="button" onClick={() => void resend()} disabled={secondsLeft > 0 || resending} className="mt-3 min-h-11 w-full text-sm font-medium text-gold disabled:text-white/30">
-            {resending ? (isRtl ? "جارٍ الإرسال..." : "Sending...") : secondsLeft > 0 ? (isRtl ? `إعادة الإرسال خلال ${secondsLeft} ثانية` : `Resend in ${secondsLeft}s`) : (isRtl ? "إعادة إرسال الرمز" : "Resend code")}
-          </button>
-
+          <button type="button" onClick={() => void verify()} disabled={loading || token.length !== 6} className="mt-5 min-h-14 w-full rounded-2xl bg-gold px-5 text-sm font-semibold text-black transition hover:bg-[#e0bd73] disabled:cursor-not-allowed disabled:opacity-50">{loading ? (isRtl ? "جارٍ التحقق..." : "Verifying...") : (isRtl ? "تأكيد الرمز والمتابعة" : "Verify and continue")}</button>
+          <button type="button" onClick={() => void resend()} disabled={secondsLeft > 0 || resending} className="mt-3 min-h-11 w-full text-sm font-medium text-gold disabled:text-white/30">{resending ? (isRtl ? "جارٍ الإرسال..." : "Sending...") : secondsLeft > 0 ? (isRtl ? `إعادة الإرسال خلال ${secondsLeft} ثانية` : `Resend in ${secondsLeft}s`) : (isRtl ? "إعادة إرسال الرمز" : "Resend code")}</button>
           <div className="mt-4 rounded-2xl bg-white/[0.035] px-4 py-3 text-xs leading-6 text-white/45">{isRtl ? "لم تجد الرسالة؟ تحقق من Spam / Junk قبل طلب رمز جديد." : "Can't find the email? Check Spam / Junk before requesting a new code."}</div>
-
           <Link href={`/${locale}/join?type=${accountType}`} className="mt-5 block text-center text-sm text-white/55 underline decoration-white/25 underline-offset-4 transition hover:text-white">{isRtl ? "تغيير البريد الإلكتروني" : "Change email address"}</Link>
         </div>
       </section>
