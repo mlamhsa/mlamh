@@ -49,7 +49,8 @@ export async function requireTalent(
       onboarding_step,
       approval_status,
       phone_verified_at,
-      profile_completed_at
+      profile_completed_at,
+      data_accuracy_contact_consent
     `)
     .eq("user_id", user.id)
     .maybeSingle();
@@ -111,6 +112,7 @@ export async function requireTalent(
       name_en,
       image_url,
 
+      base_country_code,
       city_ar,
       city_en,
       city_slug,
@@ -124,6 +126,7 @@ export async function requireTalent(
       nationality,
       nationality_slug,
       date_of_birth,
+      profile_visibility,
 
       status,
       availability_status,
