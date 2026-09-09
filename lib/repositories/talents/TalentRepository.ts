@@ -9,6 +9,8 @@ export type AdminTalentFilter =
   | "active"
   | "suspended";
 
+export type AdminTalentVisibilityFilter = "public" | "private";
+
 export type AdminTalentOperationalFilter =
   | "incomplete"
   | "ready_not_submitted"
@@ -28,10 +30,7 @@ export type AdminTalent = Talent & {
 };
 
 type AdminTalentViewRow = Talent & {
-  admin_views?:
-    | number
-    | string
-    | null;
+  admin_views?: number | string | null;
 
   account_phone?: string | null;
 
@@ -53,73 +52,37 @@ export type TopViewedTalent = {
   views: number;
 };
 
-function normalizeViews(
-  value:
-    | number
-    | string
-    | null
-    | undefined,
-) {
-  const parsedValue =
-    Number(value ?? 0);
+function normalizeViews(value: number | string | null | undefined) {
+  const parsedValue = Number(value ?? 0);
 
-  return Number.isFinite(
-    parsedValue,
-  )
-    ? parsedValue
-    : 0;
+  return Number.isFinite(parsedValue) ? parsedValue : 0;
 }
 
-function normalizeSearchValue(
-  value: string,
-) {
-  return value
-    .replaceAll(",", " ")
-    .replaceAll("%", "")
-    .trim();
+function normalizeSearchValue(value: string) {
+  return value.replaceAll(",", " ").replaceAll("%", "").trim();
 }
 
-function normalizeAdminTalent(
-  row: AdminTalentViewRow,
-): AdminTalent {
-  const {
-    admin_views,
-    ...talent
-  } = row;
+function normalizeAdminTalent(row: AdminTalentViewRow): AdminTalent {
+  const { admin_views, ...talent } = row;
 
   return {
     ...talent,
 
-    views:
-      normalizeViews(
-        admin_views,
-      ),
+    views: normalizeViews(admin_views),
 
-    account_phone:
-      row.account_phone ?? null,
+    account_phone: row.account_phone ?? null,
 
-    approval_status:
-      row.approval_status ?? null,
+    approval_status: row.approval_status ?? null,
 
-    onboarding_status:
-      row.onboarding_status ??
-      null,
+    onboarding_status: row.onboarding_status ?? null,
 
-    onboarding_step:
-      row.onboarding_step ??
-      null,
+    onboarding_step: row.onboarding_step ?? null,
 
-    profile_completed_at:
-      row.profile_completed_at ??
-      null,
+    profile_completed_at: row.profile_completed_at ?? null,
 
-    account_created_at:
-      row.account_created_at ??
-      null,
+    account_created_at: row.account_created_at ?? null,
 
-    account_updated_at:
-      row.account_updated_at ??
-      null,
+    account_updated_at: row.account_updated_at ?? null,
   } as AdminTalent;
 }
 
@@ -142,6 +105,7 @@ export class TalentRepository extends BaseRepository {
     search,
     approvalStatus,
     operationalFilter,
+    visibility,
   }: {
     page: number;
     pageSize: number;
@@ -149,111 +113,66 @@ export class TalentRepository extends BaseRepository {
     search?: string;
     approvalStatus?: string;
     operationalFilter?: AdminTalentOperationalFilter;
+    visibility?: AdminTalentVisibilityFilter;
   }) {
-    const from =
-      (page - 1) *
-      pageSize;
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
 
-    const to =
-      from +
-      pageSize -
-      1;
+    const adminClient = this.client();
 
-    const adminClient =
-      this.client();
+    let query = adminClient
+      .from("admin_talent_profiles")
+      .select("*", { count: "exact" });
 
-    let query =
-      adminClient
-        .from(
-          "admin_talent_profiles",
-        )
-        .select("*", {
-          count: "exact",
-        });
-
-    /*
-     * حالة نشر الملف.
-     */
     if (status === "published") {
-      query =
-        query.eq(
-          "published",
-          true,
-        );
+      query = query.eq("published", true);
     }
 
     if (status === "unpublished") {
-      query =
-        query.eq(
-          "published",
-          false,
-        );
+      query = query.eq("published", false);
     }
 
-    /*
-     * حالة حساب / ملف الموهبة.
-     */
     if (status === "active") {
-      query =
-        query.eq(
-          "status",
-          "active",
-        );
+      query = query.eq("status", "active");
     }
 
     if (status === "suspended") {
-      query =
-        query.eq(
-          "status",
-          "suspended",
-        );
+      query = query.eq("status", "suspended");
     }
 
-    /*
-     * حالة المراجعة المباشرة.
-     */
+    if (visibility) {
+      query = query.eq("profile_visibility", visibility);
+    }
+
     if (operationalFilter === "changes_requested") {
       query = query.eq("approval_status", "changes_requested");
-    } else if (operationalFilter === "incomplete" || operationalFilter === "ready_not_submitted") {
-      // These two operational states are derived from canonical readiness, so
-      // first constrain to the canonical not-submitted workflow state and only
-      // then derive readiness before pagination below. Legacy talent rows that
-      // have no joined canonical profile are excluded from recovery filters.
+    } else if (
+      operationalFilter === "incomplete" ||
+      operationalFilter === "ready_not_submitted"
+    ) {
       query = query
-        .or(
-          "approval_status.is.null,approval_status.eq.not_submitted",
-        )
+        .or("approval_status.is.null,approval_status.eq.not_submitted")
         .not("account_created_at", "is", null);
     } else if (!operationalFilter && approvalStatus) {
-      query =
-        query.eq(
-          "approval_status",
-          approvalStatus,
-        );
+      query = query.eq("approval_status", approvalStatus);
     }
 
-    const cleanSearch =
-      search
-        ? normalizeSearchValue(
-            search,
-          )
-        : "";
+    const cleanSearch = search ? normalizeSearchValue(search) : "";
 
     if (cleanSearch) {
-      query =
-        query.or(
-          [
-            `name_en.ilike.%${cleanSearch}%`,
-            `name_ar.ilike.%${cleanSearch}%`,
-            `display_name_en.ilike.%${cleanSearch}%`,
-            `display_name_ar.ilike.%${cleanSearch}%`,
-            `category_en.ilike.%${cleanSearch}%`,
-            `category_ar.ilike.%${cleanSearch}%`,
-            `city_en.ilike.%${cleanSearch}%`,
-            `city_ar.ilike.%${cleanSearch}%`,
-            `account_phone.ilike.%${cleanSearch}%`,
-          ].join(","),
-        );
+      query = query.or(
+        [
+          `name_en.ilike.%${cleanSearch}%`,
+          `name_ar.ilike.%${cleanSearch}%`,
+          `display_name_en.ilike.%${cleanSearch}%`,
+          `display_name_ar.ilike.%${cleanSearch}%`,
+          `category_en.ilike.%${cleanSearch}%`,
+          `category_ar.ilike.%${cleanSearch}%`,
+          `city_en.ilike.%${cleanSearch}%`,
+          `city_ar.ilike.%${cleanSearch}%`,
+          `account_phone.ilike.%${cleanSearch}%`,
+        ].join(","),
+      );
     }
 
     if (
@@ -269,8 +188,9 @@ export class TalentRepository extends BaseRepository {
         );
       }
 
-      const candidates = ((data ?? []) as AdminTalentViewRow[])
-        .map((row) => normalizeAdminTalent(row));
+      const candidates = ((data ?? []) as AdminTalentViewRow[]).map((row) =>
+        normalizeAdminTalent(row),
+      );
 
       const matchingTalents = candidates.filter((talent) => {
         if (operationalFilter === "data_quality") {
@@ -293,59 +213,23 @@ export class TalentRepository extends BaseRepository {
       };
     }
 
-    const {
-      data,
-      error,
-      count,
-    } = await query
-      .order(
-        "id",
-        {
-          ascending: false,
-        },
-      )
-      .range(
-        from,
-        to,
-      );
+    const { data, error, count } = await query
+      .order("id", { ascending: false })
+      .range(from, to);
 
     if (error) {
-      throw new Error(
-        `[TalentRepository.getAdminTalents] ${error.message}`,
-      );
+      throw new Error(`[TalentRepository.getAdminTalents] ${error.message}`);
     }
 
-    const rows =
-      (data ??
-        []) as AdminTalentViewRow[];
-
-    const talents =
-      rows.map(
-        (row) =>
-          normalizeAdminTalent(
-            row,
-          ),
-      );
-
-    const total =
-      count ?? 0;
+    const rows = (data ?? []) as AdminTalentViewRow[];
+    const talents = rows.map((row) => normalizeAdminTalent(row));
+    const total = count ?? 0;
 
     return {
       talents,
       total,
-
-      totalPages:
-        Math.max(
-          1,
-          Math.ceil(
-            total /
-              pageSize,
-          ),
-        ),
-
-      currentPage:
-        page,
-
+      totalPages: Math.max(1, Math.ceil(total / pageSize)),
+      currentPage: page,
       pageSize,
     };
   }
@@ -353,20 +237,19 @@ export class TalentRepository extends BaseRepository {
   static async getAdminOperationalStats() {
     const adminClient = this.client();
 
-    const [notSubmittedResult, changesRequestedResult, dataQualityResult] = await Promise.all([
-      adminClient
-        .from("admin_talent_profiles")
-        .select("*")
-        .or("approval_status.is.null,approval_status.eq.not_submitted")
-        .not("account_created_at", "is", null),
-      adminClient
-        .from("admin_talent_profiles")
-        .select("id", { count: "exact", head: true })
-        .eq("approval_status", "changes_requested"),
-      adminClient
-        .from("admin_talent_profiles")
-        .select("*"),
-    ]);
+    const [notSubmittedResult, changesRequestedResult, dataQualityResult] =
+      await Promise.all([
+        adminClient
+          .from("admin_talent_profiles")
+          .select("*")
+          .or("approval_status.is.null,approval_status.eq.not_submitted")
+          .not("account_created_at", "is", null),
+        adminClient
+          .from("admin_talent_profiles")
+          .select("id", { count: "exact", head: true })
+          .eq("approval_status", "changes_requested"),
+        adminClient.from("admin_talent_profiles").select("*"),
+      ]);
 
     if (notSubmittedResult.error) {
       throw new Error(
@@ -413,27 +296,16 @@ export class TalentRepository extends BaseRepository {
   }
 
   static async getAdminStats() {
-    const [
-      total,
-      published,
-      unpublished,
-      active,
-      suspended,
-    ] = await Promise.all([
-      this.countByFilter(),
-      this.countByFilter(
-        "published",
-      ),
-      this.countByFilter(
-        "unpublished",
-      ),
-      this.countByFilter(
-        "active",
-      ),
-      this.countByFilter(
-        "suspended",
-      ),
-    ]);
+    const [total, published, unpublished, active, suspended, publicProfiles, privateProfiles] =
+      await Promise.all([
+        this.countByFilter(),
+        this.countByFilter("published"),
+        this.countByFilter("unpublished"),
+        this.countByFilter("active"),
+        this.countByFilter("suspended"),
+        this.countByVisibility("public"),
+        this.countByVisibility("private"),
+      ]);
 
     return {
       total,
@@ -441,120 +313,79 @@ export class TalentRepository extends BaseRepository {
       unpublished,
       active,
       suspended,
+      publicProfiles,
+      privateProfiles,
     };
   }
 
-  private static async countByFilter(
-    filter?: AdminTalentFilter,
-  ) {
-    const adminClient =
-      this.client();
+  private static async countByFilter(filter?: AdminTalentFilter) {
+    const adminClient = this.client();
 
-    let query =
-      adminClient
-        .from(
-          "admin_talent_profiles",
-        )
-        .select("id", {
-          count: "exact",
-          head: true,
-        });
+    let query = adminClient
+      .from("admin_talent_profiles")
+      .select("id", { count: "exact", head: true });
 
     if (filter === "published") {
-      query =
-        query.eq(
-          "published",
-          true,
-        );
+      query = query.eq("published", true);
     }
 
     if (filter === "unpublished") {
-      query =
-        query.eq(
-          "published",
-          false,
-        );
+      query = query.eq("published", false);
     }
 
     if (filter === "active") {
-      query =
-        query.eq(
-          "status",
-          "active",
-        );
+      query = query.eq("status", "active");
     }
 
     if (filter === "suspended") {
-      query =
-        query.eq(
-          "status",
-          "suspended",
-        );
+      query = query.eq("status", "suspended");
     }
 
-    const {
-      count,
-      error,
-    } = await query;
+    const { count, error } = await query;
 
     if (error) {
-      throw new Error(
-        `[TalentRepository.countByFilter] ${error.message}`,
-      );
+      throw new Error(`[TalentRepository.countByFilter] ${error.message}`);
     }
 
     return count ?? 0;
   }
 
-  static async getAdminTalentById(
-    id: number,
-  ): Promise<
-    AdminTalent | null
-  > {
-    const adminClient =
-      this.client();
+  private static async countByVisibility(visibility: AdminTalentVisibilityFilter) {
+    const { count, error } = await this.client()
+      .from("admin_talent_profiles")
+      .select("id", { count: "exact", head: true })
+      .eq("profile_visibility", visibility);
 
-    const {
-      data,
-      error,
-    } = await adminClient
-      .from(
-        "admin_talent_profiles",
-      )
+    if (error) {
+      throw new Error(`[TalentRepository.countByVisibility] ${error.message}`);
+    }
+
+    return count ?? 0;
+  }
+
+  static async getAdminTalentById(id: number): Promise<AdminTalent | null> {
+    const adminClient = this.client();
+
+    const { data, error } = await adminClient
+      .from("admin_talent_profiles")
       .select("*")
-      .eq(
-        "id",
-        id,
-      )
+      .eq("id", id)
       .maybeSingle();
 
     if (error) {
-      throw new Error(
-        `[TalentRepository.getAdminTalentById] ${error.message}`,
-      );
+      throw new Error(`[TalentRepository.getAdminTalentById] ${error.message}`);
     }
 
     if (!data) {
       return null;
     }
 
-    return normalizeAdminTalent(
-      data as AdminTalentViewRow,
-    );
+    return normalizeAdminTalent(data as AdminTalentViewRow);
   }
 
-  static async getTopViewed(
-    limit = 5,
-  ): Promise<
-    TopViewedTalent[]
-  > {
-    const {
-      data,
-      error,
-    } = await this.client()
-      .from(
-        "admin_talent_profiles",
-      )
+  static async getTopViewed(limit = 5): Promise<TopViewedTalent[]> {
+    const { data, error } = await this.client()
+      .from("admin_talent_profiles")
       .select(`
         id,
         slug,
@@ -563,44 +394,20 @@ export class TalentRepository extends BaseRepository {
         image_url,
         admin_views
       `)
-      .order(
-        "admin_views",
-        {
-          ascending: false,
-        },
-      )
+      .order("admin_views", { ascending: false })
       .limit(limit);
 
     if (error) {
-      throw new Error(
-        `[TalentRepository.getTopViewed] ${error.message}`,
-      );
+      throw new Error(`[TalentRepository.getTopViewed] ${error.message}`);
     }
 
-    return (
-      data ?? []
-    ).map(
-      (talent) => ({
-        id:
-          talent.id,
-
-        slug:
-          talent.slug,
-
-        name_en:
-          talent.name_en,
-
-        name_ar:
-          talent.name_ar,
-
-        image_url:
-          talent.image_url,
-
-        views:
-          normalizeViews(
-            talent.admin_views,
-          ),
-      }),
-    );
+    return (data ?? []).map((talent) => ({
+      id: talent.id,
+      slug: talent.slug,
+      name_en: talent.name_en,
+      name_ar: talent.name_ar,
+      image_url: talent.image_url,
+      views: normalizeViews(talent.admin_views),
+    }));
   }
 }
