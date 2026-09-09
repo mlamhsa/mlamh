@@ -10,6 +10,7 @@ on:
 
 jobs:
   validate:
+    name: Build 13 full mobile validation
     runs-on: ubuntu-latest
     defaults:
       run:
