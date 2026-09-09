@@ -16,8 +16,9 @@ export function goBackOrReplace(fallback: Href) {
 
 /**
  * Leaves an authenticated leaf screen without trusting the native history stack.
- * This intentionally replaces the route because the previous stack may still
- * contain login/signup/onboarding screens from account activation.
+ * Always pass the role/profile destination that owns the current screen. This
+ * keeps settings, profile, publisher, and opportunity subflows inside the signed-in
+ * shell even when the native history still contains login or onboarding routes.
  */
 export function leaveAuthenticatedScreen(fallback: Href) {
   router.replace(fallback);
