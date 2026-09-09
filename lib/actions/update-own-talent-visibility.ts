@@ -13,6 +13,37 @@ export type UpdateTalentVisibilityResult = {
   message: string;
 };
 
+async function getAuthenticatedUser() {
+  const authClient = await createServerSupabaseClient();
+  const {
+    data: { user },
+    error,
+  } = await authClient.auth.getUser();
+
+  if (error || !user) return null;
+  return user;
+}
+
+export async function getOwnTalentVisibilityAction(): Promise<TalentVisibility | null> {
+  const user = await getAuthenticatedUser();
+  if (!user) return null;
+
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("talents")
+    .select("profile_visibility")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (error) {
+    console.error("[getOwnTalentVisibilityAction]", error);
+    return null;
+  }
+
+  const visibility = String(data?.profile_visibility ?? "").trim().toLowerCase();
+  return visibility === "private" ? "private" : visibility === "public" ? "public" : null;
+}
+
 export async function updateOwnTalentVisibilityAction(
   visibility: TalentVisibility,
   locale: "ar" | "en",
@@ -24,13 +55,9 @@ export async function updateOwnTalentVisibilityAction(
     };
   }
 
-  const authClient = await createServerSupabaseClient();
-  const {
-    data: { user },
-    error: authError,
-  } = await authClient.auth.getUser();
+  const user = await getAuthenticatedUser();
 
-  if (authError || !user) {
+  if (!user) {
     return {
       success: false,
       message: locale === "ar" ? "انتهت الجلسة. سجّل الدخول مرة أخرى." : "Your session expired. Please sign in again.",
