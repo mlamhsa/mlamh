@@ -11,6 +11,7 @@ import { getMobileAccountContext } from "@/lib/account";
 import { getNotifications, markNotificationRead, type MobileNotification } from "@/lib/api";
 import { formatRelativeTime, isRtlLocale } from "@/lib/i18n";
 import { useAppLocale } from "@/lib/locale-context";
+import { leaveAuthenticatedScreen } from "@/lib/navigation";
 import { useNotificationSync } from "@/lib/notifications-context";
 import { darkTheme, radii, spacing, typography } from "@/lib/theme";
 
@@ -31,10 +32,11 @@ export default function NotificationsScreen() {
 
   if(loading)return <ScreenSkeleton variant="list" locale={locale} label={ar?"جارٍ تحميل الإشعارات":"Loading notifications"}/>;
   const visible=filter==="unread"?items.filter((item)=>!item.isRead):items;
+  const homeRoute=accountType==="publisher"?"/publisher":"/profile";
 
   return <SafeAreaView style={s.screen} edges={["top"]}>
     <FlatList data={visible} keyExtractor={(item)=>String(item.id)} contentContainerStyle={s.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={()=>void load(true)} tintColor={darkTheme.accent}/>} ItemSeparatorComponent={()=><View style={{height:9}}/>} ListHeaderComponent={<View style={s.header}>
-      <View style={[s.topRow,rtl&&s.rowRtl]}><Pressable accessibilityRole="button" accessibilityLabel={ar?"رجوع":"Back"} onPress={()=>router.back()} style={s.back}><Back size={20} color={darkTheme.text}/></Pressable><View style={s.flex}><Text style={[s.brand,txt(rtl)]}>{ar?"ملامح":"MLAMH"}</Text><Text accessibilityRole="header" style={[s.title,txt(rtl)]}>{ar?"الإشعارات":"Notifications"}</Text></View>{unread>0?<View style={s.badge}><Text style={s.badgeText}>{unread>99?"99+":unread}</Text></View>:null}</View>
+      <View style={[s.topRow,rtl&&s.rowRtl]}><Pressable accessibilityRole="button" accessibilityLabel={ar?"رجوع":"Back"} onPress={()=>leaveAuthenticatedScreen(homeRoute)} style={s.back}><Back size={20} color={darkTheme.text}/></Pressable><View style={s.flex}><Text style={[s.brand,txt(rtl)]}>{ar?"ملامح":"MLAMH"}</Text><Text accessibilityRole="header" style={[s.title,txt(rtl)]}>{ar?"الإشعارات":"Notifications"}</Text></View>{unread>0?<View style={s.badge}><Text style={s.badgeText}>{unread>99?"99+":unread}</Text></View>:null}</View>
       <View accessibilityRole="tablist" style={[s.filters,rtl&&s.rowRtl]}><Filter active={filter==="all"} label={ar?"الكل":"All"} onPress={()=>setFilter("all")}/><Filter active={filter==="unread"} label={ar?"غير المقروء":"Unread"} onPress={()=>setFilter("unread")}/></View>
       {error?<View style={s.errorBox}><Text style={[s.error,txt(rtl)]}>{error}</Text><Pressable onPress={()=>void load()}><Text style={s.retry}>{ar?"إعادة المحاولة":"Try again"}</Text></Pressable></View>:null}
     </View>} renderItem={({item})=><NotificationRow item={item} locale={locale} onPress={()=>void openNotification(item)}/>} ListEmptyComponent={!error?<View style={s.empty}><View style={s.emptyIcon}><BellRing size={24} color={darkTheme.accent}/></View><Text style={[s.emptyTitle,txt(rtl)]}>{filter==="unread"?(ar?"لا يوجد شيء ينتظر قراءتك":"Nothing waiting to be read"):(ar?"لا توجد إشعارات بعد":"No notifications yet")}</Text><Text style={[s.emptyBody,txt(rtl)]}>{ar?"ستظهر هنا تحديثات الحساب والفرص والرسائل التي تحتاج انتباهك.":"Account, opportunity and message updates that need your attention will appear here."}</Text></View>:null} showsVerticalScrollIndicator={false}/>
