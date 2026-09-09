@@ -60,12 +60,12 @@ export async function checkAuthEmailExistsAction(
     return emptyResult();
   }
 
-  const providers = Array.isArray(row.providers)
+  const providers: string[] = Array.isArray(row.providers)
     ? Array.from(
-        new Set(
+        new Set<string>(
           row.providers
             .map((provider: unknown) => String(provider ?? "").toLowerCase())
-            .filter(Boolean),
+            .filter((provider: string) => provider.length > 0),
         ),
       )
     : [];
