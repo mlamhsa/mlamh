@@ -21,6 +21,29 @@ function clampPercentage(value: number) {
   return Math.min(Math.max(value, 0), 100);
 }
 
+function getRequirementHref(locale: string, label: string) {
+  const normalized = label.trim().toLowerCase();
+  const profileBase = `/${locale}/talent-dashboard/profile`;
+
+  if (
+    normalized === "نوع الموهبة" ||
+    normalized === "talent type"
+  ) {
+    return `${profileBase}#specialization`;
+  }
+
+  if (
+    normalized === "طريقة ظهور الملف" ||
+    normalized === "profile visibility" ||
+    normalized === "الموافقة على دقة البيانات والتواصل" ||
+    normalized === "data accuracy and contact consent"
+  ) {
+    return `${profileBase}#privacy`;
+  }
+
+  return `${profileBase}#identity`;
+}
+
 function ProfileStrengthCard({
   locale,
   isRtl,
@@ -200,15 +223,16 @@ export default function DashboardProfileReadiness({
         {missingItems.length > 0 ? (
           <div className="mt-6 space-y-3">
             {missingItems.map((item) => (
-              <div
+              <Link
                 key={item.label}
-                className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-black/20 px-4 py-3"
+                href={getRequirementHref(locale, item.label)}
+                className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 transition hover:border-gold/30 hover:bg-gold/[0.04]"
               >
                 <span className="text-sm leading-6 text-white/60">⭐ {item.label}</span>
                 <span className="shrink-0 rounded-full bg-gold/10 px-3 py-1 text-[11px] text-gold">
-                  {isRtl ? "مطلوب للاعتماد" : "Required for approval"}
+                  {isRtl ? "إكمال الآن" : "Complete now"}
                 </span>
-              </div>
+              </Link>
             ))}
           </div>
         ) : null}
