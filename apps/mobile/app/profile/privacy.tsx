@@ -7,6 +7,7 @@ import { ArrowLeft, ArrowRight, Check, Eye, EyeOff, ShieldCheck, UsersRound } fr
 import { MOBILE_API_BASE_URL } from "@/lib/api-config";
 import { isRtlLocale } from "@/lib/i18n";
 import { useAppLocale } from "@/lib/locale-context";
+import { leaveAuthenticatedScreen } from "@/lib/navigation";
 import { supabase } from "@/lib/supabase";
 import { darkTheme } from "@/lib/theme";
 
@@ -52,6 +53,14 @@ export default function TalentPrivacyScreen() {
     return () => { active = false; };
   }, []);
 
+  function leavePrivacy() {
+    if (onboarding) {
+      router.replace("/profile/journey");
+      return;
+    }
+    leaveAuthenticatedScreen("/profile");
+  }
+
   async function saveAndContinue() {
     setSaving(true); setError(null);
     try {
@@ -75,7 +84,7 @@ export default function TalentPrivacyScreen() {
         return;
       }
       if (onboarding) router.replace({ pathname: "/profile/media", params: { onboarding: "1" } });
-      else router.back();
+      else leaveAuthenticatedScreen("/profile");
     } catch {
       setError(isArabic ? "تعذر الاتصال بملامح الآن." : "We could not reach MLAMH right now.");
     } finally { setSaving(false); }
@@ -87,7 +96,7 @@ export default function TalentPrivacyScreen() {
   return <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={[styles.topRow, isRtl && styles.rowRtl]}>
-        <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "رجوع" : "Back"} onPress={() => router.back()} style={styles.backButton}><BackIcon size={21} color={darkTheme.text} /></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "رجوع" : "Back"} onPress={leavePrivacy} style={styles.backButton}><BackIcon size={21} color={darkTheme.text} /></Pressable>
         <Text style={styles.brand}>{isArabic ? "ملامح" : "MLAMH"}</Text>
         <View style={styles.spacer} />
       </View>
