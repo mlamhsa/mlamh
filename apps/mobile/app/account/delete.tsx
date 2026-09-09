@@ -1,13 +1,15 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { AlertTriangle, ChevronLeft, ChevronRight, Trash2 } from "lucide-react-native";
 
+import { getMobileAccountContext } from "@/lib/account";
 import { deleteAccount } from "@/lib/api";
 import { revokeNativeAppleAuthorizationForDeletion } from "@/lib/apple-auth";
 import { isRtlLocale } from "@/lib/i18n";
 import { useAppLocale } from "@/lib/locale-context";
+import { leaveAuthenticatedScreen } from "@/lib/navigation";
 import { supabase } from "@/lib/supabase";
 import { darkTheme, radii, spacing, typography } from "@/lib/theme";
 
@@ -18,6 +20,16 @@ export default function DeleteAccountScreen() {
   const Back = rtl ? ChevronRight : ChevronLeft;
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [settingsRoute, setSettingsRoute] = useState("/profile/settings");
+
+  useEffect(() => {
+    let active = true;
+    void getMobileAccountContext().then((account) => {
+      if (!active) return;
+      setSettingsRoute(account?.type === "publisher" ? "/publisher/settings" : "/profile/settings");
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, []);
 
   function confirmDelete() {
     if (deleting) return;
@@ -48,12 +60,12 @@ export default function DeleteAccountScreen() {
   }
 
   return <SafeAreaView style={s.screen} edges={["top","bottom"]}><ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
-    <View style={[s.top,rtl&&s.rowRtl]}><Pressable onPress={()=>router.back()} style={s.back}><Back size={21} color={darkTheme.text}/></Pressable><Text style={[s.brand,txt(rtl)]}>{ar?"إدارة الحساب":"ACCOUNT MANAGEMENT"}</Text></View>
+    <View style={[s.top,rtl&&s.rowRtl]}><Pressable onPress={()=>leaveAuthenticatedScreen(settingsRoute)} style={s.back}><Back size={21} color={darkTheme.text}/></Pressable><Text style={[s.brand,txt(rtl)]}>{ar?"إدارة الحساب":"ACCOUNT MANAGEMENT"}</Text></View>
     <View style={s.hero}><View style={s.heroIcon}><AlertTriangle size={28} color={darkTheme.danger}/></View><Text accessibilityRole="header" style={[s.title,txt(rtl)]}>{ar?"حذف الحساب":"Delete account"}</Text><Text style={[s.body,txt(rtl)]}>{ar?"استخدم هذه الصفحة فقط إذا كنت تريد إغلاق حسابك نهائيًا. تسجيل الخروج لا يحذف أي بيانات ويمكنك العودة للحساب لاحقًا.":"Use this page only if you want to permanently close your account. Signing out does not delete data and you can return later."}</Text></View>
     <View style={s.warning}><Text style={[s.warningTitle,txt(rtl)]}>{ar?"ما الذي سيتم حذفه؟":"What will be deleted?"}</Text><Text style={[s.warningText,txt(rtl)]}>{ar?"الحساب، الملف، الصور والبيانات المرتبطة به وفق سياسة ملامح والالتزامات النظامية المطبقة.":"Your account, profile, photos and associated data under MLAMH policy and applicable retention obligations."}</Text></View>
     {error?<View style={s.errorBox}><Text accessibilityRole="alert" style={[s.error,txt(rtl)]}>{error}</Text></View>:null}
     <Pressable disabled={deleting} onPress={confirmDelete} style={[s.delete,deleting&&s.disabled]}>{deleting?<ActivityIndicator color={darkTheme.danger}/>:<><Trash2 size={18} color={darkTheme.danger}/><Text style={s.deleteText}>{ar?"حذف الحساب نهائيًا":"Delete account permanently"}</Text></>}</Pressable>
-    <Pressable disabled={deleting} onPress={()=>router.back()} style={s.cancel}><Text style={s.cancelText}>{ar?"الاحتفاظ بالحساب":"Keep my account"}</Text></Pressable>
+    <Pressable disabled={deleting} onPress={()=>leaveAuthenticatedScreen(settingsRoute)} style={s.cancel}><Text style={s.cancelText}>{ar?"الاحتفاظ بالحساب":"Keep my account"}</Text></Pressable>
   </ScrollView></SafeAreaView>;
 }
 function txt(rtl:boolean){return{textAlign:rtl?"right" as const:"left" as const,writingDirection:rtl?"rtl" as const:"ltr" as const}}
