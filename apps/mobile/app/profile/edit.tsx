@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ScreenSkeleton } from "@/components/ScreenSkeleton";
 import { SingleSelectSheet, type SelectSheetOption } from "@/components/SingleSelectSheet";
 import { getTalentProfile, updateTalentProfile, type MobileTalentProfile, type MobileTalentProfileUpdateInput } from "@/lib/api";
-import { isRtlLocale } from "@/lib/i18n";
+import { formatGregorianDate, isRtlLocale, toLatinDigits } from "@/lib/i18n";
 import { useAppLocale } from "@/lib/locale-context";
 import { FALLBACK_NATIONALITY_OPTIONS, getCanonicalProfileOptions, type CanonicalMobileOption } from "@/lib/profile-options-api";
 import { CLOTHING_SIZE_OPTIONS, EYE_COLOR_OPTIONS, HAIR_COLOR_OPTIONS, HAIR_TYPE_OPTIONS, SAUDI_CITY_OPTIONS, SKIN_COLOR_OPTIONS, TALENT_AVAILABILITY_OPTIONS, TALENT_GENDER_OPTIONS, type MobileOption } from "@/lib/profile-options";
@@ -41,18 +41,15 @@ type SingleSheetKey = "city" | "nationality" | "clothing" | "eyes" | "hairColor"
 type MultiSheetKey = "skills" | "languages" | "modeling" | null;
 
 function sameArray(a: string[], b: string[]) { return JSON.stringify(a) === JSON.stringify(b); }
-function latinDigits(value: string) { return value.replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d))).replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d))); }
-function numericInput(value: string) { return latinDigits(value).replace(/[^0-9.]/g, ""); }
-function integerInput(value: string) { return latinDigits(value).replace(/[^0-9]/g, ""); }
-function toNumber(value: string) { const normalized = latinDigits(value).trim(); return normalized ? Number(normalized) : null; }
+function numericInput(value: string) { return toLatinDigits(value).replace(/[^0-9.]/g, ""); }
+function integerInput(value: string) { return toLatinDigits(value).replace(/[^0-9]/g, ""); }
+function toNumber(value: string) { const normalized = toLatinDigits(value).trim(); return normalized ? Number(normalized) : null; }
 function optionLabel(value: string | null, options: Array<MobileOption | CanonicalMobileOption>, locale: "ar" | "en", fallback: string) { return value ? options.find((option) => option.value === value)?.[locale] ?? value : fallback; }
 function localizeValues(values: string[], options: MobileOption[], locale: "ar" | "en") { return values.map((value) => options.find((option) => option.value === value)?.[locale] ?? value).join(" · "); }
 function selectOptions(options: Array<MobileOption | CanonicalMobileOption>): SelectSheetOption[] { return options.map(({ value, ar, en }) => ({ value, ar, en })); }
 function formatDate(value: string, locale: "ar" | "en") {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return locale === "ar" ? "اختر تاريخ الميلاد" : "Choose date of birth";
-  const date = new Date(`${value}T12:00:00`);
-  if (Number.isNaN(date.getTime())) return locale === "ar" ? "اختر تاريخ الميلاد" : "Choose date of birth";
-  return new Intl.DateTimeFormat(locale === "ar" ? "ar-SA-u-ca-gregory-nu-latn" : "en-US-u-ca-gregory-nu-latn", { year: "numeric", month: "long", day: "numeric" }).format(date);
+  return formatGregorianDate(`${value}T12:00:00`, locale, { year: "numeric", month: "long", day: "numeric" }) ?? (locale === "ar" ? "اختر تاريخ الميلاد" : "Choose date of birth");
 }
 
 export default function EditTalentProfileScreen() {

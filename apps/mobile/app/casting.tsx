@@ -5,7 +5,7 @@ import { router } from "expo-router";
 import { ArrowLeft, ArrowRight, CheckCircle2, Send, Sparkles } from "lucide-react-native";
 
 import { MOBILE_API_BASE_URL } from "@/lib/api-config";
-import { isRtlLocale } from "@/lib/i18n";
+import { isRtlLocale, toLatinDigits } from "@/lib/i18n";
 import { useAppLocale } from "@/lib/locale-context";
 import { darkTheme } from "@/lib/theme";
 
