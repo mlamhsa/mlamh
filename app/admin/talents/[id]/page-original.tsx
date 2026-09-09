@@ -217,6 +217,7 @@ export default async function AdminTalentPage({ params, searchParams }: PageProp
   const dialects = translateTalentValues(language, "dialect", normalizeArray(talent.dialects));
   const skills = translateTalentValues(language, "skill", normalizeArray(talent.skills));
   const galleryImages = normalizeArray(talent.gallery_images);
+  const isPublicProfile = String(talent.profile_visibility ?? "public").toLowerCase() === "public";
 
   return (
     <div dir={isArabic ? "rtl" : "ltr"} className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
@@ -233,14 +234,14 @@ export default async function AdminTalentPage({ params, searchParams }: PageProp
               </Link>
 
               <div className="flex flex-wrap gap-2">
-                {talent.slug ? (
+                {talent.slug && isPublicProfile ? (
                   <Link
                     href={`/${language}/talent/${talent.slug}`}
                     target="_blank"
                     className="inline-flex items-center gap-2 rounded-xl border border-white/[0.08] px-4 py-2 text-xs text-white/50 hover:border-white/20 hover:text-white"
                   >
                     <ExternalLink className="h-4 w-4" />
-                    {isArabic ? "عرض العام" : "Public view"}
+                    {isArabic ? "عرض الملف العام" : "Public view"}
                   </Link>
                 ) : null}
                 <Link
@@ -256,7 +257,7 @@ export default async function AdminTalentPage({ params, searchParams }: PageProp
             <div className="mt-7 grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-end">
               <div>
                 <p className="text-[10px] uppercase tracking-[0.28em] text-gold">
-                  {isArabic ? "مساحة عمل الموهبة" : "Talent workspace"}
+                  {isArabic ? "إدارة ملف الموهبة" : "Talent profile management"}
                 </p>
                 <h1 className="mt-3 text-3xl font-light text-white sm:text-4xl">{primaryName}</h1>
                 {secondaryName ? <p className="mt-2 text-sm text-white/35">{secondaryName}</p> : null}
