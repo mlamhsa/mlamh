@@ -32,6 +32,7 @@ export default function TalentProfileJourneyScreen() {
   const isArabic = locale === "ar";
   const styles = useMemo(() => createStyles(), []);
   const [profile, setProfile] = useState<MobileTalentProfile | null>(null);
+  const [privacyConfigured, setPrivacyConfigured] = useState(false);
   const [loading, setLoading] = useState(true);
   const [routing, setRouting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,6 +58,15 @@ export default function TalentProfileJourneyScreen() {
         const submitted = reviewSubmitted(item);
         const approved = item.approvalStatus === "approved";
 
+        let femalePrivacyConfigured = false;
+        if (item.gender === "female") {
+          femalePrivacyConfigured = await getPrivacyConfigured();
+          if (!active) return;
+          setPrivacyConfigured(femalePrivacyConfigured);
+        } else {
+          setPrivacyConfigured(true);
+        }
+
         if (submitted || approved) return;
 
         setRouting(true);
@@ -65,13 +75,9 @@ export default function TalentProfileJourneyScreen() {
           return;
         }
 
-        if (item.gender === "female") {
-          const privacyConfigured = await getPrivacyConfigured();
-          if (!active) return;
-          if (!privacyConfigured) {
-            router.replace({ pathname: "/profile/privacy", params: { onboarding: "1" } });
-            return;
-          }
+        if (item.gender === "female" && !femalePrivacyConfigured) {
+          router.replace({ pathname: "/profile/privacy", params: { onboarding: "1" } });
+          return;
         }
 
         if (!hasPhoto) {
@@ -102,8 +108,11 @@ export default function TalentProfileJourneyScreen() {
   const hasCore = readiness.requirements.filter((requirement) => requirement.key !== "profile_image").every((requirement) => requirement.completed);
   const submitted = reviewSubmitted(profile);
   const approved = profile.approvalStatus === "approved";
-  const completedSteps = 1 + (hasCore ? 1 : 0) + (hasPhoto ? 1 : 0) + (submitted ? 1 : 0);
-  const progress = Math.min(100, completedSteps * 25);
+  const isFemale = profile.gender === "female";
+  const totalSteps = isFemale ? 5 : 4;
+  const completedSteps = 1 + (hasCore ? 1 : 0) + (isFemale && privacyConfigured ? 1 : 0) + (hasPhoto ? 1 : 0) + (submitted ? 1 : 0);
+  const normalizedCompletedSteps = isFemale ? completedSteps : completedSteps;
+  const progress = Math.min(100, Math.round((normalizedCompletedSteps / totalSteps) * 100));
 
   if (error) return <SafeAreaView style={styles.screen}><View style={styles.center}><Text style={styles.errorText}>{error}</Text><Pressable onPress={()=>router.replace("/profile")} style={styles.secondaryButton}><Text style={styles.secondaryText}>{isArabic?"العودة للملف":"Back to profile"}</Text></Pressable></View></SafeAreaView>;
 
@@ -124,7 +133,7 @@ export default function TalentProfileJourneyScreen() {
       <View style={styles.statusIcon}>{approved ? <CheckCircle2 size={30} color={darkTheme.accent}/> : submitted ? <ShieldCheck size={30} color={darkTheme.accent}/> : <FileCheck2 size={30} color={darkTheme.accent}/>}</View>
       <Text accessibilityRole="header" style={styles.title}>{title}</Text>
       <Text style={styles.body}>{body}</Text>
-      <View style={styles.progressCard}><View style={styles.progressRow}><Text style={styles.progressLabel}>{isArabic?"تقدم رحلة الإعداد":"Setup journey progress"}</Text><Text style={styles.progressValue}>{progress}%</Text></View><View style={styles.track}><View style={[styles.fill,{width:`${progress}%`}]} /></View><Text style={styles.progressHint}>{isArabic?"هذه نسبة رحلة الإعداد وليست نسبة اكتمال الملف.":"This is setup journey progress, not profile completion."}</Text></View>
+      <View style={styles.progressCard}><View style={styles.progressRow}><Text style={styles.progressLabel}>{isArabic?"تقدم رحلة الإعداد":"Setup journey progress"}</Text><Text style={styles.progressValue}>{progress}%</Text></View><View style={styles.track}><View style={[styles.fill,{width:`${progress}%`}]} /></View><Text style={styles.progressHint}>{isFemale ? (isArabic ? "للملف الأنثوي خطوة خصوصية إضافية قبل الصور حتى تختاري من يمكنه رؤية ملفك وصورك." : "Female talent onboarding includes an extra privacy step before photos so you choose who can see your profile and images.") : (isArabic?"هذه نسبة رحلة الإعداد وليست نسبة اكتمال الملف.":"This is setup journey progress, not profile completion.")}</Text></View>
       {approved && !readiness.isReady ? <Pressable onPress={()=>router.replace(hasPhoto?"/profile/edit":"/profile/media")} style={styles.primaryButton}><Text style={styles.primaryText}>{isArabic?"إكمال المتطلبات":"Complete requirements"}</Text></Pressable> : !submitted ? <Pressable onPress={()=>router.replace({pathname:"/profile/review",params:{onboarding:"1"}})} style={styles.primaryButton}><Text style={styles.primaryText}>{isArabic?"مراجعة الملف والإرسال":"Review and submit"}</Text></Pressable> : <Pressable onPress={()=>router.replace("/opportunities")} style={styles.primaryButton}><Text style={styles.primaryText}>{isArabic?"استكشف الفرص":"Explore opportunities"}</Text></Pressable>}
       <Pressable onPress={()=>router.replace("/profile")} style={styles.secondaryButton}><Text style={styles.secondaryText}>{isArabic?"عرض ملفي":"View my profile"}</Text></Pressable>
     </View>
