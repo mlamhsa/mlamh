@@ -45,8 +45,21 @@ export async function getTalentConversationDetail(userId: string, conversationId
   const publisherName = conversation.conversation_type === "mlamh_talent" ? "MLAMH" : (publisherResult.data?.company_name || publisherResult.data?.contact_name || "Publisher");
   const partyName = role === "publisher" ? talentName : publisherName;
   const messages: MobileMessage[] = (messagesResult.data ?? []).map((message) => ({ id: message.id, conversationId: message.conversation_id, senderUserId: message.sender_user_id, body: message.body, readAt: message.read_at ?? null, createdAt: message.created_at, isMine: message.sender_user_id === userId }));
+  const canSend = conversation.status === "active" && (role === "publisher" || messages.length > 0);
 
-  return { conversation: { id: conversation.id, opportunityId: conversation.opportunity_id, opportunityTitle: opportunityResult.data?.title ?? null, partyName, status: conversation.status }, messages };
+  return {
+    conversation: {
+      id: conversation.id,
+      opportunityId: conversation.opportunity_id,
+      opportunityTitle: opportunityResult.data?.title ?? null,
+      partyName,
+      status: conversation.status,
+      participantRole: role,
+      startPolicy: "publisher_starts",
+      canSend,
+    },
+    messages,
+  };
 }
 
 export async function sendTalentMessage(userId: string, conversationId: number, rawBody: unknown): Promise<SendMessageResult> {
@@ -56,8 +69,20 @@ export async function sendTalentMessage(userId: string, conversationId: number, 
   if (body.length > MAX_MESSAGE_LENGTH) return { ok: false, code: "MESSAGE_TOO_LONG" };
   const context = await getConversationContext(userId, conversationId);
   if (!context) return { ok: false, code: "NOT_FOUND" };
-  const { adminClient, conversation } = context;
+  const { adminClient, conversation, role } = context;
   if (conversation.status !== "active") return { ok: false, code: "CONVERSATION_NOT_ACTIVE" };
+
+  if (role === "talent") {
+    const { count, error: countError } = await adminClient
+      .from("messages")
+      .select("id", { count: "exact", head: true })
+      .eq("conversation_id", conversation.id);
+    if (countError) {
+      console.error("[sendConversationMessage:count]", countError);
+      return { ok: false, code: "INSERT_FAILED" };
+    }
+    if (!count) return { ok: false, code: "PUBLISHER_MUST_START" };
+  }
 
   const { data, error } = await adminClient.from("messages").insert({ conversation_id: conversation.id, sender_user_id: userId, body }).select("id,conversation_id,sender_user_id,body,read_at,created_at").single();
   if (error || !data) { console.error("[sendConversationMessage]", error); return { ok: false, code: "INSERT_FAILED" }; }
