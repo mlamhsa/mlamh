@@ -31,8 +31,8 @@ const unverifiedPublisher = {
 
 const guest = { userId: null, accountType: null };
 
-test("verified publisher can access gated private content", () => {
-  assert.equal(canViewTalentPrivateContent(verifiedPublisher, "talent-1"), true);
+test("verified publisher can request talent but cannot browse private contact content", () => {
+  assert.equal(canViewTalentPrivateContent(verifiedPublisher, "talent-1"), false);
   assert.equal(canRequestTalentFromProfile(verifiedPublisher), true);
 });
 
@@ -43,6 +43,11 @@ test("approved but unverified publisher cannot access gated private content", ()
 
 test("guest cannot access private content", () => {
   assert.equal(canViewTalentPrivateContent(guest, "talent-1"), false);
+});
+
+test("talent owner and admin retain private-content access", () => {
+  assert.equal(canViewTalentPrivateContent({ userId: "talent-1", accountType: "talent" }, "talent-1"), true);
+  assert.equal(canViewTalentPrivateContent({ userId: "admin-1", accountType: "admin" }, "talent-1"), true);
 });
 
 test("verified-only profile is hidden from guests and unverified publishers", () => {
