@@ -78,6 +78,7 @@ export function getTalentProfileReadiness(talent: TalentProfileReadinessData) {
   // do not block submission for review.
   const requiredKeys = new Set([
     "name",
+    "phone",
     "profile_image",
     "primary_role",
     "city",
