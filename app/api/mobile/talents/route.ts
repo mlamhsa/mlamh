@@ -1,13 +1,18 @@
 import { NextResponse } from "next/server";
 
+import { getRequestUser } from "@/lib/auth/request-user";
 import { toMobilePublicTalent } from "@/lib/mobile/public-talent-contract";
 import { getFilteredPublicTalents } from "@/lib/talent/public-directory-filters";
+import { publicTalentAccessPayload, resolveTalentAccess } from "@/lib/talent/trust-access";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const locale = url.searchParams.get("locale") === "en" ? "en" : "ar";
   const page = Math.max(1, Number(url.searchParams.get("page")) || 1);
-  const pageSize = Math.min(Math.max(Number(url.searchParams.get("pageSize")) || 20, 1), 40);
+  const auth = await getRequestUser(request).catch(() => null);
+  const access = await resolveTalentAccess(auth?.ok ? auth.user.id : null);
+  const requestedPageSize = Number(url.searchParams.get("pageSize")) || 12;
+  const pageSize = Math.min(Math.max(requestedPageSize, 1), access.maxDirectoryPageSize);
 
   try {
     const result = await getFilteredPublicTalents({
@@ -31,6 +36,12 @@ export async function GET(request: Request) {
       totalPages: result.totalPages,
       currentPage: result.currentPage,
       pageSize: result.pageSize,
+      access: publicTalentAccessPayload(access),
+    }, {
+      headers: {
+        "Cache-Control": access.authenticated ? "private, no-store" : "public, max-age=30, stale-while-revalidate=60",
+        "X-Robots-Tag": "noindex, nofollow",
+      },
     });
   } catch (error) {
     console.error("[api/mobile/talents]", error);
