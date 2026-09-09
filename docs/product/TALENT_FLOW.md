@@ -134,6 +134,8 @@ Canonical sections:
 
 Mobile keeps the mobile-native navigation pattern rather than copying the desktop sidebar.
 
+The term **Workspace** is reserved for the future advanced Brief/casting product. Talent self-service surfaces must use **Talent Dashboard / لوحة الموهبة** and must not be presented as a Workspace.
+
 ## Professional Profile UX
 The professional profile is one organized page with section anchors. Clicking an anchor scrolls to the relevant section. Required items are marked clearly and incomplete required sections expose a direct action.
 
@@ -143,6 +145,7 @@ Current Talent Flow V1 profile editor behavior:
 - the legacy Actor/Model-only specialization control is replaced with the canonical full Talent taxonomy
 - Public/Private profile visibility is editable in its own Privacy section
 - the legacy Saudi-only residence notice is removed because residence/city is now multi-country
+- city options in the profile editor are derived from the talent's saved country of residence rather than assuming Saudi Arabia
 - profile-strength percentage remains separate from approval readiness
 
 Suggested sections:
