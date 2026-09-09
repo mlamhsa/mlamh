@@ -1,0 +1,58 @@
+name: Prepare Build 13 Mobile API Compatibility
+
+on:
+  push:
+    branches:
+      - release/build13-mobile-api
+    paths:
+      - ".github/workflows/build13-backend-compat.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/build13-mobile-api
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Apply isolated backend contract changes
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          def repl(path, old, new, count=1):
+              p=Path(path); s=p.read_text()
+              if old not in s: raise SystemExit(f"pattern missing: {path}: {old[:120]!r}")
+              p.write_text(s.replace(old,new,count))
+
+          repl('lib/mobile/public-talent-contract.ts','  imageUrl: string | null;','  imageUrl: string | null;\n  galleryImages: string[];')
+          repl('lib/mobile/public-talent-contract.ts','    imageUrl: talent.image_url || null,','    imageUrl: talent.image_url || null,\n    galleryImages: [...new Set([...(Array.isArray(talent.gallery_images) ? talent.gallery_images : []), ...(Array.isArray(talent.photos) ? talent.photos : []), ...(Array.isArray(talent.full_body_photos) ? talent.full_body_photos : [])].filter((value): value is string => typeof value === "string" && Boolean(value.trim())))].slice(0, 12),')
+
+          repl('lib/talent/public-directory-filters.ts','  heightMax?: string;\n};','  heightMax?: string;\n  language?: string;\n  dialect?: string;\n  skill?: string;\n  availability?: string;\n  readyToTravel?: string;\n};')
+          repl('lib/talent/public-directory-filters.ts','    heightMax,\n  });','    heightMax,\n    language: filters.language,\n    dialect: filters.dialect,\n    skill: filters.skill,\n    availability: filters.availability,\n    readyToTravel: filters.readyToTravel === "true" ? true : undefined,\n  });')
+
+          repl('app/api/mobile/talents/route.ts','      heightMax: url.searchParams.get("heightMax") || undefined,','      heightMax: url.searchParams.get("heightMax") || undefined,\n      language: url.searchParams.get("language") || undefined,\n      dialect: url.searchParams.get("dialect") || undefined,\n      skill: url.searchParams.get("skill") || undefined,\n      availability: url.searchParams.get("availability") || undefined,\n      readyToTravel: url.searchParams.get("readyToTravel") || undefined,')
+
+          repl('lib/supabase/public-talents.ts','  heightMax?: number | null;\n};','  heightMax?: number | null;\n  language?: string;\n  dialect?: string;\n  skill?: string;\n  availability?: string;\n  readyToTravel?: boolean;\n};')
+          needle='function matchesAdvancedFilters(talent: Talent, options: GetPublicTalentsOptions) {\n  if (!matchesGender(talent, options.gender)) return false;\n  if (!matchesNationality(talent, options.nationality)) return false;'
+          repl('lib/supabase/public-talents.ts',needle,needle+'\n  const includes = (values: string[] | null | undefined, requested?: string) => !requested || (Array.isArray(values) && values.some((value) => value.toLowerCase().includes(requested.toLowerCase())));\n  if (!includes(talent.languages, options.language)) return false;\n  if (!includes(talent.dialects, options.dialect)) return false;\n  if (!includes(talent.skills, options.skill)) return false;\n  if (options.availability && String(talent.availability_status ?? "").toLowerCase() !== options.availability.toLowerCase()) return false;\n  if (options.readyToTravel === true && talent.ready_to_travel !== true) return false;')
+          PY
+      - name: Commit isolated compatibility patch
+        run: |
+          git config user.name "mlamh-build-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add lib/mobile/public-talent-contract.ts lib/talent/public-directory-filters.ts app/api/mobile/talents/route.ts lib/supabase/public-talents.ts
+          git diff --cached --check
+          git commit -m "feat(mobile-api): support Build 13 talent discovery filters and gallery"
+          git push origin HEAD:release/build13-mobile-api
+      - name: Remove temporary workflow
+        run: |
+          git rm .github/workflows/build13-backend-compat.yml
+          git commit -m "chore: remove Build 13 backend patch workflow"
+          git push origin HEAD:release/build13-mobile-api
