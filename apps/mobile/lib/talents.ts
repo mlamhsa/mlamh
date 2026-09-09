@@ -10,6 +10,7 @@ export type MobilePublicTalent = {
   city: string | null;
   countryCode: string | null;
   imageUrl: string | null;
+  galleryImages: string[];
   featured: boolean;
   verified: boolean;
   gender: string | null;
@@ -44,6 +45,11 @@ export type TalentDirectoryFilters = {
   ageMax?: string;
   heightMin?: string;
   heightMax?: string;
+  language?: string;
+  dialect?: string;
+  skill?: string;
+  availability?: string;
+  readyToTravel?: "true" | "";
   page?: number;
 };
 
@@ -79,6 +85,11 @@ export async function getMobileTalents(locale: AppLocale, filters: TalentDirecto
   append(params, "ageMax", filters.ageMax?.trim());
   append(params, "heightMin", filters.heightMin?.trim());
   append(params, "heightMax", filters.heightMax?.trim());
+  append(params, "language", filters.language?.trim());
+  append(params, "dialect", filters.dialect?.trim());
+  append(params, "skill", filters.skill?.trim());
+  append(params, "availability", filters.availability?.trim());
+  append(params, "readyToTravel", filters.readyToTravel);
   append(params, "page", filters.page ?? 1);
   params.set("pageSize", "20");
 

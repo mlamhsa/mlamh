@@ -29,6 +29,11 @@ const EMPTY_FILTERS: TalentDirectoryFilters = {
   ageMax: "",
   heightMin: "",
   heightMax: "",
+  language: "",
+  dialect: "",
+  skill: "",
+  availability: "",
+  readyToTravel: "",
   page: 1,
 };
 
@@ -150,6 +155,18 @@ export default function TalentDirectoryScreen() {
           <View style={[styles.twoColumns, isRtl && styles.rowRtl]}>
             <FilterInput value={draft.ageMin ?? ""} onChange={(ageMin) => setDraft((current) => ({ ...current, ageMin: numeric(ageMin) }))} placeholder={isArabic ? "من" : "Min"} isRtl={isRtl} technical />
             <FilterInput value={draft.ageMax ?? ""} onChange={(ageMax) => setDraft((current) => ({ ...current, ageMax: numeric(ageMax) }))} placeholder={isArabic ? "إلى" : "Max"} isRtl={isRtl} technical />
+          </View>
+          <Text style={[styles.filterLabel, directionText(isRtl)]}>{isArabic ? "الطول (سم)" : "Height (cm)"}</Text>
+          <View style={[styles.twoColumns, isRtl && styles.rowRtl]}>
+            <FilterInput value={draft.heightMin ?? ""} onChange={(heightMin) => setDraft((current) => ({ ...current, heightMin: numeric(heightMin) }))} placeholder={isArabic ? "من" : "Min"} isRtl={isRtl} technical />
+            <FilterInput value={draft.heightMax ?? ""} onChange={(heightMax) => setDraft((current) => ({ ...current, heightMax: numeric(heightMax) }))} placeholder={isArabic ? "إلى" : "Max"} isRtl={isRtl} technical />
+          </View>
+          <FilterInput value={draft.language ?? ""} onChange={(language) => setDraft((current) => ({ ...current, language }))} placeholder={isArabic ? "اللغة" : "Language"} isRtl={isRtl} />
+          <FilterInput value={draft.dialect ?? ""} onChange={(dialect) => setDraft((current) => ({ ...current, dialect }))} placeholder={isArabic ? "اللهجة" : "Dialect"} isRtl={isRtl} />
+          <FilterInput value={draft.skill ?? ""} onChange={(skill) => setDraft((current) => ({ ...current, skill }))} placeholder={isArabic ? "المهارة" : "Skill"} isRtl={isRtl} />
+          <View style={[styles.chips, isRtl && styles.rowRtl]}>
+            <Pressable onPress={() => setDraft((current) => ({ ...current, availability: current.availability === "available_now" ? "" : "available_now" }))} style={[styles.chip, draft.availability === "available_now" && styles.chipActive]}><Text style={[styles.chipText, draft.availability === "available_now" && styles.chipTextActive]}>{isArabic ? "متاح الآن" : "Available now"}</Text></Pressable>
+            <Pressable onPress={() => setDraft((current) => ({ ...current, readyToTravel: current.readyToTravel === "true" ? "" : "true" }))} style={[styles.chip, draft.readyToTravel === "true" && styles.chipActive]}><Text style={[styles.chipText, draft.readyToTravel === "true" && styles.chipTextActive]}>{isArabic ? "متاح للسفر" : "Open to travel"}</Text></Pressable>
           </View>
           <View style={[styles.filterActions, isRtl && styles.rowRtl]}>
             <Pressable onPress={applyFilters} style={styles.primaryButton}><Text style={styles.primaryText}>{isArabic ? "عرض النتائج" : "Show results"}</Text></Pressable>

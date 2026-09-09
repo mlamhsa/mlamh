@@ -13,6 +13,11 @@ export type PublicTalentDirectoryFilters = {
   ageMax?: string;
   heightMin?: string;
   heightMax?: string;
+  language?: string;
+  dialect?: string;
+  skill?: string;
+  availability?: string;
+  readyToTravel?: string;
 };
 
 const PUBLIC_CATEGORIES = new Set(["actor", "model"]);
@@ -69,6 +74,11 @@ export async function getFilteredPublicTalents(filters: PublicTalentDirectoryFil
     ageMax,
     heightMin,
     heightMax,
+    language: filters.language,
+    dialect: filters.dialect,
+    skill: filters.skill,
+    availability: filters.availability,
+    readyToTravel: filters.readyToTravel === "true" ? true : undefined,
   });
 
   return {
