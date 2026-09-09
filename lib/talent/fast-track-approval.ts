@@ -49,6 +49,7 @@ export function evaluateTalentFastTrackApproval({
   if (!hasValue(talent.phone)) reasons.push("missing_phone");
   if (!hasValue(talent.image_url)) reasons.push("missing_profile_image");
   if (!hasValue(talent.primary_role) && !hasValue(talent.category_slug)) reasons.push("missing_primary_role");
+  if (!hasValue(talent.base_country_code)) reasons.push("missing_country_of_residence");
   if (!hasValue(talent.city_slug)) reasons.push("missing_city");
   if (!hasValue(talent.gender)) reasons.push("missing_gender");
   if (!hasValue(talent.nationality_slug) && !hasValue(talent.nationality)) reasons.push("missing_nationality");
