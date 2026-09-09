@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { EmailLinkVerification } from "@/components/auth/EmailLinkVerification";
+import { EmailOtpVerification } from "@/components/auth/EmailOtpVerification";
 import { isValidLocale, type Locale } from "@/lib/i18n";
 
 type PageProps = {
   params: Promise<{ locale: string }>;
-  searchParams?: Promise<{ email?: string; type?: string }>;
+  searchParams?: Promise<{ email?: string; type?: string; intent?: string }>;
 };
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -25,6 +25,7 @@ export default async function VerifyEmailPage({ params, searchParams }: PageProp
   const query = searchParams ? await searchParams : {};
   const email = typeof query.email === "string" ? query.email.trim().toLowerCase() : "";
   const accountType = query.type === "publisher" ? "publisher" : "talent";
+  const intent = query.intent === "actor" || query.intent === "model" || query.intent === "publisher" ? query.intent : "";
 
-  return <EmailLinkVerification locale={locale} email={email} accountType={accountType} />;
+  return <EmailOtpVerification locale={locale} email={email} accountType={accountType} intent={intent} />;
 }
