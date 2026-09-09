@@ -31,11 +31,17 @@ export function canViewTalentProfile(viewer: TalentProfileViewer, talent: Pick<T
   return false;
 }
 
+/**
+ * Private/contact content is intentionally stricter than profile visibility.
+ * Verification may unlock a gated profile, but it must never expose direct
+ * contact channels merely because a publisher is verified. Those details stay
+ * protected inside the accepted selection/conversation workflow.
+ */
 export function canViewTalentPrivateContent(viewer: TalentProfileViewer, talentUserId?: string | null) {
   if (!viewer.userId) return false;
   if (talentUserId && viewer.userId === talentUserId) return true;
   if (viewer.accountType === "admin") return true;
-  return isActiveVerifiedPublisher(viewer);
+  return false;
 }
 
 export function canViewTalentPhotos(viewer: TalentProfileViewer, talent: Pick<Talent, "user_id" | "photo_visibility">) {
