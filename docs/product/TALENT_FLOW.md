@@ -81,6 +81,8 @@ MLAMH must expose two separate concepts:
 
 Review submission is controlled by the required approval fields, not by an arbitrary completion percentage. The profile-strength percentage remains useful for ranking, matching and auto-approval decisions.
 
+Recovery/reminder classification follows the same required-field readiness rule. A profile is `ready_not_submitted` when all canonical approval gates are satisfied; the old 35% completion threshold must not decide reminder classification.
+
 Dashboard messaging must explain that completing optional data improves matching quality and increases the chance of being surfaced in relevant recommendations without promising guaranteed selection.
 
 ## Visibility
@@ -94,6 +96,8 @@ Dashboard messaging must explain that completing optional data improves matching
 - Admin must see a clear Private badge and filter.
 
 Visibility applies to every talent user regardless of gender or any other demographic field.
+
+Talent can change Public/Private visibility from the Professional Profile page. The change is user-initiated and does not rewrite unrelated profile data. If an approved talent switches to Private, the public publication flag is disabled immediately. If an approved talent switches back to Public, public publication becomes eligible again under the approved state.
 
 ## Auto approval
 Auto approval must not be based on percentage alone. It requires:
@@ -133,8 +137,17 @@ Mobile keeps the mobile-native navigation pattern rather than copying the deskto
 ## Professional Profile UX
 The professional profile is one organized page with section anchors. Clicking an anchor scrolls to the relevant section. Required items are marked clearly and incomplete required sections expose a direct action.
 
+Current Talent Flow V1 profile editor behavior:
+- horizontal section navigation is injected above the profile sections and scrolls to the selected section
+- required identity fields are marked with a visible ⭐ indicator
+- the legacy Actor/Model-only specialization control is replaced with the canonical full Talent taxonomy
+- Public/Private profile visibility is editable in its own Privacy section
+- the legacy Saudi-only residence notice is removed because residence/city is now multi-country
+- profile-strength percentage remains separate from approval readiness
+
 Suggested sections:
 - Basic information
+- Talent type
 - About
 - Appearance / measurements (type-specific)
 - Skills
