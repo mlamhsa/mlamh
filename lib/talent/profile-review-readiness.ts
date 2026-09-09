@@ -80,24 +80,10 @@ function getSharedRequirements(talent: TalentProfileReadinessData): ProfileReadi
   ];
 }
 
-export function getTalentProfileReadiness(talent: TalentProfileReadinessData) {
-  // Only true approval requirements belong here. Bio, languages, skills, experience,
-  // measurements and extra portfolio material can improve profile strength/ranking but
-  // do not block submission for review.
-  const requiredKeys = new Set([
-    "name",
-    "phone",
-    "profile_image",
-    "primary_role",
-    "country",
-    "city",
-    "gender",
-    "date_of_birth",
-    "nationality",
-    "profile_visibility",
-    "data_accuracy_contact_consent",
-  ]);
-
+function buildReadiness(
+  talent: TalentProfileReadinessData,
+  requiredKeys: Set<string>,
+) {
   const requirements = getSharedRequirements(talent).filter((requirement) =>
     requiredKeys.has(requirement.key),
   );
@@ -112,7 +98,44 @@ export function getTalentProfileReadiness(talent: TalentProfileReadinessData) {
   };
 }
 
+export function getTalentProfileReadiness(talent: TalentProfileReadinessData) {
+  // This is the profile-editor/dashboard readiness view. It only includes fields
+  // represented directly in the professional profile editor. Bio, languages,
+  // skills, experience, measurements and extra portfolio material remain optional.
+  return buildReadiness(
+    talent,
+    new Set([
+      "name",
+      "phone",
+      "profile_image",
+      "primary_role",
+      "city",
+      "gender",
+      "date_of_birth",
+      "nationality",
+    ]),
+  );
+}
+
 export function getTalentProfileReviewReadiness(talent: TalentProfileReadinessData) {
-  const readiness = getTalentProfileReadiness(talent);
+  // Final submission applies the full canonical account gates collected during
+  // signup as well: residence country, privacy choice and data/contact consent.
+  const readiness = buildReadiness(
+    talent,
+    new Set([
+      "name",
+      "phone",
+      "profile_image",
+      "primary_role",
+      "country",
+      "city",
+      "gender",
+      "date_of_birth",
+      "nationality",
+      "profile_visibility",
+      "data_accuracy_contact_consent",
+    ]),
+  );
+
   return { ...readiness, canSubmitForReview: readiness.isReady };
 }
