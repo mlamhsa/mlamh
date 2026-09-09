@@ -1,4 +1,4 @@
-# Build 13 physical-QA fixes candidate — iOS buildNumber 13 / Android versionCode 13
+# Build 14 product-experience consolidation candidate — iOS buildNumber 14 / Android versionCode 14
 name: Mobile RC Paired Build
 
 on:
@@ -11,7 +11,7 @@ on:
 
 jobs:
   android-internal:
-    name: Android Build 13 Internal APK
+    name: Android Build 14 Internal APK
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -38,15 +38,15 @@ jobs:
         shell: bash
         run: |
           if [ -z "$EXPO_TOKEN" ]; then echo "::error::EXPO_TOKEN is not configured."; exit 1; fi
-      - name: Verify Build 13 app config
+      - name: Verify Build 14 app config
         shell: bash
         run: |
           node - <<'NODE'
           const c=require('./app.json').expo;
-          if (c.ios?.buildNumber !== '13' || c.android?.versionCode !== 13) {
-            console.error('::error::Expected iOS buildNumber 13 and Android versionCode 13.'); process.exit(1);
+          if (c.ios?.buildNumber !== '14' || c.android?.versionCode !== 14) {
+            console.error('::error::Expected iOS buildNumber 14 and Android versionCode 14.'); process.exit(1);
           }
-          console.log('Confirmed Build 13 numbering.');
+          console.log('Confirmed Build 14 numbering.');
           NODE
       - name: Expo Doctor
         run: npx expo-doctor
@@ -62,11 +62,11 @@ jobs:
           npx expo prebuild --clean --no-install --platform android
           rm -rf android dist-android
           git restore package.json
-      - name: Start Android Build 13 internal EAS build
+      - name: Start Android Build 14 internal EAS build
         run: npx eas-cli@latest build --platform android --profile preview --non-interactive --no-wait
 
   ios-testflight:
-    name: iOS Build 13 TestFlight Candidate
+    name: iOS Build 14 TestFlight Candidate
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -94,15 +94,15 @@ jobs:
         shell: bash
         run: |
           if [ -z "$EXPO_TOKEN" ]; then echo "::error::EXPO_TOKEN is not configured."; exit 1; fi
-      - name: Verify Build 13 app config
+      - name: Verify Build 14 app config
         shell: bash
         run: |
           node - <<'NODE'
           const c=require('./app.json').expo;
-          if (c.ios?.buildNumber !== '13' || c.android?.versionCode !== 13) {
-            console.error('::error::Expected iOS buildNumber 13 and Android versionCode 13.'); process.exit(1);
+          if (c.ios?.buildNumber !== '14' || c.android?.versionCode !== 14) {
+            console.error('::error::Expected iOS buildNumber 14 and Android versionCode 14.'); process.exit(1);
           }
-          console.log('Confirmed Build 13 numbering.');
+          console.log('Confirmed Build 14 numbering.');
           NODE
       - name: Expo Doctor
         run: npx expo-doctor
@@ -131,5 +131,5 @@ jobs:
           npx expo prebuild --clean --no-install --platform ios
           rm -rf ios dist-ios
           git restore package.json
-      - name: Start iOS Build 13 TestFlight EAS build
+      - name: Start iOS Build 14 TestFlight EAS build
         run: npx eas-cli@latest build --platform ios --profile testflight --non-interactive --no-wait --verbose-logs
