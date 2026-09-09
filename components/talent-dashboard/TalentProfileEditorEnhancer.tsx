@@ -36,6 +36,16 @@ function isArabicPage() {
   return document.documentElement.lang === "ar" || document.documentElement.dir === "rtl";
 }
 
+function normalizeProfileCopy() {
+  if (isArabicPage()) return;
+
+  document.querySelectorAll<HTMLElement>("p").forEach((element) => {
+    if (element.textContent?.trim() === "Talent Workspace") {
+      element.textContent = "Talent Dashboard";
+    }
+  });
+}
+
 function buildNationalityOptions(select: HTMLSelectElement) {
   const ar = isArabicPage();
   const currentValue = select.value;
@@ -319,6 +329,8 @@ function markRequiredFields() {
 }
 
 function enhancePage(residence: OwnTalentResidence | null) {
+  normalizeProfileCopy();
+
   const nationalitySelect = document.querySelector<HTMLSelectElement>(
     'select[name="nationality_slug"]',
   );
