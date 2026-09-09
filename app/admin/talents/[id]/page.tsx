@@ -7,7 +7,7 @@ import { TalentProfileService } from "@/lib/services/talent/TalentProfileService
 import { TalentService } from "@/lib/services/talents/TalentService";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getTalentProfileDataQualityIssues } from "@/lib/talent/profile-data-quality";
-import { getTalentProfileReadiness } from "@/lib/talent/profile-review-readiness";
+import { getTalentProfileReviewReadiness } from "@/lib/talent/profile-review-readiness";
 import { getNextTalentProfileRecoveryReminder } from "@/lib/talent/profile-recovery-schedule";
 import type { TalentProfileRecoveryKind } from "@/lib/talent/send-profile-recovery-reminder";
 import OriginalAdminTalentPage from "./page-original";
@@ -25,13 +25,12 @@ type RecoveryEvent = {
 type ProfileRow = {
   id: string | number;
   approval_status: string | null;
+  data_accuracy_contact_consent: boolean | null;
   created_at: string | null;
   updated_at: string | null;
 };
 
 type ProfileLinkageState = "linked" | "missing_profile" | "missing_user" | "unavailable";
-
-const MIN_REVIEW_COMPLETION = 35;
 
 function normalizeUrl(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
@@ -78,18 +77,14 @@ function authUserUsesGoogleProvider(user: {
 function getRecoveryKind({
   approvalStatus,
   isReady,
-  profileCompletion,
 }: {
   approvalStatus: string;
   isReady: boolean;
-  profileCompletion: number;
 }): TalentProfileRecoveryKind | null {
   if (approvalStatus === "changes_requested") return "changes_requested";
   if (approvalStatus !== "not_submitted") return null;
 
-  return isReady && profileCompletion >= MIN_REVIEW_COMPLETION
-    ? "ready_not_submitted"
-    : "incomplete_profile";
+  return isReady ? "ready_not_submitted" : "incomplete_profile";
 }
 
 export default async function AdminTalentPage(props: PageProps) {
@@ -103,10 +98,6 @@ export default async function AdminTalentPage(props: PageProps) {
   if (!talent) notFound();
 
   const language = searchParams.lang === "en" ? "en" : "ar";
-  const readiness = getTalentProfileReadiness({
-    ...talent,
-    phone: talent.account_phone ?? talent.whatsapp ?? null,
-  });
   const profileCompletion = TalentProfileService.calculateCompletion(talent);
   const dataQualityIssues = getTalentProfileDataQualityIssues(talent);
 
@@ -143,7 +134,7 @@ export default async function AdminTalentPage(props: PageProps) {
       talent.user_id
         ? adminClient
             .from("profiles")
-            .select("id,approval_status,created_at,updated_at")
+            .select("id,approval_status,data_accuracy_contact_consent,created_at,updated_at")
             .eq("user_id", talent.user_id)
             .eq("account_type", "talent")
             .maybeSingle()
@@ -169,6 +160,13 @@ export default async function AdminTalentPage(props: PageProps) {
         ? "linked"
         : "missing_profile";
 
+  const readiness = getTalentProfileReviewReadiness({
+    ...talent,
+    phone: talent.account_phone ?? talent.whatsapp ?? null,
+    data_accuracy_contact_consent:
+      profile?.data_accuracy_contact_consent === true,
+  });
+
   const approvalStatus = profile
     ? String(profile.approval_status ?? "not_submitted")
     : String(talent.approval_status ?? "not_submitted");
@@ -176,7 +174,6 @@ export default async function AdminTalentPage(props: PageProps) {
     ? getRecoveryKind({
         approvalStatus,
         isReady: readiness.isReady,
-        profileCompletion,
       })
     : null;
 
