@@ -161,39 +161,20 @@ function preparePrivacyPortal() {
   return portal;
 }
 
-function ensureSectionNavigation() {
-  const specialization = document.getElementById("specialization");
-  if (!specialization?.parentElement) return;
-  if (specialization.parentElement.querySelector("[data-mlamh-profile-section-nav]")) return;
+function ensurePrivacyNavLink() {
+  if (document.querySelector('[data-mlamh-privacy-nav-link="1"]')) return;
 
-  const ar = isArabicPage();
-  const definitions = [
-    ["identity", ar ? "البيانات الأساسية" : "Basic information"],
-    ["specialization", ar ? "نوع الموهبة" : "Talent type"],
-    ["about", ar ? "النبذة" : "About"],
-    ["measurements", ar ? "المظهر والقياسات" : "Appearance & measurements"],
-    ["experience", ar ? "الخبرة" : "Experience"],
-    ["links", ar ? "روابط مهنية" : "Professional links"],
-    ["privacy", ar ? "الخصوصية" : "Privacy"],
-  ] as const;
+  const specializationLink = document.querySelector<HTMLAnchorElement>('nav a[href="#specialization"]');
+  const nav = specializationLink?.closest("nav");
+  if (!nav) return;
 
-  const nav = document.createElement("nav");
-  nav.dataset.mlamhProfileSectionNav = "1";
-  nav.setAttribute("aria-label", ar ? "أقسام الملف المهني" : "Professional profile sections");
-  nav.className = "mb-6 flex gap-2 overflow-x-auto rounded-2xl border border-white/10 bg-black/30 p-2 [scrollbar-width:none]";
-
-  for (const [id, label] of definitions) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.textContent = label;
-    button.className = "shrink-0 rounded-xl border border-white/10 px-4 py-2.5 text-xs text-white/60 transition hover:border-gold/35 hover:bg-gold/[0.06] hover:text-gold";
-    button.addEventListener("click", () => {
-      document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
-    nav.appendChild(button);
-  }
-
-  specialization.parentElement.insertBefore(nav, specialization);
+  const link = document.createElement("a");
+  link.href = "#privacy";
+  link.dataset.mlamhPrivacyNavLink = "1";
+  link.textContent = isArabicPage() ? "الخصوصية" : "Privacy";
+  link.className =
+    "shrink-0 whitespace-nowrap rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-xs text-white/60 transition hover:border-gold/35 hover:text-gold";
+  nav.appendChild(link);
 }
 
 function markRequiredFields() {
@@ -203,11 +184,12 @@ function markRequiredFields() {
     const field = document.querySelector<HTMLElement>(`[name="${name}"]`);
     if (!field) continue;
 
-    const label = field.closest("label");
+    const label = field.closest("label") ?? document.querySelector<HTMLLabelElement>(`label[for="${field.id}"]`);
     if (!label || label.querySelector("[data-mlamh-required-star]")) continue;
 
-    const labelText = label.querySelector<HTMLElement>("span");
-    if (!labelText) continue;
+    const labelText = label.querySelector<HTMLElement>("span") ?? label;
+    const normalized = labelText.textContent ?? "";
+    if (normalized.includes("⭐")) continue;
 
     const star = document.createElement("span");
     star.dataset.mlamhRequiredStar = "1";
@@ -232,7 +214,7 @@ function enhancePage() {
 
   const rolePortal = prepareRoleSelectorPortal();
   const privacyPortal = preparePrivacyPortal();
-  ensureSectionNavigation();
+  ensurePrivacyNavLink();
 
   return { rolePortal, privacyPortal };
 }
