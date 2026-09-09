@@ -9,15 +9,20 @@ Talent onboarding must be short, non-repetitive, and dashboard-first. Data colle
 ## Canonical flow
 1. Choose use case: Talent / Looking for talent.
 2. Create account and collect required talent basics.
-3. Enter Talent Dashboard immediately.
-4. Complete professional profile and portfolio from the dashboard.
-5. System evaluates approval readiness and profile strength separately.
-6. Eligible profiles can be auto-approved; exceptions go to manual admin review.
-7. Approved public profiles appear in the public talent directory. Approved private profiles never appear publicly but remain available for private matching/Brief workflows.
+3. Verify email with a 6-digit OTP for email/password signup.
+4. Enter Talent Dashboard immediately.
+5. Complete professional profile and portfolio from the dashboard.
+6. System evaluates approval readiness and profile strength separately.
+7. Eligible profiles can be auto-approved; exceptions go to manual admin review.
+8. Approved public profiles appear in the public talent directory. Approved private profiles never appear publicly but remain available for private matching/Brief workflows.
 
 ## Signup behavior
 ### Email signup
 Collect the full required signup dataset during account creation.
+
+Email/password signup uses a 6-digit email OTP verification experience inside MLAMH. The user should not be required to leave MLAMH and rely on a confirmation-link-only experience. The verification screen must remain visually below the global navigation on desktop/mobile and keep its title, email, code input, resend state and errors fully visible.
+
+Supabase email templates for the signup verification flow must render the OTP token (`{{ .Token }}`) rather than only `{{ .ConfirmationURL }}`. Link-based confirmation may remain as a compatibility fallback during transition, but OTP is the canonical MLAMH user experience.
 
 ### Google signup
 Use reliable Google-provided fields and then show a required-data completion screen containing only missing fields. Google and email users end with the same data model and permissions.
