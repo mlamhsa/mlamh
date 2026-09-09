@@ -74,6 +74,8 @@ The following are hard requirements before approval/public readiness:
 
 Bio, languages, skills, experience, additional media and portfolio items are optional for approval.
 
+Legacy/incomplete Talent accounts must be able to satisfy missing new hard gates through explicit self-service UI. Current Talent Flow V1 provides self-service country-of-residence selection, Public/Private visibility selection and data-accuracy/contact confirmation instead of silently backfilling those fields.
+
 ## Completion vs readiness
 MLAMH must expose two separate concepts:
 - Approval readiness: whether all hard approval gates are satisfied.
@@ -84,6 +86,8 @@ Review submission is controlled by the required approval fields, not by an arbit
 Recovery/reminder classification follows the same required-field readiness rule. A profile is `ready_not_submitted` when all canonical approval gates are satisfied; the old 35% completion threshold must not decide reminder classification.
 
 Dashboard messaging must explain that completing optional data improves matching quality and increases the chance of being surfaced in relevant recommendations without promising guaranteed selection.
+
+Profile-strength scoring must be fair across the complete Talent taxonomy. Actor and Model may use role-specific professional/measurement signals; other talent types must be able to reach the same 100% ceiling through relevant professional media, portfolio and social/professional signals without being forced to provide Actor/Model-specific measurements.
 
 ## Visibility
 ### Public
@@ -118,6 +122,7 @@ Rules:
 - Existing incomplete talents are handled through reminder/recovery flows and explicit user edits.
 - Recovery jobs may read existing records and log reminder events, but must not mutate talent profile data.
 - A user-initiated edit or review submission may update that user's record normally.
+- Missing legacy residence data must remain missing until the user explicitly selects a country; it must never silently default to Saudi Arabia.
 
 ## Talent Dashboard
 Desktop uses a persistent right-side sidebar in Arabic (left-side in English), with the selected page rendered beside it.
@@ -136,6 +141,8 @@ Mobile keeps the mobile-native navigation pattern rather than copying the deskto
 
 The term **Workspace** is reserved for the future advanced Brief/casting product. Talent self-service surfaces must use **Talent Dashboard / لوحة الموهبة** and must not be presented as a Workspace.
 
+Dashboard approval-readiness cards must show the same canonical hard gates as final review submission. Missing requirement rows should take the Talent directly to the relevant profile section rather than only showing a passive warning.
+
 ## Professional Profile UX
 The professional profile is one organized page with section anchors. Clicking an anchor scrolls to the relevant section. Required items are marked clearly and incomplete required sections expose a direct action.
 
@@ -144,7 +151,9 @@ Current Talent Flow V1 profile editor behavior:
 - required identity fields are marked with a visible ⭐ indicator
 - the legacy Actor/Model-only specialization control is replaced with the canonical full Talent taxonomy
 - Public/Private profile visibility is editable in its own Privacy section
+- data-accuracy/contact consent can be confirmed from the same Privacy section for legacy/incomplete accounts
 - the legacy Saudi-only residence notice is removed because residence/city is now multi-country
+- country of residence is an explicit editable approval gate
 - city options in the profile editor are derived from the talent's saved country of residence rather than assuming Saudi Arabia
 - profile-strength percentage remains separate from approval readiness
 
