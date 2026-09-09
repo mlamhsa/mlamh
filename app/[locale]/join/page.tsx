@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { ArrowLeft, BriefcaseBusiness, UserRound } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
 
+import { AppleSignupButton } from "@/components/auth/AppleSignupButton";
 import { GoogleSignupButton } from "@/components/auth/GoogleSignupButton";
 import { QuickJoinForm } from "@/components/auth/QuickJoinForm";
 import { TalentEmailSignupForm } from "@/components/auth/TalentEmailSignupForm";
@@ -47,8 +48,8 @@ function accountCopy(accountType: AccountType, isRtl: boolean) {
     eyebrow: isRtl ? "الخطوة الثانية" : "STEP TWO",
     title: isRtl ? "إنشاء حساب الموهبة" : "Create your talent account",
     body: isRtl
-      ? "إذا اخترت البريد الإلكتروني ستدخل بياناتك الأساسية هنا. وإذا اخترت Google سنأخذ البيانات المتوفرة ونطلب منك فقط المعلومات الضرورية الناقصة."
-      : "With email, enter your essential information here. With Google, we’ll use the information already available and ask only for required missing details.",
+      ? "إذا اخترت البريد الإلكتروني ستدخل بياناتك الأساسية هنا. وإذا اخترت Google أو Apple سنستخدم البيانات المتوفرة ونطلب منك فقط المعلومات الضرورية الناقصة."
+      : "With email, enter your essential information here. With Google or Apple, we’ll use the information already available and ask only for required missing details.",
   };
 }
 
@@ -123,12 +124,16 @@ export default async function JoinPage({ params, searchParams }: PageProps) {
                 accountType={selectedAccountType}
                 intent={selectedAccountType === "publisher" ? "publisher" : undefined}
               />
+              <AppleSignupButton
+                locale={locale}
+                accountType={selectedAccountType}
+              />
 
               {selectedAccountType === "talent" ? (
                 <p className="mt-3 text-center text-xs leading-6 text-white/40">
                   {isRtl
-                    ? "بعد Google ستظهر لك فقط الحقول الضرورية التي لم نحصل عليها من حسابك."
-                    : "After Google, you’ll only see required fields we could not obtain from your account."}
+                    ? "بعد Google أو Apple ستظهر لك فقط الحقول الضرورية التي لم نحصل عليها من حسابك."
+                    : "After Google or Apple, you’ll only see required fields we could not obtain from your account."}
                 </p>
               ) : null}
 
