@@ -3,6 +3,7 @@ import { evaluateTalentFastTrackApproval } from "@/lib/talent/fast-track-approva
 import { getTalentProfileReviewReadiness } from "@/lib/talent/profile-review-readiness";
 import { TalentProfileService } from "@/lib/services/talent/TalentProfileService";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isTalentPrivacyConfigured } from "@/lib/talents/privacy";
 
 export async function submitMobileTalentProfileReview(userId: string, locale: "ar" | "en") {
   const isArabic = locale === "ar";
@@ -49,6 +50,17 @@ export async function submitMobileTalentProfileReview(userId: string, locale: "a
       message: isArabic
         ? `أكمل البيانات المطلوبة قبل إرسال الملف للمراجعة: ${missingFields}`
         : `Complete the required information before submitting your profile: ${missingFields}`,
+    };
+  }
+
+  if (talent.gender === "female" && !(await isTalentPrivacyConfigured(userId))) {
+    return {
+      ok: false as const,
+      code: "PRIVACY_REQUIRED" as const,
+      completion,
+      message: isArabic
+        ? "اختاري إعداد خصوصية الملف والصور قبل إرسال الملف للمراجعة."
+        : "Choose your profile and photo privacy before submitting your profile for review.",
     };
   }
 
