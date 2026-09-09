@@ -1,5 +1,4 @@
-# RC Build 11 trigger — iOS buildNumber 11 / Android versionCode 11
-# Source freeze: Apple native auth + safe account-deletion revocation included
+# Build 13 physical-QA fixes candidate — iOS buildNumber 13 / Android versionCode 13
 name: Mobile RC Paired Build
 
 on:
@@ -12,7 +11,7 @@ on:
 
 jobs:
   android-internal:
-    name: Android Internal APK
+    name: Android Build 13 Internal APK
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -27,49 +26,47 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: "22.13.0"
           cache: npm
           cache-dependency-path: apps/mobile/package-lock.json
-
       - name: Install dependencies
         run: npm ci --include=dev --no-audit --no-fund
-
       - name: Validate Expo authentication
         shell: bash
         run: |
-          if [ -z "$EXPO_TOKEN" ]; then
-            echo "::error::EXPO_TOKEN is not configured for RC packaging."
-            exit 1
-          fi
-
+          if [ -z "$EXPO_TOKEN" ]; then echo "::error::EXPO_TOKEN is not configured."; exit 1; fi
+      - name: Verify Build 13 app config
+        shell: bash
+        run: |
+          node - <<'NODE'
+          const c=require('./app.json').expo;
+          if (c.ios?.buildNumber !== '13' || c.android?.versionCode !== 13) {
+            console.error('::error::Expected iOS buildNumber 13 and Android versionCode 13.'); process.exit(1);
+          }
+          console.log('Confirmed Build 13 numbering.');
+          NODE
       - name: Expo Doctor
         run: npx expo-doctor
-
       - name: Typecheck
         run: npm run typecheck
-
       - name: Release preflight strict
         run: npm run release:preflight:strict
-
       - name: Validate Android production bundle
         run: npx expo export --platform android --output-dir dist-android --clear
-
       - name: Validate Android native prebuild
         shell: bash
         run: |
           npx expo prebuild --clean --no-install --platform android
           rm -rf android dist-android
           git restore package.json
-
-      - name: Start Android internal EAS build
+      - name: Start Android Build 13 internal EAS build
         run: npx eas-cli@latest build --platform android --profile preview --non-interactive --no-wait
 
   ios-testflight:
-    name: iOS TestFlight Candidate
+    name: iOS Build 13 TestFlight Candidate
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -85,34 +82,34 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: "22.13.0"
           cache: npm
           cache-dependency-path: apps/mobile/package-lock.json
-
       - name: Install dependencies
         run: npm ci --include=dev --no-audit --no-fund
-
       - name: Validate Expo authentication
         shell: bash
         run: |
-          if [ -z "$EXPO_TOKEN" ]; then
-            echo "::error::EXPO_TOKEN is not configured for RC packaging."
-            exit 1
-          fi
-
+          if [ -z "$EXPO_TOKEN" ]; then echo "::error::EXPO_TOKEN is not configured."; exit 1; fi
+      - name: Verify Build 13 app config
+        shell: bash
+        run: |
+          node - <<'NODE'
+          const c=require('./app.json').expo;
+          if (c.ios?.buildNumber !== '13' || c.android?.versionCode !== 13) {
+            console.error('::error::Expected iOS buildNumber 13 and Android versionCode 13.'); process.exit(1);
+          }
+          console.log('Confirmed Build 13 numbering.');
+          NODE
       - name: Expo Doctor
         run: npx expo-doctor
-
       - name: Typecheck
         run: npm run typecheck
-
       - name: Release preflight strict
         run: npm run release:preflight:strict
-
       - name: Validate Sign in with Apple entitlement
         shell: bash
         run: |
@@ -122,21 +119,17 @@ jobs:
           const config = JSON.parse(fs.readFileSync('/tmp/mlamh-expo-config.json', 'utf8'));
           const values = config?.ios?.entitlements?.['com.apple.developer.applesignin'];
           if (!Array.isArray(values) || !values.includes('Default')) {
-            console.error('::error::Missing com.apple.developer.applesignin=Default in introspected Expo config.');
-            process.exit(1);
+            console.error('::error::Missing com.apple.developer.applesignin=Default.'); process.exit(1);
           }
-          console.log('Confirmed Sign in with Apple entitlement in introspected Expo config.');
+          console.log('Confirmed Sign in with Apple entitlement.');
           NODE
-
       - name: Validate iOS production bundle
         run: npx expo export --platform ios --output-dir dist-ios --clear
-
       - name: Validate iOS native prebuild
         shell: bash
         run: |
           npx expo prebuild --clean --no-install --platform ios
           rm -rf ios dist-ios
           git restore package.json
-
-      - name: Start iOS TestFlight EAS build
+      - name: Start iOS Build 13 TestFlight EAS build
         run: npx eas-cli@latest build --platform ios --profile testflight --non-interactive --no-wait --verbose-logs
