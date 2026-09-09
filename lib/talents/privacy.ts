@@ -72,6 +72,11 @@ export async function getTalentPrivacySettings(userId: string) {
   };
 }
 
+export async function isTalentPrivacyConfigured(userId: string) {
+  const result = await getTalentPrivacySettings(userId);
+  return result.ok && result.configured === true;
+}
+
 export async function updateTalentPrivacySettings(userId: string, input: unknown, source = "user") {
   const normalized = normalizeTalentPrivacyInput(input);
   if (!normalized) return { ok: false as const, code: "INVALID_INPUT" as const };
