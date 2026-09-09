@@ -28,19 +28,23 @@ Hosted Supabase setup and the exact MLAMH email template are documented in `docs
 
 Talent Flow V1 closeout requires a real inbox smoke test proving the hosted Supabase Confirm signup template sends a usable 6-digit code and the code completes account setup into the Talent Dashboard.
 
-### Google signup
-Use reliable Google-provided fields and then show a required-data completion screen containing only missing fields. Google and email users end with the same data model and permissions.
+### Google / Apple signup
+Use reliable provider-supplied fields and then show a required-data completion screen containing only missing fields. Google, Apple and email users end with the same MLAMH account/profile model and permissions.
+
+Apple users who choose Hide My Email may receive an Apple relay email. A relay address and the user's personal email must not be auto-merged merely because they may belong to the same person. Identity linking must remain explicit and secure.
 
 ### Duplicate-account guard across providers
-An email address represents one MLAMH account regardless of whether the user originally registered with Google or email/password.
+A normalized email address represents one MLAMH account regardless of whether the user originally registered with Google, Apple or email/password.
 
 Rules:
 - Before email/password signup, check Supabase Auth for an existing user with the normalized email.
 - If the email already exists, do not start a second registration flow.
 - Show a clear existing-account message with direct actions for Sign in and Forgot password.
 - If the existing identity is Google-only, explain that the account was created with Google and direct the user to sign in with the same Google account.
-- If a user starts Google OAuth with an email that already belongs to an MLAMH account, the existing account type/profile remains authoritative. OAuth may attach an identity to the same Auth user, but must not create a second talent/publisher onboarding journey or change the existing account type.
+- If the existing identity is Apple-only, explain that the account was created with Apple and direct the user to sign in with the same Apple account.
+- If a user starts Google or Apple OAuth with an email that already belongs to an MLAMH account, the existing account type/profile remains authoritative. OAuth may attach an identity to the same Auth user, but must not create a second talent/publisher onboarding journey or change the existing account type.
 - Existing registered talent data is never rewritten merely because the user attempted another signup method.
+- Different Apple Hide My Email relay addresses are not auto-merged with another email account without secure explicit identity linking.
 
 ## Required signup data
 - Full name
