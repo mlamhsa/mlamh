@@ -20,6 +20,7 @@ type ExistingAccountState = {
   exists: boolean;
   hasPassword: boolean;
   hasGoogle: boolean;
+  hasApple: boolean;
 };
 
 function normalizeLocalPhone(value: string) {
@@ -124,14 +125,15 @@ export function TalentEmailSignupForm({ locale }: Props) {
     setSubmitting(true);
 
     try {
-      // Check Supabase Auth itself before signup so Google and email/password
-      // registrations cannot silently create two account journeys for one email.
+      // Check Supabase Auth itself before signup so Google, Apple and
+      // email/password registrations cannot start duplicate account journeys.
       const duplicate = await checkAuthEmailExistsAction(cleanEmail);
       if (duplicate.exists) {
         setExistingAccount({
           exists: true,
           hasPassword: duplicate.hasPassword,
           hasGoogle: duplicate.hasGoogle,
+          hasApple: duplicate.hasApple,
         });
         setSubmitting(false);
         return;
@@ -189,7 +191,12 @@ export function TalentEmailSignupForm({ locale }: Props) {
       // confirmation is enabled. An existing confirmed user may therefore return
       // a user object with no identities instead of an explicit error.
       if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
-        setExistingAccount({ exists: true, hasPassword: true, hasGoogle: false });
+        setExistingAccount({
+          exists: true,
+          hasPassword: true,
+          hasGoogle: false,
+          hasApple: false,
+        });
         setSubmitting(false);
         return;
       }
@@ -212,6 +219,18 @@ export function TalentEmailSignupForm({ locale }: Props) {
     }
   }
 
+  const existingAccountMessage = existingAccount?.hasGoogle && !existingAccount.hasPassword
+    ? isRtl
+      ? "يبدو أنك أنشأت حسابك سابقًا باستخدام Google. استخدم تسجيل الدخول بحساب Google نفسه."
+      : "It looks like you previously created your account with Google. Sign in with the same Google account."
+    : existingAccount?.hasApple && !existingAccount.hasPassword
+      ? isRtl
+        ? "يبدو أنك أنشأت حسابك سابقًا باستخدام Apple. استخدم تسجيل الدخول بحساب Apple نفسه."
+        : "It looks like you previously created your account with Apple. Sign in with the same Apple account."
+      : isRtl
+        ? "لديك حساب سابق في ملامح. سجّل الدخول بدل إنشاء حساب جديد، أو استعد كلمة المرور إذا نسيتها."
+        : "You already have an MLAMH account. Sign in instead of creating another account, or reset your password if needed.";
+
   return (
     <form onSubmit={(event) => void submit(event)} className="space-y-5">
       <p className="text-xs text-white/40">
@@ -224,13 +243,7 @@ export function TalentEmailSignupForm({ locale }: Props) {
             {isRtl ? "هذا البريد مسجل مسبقًا" : "This email is already registered"}
           </h3>
           <p className="mt-2 text-sm leading-7 text-white/55">
-            {existingAccount.hasGoogle && !existingAccount.hasPassword
-              ? isRtl
-                ? "يبدو أنك أنشأت حسابك سابقًا باستخدام Google. استخدم تسجيل الدخول بحساب Google نفسه."
-                : "It looks like you previously created your account with Google. Sign in with the same Google account."
-              : isRtl
-                ? "لديك حساب سابق في ملامح. سجّل الدخول بدل إنشاء حساب جديد، أو استعد كلمة المرور إذا نسيتها."
-                : "You already have an MLAMH account. Sign in instead of creating another account, or reset your password if needed."}
+            {existingAccountMessage}
           </p>
           <div className="mt-4 flex flex-col gap-3 sm:flex-row">
             <Link
