@@ -337,6 +337,11 @@ export async function getPublicTalents(options: GetPublicTalentsOptions = {}): P
     ageMax,
     heightMin,
     heightMax,
+    language,
+    dialect,
+    skill,
+    availability,
+    readyToTravel,
   } = options;
   const safePage = Math.max(1, page);
   const safePageSize = Math.min(Math.max(pageSize, 1), 48);
@@ -360,6 +365,11 @@ export async function getPublicTalents(options: GetPublicTalentsOptions = {}): P
     ageMax ?? "all",
     heightMin ?? "all",
     heightMax ?? "all",
+    normalizeSearchValue(language)?.toLowerCase() ?? "all",
+    normalizeSearchValue(dialect)?.toLowerCase() ?? "all",
+    normalizeSearchValue(skill)?.toLowerCase() ?? "all",
+    normalizeSearchValue(availability)?.toLowerCase() ?? "all",
+    readyToTravel === true ? "travel" : "all",
   ].join(":");
   return getCachedValue(cacheKey, async () => {
     const { talents, total } = await getVisiblePublishedCandidates({
@@ -375,6 +385,11 @@ export async function getPublicTalents(options: GetPublicTalentsOptions = {}): P
       ageMax,
       heightMin,
       heightMax,
+      language: normalizeSearchValue(language)?.toLowerCase(),
+      dialect: normalizeSearchValue(dialect)?.toLowerCase(),
+      skill: normalizeSearchValue(skill)?.toLowerCase(),
+      availability: normalizeSearchValue(availability)?.toLowerCase(),
+      readyToTravel,
     });
     return { talents, total, totalPages: Math.max(1, Math.ceil(total / safePageSize)), currentPage: safePage, pageSize: safePageSize };
   });
