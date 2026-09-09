@@ -1,0 +1,56 @@
+name: Submit iOS Build 13 to TestFlight
+
+on:
+  push:
+    branches:
+      - feat/mobile-platform-phase0
+    paths:
+      - ".github/workflows/mobile-build13-ios-submit.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  submit:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      IOS_BUILD_ID: 4b24d99f-5f4b-4d1e-9546-6a247cb315a4
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/mobile-platform-phase0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.0"
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+      - run: npm ci --include=dev --no-audit --no-fund
+      - name: Confirm Build 13 before submission
+        shell: bash
+        run: |
+          npx eas-cli@latest build:view "$IOS_BUILD_ID" --json > /tmp/ios-build.json
+          node - <<'NODE'
+          const fs = require('fs');
+          const b = JSON.parse(fs.readFileSync('/tmp/ios-build.json','utf8'));
+          const buildVersion = String(b.appBuildVersion ?? b.metadata?.appBuildVersion ?? b.buildNumber ?? '');
+          if (b.platform !== 'IOS' || b.status !== 'FINISHED' || buildVersion !== '13') {
+            console.error(`::error::Refusing submission: platform=${b.platform} status=${b.status} buildVersion=${buildVersion}`);
+            process.exit(1);
+          }
+          console.log(`Confirmed iOS Build 13: ${b.id}`);
+          NODE
+      - name: Submit Build 13 to App Store Connect TestFlight
+        run: npx eas-cli@latest submit --platform ios --profile testflight --id "$IOS_BUILD_ID" --non-interactive --wait
+      - name: Remove temporary submission workflow
+        if: always()
+        working-directory: .
+        run: |
+          git config user.name "mlamh-build-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git rm .github/workflows/mobile-build13-ios-submit.yml
+          git commit -m "chore: remove Build 13 iOS submission workflow" || exit 0
+          git push origin HEAD:feat/mobile-platform-phase0
