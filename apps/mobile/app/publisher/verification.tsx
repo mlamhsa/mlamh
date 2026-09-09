@@ -7,6 +7,7 @@ import { ArrowLeft, ArrowRight, CheckCircle2, Clock3, MailCheck, ShieldCheck, Tr
 import { ScreenSkeleton } from "@/components/ScreenSkeleton";
 import { isRtlLocale } from "@/lib/i18n";
 import { useAppLocale } from "@/lib/locale-context";
+import { leaveAuthenticatedScreen } from "@/lib/navigation";
 import { getPublisherProfile, submitPublisherVerificationEmail, type MobilePublisherProfile } from "@/lib/publisher-api";
 import { darkTheme } from "@/lib/theme";
 
@@ -87,7 +88,7 @@ export default function PublisherVerificationScreen() {
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.content, { direction: isRtl ? "rtl" : "ltr" }]} showsVerticalScrollIndicator={false}>
         <View style={[styles.topRow, isRtl && styles.rowRtl]}>
-          <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "رجوع" : "Back"} onPress={() => router.back()} hitSlop={12} style={styles.backButton}><BackIcon size={21} color={theme.text} strokeWidth={1.9} /></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "رجوع" : "Back"} onPress={() => leaveAuthenticatedScreen("/publisher")} hitSlop={12} style={styles.backButton}><BackIcon size={21} color={theme.text} strokeWidth={1.9} /></Pressable>
           <Text style={[styles.brand, isArabic && styles.arabicText, rtlText]}>{isArabic ? "ملامح للأعمال" : "MLAMH FOR BUSINESS"}</Text>
         </View>
 

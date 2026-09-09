@@ -10,6 +10,7 @@ import { SingleSelectSheet, type SelectSheetOption } from "@/components/SingleSe
 import { getTalentProfile, updateTalentProfile, type MobileTalentProfile, type MobileTalentProfileUpdateInput } from "@/lib/api";
 import { formatGregorianDate, isRtlLocale, toLatinDigits } from "@/lib/i18n";
 import { useAppLocale } from "@/lib/locale-context";
+import { leaveAuthenticatedScreen } from "@/lib/navigation";
 import { FALLBACK_NATIONALITY_OPTIONS, getCanonicalProfileOptions, type CanonicalMobileOption } from "@/lib/profile-options-api";
 import { CLOTHING_SIZE_OPTIONS, EYE_COLOR_OPTIONS, HAIR_COLOR_OPTIONS, HAIR_TYPE_OPTIONS, SAUDI_CITY_OPTIONS, SKIN_COLOR_OPTIONS, TALENT_AVAILABILITY_OPTIONS, TALENT_GENDER_OPTIONS, type MobileOption } from "@/lib/profile-options";
 import { darkTheme } from "@/lib/theme";
@@ -181,7 +182,7 @@ export default function EditTalentProfileScreen() {
 
   function leave() {
     if (!isDirty || saving) {
-      if (onboarding) router.replace("/profile/journey"); else router.back();
+      if (onboarding) router.replace("/profile/journey"); else leaveAuthenticatedScreen("/profile");
       return;
     }
     Alert.alert(
@@ -189,7 +190,7 @@ export default function EditTalentProfileScreen() {
       isArabic ? "احفظ التغييرات قبل الخروج أو اخرج بدون حفظ." : "Save your changes before leaving, or leave without saving.",
       [
         { text: isArabic ? "إلغاء" : "Cancel", style: "cancel" },
-        { text: isArabic ? "الخروج بدون حفظ" : "Leave without saving", style: "destructive", onPress: () => onboarding ? router.replace("/profile/journey") : router.back() },
+        { text: isArabic ? "الخروج بدون حفظ" : "Leave without saving", style: "destructive", onPress: () => onboarding ? router.replace("/profile/journey") : leaveAuthenticatedScreen("troprofile") },
         { text: isArabic ? "حفظ والمتابعة" : "Save & continue", onPress: () => void save() },
       ],
     );

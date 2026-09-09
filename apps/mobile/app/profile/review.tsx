@@ -8,6 +8,7 @@ import { getTalentProfile } from "@/lib/api";
 import { MOBILE_API_BASE_URL } from "@/lib/api-config";
 import { isRtlLocale } from "@/lib/i18n";
 import { useAppLocale } from "@/lib/locale-context";
+import { leaveAuthenticatedScreen } from "@/lib/navigation";
 import { getMobileTalentReviewReadiness } from "@/lib/profile-review-readiness";
 import { supabase } from "@/lib/supabase";
 import { darkTheme } from "@/lib/theme";

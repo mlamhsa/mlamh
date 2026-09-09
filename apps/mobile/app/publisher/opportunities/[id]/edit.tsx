@@ -7,6 +7,7 @@ import { CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Search, X 
 
 import { isRtlLocale } from "@/lib/i18n";
 import { useAppLocale } from "@/lib/locale-context";
+import { leaveAuthenticatedScreen } from "@/lib/navigation";
 import { getPublisherOpportunity, managePublisherOpportunity, type PublisherOpportunityDetail } from "@/lib/publisher-api";
 import { SAUDI_CITY_OPTIONS } from "@/lib/profile-options";
 import { darkTheme } from "@/lib/theme";
@@ -108,7 +109,7 @@ export default function EditPublisherOpportunityScreen() {
         roleRequirements: opportunityType === "actor" ? { languages, dialects } : { modelingTypes, minHeightCm: minHeightCm ? Number(minHeightCm) : null, hairColor: hairColor || null },
       });
       if (!result.ok) { setError(editError(result.code, locale)); return; }
-      router.back();
+      leaveAuthenticatedScreen( { pathname: "/publisher/opportunities/[id]", params: { id: String(opportunityId) } } );
     } catch { setError(isArabic ? "تعذر حفظ التعديلات. تحقق من الاتصال وحاول مرة أخرى." : "Unable to save. Check your connection and try again."); }
     finally { setSaving(false); }
   }

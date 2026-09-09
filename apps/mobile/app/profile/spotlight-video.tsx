@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, Clock3, PlaySquare, ShieldCheck } from "luci
 
 import { formatLatinNumber, isRtlLocale } from "@/lib/i18n";
 import { useAppLocale } from "@/lib/locale-context";
+import { leaveAuthenticatedScreen } from "@/lib/navigation";
 import { getTalentSpotlightStatus, type TalentSpotlightStatus } from "@/lib/spotlight-video";
 import { darkTheme } from "@/lib/theme";
 
