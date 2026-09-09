@@ -129,16 +129,16 @@ export function EmailOtpVerification({ locale, email, accountType }: Props) {
   }
 
   return (
-    <main dir={isRtl ? "rtl" : "ltr"} className="min-h-screen bg-black px-4 py-20 text-white">
+    <main dir={isRtl ? "rtl" : "ltr"} className="min-h-screen bg-black px-4 pb-14 pt-36 text-white sm:pt-40 lg:pb-16 lg:pt-32">
       <section className="mx-auto w-full max-w-xl">
-        <div className="mb-8">
+        <div className="mb-6 text-center sm:mb-8">
           <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-gold">{isRtl ? "تأكيد البريد" : "EMAIL VERIFICATION"}</p>
-          <h1 className="text-3xl font-semibold sm:text-4xl">{isRtl ? "تحقق من بريدك الإلكتروني" : "Verify your email"}</h1>
-          <p className="mt-4 text-sm leading-7 text-white/55">{isRtl ? "أرسلنا رمزًا مكونًا من 6 أرقام إلى:" : "We sent a 6-digit code to:"}</p>
-          <p dir="ltr" className="mt-1 text-left text-sm font-medium text-white">{email || "—"}</p>
+          <h1 className="text-3xl font-semibold leading-tight sm:text-4xl">{isRtl ? "تحقق من بريدك الإلكتروني" : "Verify your email"}</h1>
+          <p className="mt-3 text-sm leading-7 text-white/55">{isRtl ? "أرسلنا رمزًا مكونًا من 6 أرقام إلى:" : "We sent a 6-digit code to:"}</p>
+          <p dir="ltr" className="mt-1 text-center text-sm font-medium text-white">{email || "—"}</p>
         </div>
 
-        <div className="rounded-3xl border border-white/10 bg-white/[0.025] p-5 sm:p-7">
+        <div className="rounded-3xl border border-white/10 bg-white/[0.025] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.35)] sm:p-7">
           <label htmlFor="email-otp" className="mb-2 block text-sm text-white/70">{isRtl ? "رمز التحقق" : "Verification code"} <span className="text-gold">*</span></label>
           <input id="email-otp" value={token} onChange={(event) => { setToken(normalizeOtp(event.currentTarget.value)); setError(""); }} onKeyDown={(event) => { if (event.key === "Enter") void verify(); }} type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="000000" dir="ltr" className="min-h-16 w-full rounded-2xl border border-gold/30 bg-black/40 px-4 text-center text-3xl font-semibold tracking-[0.35em] text-white outline-none transition placeholder:text-white/20 focus:border-gold" />
           <p className="mt-2 text-xs text-white/35"><span className="text-gold">*</span> {isRtl ? "حقل مطلوب" : "Required field"}</p>
