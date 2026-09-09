@@ -55,6 +55,8 @@ MLAMH must expose two separate concepts:
 - Approval readiness: whether all hard approval gates are satisfied.
 - Profile strength/completion: how complete and useful the profile is for matching and ranking.
 
+Review submission is controlled by the required approval fields, not by an arbitrary completion percentage. The profile-strength percentage remains useful for ranking, matching and auto-approval decisions.
+
 Dashboard messaging must explain that completing optional data improves matching quality and increases the chance of being surfaced in relevant recommendations without promising guaranteed selection.
 
 ## Visibility
@@ -71,12 +73,23 @@ Visibility applies to every talent user regardless of gender or any other demogr
 
 ## Auto approval
 Auto approval must not be based on percentage alone. It requires:
-- configured completion/readiness threshold
+- profile strength/completion at or above the current fast-track threshold (70% in Talent Flow V1)
 - all hard gates satisfied
 - valid main image
+- valid Public/Private visibility choice
+- data accuracy/contact consent
 - no blocking review/risk state
 
-Profiles failing an automated gate are routed to manual review.
+Profiles failing an automated gate are routed to manual review rather than silently rejected.
+
+## Existing talent safety
+Talent Flow V1 must not silently rewrite existing registered talent records.
+
+Rules:
+- No automatic backfill of existing talent category, city, nationality, privacy, publication state, status, image or professional-profile fields from new signup metadata.
+- Existing incomplete talents are handled through reminder/recovery flows and explicit user edits.
+- Recovery jobs may read existing records and log reminder events, but must not mutate talent profile data.
+- A user-initiated edit or review submission may update that user's record normally.
 
 ## Talent Dashboard
 Desktop uses a persistent right-side sidebar in Arabic (left-side in English), with the selected page rendered beside it.
