@@ -2,16 +2,22 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { TalentSeoLanding } from "@/components/public/TalentSeoLanding";
-import { getTalentCategoryBySlug } from "@/lib/data/talent-categories";
+import { TALENT_CATEGORIES, getTalentCategoryBySlug } from "@/lib/data/talent-categories";
 import { isValidLocale, type Locale } from "@/lib/i18n";
 import { getPublicTalents } from "@/lib/supabase/public-talents";
 
 const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://mlamh.net").replace(/\/$/, "");
-const INDEXABLE_CATEGORIES = new Set(["actor", "model"]);
+const INDEXABLE_CATEGORIES: Set<string> = new Set(TALENT_CATEGORIES.map((item) => item.slug));
 
 type PageProps = {
   params: Promise<{ locale: string; category: string }>;
 };
+
+function englishPlural(label: string) {
+  if (label.endsWith("s")) return label;
+  if (label.endsWith("y")) return `${label.slice(0, -1)}ies`;
+  return `${label}s`;
+}
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { locale: rawLocale, category } = await params;
@@ -25,12 +31,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const hasPublishedTalent = talents.length > 0;
   const isArabic = locale === "ar";
   const label = isArabic ? item.ar : item.en;
+  const pluralLabel = isArabic ? label : englishPlural(label);
   const title = isArabic
     ? `${label} في السعودية | دليل المواهب | ملامح`
-    : `${label}s in Saudi Arabia | MLAMH Talent Directory`;
+    : `${pluralLabel} in Saudi Arabia | MLAMH Talent Directory`;
   const description = isArabic
     ? `اكتشف ${label} معتمدين في السعودية عبر منصة ملامح، واستعرض الملفات والصور والمعلومات المهنية لاختيار الموهبة المناسبة لمشروعك.`
-    : `Discover approved ${label.toLowerCase()} profiles in Saudi Arabia on MLAMH and review professional details and media for your project.`;
+    : `Discover approved ${item.en.toLowerCase()} profiles in Saudi Arabia on MLAMH and review professional details and media for your project.`;
   const canonical = `${SITE_URL}/${locale}/talent/category/${category}`;
 
   return {
@@ -75,6 +82,7 @@ export default async function TalentCategoryPage({ params }: PageProps) {
   const { talents } = await getPublicTalents({ category, pageSize: 48 });
   const isArabic = locale === "ar";
   const label = isArabic ? item.ar : item.en;
+  const pluralLabel = isArabic ? label : englishPlural(label);
   const canonical = `${SITE_URL}/${locale}/talent/category/${category}`;
   const breadcrumbJsonLd = {
     "@context": "https://schema.org",
@@ -95,7 +103,7 @@ export default async function TalentCategoryPage({ params }: PageProps) {
       {
         "@type": "ListItem",
         position: 3,
-        name: isArabic ? `${label} في السعودية` : `${label}s in Saudi Arabia`,
+        name: isArabic ? `${label} في السعودية` : `${pluralLabel} in Saudi Arabia`,
         item: canonical,
       },
     ],
@@ -110,11 +118,11 @@ export default async function TalentCategoryPage({ params }: PageProps) {
       <TalentSeoLanding
         locale={locale}
         eyebrow={isArabic ? "دليل المواهب" : "TALENT DIRECTORY"}
-        title={isArabic ? `${label} في السعودية` : `${label}s in Saudi Arabia`}
+        title={isArabic ? `${label} في السعودية` : `${pluralLabel} in Saudi Arabia`}
         description={
           isArabic
-            ? `استعرض ملفات ${label} المنشورة والمعتمدة على ملامح وابحث عن الوجوه المناسبة للإعلانات والإنتاج والكاستينج.`
-            : `Browse approved ${label.toLowerCase()} profiles on MLAMH for casting, advertising and production projects.`
+            ? `استعرض ملفات ${label} المنشورة والمعتمدة على ملامح وابحث عن المواهب المناسبة للإعلانات والإنتاج والكاستينج.`
+            : `Browse approved ${item.en.toLowerCase()} profiles on MLAMH for casting, advertising and production projects.`
         }
         talents={talents}
       />
