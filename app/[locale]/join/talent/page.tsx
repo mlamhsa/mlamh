@@ -45,9 +45,18 @@ export default async function JoinTalentPage({ params, searchParams }: PageProps
 
   if (profileError) console.error("[JoinTalentPage profileLookup]", profileError);
 
-  if (profile?.account_type === "publisher") redirect(`/${locale}/workspace`);
+  if (profile?.account_type === "publisher") redirect(`/${locale}/publisher-dashboard`);
 
-  if (profile?.account_type === "talent" && profile.onboarding_status === "completed") {
+  // Talent Flow V1 no longer uses /join/talent for newly created accounts.
+  // New accounts go straight to the dashboard; this page remains only as a
+  // legacy fallback for old Actor/Model accounts that never saved a role.
+  if (
+    profile?.account_type === "talent" &&
+    (
+      profile.onboarding_status === "completed" ||
+      profile.onboarding_step === "dashboard"
+    )
+  ) {
     redirect(`/${locale}/talent-dashboard`);
   }
 
@@ -85,32 +94,28 @@ export default async function JoinTalentPage({ params, searchParams }: PageProps
                 {isRtl ? "✓ تم تأكيد بريدك الإلكتروني" : "✓ Your email has been verified"}
               </p>
               <p className="mt-1 text-xs leading-6 text-gray-muted sm:text-sm">
-                {isRtl ? "نكمل الآن إعداد ملفك خطوة بخطوة." : "Now we'll continue your profile setup step by step."}
+                {isRtl ? "نكمل الآن إعداد حسابك القديم مرة واحدة." : "We’ll finish this legacy account setup once."}
               </p>
             </div>
           ) : null}
 
           <header className={`mb-10 sm:mb-14 ${isRtl ? "text-right" : "text-left"}`}>
             <p className="arabic-safe text-[10px] uppercase tracking-[0.4em] text-gold">
-              {isRtl ? "إعداد ملف الموهبة" : "TALENT PROFILE SETUP"}
+              {isRtl ? "استكمال حساب قديم" : "LEGACY ACCOUNT SETUP"}
             </p>
             <h1 className="mt-4 text-[clamp(2.4rem,8vw,4.2rem)] font-light leading-[1.08] text-white">
               {initialRole
                 ? isRtl
-                  ? "نبدأ من اختيارك"
-                  : "Continue from your choice"
+                  ? "نستخدم اختيارك السابق"
+                  : "Continue from your saved choice"
                 : isRtl
                   ? "حدد تخصصك الأساسي"
                   : "Choose your primary role"}
             </h1>
             <p className="mt-5 max-w-2xl text-sm leading-7 text-gray-muted md:text-base">
-              {initialRole
-                ? isRtl
-                  ? "حفظنا اختيارك من بداية التسجيل، لذلك لن نكرر عليك نفس السؤال."
-                  : "We kept the role you chose at signup, so you won't be asked the same question again."
-                : isRtl
-                  ? "هذه الخطوة تظهر فقط للحسابات القديمة أو التي لم تحدد المسار أثناء التسجيل."
-                  : "This step is only needed for legacy accounts or signups without a saved role."}
+              {isRtl
+                ? "هذه الصفحة احتياطية للحسابات القديمة فقط. التسجيلات الجديدة تدخل لوحة التحكم مباشرة بدون تكرار هذه الخطوة."
+                : "This page is only a fallback for older accounts. New signups go directly to the dashboard without repeating this step."}
             </p>
           </header>
 
