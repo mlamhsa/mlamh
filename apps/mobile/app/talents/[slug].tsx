@@ -54,6 +54,7 @@ export default function TalentProfileScreen() {
   if (loading) return <View style={s.center}><ActivityIndicator color={darkTheme.accent} /><Text style={s.muted}>{ar ? "جارٍ تحميل الملف…" : "Loading profile…"}</Text></View>;
   if (!item || error) return <View style={s.center}><Text style={s.error}>{error ?? (ar ? "الملف غير متاح" : "Profile unavailable")}</Text><Pressable onPress={() => router.back()} style={s.primary}><Text style={s.primaryText}>{ar ? "رجوع" : "Go back"}</Text></Pressable></View>;
 
+  const talentId = item.id;
   const role = displayValue(item.role, locale) ?? (ar ? "موهبة" : "Talent");
   const country = displayValue(item.countryCode, locale);
   const facts = [item.city, country, item.age != null ? (ar ? `${formatLatinNumber(item.age, locale)} سنة` : `${formatLatinNumber(item.age, locale)} yrs`) : null, item.heightCm != null ? `${formatLatinNumber(item.heightCm, locale)} cm` : null].filter((value): value is string => Boolean(value));
@@ -75,7 +76,7 @@ export default function TalentProfileScreen() {
   async function sendInvite(opportunity: MobilePublisherOpportunity) {
     if (inviteBusy !== null) return;
     setInviteBusy(opportunity.id); setInviteMessage(null);
-    const result = await inviteTalentToOpportunity(opportunity.id, item.id, locale);
+    const result = await inviteTalentToOpportunity(opportunity.id, talentId, locale);
     setInviteBusy(null);
     if (result.ok) {
       setInviteOpen(false);
