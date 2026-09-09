@@ -16,8 +16,6 @@ type SubmitReviewResult = {
   completion?: number;
 };
 
-const MIN_REVIEW_COMPLETION = 35;
-
 export async function submitTalentProfileReviewAction(
   localeParam: string,
 ): Promise<SubmitReviewResult> {
@@ -42,7 +40,7 @@ export async function submitTalentProfileReviewAction(
 
   const { data: profile, error: profileError } = await adminClient
     .from("profiles")
-    .select("id, account_type, approval_status")
+    .select("id, account_type, approval_status, phone, data_accuracy_contact_consent")
     .eq("user_id", user.id)
     .maybeSingle();
 
@@ -92,18 +90,18 @@ export async function submitTalentProfileReviewAction(
   }
 
   const completion = TalentProfileService.calculateCompletion(talent);
+  const enrichedTalent = {
+    ...talent,
+    phone: profile.phone,
+    data_accuracy_contact_consent: profile.data_accuracy_contact_consent === true,
+  };
 
-  if (completion < MIN_REVIEW_COMPLETION) {
-    return {
-      success: false,
-      completion,
-      message: isArabic
-        ? `أكمل ملفك إلى ${MIN_REVIEW_COMPLETION}% على الأقل قبل إرساله للمراجعة. نسبة اكتمال ملفك الحالية ${completion}%.`
-        : `Complete at least ${MIN_REVIEW_COMPLETION}% of your profile before submitting it for review. Your current profile completion is ${completion}%.`,
-    };
-  }
-
-  const readiness = getTalentProfileReviewReadiness(talent);
+  /*
+   * Review submission is controlled by REQUIRED fields, not by the optional
+   * profile-strength percentage. Bio, languages, skills, experience and extra
+   * portfolio content can improve ranking without blocking review submission.
+   */
+  const readiness = getTalentProfileReviewReadiness(enrichedTalent);
   if (!readiness.canSubmitForReview) {
     const missingFields = readiness.missingRequirements
       .map((requirement) => (isArabic ? requirement.ar : requirement.en))
@@ -118,7 +116,10 @@ export async function submitTalentProfileReviewAction(
     };
   }
 
-  const fastTrack = evaluateTalentFastTrackApproval({ talent, completion });
+  const fastTrack = evaluateTalentFastTrackApproval({
+    talent: enrichedTalent,
+    completion,
+  });
   const shouldAutoApprove = fastTrack.decision === "auto_approve";
   const isPublicProfile = String(talent.profile_visibility ?? "public").trim().toLowerCase() === "public";
   const shouldPublishPublicly = shouldAutoApprove && isPublicProfile;
