@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 
 import { getRequestUser } from "@/lib/auth/request-user";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  ensureTalentAccountFromSignupData,
+  talentSignupDataFromMetadata,
+} from "@/lib/talent/ensure-talent-account";
 
 type AccountType = "talent" | "publisher";
 
@@ -39,6 +43,38 @@ export async function POST(request: Request) {
 
   const accountType = payload.accountType;
   const admin = createAdminClient();
+
+  if (accountType === "talent") {
+    const signupData = talentSignupDataFromMetadata(auth.user.metadata ?? {}, { displayName, phone });
+    if (!signupData) {
+      return NextResponse.json({ ok: false, code: "MISSING_TALENT_SIGNUP_DATA" }, { status: 400 });
+    }
+
+    try {
+      await ensureTalentAccountFromSignupData(auth.user.id, signupData);
+    } catch (error) {
+      console.error("[account/details.ensureTalentAccount]", error);
+      return NextResponse.json({ ok: false, code: "TALENT_ACCOUNT_FINALIZE_FAILED" }, { status: 500 });
+    }
+
+    const currentMetadata = auth.user.metadata ?? {};
+    const { error: authUpdateError } = await admin.auth.admin.updateUserById(auth.user.id, {
+      user_metadata: {
+        ...currentMetadata,
+        full_name: signupData.displayName,
+        display_name: signupData.displayName,
+        phone: signupData.phone,
+        phone_verified: false,
+        account_type: "talent",
+        onboarding_status: "profile_in_progress",
+        onboarding_step: "dashboard",
+      },
+    });
+    if (authUpdateError) return NextResponse.json({ ok: false, code: "AUTH_METADATA_UPDATE_FAILED" }, { status: 500 });
+
+    return NextResponse.json({ ok: true, accountType: "talent", displayName: signupData.displayName, phone: signupData.phone, phoneVerified: false });
+  }
+
   const { data: existingProfile, error: lookupError } = await admin
     .from("profiles")
     .select("id,account_type")
@@ -83,8 +119,7 @@ export async function POST(request: Request) {
     user_metadata: {
       ...currentMetadata,
       full_name: displayName,
-      display_name: accountType === "talent" ? displayName : currentMetadata.display_name ?? null,
-      contact_name: accountType === "publisher" ? displayName : currentMetadata.contact_name ?? null,
+      contact_name: displayName,
       phone,
       phone_verified: false,
       account_type: accountType,
