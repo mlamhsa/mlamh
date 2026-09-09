@@ -1,4 +1,4 @@
-# Build 11 RC monitor — paired Android + iOS EAS builds
+# Build 12 RC monitor — Android internal + iOS TestFlight EAS builds
 name: Mobile RC Build Monitor
 
 on:
@@ -19,8 +19,8 @@ jobs:
         working-directory: apps/mobile
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-      ANDROID_BUILD_ID: 09055e14-970a-4172-a51c-e152c7755173
-      IOS_BUILD_ID: 8be32a40-d9e2-420a-b7e7-a4cc20bad2d9
+      ANDROID_BUILD_ID: ad0f4be2-8122-40bd-9f29-8879923d8b65
+      IOS_BUILD_ID: c8706d16-26e6-443a-8a09-47ad9641b6da
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -92,6 +92,10 @@ jobs:
             console.log(JSON.stringify(details, null, 2));
             console.log(`${platform} logs: https://expo.dev/accounts/mlamhco/projects/mlamh/builds/${b.id}`);
             if (String(b.status).toLowerCase() !== 'finished') failed = true;
+            if (String(b.appBuildVersion) !== '12') {
+              console.error(`${platform} expected appBuildVersion 12, got ${b.appBuildVersion}`);
+              failed = true;
+            }
           }
           if (failed) process.exitCode = 1;
           NODE
