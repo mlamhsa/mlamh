@@ -49,8 +49,10 @@ export type TalentQualificationOptions = {
   requirePublished?: boolean;
 };
 
-const VALID_TALENT_STATUSES = new Set(["approved", "active"]);
-const VALID_TALENT_ROLES = new Set(TALENT_CATEGORIES.map((category) => category.slug));
+const VALID_TALENT_STATUSES: Set<string> = new Set(["approved", "active"]);
+const VALID_TALENT_ROLES: Set<string> = new Set(
+  TALENT_CATEGORIES.map((category) => category.slug),
+);
 
 function text(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
