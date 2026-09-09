@@ -5,7 +5,12 @@ import { createPortal } from "react-dom";
 
 import { TalentRoleSelectorV1 } from "@/components/talent-dashboard/TalentRoleSelectorV1";
 import { TalentVisibilitySelectorV1 } from "@/components/talent-dashboard/TalentVisibilitySelectorV1";
+import {
+  getOwnTalentResidenceAction,
+  type OwnTalentResidence,
+} from "@/lib/actions/get-own-talent-residence";
 import { NATIONALITIES } from "@/lib/data/nationalities";
+import { TALENT_SIGNUP_COUNTRIES } from "@/lib/data/talent-signup";
 
 const PHYSICAL_MEASUREMENT_FIELDS = [
   "height_cm",
@@ -71,6 +76,88 @@ function buildNationalityOptions(select: HTMLSelectElement) {
   select.replaceChildren(fragment);
   select.value = currentValue;
   select.dataset.globalNationalityOptions = "1";
+}
+
+function ensureResidenceCountryContext(
+  citySelect: HTMLSelectElement,
+  residence: OwnTalentResidence,
+) {
+  const country = TALENT_SIGNUP_COUNTRIES.find(
+    (item) => item.code === residence.countryCode,
+  );
+  if (!country) return;
+
+  const fieldContainer = citySelect.closest("label") ?? citySelect.parentElement;
+  if (!fieldContainer) return;
+
+  const ar = isArabicPage();
+  let notice = fieldContainer.querySelector<HTMLElement>(
+    "[data-mlamh-residence-country-context]",
+  );
+
+  if (!notice) {
+    notice = document.createElement("div");
+    notice.dataset.mlamhResidenceCountryContext = "1";
+    notice.className =
+      "mb-3 rounded-xl border border-gold/15 bg-gold/[0.04] px-3 py-2.5 text-xs leading-5 text-white/45";
+    citySelect.insertAdjacentElement("beforebegin", notice);
+  }
+
+  const text = ar
+    ? `بلد الإقامة: ${country.ar} — تظهر المدن التابعة لبلد إقامتك المسجل.`
+    : `Country of residence: ${country.en} — cities are shown for your saved residence country.`;
+
+  if (notice.textContent !== text) notice.textContent = text;
+}
+
+function buildCountryAwareCityOptions(
+  select: HTMLSelectElement,
+  residence: OwnTalentResidence,
+) {
+  const country = TALENT_SIGNUP_COUNTRIES.find(
+    (item) => item.code === residence.countryCode,
+  );
+  if (!country) return;
+
+  const ar = isArabicPage();
+  const currentValue = select.value || residence.citySlug;
+  const expectedValues = ["", ...country.cities.map((city) => city.value)];
+  const hasKnownCurrent = !currentValue || expectedValues.includes(currentValue);
+  if (currentValue && !hasKnownCurrent) expectedValues.push(currentValue);
+
+  const actualValues = Array.from(select.options).map((option) => option.value);
+  const optionsMatch =
+    actualValues.length === expectedValues.length &&
+    actualValues.every((value, index) => value === expectedValues[index]);
+
+  if (!optionsMatch) {
+    const fragment = document.createDocumentFragment();
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = ar ? "اختر المدينة" : "Select city";
+    fragment.appendChild(placeholder);
+
+    for (const city of country.cities) {
+      const option = document.createElement("option");
+      option.value = city.value;
+      option.textContent = ar ? city.ar : city.en;
+      fragment.appendChild(option);
+    }
+
+    if (currentValue && !country.cities.some((city) => city.value === currentValue)) {
+      const legacyOption = document.createElement("option");
+      legacyOption.value = currentValue;
+      const savedLabel = ar ? residence.cityAr : residence.cityEn;
+      legacyOption.textContent = savedLabel || currentValue.replaceAll("_", " ");
+      fragment.appendChild(legacyOption);
+    }
+
+    select.replaceChildren(fragment);
+    select.value = currentValue;
+  }
+
+  select.dataset.mlamhResidenceCountry = residence.countryCode;
+  ensureResidenceCountryContext(select, residence);
 }
 
 function updateDataQualityNotice() {
@@ -200,12 +287,17 @@ function markRequiredFields() {
   }
 }
 
-function enhancePage() {
+function enhancePage(residence: OwnTalentResidence | null) {
   const nationalitySelect = document.querySelector<HTMLSelectElement>(
     'select[name="nationality_slug"]',
   );
   if (nationalitySelect && nationalitySelect.dataset.globalNationalityOptions !== "1") {
     buildNationalityOptions(nationalitySelect);
+  }
+
+  const citySelect = document.querySelector<HTMLSelectElement>('select[name="city_slug"]');
+  if (citySelect && residence) {
+    buildCountryAwareCityOptions(citySelect, residence);
   }
 
   removeLegacyCountryNotice();
@@ -223,12 +315,27 @@ export function TalentProfileEditorEnhancer() {
   const [rolePortal, setRolePortal] = useState<HTMLElement | null>(null);
   const [privacyPortal, setPrivacyPortal] = useState<HTMLElement | null>(null);
   const [locale, setLocale] = useState<"ar" | "en">("ar");
+  const [residence, setResidence] = useState<OwnTalentResidence | null>(null);
 
   useEffect(() => {
     if (!window.location.pathname.includes("/talent-dashboard/profile")) return;
 
+    let active = true;
     setLocale(isArabicPage() ? "ar" : "en");
-    const initial = enhancePage();
+
+    void getOwnTalentResidenceAction().then((value) => {
+      if (active) setResidence(value);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!window.location.pathname.includes("/talent-dashboard/profile")) return;
+
+    const initial = enhancePage(residence);
     setRolePortal(initial.rolePortal);
     setPrivacyPortal(initial.privacyPortal);
 
@@ -236,7 +343,7 @@ export function TalentProfileEditorEnhancer() {
     document.addEventListener("input", handleInput, true);
 
     const observer = new MutationObserver(() => {
-      const next = enhancePage();
+      const next = enhancePage(residence);
       if (next.rolePortal) setRolePortal((current) => current ?? next.rolePortal);
       if (next.privacyPortal) setPrivacyPortal((current) => current ?? next.privacyPortal);
     });
@@ -246,7 +353,7 @@ export function TalentProfileEditorEnhancer() {
       document.removeEventListener("input", handleInput, true);
       observer.disconnect();
     };
-  }, []);
+  }, [residence]);
 
   return (
     <>
