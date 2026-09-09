@@ -14,18 +14,25 @@ function normalizeEmail(value: string) {
   return value.trim().toLowerCase();
 }
 
+function emptyResult(): ExistingAuthEmailResult {
+  return {
+    exists: false,
+    providers: [],
+    hasPassword: false,
+    hasGoogle: false,
+    hasApple: false,
+  };
+}
+
 /**
  * Server-only duplicate-account guard for signup flows.
  *
- * We intentionally check Supabase Auth (not profiles) so an account created
- * through Google, Apple or email/password is treated as the same account when
- * the same email address is used.
+ * Supabase Auth is the source of truth so Email, Google and Apple identities
+ * resolve to one MLAMH account when they use the same normalized email.
+ * Apple Hide My Email relay addresses remain distinct and are never auto-merged.
  *
- * Apple "Hide My Email" can produce a relay address that differs from the
- * user's personal email. We intentionally do not auto-merge different email
- * addresses here; identity linking must remain explicit and secure.
- *
- * This action is read-only and never mutates an existing user.
+ * The lookup RPC is service-role-only and performs a direct indexed auth.users
+ * email lookup instead of paging through the complete Auth user list.
  */
 export async function checkAuthEmailExistsAction(
   rawEmail: string,
@@ -33,69 +40,41 @@ export async function checkAuthEmailExistsAction(
   const email = normalizeEmail(rawEmail);
 
   if (!email || !email.includes("@")) {
-    return {
-      exists: false,
-      providers: [],
-      hasPassword: false,
-      hasGoogle: false,
-      hasApple: false,
-    };
+    return emptyResult();
   }
 
   const admin = createAdminClient();
-  const perPage = 200;
+  const { data, error } = await admin.rpc("lookup_auth_email_provider", {
+    p_email: email,
+  });
 
-  for (let page = 1; ; page += 1) {
-    const { data, error } = await admin.auth.admin.listUsers({
-      page,
-      perPage,
-    });
-
-    if (error) {
-      console.error("[checkAuthEmailExistsAction]", error.message);
-      // Fail open here so a temporary admin lookup problem does not block all
-      // registrations. Supabase Auth still remains the final duplicate guard.
-      return {
-        exists: false,
-        providers: [],
-        hasPassword: false,
-        hasGoogle: false,
-        hasApple: false,
-      };
-    }
-
-    const matched = data.users.find(
-      (user) => normalizeEmail(user.email ?? "") === email,
-    );
-
-    if (matched) {
-      const providers = Array.from(
-        new Set(
-          (matched.identities ?? [])
-            .map((identity) => String(identity.provider ?? "").toLowerCase())
-            .filter(Boolean),
-        ),
-      );
-
-      return {
-        exists: true,
-        providers,
-        hasPassword: providers.includes("email"),
-        hasGoogle: providers.includes("google"),
-        hasApple: providers.includes("apple"),
-      };
-    }
-
-    if (data.users.length < perPage) {
-      break;
-    }
+  if (error) {
+    console.error("[checkAuthEmailExistsAction]", error.message);
+    // Fail open so a temporary lookup failure does not block registration.
+    // Supabase Auth remains the final duplicate-signup guard.
+    return emptyResult();
   }
 
+  const row = Array.isArray(data) ? data[0] : null;
+  if (!row?.account_exists) {
+    return emptyResult();
+  }
+
+  const providers = Array.isArray(row.providers)
+    ? Array.from(
+        new Set(
+          row.providers
+            .map((provider: unknown) => String(provider ?? "").toLowerCase())
+            .filter(Boolean),
+        ),
+      )
+    : [];
+
   return {
-    exists: false,
-    providers: [],
-    hasPassword: false,
-    hasGoogle: false,
-    hasApple: false,
+    exists: true,
+    providers,
+    hasPassword: providers.includes("email"),
+    hasGoogle: providers.includes("google"),
+    hasApple: providers.includes("apple"),
   };
 }
