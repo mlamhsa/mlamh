@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
+import { TalentResidenceCountrySelectorV1 } from "@/components/talent-dashboard/TalentResidenceCountrySelectorV1";
 import { TalentRoleSelectorV1 } from "@/components/talent-dashboard/TalentRoleSelectorV1";
 import { TalentVisibilitySelectorV1 } from "@/components/talent-dashboard/TalentVisibilitySelectorV1";
 import {
@@ -82,11 +83,6 @@ function ensureResidenceCountryContext(
   citySelect: HTMLSelectElement,
   residence: OwnTalentResidence,
 ) {
-  const country = TALENT_SIGNUP_COUNTRIES.find(
-    (item) => item.code === residence.countryCode,
-  );
-  if (!country) return;
-
   const fieldContainer = citySelect.closest("label") ?? citySelect.parentElement;
   if (!fieldContainer) return;
 
@@ -103,17 +99,36 @@ function ensureResidenceCountryContext(
     citySelect.insertAdjacentElement("beforebegin", notice);
   }
 
-  const text = ar
+  if (!residence.countryCode) {
+    notice.className =
+      "mb-3 rounded-xl border border-amber-400/20 bg-amber-400/[0.06] px-3 py-2.5 text-xs leading-5 text-amber-100";
+    notice.textContent = ar
+      ? "اختر بلد الإقامة أولًا حتى تظهر قائمة المدن الصحيحة."
+      : "Choose your country of residence first so the correct city list can be shown.";
+    citySelect.disabled = true;
+    return;
+  }
+
+  const country = TALENT_SIGNUP_COUNTRIES.find(
+    (item) => item.code === residence.countryCode,
+  );
+  if (!country) return;
+
+  notice.className =
+    "mb-3 rounded-xl border border-gold/15 bg-gold/[0.04] px-3 py-2.5 text-xs leading-5 text-white/45";
+  notice.textContent = ar
     ? `بلد الإقامة: ${country.ar} — تظهر المدن التابعة لبلد إقامتك المسجل.`
     : `Country of residence: ${country.en} — cities are shown for your saved residence country.`;
-
-  if (notice.textContent !== text) notice.textContent = text;
+  citySelect.disabled = false;
 }
 
 function buildCountryAwareCityOptions(
   select: HTMLSelectElement,
   residence: OwnTalentResidence,
 ) {
+  ensureResidenceCountryContext(select, residence);
+  if (!residence.countryCode) return;
+
   const country = TALENT_SIGNUP_COUNTRIES.find(
     (item) => item.code === residence.countryCode,
   );
@@ -157,7 +172,23 @@ function buildCountryAwareCityOptions(
   }
 
   select.dataset.mlamhResidenceCountry = residence.countryCode;
-  ensureResidenceCountryContext(select, residence);
+}
+
+function prepareResidenceCountryPortal(citySelect: HTMLSelectElement) {
+  const fieldContainer = citySelect.closest("label") ?? citySelect.parentElement;
+  if (!fieldContainer?.parentElement) return null;
+
+  let portal = fieldContainer.parentElement.querySelector<HTMLElement>(
+    "[data-mlamh-residence-country-selector-v1]",
+  );
+
+  if (!portal) {
+    portal = document.createElement("div");
+    portal.dataset.mlamhResidenceCountrySelectorV1 = "1";
+    fieldContainer.insertAdjacentElement("beforebegin", portal);
+  }
+
+  return portal;
 }
 
 function updateDataQualityNotice() {
@@ -296,6 +327,7 @@ function enhancePage(residence: OwnTalentResidence | null) {
   }
 
   const citySelect = document.querySelector<HTMLSelectElement>('select[name="city_slug"]');
+  const residencePortal = citySelect ? prepareResidenceCountryPortal(citySelect) : null;
   if (citySelect && residence) {
     buildCountryAwareCityOptions(citySelect, residence);
   }
@@ -308,12 +340,13 @@ function enhancePage(residence: OwnTalentResidence | null) {
   const privacyPortal = preparePrivacyPortal();
   ensurePrivacyNavLink();
 
-  return { rolePortal, privacyPortal };
+  return { rolePortal, privacyPortal, residencePortal };
 }
 
 export function TalentProfileEditorEnhancer() {
   const [rolePortal, setRolePortal] = useState<HTMLElement | null>(null);
   const [privacyPortal, setPrivacyPortal] = useState<HTMLElement | null>(null);
+  const [residencePortal, setResidencePortal] = useState<HTMLElement | null>(null);
   const [locale, setLocale] = useState<"ar" | "en">("ar");
   const [residence, setResidence] = useState<OwnTalentResidence | null>(null);
 
@@ -338,6 +371,7 @@ export function TalentProfileEditorEnhancer() {
     const initial = enhancePage(residence);
     setRolePortal(initial.rolePortal);
     setPrivacyPortal(initial.privacyPortal);
+    setResidencePortal(initial.residencePortal);
 
     const handleInput = () => updateDataQualityNotice();
     document.addEventListener("input", handleInput, true);
@@ -346,6 +380,9 @@ export function TalentProfileEditorEnhancer() {
       const next = enhancePage(residence);
       if (next.rolePortal) setRolePortal((current) => current ?? next.rolePortal);
       if (next.privacyPortal) setPrivacyPortal((current) => current ?? next.privacyPortal);
+      if (next.residencePortal) {
+        setResidencePortal((current) => current ?? next.residencePortal);
+      }
     });
     observer.observe(document.body, { childList: true, subtree: true });
 
@@ -359,6 +396,15 @@ export function TalentProfileEditorEnhancer() {
     <>
       {rolePortal
         ? createPortal(<TalentRoleSelectorV1 locale={locale} />, rolePortal)
+        : null}
+      {residencePortal && residence
+        ? createPortal(
+            <TalentResidenceCountrySelectorV1
+              locale={locale}
+              currentCountryCode={residence.countryCode}
+            />,
+            residencePortal,
+          )
         : null}
       {privacyPortal
         ? createPortal(<TalentVisibilitySelectorV1 locale={locale} />, privacyPortal)
