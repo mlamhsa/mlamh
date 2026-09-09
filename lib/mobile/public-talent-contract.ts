@@ -8,7 +8,6 @@ export type MobilePublicTalent = {
   city: string | null;
   countryCode: string | null;
   imageUrl: string | null;
-  galleryImages: string[];
   featured: boolean;
   verified: boolean;
   gender: string | null;
@@ -42,6 +41,12 @@ function roleFromTalent(talent: Talent): MobilePublicTalent["role"] {
   return null;
 }
 
+/**
+ * Directory-safe talent projection.
+ * Gallery/private media deliberately lives outside this contract so list/search
+ * payloads can never expose it accidentally. A detail route may append media
+ * only after applying the viewer/photo-visibility policy.
+ */
 export function toMobilePublicTalent(talent: Talent, locale: "ar" | "en"): MobilePublicTalent {
   const name = locale === "ar"
     ? talent.display_name_ar || talent.name_ar || talent.display_name_en || talent.name_en
@@ -57,7 +62,6 @@ export function toMobilePublicTalent(talent: Talent, locale: "ar" | "en"): Mobil
     city: city ?? null,
     countryCode: talent.base_country_code ?? null,
     imageUrl: talent.image_url || null,
-    galleryImages: [...new Set([...(Array.isArray(talent.gallery_images) ? talent.gallery_images : []), ...(Array.isArray(talent.photos) ? talent.photos : []), ...(Array.isArray(talent.full_body_photos) ? talent.full_body_photos : [])].filter((value): value is string => typeof value === "string" && Boolean(value.trim())))].slice(0, 12),
     featured: Boolean(talent.featured),
     verified: Boolean(talent.verified || talent.is_verified),
     gender: talent.gender ?? null,
