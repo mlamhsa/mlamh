@@ -1,0 +1,37 @@
+name: Validate Mobile Build 13
+
+on:
+  push:
+    branches:
+      - feat/mobile-platform-phase0
+    paths:
+      - ".github/workflows/mobile-build13-validate.yml"
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+    env:
+      EXPO_PUBLIC_SUPABASE_URL: https://ozieysztwlispglupuox.supabase.co
+      EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_8fHyfoV7YWfed4yRhu_BOw_BtzOId8g
+      EXPO_PUBLIC_API_BASE_URL: https://mlamh.net
+      EXPO_PUBLIC_DEFAULT_MARKET: SA
+      EXPO_PUBLIC_EAS_PROJECT_ID: ca757cb1-e91c-4e8c-a3a9-6cee885e483a
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/mobile-platform-phase0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.0"
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+      - run: npm ci --include=dev --no-audit --no-fund
+      - run: npx expo-doctor
+      - run: npm run typecheck
+      - run: npm run release:preflight:strict
+      - run: npx expo export --platform ios --output-dir dist-ios --clear
+      - run: npx expo export --platform android --output-dir dist-android --clear
