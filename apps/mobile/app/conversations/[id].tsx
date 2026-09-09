@@ -1,152 +1,44 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
-import { ChevronLeft, ChevronRight, Send } from "lucide-react-native";
+import { ChevronLeft, ChevronRight, LockKeyhole, Send, Wifi } from "lucide-react-native";
 
 import { ScreenSkeleton } from "@/components/ScreenSkeleton";
 import { getConversation, sendMessage, type ConversationDetailResponse, type MobileMessage } from "@/lib/api";
 import { getCurrentUserId, markConversationRead, subscribeToConversationMessages } from "@/lib/chat";
-import { getDeviceLocale, isRtlLocale } from "@/lib/i18n";
+import { formatRelativeTime, isRtlLocale } from "@/lib/i18n";
+import { useAppLocale } from "@/lib/locale-context";
 import { darkTheme } from "@/lib/theme";
 
-export default function ConversationScreen() {
-  const params = useLocalSearchParams<{ id?: string | string[] }>();
-  const conversationId = Array.isArray(params.id) ? params.id[0] : params.id;
-  const locale = getDeviceLocale();
-  const isArabic = locale === "ar";
-  const isRtl = isRtlLocale(locale);
-  const theme = darkTheme;
-  const { width, height } = useWindowDimensions();
-  const compact = width <= 360 || height <= 700;
-  const styles = useMemo(() => createStyles(theme, compact), [theme, compact]);
-  const listRef = useRef<FlatList<MobileMessage>>(null);
-  const [data, setData] = useState<ConversationDetailResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [draft, setDraft] = useState("");
-  const [sending, setSending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [liveUpdates, setLiveUpdates] = useState(false);
-  const BackIcon = isRtl ? ChevronRight : ChevronLeft;
+type ConversationPolicy = ConversationDetailResponse["conversation"] & { participantRole?: "talent" | "publisher"; startPolicy?: "publisher_starts"; canSend?: boolean };
 
-  const appendMessage = useCallback((message: MobileMessage) => {
-    setData((current) => {
-      if (!current || current.messages.some((item) => String(item.id) === String(message.id))) return current;
-      return { ...current, messages: [...current.messages, message] };
-    });
-    requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
-  }, []);
+export default function ConversationScreen(){
+  const params=useLocalSearchParams<{id?:string|string[]}>();const conversationId=Array.isArray(params.id)?params.id[0]:params.id;
+  const {locale}=useAppLocale();const ar=locale==="ar",rtl=isRtlLocale(locale),Back=rtl?ChevronRight:ChevronLeft;
+  const listRef=useRef<FlatList<MobileMessage>>(null);
+  const [data,setData]=useState<ConversationDetailResponse|null>(null),[loading,setLoading]=useState(true),[draft,setDraft]=useState(""),[sending,setSending]=useState(false),[error,setError]=useState<string|null>(null),[live,setLive]=useState(false);
+  const append=useCallback((message:MobileMessage)=>{setData((current)=>!current||current.messages.some((x)=>String(x.id)===String(message.id))?current:{...current,messages:[...current.messages,message]});requestAnimationFrame(()=>listRef.current?.scrollToEnd({animated:true}));},[]);
+  const load=useCallback(async()=>{if(!conversationId){setError(ar?"تعذر تحديد المحادثة.":"Unable to identify the conversation.");setLoading(false);return;}setLoading(true);setError(null);try{const result=await getConversation(conversationId);if(!result)setError(ar?"هذه المحادثة غير متاحة لهذا الحساب.":"This conversation is unavailable for this account.");else{setData(result);void markConversationRead(conversationId);}}catch{setError(ar?"تعذر فتح المحادثة. تحقق من الاتصال وحاول مرة أخرى.":"Unable to open the conversation. Check your connection and try again.");}finally{setLoading(false);}},[ar,conversationId]);
+  useEffect(()=>{void load();},[load]);
+  useEffect(()=>{if(!conversationId)return;let cleanup:(()=>void)|undefined;let active=true;void getCurrentUserId().then((id)=>{if(!active||!id)return;cleanup=subscribeToConversationMessages({conversationId,currentUserId:id,onMessage:(message)=>{append(message);if(!message.isMine)void markConversationRead(conversationId);}});if(active)setLive(true);});return()=>{active=false;setLive(false);cleanup?.();};},[append,conversationId]);
 
-  const load = useCallback(async () => {
-    if (!conversationId) {
-      setLoading(false);
-      setError(isArabic ? "تعذر تحديد المحادثة." : "Unable to identify this conversation.");
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await getConversation(conversationId);
-      if (!result) setError(isArabic ? "هذه المحادثة غير متاحة لهذا الحساب أو تعذر الوصول إليها الآن." : "This conversation is unavailable for this account or cannot be reached right now.");
-      else {
-        setData(result);
-        void markConversationRead(conversationId);
-      }
-    } catch {
-      setError(isArabic ? "تعذر فتح المحادثة. تحقق من الاتصال وحاول مرة أخرى." : "Unable to open this conversation. Check your connection and try again.");
-    } finally {
-      setLoading(false);
-    }
-  }, [conversationId, isArabic]);
+  async function submit(){const body=draft.trim();if(!conversationId||!body||sending)return;setSending(true);setError(null);try{const result=await sendMessage(conversationId,body);if(result.ok){setDraft("");append(result.message);}else{const map:Record<string,{ar:string;en:string}>={EMPTY_MESSAGE:{ar:"اكتب رسالة قبل الإرسال.",en:"Write a message before sending."},MESSAGE_TOO_LONG:{ar:"الرسالة طويلة جدًا. الحد الأقصى 4000 حرف.",en:"The message is too long. Maximum 4,000 characters."},CONVERSATION_NOT_ACTIVE:{ar:"هذه المحادثة مغلقة حاليًا.",en:"This conversation is currently closed."},PUBLISHER_MUST_START:{ar:"ينتظر بدء الناشر للمحادثة وفق سياسة ملامح.",en:"Waiting for the publisher to start this conversation under MLAMH policy."},NOT_FOUND:{ar:"المحادثة غير متاحة لهذا الحساب.",en:"This conversation is not available for this account."},UNAUTHENTICATED:{ar:"انتهت جلسة الدخول. سجّل الدخول للمتابعة.",en:"Your session expired. Sign in to continue."},REQUEST_FAILED:{ar:"تعذر إرسال الرسالة بسبب الاتصال.",en:"The message could not be sent because of a connection problem."}};setError((map[result.code]??{ar:"تعذر إرسال الرسالة.",en:"Unable to send the message."})[locale]);}}catch{setError(ar?"تعذر إرسال الرسالة. حاول مرة أخرى.":"Unable to send the message. Try again.");}finally{setSending(false);}}
+  if(loading)return <ScreenSkeleton variant="detail" locale={locale} label={ar?"جارٍ تحميل المحادثة":"Loading conversation"}/>;
+  if(!data)return <SafeAreaView style={s.center} edges={["top","bottom"]}><Text style={s.centerError}>{error}</Text><Pressable onPress={()=>void load()} style={s.secondary}><Text style={s.secondaryText}>{ar?"إعادة المحاولة":"Try again"}</Text></Pressable><Pressable onPress={()=>router.back()}><Text style={s.backText}>{ar?"رجوع":"Back"}</Text></Pressable></SafeAreaView>;
 
-  useEffect(() => { void load(); }, [load]);
+  const policy=data.conversation as ConversationPolicy;
+  const publisherStarts=policy.startPolicy==="publisher_starts"||policy.participantRole==="talent"&&data.messages.length===0;
+  const canSend=policy.canSend??(data.conversation.status==="active"&&!(policy.participantRole==="talent"&&data.messages.length===0));
+  const emptyText=policy.participantRole==="talent"&&publisherStarts?(ar?"تم الاختيار. تنتظر الآن رسالة الناشر الأولى، وبعدها يصبح التواصل متاحًا للطرفين.":"You were selected. The publisher sends the first message, then messaging is open to both sides."):(ar?"المحادثة جاهزة. ابدأ برسالة واضحة مرتبطة بالفرصة.":"The conversation is ready. Start with a clear message tied to the opportunity.");
 
-  useEffect(() => {
-    if (!conversationId) return;
-    let cleanup: (() => void) | undefined;
-    let active = true;
-    void getCurrentUserId().then((currentUserId) => {
-      if (!active || !currentUserId) return;
-      cleanup = subscribeToConversationMessages({
-        conversationId,
-        currentUserId,
-        onMessage: (message) => {
-          appendMessage(message);
-          if (!message.isMine) void markConversationRead(conversationId);
-        },
-      });
-      if (active) setLiveUpdates(true);
-    });
-    return () => {
-      active = false;
-      setLiveUpdates(false);
-      cleanup?.();
-    };
-  }, [appendMessage, conversationId]);
-
-  async function submit() {
-    const body = draft.trim();
-    if (!conversationId || !body || sending) return;
-    setSending(true);
-    setError(null);
-    try {
-      const result = await sendMessage(conversationId, body);
-      if (result.ok) {
-        setDraft("");
-        appendMessage(result.message);
-      } else {
-        const messages: Record<string, { ar: string; en: string }> = {
-          EMPTY_MESSAGE: { ar: "اكتب رسالة قبل الإرسال.", en: "Write a message before sending." },
-          MESSAGE_TOO_LONG: { ar: "الرسالة طويلة جدًا. الحد الأقصى 4000 حرف.", en: "The message is too long. Maximum 4,000 characters." },
-          CONVERSATION_NOT_ACTIVE: { ar: "هذه المحادثة مغلقة حاليًا.", en: "This conversation is currently closed." },
-          NOT_FOUND: { ar: "المحادثة غير متاحة لهذا الحساب.", en: "This conversation is not available for this account." },
-          UNAUTHENTICATED: { ar: "انتهت جلسة الدخول. سجّل الدخول للمتابعة.", en: "Your session expired. Sign in to continue." },
-          REQUEST_FAILED: { ar: "تعذر إرسال الرسالة بسبب الاتصال. حاول مرة أخرى.", en: "The message could not be sent because of a connection problem. Try again." },
-        };
-        const message = messages[result.code];
-        setError(message ? message[locale] : (isArabic ? "تعذر إرسال الرسالة." : "Unable to send the message."));
-      }
-    } catch {
-      setError(isArabic ? "تعذر إرسال الرسالة. حاول مرة أخرى." : "Unable to send the message. Please try again.");
-    } finally {
-      setSending(false);
-    }
-  }
-
-  if (loading) return <ScreenSkeleton variant="detail" locale={locale} label={isArabic ? "جارٍ تحميل المحادثة" : "Loading conversation"} />;
-  if (!data) return <SafeAreaView style={styles.centered} edges={["top", "bottom"]}><Text accessibilityRole="alert" style={[styles.error, isRtl && styles.textRtl]}>{error}</Text><Pressable style={styles.secondaryButton} onPress={() => void load()}><Text style={styles.secondaryButtonText}>{isArabic ? "إعادة المحاولة" : "Try again"}</Text></Pressable><Pressable onPress={() => router.back()}><Text style={styles.back}>{isArabic ? "رجوع" : "Back"}</Text></Pressable></SafeAreaView>;
-
-  const canSend = data.conversation.status === "active";
-  return <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
-    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={0}>
-      <View style={[styles.header, isRtl && styles.rowRtl]}>
-        <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "رجوع" : "Back"} onPress={() => router.back()} hitSlop={10} style={styles.backButton}><BackIcon size={22} color={theme.text} strokeWidth={1.9} /></Pressable>
-        <View style={[styles.headerIdentity, isRtl && styles.rowRtl]}>
-          <View style={styles.avatar}><Text style={styles.avatarText}>{data.conversation.partyName.slice(0, 1)}</Text></View>
-          <View style={styles.headerText}><Text accessibilityRole="header" numberOfLines={1} style={[styles.partyName, isRtl && styles.textRtl]}>{data.conversation.partyName}</Text><Text numberOfLines={1} style={[styles.contextLine, isRtl && styles.textRtl]}>{data.conversation.opportunityTitle ?? (isArabic ? "محادثة ملامح" : "MLAMH conversation")}</Text></View>
-        </View>
-        <View style={[styles.livePill, !liveUpdates && styles.syncingPill]}><Text style={[styles.liveText, !liveUpdates && styles.syncingText]}>{liveUpdates ? (isArabic ? "مباشر" : "Live") : (isArabic ? "مزامنة" : "Syncing")}</Text></View>
-      </View>
-
-      <FlatList ref={listRef} data={data.messages} keyExtractor={(item) => String(item.id)} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.messages} onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })} renderItem={({ item }) => <MessageBubble message={item} locale={locale} styles={styles} isRtl={isRtl} />} ListEmptyComponent={<Text style={styles.empty}>{isArabic ? "المحادثة جاهزة. أرسل أول رسالة عندما تكون مستعدًا." : "The conversation is ready. Send your first message when you are ready."}</Text>} />
-
-      <View style={styles.composer}>{error ? <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={[styles.inlineError, isRtl && styles.textRtl]}>{error}</Text> : null}<View style={[styles.composerRow, isRtl && styles.rowRtl]}><TextInput accessibilityLabel={isArabic ? "نص الرسالة" : "Message text"} value={draft} onChangeText={setDraft} editable={canSend && !sending} multiline maxLength={4000} placeholder={canSend ? (isArabic ? "اكتب رسالة" : "Write a message") : (isArabic ? "المحادثة مغلقة" : "Conversation closed")} placeholderTextColor={theme.muted} textAlign={isRtl ? "right" : "left"} style={[styles.input, isRtl && styles.textRtl]} /><Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "إرسال الرسالة" : "Send message"} disabled={!canSend || !draft.trim() || sending} style={({ pressed }) => [styles.sendButton, (pressed || !canSend || !draft.trim() || sending) && styles.sendDisabled]} onPress={() => void submit()}>{sending ? <ActivityIndicator color={theme.background} /> : <Send size={18} color={theme.background} strokeWidth={2.1} style={isRtl ? { transform: [{ rotate: "180deg" }] } : undefined} />}</Pressable></View></View>
-    </KeyboardAvoidingView>
-  </SafeAreaView>;
+  return <SafeAreaView style={s.screen} edges={["top","bottom"]}><KeyboardAvoidingView style={s.screen} behavior={Platform.OS==="ios"?"padding":undefined}>
+    <View style={[s.header,rtl&&s.rowRtl]}><Pressable onPress={()=>router.back()} style={s.backButton}><Back size={22} color={darkTheme.text}/></Pressable><View style={s.avatar}><Text style={s.avatarText}>{data.conversation.partyName.slice(0,1).toUpperCase()}</Text></View><View style={s.headerCopy}><Text numberOfLines={1} style={[s.party,txt(rtl)]}>{data.conversation.partyName}</Text><Text numberOfLines={1} style={[s.context,txt(rtl)]}>{data.conversation.opportunityTitle??(ar?"محادثة ملامح":"MLAMH conversation")}</Text></View><View style={[s.live,!live&&s.syncing]}><Wifi size={11} color={live?darkTheme.accent:darkTheme.muted}/><Text style={[s.liveText,!live&&s.syncText]}>{live?(ar?"مباشر":"Live"):(ar?"مزامنة":"Syncing")}</Text></View></View>
+    <View style={[s.privacy,rtl&&s.rowRtl]}><LockKeyhole size={14} color={darkTheme.accent}/><Text style={[s.privacyText,txt(rtl)]}>{ar?"هذه المحادثة مرتبطة بالفرصة. لا حاجة لمشاركة بيانات شخصية خارج ملامح.":"This conversation is tied to the opportunity. Keep personal contact details inside the protected workflow."}</Text></View>
+    <FlatList ref={listRef} data={data.messages} keyExtractor={(x)=>String(x.id)} keyboardShouldPersistTaps="handled" contentContainerStyle={s.messages} onContentSizeChange={()=>listRef.current?.scrollToEnd({animated:false})} renderItem={({item})=><Bubble message={item} locale={locale}/>} ListEmptyComponent={<View style={s.empty}><Text style={[s.emptyText,txt(rtl)]}>{emptyText}</Text></View>}/>
+    <View style={s.composer}>{error?<Text style={[s.inlineError,txt(rtl)]}>{error}</Text>:null}{!canSend&&policy.participantRole==="talent"?<Text style={[s.waiting,txt(rtl)]}>{ar?"بانتظار الناشر لبدء المحادثة":"Waiting for the publisher to start"}</Text>:null}<View style={[s.composeRow,rtl&&s.rowRtl]}><TextInput value={draft} onChangeText={setDraft} editable={canSend&&!sending} multiline maxLength={4000} placeholder={canSend?(ar?"اكتب رسالة":"Write a message"):(ar?"التواصل غير متاح الآن":"Messaging is not available yet")} placeholderTextColor={darkTheme.muted} textAlign={rtl?"right":"left"} style={[s.input,txt(rtl)]}/><Pressable disabled={!canSend||!draft.trim()||sending} onPress={()=>void submit()} style={[s.send,(!canSend||!draft.trim()||sending)&&s.disabled]}>{sending?<ActivityIndicator color={darkTheme.background}/>:<Send size={18} color={darkTheme.background} style={rtl?{transform:[{rotate:"180deg"}]}:undefined}/>}</Pressable></View></View>
+  </KeyboardAvoidingView></SafeAreaView>;
 }
-
-function MessageBubble({ message, locale, styles, isRtl }: { message: MobileMessage; locale: "ar" | "en"; styles: ReturnType<typeof createStyles>; isRtl: boolean }) {
-  const label = message.isMine ? `${locale === "ar" ? "أنت" : "You"}: ${message.body}` : message.body;
-  return <View accessible accessibilityLabel={label} style={[styles.bubble, message.isMine ? styles.mine : styles.theirs]}><Text style={[styles.messageText, message.isMine && styles.mineText, isRtl && styles.textRtl]}>{message.body}</Text></View>;
-}
-
-function createStyles(theme: typeof darkTheme, compact: boolean) {
-  return StyleSheet.create({
-    screen: { flex: 1, backgroundColor: theme.background }, centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 18, padding: 24, backgroundColor: theme.background }, rowRtl: { flexDirection: "row-reverse" }, textRtl: { textAlign: "right", writingDirection: "rtl" },
-    header: { paddingHorizontal: compact ? 10 : 14, paddingVertical: compact ? 8 : 10, borderBottomWidth: 1, borderBottomColor: theme.border, backgroundColor: theme.background, flexDirection: "row", alignItems: "center", gap: compact ? 7 : 10, minHeight: compact ? 60 : 66 }, backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, alignItems: "center", justifyContent: "center" },
-    headerIdentity: { flex: 1, flexDirection: "row", alignItems: "center", gap: compact ? 8 : 10 }, avatar: { width: compact ? 36 : 40, height: compact ? 36 : 40, borderRadius: 20, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, alignItems: "center", justifyContent: "center" }, avatarText: { color: theme.accent, fontSize: compact ? 15 : 17, fontWeight: "800" }, headerText: { flex: 1, gap: 2 }, partyName: { color: theme.text, fontSize: compact ? 14 : 15, fontWeight: "800" }, contextLine: { color: theme.muted, fontSize: 10 }, livePill: { minHeight: 28, paddingHorizontal: 8, borderRadius: 14, borderWidth: 1, borderColor: "#C9A96255", alignItems: "center", justifyContent: "center" }, syncingPill: { borderColor: theme.border }, liveText: { color: theme.accent, fontSize: 8, fontWeight: "900" }, syncingText: { color: theme.muted },
-    messages: { paddingHorizontal: compact ? 12 : 16, paddingTop: 14, paddingBottom: 14, gap: 8, flexGrow: 1, justifyContent: "flex-end" }, bubble: { maxWidth: compact ? "86%" : "82%", borderRadius: 17, paddingHorizontal: compact ? 12 : 14, paddingVertical: 10 }, mine: { alignSelf: "flex-end", backgroundColor: theme.accent, borderBottomRightRadius: 5 }, theirs: { alignSelf: "flex-start", backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border, borderBottomLeftRadius: 5 }, messageText: { color: theme.text, fontSize: compact ? 14 : 15, lineHeight: compact ? 20 : 21 }, mineText: { color: theme.background, fontWeight: "600" }, empty: { color: theme.muted, textAlign: "center", paddingVertical: 50, fontSize: 12, lineHeight: 19 },
-    composer: { borderTopWidth: 1, borderTopColor: theme.border, paddingHorizontal: compact ? 10 : 12, paddingTop: 8, paddingBottom: 8, gap: 6, backgroundColor: theme.background }, composerRow: { flexDirection: "row", alignItems: "flex-end", gap: 8 }, input: { flex: 1, maxHeight: 120, minHeight: compact ? 46 : 48, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, color: theme.text, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 11, fontSize: compact ? 14 : 15 }, sendButton: { width: compact ? 46 : 48, height: compact ? 46 : 48, borderRadius: 15, backgroundColor: theme.accent, alignItems: "center", justifyContent: "center" }, sendDisabled: { opacity: 0.4 },
-    error: { color: theme.text, textAlign: "center", fontSize: 16, lineHeight: 23 }, inlineError: { color: "#E59A9A", fontSize: 11, textAlign: "center" }, secondaryButton: { borderWidth: 1, borderColor: theme.border, borderRadius: 14, minHeight: 48, paddingHorizontal: 20, paddingVertical: 12, justifyContent: "center" }, secondaryButtonText: { color: theme.text, fontWeight: "600" }, back: { color: theme.accent, fontSize: 13, fontWeight: "700", paddingVertical: 12, paddingHorizontal: 16 },
-  });
-}
+function Bubble({message,locale}:{message:MobileMessage;locale:"ar"|"en"}){const rtl=locale==="ar";return <View style={[s.bubble,message.isMine?s.mine:s.theirs]}><Text style={[s.message,message.isMine&&s.mineText,txt(rtl)]}>{message.body}</Text><Text style={[s.messageTime,message.isMine&&s.mineTime]}>{formatRelativeTime(message.createdAt,locale)}</Text></View>}
+function txt(rtl:boolean){return{textAlign:rtl?"right" as const:"left" as const,writingDirection:rtl?"rtl" as const:"ltr" as const}}
+const s=StyleSheet.create({screen:{flex:1,backgroundColor:darkTheme.background},center:{flex:1,alignItems:"center",justifyContent:"center",gap:14,padding:24,backgroundColor:darkTheme.background},centerError:{color:darkTheme.text,textAlign:"center"},secondary:{minHeight:46,borderWidth:1,borderColor:darkTheme.border,borderRadius:14,paddingHorizontal:18,alignItems:"center",justifyContent:"center"},secondaryText:{color:darkTheme.text,fontWeight:"800"},backText:{color:darkTheme.accent,fontWeight:"800"},rowRtl:{flexDirection:"row-reverse"},header:{minHeight:68,paddingHorizontal:12,paddingVertical:10,borderBottomWidth:1,borderBottomColor:darkTheme.border,flexDirection:"row",alignItems:"center",gap:9},backButton:{width:42,height:42,borderRadius:14,borderWidth:1,borderColor:darkTheme.border,backgroundColor:darkTheme.surface,alignItems:"center",justifyContent:"center"},avatar:{width:40,height:40,borderRadius:20,borderWidth:1,borderColor:"#C9A96244",alignItems:"center",justifyContent:"center"},avatarText:{color:darkTheme.accent,fontWeight:"900"},headerCopy:{flex:1,minWidth:0,gap:2},party:{color:darkTheme.text,fontSize:14,fontWeight:"900"},context:{color:darkTheme.muted,fontSize:9},live:{minHeight:28,borderRadius:999,borderWidth:1,borderColor:"#C9A96244",paddingHorizontal:8,flexDirection:"row",alignItems:"center",gap:4},syncing:{borderColor:darkTheme.border},liveText:{color:darkTheme.accent,fontSize:8,fontWeight:"900"},syncText:{color:darkTheme.muted},privacy:{marginHorizontal:12,marginTop:8,padding:9,borderRadius:12,backgroundColor:"#C9A96208",flexDirection:"row",alignItems:"center",gap:7},privacyText:{flex:1,color:darkTheme.muted,fontSize:9,lineHeight:14},messages:{padding:14,gap:8,flexGrow:1,justifyContent:"flex-end"},bubble:{maxWidth:"84%",borderRadius:17,paddingHorizontal:13,paddingTop:9,paddingBottom:6,gap:4},mine:{alignSelf:"flex-end",backgroundColor:darkTheme.accent,borderBottomRightRadius:5},theirs:{alignSelf:"flex-start",backgroundColor:darkTheme.surface,borderWidth:1,borderColor:darkTheme.border,borderBottomLeftRadius:5},message:{color:darkTheme.text,fontSize:14,lineHeight:20},mineText:{color:darkTheme.background,fontWeight:"600"},messageTime:{color:darkTheme.muted,fontSize:7,textAlign:"right"},mineTime:{color:"#15151599"},empty:{padding:28,alignItems:"center"},emptyText:{color:darkTheme.muted,fontSize:11,lineHeight:18,maxWidth:320},composer:{borderTopWidth:1,borderTopColor:darkTheme.border,padding:10,gap:6},composeRow:{flexDirection:"row",alignItems:"flex-end",gap:8},input:{flex:1,minHeight:48,maxHeight:120,borderWidth:1,borderColor:darkTheme.border,borderRadius:16,backgroundColor:darkTheme.surface,color:darkTheme.text,paddingHorizontal:13,paddingVertical:11},send:{width:48,height:48,borderRadius:15,backgroundColor:darkTheme.accent,alignItems:"center",justifyContent:"center"},disabled:{opacity:.35},inlineError:{color:"#E59A9A",fontSize:10},waiting:{color:darkTheme.accent,fontSize:10}});
