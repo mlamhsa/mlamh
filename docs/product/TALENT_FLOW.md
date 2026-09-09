@@ -24,6 +24,8 @@ Email/password signup uses a 6-digit email OTP verification experience inside ML
 
 Supabase email templates for the signup verification flow must render the OTP token (`{{ .Token }}`) rather than only `{{ .ConfirmationURL }}`). Link-based confirmation may remain as a compatibility fallback during transition, but OTP is the canonical MLAMH user experience.
 
+Hosted Supabase setup and the exact MLAMH email template are documented in `docs/auth/EMAIL_OTP_SETUP.md`.
+
 Talent Flow V1 closeout requires a real inbox smoke test proving the hosted Supabase Confirm signup template sends a usable 6-digit code and the code completes account setup into the Talent Dashboard.
 
 ### Google signup
