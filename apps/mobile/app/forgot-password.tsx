@@ -4,14 +4,17 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { ArrowLeft, ArrowRight, Mail } from "lucide-react-native";
 
-import { getDeviceLocale, isRtlLocale } from "@/lib/i18n";
+import { getMobileAccountContext } from "@/lib/account";
+import { isRtlLocale } from "@/lib/i18n";
+import { useAppLocale } from "@/lib/locale-context";
+import { leaveAuthenticatedScreen } from "@/lib/navigation";
 import { supabase } from "@/lib/supabase";
 import { darkTheme } from "@/lib/theme";
 
 function isValidEmail(value: string) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value); }
 
 export default function ForgotPasswordScreen() {
-  const locale = getDeviceLocale();
+  const { locale } = useAppLocale();
   const isArabic = locale === "ar";
   const isRtl = isRtlLocale(locale);
   const { width, height } = useWindowDimensions();
@@ -20,6 +23,7 @@ export default function ForgotPasswordScreen() {
   const styles = useMemo(() => createStyles(theme, compact), [compact, theme]);
   const [email, setEmail] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [accountType, setAccountType] = useState<"talent" | "publisher">("talent");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -27,10 +31,14 @@ export default function ForgotPasswordScreen() {
 
   useEffect(() => {
     let active = true;
-    void supabase.auth.getUser().then(({ data }) => {
+    void Promise.all([
+      supabase.auth.getUser(),
+      getMobileAccountContext().catch(() => null),
+    ]).then(([auth, account]) => {
       if (!active) return;
-      const user = data.user;
+      const user = auth.data.user;
       setIsAuthenticated(Boolean(user));
+      setAccountType(account?.type === "publisher" ? "publisher" : "talent");
       if (user?.email) setEmail((current) => current || user.email || "");
     });
     return () => { active = false; };
@@ -62,7 +70,7 @@ export default function ForgotPasswordScreen() {
 
   function leaveRecovery() {
     if (isAuthenticated) {
-      router.back();
+      leaveAuthenticatedScreen(accountType === "publisher" ? "/publisher/settings" : "/profile/settings");
       return;
     }
     router.replace("/login");
@@ -76,7 +84,7 @@ export default function ForgotPasswordScreen() {
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <View style={[styles.content, { direction: isRtl ? "rtl" : "ltr" }]}>
           <View style={[styles.top, isRtl && styles.rowRtl]}>
-            <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "رجوع" : "Back"} onPress={() => router.back()} style={styles.iconButton}><BackIcon size={21} color={theme.text} strokeWidth={1.9} /></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "رجوع" : "Back"} onPress={leaveRecovery} style={styles.iconButton}><BackIcon size={21} color={theme.text} strokeWidth={1.9} /></Pressable>
             <Text style={[styles.brand, isArabic && styles.arabicText, isRtl && styles.textRtl]}>{isArabic ? "ملامح" : "MLAMH"}</Text>
           </View>
 
