@@ -61,7 +61,7 @@ export async function getOwnTalentProfileAction(locale: Locale) {
     adminClient.from("talents").select("*").eq("user_id", user.id).maybeSingle(),
     adminClient
       .from("profiles")
-      .select(`id, phone, approval_status`)
+      .select(`id, phone, approval_status, data_accuracy_contact_consent`)
       .eq("user_id", user.id)
       .maybeSingle(),
   ]);
@@ -97,6 +97,8 @@ export async function getOwnTalentProfileAction(locale: Locale) {
     ...talent,
     phone: profile?.phone ?? "",
     approval_status: profile?.approval_status ?? "not_submitted",
+    data_accuracy_contact_consent:
+      profile?.data_accuracy_contact_consent === true,
     review_reason: reviewReason,
   };
 }
