@@ -1,5 +1,15 @@
 import { type Href, router } from "expo-router";
 
+export type MobileAccountRole = "talent" | "publisher";
+
+export function getRoleMessagesHref(role: MobileAccountRole): Href {
+  return role === "publisher" ? "/publisher/messages" : "/messages";
+}
+
+export function getRoleSettingsHref(role: MobileAccountRole): Href {
+  return role === "publisher" ? "/publisher/settings" : "/profile/settings";
+}
+
 /**
  * Use only for screens whose history is safe to revisit. Auth/onboarding screens
  * should prefer deterministic role-aware replacements so guest routes never leak
