@@ -51,6 +51,7 @@ export type TalentDirectoryFilters = {
   availability?: string;
   readyToTravel?: "true" | "";
   page?: number;
+  pageSize?: number;
 };
 
 function append(params: URLSearchParams, key: string, value: string | number | undefined) {
@@ -91,7 +92,8 @@ export async function getMobileTalents(locale: AppLocale, filters: TalentDirecto
   append(params, "availability", filters.availability?.trim());
   append(params, "readyToTravel", filters.readyToTravel);
   append(params, "page", filters.page ?? 1);
-  params.set("pageSize", "20");
+  const pageSize = Math.min(40, Math.max(1, Math.floor(filters.pageSize ?? 20)));
+  params.set("pageSize", String(pageSize));
 
   let response: Response;
   try { response = await fetch(`${MOBILE_API_BASE_URL}/api/mobile/talents?${params.toString()}`, { headers: await viewerHeaders() }); }
