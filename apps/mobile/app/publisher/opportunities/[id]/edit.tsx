@@ -97,6 +97,8 @@ export default function EditPublisherOpportunityScreen() {
   function openDate(field: DateField) { const source = field === "workDate" ? workDate : field === "applicationStartDate" ? applicationStartDate : applicationDeadline; setDateValue(parseIsoDate(source) ?? new Date()); setDateField(field); }
   function commitDate() { if (!dateField) return; const value = formatIsoDate(dateValue); if (dateField === "workDate") setWorkDate(value); else if (dateField === "applicationStartDate") setApplicationStartDate(value); else setApplicationDeadline(value); setDateField(null); }
 
+  function leaveEdit() { leaveAuthenticatedScreen({ pathname: "/publisher/opportunities/[id]", params: { id: String(opportunityId) } }); }
+
   async function save() {
     if (saving) return;
     if (title.trim().length < 4 || description.trim().length < 20) { setError(isArabic ? "العنوان يجب أن يكون واضحًا والوصف 20 حرفًا على الأقل." : "Use a clear title and a description of at least 20 characters."); return; }
@@ -109,16 +111,16 @@ export default function EditPublisherOpportunityScreen() {
         roleRequirements: opportunityType === "actor" ? { languages, dialects } : { modelingTypes, minHeightCm: minHeightCm ? Number(minHeightCm) : null, hairColor: hairColor || null },
       });
       if (!result.ok) { setError(editError(result.code, locale)); return; }
-      leaveAuthenticatedScreen( { pathname: "/publisher/opportunities/[id]", params: { id: String(opportunityId) } } );
+      leaveEdit();
     } catch { setError(isArabic ? "تعذر حفظ التعديلات. تحقق من الاتصال وحاول مرة أخرى." : "Unable to save. Check your connection and try again."); }
     finally { setSaving(false); }
   }
 
   if (loading) return <SafeAreaView style={styles.centered}><ActivityIndicator size="large" color={theme.accent} /><Text style={styles.loadingText}>{isArabic ? "جارٍ تحميل الفرصة…" : "Loading opportunity…"}</Text></SafeAreaView>;
-  if (!detail || detail.opportunity.status === "archived") return <SafeAreaView style={styles.centered}><Text accessibilityRole="alert" style={[styles.error, textRtl]}>{error || (isArabic ? "لا يمكن تعديل فرصة مؤرشفة." : "Archived opportunities cannot be edited.")}</Text><Pressable onPress={() => router.back()}><Text style={styles.backText}>{isArabic ? "رجوع" : "Back"}</Text></Pressable></SafeAreaView>;
+  if (!detail || detail.opportunity.status === "archived") return <SafeAreaView style={styles.centered}><Text accessibilityRole="alert" style={[styles.error, textRtl]}>{error || (isArabic ? "لا يمكن تعديل فرصة مؤرشفة." : "Archived opportunities cannot be edited.")}</Text><Pressable onPress={leaveEdit}><Text style={styles.backText}>{isArabic ? "رجوع" : "Back"}</Text></Pressable></SafeAreaView>;
 
   return <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === "ios" ? "padding" : undefined}><SafeAreaView style={styles.screen} edges={["top", "bottom"]}><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.content, compact && styles.contentCompact, { direction: isRtl ? "rtl" : "ltr" }]} showsVerticalScrollIndicator={false}>
-    <View style={[styles.topBar, rowRtl]}><Pressable onPress={() => router.back()} style={styles.backButton}><BackIcon size={21} color={theme.text} /></Pressable><Text style={[styles.topLabel, textRtl]}>{isArabic ? "تعديل المسودة" : "Edit draft"}</Text></View>
+    <View style={[styles.topBar, rowRtl]}><Pressable onPress={leaveEdit} style={styles.backButton}><BackIcon size={21} color={theme.text} /></Pressable><Text style={[styles.topLabel, textRtl]}>{isArabic ? "تعديل المسودة" : "Edit draft"}</Text></View>
     <View style={styles.hero}><Text style={[styles.eyebrow, isArabic && styles.noTracking, textRtl]}>{isArabic ? "ملامح للأعمال" : "MLAMH FOR BUSINESS"}</Text><Text accessibilityRole="header" style={[styles.title, compact && styles.titleCompact, textRtl]}>{isArabic ? "تعديل الفرصة" : "Edit opportunity"}</Text><Text style={[styles.body, textRtl]}>{isArabic ? "حدّث تفاصيل موجز الفرصة بنفس تجربة الإنشاء." : "Update the brief using the same native creation flow."}</Text></View>
 
     <View style={[styles.formCard, compact && styles.formCardCompact]}>
