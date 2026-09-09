@@ -4,8 +4,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { ChevronDown, ChevronLeft, ChevronRight, FileText, RotateCcw, ShieldCheck } from "lucide-react-native";
 
+import { getMobileAccountContext } from "@/lib/account";
 import { LEGAL_DOCUMENT_KEYS, LEGAL_DOCUMENTS, type LegalDocumentKey } from "@/lib/legal-content";
 import { useAppLocale } from "@/lib/locale-context";
+import { leaveAuthenticatedScreen } from "@/lib/navigation";
 import { darkTheme } from "@/lib/theme";
 
 const BRAND_LOGO_AR = require("../assets/logo.ar.png");
@@ -24,6 +26,7 @@ export default function LegalScreen() {
   const styles = useMemo(() => createStyles(darkTheme), []);
   const BackIcon = isRtl ? ChevronRight : ChevronLeft;
   const [open, setOpen] = useState<LegalDocumentKey | null>(initialSection);
+  const [accountType, setAccountType] = useState<"talent" | "publisher">("talent");
   const scrollRef = useRef<ScrollView>(null);
   const brandSource = isArabic ? BRAND_LOGO_AR : BRAND_LOGO_EN;
 
@@ -45,10 +48,21 @@ export default function LegalScreen() {
     resetScrollPosition();
   }, [requested]);
 
+  useEffect(() => {
+    let active = true;
+    void getMobileAccountContext().then((account) => {
+      if (!active) return;
+      setAccountType(account?.type === "publisher" ? "publisher" : "talent");
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, []);
+
+  const settingsRoute = accountType === "publisher" ? "/publisher/settings" : "/profile/settings";
+
   return <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
     <ScrollView ref={scrollRef} contentContainerStyle={[styles.content, compact && styles.contentCompact]} showsVerticalScrollIndicator={false}>
       <View style={[styles.top, isRtl && styles.rowRtl]}>
-        <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "رجوع" : "Back"} onPress={() => router.back()} style={styles.backButton}>
+        <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "رجوع" : "Back"} onPress={() => leaveAuthenticatedScreen(settingsRoute)} style={styles.backButton}>
           <BackIcon size={21} color={darkTheme.text} />
         </Pressable>
         <Image source={brandSource} resizeMode="contain" style={styles.brandLogo} />
