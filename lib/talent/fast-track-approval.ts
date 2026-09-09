@@ -22,6 +22,8 @@ function hasValue(value: unknown) {
   return value !== null && value !== undefined;
 }
 
+export const TALENT_AUTO_APPROVAL_COMPLETION_THRESHOLD = 70;
+
 export function evaluateTalentFastTrackApproval({
   talent,
   completion,
@@ -32,14 +34,14 @@ export function evaluateTalentFastTrackApproval({
   const reasons: string[] = [];
 
   /*
-   * إرسال الملف للمراجعة لا يعتمد على نسبة مئوية؛
-   * بل على اكتمال متطلبات الجاهزية الإلزامية.
-   * Fast Track فقط يحتاج اكتمالًا أعلى (70%+) إضافة إلى إشارات الجودة أدناه.
+   * Auto approval is intentionally separate from review readiness.
+   * A talent may submit once the mandatory approval fields are complete,
+   * while auto approval additionally requires a stronger completion score.
+   * Optional bio/languages/skills can improve profile strength and ranking,
+   * but none of them is a direct hard gate here.
    */
-  if (completion < 70) {
-    reasons.push(
-      "profile_completion_below_fast_track_threshold",
-    );
+  if (completion < TALENT_AUTO_APPROVAL_COMPLETION_THRESHOLD) {
+    reasons.push("profile_completion_below_fast_track_threshold");
   }
 
   if (!hasValue(talent.image_url)) {
@@ -54,29 +56,15 @@ export function evaluateTalentFastTrackApproval({
     reasons.push("missing_city");
   }
 
-  const hasName =
-    hasValue(talent.name_ar) ||
-    hasValue(talent.name_en);
-
+  const hasName = hasValue(talent.name_ar) || hasValue(talent.name_en);
   if (!hasName) {
     reasons.push("missing_name");
   }
 
   /*
-   * نحتاج نبذة فعلية، وليس مجرد ملف تقني مكتمل.
-   */
-  const hasBio =
-    hasValue(talent.bio_ar) ||
-    hasValue(talent.bio_en);
-
-  if (!hasBio) {
-    reasons.push("missing_bio");
-  }
-
-  /*
-   * لا نستخدم HOLD بعد.
-   * سنفعله فقط عندما يكون لدينا
-   * risk / moderation / duplicate signals حقيقية.
+   * HOLD is reserved for real moderation / duplicate / risk signals once
+   * those signals are available. Until then, incomplete fast-track criteria
+   * simply route the profile to manual review.
    */
   if (reasons.length > 0) {
     return {
