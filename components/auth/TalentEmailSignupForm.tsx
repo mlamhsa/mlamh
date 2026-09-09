@@ -84,10 +84,17 @@ export function TalentEmailSignupForm({ locale }: Props) {
     try {
       const supabase = createBrowserSupabaseClient();
       const now = new Date().toISOString();
+      const callback = new URL("/auth/callback", window.location.origin);
+      callback.searchParams.set("locale", locale);
+      callback.searchParams.set("mode", "signup");
+      callback.searchParams.set("type", "talent");
+      callback.searchParams.set("provider", "email");
+
       const { data, error } = await supabase.auth.signUp({
         email: cleanEmail,
         password,
         options: {
+          emailRedirectTo: callback.toString(),
           data: {
             full_name: cleanName,
             display_name: cleanName,
