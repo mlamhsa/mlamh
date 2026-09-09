@@ -10,6 +10,8 @@ export type MobilePublicTalent = {
   city: string | null;
   countryCode: string | null;
   imageUrl: string | null;
+  /** Detail-only; directory list payloads deliberately omit gallery media. */
+  galleryImages?: string[];
   featured: boolean;
   verified: boolean;
   gender: string | null;
@@ -26,7 +28,6 @@ export type MobilePublicTalent = {
 };
 
 export type MobileTalentDetail = MobilePublicTalent & {
-  /** Returned only by the detail endpoint after photo-visibility policy is applied. */
   galleryImages: string[];
 };
 
