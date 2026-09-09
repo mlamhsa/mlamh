@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 
+import { AdminTalentPrivacyNotice } from "@/components/admin/talents/AdminTalentPrivacyNotice";
 import { AdminTalentRecoveryPanel } from "@/components/admin/talents/AdminTalentRecoveryPanel";
 import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { TalentProfileService } from "@/lib/services/talent/TalentProfileService";
@@ -245,7 +246,11 @@ export default async function AdminTalentPage(props: PageProps) {
   return (
     <>
       <div dir={language === "ar" ? "rtl" : "ltr"} className="px-4 pt-6 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-7xl">
+        <div className="mx-auto max-w-7xl space-y-4">
+          <AdminTalentPrivacyNotice
+            language={language}
+            visibility={talent.profile_visibility}
+          />
           <AdminTalentRecoveryPanel
             talentId={talent.id}
             language={language}
