@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 import { createEvent, EVENT_TARGETS, EVENT_TYPES } from "@/lib/events";
 import { isValidLocale, type Locale } from "@/lib/i18n";
@@ -15,7 +16,6 @@ type SubmitReviewResult = {
   success: boolean;
   message: string;
   completion?: number;
-  code?: "PRIVACY_REQUIRED";
 };
 
 export async function submitTalentProfileReviewAction(
@@ -120,14 +120,7 @@ export async function submitTalentProfileReviewAction(
   }
 
   if (talent.gender === "female" && !(await isTalentPrivacyConfigured(user.id))) {
-    return {
-      success: false,
-      code: "PRIVACY_REQUIRED",
-      completion,
-      message: isArabic
-        ? "اختاري إعداد خصوصية الملف والصور قبل إرسال الملف للمراجعة."
-        : "Choose your profile and photo privacy before submitting your profile for review.",
-    };
+    redirect(`/${locale}/talent-dashboard/privacy?onboarding=1`);
   }
 
   const fastTrack = evaluateTalentFastTrackApproval({ talent, completion });
