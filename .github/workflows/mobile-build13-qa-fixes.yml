@@ -22,13 +22,24 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Apply patch
-        run: python .github/scripts/build13_patch2.py
-      - name: Commit Build 13 talent UX batch
+      - name: Fix talent profile type safety and compatibility
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('apps/mobile/app/talents/[slug].tsx')
+          s=p.read_text()
+          s=s.replace('item.galleryImages.length ?','(item.galleryImages ?? []).length ?')
+          s=s.replace('>{item.galleryImages.map((url,index)=>','>{(item.galleryImages ?? []).map((url,index)=>')
+          s=s.replace('[...item.languages, ...item.dialects].map((value)=>displayToken(value,locale))','[...item.languages, ...item.dialects].map((value)=>displayToken(value,locale)).filter((value): value is string => Boolean(value))')
+          s=s.replace('item.skills.map((value)=>displayToken(value,locale))','item.skills.map((value)=>displayToken(value,locale)).filter((value): value is string => Boolean(value))')
+          p.write_text(s)
+          PY
+      - name: Commit fix
         run: |
           git config user.name "mlamh-build-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add lib/mobile/public-talent-contract.ts apps/mobile/lib/talents.ts lib/talent/public-directory-filters.ts app/api/mobile/talents/route.ts lib/supabase/public-talents.ts apps/mobile/app/talents/index.tsx apps/mobile/app/talents/[slug].tsx
+          git add apps/mobile/app/talents/[slug].tsx
           git diff --cached --check
-          git commit -m "fix(mobile): complete Build 13 talent discovery UX"
+          git commit -m "fix(mobile): harden Build 13 talent profile contract"
           git push origin HEAD:feat/mobile-platform-phase0
