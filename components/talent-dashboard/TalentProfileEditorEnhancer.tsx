@@ -30,7 +30,7 @@ function buildNationalityOptions(select: HTMLSelectElement) {
   fragment.appendChild(placeholder);
 
   const sorted = [...NATIONALITIES].sort((a, b) =>
-    (ar ? a.ar : a.en).localeCompare(ar ? a.ar : a.en, ar ? "ar" : "en"),
+    (ar ? a.ar : a.en).localeCompare(ar ? b.ar : b.en, ar ? "ar" : "en"),
   );
 
   for (const nationality of sorted) {
