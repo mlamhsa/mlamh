@@ -60,9 +60,11 @@ async function readJson(response: Response) {
   if (!raw) return null;
   try { return JSON.parse(raw) as unknown; } catch { return null; }
 }
-async function viewerHeaders() {
+async function viewerHeaders(): Promise<Record<string, string>> {
   const { data: { session } } = await supabase.auth.getSession();
-  return session?.access_token ? { Accept: "application/json", Authorization: `Bearer ${session.access_token}` } : { Accept: "application/json" };
+  const headers: Record<string, string> = { Accept: "application/json" };
+  if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+  return headers;
 }
 
 export async function getMobileTalents(locale: AppLocale, filters: TalentDirectoryFilters = {}) {
