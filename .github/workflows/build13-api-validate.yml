@@ -13,6 +13,11 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://ozieysztwlispglupuox.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: sb_publishable_8fHyfoV7YWfed4yRhu_BOw_BtzOId8g
+      NEXT_PUBLIC_SITE_URL: https://mlamh.net
+      NEXT_PUBLIC_APP_URL: https://mlamh.net
     steps:
       - uses: actions/checkout@v4
         with:
