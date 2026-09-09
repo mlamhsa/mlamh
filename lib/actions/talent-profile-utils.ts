@@ -1,6 +1,7 @@
 import { NATIONALITIES } from "@/lib/data/nationalities";
 import { SAUDI_CITIES } from "@/lib/data/saudi-cities";
 import { TALENT_CATEGORIES } from "@/lib/data/talent-categories";
+import { TALENT_SIGNUP_COUNTRIES } from "@/lib/data/talent-signup";
 
 export const ALLOWED_AVAILABILITY = new Set([
   "available_now",
@@ -235,28 +236,51 @@ export function availabilityValue(
 }
 
 export function getSelectedCity(
-  formData: FormData
+  formData: FormData,
+  countryCode = "SA",
 ) {
   const citySlug = requiredStringValue(
     formData,
     "city_slug"
   );
 
-  const city = SAUDI_CITIES.find(
-    (item) => item.slug === citySlug
+  const normalizedCountryCode = countryCode.trim().toUpperCase() || "SA";
+  const signupCountry = TALENT_SIGNUP_COUNTRIES.find(
+    (item) => item.code === normalizedCountryCode,
+  );
+  const signupCity = signupCountry?.cities.find(
+    (item) => item.value === citySlug,
   );
 
-  if (!city) {
-    throw new Error(
-      "Invalid city selected."
-    );
+  if (signupCity) {
+    return {
+      base_country_code: normalizedCountryCode,
+      city_slug: signupCity.value,
+      city_ar: signupCity.ar,
+      city_en: signupCity.en,
+    };
   }
 
-  return {
-    city_slug: city.slug,
-    city_ar: city.ar,
-    city_en: city.en,
-  };
+  // Backward-compatible fallback for older Saudi city slugs that may not yet be
+  // duplicated in the compact signup dataset.
+  if (normalizedCountryCode === "SA") {
+    const city = SAUDI_CITIES.find(
+      (item) => item.slug === citySlug
+    );
+
+    if (city) {
+      return {
+        base_country_code: "SA",
+        city_slug: city.slug,
+        city_ar: city.ar,
+        city_en: city.en,
+      };
+    }
+  }
+
+  throw new Error(
+    "Invalid city selected for the residence country."
+  );
 }
 
 export function getSelectedNationality(
