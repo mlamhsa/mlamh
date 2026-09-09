@@ -1,0 +1,38 @@
+name: Validate Build 13 Mobile API Compatibility
+
+on:
+  push:
+    branches:
+      - release/build13-mobile-api
+    paths:
+      - ".github/workflows/build13-api-validate.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/build13-mobile-api
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.0"
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Production build
+        run: npm run build
+      - name: Confirm isolated scope
+        run: |
+          git diff --name-only origin/main...HEAD | sort
+      - name: Remove temporary validation workflow
+        if: success()
+        run: |
+          git config user.name "mlamh-build-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git rm .github/workflows/build13-api-validate.yml
+          git commit -m "chore: remove Build 13 API validation workflow"
+          git push origin HEAD:release/build13-mobile-api
