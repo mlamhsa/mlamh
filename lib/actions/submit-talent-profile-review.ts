@@ -9,11 +9,13 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { evaluateTalentFastTrackApproval } from "@/lib/talent/fast-track-approval";
 import { getTalentProfileReviewReadiness } from "@/lib/talent/profile-review-readiness";
+import { isTalentPrivacyConfigured } from "@/lib/talents/privacy";
 
 type SubmitReviewResult = {
   success: boolean;
   message: string;
   completion?: number;
+  code?: "PRIVACY_REQUIRED";
 };
 
 export async function submitTalentProfileReviewAction(
@@ -114,6 +116,17 @@ export async function submitTalentProfileReviewAction(
       message: isArabic
         ? `أكمل البيانات المطلوبة قبل إرسال الملف للمراجعة: ${missingFields}`
         : `Complete the required information before submitting your profile: ${missingFields}`,
+    };
+  }
+
+  if (talent.gender === "female" && !(await isTalentPrivacyConfigured(user.id))) {
+    return {
+      success: false,
+      code: "PRIVACY_REQUIRED",
+      completion,
+      message: isArabic
+        ? "اختاري إعداد خصوصية الملف والصور قبل إرسال الملف للمراجعة."
+        : "Choose your profile and photo privacy before submitting your profile for review.",
     };
   }
 
