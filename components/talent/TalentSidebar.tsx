@@ -69,6 +69,7 @@ export default function TalentSidebar({
 
   // Canonical Talent navigation order. Keep Portfolio next to Profile and make
   // Opportunities a first-class destination rather than a detached CTA.
+  // "Workspace" is intentionally reserved for the future Brief product.
   const items = [
     {
       href: dashboardHref,
@@ -139,7 +140,7 @@ export default function TalentSidebar({
     <aside className="w-full overflow-hidden rounded-[2rem] border border-white/10 bg-black/80 p-5 backdrop-blur-xl sm:p-6">
       <Link href={dashboardHref} className="block border-b border-white/10 pb-5">
         <p className="arabic-safe text-xs uppercase tracking-[0.28em] text-white/35">
-          {isAr ? "مساحة الموهبة" : "Talent Workspace"}
+          {isAr ? "لوحة الموهبة" : "Talent Dashboard"}
         </p>
       </Link>
 
