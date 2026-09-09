@@ -20,6 +20,9 @@ Talent / Looking for talent → Account creation + required basics → Email OTP
 - Profile visibility is required for every talent user without demographic exceptions.
 - Verification pages must respect the global navigation height so titles and controls are never hidden at the top of the viewport.
 
+### Auth release gate
+Talent Flow V1 is not considered closed until the hosted Supabase **Confirm signup** email template has been verified to deliver the 6-digit OTP token in the real email received by a test user. The application keeps confirmation-link handling only as a transition/compatibility fallback; OTP remains the approved MLAMH experience.
+
 ### Talent taxonomy direction
 Expand beyond Actor and Model into a broader talent list. Do not mix production crew roles into Talent taxonomy. Production crew/creative marketplace is a separate future expansion.
 
