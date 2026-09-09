@@ -25,6 +25,9 @@ type Locale = "ar" | "en";
 
 type ExistingTalentData = {
   base_country_code?: string | null;
+  city_slug?: string | null;
+  city_ar?: string | null;
+  city_en?: string | null;
   nationality_slug?: string | null;
   nationality?: string | null;
   height_cm?: number | string | null;
@@ -147,9 +150,22 @@ function buildTalentSharedPayload(
   existingTalent?: ExistingTalentData,
 ) {
   const selectedCategory = getSelectedCategory(formData);
-  const residenceCountryCode =
-    normalizeComparable(existingTalent?.base_country_code).toUpperCase() || "SA";
-  const selectedCity = getSelectedCity(formData, residenceCountryCode);
+  const residenceCountryCode = normalizeComparable(
+    existingTalent?.base_country_code,
+  ).toUpperCase();
+
+  // New Talent accounts already have residence/city from signup. Legacy records
+  // that genuinely have no residence country must stay untouched until the user
+  // explicitly chooses one; unrelated profile edits must never backfill Saudi Arabia.
+  const selectedCity = residenceCountryCode
+    ? getSelectedCity(formData, residenceCountryCode)
+    : {
+        base_country_code: null,
+        city_slug: existingTalent?.city_slug ?? nullableStringValue(formData, "city_slug"),
+        city_ar: existingTalent?.city_ar ?? null,
+        city_en: existingTalent?.city_en ?? null,
+      };
+
   const selectedNationality = getSelectedNationality(
     formData,
     existingTalent?.nationality_slug ?? existingTalent?.nationality ?? null,
@@ -167,9 +183,6 @@ function buildTalentSharedPayload(
     acting_age_max: nullableNumberValue(formData, "acting_age_max"),
     modeling_types: modelingTypes,
 
-    // Preserve the residence country already chosen during signup. The profile
-    // editor currently edits the city only, so it must never reset non-SA users
-    // back to Saudi Arabia during autosave.
     base_country_code: selectedCity.base_country_code,
     city_slug: selectedCity.city_slug,
     city_en: selectedCity.city_en,
@@ -327,6 +340,9 @@ export async function updateOwnTalentProfileAction(formData: FormData) {
         id,
         slug,
         base_country_code,
+        city_slug,
+        city_ar,
+        city_en,
         nationality_slug,
         nationality,
         height_cm,
@@ -382,13 +398,12 @@ export async function updateOwnTalentProfileAction(formData: FormData) {
     );
   }
 
-  if (
-    !updatedTalent.category_slug ||
-    !updatedTalent.city_slug ||
-    !updatedTalent.base_country_code
-  ) {
+  // Legacy records may still be missing a residence country. Do not block or
+  // mutate unrelated edits; readiness keeps the country requirement incomplete
+  // until the user explicitly supplies it through the residence editor.
+  if (!updatedTalent.category_slug || !updatedTalent.city_slug) {
     throw new Error(
-      "[updateOwnTalentProfileAction] Talent profile was updated, but market/category/city data was not saved correctly.",
+      "[updateOwnTalentProfileAction] Talent profile was updated, but category/city data was not saved correctly.",
     );
   }
 
