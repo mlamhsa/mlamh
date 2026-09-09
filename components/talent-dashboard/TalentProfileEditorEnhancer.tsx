@@ -30,7 +30,7 @@ function buildNationalityOptions(select: HTMLSelectElement) {
   fragment.appendChild(placeholder);
 
   const sorted = [...NATIONALITIES].sort((a, b) =>
-    (ar ? a.ar : a.en).localeCompare(ar ? b.ar : b.en, ar ? "ar" : "en"),
+    (ar ? a.ar : a.en).localeCompare(ar ? a.ar : a.en, ar ? "ar" : "en"),
   );
 
   for (const nationality of sorted) {
@@ -57,22 +57,6 @@ function buildNationalityOptions(select: HTMLSelectElement) {
   select.replaceChildren(fragment);
   select.value = currentValue;
   select.dataset.globalNationalityOptions = "1";
-}
-
-function ensureCountryNotice(citySelect: HTMLSelectElement) {
-  const field = citySelect.parentElement;
-  if (!field || field.querySelector("[data-mlamh-country-notice]")) return;
-
-  const ar = isArabicPage();
-  const notice = document.createElement("div");
-  notice.dataset.mlamhCountryNotice = "1";
-  notice.className =
-    "mb-4 rounded-2xl border border-gold/20 bg-gold/[0.045] px-4 py-3";
-  notice.innerHTML = ar
-    ? '<div class="flex items-center justify-between gap-3"><span class="text-sm text-white">الدولة: السعودية</span><span class="rounded-full border border-gold/20 bg-gold/[0.08] px-2.5 py-1 text-[10px] text-gold">السوق الحالي</span></div><p class="mt-2 text-xs leading-5 text-white/40">تظهر المدن السعودية فقط حاليًا. الجنسية مستقلة ويمكن اختيارها من جميع دول العالم.</p>'
-    : '<div class="flex items-center justify-between gap-3"><span class="text-sm text-white">Country: Saudi Arabia</span><span class="rounded-full border border-gold/20 bg-gold/[0.08] px-2.5 py-1 text-[10px] text-gold">Current market</span></div><p class="mt-2 text-xs leading-5 text-white/40">Only Saudi cities are available for the current market. Nationality is independent and supports all countries.</p>';
-
-  field.prepend(notice);
 }
 
 function updateDataQualityNotice() {
@@ -121,6 +105,12 @@ function updateDataQualityNotice() {
   }
 }
 
+function removeLegacyCountryNotice() {
+  document.querySelectorAll<HTMLElement>("[data-mlamh-country-notice]").forEach((notice) => {
+    notice.remove();
+  });
+}
+
 function enhancePage() {
   const nationalitySelect = document.querySelector<HTMLSelectElement>(
     'select[name="nationality_slug"]',
@@ -129,9 +119,9 @@ function enhancePage() {
     buildNationalityOptions(nationalitySelect);
   }
 
-  const citySelect = document.querySelector<HTMLSelectElement>('select[name="city_slug"]');
-  if (citySelect) ensureCountryNotice(citySelect);
-
+  // Residence/city is now multi-country and is preserved from signup. Never add
+  // the legacy "Saudi market only" message to the profile editor.
+  removeLegacyCountryNotice();
   updateDataQualityNotice();
 }
 
