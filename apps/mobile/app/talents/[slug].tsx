@@ -7,6 +7,7 @@ import { BriefcaseBusiness, CheckCircle2, ChevronLeft, ChevronRight, Images, Shi
 import { displayValue, displayValues } from "@/lib/display-values";
 import { formatLatinNumber, isRtlLocale } from "@/lib/i18n";
 import { useAppLocale } from "@/lib/locale-context";
+import { leaveAuthenticatedScreen } from "@/lib/navigation";
 import { getPublisherDashboard, type MobilePublisherOpportunity } from "@/lib/publisher-api";
 import { inviteTalentToOpportunity } from "@/lib/talent-invitations";
 import { darkTheme, radii, spacing, typography } from "@/lib/theme";
@@ -52,7 +53,7 @@ export default function TalentProfileScreen() {
   }, [ar, locale, slug]);
 
   if (loading) return <View style={s.center}><ActivityIndicator color={darkTheme.accent} /><Text style={s.muted}>{ar ? "جارٍ تحميل الملف…" : "Loading profile…"}</Text></View>;
-  if (!item || error) return <View style={s.center}><Text style={s.error}>{error ?? (ar ? "الملف غير متاح" : "Profile unavailable")}</Text><Pressable onPress={() => router.back()} style={s.primary}><Text style={s.primaryText}>{ar ? "رجوع" : "Go back"}</Text></Pressable></View>;
+  if (!item || error) return <View style={s.center}><Text style={s.error}>{error ?? (ar ? "الملف غير متاح" : "Profile unavailable")}</Text><Pressable onPress={() => leaveAuthenticatedScreen("/talents")} style={s.primary}><Text style={s.primaryText}>{ar ? "رجوع" : "Go back"}</Text></Pressable></View>;
 
   const talentId = item.id;
   const role = displayValue(item.role, locale) ?? (ar ? "موهبة" : "Talent");
@@ -95,7 +96,7 @@ export default function TalentProfileScreen() {
 
   return <SafeAreaView style={s.screen} edges={["top", "bottom"]}>
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
-      <View style={[s.topRow, rtl && s.rowRtl]}><Pressable accessibilityRole="button" accessibilityLabel={ar ? "رجوع" : "Back"} onPress={() => router.back()} style={s.iconButton}><Back size={21} color={darkTheme.text} /></Pressable><Text style={[s.brand, txt(rtl)]}>{ar ? "ملامح للأعمال" : "MLAMH FOR BUSINESS"}</Text></View>
+      <View style={[s.topRow, rtl && s.rowRtl]}><Pressable accessibilityRole="button" accessibilityLabel={ar ? "رجوع" : "Back"} onPress={() => leaveAuthenticatedScreen("/talents")} style={s.iconButton}><Back size={21} color={darkTheme.text} /></Pressable><Text style={[s.brand, txt(rtl)]}>{ar ? "ملامح للأعمال" : "MLAMH FOR BUSINESS"}</Text></View>
 
       <View style={s.heroCard}>
         <Pressable accessibilityRole="button" accessibilityLabel={ar ? "فتح الصورة" : "Open photo"} onPress={() => gallery.length && setGalleryIndex(0)} style={s.heroImageWrap}>{item.imageUrl ? <Image source={{ uri: item.imageUrl }} style={s.heroImage} resizeMode="cover" /> : <View style={s.imageFallback}><Text style={s.imageInitial}>{item.name.slice(0, 1).toUpperCase()}</Text></View>}<View style={[s.photoCount, rtl && s.photoCountRtl]}><Images size={14} color={darkTheme.text} /><Text style={s.photoCountText}>{formatLatinNumber(gallery.length, locale)}</Text></View></Pressable>

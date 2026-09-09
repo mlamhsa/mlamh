@@ -9,6 +9,7 @@ import { resolveMobileMarket } from "@/lib/account";
 import { applyToOpportunity, getPublicOpportunity, type ApplyResult, type MobileOpportunity } from "@/lib/api";
 import { formatGregorianDate, isRtlLocale } from "@/lib/i18n";
 import { useAppLocale } from "@/lib/locale-context";
+import { goBackOrReplace } from "@/lib/navigation";
 import { getMobileMarketLabel } from "@/lib/market-labels";
 import { darkTheme } from "@/lib/theme";
 
@@ -114,7 +115,7 @@ export default function OpportunityDetailScreen() {
   }
 
   if (loading) return <ScreenSkeleton variant="detail" locale={locale} label={isArabic ? "تحميل تفاصيل الفرصة" : "Loading opportunity details"} />;
-  if (error || !item) return <View style={[styles.centered, { paddingTop: insets.top, paddingBottom: insets.bottom + 24 }]}><Text accessibilityRole="alert" style={styles.errorText}>{isArabic ? "تعذر فتح هذه الفرصة." : "Unable to open this opportunity."}</Text><Text style={styles.errorHint}>{isArabic ? "تحقق من الاتصال ثم أعد المحاولة، أو ارجع إلى قائمة الفرص." : "Check your connection and try again, or return to the opportunities list."}</Text><View style={[styles.errorActions, isRtl && styles.rowReverse]}><Pressable accessibilityRole="button" onPress={retryLoad} style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}><Text style={styles.retryButtonText}>{isArabic ? "إعادة المحاولة" : "Try again"}</Text></Pressable><Pressable accessibilityRole="button" onPress={() => router.back()} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}><Text style={styles.secondaryButtonText}>{isArabic ? "رجوع" : "Back"}</Text></Pressable></View></View>;
+  if (error || !item) return <View style={[styles.centered, { paddingTop: insets.top, paddingBottom: insets.bottom + 24 }]}><Text accessibilityRole="alert" style={styles.errorText}>{isArabic ? "تعذر فتح هذه الفرصة." : "Unable to open this opportunity."}</Text><Text style={styles.errorHint}>{isArabic ? "تحقق من الاتصال ثم أعد المحاولة، أو ارجع إلى قائمة الفرص." : "Check your connection and try again, or return to the opportunities list."}</Text><View style={[styles.errorActions, isRtl && styles.rowReverse]}><Pressable accessibilityRole="button" onPress={retryLoad} style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}><Text style={styles.retryButtonText}>{isArabic ? "إعادة المحاولة" : "Try again"}</Text></Pressable><Pressable accessibilityRole="button" onPress={() => goBackOrReplace("/opportunities")} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}><Text style={styles.secondaryButtonText}>{isArabic ? "رجوع" : "Back"}</Text></Pressable></View></View>;
 
   const compensation = item.compensationType === "unpaid" ? (isArabic ? "غير مدفوعة" : "Unpaid") : item.budget && item.currency ? `${item.budget} ${item.currency}` : item.compensationType === "negotiable" ? (isArabic ? "حسب الاتفاق" : "Negotiable") : (isArabic ? "غير محدد" : "Not specified");
   const publishedLabel = formatDate(item.createdAt, locale);
@@ -150,7 +151,7 @@ export default function OpportunityDetailScreen() {
   return <View style={styles.screen}>
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingTop: Math.max(insets.top + 8, 20), paddingBottom: 132 + insets.bottom }]}>
       <View style={[styles.topBar, isRtl && styles.rowReverse]}>
-        <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "رجوع" : "Back"} onPress={() => router.back()} style={({ pressed }) => [styles.roundAction, pressed && styles.pressed]}>{isRtl ? <ArrowRight size={21} color={theme.text}/> : <ArrowLeft size={21} color={theme.text}/>}</Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "رجوع" : "Back"} onPress={() => goBackOrReplace("/opportunities")} style={({ pressed }) => [styles.roundAction, pressed && styles.pressed]}>{isRtl ? <ArrowRight size={21} color={theme.text}/> : <ArrowLeft size={21} color={theme.text}/>}</Pressable>
         <Text style={styles.topBrand}>MLAMH</Text>
         <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "مشاركة الفرصة" : "Share opportunity"} onPress={() => void shareOpportunity()} style={({ pressed }) => [styles.roundAction, pressed && styles.pressed]}><Share2 size={19} color={theme.text}/></Pressable>
       </View>

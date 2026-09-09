@@ -7,6 +7,7 @@ import { ArrowLeft, ArrowRight, CheckCircle2, Send, Sparkles } from "lucide-reac
 import { MOBILE_API_BASE_URL } from "@/lib/api-config";
 import { isRtlLocale, toLatinDigits } from "@/lib/i18n";
 import { useAppLocale } from "@/lib/locale-context";
+import { goBackOrReplace } from "@/lib/navigation";
 import { darkTheme } from "@/lib/theme";
 
 type TalentType = "actor" | "model" | "mixed";
@@ -39,11 +40,7 @@ const INITIAL_FORM: FormState = {
   brief: "",
 };
 
-function latinDigits(value: string) {
-  return value
-    .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)))
-    .replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)));
-}
+function latinDigits(value: string) { return toLatinDigits(value); }
 
 export default function CastingScreen() {
   const { locale } = useAppLocale();
@@ -142,7 +139,7 @@ export default function CastingScreen() {
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { direction: isRtl ? "rtl" : "ltr" }]}>
         <View style={[styles.top, isRtl && styles.rowRtl]}>
-          <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "رجوع" : "Back"} onPress={() => router.back()} hitSlop={12} style={styles.backButton}><BackIcon size={21} color={darkTheme.text} /></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "رجوع" : "Back"} onPress={() => goBackOrReplace("/opportunities")} hitSlop={12} style={styles.backButton}><BackIcon size={21} color={darkTheme.text} /></Pressable>
           <Text style={styles.brand}>MLAMH CASTING</Text>
         </View>
 
