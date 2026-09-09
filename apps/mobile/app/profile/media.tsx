@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, Images, PlaySquare, ShieldCheck } from "luci
 
 import { isRtlLocale } from "@/lib/i18n";
 import { useAppLocale } from "@/lib/locale-context";
+import { leaveAuthenticatedScreen } from "@/lib/navigation";
 import { getTalentSpotlightStatus, type TalentSpotlightStatus } from "@/lib/spotlight-video";
 import { darkTheme } from "@/lib/theme";
 
@@ -27,7 +28,7 @@ export default function TalentMediaHubScreen() {
 
   function leave() {
     if (onboarding) router.replace("/profile/journey");
-    else router.back();
+    else leaveAuthenticatedScreen("/profile");
   }
 
   return (
