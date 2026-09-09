@@ -8,6 +8,7 @@ import {
   CircleOff,
   Clock3,
   Eye,
+  LockKeyhole,
   Search,
   ShieldCheck,
   Users,
@@ -21,6 +22,7 @@ import { requireAdminAccess } from "@/lib/auth/require-admin";
 import {
   type AdminTalentFilter,
   type AdminTalentOperationalFilter,
+  type AdminTalentVisibilityFilter,
 } from "@/lib/repositories/talents/TalentRepository";
 import { TalentService } from "@/lib/services/talents/TalentService";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -35,6 +37,7 @@ type PageProps = {
     search?: string;
     review?: string;
     ops?: string;
+    visibility?: string;
   }>;
 };
 
@@ -73,6 +76,16 @@ function parseFilter(
   return undefined;
 }
 
+function parseVisibilityFilter(
+  value: string | undefined,
+): AdminTalentVisibilityFilter | undefined {
+  if (value === "public" || value === "private") {
+    return value;
+  }
+
+  return undefined;
+}
+
 function parseOperationalFilter(
   value: string | undefined,
 ): AdminTalentOperationalFilter | undefined {
@@ -95,6 +108,7 @@ function buildAdminTalentsUrl({
   search,
   review,
   ops,
+  visibility,
 }: {
   language: "ar" | "en";
   page?: number;
@@ -102,6 +116,7 @@ function buildAdminTalentsUrl({
   search?: string;
   review?: string;
   ops?: string;
+  visibility?: string;
 }) {
   const params = new URLSearchParams();
   params.set("lang", language);
@@ -110,6 +125,7 @@ function buildAdminTalentsUrl({
   if (status) params.set("status", status);
   if (review) params.set("review", review);
   if (ops) params.set("ops", ops);
+  if (visibility) params.set("visibility", visibility);
   if (search?.trim()) params.set("search", search.trim());
 
   return `/admin/talents?${params.toString()}`;
@@ -163,6 +179,7 @@ export default async function AdminTalentsPage({
   const isArabic = language === "ar";
   const page = parsePage(resolvedSearchParams.page);
   const status = parseFilter(resolvedSearchParams.status);
+  const visibility = parseVisibilityFilter(resolvedSearchParams.visibility);
   const search = resolvedSearchParams.search?.trim() ?? "";
   const ops = parseOperationalFilter(resolvedSearchParams.ops);
   const review =
@@ -183,6 +200,7 @@ export default async function AdminTalentsPage({
       search,
       approvalStatus: review,
       operationalFilter: ops,
+      visibility,
     }),
     TalentService.getAdminStats(),
     TalentService.getAdminOperationalStats(),
@@ -270,6 +288,23 @@ export default async function AdminTalentsPage({
     },
   ];
 
+  const visibilityFilters: {
+    value: AdminTalentVisibilityFilter;
+    label: string;
+    count: number;
+  }[] = [
+    {
+      value: "public",
+      label: isArabic ? "ملف عام" : "Public profile",
+      count: stats.publicProfiles,
+    },
+    {
+      value: "private",
+      label: isArabic ? "ملف خاص" : "Private profile",
+      count: stats.privateProfiles,
+    },
+  ];
+
   const operationalFilters: {
     value: AdminTalentOperationalFilter;
     label: string;
@@ -319,14 +354,14 @@ export default async function AdminTalentsPage({
 
               <p className="mt-2 max-w-2xl text-sm leading-7 text-white/40">
                 {isArabic
-                  ? "إدارة ملفات المواهب ومراجعة حالة الاعتماد والنشر والحساب."
-                  : "Manage talent profiles, review approval status, publishing, and account state."}
+                  ? "إدارة ملفات المواهب ومراجعة حالة الاعتماد والنشر والخصوصية والحساب."
+                  : "Manage talent profiles, approval, publishing, privacy, and account state."}
               </p>
             </div>
 
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               <Link
-                href={buildAdminTalentsUrl({ language, search })}
+                href={buildAdminTalentsUrl({ language, search, visibility })}
                 className={`group rounded-2xl border px-4 py-3 transition ${
                   !status && !review && !ops
                     ? "border-gold/30 bg-gold/[0.08]"
@@ -346,6 +381,7 @@ export default async function AdminTalentsPage({
                   language,
                   status: "published",
                   search,
+                  visibility,
                 })}
                 className={`group rounded-2xl border px-4 py-3 transition ${
                   status === "published" && !review && !ops
@@ -366,6 +402,7 @@ export default async function AdminTalentsPage({
                   language,
                   review: "pending",
                   search,
+                  visibility,
                 })}
                 className={`group rounded-2xl border px-4 py-3 transition ${
                   review === "pending"
@@ -395,6 +432,9 @@ export default async function AdminTalentsPage({
             ) : null}
             {ops ? (
               <input type="hidden" name="ops" value={ops} />
+            ) : null}
+            {visibility ? (
+              <input type="hidden" name="visibility" value={visibility} />
             ) : null}
 
             <div className="relative flex-1">
@@ -440,6 +480,7 @@ export default async function AdminTalentsPage({
                   language,
                   status: filter.value || undefined,
                   search,
+                  visibility,
                 })}
                 className={`inline-flex min-h-10 items-center gap-2 rounded-full border px-4 text-xs transition ${
                   active
@@ -460,6 +501,69 @@ export default async function AdminTalentsPage({
 
         <div className="mt-4 rounded-2xl border border-white/[0.06] bg-white/[0.015] p-3">
           <p className="mb-2 px-1 text-[10px] uppercase tracking-[0.18em] text-white/25">
+            {isArabic ? "خصوصية الملف" : "Profile privacy"}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href={buildAdminTalentsUrl({
+                language,
+                status,
+                search,
+                review,
+                ops,
+              })}
+              className={`inline-flex min-h-10 items-center gap-2 rounded-full border px-4 text-xs transition ${
+                !visibility
+                  ? "border-gold/30 bg-gold/[0.10] text-gold"
+                  : "border-white/[0.08] bg-black/15 text-white/40 hover:border-gold/20 hover:text-gold"
+              }`}
+            >
+              {isArabic ? "الكل" : "All"}
+              <span className="rounded-full bg-black/25 px-2 py-0.5 text-[10px]">
+                {stats.total}
+              </span>
+            </Link>
+
+            {visibilityFilters.map((filter) => {
+              const active = visibility === filter.value;
+              const isPrivate = filter.value === "private";
+
+              return (
+                <Link
+                  key={filter.value}
+                  href={buildAdminTalentsUrl({
+                    language,
+                    status,
+                    search,
+                    review,
+                    ops,
+                    visibility: filter.value,
+                  })}
+                  className={`inline-flex min-h-10 items-center gap-2 rounded-full border px-4 text-xs transition ${
+                    active
+                      ? isPrivate
+                        ? "border-violet-400/30 bg-violet-400/[0.10] text-violet-200"
+                        : "border-sky-400/30 bg-sky-400/[0.10] text-sky-200"
+                      : "border-white/[0.08] bg-black/15 text-white/40 hover:border-gold/20 hover:text-gold"
+                  }`}
+                >
+                  {isPrivate ? (
+                    <LockKeyhole className="h-3.5 w-3.5" />
+                  ) : (
+                    <Eye className="h-3.5 w-3.5" />
+                  )}
+                  {filter.label}
+                  <span className="rounded-full bg-black/25 px-2 py-0.5 text-[10px]">
+                    {filter.count}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-2xl border border-white/[0.06] bg-white/[0.015] p-3">
+          <p className="mb-2 px-1 text-[10px] uppercase tracking-[0.18em] text-white/25">
             {isArabic ? "متابعة الاستكمال والجودة" : "Completion & quality operations"}
           </p>
           <div className="flex flex-wrap gap-2">
@@ -475,6 +579,7 @@ export default async function AdminTalentsPage({
                     status,
                     search,
                     ops: filter.value,
+                    visibility,
                   })}
                   className={`inline-flex min-h-10 items-center gap-2 rounded-full border px-4 text-xs transition ${
                     active
@@ -593,6 +698,8 @@ export default async function AdminTalentsPage({
                 0,
               );
 
+              const isPrivateProfile = talent.profile_visibility === "private";
+
               return (
                 <Link
                   key={talent.id}
@@ -634,6 +741,29 @@ export default async function AdminTalentsPage({
                           className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] ${approval.className}`}
                         >
                           {approval.label}
+                        </span>
+                      </div>
+
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] ${
+                            isPrivateProfile
+                              ? "border-violet-400/20 bg-violet-400/[0.08] text-violet-200"
+                              : "border-sky-400/20 bg-sky-400/[0.08] text-sky-200"
+                          }`}
+                        >
+                          {isPrivateProfile ? (
+                            <LockKeyhole className="h-3 w-3" />
+                          ) : (
+                            <Eye className="h-3 w-3" />
+                          )}
+                          {isPrivateProfile
+                            ? isArabic
+                              ? "اختارت ملفًا خاصًا"
+                              : "Private profile"
+                            : isArabic
+                              ? "اختارت ملفًا عامًا"
+                              : "Public profile"}
                         </span>
                       </div>
 
@@ -774,6 +904,7 @@ export default async function AdminTalentsPage({
                   search,
                   review,
                   ops,
+                  visibility,
                 })}
                 className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/[0.08] text-white/45 transition hover:border-gold/25 hover:text-gold"
                 aria-label={isArabic ? "الصفحة السابقة" : "Previous page"}
@@ -801,6 +932,7 @@ export default async function AdminTalentsPage({
                   search,
                   review,
                   ops,
+                  visibility,
                 })}
                 className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/[0.08] text-white/45 transition hover:border-gold/25 hover:text-gold"
                 aria-label={isArabic ? "الصفحة التالية" : "Next page"}
