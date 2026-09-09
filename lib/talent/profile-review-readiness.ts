@@ -1,3 +1,5 @@
+import { TALENT_CATEGORIES, type TalentCategorySlug } from "@/lib/data/talent-categories";
+
 export type TalentProfileReadinessData = {
   name_ar?: unknown;
   name_en?: unknown;
@@ -20,7 +22,12 @@ export type TalentProfileReadinessData = {
   modeling_types?: unknown;
 };
 
-export type ProfileReadinessRequirement = { key: string; ar: string; en: string; completed: boolean };
+export type ProfileReadinessRequirement = {
+  key: string;
+  ar: string;
+  en: string;
+  completed: boolean;
+};
 
 function hasValue(value: unknown) {
   if (value === null || value === undefined) return false;
@@ -29,20 +36,24 @@ function hasValue(value: unknown) {
   return true;
 }
 
-function normalizeRoleValue(value: unknown): "actor" | "model" | null {
+function normalizeTalentCategory(value: unknown): TalentCategorySlug | null {
   if (typeof value !== "string") return null;
   const normalized = value.trim().toLowerCase();
-  if (["actor", "acting", "ممثل", "تمثيل"].includes(normalized)) return "actor";
-  if (["model", "modeling", "modelling", "مودل", "عارض", "عارضة"].includes(normalized)) return "model";
+
+  const direct = TALENT_CATEGORIES.find((category) => category.slug === normalized);
+  if (direct) return direct.slug;
+
+  // Legacy aliases kept for existing Actor/Model accounts and imported records.
+  if (["acting", "ممثل", "تمثيل"].includes(normalized)) return "actor";
+  if (["modeling", "modelling", "مودل", "عارض", "عارضة"].includes(normalized)) return "model";
+
   return null;
 }
 
-export function getCanonicalTalentRole(talent: TalentProfileReadinessData): "actor" | "model" | null {
+export function getCanonicalTalentRole(talent: TalentProfileReadinessData): TalentCategorySlug | null {
   return (
-    normalizeRoleValue(talent.primary_role) ??
-    normalizeRoleValue(talent.category_slug) ??
-    normalizeRoleValue(talent.category_en) ??
-    normalizeRoleValue(talent.category_ar)
+    normalizeTalentCategory(talent.primary_role) ??
+    normalizeTalentCategory(talent.category_slug)
   );
 }
 
@@ -62,9 +73,21 @@ function getSharedRequirements(talent: TalentProfileReadinessData): ProfileReadi
 }
 
 export function getTalentProfileReadiness(talent: TalentProfileReadinessData) {
-  const requiredKeys = new Set(["name", "profile_image", "primary_role", "city", "gender", "date_of_birth", "nationality"]);
+  // Only true approval requirements belong here. Bio, languages, skills, experience,
+  // measurements and extra portfolio material can improve profile strength/ranking but
+  // do not block submission for review.
+  const requiredKeys = new Set([
+    "name",
+    "profile_image",
+    "primary_role",
+    "city",
+    "gender",
+    "date_of_birth",
+    "nationality",
+  ]);
   const requirements = getSharedRequirements(talent).filter((requirement) => requiredKeys.has(requirement.key));
   const missingRequirements = requirements.filter((requirement) => !requirement.completed);
+
   return {
     isReady: missingRequirements.length === 0,
     requirements,
