@@ -22,7 +22,7 @@ type PageProps = {
 function parseAccountType(type?: string, intent?: string): AccountType | null {
   if (type === "talent" || type === "publisher") return type;
   if (intent === "publisher") return "publisher";
-  if (intent === "actor" || intent === "model") return "talent"; // legacy links
+  if (intent === "actor" || intent === "model") return "talent";
   return null;
 }
 
@@ -35,7 +35,8 @@ function destinationForExistingAccount(locale: Locale, accountType: AccountType)
 function accountCopy(accountType: AccountType, isRtl: boolean) {
   if (accountType === "publisher") {
     return {
-      eyebrow: isRtl ? "أبحث عن مواهب" : "I NEED TALENT",
+      eyebrow: isRtl ? "الخطوة الثانية" : "STEP TWO",
+      title: isRtl ? "إنشاء حساب الباحث عن مواهب" : "Create your hiring account",
       body: isRtl
         ? "أنشئ حسابك أولًا، ثم نكمل إعداد حساب الناشر خطوة بخطوة."
         : "Create your account first, then we’ll complete your publisher setup step by step.",
@@ -43,10 +44,11 @@ function accountCopy(accountType: AccountType, isRtl: boolean) {
   }
 
   return {
-    eyebrow: isRtl ? "حساب موهبة" : "TALENT ACCOUNT",
+    eyebrow: isRtl ? "الخطوة الثانية" : "STEP TWO",
+    title: isRtl ? "إنشاء حساب الموهبة" : "Create your talent account",
     body: isRtl
-      ? "أدخل بياناتك الأساسية مرة واحدة. بعد إنشاء الحساب ستدخل لوحة التحكم مباشرة وتكمل ملفك المهني من هناك."
-      : "Enter your essential details once. After signup you’ll go directly to your dashboard and complete your professional profile there.",
+      ? "إذا اخترت البريد الإلكتروني ستدخل بياناتك الأساسية هنا. وإذا اخترت Google سنأخذ البيانات المتوفرة ونطلب منك فقط المعلومات الضرورية الناقصة."
+      : "With email, enter your essential information here. With Google, we’ll use the information already available and ask only for required missing details.",
   };
 }
 
@@ -112,20 +114,8 @@ export default async function JoinPage({ params, searchParams }: PageProps) {
                   <span className="h-1.5 w-8 rounded-full bg-white/10" />
                 </div>
                 <p className="arabic-safe text-xs uppercase tracking-[0.3em] text-gold">{selectedCopy.eyebrow}</p>
-                <h1 className="mt-4 text-3xl font-light leading-tight sm:text-4xl">{isRtl ? "أنشئ حسابك" : "Create your account"}</h1>
+                <h1 className="mt-4 text-3xl font-light leading-tight sm:text-4xl">{selectedCopy.title}</h1>
                 <p className="mt-3 text-sm leading-7 text-white/45">{selectedCopy.body}</p>
-              </div>
-
-              {selectedAccountType === "talent" ? (
-                <TalentEmailSignupForm locale={locale} />
-              ) : (
-                <QuickJoinForm locale={locale} accountType="publisher" intent="publisher" />
-              )}
-
-              <div className="my-5 flex items-center gap-3 text-[11px] text-white/30">
-                <span className="h-px flex-1 bg-white/10" />
-                <span>{isRtl ? "أو" : "OR"}</span>
-                <span className="h-px flex-1 bg-white/10" />
               </div>
 
               <GoogleSignupButton
@@ -137,10 +127,22 @@ export default async function JoinPage({ params, searchParams }: PageProps) {
               {selectedAccountType === "talent" ? (
                 <p className="mt-3 text-center text-xs leading-6 text-white/40">
                   {isRtl
-                    ? "عند التسجيل عبر Google سنطلب منك فقط البيانات الضرورية التي لا يوفرها Google."
-                    : "With Google signup, we’ll only ask for required information Google does not provide."}
+                    ? "بعد Google ستظهر لك فقط الحقول الضرورية التي لم نحصل عليها من حسابك."
+                    : "After Google, you’ll only see required fields we could not obtain from your account."}
                 </p>
               ) : null}
+
+              <div className="my-6 flex items-center gap-3 text-[11px] text-white/30">
+                <span className="h-px flex-1 bg-white/10" />
+                <span>{isRtl ? "أو التسجيل بالبريد الإلكتروني" : "OR CONTINUE WITH EMAIL"}</span>
+                <span className="h-px flex-1 bg-white/10" />
+              </div>
+
+              {selectedAccountType === "talent" ? (
+                <TalentEmailSignupForm locale={locale} />
+              ) : (
+                <QuickJoinForm locale={locale} accountType="publisher" intent="publisher" />
+              )}
 
               <div className="mt-8 border-t border-white/10 pt-6 text-center text-sm text-white/45">
                 {isRtl ? "لديك حساب؟" : "Already have an account?"}{" "}
@@ -161,10 +163,10 @@ function AudienceSelection({ locale, isRtl }: { locale: Locale; isRtl: boolean }
   return (
     <div>
       <div className="mx-auto max-w-3xl text-center">
-        <p className="arabic-safe text-xs uppercase tracking-[0.35em] text-gold">{isRtl ? "ابدأ من هنا" : "START HERE"}</p>
+        <p className="arabic-safe text-xs uppercase tracking-[0.35em] text-gold">{isRtl ? "الخطوة الأولى" : "STEP ONE"}</p>
         <h1 className="mt-5 text-4xl font-light leading-tight sm:text-5xl lg:text-6xl">{isRtl ? "كيف تريد استخدام ملامح؟" : "How will you use MLAMH?"}</h1>
         <p className="mx-auto mt-5 max-w-2xl text-sm leading-7 text-white/50 sm:text-base">
-          {isRtl ? "اختر المسار المناسب لك. سنطلب فقط المعلومات اللازمة لهذا المسار." : "Choose the path that fits you. We’ll only ask for information needed for that path."}
+          {isRtl ? "اختر مسارك الآن. بعد إنشاء الحساب ستدخل مباشرة إلى لوحة التحكم الخاصة بك." : "Choose your path now. After signup, you’ll go directly to your dashboard."}
         </p>
       </div>
 
@@ -174,7 +176,7 @@ function AudienceSelection({ locale, isRtl }: { locale: Locale; isRtl: boolean }
           icon={<UserRound size={27} />}
           eyebrow={isRtl ? "للمواهب" : "FOR TALENT"}
           title={isRtl ? "أنا موهبة" : "I’m talent"}
-          description={isRtl ? "أنشئ ملفك المهني وتقدم للفرص المناسبة لك على ملامح." : "Create your professional profile and apply to opportunities that fit you."}
+          description={isRtl ? "أنشئ حسابك، أكمل ملفك المهني من لوحة التحكم، ثم تقدم للفرص المناسبة لك." : "Create your account, complete your professional profile in the dashboard, then apply to relevant opportunities."}
           actionLabel={isRtl ? "ابدأ كموهبة" : "Start as talent"}
           featured
         />
