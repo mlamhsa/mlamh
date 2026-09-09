@@ -1,6 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+
+import { TalentRoleSelectorV1 } from "@/components/talent-dashboard/TalentRoleSelectorV1";
 import { NATIONALITIES } from "@/lib/data/nationalities";
 
 const PHYSICAL_MEASUREMENT_FIELDS = [
@@ -111,6 +114,29 @@ function removeLegacyCountryNotice() {
   });
 }
 
+function prepareRoleSelectorPortal() {
+  const section = document.getElementById("specialization");
+  if (!section) return null;
+
+  let portal = section.querySelector<HTMLElement>("[data-mlamh-role-selector-v1]");
+
+  if (!portal) {
+    portal = document.createElement("div");
+    portal.dataset.mlamhRoleSelectorV1 = "1";
+    section.prepend(portal);
+  }
+
+  Array.from(section.children).forEach((child) => {
+    if (child === portal) return;
+    if (child instanceof HTMLElement) {
+      child.hidden = true;
+      child.dataset.legacyRoleSelector = "1";
+    }
+  });
+
+  return portal;
+}
+
 function enhancePage() {
   const nationalitySelect = document.querySelector<HTMLSelectElement>(
     'select[name="nationality_slug"]',
@@ -123,18 +149,29 @@ function enhancePage() {
   // the legacy "Saudi market only" message to the profile editor.
   removeLegacyCountryNotice();
   updateDataQualityNotice();
+
+  return prepareRoleSelectorPortal();
 }
 
 export function TalentProfileEditorEnhancer() {
+  const [rolePortal, setRolePortal] = useState<HTMLElement | null>(null);
+  const [locale, setLocale] = useState<"ar" | "en">("ar");
+
   useEffect(() => {
     if (!window.location.pathname.includes("/talent-dashboard/profile")) return;
 
-    enhancePage();
+    setLocale(isArabicPage() ? "ar" : "en");
+    setRolePortal(enhancePage());
 
     const handleInput = () => updateDataQualityNotice();
     document.addEventListener("input", handleInput, true);
 
-    const observer = new MutationObserver(() => enhancePage());
+    const observer = new MutationObserver(() => {
+      const nextPortal = enhancePage();
+      if (nextPortal) {
+        setRolePortal((current) => current ?? nextPortal);
+      }
+    });
     observer.observe(document.body, { childList: true, subtree: true });
 
     return () => {
@@ -143,5 +180,10 @@ export function TalentProfileEditorEnhancer() {
     };
   }, []);
 
-  return null;
+  if (!rolePortal) return null;
+
+  return createPortal(
+    <TalentRoleSelectorV1 locale={locale} />,
+    rolePortal,
+  );
 }
