@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { Eye, EyeOff, ShieldCheck, UsersRound } from "lucide-react";
 
 import { isValidLocale, type Locale } from "@/lib/i18n";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import {
   getTalentPrivacySettings,
@@ -62,11 +63,12 @@ export default async function TalentPrivacyPage({ params, searchParams }: PagePr
   const { data: { user } } = await auth.auth.getUser();
   if (!user) redirect(`/${locale}/login?next=/${locale}/talent-dashboard/privacy`);
 
-  const { data: talent } = await auth
+  const admin = createAdminClient();
+  const { data: talent } = await admin
     .from("talents")
     .select("gender")
     .eq("user_id", user.id)
-    .maybeSingle<{ gender: string | null }>();
+    .maybeSingle();
   if (!talent) redirect(`/${locale}/join/talent`);
 
   const privacy = await getTalentPrivacySettings(user.id);
