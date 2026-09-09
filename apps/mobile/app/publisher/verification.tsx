@@ -5,14 +5,15 @@ import { router } from "expo-router";
 import { ArrowLeft, ArrowRight, CheckCircle2, Clock3, MailCheck, ShieldCheck, TriangleAlert } from "lucide-react-native";
 
 import { ScreenSkeleton } from "@/components/ScreenSkeleton";
-import { getDeviceLocale, isRtlLocale } from "@/lib/i18n";
+import { isRtlLocale } from "@/lib/i18n";
+import { useAppLocale } from "@/lib/locale-context";
 import { getPublisherProfile, submitPublisherVerificationEmail, type MobilePublisherProfile } from "@/lib/publisher-api";
 import { darkTheme } from "@/lib/theme";
 
 const PUBLIC_DOMAINS = ["gmail.com", "hotmail.com", "outlook.com", "yahoo.com", "icloud.com", "live.com", "proton.me", "protonmail.com"];
 
 export default function PublisherVerificationScreen() {
-  const locale = getDeviceLocale();
+  const { locale } = useAppLocale();
   const isArabic = locale === "ar";
   const isRtl = isRtlLocale(locale);
   const { width } = useWindowDimensions();

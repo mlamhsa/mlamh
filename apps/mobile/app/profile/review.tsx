@@ -6,7 +6,8 @@ import { router, useLocalSearchParams } from "expo-router";
 import { ScreenSkeleton } from "@/components/ScreenSkeleton";
 import { getTalentProfile } from "@/lib/api";
 import { MOBILE_API_BASE_URL } from "@/lib/api-config";
-import { getDeviceLocale, isRtlLocale } from "@/lib/i18n";
+import { isRtlLocale } from "@/lib/i18n";
+import { useAppLocale } from "@/lib/locale-context";
 import { getMobileTalentReviewReadiness } from "@/lib/profile-review-readiness";
 import { supabase } from "@/lib/supabase";
 import { darkTheme } from "@/lib/theme";
@@ -26,7 +27,7 @@ async function readReviewResponse(response: Response): Promise<ReviewResponse | 
 export default function ProfileReviewScreen() {
   const params = useLocalSearchParams<{ onboarding?: string }>();
   const onboarding = params.onboarding === "1";
-  const locale = getDeviceLocale();
+  const { locale } = useAppLocale();
   const isArabic = locale === "ar";
   const isRtl = isRtlLocale(locale);
   const { width, height } = useWindowDimensions();

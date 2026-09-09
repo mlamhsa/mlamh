@@ -6,12 +6,13 @@ import { router } from "expo-router";
 
 import { getMobileAccountContext } from "@/lib/account";
 import { getAccountHomeHref } from "@/lib/account-routing";
-import { getDeviceLocale, isRtlLocale } from "@/lib/i18n";
+import { isRtlLocale } from "@/lib/i18n";
+import { useAppLocale } from "@/lib/locale-context";
 import { supabase } from "@/lib/supabase";
 import { darkTheme } from "@/lib/theme";
 
 export default function ResetPasswordScreen() {
-  const locale = getDeviceLocale();
+  const { locale } = useAppLocale();
   const isArabic = locale === "ar";
   const isRtl = isRtlLocale(locale);
   const { width, height } = useWindowDimensions();

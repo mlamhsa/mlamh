@@ -7,7 +7,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ScreenSkeleton } from "@/components/ScreenSkeleton";
 import { resolveMobileMarket } from "@/lib/account";
 import { applyToOpportunity, getPublicOpportunity, type ApplyResult, type MobileOpportunity } from "@/lib/api";
-import { getDeviceLocale, isRtlLocale } from "@/lib/i18n";
+import { isRtlLocale } from "@/lib/i18n";
+import { useAppLocale } from "@/lib/locale-context";
 import { getMobileMarketLabel } from "@/lib/market-labels";
 import { darkTheme } from "@/lib/theme";
 
@@ -22,7 +23,7 @@ function getApplyApprovalStatus(result: ApplyResult | null) {
 export default function OpportunityDetailScreen() {
   const params = useLocalSearchParams<{ slug?: string | string[] }>();
   const slug = Array.isArray(params.slug) ? params.slug[0] : params.slug;
-  const locale = getDeviceLocale();
+  const { locale } = useAppLocale();
   const isArabic = locale === "ar";
   const isRtl = isRtlLocale(locale);
   const theme = darkTheme;

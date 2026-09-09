@@ -5,7 +5,8 @@ import { router } from "expo-router";
 import { ArrowLeft, ArrowRight, Building2, Check, UserRound } from "lucide-react-native";
 
 import { MOBILE_API_BASE_URL } from "@/lib/api-config";
-import { getDeviceLocale, isRtlLocale } from "@/lib/i18n";
+import { isRtlLocale } from "@/lib/i18n";
+import { useAppLocale } from "@/lib/locale-context";
 import { goBackOrReplace } from "@/lib/navigation";
 import { supabase } from "@/lib/supabase";
 import { darkTheme } from "@/lib/theme";
@@ -22,7 +23,7 @@ const TYPES = [
 ] as const;
 
 export default function PublisherSetupScreen() {
-  const locale = getDeviceLocale();
+  const { locale } = useAppLocale();
   const isArabic = locale === "ar";
   const isRtl = isRtlLocale(locale);
   const { width } = useWindowDimensions();

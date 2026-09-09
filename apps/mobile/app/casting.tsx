@@ -5,7 +5,8 @@ import { router } from "expo-router";
 import { ArrowLeft, ArrowRight, CheckCircle2, Send, Sparkles } from "lucide-react-native";
 
 import { MOBILE_API_BASE_URL } from "@/lib/api-config";
-import { getDeviceLocale, isRtlLocale } from "@/lib/i18n";
+import { isRtlLocale } from "@/lib/i18n";
+import { useAppLocale } from "@/lib/locale-context";
 import { darkTheme } from "@/lib/theme";
 
 type TalentType = "actor" | "model" | "mixed";
@@ -45,7 +46,7 @@ function latinDigits(value: string) {
 }
 
 export default function CastingScreen() {
-  const locale = getDeviceLocale();
+  const { locale } = useAppLocale();
   const isArabic = locale === "ar";
   const isRtl = isRtlLocale(locale);
   const styles = useMemo(() => createStyles(darkTheme), []);

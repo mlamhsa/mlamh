@@ -5,7 +5,8 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { router, useLocalSearchParams } from "expo-router";
 import { CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Search, X } from "lucide-react-native";
 
-import { getDeviceLocale, isRtlLocale } from "@/lib/i18n";
+import { isRtlLocale } from "@/lib/i18n";
+import { useAppLocale } from "@/lib/locale-context";
 import { getPublisherOpportunity, managePublisherOpportunity, type PublisherOpportunityDetail } from "@/lib/publisher-api";
 import { SAUDI_CITY_OPTIONS } from "@/lib/profile-options";
 import { darkTheme } from "@/lib/theme";
@@ -38,7 +39,7 @@ const HAIR_OPTIONS: Option[] = [
 export default function EditPublisherOpportunityScreen() {
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const opportunityId = Number(Array.isArray(params.id) ? params.id[0] : params.id);
-  const locale = getDeviceLocale();
+  const { locale } = useAppLocale();
   const isArabic = locale === "ar";
   const isRtl = isRtlLocale(locale);
   const { width } = useWindowDimensions();
