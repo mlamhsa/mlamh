@@ -12,12 +12,12 @@ jobs:
   check-ios-testflight:
     name: Check iOS Build 12 TestFlight status
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: apps/mobile
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-      SUBMISSION_ID: 52a831a1-c32c-4ae5-9818-da8c6a958f6c
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -31,9 +31,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci --include=dev --no-audit --no-fund
-
-      - name: EAS submission status
-        run: npx eas-cli@latest submit:view "$SUBMISSION_ID" --json
 
       - name: App Store / TestFlight status
         run: npx eas-cli@latest submit:status --platform ios --profile testflight --json --non-interactive
