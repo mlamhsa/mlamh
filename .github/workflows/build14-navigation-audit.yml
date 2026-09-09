@@ -1,0 +1,25 @@
+name: Build 14 Navigation Audit
+
+on:
+  push:
+    branches:
+      - feat/mobile-platform-phase0
+    paths:
+      - ".github/workflows/build14-navigation-audit.yml"
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Audit risky mobile patterns
+        shell: bash
+        run: |
+          echo '=== router.back() ==='
+          grep -RIn --include='*.tsx' --include='*.ts' 'router\.back()' apps/mobile/app apps/mobile/lib || true
+          echo '=== getDeviceLocale() ==='
+          grep -RIn --include='*.tsx' --include='*.ts' 'getDeviceLocale()' apps/mobile/app apps/mobile/lib || true
+          echo '=== ar-SA direct date formatting ==='
+          grep -RIn --include='*.tsx' --include='*.ts' 'toLocaleDateString(.*ar-SA\|ar-SA-u-' apps/mobile/app apps/mobile/lib || true
+          echo '=== Arabic-Indic digit literals ==='
+          grep -RIn --include='*.tsx' --include='*.ts' -E '[٠-٩]' apps/mobile/app apps/mobile/lib || true
