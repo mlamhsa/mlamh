@@ -2,6 +2,7 @@ import Link from "next/link";
 import { CheckCircle2, Phone, UserRound } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
 
+import { TalentSocialCompletionForm } from "@/components/auth/TalentSocialCompletionForm";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { isValidLocale, type Locale } from "@/lib/i18n";
@@ -39,21 +40,17 @@ function resolveIntent(value?: string, accountType?: AccountType): SignupIntent 
   return accountType === "publisher" ? "publisher" : null;
 }
 
-async function completeSocialAccount(formData: FormData) {
+async function completePublisherSocialAccount(formData: FormData) {
   "use server";
 
   const rawLocale = String(formData.get("locale") ?? "ar");
   const locale: Locale = isValidLocale(rawLocale) ? rawLocale : "ar";
-  const accountType = resolveAccountType(String(formData.get("account_type") ?? ""));
-  const intent = resolveIntent(String(formData.get("intent") ?? ""), accountType);
   const provider = String(formData.get("provider") ?? "social").slice(0, 32);
   const fullName = String(formData.get("full_name") ?? "").trim().replace(/\s+/g, " ");
   const phone = normalizePhone(String(formData.get("phone") ?? ""));
   const accepted = String(formData.get("accept_terms") ?? "") === "accepted";
 
-  const baseQuery = new URLSearchParams({ type: accountType, provider });
-  if (intent) baseQuery.set("intent", intent);
-
+  const baseQuery = new URLSearchParams({ type: "publisher", provider });
   if (fullName.length < 2 || fullName.length > 100) {
     baseQuery.set("error", "name");
     redirect(`/${locale}/join/complete-account?${baseQuery.toString()}`);
@@ -79,18 +76,18 @@ async function completeSocialAccount(formData: FormData) {
     .maybeSingle();
 
   if (lookupError) {
-    console.error("[completeSocialAccount.lookup]", lookupError);
+    console.error("[completePublisherSocialAccount.lookup]", lookupError);
     baseQuery.set("error", "save");
     redirect(`/${locale}/join/complete-account?${baseQuery.toString()}`);
   }
 
   const profilePayload = {
-    account_type: accountType,
+    account_type: "publisher" as const,
     display_name: fullName,
     phone,
     status: "active",
     onboarding_status: "account_created",
-    onboarding_step: accountType === "talent" ? "talent_profile" : "publisher_profile",
+    onboarding_step: "publisher_profile",
     approval_status: "not_submitted",
   };
 
@@ -101,39 +98,36 @@ async function completeSocialAccount(formData: FormData) {
       .eq("id", existing.id)
       .eq("user_id", user.id);
     if (error) {
-      console.error("[completeSocialAccount.update]", error);
+      console.error("[completePublisherSocialAccount.update]", error);
       baseQuery.set("error", "save");
       redirect(`/${locale}/join/complete-account?${baseQuery.toString()}`);
     }
   } else {
     const { error } = await admin.from("profiles").insert({ user_id: user.id, ...profilePayload });
     if (error) {
-      console.error("[completeSocialAccount.insert]", error);
+      console.error("[completePublisherSocialAccount.insert]", error);
       baseQuery.set("error", "save");
       redirect(`/${locale}/join/complete-account?${baseQuery.toString()}`);
     }
   }
 
-  const metadata = {
-    ...(user.user_metadata ?? {}),
-    full_name: fullName,
-    display_name: accountType === "talent" ? fullName : user.user_metadata?.display_name ?? null,
-    contact_name: accountType === "publisher" ? fullName : user.user_metadata?.contact_name ?? null,
-    phone,
-    phone_verified: false,
-    account_type: accountType,
-    signup_intent: intent,
-    preferred_locale: locale,
-    terms_accepted: true,
-    terms_accepted_at: new Date().toISOString(),
-  };
+  const { error: metadataError } = await authClient.auth.updateUser({
+    data: {
+      ...(user.user_metadata ?? {}),
+      full_name: fullName,
+      contact_name: fullName,
+      phone,
+      phone_verified: false,
+      account_type: "publisher",
+      signup_intent: "publisher",
+      preferred_locale: locale,
+      terms_accepted: true,
+      terms_accepted_at: new Date().toISOString(),
+    },
+  });
+  if (metadataError) console.error("[completePublisherSocialAccount.metadata]", metadataError);
 
-  const { error: metadataError } = await authClient.auth.updateUser({ data: metadata });
-  if (metadataError) console.error("[completeSocialAccount.metadata]", metadataError);
-
-  if (accountType === "publisher") redirect(`/${locale}/join/publisher`);
-  const intentQuery = intent === "actor" || intent === "model" ? `?intent=${intent}` : "";
-  redirect(`/${locale}/join/talent${intentQuery}`);
+  redirect(`/${locale}/join/publisher`);
 }
 
 function errorCopy(code: string | undefined, isRtl: boolean) {
@@ -147,12 +141,19 @@ function errorCopy(code: string | undefined, isRtl: boolean) {
 export default async function CompleteAccountPage({ params, searchParams }: PageProps) {
   const { locale: localeParam } = await params;
   if (!isValidLocale(localeParam)) notFound();
+
   const locale = localeParam as Locale;
   const isRtl = locale === "ar";
   const query = searchParams ? await searchParams : {};
   const accountType = resolveAccountType(query.type);
   const intent = resolveIntent(query.intent, accountType);
-  const provider = query.provider === "apple" ? "apple" : query.provider === "google" ? "google" : "social";
+  const provider = query.provider === "apple"
+    ? "apple"
+    : query.provider === "google"
+      ? "google"
+      : query.provider === "email"
+        ? "email"
+        : "social";
 
   const authClient = await createServerSupabaseClient();
   const { data: { user }, error: userError } = await authClient.auth.getUser();
@@ -171,9 +172,51 @@ export default async function CompleteAccountPage({ params, searchParams }: Page
     user.user_metadata?.full_name ??
       user.user_metadata?.name ??
       user.user_metadata?.display_name ??
-      user.email?.split("@")[0] ??
       "",
   ).trim();
+
+  if (accountType === "talent") {
+    const metadata = user.user_metadata ?? {};
+    const rawVisibility = String(metadata.profile_visibility ?? "");
+    const profileVisibility = rawVisibility === "private" ? "private" : rawVisibility === "public" ? "public" : undefined;
+
+    return (
+      <main dir={isRtl ? "rtl" : "ltr"} className="min-h-screen bg-black px-4 py-12 text-white sm:px-6 sm:py-16">
+        <div className="mx-auto max-w-3xl">
+          <div className="rounded-[2rem] border border-white/10 bg-white/[0.035] p-5 shadow-2xl sm:p-8">
+            <div className="mb-8 text-center">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-gold/30 bg-gold/[0.08] text-gold">
+                <CheckCircle2 size={25} />
+              </div>
+              <p className="mt-5 text-xs font-semibold uppercase tracking-[0.25em] text-gold">{isRtl ? "أكمل البيانات المطلوبة" : "COMPLETE REQUIRED DETAILS"}</p>
+              <h1 className="mt-3 text-3xl font-light sm:text-4xl">{isRtl ? "جهّز حساب الموهبة" : "Finish your talent account"}</h1>
+              <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-white/50">
+                {isRtl
+                  ? "لن نكرر البيانات الموجودة لدينا. أكمل الحقول الضرورية مرة واحدة، وبعدها تدخل مباشرة إلى لوحة التحكم."
+                  : "We won’t ask again for information we already have. Complete the required fields once, then go directly to your dashboard."}
+              </p>
+            </div>
+
+            <TalentSocialCompletionForm
+              locale={locale}
+              suggestedName={suggestedName}
+              email={user.email ?? ""}
+              provider={provider}
+              initial={{
+                nationality: typeof metadata.nationality_slug === "string" ? metadata.nationality_slug : undefined,
+                gender: typeof metadata.gender === "string" ? metadata.gender : undefined,
+                residenceCountryCode: typeof metadata.residence_country_code === "string" ? metadata.residence_country_code : undefined,
+                citySlug: typeof metadata.city_slug === "string" ? metadata.city_slug : undefined,
+                talentType: typeof metadata.talent_type === "string" ? metadata.talent_type : intent === "actor" || intent === "model" ? intent : undefined,
+                profileVisibility,
+              }}
+            />
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   const errorMessage = errorCopy(query.error, isRtl);
   const providerLabel = provider === "apple" ? "Apple" : provider === "google" ? "Google" : (isRtl ? "الحساب الاجتماعي" : "social account");
 
@@ -189,17 +232,15 @@ export default async function CompleteAccountPage({ params, searchParams }: Page
             <h1 className="mt-3 text-3xl font-light sm:text-4xl">{isRtl ? "أكمل بيانات حسابك" : "Complete your account"}</h1>
             <p className="mt-3 text-sm leading-7 text-white/50">
               {isRtl
-                ? `تم تسجيل دخولك عبر ${providerLabel}. نحتاج اسمك ورقم جوالك حتى نستطيع التواصل معك واستكمال ملفك.`
-                : `You're signed in with ${providerLabel}. Add your name and mobile number so we can keep your MLAMH account complete and reachable.`}
+                ? `تم تسجيل دخولك عبر ${providerLabel}. نحتاج اسمك ورقم جوالك حتى نستطيع التواصل معك واستكمال حساب الناشر.`
+                : `You're signed in with ${providerLabel}. Add your name and mobile number so we can complete your publisher account.`}
             </p>
           </div>
 
           {errorMessage ? <div role="alert" className="mb-5 rounded-2xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-center text-sm text-red-300">{errorMessage}</div> : null}
 
-          <form action={completeSocialAccount} className="space-y-5">
+          <form action={completePublisherSocialAccount} className="space-y-5">
             <input type="hidden" name="locale" value={locale} />
-            <input type="hidden" name="account_type" value={accountType} />
-            <input type="hidden" name="intent" value={intent ?? ""} />
             <input type="hidden" name="provider" value={provider} />
 
             <label className="block">
@@ -210,7 +251,6 @@ export default async function CompleteAccountPage({ params, searchParams }: Page
             <label className="block">
               <span className="mb-2 flex items-center gap-2 text-sm font-medium"><Phone size={16} className="text-gold" />{isRtl ? "رقم الجوال" : "Mobile number"}<span className="text-gold">*</span></span>
               <input name="phone" inputMode="tel" autoComplete="tel" dir="ltr" placeholder="+9665XXXXXXXX" required className="min-h-14 w-full rounded-2xl border border-white/10 bg-black/40 px-4 text-left text-white outline-none transition focus:border-gold/60" />
-              <p className={`mt-2 text-xs leading-5 text-white/40 ${isRtl ? "text-right" : "text-left"}`}>{isRtl ? "سيتم استخدام الرقم للتواصل معك، وسيصبح قابلاً للتحقق عبر SMS OTP مستقبلًا." : "Used to contact you and ready for SMS OTP verification in a future release."}</p>
             </label>
 
             <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.02] p-4 text-sm leading-6 text-white/65">
@@ -222,8 +262,6 @@ export default async function CompleteAccountPage({ params, searchParams }: Page
                 <Link href={`/${locale}/privacy`} className="text-gold hover:underline">{isRtl ? "سياسة الخصوصية" : "Privacy Policy"}</Link>.
               </span>
             </label>
-
-            <p className={`text-xs text-white/40 ${isRtl ? "text-right" : "text-left"}`}><span className="text-gold">*</span> {isRtl ? "حقل مطلوب" : "Required field"}</p>
 
             <button type="submit" className="min-h-14 w-full rounded-2xl bg-gold px-5 text-sm font-black text-black transition hover:bg-gold-soft">
               {isRtl ? "حفظ ومتابعة" : "Save & continue"}
