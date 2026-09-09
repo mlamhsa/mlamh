@@ -33,12 +33,9 @@ export async function getOwnTalentResidenceAction(): Promise<OwnTalentResidence 
 
   if (!data) return null;
 
-  const countryCode = String(data.base_country_code ?? "").trim().toUpperCase();
-  const citySlug = String(data.city_slug ?? "").trim();
-
   return {
-    countryCode: countryCode || "SA",
-    citySlug,
+    countryCode: String(data.base_country_code ?? "").trim().toUpperCase(),
+    citySlug: String(data.city_slug ?? "").trim(),
     cityAr: String(data.city_ar ?? "").trim(),
     cityEn: String(data.city_en ?? "").trim(),
   };
