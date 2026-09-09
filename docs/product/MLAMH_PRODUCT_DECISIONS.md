@@ -9,13 +9,16 @@ Status: APPROVED / IMPLEMENTATION IN PROGRESS
 MLAMH will finish the Talent product flow completely before moving to Publisher redesign, then Brief/Workspace.
 
 ### Canonical Talent onboarding
-Talent / Looking for talent → Account creation + required basics → Talent Dashboard → Complete professional profile/portfolio → Approval readiness → Auto/manual approval → Public/private visibility behavior → Opportunity participation.
+Talent / Looking for talent → Account creation + required basics → Email OTP verification (for email/password signup) → Talent Dashboard → Complete professional profile/portfolio → Approval readiness → Auto/manual approval → Public/private visibility behavior → Opportunity participation.
 
 ### Registration rules
 - Email signup collects all required talent basics.
+- Email/password signup uses a 6-digit OTP verification experience inside MLAMH.
+- The Supabase signup email template must expose the OTP token (`{{ .Token }}`); a confirmation-link-only email is not the canonical UX.
 - Google signup reuses trustworthy Google data and asks only for missing required data.
 - No repeated Actor/Model or talent-type confirmation screen after signup.
 - Profile visibility is required for every talent user without demographic exceptions.
+- Verification pages must respect the global navigation height so titles and controls are never hidden at the top of the viewport.
 
 ### Talent taxonomy direction
 Expand beyond Actor and Model into a broader talent list. Do not mix production crew roles into Talent taxonomy. Production crew/creative marketplace is a separate future expansion.
