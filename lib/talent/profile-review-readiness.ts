@@ -98,44 +98,28 @@ function buildReadiness(
   };
 }
 
+const CANONICAL_APPROVAL_REQUIREMENTS = new Set([
+  "name",
+  "phone",
+  "profile_image",
+  "primary_role",
+  "country",
+  "city",
+  "gender",
+  "date_of_birth",
+  "nationality",
+  "profile_visibility",
+  "data_accuracy_contact_consent",
+]);
+
 export function getTalentProfileReadiness(talent: TalentProfileReadinessData) {
-  // This is the profile-editor/dashboard readiness view. It only includes fields
-  // represented directly in the professional profile editor. Bio, languages,
-  // skills, experience, measurements and extra portfolio material remain optional.
-  return buildReadiness(
-    talent,
-    new Set([
-      "name",
-      "phone",
-      "profile_image",
-      "primary_role",
-      "city",
-      "gender",
-      "date_of_birth",
-      "nationality",
-    ]),
-  );
+  // Dashboard/editor readiness intentionally uses the same canonical hard gates
+  // as final review submission. Optional bio, languages, skills, experience,
+  // measurements and extra portfolio material belong to profile strength only.
+  return buildReadiness(talent, CANONICAL_APPROVAL_REQUIREMENTS);
 }
 
 export function getTalentProfileReviewReadiness(talent: TalentProfileReadinessData) {
-  // Final submission applies the full canonical account gates collected during
-  // signup as well: residence country, privacy choice and data/contact consent.
-  const readiness = buildReadiness(
-    talent,
-    new Set([
-      "name",
-      "phone",
-      "profile_image",
-      "primary_role",
-      "country",
-      "city",
-      "gender",
-      "date_of_birth",
-      "nationality",
-      "profile_visibility",
-      "data_accuracy_contact_consent",
-    ]),
-  );
-
+  const readiness = buildReadiness(talent, CANONICAL_APPROVAL_REQUIREMENTS);
   return { ...readiness, canSubmitForReview: readiness.isReady };
 }
