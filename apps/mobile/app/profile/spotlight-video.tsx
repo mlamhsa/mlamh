@@ -31,7 +31,7 @@ export default function TalentSpotlightVideoScreen() {
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
       <View style={styles.content}>
         <View style={[styles.topRow, isRtl && styles.rowRtl]}>
-          <Pressable onPress={() => router.back()} style={styles.iconButton}><BackIcon size={22} color={darkTheme.text} /></Pressable>
+          <Pressable onPress={() => leaveAuthenticatedScreen("/profile/media")} style={styles.iconButton}><BackIcon size={22} color={darkTheme.text} /></Pressable>
           <Text style={[styles.brand, directionText(isRtl)]}>MLAMH</Text>
         </View>
 

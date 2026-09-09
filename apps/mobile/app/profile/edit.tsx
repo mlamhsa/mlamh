@@ -190,7 +190,7 @@ export default function EditTalentProfileScreen() {
       isArabic ? "احفظ التغييرات قبل الخروج أو اخرج بدون حفظ." : "Save your changes before leaving, or leave without saving.",
       [
         { text: isArabic ? "إلغاء" : "Cancel", style: "cancel" },
-        { text: isArabic ? "الخروج بدون حفظ" : "Leave without saving", style: "destructive", onPress: () => onboarding ? router.replace("/profile/journey") : leaveAuthenticatedScreen("troprofile") },
+        { text: isArabic ? "الخروج بدون حفظ" : "Leave without saving", style: "destructive", onPress: () => onboarding ? router.replace("/profile/journey") : leaveAuthenticatedScreen("/profile") },
         { text: isArabic ? "حفظ والمتابعة" : "Save & continue", onPress: () => void save() },
       ],
     );
