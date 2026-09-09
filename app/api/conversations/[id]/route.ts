@@ -9,7 +9,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   const { id } = await context.params;
   const data = await getUserConversationDetail(auth.user.id, Number(id));
   if (!data) return NextResponse.json({ ok: false, code: "NOT_FOUND" }, { status: 404 });
-  return NextResponse.json(data);
+  return NextResponse.json(data, { headers: { "Cache-Control": "private, no-store" } });
 }
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
@@ -20,7 +20,9 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   try { payload = await request.json(); } catch { return NextResponse.json({ ok: false, code: "INVALID_BODY" }, { status: 400 }); }
   const result = await sendUserMessage(auth.user.id, Number(id), payload.body);
   if (!result.ok) {
-    const status = result.code === "NOT_FOUND" ? 404 : result.code === "CONVERSATION_NOT_ACTIVE" ? 409 : result.code === "INSERT_FAILED" ? 500 : 400;
+    const status = result.code === "NOT_FOUND" ? 404
+      : result.code === "CONVERSATION_NOT_ACTIVE" || result.code === "PUBLISHER_MUST_START" ? 409
+        : result.code === "INSERT_FAILED" ? 500 : 400;
     return NextResponse.json(result, { status });
   }
   return NextResponse.json(result, { status: 201 });
