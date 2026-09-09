@@ -21,6 +21,18 @@ export const dynamic = "force-dynamic";
 
 const MIN_REVIEW_COMPLETION = 35;
 
+/*
+ * Legacy-safety contract:
+ * - Existing talent/profile rows are read-only in this recovery job.
+ * - We do not backfill, normalize, auto-complete, change approval state,
+ *   publish/unpublish, or rewrite any existing talent data here.
+ * - The only side effects are sending a reminder email and recording the
+ *   reminder event after a successful send.
+ *
+ * This lets us recover incomplete existing accounts without altering the
+ * information they originally submitted.
+ */
+
 // `talents` has no `updated_at` column. Selecting it made the entire recovery
 // cron fail before any automatic reminder could be classified or sent.
 const TALENT_SELECT = "id, user_id, created_at, name_ar, name_en, image_url, primary_role, city_slug, city_ar, city_en, gender, nationality, nationality_slug, date_of_birth, bio_ar, bio_en, languages, dialects, skills, availability_status, portfolio_url, showreel_url, gallery_images, acting_age_min, acting_age_max, modeling_types, height_cm, shoe_size, hair_color, eye_color, chest_size, waist_size, hip_size, previous_work" as const;
