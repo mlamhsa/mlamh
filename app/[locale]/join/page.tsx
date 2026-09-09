@@ -3,8 +3,6 @@ import type { Metadata } from "next";
 import {
   ArrowLeft,
   BriefcaseBusiness,
-  Drama,
-  Sparkles,
   UserRound,
 } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
@@ -19,7 +17,6 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 type AccountType = "talent" | "publisher";
 type SignupIntent = "actor" | "model" | "publisher";
-type Audience = "talent" | "organization";
 
 type PageProps = {
   params: Promise<{ locale: string }>;
@@ -27,17 +24,11 @@ type PageProps = {
     error?: string;
     type?: string;
     intent?: string;
-    audience?: string;
   }>;
 };
 
 function parseIntent(value: string | undefined): SignupIntent | null {
   if (value === "actor" || value === "model" || value === "publisher") return value;
-  return null;
-}
-
-function parseAudience(value: string | undefined): Audience | null {
-  if (value === "talent" || value === "organization") return value;
   return null;
 }
 
@@ -62,42 +53,23 @@ function onboardingPath(locale: Locale, accountType: AccountType) {
 }
 
 function intentCopy(
-  intent: SignupIntent | null,
   accountType: AccountType,
   isRtl: boolean,
 ) {
-  if (intent === "actor") {
-    return {
-      eyebrow: isRtl ? "فرص تمثيل" : "ACTING OPPORTUNITIES",
-      body: isRtl
-        ? "أنشئ حسابك، وبعد تأكيد البريد سنكمل مباشرة إعداد ملف الممثل."
-        : "Create your account and, after email verification, continue directly into your actor profile setup.",
-    };
-  }
-
-  if (intent === "model") {
-    return {
-      eyebrow: isRtl ? "فرص مودل" : "MODELING OPPORTUNITIES",
-      body: isRtl
-        ? "أنشئ حسابك، وبعد تأكيد البريد سنكمل مباشرة إعداد ملف المودل."
-        : "Create your account and, after email verification, continue directly into your model profile setup.",
-    };
-  }
-
   if (accountType === "publisher") {
     return {
       eyebrow: isRtl ? "أبحث عن مواهب" : "I NEED TALENT",
       body: isRtl
-        ? "أنشئ حسابك أولًا، ثم جهّز مساحة العمل وأخبرنا عن مشروعك أو احتياجك للمواهب."
-        : "Create your account first, then set up your workspace and tell us about your project or talent needs.",
+        ? "أنشئ حسابك أولًا، ثم نكمل إعداد حساب الناشر خطوة بخطوة."
+        : "Create your account first, then we’ll complete your publisher setup step by step.",
     };
   }
 
   return {
     eyebrow: isRtl ? "حساب موهبة" : "TALENT ACCOUNT",
     body: isRtl
-      ? "أنشئ حسابك، ثم أكمل ملفك المهني وصورك خطوة بخطوة."
-      : "Create your account, then complete your professional profile and portfolio step by step.",
+      ? "أنشئ حسابك وأدخل بياناتك الأساسية مرة واحدة، ثم أكمل ملفك المهني من لوحة التحكم."
+      : "Create your account and enter your essential details once, then complete your professional profile from the dashboard.",
   };
 }
 
@@ -120,7 +92,6 @@ export default async function JoinPage({ params, searchParams }: PageProps) {
   const locale = localeParam as Locale;
   const isRtl = locale === "ar";
   const intent = parseIntent(query.intent);
-  const audience = parseAudience(query.audience);
   const legacyType = parseLegacyType(query.type);
   const selectedAccountType = accountTypeForIntent(intent, legacyType);
 
@@ -147,7 +118,7 @@ export default async function JoinPage({ params, searchParams }: PageProps) {
   }
 
   const selectedCopy = selectedAccountType
-    ? intentCopy(intent, selectedAccountType, isRtl)
+    ? intentCopy(selectedAccountType, isRtl)
     : null;
 
   return (
@@ -162,9 +133,9 @@ export default async function JoinPage({ params, searchParams }: PageProps) {
 
         <div className="relative z-10 w-full max-w-5xl">
           {selectedAccountType && selectedCopy ? (
-            <div className="mx-auto w-full max-w-md rounded-[1.75rem] border border-white/10 bg-white/[0.035] p-5 shadow-2xl backdrop-blur-xl sm:rounded-[2rem] sm:p-7">
+            <div className="mx-auto w-full max-w-2xl rounded-[1.75rem] border border-white/10 bg-white/[0.035] p-5 shadow-2xl backdrop-blur-xl sm:rounded-[2rem] sm:p-7">
               <Link
-                href={`/${locale}/join${selectedAccountType === "talent" ? "?audience=talent" : ""}`}
+                href={`/${locale}/join`}
                 className="mb-6 inline-flex min-h-10 items-center gap-2 rounded-full border border-white/10 px-4 text-xs text-white/55 transition hover:border-gold/40 hover:text-gold"
               >
                 <ArrowLeft size={15} className={isRtl ? "rotate-180" : ""} />
@@ -223,8 +194,6 @@ export default async function JoinPage({ params, searchParams }: PageProps) {
                 </Link>
               </div>
             </div>
-          ) : audience === "talent" ? (
-            <TalentIntentSelection locale={locale} isRtl={isRtl} />
           ) : (
             <AudienceSelection locale={locale} isRtl={isRtl} />
           )}
@@ -255,9 +224,9 @@ function AudienceSelection({ locale, isRtl }: { locale: Locale; isRtl: boolean }
 
       <div className="mx-auto mt-12 grid max-w-4xl gap-5 md:grid-cols-2">
         <ChoiceCard
-          href={`/${locale}/join?audience=talent`}
+          href={`/${locale}/join?type=talent`}
           icon={<UserRound size={27} />}
-          eyebrow={isRtl ? "للممثلين والمودلز" : "FOR ACTORS & MODELS"}
+          eyebrow={isRtl ? "للمواهب" : "FOR TALENT"}
           title={
             isRtl
               ? "أنا موهبة وأبحث عن فرص"
@@ -265,15 +234,15 @@ function AudienceSelection({ locale, isRtl }: { locale: Locale; isRtl: boolean }
           }
           description={
             isRtl
-              ? "للممثلين والمودلز الراغبين في التقديم على الفرص المناسبة."
-              : "For actors and models who want to apply to relevant opportunities."
+              ? "أنشئ ملفك المهني وتقدم للفرص المناسبة لك على ملامح."
+              : "Create your professional profile and apply to opportunities that fit you."
           }
           actionLabel={isRtl ? "ابدأ كموهبة" : "Start as talent"}
           featured
         />
 
         <ChoiceCard
-          href={`/${locale}/join?intent=publisher`}
+          href={`/${locale}/join?type=publisher`}
           icon={<BriefcaseBusiness size={27} />}
           eyebrow={
             isRtl
@@ -287,8 +256,8 @@ function AudienceSelection({ locale, isRtl }: { locale: Locale; isRtl: boolean }
           }
           description={
             isRtl
-              ? "لمن يحتاج ممثلين أو مودلز لمشروع أو إعلان أو تصوير أو فعالية."
-              : "For anyone sourcing actors or models for a project, campaign, shoot, or event."
+              ? "لمن يحتاج مواهب لمشروع أو إعلان أو تصوير أو فعالية."
+              : "For anyone sourcing talent for a project, campaign, shoot, or event."
           }
           actionLabel={isRtl ? "ابدأ البحث عن مواهب" : "Start finding talent"}
         />
@@ -302,65 +271,6 @@ function AudienceSelection({ locale, isRtl }: { locale: Locale; isRtl: boolean }
         >
           {isRtl ? "تسجيل الدخول" : "Sign in"}
         </Link>
-      </div>
-    </div>
-  );
-}
-
-function TalentIntentSelection({ locale, isRtl }: { locale: Locale; isRtl: boolean }) {
-  return (
-    <div>
-      <div className="mx-auto max-w-3xl text-center">
-        <Link
-          href={`/${locale}/join`}
-          className="mb-7 inline-flex min-h-10 items-center gap-2 rounded-full border border-white/10 px-4 text-xs text-white/55 transition hover:border-gold/40 hover:text-gold"
-        >
-          <ArrowLeft size={15} className={isRtl ? "rotate-180" : ""} />
-          {isRtl ? "رجوع" : "Back"}
-        </Link>
-
-        <p className="arabic-safe text-xs uppercase tracking-[0.35em] text-gold">
-          {isRtl ? "اختر نوع الفرص" : "CHOOSE YOUR OPPORTUNITIES"}
-        </p>
-        <h1 className="mt-5 text-4xl font-light leading-tight sm:text-5xl">
-          {isRtl
-            ? "ما نوع الفرص التي تبحث عنها؟"
-            : "What opportunities are you looking for?"}
-        </h1>
-        <p className="mx-auto mt-5 max-w-xl text-sm leading-7 text-white/50 sm:text-base">
-          {isRtl
-            ? "اختر تخصصك الأساسي الآن. لن نطلب منك اختيار النوع مرة أخرى بعد التسجيل."
-            : "Choose your primary role now. We won’t ask you to choose it again after signup."}
-        </p>
-      </div>
-
-      <div className="mx-auto mt-12 grid max-w-4xl gap-5 md:grid-cols-2">
-        <ChoiceCard
-          href={`/${locale}/join?intent=actor`}
-          icon={<Drama size={27} />}
-          eyebrow={isRtl ? "تمثيل" : "ACTING"}
-          title={isRtl ? "أبحث عن فرص تمثيل" : "I’m looking for acting opportunities"}
-          description={
-            isRtl
-              ? "أنشئ ملف ممثل وقدّم على الأدوار وفرص التمثيل المناسبة لك."
-              : "Create an actor profile and apply to suitable acting roles."
-          }
-          actionLabel={isRtl ? "ابدأ كممثل" : "Start as an actor"}
-          featured
-        />
-
-        <ChoiceCard
-          href={`/${locale}/join?intent=model`}
-          icon={<Sparkles size={27} />}
-          eyebrow={isRtl ? "مودل" : "MODELING"}
-          title={isRtl ? "أبحث عن فرص مودل" : "I’m looking for modeling opportunities"}
-          description={
-            isRtl
-              ? "أنشئ ملف مودل واعرض صورك وبياناتك المهنية للفرص المناسبة."
-              : "Create a model profile and present your portfolio for relevant opportunities."
-          }
-          actionLabel={isRtl ? "ابدأ كمودل" : "Start as a model"}
-        />
       </div>
     </div>
   );
