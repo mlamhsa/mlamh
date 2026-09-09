@@ -3,6 +3,7 @@ import { SlidersHorizontal } from "lucide-react";
 
 import { NATIONALITIES } from "@/lib/data/nationalities";
 import { SAUDI_CITIES } from "@/lib/data/saudi-cities";
+import { TALENT_CATEGORIES } from "@/lib/data/talent-categories";
 import type { Locale } from "@/lib/i18n";
 import { talentPath } from "@/lib/utils/routes";
 
@@ -18,11 +19,6 @@ type TalentFiltersProps = {
   heightMin?: string;
   heightMax?: string;
 };
-
-const PUBLIC_TALENT_CATEGORIES = [
-  { slug: "actor", ar: "ممثل", en: "Actor" },
-  { slug: "model", ar: "مودل", en: "Model" },
-] as const;
 
 export function TalentFilters({
   locale,
@@ -70,8 +66,8 @@ export function TalentFilters({
 
         <p className="max-w-xl text-sm leading-7 text-gray-muted">
           {isRtl
-            ? "ابحث بالاسم، وحدد ممثل أو مودل، ثم استخدم الفلاتر المتقدمة عند الحاجة."
-            : "Search by name, choose Actor or Model, then use advanced filters when needed."}
+            ? "ابحث بالاسم أو نوع الموهبة، ثم استخدم المدينة والفلاتر المتقدمة للوصول إلى الأنسب لمشروعك."
+            : "Search by name or talent type, then use city and advanced filters to find the right fit for your project."}
         </p>
       </div>
 
@@ -85,8 +81,8 @@ export function TalentFilters({
           />
 
           <select name="category" defaultValue={category ?? ""} className={fieldClass}>
-            <option value="">{isRtl ? "كل التخصصات" : "All Categories"}</option>
-            {PUBLIC_TALENT_CATEGORIES.map((option) => (
+            <option value="">{isRtl ? "كل أنواع المواهب" : "All Talent Types"}</option>
+            {TALENT_CATEGORIES.map((option) => (
               <option key={option.slug} value={option.slug}>
                 {isRtl ? option.ar : option.en}
               </option>
