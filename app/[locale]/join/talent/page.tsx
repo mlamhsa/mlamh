@@ -35,9 +35,7 @@ export default async function JoinTalentPage({ params, searchParams }: PageProps
     error: userError,
   } = await authClient.auth.getUser();
 
-  if (userError || !user) {
-    redirect(`/${locale}/join`);
-  }
+  if (userError || !user) redirect(`/${locale}/join`);
 
   const { data: profile, error: profileError } = await authClient
     .from("profiles")
@@ -45,19 +43,14 @@ export default async function JoinTalentPage({ params, searchParams }: PageProps
     .eq("user_id", user.id)
     .maybeSingle<ProfileRow>();
 
-  if (profileError) {
-    console.error("[JoinTalentPage profileLookup]", profileError);
-  }
+  if (profileError) console.error("[JoinTalentPage profileLookup]", profileError);
 
-  if (profile?.account_type === "publisher") {
-    redirect(`/${locale}/publisher-dashboard`);
-  }
+  if (profile?.account_type === "publisher") redirect(`/${locale}/workspace`);
 
   if (profile?.account_type === "talent" && profile.onboarding_status === "completed") {
     redirect(`/${locale}/talent-dashboard`);
   }
 
-  // A talent entity already exists and the role step was saved: resume at the next real step.
   if (
     profile?.account_type === "talent" &&
     profile.onboarding_status === "profile_in_progress" &&
@@ -103,24 +96,31 @@ export default async function JoinTalentPage({ params, searchParams }: PageProps
             </p>
             <h1 className="mt-4 text-[clamp(2.4rem,8vw,4.2rem)] font-light leading-[1.08] text-white">
               {initialRole
-                ? (isRtl ? "نبدأ من اختيارك" : "Continue from your choice")
-                : (isRtl ? "حدد تخصصك الأساسي" : "Choose your primary role")}
+                ? isRtl
+                  ? "نبدأ من اختيارك"
+                  : "Continue from your choice"
+                : isRtl
+                  ? "حدد تخصصك الأساسي"
+                  : "Choose your primary role"}
             </h1>
             <p className="mt-5 max-w-2xl text-sm leading-7 text-gray-muted md:text-base">
               {initialRole
-                ? (isRtl
-                    ? "حفظنا اختيارك من بداية التسجيل، لذلك لن نكرر عليك نفس السؤال."
-                    : "We kept the role you chose at signup, so you won't be asked the same question again.")
-                : (isRtl
-                    ? "هذه الخطوة تظهر فقط للحسابات القديمة أو التي لم تحدد المسار أثناء التسجيل."
-                    : "This step is only needed for legacy accounts or signups without a saved role.")}
+                ? isRtl
+                  ? "حفظنا اختيارك من بداية التسجيل، لذلك لن نكرر عليك نفس السؤال."
+                  : "We kept the role you chose at signup, so you won't be asked the same question again."
+                : isRtl
+                  ? "هذه الخطوة تظهر فقط للحسابات القديمة أو التي لم تحدد المسار أثناء التسجيل."
+                  : "This step is only needed for legacy accounts or signups without a saved role."}
             </p>
           </header>
 
           <TalentQuickSetupForm locale={locale} initialRole={initialRole} />
         </div>
 
-        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-gold/30 to-transparent" aria-hidden="true" />
+        <div
+          className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-gold/30 to-transparent"
+          aria-hidden="true"
+        />
       </div>
 
       <Footer locale={locale} />
