@@ -5,6 +5,7 @@ on:
     branches:
       - feat/mobile-platform-phase0
     paths:
+      - "apps/mobile/**"
       - ".github/workflows/build14-navigation-audit.yml"
 
 jobs:
@@ -19,7 +20,23 @@ jobs:
           grep -RIn --include='*.tsx' --include='*.ts' 'router\.back()' apps/mobile/app apps/mobile/lib || true
           echo '=== getDeviceLocale() ==='
           grep -RIn --include='*.tsx' --include='*.ts' 'getDeviceLocale()' apps/mobile/app apps/mobile/lib || true
-          echo '=== ar-SA direct date formatting ==='
-          grep -RIn --include='*.tsx' --include='*.ts' 'toLocaleDateString(.*ar-SA\|ar-SA-u-' apps/mobile/app apps/mobile/lib || true
+          echo '=== direct Arabic locale date formatting ==='
+          grep -RIn --include='*.tsx' --include='*.ts' 'ar-SA-u-ca-gregory\|toLocaleDateString' apps/mobile/app apps/mobile/lib || true
           echo '=== Arabic-Indic digit literals ==='
-          grep -RIn --include='*.tsx' --include='*.ts' -E '[٠-٩]' apps/mobile/app apps/mobile/lib || true
+          python - <<'PY'
+          from pathlib import Path
+          chars = set('٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹')
+          for root in (Path('apps/mobile/app'), Path('apps/mobile/lib')):
+              for path in root.rglob('*'):
+                  if path.suffix not in {'.ts', '.tsx'}:
+                      continue
+                  text = path.read_text(encoding='utf-8')
+                  for idx, line in enumerate(text.splitlines(), 1):
+                      if any(ch in chars for ch in line):
+                          print(f'{path}:{idx}:{line}')
+          PY
+          echo '=== Stack locale remount guard ==='
+          if grep -RIn --include='*.tsx' '<Stack[^>]*key={locale}' apps/mobile/app; then
+            echo '::error::Locale-dependent Stack key remounts navigation state.'
+            exit 1
+          fi
