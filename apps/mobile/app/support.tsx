@@ -7,6 +7,7 @@ import { CheckCircle2, ChevronLeft, ChevronRight, Headphones, ShieldCheck } from
 import { getMobileAccountContext } from "@/lib/account";
 import { createSupportTicket } from "@/lib/api";
 import { useAppLocale } from "@/lib/locale-context";
+import { leaveAuthenticatedScreen } from "@/lib/navigation";
 import { supabase } from "@/lib/supabase";
 import { darkTheme } from "@/lib/theme";
 
@@ -33,6 +34,7 @@ export default function SupportScreen() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [accountType, setAccountType] = useState<"talent" | "publisher">("talent");
   const [category, setCategory] = useState("general_inquiry");
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
@@ -52,6 +54,7 @@ export default function SupportScreen() {
       setName(String(account?.displayName ?? metadata.full_name ?? metadata.name ?? ""));
       setEmail(user.email ?? "");
       setPhone(account?.phone ?? "");
+      setAccountType(account?.type === "publisher" ? "publisher" : "talent");
     });
     return () => { active = false; };
   }, []);
@@ -86,10 +89,12 @@ export default function SupportScreen() {
     setTicketNumber(null); setSubject(""); setMessage(""); setCategory("general_inquiry"); setError(null);
   }
 
+  const settingsRoute = accountType === "publisher" ? "/publisher/settings" : "/profile/settings";
+
   return <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <ScrollView contentContainerStyle={[styles.content, compact && styles.contentCompact]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-        <View style={[styles.top, isRtl && styles.rowRtl]}><Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "رجوع" : "Back"} onPress={() => router.back()} style={styles.backButton}><BackIcon size={21} color={darkTheme.text}/></Pressable><Text style={[styles.brand, isArabic && styles.noTracking]}>{isArabic ? "ملامح" : "MLAMH"}</Text></View>
+        <View style={[styles.top, isRtl && styles.rowRtl]}><Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "رجوع" : "Back"} onPress={() => leaveAuthenticatedScreen(settingsRoute)} style={styles.backButton}><BackIcon size={21} color={darkTheme.text}/></Pressable><Text style={[styles.brand, isArabic && styles.noTracking]}>{isArabic ? "ملامح" : "MLAMH"}</Text></View>
 
         <View style={[styles.hero, isRtl && styles.rowRtl]}><View style={styles.heroIcon}><Headphones size={22} color={darkTheme.accent}/></View><View style={styles.heroCopy}><Text accessibilityRole="header" style={[styles.title, compact && styles.titleCompact, isRtl && styles.textRtl]}>{isArabic ? "الدعم والشكاوى" : "Support & complaints"}</Text><Text style={[styles.subtitle, isRtl && styles.textRtl]}>{isArabic ? "أرسل طلبك من داخل التطبيق. يتم تسجيله كتذكرة واحدة يمكن لفريق ملامح متابعتها." : "Send your request without leaving the app. It becomes one tracked MLAMH support ticket."}</Text></View></View>
 
