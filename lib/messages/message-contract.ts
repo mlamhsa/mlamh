@@ -15,6 +15,9 @@ export type ConversationDetailResponse = {
     opportunityTitle: string | null;
     partyName: string;
     status: string;
+    participantRole: "talent" | "publisher";
+    startPolicy: "publisher_starts";
+    canSend: boolean;
   };
   messages: MobileMessage[];
 };
@@ -27,6 +30,7 @@ export type SendMessageResult =
         | "INVALID_CONVERSATION"
         | "NOT_FOUND"
         | "CONVERSATION_NOT_ACTIVE"
+        | "PUBLISHER_MUST_START"
         | "EMPTY_MESSAGE"
         | "MESSAGE_TOO_LONG"
         | "INSERT_FAILED";
