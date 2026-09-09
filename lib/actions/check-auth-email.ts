@@ -7,6 +7,7 @@ export type ExistingAuthEmailResult = {
   providers: string[];
   hasPassword: boolean;
   hasGoogle: boolean;
+  hasApple: boolean;
 };
 
 function normalizeEmail(value: string) {
@@ -17,8 +18,12 @@ function normalizeEmail(value: string) {
  * Server-only duplicate-account guard for signup flows.
  *
  * We intentionally check Supabase Auth (not profiles) so an account created
- * through Google and an account created through email/password are treated as
- * the same person when they use the same email address.
+ * through Google, Apple or email/password is treated as the same account when
+ * the same email address is used.
+ *
+ * Apple "Hide My Email" can produce a relay address that differs from the
+ * user's personal email. We intentionally do not auto-merge different email
+ * addresses here; identity linking must remain explicit and secure.
  *
  * This action is read-only and never mutates an existing user.
  */
@@ -33,6 +38,7 @@ export async function checkAuthEmailExistsAction(
       providers: [],
       hasPassword: false,
       hasGoogle: false,
+      hasApple: false,
     };
   }
 
@@ -54,6 +60,7 @@ export async function checkAuthEmailExistsAction(
         providers: [],
         hasPassword: false,
         hasGoogle: false,
+        hasApple: false,
       };
     }
 
@@ -75,6 +82,7 @@ export async function checkAuthEmailExistsAction(
         providers,
         hasPassword: providers.includes("email"),
         hasGoogle: providers.includes("google"),
+        hasApple: providers.includes("apple"),
       };
     }
 
@@ -88,5 +96,6 @@ export async function checkAuthEmailExistsAction(
     providers: [],
     hasPassword: false,
     hasGoogle: false,
+    hasApple: false,
   };
 }
