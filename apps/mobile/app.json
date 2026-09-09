@@ -44,7 +44,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "net.mlamh.app",
-      "buildNumber": "12",
+      "buildNumber": "13",
       "usesAppleSignIn": true,
       "entitlements": {
         "com.apple.developer.applesignin": [
@@ -62,7 +62,7 @@
     },
     "android": {
       "package": "net.mlamh.app",
-      "versionCode": 12,
+      "versionCode": 13,
       "adaptiveIcon": {
         "foregroundImage": "./assets/app-icon.png",
         "backgroundColor": "#050505"

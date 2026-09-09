@@ -30,6 +30,7 @@ export default function ProfileSettingsScreen() {
   const [pushEnabled, setPushEnabled] = useState(false);
   const [email, setEmail] = useState("—");
   const [phone, setPhone] = useState("—");
+  const [accountType, setAccountType] = useState<"talent" | "publisher" | null>(null);
   const BackIcon = isRtl ? ChevronRight : ChevronLeft;
   const ForwardIcon = isRtl ? ChevronLeft : ChevronRight;
 
@@ -43,6 +44,7 @@ export default function ProfileSettingsScreen() {
       if (!active) return;
       setEmail(data.user?.email ?? "—");
       setPhone(account?.phone ?? (isArabic ? "غير مضاف" : "Not added"));
+      setAccountType(account?.type ?? null);
     })();
     return () => { active = false; };
   }, [isArabic]);
@@ -135,7 +137,7 @@ export default function ProfileSettingsScreen() {
       <Text style={sectionLabelStyle}>{isArabic ? "بيانات الحساب" : "ACCOUNT DETAILS"}</Text>
       <View style={styles.accountCard}>
         <AccountDetail icon={Mail} label={isArabic ? "البريد الإلكتروني" : "Email"} value={email} isRtl={isRtl} styles={styles} theme={theme} />
-        <AccountDetail icon={Phone} label={isArabic ? "رقم الجوال" : "Mobile number"} value={phone} isRtl={isRtl} styles={styles} theme={theme} />
+        <SettingsRow title={isArabic ? "رقم الجوال" : "Mobile number"} subtitle={phone} icon={Phone} onPress={() => router.push("/account/phone")} isRtl={isRtl} ForwardIcon={ForwardIcon} styles={styles} theme={theme} />
         <SettingsRow title={isArabic ? "إعادة تعيين كلمة المرور" : "Reset password"} subtitle={isArabic ? "أرسل رابطًا آمنًا إلى بريدك لتغيير كلمة المرور" : "Send a secure link to your email to change your password"} icon={KeyRound} onPress={() => router.push("/forgot-password")} isRtl={isRtl} ForwardIcon={ForwardIcon} styles={styles} theme={theme} last />
       </View>
 
@@ -153,7 +155,7 @@ export default function ProfileSettingsScreen() {
       </View>
 
       <Text style={sectionLabelStyle}>{isArabic ? "التطبيق" : "APP"}</Text>
-      <View style={styles.group}><SettingsRow title={isArabic ? "مركز الإشعارات" : "Notification center"} subtitle={isArabic ? "عرض التنبيهات وحالة القراءة" : "View alerts and unread updates"} icon={Bell} onPress={() => router.push("/notifications")} isRtl={isRtl} ForwardIcon={ForwardIcon} styles={styles} theme={theme} /><SettingsRow title={isArabic ? "الصور والملف" : "Photos & portfolio"} subtitle={isArabic ? "إدارة الصورة الرئيسية ومعرض الأعمال" : "Manage your primary photo and portfolio"} icon={Images} onPress={() => router.push("/profile/media")} isRtl={isRtl} ForwardIcon={ForwardIcon} styles={styles} theme={theme} last /></View>
+      <View style={styles.group}><SettingsRow title={isArabic ? "مركز الإشعارات" : "Notification center"} subtitle={isArabic ? "عرض التنبيهات وحالة القراءة" : "View alerts and unread updates"} icon={Bell} onPress={() => router.push("/notifications")} isRtl={isRtl} ForwardIcon={ForwardIcon} styles={styles} theme={theme} last={accountType === "publisher"} />{accountType !== "publisher" ? <SettingsRow title={isArabic ? "الصور والملف" : "Photos & portfolio"} subtitle={isArabic ? "إدارة الصورة الرئيسية ومعرض الأعمال" : "Manage your primary photo and portfolio"} icon={Images} onPress={() => router.push("/profile/media")} isRtl={isRtl} ForwardIcon={ForwardIcon} styles={styles} theme={theme} last /> : null}</View>
 
       <Text style={sectionLabelStyle}>{isArabic ? "الدعم" : "SUPPORT"}</Text>
       <View style={styles.group}><SettingsRow title={isArabic ? "الشكاوى والدعم" : "Complaints & support"} subtitle={isArabic ? "افتح تذكرة وتابع طلبك من داخل ملامح" : "Open a ticket without leaving MLAMH"} icon={LifeBuoy} onPress={() => router.push("/support")} isRtl={isRtl} ForwardIcon={ForwardIcon} styles={styles} theme={theme} last /></View>

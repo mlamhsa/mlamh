@@ -88,10 +88,6 @@ export default function TalentDirectoryScreen() {
     setFilters(next);
   }
 
-  const resultLabel = isArabic
-    ? `${formatLatinNumber(total, "ar")} موهبة`
-    : `${formatLatinNumber(total, "en")} talent${total === 1 ? "" : "s"}`;
-
   const header = (
     <View style={styles.header}>
       <View style={[styles.brandRow, isRtl && styles.rowRtl]}>
@@ -100,7 +96,7 @@ export default function TalentDirectoryScreen() {
           <Text style={[styles.title, directionText(isRtl)]}>{isArabic ? "اكتشف المواهب" : "Discover talent"}</Text>
           <Text style={[styles.subtitle, directionText(isRtl)]}>
             {isArabic
-              ? "ابحث باحتراف بدون كشف بيانات التواصل الخاصة. الوصول يتدرج حسب الثقة وسياق المشروع."
+              ? "اكتشف المواهب المناسبة لمشروعك مع بحث احترافي وحماية كاملة لبيانات التواصل."
               : "Professional discovery without exposing private contact details. Access expands with trust and project context."}
           </Text>
         </View>
@@ -132,7 +128,7 @@ export default function TalentDirectoryScreen() {
             </Text>
           </Pressable>
         ))}
-        <Text style={[styles.count, directionText(isRtl)]}>{resultLabel}</Text>
+
       </View>
 
       {filtersOpen ? (

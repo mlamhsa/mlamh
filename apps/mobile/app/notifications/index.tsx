@@ -2,27 +2,29 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import { ArrowUpRight, BellRing, CheckCircle2, Clock3, Inbox } from "lucide-react-native";
+import { ArrowUpRight, BellRing, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Inbox } from "lucide-react-native";
 
 import { AppTabBar } from "@/components/AppTabBar";
 import { PublisherTabBar } from "@/components/PublisherTabBar";
 import { ScreenSkeleton } from "@/components/ScreenSkeleton";
 import { getMobileAccountContext } from "@/lib/account";
 import { getNotifications, markNotificationRead, type MobileNotification } from "@/lib/api";
-import { getDeviceLocale, isRtlLocale } from "@/lib/i18n";
+import { isRtlLocale } from "@/lib/i18n";
+import { useAppLocale } from "@/lib/locale-context";
 import { useNotificationSync } from "@/lib/notifications-context";
 import { darkTheme } from "@/lib/theme";
 
 type NotificationFilter = "all" | "unread";
 
 export default function NotificationsScreen() {
-  const locale = getDeviceLocale();
+  const { locale } = useAppLocale();
   const isArabic = locale === "ar";
   const isRtl = isRtlLocale(locale);
   const { width } = useWindowDimensions();
   const compact = width <= 360;
   const theme = darkTheme;
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const BackIcon = isRtl ? ChevronRight : ChevronLeft;
   const { refresh: refreshBadge } = useNotificationSync();
 
   const [items, setItems] = useState<MobileNotification[]>([]);
@@ -104,6 +106,7 @@ export default function NotificationsScreen() {
         ListHeaderComponent={(
           <View style={styles.header}>
             <View style={[styles.topRow, isRtl && styles.rowRtl]}>
+              <Pressable accessibilityRole="button" accessibilityLabel={isArabic ? "رجوع" : "Back"} onPress={() => router.back()} style={styles.backButton}><BackIcon size={20} color={theme.text} strokeWidth={1.9}/></Pressable>
               <View style={styles.headingCopy}>
                 <Text style={[styles.eyebrow, isArabic && styles.arabicEyebrow, { textAlign: isRtl ? "right" : "left" }]}>
                   {isArabic ? "ملامح · آخر المستجدات" : "MLAMH · WHAT'S NEW"}
@@ -203,8 +206,8 @@ function Filter({ active, label, onPress, styles, isRtl }: { active: boolean; la
 function EmptyState({ locale, isRtl, compact, filter, accountType, styles }: { locale: "ar" | "en"; isRtl: boolean; compact: boolean; filter: NotificationFilter; accountType: "talent" | "publisher"; styles: ReturnType<typeof createStyles> }) {
   const ar = locale === "ar";
   const unreadOnly = filter === "unread";
-  const actionLabel = accountType === "publisher" ? (ar ? "العودة للرئيسية" : "Back to dashboard") : (ar ? "استكشف الفرص" : "Explore opportunities");
-  const action = () => accountType === "publisher" ? router.replace("/publisher") : router.replace("/opportunities");
+  const actionLabel = ar ? "رجوع" : "Back";
+  const action = () => router.back();
 
   return (
     <View style={[styles.emptyState, compact && styles.emptyStateCompact]}>
@@ -320,6 +323,7 @@ function createStyles(theme: typeof darkTheme) {
     content: { paddingHorizontal: 18, paddingTop: 20, paddingBottom: 118 },
     contentCompact: { paddingHorizontal: 13, paddingTop: 14, paddingBottom: 106 },
     header: { gap: 13, marginBottom: 20 },
+    backButton:{width:42,height:42,borderRadius:14,borderWidth:1,borderColor:theme.border,backgroundColor:theme.surface,alignItems:"center",justifyContent:"center"},
     topRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 14, minHeight: 64 },
     rowRtl: { flexDirection: "row-reverse" },
     arabicText: { writingDirection: "rtl" },
