@@ -7,16 +7,20 @@ import { requirePublisher } from "@/lib/auth/require-publisher";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 type SupportedLocale = "ar" | "en";
-
-type VerificationMethod =
-  | "company_email"
-  | "official_document"
-  | "business_card";
+type VerificationMethod = "company_email" | "official_document" | "business_card";
 
 const ALLOWED_METHODS = new Set<VerificationMethod>([
   "company_email",
   "official_document",
   "business_card",
+]);
+
+const MAX_PROOF_SIZE = 10 * 1024 * 1024;
+const ALLOWED_PROOF_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "application/pdf",
 ]);
 
 function getLocale(formData: FormData): SupportedLocale {
@@ -25,20 +29,12 @@ function getLocale(formData: FormData): SupportedLocale {
 
 function getText(formData: FormData, key: string) {
   const value = formData.get(key);
-
   return typeof value === "string" ? value.trim() : "";
 }
 
 function getMethod(formData: FormData): VerificationMethod {
-  const method = getText(
-    formData,
-    "verification_method",
-  ) as VerificationMethod;
-
-  if (!ALLOWED_METHODS.has(method)) {
-    throw new Error("Invalid verification method.");
-  }
-
+  const method = getText(formData, "verification_method") as VerificationMethod;
+  if (!ALLOWED_METHODS.has(method)) throw new Error("Invalid verification method.");
   return method;
 }
 
@@ -46,20 +42,50 @@ function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
-export async function submitPublisherVerificationAction(
-  formData: FormData,
-): Promise<void> {
-  const locale = getLocale(formData);
+async function uploadProof(
+  adminClient: ReturnType<typeof createAdminClient>,
+  publisherId: number | string,
+  file: File,
+) {
+  if (!ALLOWED_PROOF_TYPES.has(file.type)) {
+    throw new Error("Unsupported verification proof type.");
+  }
+  if (file.size > MAX_PROOF_SIZE) {
+    throw new Error("Verification proof must not exceed 10 MB.");
+  }
 
+  const extension =
+    file.type === "application/pdf"
+      ? "pdf"
+      : file.type === "image/png"
+        ? "png"
+        : file.type === "image/webp"
+          ? "webp"
+          : "jpg";
+
+  const path = `publishers/${publisherId}/verification-${Date.now()}.${extension}`;
+  const { error } = await adminClient.storage
+    .from("publisher-assets")
+    .upload(path, Buffer.from(await file.arrayBuffer()), {
+      contentType: file.type,
+      upsert: false,
+    });
+
+  if (error) throw new Error(error.message);
+
+  const { data } = adminClient.storage.from("publisher-assets").getPublicUrl(path);
+  return data.publicUrl;
+}
+
+export async function submitPublisherVerificationAction(formData: FormData): Promise<void> {
+  const locale = getLocale(formData);
   const { publisher, profile } = await requirePublisher(locale);
 
   if (publisher.publisher_type === "individual") {
     redirect(`/${locale}/publisher-dashboard/profile`);
   }
 
-  const approvalStatus = String(
-    profile.approval_status ?? "not_submitted",
-  )
+  const approvalStatus = String(profile.approval_status ?? "not_submitted")
     .trim()
     .toLowerCase();
 
@@ -71,22 +97,13 @@ export async function submitPublisherVerificationAction(
     redirect(`/${locale}/publisher-dashboard`);
   }
 
-  if (
-    publisher.verification_status === "verified" ||
-    publisher.verification_status === "pending"
-  ) {
+  if (publisher.verification_status === "verified" || publisher.verification_status === "pending") {
     redirect(`/${locale}/publisher-dashboard/verification`);
   }
 
   const method = getMethod(formData);
-  const verificationEmail = getText(
-    formData,
-    "verification_email",
-  );
-  const verificationDocumentUrl = getText(
-    formData,
-    "verification_document_url",
-  );
+  const verificationEmail = getText(formData, "verification_email");
+  const proof = formData.get("verification_document");
 
   if (method === "company_email") {
     if (!verificationEmail || !isValidEmail(verificationEmail)) {
@@ -97,10 +114,7 @@ export async function submitPublisherVerificationAction(
       );
     }
 
-    const emailDomain = verificationEmail
-      .split("@")[1]
-      ?.toLowerCase();
-
+    const emailDomain = verificationEmail.split("@")[1]?.toLowerCase();
     const blockedDomains = new Set([
       "gmail.com",
       "hotmail.com",
@@ -121,36 +135,28 @@ export async function submitPublisherVerificationAction(
     }
   }
 
-  if (
-    method === "official_document" ||
-    method === "business_card"
-  ) {
-    if (!verificationDocumentUrl) {
+  const adminClient = createAdminClient();
+  let verificationDocumentUrl: string | null = null;
+
+  if (method === "official_document" || method === "business_card") {
+    if (!(proof instanceof File) || proof.size === 0) {
       throw new Error(
         locale === "ar"
           ? "يجب إرفاق ملف الإثبات قبل إرسال طلب التوثيق."
           : "You must attach proof before submitting the verification request.",
       );
     }
+    verificationDocumentUrl = await uploadProof(adminClient, publisher.id, proof);
   }
 
-  const adminClient = createAdminClient();
-
-  const {
-    data: updatedPublisher,
-    error: updateError,
-  } = await adminClient
+  const { data: updatedPublisher, error: updateError } = await adminClient
     .from("publishers")
     .update({
       verified: false,
       verification_status: "pending",
       verification_method: method,
-      verification_email:
-        method === "company_email" ? verificationEmail : null,
-      verification_document_url:
-        method === "official_document" || method === "business_card"
-          ? verificationDocumentUrl
-          : null,
+      verification_email: method === "company_email" ? verificationEmail : null,
+      verification_document_url: verificationDocumentUrl,
       verification_submitted_at: new Date().toISOString(),
       verification_rejection_reason: null,
       verification_reviewed_by: null,
