@@ -1,5 +1,15 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import {
+  ArrowLeft,
+  Bell,
+  BriefcaseBusiness,
+  CalendarCheck2,
+  CheckCircle2,
+  Clock3,
+  MessageCircle,
+  XCircle,
+} from "lucide-react";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -13,14 +23,8 @@ type ApplicationNotification = {
   status: string | null;
   created_at: string | null;
   opportunities:
-    | {
-        title: string | null;
-        opportunity_type: string | null;
-      }
-    | {
-        title: string | null;
-        opportunity_type: string | null;
-      }[]
+    | { title: string | null; opportunity_type: string | null }
+    | { title: string | null; opportunity_type: string | null }[]
     | null;
 };
 
@@ -31,775 +35,291 @@ type NotificationEvent = {
 
 type DatabaseNotification = {
   id: number | string;
-  event_id: number | string | null;
-  recipient_type: string | null;
-  recipient_id: string | null;
   title: string | null;
   body: string | null;
   is_read: boolean | null;
   created_at: string | null;
-  events:
-    | NotificationEvent
-    | NotificationEvent[]
-    | null;
+  events: NotificationEvent | NotificationEvent[] | null;
 };
+
+type Category = "application" | "message" | "invitation" | "booking" | "system";
 
 type DisplayNotification = {
   id: string;
   title: string;
   message: string;
   read: boolean;
-  created_at: string | null;
-  reference_id: number | string | null;
-  category:
-    | "application"
-    | "message"
-    | "invitation"
-    | "system";
+  createdAt: string | null;
+  href: string;
+  category: Category;
   status: string | null;
 };
 
-function NotificationIcon({
-  name,
-  className = "h-5 w-5",
-}: {
-  name:
-    | "bell"
-    | "all"
-    | "unread"
-    | "application"
-    | "message"
-    | "check"
-    | "close"
-    | "clock"
-    | "arrow";
-  className?: string;
-}) {
-  if (name === "bell") {
-    return (
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        className={className}
-        aria-hidden="true"
-      >
-        <path
-          d="M6.5 10a5.5 5.5 0 0 1 11 0v3.3l1.5 2.2H5l1.5-2.2V10Z"
-          strokeLinejoin="round"
-        />
-        <path d="M10 18.5a2.2 2.2 0 0 0 4 0" strokeLinecap="round" />
-      </svg>
-    );
-  }
+const BOOKING_EVENTS = new Set([
+  "booking_proposed",
+  "booking_updated",
+  "booking_confirmed",
+  "booking_changes_requested",
+  "booking_completion_confirmed",
+  "booking_completed",
+]);
 
-  if (name === "all") {
-    return (
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        className={className}
-        aria-hidden="true"
-      >
-        <path d="M8 7h11M8 12h11M8 17h11" strokeLinecap="round" />
-        <path d="M4.5 7h.01M4.5 12h.01M4.5 17h.01" strokeLinecap="round" />
-      </svg>
-    );
-  }
-
-  if (name === "unread") {
-    return (
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        className={className}
-        aria-hidden="true"
-      >
-        <rect x="4" y="5.5" width="16" height="13" rx="2.5" />
-        <path d="m5.5 7 6.5 5 6.5-5" strokeLinejoin="round" />
-        <circle cx="18.5" cy="5.5" r="2.5" fill="currentColor" stroke="none" />
-      </svg>
-    );
-  }
-
-  if (name === "application") {
-    return (
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        className={className}
-        aria-hidden="true"
-      >
-        <rect x="5" y="6" width="14" height="14" rx="2" />
-        <path d="M9 6V4h6v2M8.5 11h7M8.5 15h5" strokeLinecap="round" />
-      </svg>
-    );
-  }
-
-
-  if (name === "message") {
-    return (
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        className={className}
-        aria-hidden="true"
-      >
-        <path
-          d="M5 6.5A2.5 2.5 0 0 1 7.5 4h9A2.5 2.5 0 0 1 19 6.5v7a2.5 2.5 0 0 1-2.5 2.5H11l-4.5 3v-3A2.5 2.5 0 0 1 4 13.5v-7Z"
-          strokeLinejoin="round"
-        />
-        <path d="M8 8.5h8M8 12h5" strokeLinecap="round" />
-      </svg>
-    );
-  }
-
-  if (name === "check") {
-    return (
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        className={className}
-        aria-hidden="true"
-      >
-        <circle cx="12" cy="12" r="8.5" />
-        <path d="m8.2 12 2.5 2.5 5.3-5.3" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    );
-  }
-
-  if (name === "close") {
-    return (
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        className={className}
-        aria-hidden="true"
-      >
-        <circle cx="12" cy="12" r="8.5" />
-        <path d="m9 9 6 6M15 9l-6 6" strokeLinecap="round" />
-      </svg>
-    );
-  }
-
-  if (name === "clock") {
-    return (
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        className={className}
-        aria-hidden="true"
-      >
-        <circle cx="12" cy="12" r="8.5" />
-        <path d="M12 7.5V12l3 2" strokeLinecap="round" />
-      </svg>
-    );
-  }
-
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.7"
-      className={className}
-      aria-hidden="true"
-    >
-      <path d="M5 12h14M14 7l5 5-5 5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
+function relatedEvent(value: DatabaseNotification["events"]): NotificationEvent | null {
+  return Array.isArray(value) ? value[0] ?? null : value;
 }
 
-function formatNotificationDate(value: string | null, locale: string) {
+function positiveInteger(value: unknown): number | null {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+function formatDate(value: string | null, locale: string) {
   if (!value) return "—";
-
   const date = new Date(value);
-
   if (Number.isNaN(date.getTime())) return "—";
-
   return new Intl.DateTimeFormat(locale === "ar" ? "ar-SA" : "en-US", {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
 }
 
-function getApplicationMessage(
-  application: ApplicationNotification,
-  isArabic: boolean
-) {
+function applicationMessage(application: ApplicationNotification, isArabic: boolean) {
   const opportunity = Array.isArray(application.opportunities)
     ? application.opportunities[0]
     : application.opportunities;
-
-  const title =
-    opportunity?.title || (isArabic ? "فرصة بدون عنوان" : "Untitled Opportunity");
+  const title = opportunity?.title || (isArabic ? "فرصة بدون عنوان" : "Untitled Opportunity");
 
   if (application.status === "accepted") {
-    return isArabic
-      ? `تم قبول طلبك في فرصة "${title}".`
-      : `Your application for "${title}" was accepted.`;
+    return isArabic ? `تم قبول طلبك في فرصة «${title}».` : `Your application for “${title}” was accepted.`;
   }
-
   if (application.status === "shortlisted") {
-    return isArabic
-      ? `تمت إضافة طلبك إلى القائمة المختصرة في فرصة "${title}".`
-      : `Your application for "${title}" was shortlisted.`;
+    return isArabic ? `تمت إضافة طلبك إلى القائمة المختصرة في فرصة «${title}».` : `Your application for “${title}” was shortlisted.`;
   }
-
   if (application.status === "rejected") {
-    return isArabic
-      ? `تم رفض طلبك في فرصة "${title}".`
-      : `Your application for "${title}" was rejected.`;
+    return isArabic ? `تم رفض طلبك في فرصة «${title}».` : `Your application for “${title}” was rejected.`;
   }
-
   if (application.status === "reviewing") {
-    return isArabic
-      ? `أصبح طلبك على فرصة "${title}" قيد المراجعة.`
-      : `Your application for "${title}" is now under review.`;
+    return isArabic ? `أصبح طلبك على فرصة «${title}» قيد المراجعة.` : `Your application for “${title}” is under review.`;
   }
-
-  return isArabic
-    ? `تم استلام طلبك على فرصة "${title}".`
-    : `Your application for "${title}" was received.`;
+  return isArabic ? `تم استلام طلبك على فرصة «${title}».` : `Your application for “${title}” was received.`;
 }
 
-function getStatusIcon(
-  status: string | null,
-  category: DisplayNotification["category"],
-) {
-  if (category === "message") return "message";
-  if (status === "accepted" || status === "shortlisted") return "check";
-  if (status === "rejected") return "close";
-  if (status === "invited") return "message";
-  return "clock";
-}
-
-function getStatusClasses(
-  status: string | null,
-  category: DisplayNotification["category"],
-) {
-  if (category === "message") {
-    return {
-      icon: "border-gold/30 bg-gold/[0.1] text-gold",
-      badge: "border-gold/25 bg-gold/[0.08] text-gold",
-    };
-  }
-
-  if (status === "invited") {
-    return {
-      icon: "border-gold/30 bg-gold/[0.1] text-gold",
-      badge: "border-gold/25 bg-gold/[0.08] text-gold",
-    };
-  }
-
-  if (status === "accepted") {
-    return {
-      icon: "border-emerald-300/25 bg-emerald-300/[0.08] text-emerald-200",
-      badge: "border-emerald-300/20 bg-emerald-300/[0.06] text-emerald-200",
-    };
-  }
-
-  if (status === "shortlisted") {
-    return {
-      icon: "border-violet-300/25 bg-violet-300/[0.08] text-violet-200",
-      badge: "border-violet-300/20 bg-violet-300/[0.06] text-violet-200",
-    };
-  }
-
-  if (status === "rejected") {
-    return {
-      icon: "border-red-300/25 bg-red-300/[0.08] text-red-200",
-      badge: "border-red-300/20 bg-red-300/[0.06] text-red-200",
-    };
-  }
-
-  if (status === "reviewing") {
-    return {
-      icon: "border-sky-300/25 bg-sky-300/[0.08] text-sky-200",
-      badge: "border-sky-300/20 bg-sky-300/[0.06] text-sky-200",
-    };
-  }
-
-  return {
-    icon: "border-gold/25 bg-gold/[0.08] text-gold",
-    badge: "border-gold/20 bg-gold/[0.06] text-gold",
-  };
-}
-
-function getStatusLabel(
-  status: string | null,
-  category: DisplayNotification["category"],
-  isArabic: boolean,
-) {
+function categoryLabel(category: Category, status: string | null, isArabic: boolean) {
+  if (category === "booking") return isArabic ? "حجز" : "Booking";
   if (category === "message") return isArabic ? "رسالة" : "Message";
-  if (status === "accepted") return isArabic ? "مقبول" : "Accepted";
-  if (status === "shortlisted") return isArabic ? "القائمة المختصرة" : "Shortlisted";
-  if (status === "rejected") return isArabic ? "مرفوض" : "Rejected";
-  if (status === "reviewing") return isArabic ? "قيد المراجعة" : "Reviewing";
-  if (status === "invited")
-    return isArabic
-      ? "دعوة"
-      : "Invitation";
-  return isArabic ? "تحديث" : "Update";
+  if (category === "invitation") return isArabic ? "دعوة" : "Invitation";
+  if (category === "application") {
+    if (status === "accepted") return isArabic ? "مقبول" : "Accepted";
+    if (status === "shortlisted") return isArabic ? "قائمة مختصرة" : "Shortlisted";
+    if (status === "rejected") return isArabic ? "مرفوض" : "Rejected";
+    if (status === "reviewing") return isArabic ? "قيد المراجعة" : "Reviewing";
+    return isArabic ? "طلب" : "Application";
+  }
+  return isArabic ? "تنبيه" : "Update";
 }
 
-function getNotificationEvent(
-  notification: DatabaseNotification,
-) {
-  if (Array.isArray(notification.events)) {
-    return notification.events[0] ?? null;
-  }
-
-  return notification.events;
+function actionLabel(category: Category, isArabic: boolean) {
+  if (category === "booking") return isArabic ? "فتح الحجز" : "Open booking";
+  if (category === "message") return isArabic ? "فتح المحادثة" : "Open conversation";
+  if (category === "invitation") return isArabic ? "عرض الفرصة" : "View opportunity";
+  if (category === "application") return isArabic ? "عرض الطلبات" : "View applications";
+  return isArabic ? "عرض" : "View";
 }
 
-function getNotificationHref(
-  notification: DisplayNotification,
-  locale: string,
-) {
-  if (
-    notification.category === "invitation" &&
-    notification.reference_id
-  ) {
-    return `/${locale}/talent-dashboard/notifications/${notification.reference_id}`;
-  }
-
-  if (
-    notification.category === "message" &&
-    notification.reference_id
-  ) {
-    return `/${locale}/talent-dashboard/messages/${notification.reference_id}`;
-  }
-
-  return `/${locale}/talent-dashboard/applications`;
-}
-
-function getNotificationActionLabel(
-  notification: DisplayNotification,
-  isArabic: boolean,
-) {
-  if (notification.category === "invitation") {
-    return isArabic
-      ? "عرض الفرصة"
-      : "View Opportunity";
-  }
-
-  if (notification.category === "message") {
-    return isArabic
-      ? "فتح المحادثة"
-      : "Open Conversation";
-  }
-
-  return isArabic
-    ? "عرض الطلبات"
-    : "View Applications";
+function CategoryIcon({ category, status }: { category: Category; status: string | null }) {
+  if (category === "booking") return <CalendarCheck2 size={19} />;
+  if (category === "message") return <MessageCircle size={19} />;
+  if (category === "invitation") return <BriefcaseBusiness size={19} />;
+  if (status === "accepted" || status === "shortlisted") return <CheckCircle2 size={19} />;
+  if (status === "rejected") return <XCircle size={19} />;
+  return <Clock3 size={19} />;
 }
 
 export default async function TalentNotificationsPage({ params }: PageProps) {
   const { locale } = await params;
   const isArabic = locale === "ar";
+  const auth = await createServerSupabaseClient();
+  const { data: { user }, error: userError } = await auth.auth.getUser();
+  if (userError || !user) redirect(`/${locale}/login`);
 
-  const authClient = await createServerSupabaseClient();
-
-  const {
-    data: { user },
-    error: userError,
-  } = await authClient.auth.getUser();
-
-  if (userError || !user) {
-    redirect(`/${locale}/login`);
-  }
-
-  const adminClient = createAdminClient();
-
-  const { data: talent, error: talentError } = await adminClient
+  const admin = createAdminClient();
+  const { data: talent, error: talentError } = await admin
     .from("talents")
     .select("id")
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (talentError) {
-    throw new Error(
-      `[TalentNotificationsPage talent] ${talentError.message}`
-    );
-  }
+  if (talentError) throw new Error(`[TalentNotificationsPage talent] ${talentError.message}`);
+  if (!talent) redirect(`/${locale}/join/talent`);
 
-  const [
-    applicationsResult,
-    databaseNotificationsResult,
-  ] = await Promise.all([
-    talent
-      ? adminClient
-          .from("opportunity_applications")
-          .select(
-            `
-            id,
-            status,
-            created_at,
-            opportunities (
-              title,
-              opportunity_type
-            )
-          `,
-          )
-          .eq("talent_id", talent.id)
-          .order("created_at", { ascending: false })
-          .limit(15)
-      : Promise.resolve({ data: [], error: null }),
-
-    talent
-      ? adminClient
-          .from("notifications")
-          .select(
-            `
-              id,
-              event_id,
-              recipient_type,
-              recipient_id,
-              title,
-              body,
-              is_read,
-              created_at,
-              events (
-                event_type,
-                metadata
-              )
-            `,
-          )
-          .eq("recipient_type", "talent")
-          .eq("recipient_id", String(talent.id))
-          .order("created_at", { ascending: false })
-          .limit(30)
-      : Promise.resolve({ data: [], error: null }),
+  const [applicationsResult, databaseResult] = await Promise.all([
+    admin
+      .from("opportunity_applications")
+      .select(`
+        id,
+        status,
+        created_at,
+        opportunities (
+          title,
+          opportunity_type
+        )
+      `)
+      .eq("talent_id", talent.id)
+      .order("created_at", { ascending: false })
+      .limit(15),
+    admin
+      .from("notifications")
+      .select(`
+        id,
+        title,
+        body,
+        is_read,
+        created_at,
+        events (
+          event_type,
+          metadata
+        )
+      `)
+      .eq("recipient_type", "talent")
+      .eq("recipient_id", String(talent.id))
+      .order("created_at", { ascending: false })
+      .limit(40),
   ]);
 
-  if (applicationsResult.error) {
-    throw new Error(
-      `[TalentNotificationsPage applications] ${applicationsResult.error.message}`,
-    );
-  }
+  if (applicationsResult.error) throw new Error(`[TalentNotificationsPage applications] ${applicationsResult.error.message}`);
+  if (databaseResult.error) throw new Error(`[TalentNotificationsPage notifications] ${databaseResult.error.message}`);
 
-  if (databaseNotificationsResult.error) {
-    throw new Error(
-      `[TalentNotificationsPage notifications] ${databaseNotificationsResult.error.message}`,
-    );
-  }
-
-  const applicationNotifications: DisplayNotification[] = (
-    (applicationsResult.data ?? []) as ApplicationNotification[]
-  ).map((application) => ({
+  const applicationNotifications: DisplayNotification[] = ((applicationsResult.data ?? []) as ApplicationNotification[]).map((application) => ({
     id: `application-${application.id}`,
-    title: isArabic ? "تحديث الطلب" : "Application Update",
-    message: getApplicationMessage(application, isArabic),
+    title: isArabic ? "تحديث الطلب" : "Application update",
+    message: applicationMessage(application, isArabic),
     read: true,
-    created_at: application.created_at,
-    reference_id: application.id,
+    createdAt: application.created_at,
+    href: `/${locale}/talent-dashboard/applications`,
     category: "application",
     status: application.status,
   }));
 
-  const databaseNotifications: DisplayNotification[] = (
-    (databaseNotificationsResult.data ??
-      []) as DatabaseNotification[]
-  ).map((notification) => {
-    const event = getNotificationEvent(notification);
-  
+  const databaseNotifications: DisplayNotification[] = ((databaseResult.data ?? []) as DatabaseNotification[]).map((notification) => {
+    const event = relatedEvent(notification.events);
     const eventType = event?.event_type ?? null;
-  
-    const isInvitation =
-      eventType === "opportunity_invitation";
-  
-    const isMessageNotification =
-      eventType === "message_created" ||
-      notification.title
-        ?.trim()
-        .toLowerCase() === "new message";
-  
+    const isBooking = Boolean(eventType && BOOKING_EVENTS.has(eventType));
+    const isInvitation = eventType === "opportunity_invitation";
+    const isMessage = eventType === "message_created" || notification.title?.trim().toLowerCase() === "new message";
+    const conversationId = positiveInteger(event?.metadata?.conversationId);
+
+    const category: Category = isBooking
+      ? "booking"
+      : isInvitation
+        ? "invitation"
+        : isMessage
+          ? "message"
+          : "system";
+
+    let href = `/${locale}/talent-dashboard/applications`;
+    if (isBooking || isInvitation) {
+      href = `/${locale}/talent-dashboard/notifications/${notification.id}`;
+    } else if (isMessage && conversationId) {
+      href = `/${locale}/talent-dashboard/messages/${conversationId}`;
+    } else if (category === "system") {
+      href = `/${locale}/talent-dashboard/notifications/${notification.id}`;
+    }
+
     return {
       id: `database-${notification.id}`,
-      title: isMessageNotification
-        ? isArabic
-          ? "رسالة جديدة"
-          : "New Message"
-        : notification.title ||
-          (isArabic ? "تنبيه" : "Notification"),
-  
-      message:
-        notification.body ||
-        (isMessageNotification
-          ? isArabic
-            ? "لديك رسالة جديدة."
-            : "You have a new message."
-          : isArabic
-            ? "لديك تنبيه جديد."
-            : "You have a new notification."),
-  
+      title: isMessage
+        ? isArabic ? "رسالة جديدة" : "New message"
+        : notification.title || (isArabic ? "تنبيه" : "Notification"),
+      message: notification.body || (isArabic ? "لديك تحديث جديد." : "You have a new update."),
       read: notification.is_read ?? false,
-      created_at: notification.created_at,
-  
-      // نستخدم رقم الإشعار، وليس event_id،
-      // حتى يمر الضغط عبر Route التحقق.
-      reference_id: notification.id,
-  
-      category: isInvitation
-        ? "invitation"
-        : isMessageNotification
-          ? "message"
-          : "system",
-  
-      status: isInvitation ? "invited" : null,
+      createdAt: notification.created_at,
+      href,
+      category,
+      status: isBooking ? eventType : isInvitation ? "invited" : null,
     };
   });
 
-  const notifications = [
-    ...applicationNotifications,
-    ...databaseNotifications,
-  ].sort((first, second) => {
-    const firstTime = first.created_at
-      ? new Date(first.created_at).getTime()
-      : 0;
-    const secondTime = second.created_at
-      ? new Date(second.created_at).getTime()
-      : 0;
-
-    return secondTime - firstTime;
+  const notifications = [...applicationNotifications, ...databaseNotifications].sort((a, b) => {
+    const first = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const second = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return second - first;
   });
 
-  const unreadCount = notifications.filter(
-    (notification) => !notification.read,
-  ).length;
-
-  const applicationCount = notifications.filter(
-    (notification) => notification.category === "application",
-  ).length;
-
-  const messageCount = notifications.filter(
-    (notification) =>
-      notification.category === "message" ||
-      notification.category === "invitation",
-  ).length;
-
-
+  const unreadCount = notifications.filter((item) => !item.read).length;
+  const bookingCount = notifications.filter((item) => item.category === "booking").length;
+  const applicationCount = notifications.filter((item) => item.category === "application").length;
 
   return (
-    <main
-      dir={isArabic ? "rtl" : "ltr"}
-      className="min-h-screen bg-background px-4 pb-24 pt-36 text-white sm:px-6 sm:pt-40 lg:pt-32"
-    >
-      <div className="mx-auto max-w-6xl">
-        <header className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-[radial-gradient(circle_at_top_right,rgba(201,169,98,0.12),transparent_38%),linear-gradient(135deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))] p-6 sm:p-8 lg:p-10">
-          <div
-            className="pointer-events-none absolute inset-x-10 bottom-0 h-px bg-gradient-to-r from-transparent via-gold/40 to-transparent"
-            aria-hidden="true"
-          />
+    <main dir={isArabic ? "rtl" : "ltr"} className="min-h-screen bg-background px-4 pb-24 pt-32 text-white sm:px-6 lg:pb-10">
+      <div className="mx-auto max-w-6xl space-y-6">
+        <header className="rounded-[2rem] border border-white/10 bg-[radial-gradient(circle_at_top_right,rgba(201,169,98,0.12),transparent_38%),linear-gradient(135deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))] p-6 sm:p-8">
+          <Link href={`/${locale}/talent-dashboard`} className="inline-flex items-center gap-2 text-xs text-white/45 transition hover:text-gold">
+            <ArrowLeft size={16} className={isArabic ? "rotate-180" : ""} />
+            {isArabic ? "العودة إلى لوحة التحكم" : "Back to dashboard"}
+          </Link>
 
-          <div className="relative flex flex-col gap-7 lg:flex-row lg:items-end lg:justify-between">
+          <div className="mt-7 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <Link
-                href={`/${locale}/talent-dashboard`}
-                className="inline-flex items-center gap-2 text-xs text-white/45 transition hover:text-gold"
-              >
-                <span className={isArabic ? "rotate-180" : ""}>
-                  <NotificationIcon name="arrow" className="h-4 w-4" />
-                </span>
-                {isArabic ? "العودة إلى لوحة التحكم" : "Back to Dashboard"}
-              </Link>
-
-              <p className="mt-8 text-[10px] uppercase tracking-[0.36em] text-gold">
-                {isArabic ? "لوحة الموهبة" : "Talent Workspace"}
-              </p>
-
-              <h1 className="mt-3 text-4xl font-light leading-tight sm:text-5xl lg:text-6xl">
-                {isArabic ? "الإشعارات" : "Notifications"}
-              </h1>
-
-              <p className="mt-4 max-w-2xl text-sm leading-7 text-white/50 sm:text-base">
+              <p className="text-[10px] uppercase tracking-[0.32em] text-gold">{isArabic ? "مركز الإشعارات" : "Notification Center"}</p>
+              <h1 className="mt-3 text-4xl font-light sm:text-5xl">{isArabic ? "الإشعارات" : "Notifications"}</h1>
+              <p className="mt-3 max-w-2xl text-sm leading-7 text-white/45">
                 {isArabic
-                  ? "تابع آخر تحديثات طلباتك وحسابك، واعرف كل ما يحتاج إلى انتباهك من مكان واحد."
-                  : "Track the latest updates to your applications and account from one place."}
+                  ? "تابع تحديثات الطلبات والرسائل والحجوزات. إشعارات الحجز تنقلك مباشرة إلى الإجراء المطلوب."
+                  : "Track applications, messages, and bookings. Booking notifications open the exact action that needs your attention."}
               </p>
             </div>
 
-            <Link
-              href={`/${locale}/talent-dashboard/messages`}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-gold/40 bg-gold px-6 py-3.5 text-sm text-black transition hover:bg-gold-soft sm:w-auto"
-            >
-              <NotificationIcon name="message" className="h-4 w-4" />
-              {isArabic ? "فتح الرسائل" : "Open Messages"}
+            <Link href={`/${locale}/talent-dashboard/messages`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-gold px-6 text-sm font-medium text-black transition hover:bg-gold-soft">
+              <MessageCircle size={17} />
+              {isArabic ? "فتح الرسائل" : "Open messages"}
             </Link>
           </div>
         </header>
 
-        <section className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <StatCard
-            label={isArabic ? "كل الإشعارات" : "All Notifications"}
-            value={notifications.length}
-            icon="all"
-            highlighted
-          />
-
-          <StatCard
-            label={isArabic ? "غير المقروءة" : "Unread"}
-            value={unreadCount}
-            icon="unread"
-          />
-
-          <StatCard
-            label={isArabic ? "تحديثات الطلبات" : "Application Updates"}
-            value={applicationCount}
-            icon="application"
-          />
-
-          <StatCard
-            label={
-              isArabic
-                ? "الرسائل والدعوات"
-                : "Messages & Invitations"
-            }
-            value={messageCount}
-            icon="message"
-          />
+        <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <Stat label={isArabic ? "الإجمالي" : "Total"} value={notifications.length} />
+          <Stat label={isArabic ? "غير المقروء" : "Unread"} value={unreadCount} />
+          <Stat label={isArabic ? "الحجوزات" : "Bookings"} value={bookingCount} emphasis />
+          <Stat label={isArabic ? "الطلبات" : "Applications"} value={applicationCount} />
         </section>
 
-        <section className="mt-6 rounded-[2rem] border border-white/10 bg-white/[0.02] p-4 sm:p-6">
-          <div className="mb-5 flex flex-col gap-2 border-b border-white/10 pb-5 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-[10px] uppercase tracking-[0.3em] text-gold">
-                {isArabic ? "مركز الإشعارات" : "Notification Center"}
-              </p>
-
-              <h2 className="mt-2 text-2xl font-light sm:text-3xl">
-                {isArabic ? "آخر التحديثات" : "Latest Updates"}
-              </h2>
-            </div>
-
-            <p className="text-xs text-white/35">
-              {isArabic
-                ? `${notifications.length} إشعار`
-                : `${notifications.length} notification${
-                    notifications.length === 1 ? "" : "s"
-                  }`}
-            </p>
-          </div>
-
+        <section className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.025]">
           {notifications.length === 0 ? (
-            <div className="rounded-[1.75rem] border border-dashed border-white/10 bg-black/20 px-5 py-12 text-center sm:px-8 sm:py-16">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-gold/20 bg-gold/[0.05] text-gold">
-                <NotificationIcon name="bell" className="h-6 w-6" />
+            <div className="flex min-h-[360px] items-center justify-center p-8 text-center">
+              <div className="max-w-md">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-gold/25 bg-gold/[0.08] text-gold"><Bell size={24} /></div>
+                <h2 className="mt-5 text-2xl font-light">{isArabic ? "لا توجد إشعارات حاليًا" : "No notifications yet"}</h2>
+                <p className="mt-3 text-sm leading-7 text-white/40">{isArabic ? "ستظهر هنا تحديثات طلباتك ورسائلك وحجوزاتك." : "Application, message, and booking updates will appear here."}</p>
               </div>
-
-              <h3 className="mt-5 text-2xl font-light">
-                {isArabic ? "لا توجد إشعارات حاليًا" : "No notifications yet"}
-              </h3>
-
-              <p className="mx-auto mt-3 max-w-md text-sm leading-7 text-white/45">
-                {isArabic
-                  ? "عند تحديث حالة طلباتك أو إضافة تنبيه جديد إلى حسابك، سيظهر هنا."
-                  : "Updates to your applications and new account alerts will appear here."}
-              </p>
-
-              <Link
-                href={`/${locale}/opportunities`}
-                className="mt-6 inline-flex items-center justify-center gap-2 rounded-full border border-gold/40 bg-gold px-6 py-3 text-sm text-black transition hover:bg-gold-soft"
-              >
-                {isArabic ? "استعراض الفرص" : "Browse Opportunities"}
-                <NotificationIcon name="arrow" className="h-4 w-4" />
-              </Link>
             </div>
           ) : (
-            <div className="space-y-3">
-              {notifications.map((notification) => {
-                const classes = getStatusClasses(
-                  notification.status,
-                  notification.category,
-                );
-                const iconName = getStatusIcon(
-                  notification.status,
-                  notification.category,
-                );
-
-                return (
-                  <article
-                    key={notification.id}
-                    className={`group rounded-[1.5rem] border p-4 transition hover:border-gold/25 sm:p-5 ${
-                      notification.read
-                        ? "border-white/10 bg-black/25"
-                        : "border-gold/25 bg-gold/[0.045]"
-                    }`}
-                  >
-                    <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="flex min-w-0 gap-4">
-                        <div
-                          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border ${classes.icon}`}
-                        >
-                          <NotificationIcon
-                            name={iconName}
-                            className="h-5 w-5"
-                          />
-                        </div>
-
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span
-                              className={`rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.15em] ${classes.badge}`}
-                            >
-                              {getStatusLabel(
-                                notification.status,
-                                notification.category,
-                                isArabic,
-                              )}
-                            </span>
-
-                            {!notification.read ? (
-                              <span className="rounded-full border border-gold/25 bg-gold/[0.08] px-3 py-1 text-[10px] uppercase tracking-[0.15em] text-gold">
-                                {isArabic ? "جديد" : "New"}
-                              </span>
-                            ) : null}
-                          </div>
-
-                          <p className="mt-3 text-xs uppercase tracking-[0.16em] text-white/35">
-                            {notification.title}
-                          </p>
-
-                          <p className="mt-2 text-base font-light leading-7 text-white sm:text-lg">
-                            {notification.message}
-                          </p>
-
-                          <p className="mt-2 text-xs text-white/35">
-                            {formatNotificationDate(
-                              notification.created_at,
-                              locale
-                            )}
-                          </p>
-                        </div>
+            <div className="divide-y divide-white/10">
+              {notifications.map((notification) => (
+                <article key={notification.id} className={notification.read ? "p-5 sm:p-6" : "bg-gold/[0.035] p-5 sm:p-6"}>
+                  <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex min-w-0 gap-4">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-gold/20 bg-gold/[0.07] text-gold">
+                        <CategoryIcon category={notification.category} status={notification.status} />
                       </div>
-
-                      <Link
-                        href={getNotificationHref(notification, locale)}
-                        className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full border border-white/10 px-4 text-xs text-white/60 transition hover:border-gold/40 hover:text-gold"
-                      >
-                        {getNotificationActionLabel(notification, isArabic)}
-                        <NotificationIcon name="arrow" className="h-4 w-4" />
-                      </Link>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[10px] text-white/55">
+                            {categoryLabel(notification.category, notification.status, isArabic)}
+                          </span>
+                          {!notification.read ? <span className="rounded-full border border-gold/25 bg-gold/[0.08] px-3 py-1 text-[10px] text-gold">{isArabic ? "جديد" : "New"}</span> : null}
+                        </div>
+                        <h2 className="mt-3 text-base font-medium sm:text-lg">{notification.title}</h2>
+                        <p className="mt-1 max-w-3xl text-sm leading-7 text-white/45">{notification.message}</p>
+                        <time className="mt-2 block text-[10px] text-white/30">{formatDate(notification.createdAt, locale)}</time>
+                      </div>
                     </div>
-                  </article>
-                );
-              })}
+
+                    <Link href={notification.href} className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full border border-gold/30 bg-gold/[0.06] px-5 text-xs text-gold transition hover:bg-gold hover:text-black">
+                      {actionLabel(notification.category, isArabic)}
+                    </Link>
+                  </div>
+                </article>
+              ))}
             </div>
           )}
         </section>
@@ -808,36 +328,11 @@ export default async function TalentNotificationsPage({ params }: PageProps) {
   );
 }
 
-function StatCard({
-  label,
-  value,
-  icon,
-  highlighted = false,
-  className = "",
-}: {
-  label: string;
-  value: number;
-  icon: "all" | "unread" | "application" | "message";
-  highlighted?: boolean;
-  className?: string;
-}) {
+function Stat({ label, value, emphasis = false }: { label: string; value: number; emphasis?: boolean }) {
   return (
-    <article
-      className={`rounded-[1.5rem] border p-4 transition hover:-translate-y-0.5 hover:border-gold/25 sm:p-5 ${
-        highlighted
-          ? "border-gold/25 bg-gold/[0.06]"
-          : "border-white/10 bg-white/[0.025]"
-      } ${className}`}
-    >
-      <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-gold/20 bg-gold/[0.05] text-gold">
-        <NotificationIcon name={icon} />
-      </div>
-
-      <p className="mt-5 text-[10px] uppercase tracking-[0.18em] text-white/40">
-        {label}
-      </p>
-
-      <p className="mt-2 text-3xl font-light sm:text-4xl">{value}</p>
-    </article>
+    <div className={`rounded-[1.5rem] border p-4 sm:p-5 ${emphasis ? "border-gold/25 bg-gold/[0.06]" : "border-white/10 bg-white/[0.025]"}`}>
+      <p className="text-[10px] uppercase tracking-[0.18em] text-white/40">{label}</p>
+      <p className={emphasis ? "mt-2 text-3xl font-light text-gold" : "mt-2 text-3xl font-light"}>{value}</p>
+    </div>
   );
 }
