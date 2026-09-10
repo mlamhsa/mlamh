@@ -37,21 +37,18 @@ export async function updateOwnTalentMainImageAction(
 ): Promise<void> {
   const locale = getLocale(formData);
   const file = formData.get("profile_image");
+  const returnTo = getString(formData, "return_to");
+  const returnPath =
+    returnTo === "profile"
+      ? `/${locale}/talent-dashboard/profile?profileImageUpdated=1`
+      : `/${locale}/talent-dashboard?profileImageUpdated=1`;
 
   if (!(file instanceof File) || file.size === 0) {
-    throw new Error(
-      locale === "ar"
-        ? "يرجى اختيار صورة."
-        : "Please select an image."
-    );
+    throw new Error(locale === "ar" ? "يرجى اختيار صورة." : "Please select an image.");
   }
 
   if (!file.type.startsWith("image/")) {
-    throw new Error(
-      locale === "ar"
-        ? "يسمح برفع الصور فقط."
-        : "Only image files are allowed."
-    );
+    throw new Error(locale === "ar" ? "يسمح برفع الصور فقط." : "Only image files are allowed.");
   }
 
   if (file.size > MAX_IMAGE_SIZE) {
@@ -63,7 +60,6 @@ export async function updateOwnTalentMainImageAction(
   }
 
   const extension = getImageExtension(file);
-
   if (!extension) {
     throw new Error(
       locale === "ar"
@@ -73,37 +69,26 @@ export async function updateOwnTalentMainImageAction(
   }
 
   const authClient = await createServerSupabaseClient();
-
   const {
     data: { user },
     error: authError,
   } = await authClient.auth.getUser();
 
-  if (authError || !user) {
-    redirect(`/${locale}/login`);
-  }
+  if (authError || !user) redirect(`/${locale}/login`);
 
   const supabase = createAdminClient();
-
   const { data: talent, error: talentError } = await supabase
     .from("talents")
-    .select("id, slug, image_url")
+    .select("id, slug")
     .eq("user_id", user.id)
     .maybeSingle();
 
   if (talentError) {
-    throw new Error(
-      `[updateOwnTalentMainImageAction:talent] ${talentError.message}`
-    );
+    throw new Error(`[updateOwnTalentMainImageAction:talent] ${talentError.message}`);
   }
+  if (!talent) redirect(`/${locale}/talent-dashboard/profile`);
 
-  if (!talent) {
-    redirect(`/${locale}/talent-dashboard/profile`);
-  }
-
-  const filePath =
-    `${talent.id}/profile-${Date.now()}-${crypto.randomUUID()}.${extension}`;
-
+  const filePath = `${talent.id}/profile-${Date.now()}-${crypto.randomUUID()}.${extension}`;
   const { error: uploadError } = await supabase.storage
     .from(PROFILE_BUCKET)
     .upload(filePath, file, {
@@ -113,9 +98,7 @@ export async function updateOwnTalentMainImageAction(
     });
 
   if (uploadError) {
-    throw new Error(
-      `[updateOwnTalentMainImageAction:upload] ${uploadError.message}`
-    );
+    throw new Error(`[updateOwnTalentMainImageAction:upload] ${uploadError.message}`);
   }
 
   const {
@@ -128,18 +111,13 @@ export async function updateOwnTalentMainImageAction(
   }
 
   const { error: updateError } = await supabase
-  .from("talents")
-  .update({
-    image_url: publicUrl,
-  })
-  .eq("id", talent.id);
+    .from("talents")
+    .update({ image_url: publicUrl })
+    .eq("id", talent.id);
 
   if (updateError) {
     await supabase.storage.from(PROFILE_BUCKET).remove([filePath]);
-
-    throw new Error(
-      `[updateOwnTalentMainImageAction:update] ${updateError.message}`
-    );
+    throw new Error(`[updateOwnTalentMainImageAction:update] ${updateError.message}`);
   }
 
   revalidatePath(`/${locale}/talent-dashboard`);
@@ -147,10 +125,8 @@ export async function updateOwnTalentMainImageAction(
   revalidatePath(`/${locale}/talent-dashboard/gallery`);
 
   if (talent.slug) {
-    revalidatePath(
-      `/${locale}/talent/${encodeURIComponent(talent.slug)}`
-    );
+    revalidatePath(`/${locale}/talent/${encodeURIComponent(talent.slug)}`);
   }
 
-  redirect(`/${locale}/talent-dashboard?profileImageUpdated=1`);
+  redirect(returnPath);
 }
