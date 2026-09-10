@@ -89,9 +89,11 @@ export default function TalentConsentCompletionCard({ locale }: Props) {
     <div
       id="talent-consent"
       dir={isArabic ? "rtl" : "ltr"}
-      className="w-full scroll-mt-36 px-4 pb-4 pt-28 sm:px-6 lg:px-8 lg:pt-32"
+      className={`w-full scroll-mt-36 px-4 pb-4 pt-28 sm:px-6 lg:px-8 lg:pt-32 ${
+        isArabic ? "xl:pr-[22rem]" : "xl:pl-[22rem]"
+      }`}
     >
-      <div className="mx-auto max-w-7xl rounded-[1.75rem] border border-gold/20 bg-gold/[0.035] p-5 sm:p-6">
+      <div className="mx-auto max-w-5xl rounded-[1.75rem] border border-gold/20 bg-gold/[0.035] p-5 sm:p-6">
         <div className="flex items-start gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-gold/25 bg-gold/10 text-gold">
             <ShieldCheck size={20} aria-hidden="true" />
