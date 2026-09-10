@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { ArrowLeft, BriefcaseBusiness, UserRound } from "lucide-react";
+import { ArrowLeft, BriefcaseBusiness, Check, UserRound } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
 
 import { AppleSignupButton } from "@/components/auth/AppleSignupButton";
@@ -171,27 +171,29 @@ function AudienceSelection({ locale, isRtl }: { locale: Locale; isRtl: boolean }
         <p className="arabic-safe text-xs uppercase tracking-[0.35em] text-gold">{isRtl ? "الخطوة الأولى" : "STEP ONE"}</p>
         <h1 className="mt-5 text-4xl font-light leading-tight sm:text-5xl lg:text-6xl">{isRtl ? "كيف تريد استخدام ملامح؟" : "How will you use MLAMH?"}</h1>
         <p className="mx-auto mt-5 max-w-2xl text-sm leading-7 text-white/50 sm:text-base">
-          {isRtl ? "اختر مسارك الآن. بعد إنشاء الحساب ستدخل مباشرة إلى لوحة التحكم الخاصة بك." : "Choose your path now. After signup, you’ll go directly to your dashboard."}
+          {isRtl ? "اختر مسارك الآن، وسنجهز لك التجربة المناسبة من أول خطوة." : "Choose your path and we’ll prepare the right experience from the first step."}
         </p>
       </div>
 
       <div className="mx-auto mt-12 grid max-w-4xl gap-5 md:grid-cols-2">
         <ChoiceCard
           href={`/${locale}/join?type=talent`}
-          icon={<UserRound size={27} />}
+          icon={<UserRound size={28} strokeWidth={1.7} />}
           eyebrow={isRtl ? "للمواهب" : "FOR TALENT"}
           title={isRtl ? "أنا موهبة" : "I’m talent"}
-          description={isRtl ? "أنشئ حسابك، أكمل ملفك المهني من لوحة التحكم، ثم تقدم للفرص المناسبة لك." : "Create your account, complete your professional profile in the dashboard, then apply to relevant opportunities."}
+          description={isRtl ? "أنشئ حضورك المهني في ملامح، ثم اكتشف الفرص المناسبة وقدم عليها." : "Build your professional presence on MLAMH, discover relevant opportunities and apply."}
+          benefits={isRtl ? ["ملف مهني وPortfolio", "فرص مناسبة لتخصصك", "التقديم والمتابعة من مكان واحد"] : ["Professional profile & portfolio", "Opportunities matched to your craft", "Apply and track in one place"]}
           actionLabel={isRtl ? "ابدأ كموهبة" : "Start as talent"}
           featured
         />
         <ChoiceCard
           href={`/${locale}/join?type=publisher`}
-          icon={<BriefcaseBusiness size={27} />}
-          eyebrow={isRtl ? "للشركات والوكالات وأصحاب المشاريع" : "FOR COMPANIES, AGENCIES & PROJECTS"}
+          icon={<BriefcaseBusiness size={28} strokeWidth={1.7} />}
+          eyebrow={isRtl ? "للشركات والجهات" : "FOR COMPANIES & TEAMS"}
           title={isRtl ? "أبحث عن مواهب" : "I’m looking for talent"}
-          description={isRtl ? "أنشئ حسابك لنشر الفرص واستقبال طلبات المواهب واختيار المناسب." : "Create your account to publish opportunities, receive applications and select talent."}
-          actionLabel={isRtl ? "ابدأ البحث عن مواهب" : "Start finding talent"}
+          description={isRtl ? "انشر احتياجك، استقبل المتقدمين، ووصل للمواهب المناسبة لمشروعك." : "Publish what you need, receive applications and reach the right talent for your project."}
+          benefits={isRtl ? ["نشر الفرص بسهولة", "استقبال وفرز المتقدمين", "اختيار المواهب والتواصل"] : ["Publish opportunities easily", "Receive and review applicants", "Select talent and connect"]}
+          actionLabel={isRtl ? "ابدأ كجهة" : "Start as a company"}
         />
       </div>
 
@@ -203,24 +205,54 @@ function AudienceSelection({ locale, isRtl }: { locale: Locale; isRtl: boolean }
   );
 }
 
-function ChoiceCard({ href, icon, eyebrow, title, description, actionLabel, featured = false }: {
+function ChoiceCard({ href, icon, eyebrow, title, description, benefits, actionLabel, featured = false }: {
   href: string;
   icon: React.ReactNode;
   eyebrow: string;
   title: string;
   description: string;
+  benefits: string[];
   actionLabel: string;
   featured?: boolean;
 }) {
   return (
-    <Link href={href} className={`group flex min-h-[20rem] flex-col rounded-[2rem] border p-7 transition sm:p-9 ${featured ? "border-gold/45 bg-gold/[0.045] hover:border-gold/75" : "border-white/10 bg-white/[0.025] hover:border-gold/40"}`}>
-      <div className="flex h-14 w-14 items-center justify-center rounded-full border border-gold/25 bg-gold/[0.07] text-gold">{icon}</div>
-      <p className="mt-8 text-xs font-medium text-gold">{eyebrow}</p>
-      <h2 className="mt-3 text-3xl font-light leading-tight text-white">{title}</h2>
-      <p className="mt-4 text-sm leading-7 text-white/45">{description}</p>
-      <div className="mt-auto flex items-center justify-between gap-4 pt-8 text-sm font-medium text-gold">
-        <span>{actionLabel}</span>
-        <span className="flex h-11 w-11 items-center justify-center rounded-full border border-gold/25 transition group-hover:border-gold group-hover:bg-gold group-hover:text-black"><ArrowLeft size={17} className="rotate-180" /></span>
+    <Link
+      href={href}
+      className={`group relative isolate flex min-h-[25rem] overflow-hidden rounded-[2rem] border p-7 transition duration-300 hover:-translate-y-1 sm:p-9 ${featured ? "border-gold/50 bg-gold/[0.05] shadow-[0_20px_80px_rgba(200,169,106,0.08)] hover:border-gold/80" : "border-white/10 bg-white/[0.025] hover:border-gold/45 hover:bg-gold/[0.035]"}`}
+    >
+      <div className="pointer-events-none absolute -top-20 end-[-4rem] h-52 w-52 rounded-full bg-gold/[0.08] blur-3xl transition duration-500 group-hover:bg-gold/[0.13]" />
+      <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-gold/40 to-transparent opacity-70" />
+
+      <div className="relative z-10 flex w-full flex-col">
+        <div className="flex items-start justify-between gap-5">
+          <div className="flex h-16 w-16 items-center justify-center rounded-[1.4rem] border border-gold/30 bg-gold/[0.08] text-gold shadow-[0_12px_32px_rgba(0,0,0,0.2)] transition duration-300 group-hover:border-gold/55 group-hover:bg-gold group-hover:text-black">
+            {icon}
+          </div>
+          <span className={`rounded-full border px-3 py-1.5 text-[10px] font-medium ${featured ? "border-gold/30 bg-gold/[0.08] text-gold" : "border-white/10 bg-white/[0.025] text-white/45"}`}>
+            {eyebrow}
+          </span>
+        </div>
+
+        <h2 className="mt-8 text-3xl font-light leading-tight text-white sm:text-[2rem]">{title}</h2>
+        <p className="mt-4 max-w-md text-sm leading-7 text-white/50">{description}</p>
+
+        <div className="mt-7 space-y-3">
+          {benefits.map((benefit) => (
+            <div key={benefit} className="flex items-center gap-3 text-sm text-white/65">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-gold/25 bg-gold/[0.07] text-gold">
+                <Check size={13} strokeWidth={2} />
+              </span>
+              <span>{benefit}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-auto flex items-center justify-between gap-4 pt-9 text-sm font-medium text-gold">
+          <span>{actionLabel}</span>
+          <span className="flex h-11 w-11 items-center justify-center rounded-full border border-gold/30 bg-black/20 transition duration-300 group-hover:border-gold group-hover:bg-gold group-hover:text-black">
+            <ArrowLeft size={17} className="rotate-180 rtl:rotate-0" />
+          </span>
+        </div>
       </div>
     </Link>
   );
