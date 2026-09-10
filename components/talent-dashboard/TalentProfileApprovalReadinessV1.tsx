@@ -20,6 +20,8 @@ type PendingSnapshot = Awaited<ReturnType<typeof getOwnPendingTalentProfileChang
 function requirementHref(key: string) {
   if (key === "primary_role") return "#specialization";
   if (key === "country") return "#residence-country";
+  if (key === "profile_image") return "#profile-image";
+  if (key === "date_of_birth") return "#date-of-birth";
   if (key === "profile_visibility" || key === "data_accuracy_contact_consent") return "#privacy";
   return "#identity";
 }
