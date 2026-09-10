@@ -94,7 +94,7 @@ export default async function PublisherWorkspacePage({ params }: PageProps) {
             <Link key={project.id} href={`/${locale}/publisher-dashboard/workspace/${project.id}`} className="group rounded-[1.75rem] border border-white/10 bg-white/[0.025] p-5 transition hover:-translate-y-0.5 hover:border-gold/30 sm:p-6">
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-gold/70">{project.service_mode === "self_serve" ? (isArabic ? "إدارة ذاتية" : "Self-serve") : (isArabic ? "كاستينغ مُدار" : "Managed casting")}</p>
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-gold/70">{project.service_mode === "self_service" ? (isArabic ? "إدارة ذاتية" : "Self-service") : (isArabic ? "كاستينغ مُدار" : "Managed casting")}</p>
                   <h2 className="mt-2 truncate text-xl font-medium sm:text-2xl">{project.project_title}</h2>
                   <p className="mt-2 text-xs text-white/40">{project.city || (isArabic ? "كل المدن" : "All cities")} · {project.talent_type === "actor" ? (isArabic ? "ممثل" : "Actor") : (isArabic ? "مودل" : "Model")}</p>
                 </div>
