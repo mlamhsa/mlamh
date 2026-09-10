@@ -11,6 +11,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 type PublisherContext = {
   userId: string;
   publisherId: number;
+  publisherType: string;
   companyName: string | null;
   contactName: string | null;
 };
@@ -33,16 +34,20 @@ async function requirePublisher(): Promise<PublisherContext> {
 
   const { data: publisher, error: publisherError } = await admin
     .from("publishers")
-    .select("id, company_name, contact_name, status")
+    .select("id, publisher_type, company_name, contact_name, status")
     .eq("profile_id", profile.id)
     .maybeSingle();
 
   if (publisherError || !publisher) throw new Error("Publisher not found.");
   if (["suspended", "blocked", "banned", "disabled"].includes(String(publisher.status))) throw new Error("Publisher account is not active.");
 
+  const publisherType = String(publisher.publisher_type ?? "individual");
+  if (publisherType === "individual") throw new Error("Casting Workspace is available to organizations only.");
+
   return {
     userId: user.id,
     publisherId: Number(publisher.id),
+    publisherType,
     companyName: publisher.company_name ?? null,
     contactName: publisher.contact_name ?? null,
   };
