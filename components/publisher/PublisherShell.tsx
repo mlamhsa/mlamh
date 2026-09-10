@@ -244,7 +244,7 @@ export default function PublisherShell({ locale, isRtl, children }: Props) {
     },
     {
       href: `${dashboardHref}/profile`,
-      label: isRtl ? "ملف الشركة" : "Company Profile",
+      label: isRtl ? "ملف الناشر" : "Publisher Profile",
       icon: <Building2 size={18} />,
       badge: 0,
     },
@@ -283,7 +283,7 @@ export default function PublisherShell({ locale, isRtl, children }: Props) {
       <Link href={dashboardHref} className="block border-b border-white/10 pb-6">
         <p className="text-3xl font-light tracking-wide text-gold">MLAMH</p>
         <p className="mt-3 text-xs uppercase tracking-[0.28em] text-white/35">
-          {isRtl ? "لوحة الجهة" : "Publisher Dashboard"}
+          {isRtl ? "لوحة الناشر" : "Publisher Dashboard"}
         </p>
       </Link>
 
@@ -335,7 +335,7 @@ export default function PublisherShell({ locale, isRtl, children }: Props) {
         onClick={() => setMobileNavOpen(true)}
         className="fixed top-24 z-40 inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-black/85 text-white shadow-xl backdrop-blur-xl transition hover:border-gold/35 hover:text-gold lg:hidden"
         style={isRtl ? { right: 16 } : { left: 16 }}
-        aria-label={isRtl ? "فتح قائمة لوحة الجهة" : "Open publisher dashboard menu"}
+        aria-label={isRtl ? "فتح قائمة لوحة الناشر" : "Open publisher dashboard menu"}
         aria-expanded={mobileNavOpen}
       >
         <Menu size={21} aria-hidden="true" />
