@@ -1,7 +1,18 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+
+import { TalentProfileApprovalReadinessV1 } from "@/components/talent-dashboard/TalentProfileApprovalReadinessV1";
+import { TalentResidenceCountrySelectorV1 } from "@/components/talent-dashboard/TalentResidenceCountrySelectorV1";
+import { TalentRoleSelectorV1 } from "@/components/talent-dashboard/TalentRoleSelectorV1";
+import { TalentVisibilitySelectorV1 } from "@/components/talent-dashboard/TalentVisibilitySelectorV1";
+import {
+  getOwnTalentResidenceAction,
+  type OwnTalentResidence,
+} from "@/lib/actions/get-own-talent-residence";
 import { NATIONALITIES } from "@/lib/data/nationalities";
+import { GENDER_OPTIONS, TALENT_SIGNUP_COUNTRIES } from "@/lib/data/talent-signup";
 
 const PHYSICAL_MEASUREMENT_FIELDS = [
   "height_cm",
@@ -12,8 +23,28 @@ const PHYSICAL_MEASUREMENT_FIELDS = [
   "hip_size",
 ] as const;
 
+const REQUIRED_FIELD_NAMES = [
+  "name_ar",
+  "name_en",
+  "phone",
+  "city_slug",
+  "gender",
+  "nationality_slug",
+  "date_of_birth",
+] as const;
+
 function isArabicPage() {
   return document.documentElement.lang === "ar" || document.documentElement.dir === "rtl";
+}
+
+function normalizeProfileCopy() {
+  if (isArabicPage()) return;
+
+  document.querySelectorAll<HTMLElement>("p").forEach((element) => {
+    if (element.textContent?.trim() === "Talent Workspace") {
+      element.textContent = "Talent Dashboard";
+    }
+  });
 }
 
 function buildNationalityOptions(select: HTMLSelectElement) {
@@ -59,20 +90,150 @@ function buildNationalityOptions(select: HTMLSelectElement) {
   select.dataset.globalNationalityOptions = "1";
 }
 
-function ensureCountryNotice(citySelect: HTMLSelectElement) {
-  const field = citySelect.parentElement;
-  if (!field || field.querySelector("[data-mlamh-country-notice]")) return;
+function buildGenderOptions(select: HTMLSelectElement) {
+  const ar = isArabicPage();
+  const currentValue = select.value;
+  const currentLabel =
+    Array.from(select.options).find((option) => option.value === currentValue)?.textContent?.trim() ||
+    currentValue;
+
+  const fragment = document.createDocumentFragment();
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = ar ? "اختر الجنس" : "Select gender";
+  fragment.appendChild(placeholder);
+
+  for (const gender of GENDER_OPTIONS) {
+    const option = document.createElement("option");
+    option.value = gender.value;
+    option.textContent = ar ? gender.ar : gender.en;
+    fragment.appendChild(option);
+  }
+
+  if (currentValue && !GENDER_OPTIONS.some((gender) => gender.value === currentValue)) {
+    const legacyOption = document.createElement("option");
+    legacyOption.value = currentValue;
+    legacyOption.textContent = ar
+      ? `القيمة الحالية: ${currentLabel}`
+      : `Current value: ${currentLabel}`;
+    fragment.appendChild(legacyOption);
+  }
+
+  select.replaceChildren(fragment);
+  select.value = currentValue;
+  select.dataset.canonicalGenderOptions = "1";
+}
+
+function ensureResidenceCountryContext(
+  citySelect: HTMLSelectElement,
+  residence: OwnTalentResidence,
+) {
+  const fieldContainer = citySelect.closest("label") ?? citySelect.parentElement;
+  if (!fieldContainer) return;
 
   const ar = isArabicPage();
-  const notice = document.createElement("div");
-  notice.dataset.mlamhCountryNotice = "1";
-  notice.className =
-    "mb-4 rounded-2xl border border-gold/20 bg-gold/[0.045] px-4 py-3";
-  notice.innerHTML = ar
-    ? '<div class="flex items-center justify-between gap-3"><span class="text-sm text-white">الدولة: السعودية</span><span class="rounded-full border border-gold/20 bg-gold/[0.08] px-2.5 py-1 text-[10px] text-gold">السوق الحالي</span></div><p class="mt-2 text-xs leading-5 text-white/40">تظهر المدن السعودية فقط حاليًا. الجنسية مستقلة ويمكن اختيارها من جميع دول العالم.</p>'
-    : '<div class="flex items-center justify-between gap-3"><span class="text-sm text-white">Country: Saudi Arabia</span><span class="rounded-full border border-gold/20 bg-gold/[0.08] px-2.5 py-1 text-[10px] text-gold">Current market</span></div><p class="mt-2 text-xs leading-5 text-white/40">Only Saudi cities are available for the current market. Nationality is independent and supports all countries.</p>';
+  let notice = fieldContainer.querySelector<HTMLElement>(
+    "[data-mlamh-residence-country-context]",
+  );
 
-  field.prepend(notice);
+  if (!notice) {
+    notice = document.createElement("div");
+    notice.dataset.mlamhResidenceCountryContext = "1";
+    notice.className =
+      "mb-3 rounded-xl border border-gold/15 bg-gold/[0.04] px-3 py-2.5 text-xs leading-5 text-white/45";
+    citySelect.insertAdjacentElement("beforebegin", notice);
+  }
+
+  if (!residence.countryCode) {
+    notice.className =
+      "mb-3 rounded-xl border border-amber-400/20 bg-amber-400/[0.06] px-3 py-2.5 text-xs leading-5 text-amber-100";
+    notice.textContent = ar
+      ? "اختر بلد الإقامة أولًا حتى تظهر قائمة المدن الصحيحة."
+      : "Choose your country of residence first so the correct city list can be shown.";
+    citySelect.disabled = true;
+    return;
+  }
+
+  const country = TALENT_SIGNUP_COUNTRIES.find(
+    (item) => item.code === residence.countryCode,
+  );
+  if (!country) return;
+
+  notice.className =
+    "mb-3 rounded-xl border border-gold/15 bg-gold/[0.04] px-3 py-2.5 text-xs leading-5 text-white/45";
+  notice.textContent = ar
+    ? `بلد الإقامة: ${country.ar} — تظهر المدن التابعة لبلد إقامتك المسجل.`
+    : `Country of residence: ${country.en} — cities are shown for your saved residence country.`;
+  citySelect.disabled = false;
+}
+
+function buildCountryAwareCityOptions(
+  select: HTMLSelectElement,
+  residence: OwnTalentResidence,
+) {
+  ensureResidenceCountryContext(select, residence);
+  if (!residence.countryCode) return;
+
+  const country = TALENT_SIGNUP_COUNTRIES.find(
+    (item) => item.code === residence.countryCode,
+  );
+  if (!country) return;
+
+  const ar = isArabicPage();
+  const currentValue = select.value || residence.citySlug;
+  const expectedValues = ["", ...country.cities.map((city) => city.value)];
+  const hasKnownCurrent = !currentValue || expectedValues.includes(currentValue);
+  if (currentValue && !hasKnownCurrent) expectedValues.push(currentValue);
+
+  const actualValues = Array.from(select.options).map((option) => option.value);
+  const optionsMatch =
+    actualValues.length === expectedValues.length &&
+    actualValues.every((value, index) => value === expectedValues[index]);
+
+  if (!optionsMatch) {
+    const fragment = document.createDocumentFragment();
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = ar ? "اختر المدينة" : "Select city";
+    fragment.appendChild(placeholder);
+
+    for (const city of country.cities) {
+      const option = document.createElement("option");
+      option.value = city.value;
+      option.textContent = ar ? city.ar : city.en;
+      fragment.appendChild(option);
+    }
+
+    if (currentValue && !country.cities.some((city) => city.value === currentValue)) {
+      const legacyOption = document.createElement("option");
+      legacyOption.value = currentValue;
+      const savedLabel = ar ? residence.cityAr : residence.cityEn;
+      legacyOption.textContent = savedLabel || currentValue.replaceAll("_", " ");
+      fragment.appendChild(legacyOption);
+    }
+
+    select.replaceChildren(fragment);
+    select.value = currentValue;
+  }
+
+  select.dataset.mlamhResidenceCountry = residence.countryCode;
+}
+
+function prepareResidenceCountryPortal(citySelect: HTMLSelectElement) {
+  const fieldContainer = citySelect.closest("label") ?? citySelect.parentElement;
+  if (!fieldContainer?.parentElement) return null;
+
+  let portal = fieldContainer.parentElement.querySelector<HTMLElement>(
+    "[data-mlamh-residence-country-selector-v1]",
+  );
+
+  if (!portal) {
+    portal = document.createElement("div");
+    portal.dataset.mlamhResidenceCountrySelectorV1 = "1";
+    fieldContainer.insertAdjacentElement("beforebegin", portal);
+  }
+
+  return portal;
 }
 
 function updateDataQualityNotice() {
@@ -116,12 +277,119 @@ function updateDataQualityNotice() {
     ? "توجد قيمة قياس صفرية أو سالبة في ملفك. راجع القياسات وصححها حتى تكون بيانات الملف دقيقة."
     : "Your profile contains a zero or negative measurement. Review and correct the measurements so your profile data stays accurate.";
 
-  if (notice.textContent !== message) {
-    notice.textContent = message;
+  if (notice.textContent !== message) notice.textContent = message;
+}
+
+function removeLegacyCountryNotice() {
+  document.querySelectorAll<HTMLElement>("[data-mlamh-country-notice]").forEach((notice) => {
+    notice.remove();
+  });
+}
+
+function prepareRoleSelectorPortal() {
+  const section = document.getElementById("specialization");
+  if (!section) return null;
+
+  let portal = section.querySelector<HTMLElement>("[data-mlamh-role-selector-v1]");
+
+  if (!portal) {
+    portal = document.createElement("div");
+    portal.dataset.mlamhRoleSelectorV1 = "1";
+    section.prepend(portal);
+  }
+
+  Array.from(section.children).forEach((child) => {
+    if (child === portal) return;
+    if (child instanceof HTMLElement) {
+      child.hidden = true;
+      child.dataset.legacyRoleSelector = "1";
+    }
+  });
+
+  return portal;
+}
+
+function preparePrivacyPortal() {
+  const anchor = document.getElementById("links") ?? document.getElementById("experience");
+  if (!anchor?.parentElement) return null;
+
+  let portal = anchor.parentElement.querySelector<HTMLElement>("[data-mlamh-privacy-selector-v1]");
+  if (!portal) {
+    portal = document.createElement("div");
+    portal.dataset.mlamhPrivacySelectorV1 = "1";
+    portal.className = "mt-6";
+    anchor.insertAdjacentElement("afterend", portal);
+  }
+
+  return portal;
+}
+
+function ensurePrivacyNavLink() {
+  if (document.querySelector('[data-mlamh-privacy-nav-link="1"]')) return;
+
+  const specializationLink = document.querySelector<HTMLAnchorElement>('nav a[href="#specialization"]');
+  const nav = specializationLink?.closest("nav");
+  if (!nav) return;
+
+  const link = document.createElement("a");
+  link.href = "#privacy";
+  link.dataset.mlamhPrivacyNavLink = "1";
+  link.textContent = isArabicPage() ? "الخصوصية" : "Privacy";
+  link.className =
+    "shrink-0 whitespace-nowrap rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-xs text-white/60 transition hover:border-gold/35 hover:text-gold";
+  nav.appendChild(link);
+}
+
+function prepareApprovalReadinessPortal() {
+  const specializationLink = document.querySelector<HTMLAnchorElement>('nav a[href="#specialization"]');
+  const nav = specializationLink?.closest("nav");
+  if (!nav?.parentElement) return null;
+
+  let portal = nav.parentElement.querySelector<HTMLElement>(
+    "[data-mlamh-approval-readiness-v1]",
+  );
+
+  if (!portal) {
+    const legacyReadiness = nav.previousElementSibling;
+    if (legacyReadiness instanceof HTMLElement && legacyReadiness.tagName === "SECTION") {
+      legacyReadiness.hidden = true;
+      legacyReadiness.dataset.legacyApprovalReadiness = "1";
+    }
+
+    portal = document.createElement("div");
+    portal.dataset.mlamhApprovalReadinessV1 = "1";
+    nav.insertAdjacentElement("beforebegin", portal);
+  }
+
+  return portal;
+}
+
+function markRequiredFields() {
+  const ar = isArabicPage();
+
+  for (const name of REQUIRED_FIELD_NAMES) {
+    const field = document.querySelector<HTMLElement>(`[name="${name}"]`);
+    if (!field) continue;
+
+    const label = field.closest("label") ?? document.querySelector<HTMLLabelElement>(`label[for="${field.id}"]`);
+    if (!label || label.querySelector("[data-mlamh-required-star]")) continue;
+
+    const labelText = label.querySelector<HTMLElement>("span") ?? label;
+    const normalized = labelText.textContent ?? "";
+    if (normalized.includes("⭐")) continue;
+
+    const star = document.createElement("span");
+    star.dataset.mlamhRequiredStar = "1";
+    star.className = "ms-1 text-gold";
+    star.textContent = " ⭐";
+    star.title = ar ? "مطلوب للاعتماد" : "Required for approval";
+    labelText.appendChild(star);
   }
 }
 
-function enhancePage() {
+function enhancePage(residence: OwnTalentResidence | null) {
+  normalizeProfileCopy();
+
   const nationalitySelect = document.querySelector<HTMLSelectElement>(
     'select[name="nationality_slug"]',
   );
@@ -129,29 +397,106 @@ function enhancePage() {
     buildNationalityOptions(nationalitySelect);
   }
 
-  const citySelect = document.querySelector<HTMLSelectElement>('select[name="city_slug"]');
-  if (citySelect) ensureCountryNotice(citySelect);
+  const genderSelect = document.querySelector<HTMLSelectElement>('select[name="gender"]');
+  if (genderSelect && genderSelect.dataset.canonicalGenderOptions !== "1") {
+    buildGenderOptions(genderSelect);
+  }
 
+  const citySelect = document.querySelector<HTMLSelectElement>('select[name="city_slug"]');
+  const residencePortal = citySelect ? prepareResidenceCountryPortal(citySelect) : null;
+  if (citySelect && residence) {
+    buildCountryAwareCityOptions(citySelect, residence);
+  }
+
+  removeLegacyCountryNotice();
   updateDataQualityNotice();
+  markRequiredFields();
+
+  const rolePortal = prepareRoleSelectorPortal();
+  const privacyPortal = preparePrivacyPortal();
+  const readinessPortal = prepareApprovalReadinessPortal();
+  ensurePrivacyNavLink();
+
+  return { rolePortal, privacyPortal, residencePortal, readinessPortal };
 }
 
 export function TalentProfileEditorEnhancer() {
+  const [rolePortal, setRolePortal] = useState<HTMLElement | null>(null);
+  const [privacyPortal, setPrivacyPortal] = useState<HTMLElement | null>(null);
+  const [residencePortal, setResidencePortal] = useState<HTMLElement | null>(null);
+  const [readinessPortal, setReadinessPortal] = useState<HTMLElement | null>(null);
+  const [locale, setLocale] = useState<"ar" | "en">("ar");
+  const [residence, setResidence] = useState<OwnTalentResidence | null>(null);
+
   useEffect(() => {
     if (!window.location.pathname.includes("/talent-dashboard/profile")) return;
 
-    enhancePage();
+    let active = true;
+    setLocale(isArabicPage() ? "ar" : "en");
+
+    void getOwnTalentResidenceAction().then((value) => {
+      if (active) setResidence(value);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!window.location.pathname.includes("/talent-dashboard/profile")) return;
+
+    const initial = enhancePage(residence);
+    setRolePortal(initial.rolePortal);
+    setPrivacyPortal(initial.privacyPortal);
+    setResidencePortal(initial.residencePortal);
+    setReadinessPortal(initial.readinessPortal);
 
     const handleInput = () => updateDataQualityNotice();
     document.addEventListener("input", handleInput, true);
 
-    const observer = new MutationObserver(() => enhancePage());
+    const observer = new MutationObserver(() => {
+      const next = enhancePage(residence);
+      if (next.rolePortal) setRolePortal((current) => current ?? next.rolePortal);
+      if (next.privacyPortal) setPrivacyPortal((current) => current ?? next.privacyPortal);
+      if (next.residencePortal) {
+        setResidencePortal((current) => current ?? next.residencePortal);
+      }
+      if (next.readinessPortal) {
+        setReadinessPortal((current) => current ?? next.readinessPortal);
+      }
+    });
     observer.observe(document.body, { childList: true, subtree: true });
 
     return () => {
       document.removeEventListener("input", handleInput, true);
       observer.disconnect();
     };
-  }, []);
+  }, [residence]);
 
-  return null;
+  return (
+    <>
+      {readinessPortal
+        ? createPortal(
+            <TalentProfileApprovalReadinessV1 locale={locale} />,
+            readinessPortal,
+          )
+        : null}
+      {rolePortal
+        ? createPortal(<TalentRoleSelectorV1 locale={locale} />, rolePortal)
+        : null}
+      {residencePortal && residence
+        ? createPortal(
+            <TalentResidenceCountrySelectorV1
+              locale={locale}
+              currentCountryCode={residence.countryCode}
+            />,
+            residencePortal,
+          )
+        : null}
+      {privacyPortal
+        ? createPortal(<TalentVisibilitySelectorV1 locale={locale} />, privacyPortal)
+        : null}
+    </>
+  );
 }

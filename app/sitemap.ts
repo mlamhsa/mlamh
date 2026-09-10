@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 
+import { TALENT_CATEGORIES } from "@/lib/data/talent-categories";
 import { locales } from "@/lib/i18n";
 import { canIndexMarket } from "@/lib/markets/seo";
 import { isOpportunityOpenForSeo } from "@/lib/seo/opportunity";
@@ -11,6 +12,9 @@ const SITE_URL = (
 ).replace(/\/$/, "");
 
 const SEO_MARKET = "SA" as const;
+const PUBLIC_TALENT_CATEGORY_SLUGS: Set<string> = new Set(
+  TALENT_CATEGORIES.map((category) => category.slug),
+);
 
 const GUIDE_SLUGS = [
   "how-to-start-acting-saudi-arabia",
@@ -23,6 +27,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     return [];
   }
 
+  // getPublishedTalents already enforces approved + published + public visibility,
+  // so private Talent profiles can never enter the sitemap.
   const [talents, opportunities] = await Promise.all([
     getPublishedTalents(SEO_MARKET).catch(() => []),
     getPublishedOpportunities(SEO_MARKET).catch(() => []),
@@ -63,8 +69,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     })));
 
   const availableCategories = new Set(
-    talents.map((talent) => talent.category_slug?.trim())
-      .filter((value): value is string => value === "actor" || value === "model"),
+    talents
+      .map((talent) => talent.category_slug?.trim())
+      .filter(
+        (value): value is string =>
+          Boolean(value) && PUBLIC_TALENT_CATEGORY_SLUGS.has(value as string),
+      ),
   );
 
   const categoryRoutes: MetadataRoute.Sitemap = Array.from(availableCategories).flatMap((category) =>

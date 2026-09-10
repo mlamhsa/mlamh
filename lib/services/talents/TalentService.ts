@@ -4,6 +4,7 @@ import {
   TalentRepository,
   type AdminTalentFilter,
   type AdminTalentOperationalFilter,
+  type AdminTalentVisibilityFilter,
 } from "@/lib/repositories/talents/TalentRepository";
 
 export class TalentService extends BaseService {
@@ -14,6 +15,7 @@ export class TalentService extends BaseService {
     search,
     approvalStatus,
     operationalFilter,
+    visibility,
   }: {
     page: number;
     pageSize: number;
@@ -21,16 +23,10 @@ export class TalentService extends BaseService {
     search?: string;
     approvalStatus?: string;
     operationalFilter?: AdminTalentOperationalFilter;
+    visibility?: AdminTalentVisibilityFilter;
   }) {
-    this.assert(
-      page > 0,
-      "Invalid page number",
-    );
-
-    this.assert(
-      pageSize > 0,
-      "Invalid page size",
-    );
+    this.assert(page > 0, "Invalid page number");
+    this.assert(pageSize > 0, "Invalid page size");
 
     return TalentRepository.getAdminTalents({
       page,
@@ -39,20 +35,14 @@ export class TalentService extends BaseService {
       search,
       approvalStatus,
       operationalFilter,
+      visibility,
     });
   }
 
-  static async getAdminTalentById(
-    id: number,
-  ) {
-    this.assert(
-      id > 0,
-      "Invalid talent id",
-    );
+  static async getAdminTalentById(id: number) {
+    this.assert(id > 0, "Invalid talent id");
 
-    return TalentRepository.getAdminTalentById(
-      id,
-    );
+    return TalentRepository.getAdminTalentById(id);
   }
 
   static async getAdminStats() {
@@ -63,16 +53,9 @@ export class TalentService extends BaseService {
     return TalentRepository.getAdminOperationalStats();
   }
 
-  static async getTopViewed(
-    limit = 5,
-  ) {
-    this.assert(
-      limit > 0,
-      "Invalid limit",
-    );
+  static async getTopViewed(limit = 5) {
+    this.assert(limit > 0, "Invalid limit");
 
-    return TalentRepository.getTopViewed(
-      limit,
-    );
+    return TalentRepository.getTopViewed(limit);
   }
 }

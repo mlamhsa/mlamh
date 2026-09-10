@@ -20,6 +20,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function VerifyEmailPage({ params, searchParams }: PageProps) {
   const { locale: localeParam } = await params;
   if (!isValidLocale(localeParam)) notFound();
+
   const locale = localeParam as Locale;
   const query = searchParams ? await searchParams : {};
   const email = typeof query.email === "string" ? query.email.trim().toLowerCase() : "";

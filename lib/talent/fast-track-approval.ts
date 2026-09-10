@@ -22,6 +22,8 @@ function hasValue(value: unknown) {
   return value !== null && value !== undefined;
 }
 
+export const TALENT_AUTO_APPROVAL_COMPLETION_THRESHOLD = 70;
+
 export function evaluateTalentFastTrackApproval({
   talent,
   completion,
@@ -32,51 +34,39 @@ export function evaluateTalentFastTrackApproval({
   const reasons: string[] = [];
 
   /*
-   * إرسال الملف للمراجعة لا يعتمد على نسبة مئوية؛
-   * بل على اكتمال متطلبات الجاهزية الإلزامية.
-   * Fast Track فقط يحتاج اكتمالًا أعلى (70%+) إضافة إلى إشارات الجودة أدناه.
+   * Auto approval is intentionally stricter than review readiness.
+   * Required profile fields allow submission for review. Fast-track approval
+   * additionally requires a strong overall profile score and all safety/data
+   * gates below. Optional bio/languages/skills still improve strength/ranking,
+   * but are not direct hard gates.
    */
-  if (completion < 70) {
-    reasons.push(
-      "profile_completion_below_fast_track_threshold",
-    );
+  if (completion < TALENT_AUTO_APPROVAL_COMPLETION_THRESHOLD) {
+    reasons.push("profile_completion_below_fast_track_threshold");
   }
 
-  if (!hasValue(talent.image_url)) {
-    reasons.push("missing_profile_image");
+  const hasName = hasValue(talent.name_ar) || hasValue(talent.name_en);
+  if (!hasName) reasons.push("missing_name");
+  if (!hasValue(talent.phone)) reasons.push("missing_phone");
+  if (!hasValue(talent.image_url)) reasons.push("missing_profile_image");
+  if (!hasValue(talent.primary_role) && !hasValue(talent.category_slug)) reasons.push("missing_primary_role");
+  if (!hasValue(talent.base_country_code)) reasons.push("missing_country_of_residence");
+  if (!hasValue(talent.city_slug)) reasons.push("missing_city");
+  if (!hasValue(talent.gender)) reasons.push("missing_gender");
+  if (!hasValue(talent.nationality_slug) && !hasValue(talent.nationality)) reasons.push("missing_nationality");
+  if (!hasValue(talent.date_of_birth)) reasons.push("missing_date_of_birth");
+
+  const visibility = String(talent.profile_visibility ?? "").trim().toLowerCase();
+  if (visibility !== "public" && visibility !== "private") {
+    reasons.push("invalid_profile_visibility");
   }
 
-  if (!hasValue(talent.primary_role)) {
-    reasons.push("missing_primary_role");
-  }
-
-  if (!hasValue(talent.city_slug)) {
-    reasons.push("missing_city");
-  }
-
-  const hasName =
-    hasValue(talent.name_ar) ||
-    hasValue(talent.name_en);
-
-  if (!hasName) {
-    reasons.push("missing_name");
+  if (talent.data_accuracy_contact_consent !== true) {
+    reasons.push("missing_data_accuracy_contact_consent");
   }
 
   /*
-   * نحتاج نبذة فعلية، وليس مجرد ملف تقني مكتمل.
-   */
-  const hasBio =
-    hasValue(talent.bio_ar) ||
-    hasValue(talent.bio_en);
-
-  if (!hasBio) {
-    reasons.push("missing_bio");
-  }
-
-  /*
-   * لا نستخدم HOLD بعد.
-   * سنفعله فقط عندما يكون لدينا
-   * risk / moderation / duplicate signals حقيقية.
+   * HOLD is reserved for moderation / duplicate / risk signals once those
+   * signals are available. Missing fast-track criteria route to manual review.
    */
   if (reasons.length > 0) {
     return {

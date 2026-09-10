@@ -3,9 +3,7 @@ import {
   type TalentQualificationEvaluation,
   type TalentQualificationInput,
 } from "./qualification.ts";
-import {
-  evaluateTalentMarketEligibility,
-} from "../markets/eligibility.ts";
+import { evaluateTalentMarketEligibility } from "../markets/eligibility.ts";
 import { isCountryCode, type CountryCode } from "../markets/countries.ts";
 
 export type TalentBrief = {
@@ -157,11 +155,18 @@ function getBriefCountryCode(brief: TalentBrief): CountryCode {
   return "SA";
 }
 
+function evaluateForPrivateSupply(talent: BriefTalent) {
+  // Brief/managed-casting supply is not the public directory. A talent may explicitly
+  // choose a private profile and still be approved, qualified and sendable to a relevant
+  // private Brief without ever setting published=true.
+  return evaluateTalentQualification(talent, { requirePublished: false });
+}
+
 export function evaluateTalentForBrief(
   talent: BriefTalent,
   brief: TalentBrief,
 ): TalentBriefEvaluation {
-  const qualification = evaluateTalentQualification(talent);
+  const qualification = evaluateForPrivateSupply(talent);
   const reasons: string[] = [];
 
   if (!qualification.qualified) {
@@ -239,7 +244,7 @@ export function evaluateTalentSupplyForBrief(
   candidatePool: BriefTalent[],
 ): TalentSupplyEvaluation {
   const evaluations = candidatePool.map((talent): TalentSupplyCandidateEvaluation => {
-    const qualification = evaluateTalentQualification(talent);
+    const qualification = evaluateForPrivateSupply(talent);
     if (!qualification.qualified) {
       return {
         talent,
@@ -284,10 +289,13 @@ export function calculateTalentSupplyGap(
 async function getTalentCandidatePool(): Promise<BriefTalent[]> {
   const { createAdminClient } = await import("../supabase/admin");
   const supabase = createAdminClient();
+
+  // Do not filter on published here: private profiles are intentionally unpublished.
+  // Approval/status/image/role/city are evaluated below before a talent becomes qualified.
   const { data: talentRows, error } = await supabase
     .from("talents")
     .select("*")
-    .eq("published", true);
+    .in("status", ["approved", "active"]);
   if (error) throw new Error(`[getQualifiedTalents] ${error.message}`);
 
   const talents = (talentRows ?? []) as BriefTalent[];
@@ -340,7 +348,7 @@ async function getTalentCandidatePool(): Promise<BriefTalent[]> {
 
 export async function getQualifiedTalents(): Promise<BriefTalent[]> {
   const candidatePool = await getTalentCandidatePool();
-  return candidatePool.filter((talent) => evaluateTalentQualification(talent).qualified);
+  return candidatePool.filter((talent) => evaluateForPrivateSupply(talent).qualified);
 }
 
 export async function getTalentSupplyForBrief(

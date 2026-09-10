@@ -60,16 +60,16 @@ const DEFAULT_PUBLIC_MARKET: CountryCode = "SA";
 const PUBLIC_DIRECTORY_BATCH_SIZE = 100;
 
 const CATEGORY_ALIASES: Record<string, string[]> = {
-  actor: ["actor", "actors", "acting", "ممثل", "ممثلون", "تمثيل"],
+  actor: ["actor", "actors", "acting", "ممثل", "ممثلة", "ممثلون", "تمثيل"],
   model: ["model", "models", "modeling", "مودل", "مودلز", "عارض", "عارضة"],
   content_creator: ["content_creator", "creator", "creators", "content creator", "content creators", "صانع محتوى", "صناع محتوى", "محتوى"],
   presenter: ["presenter", "presenters", "host", "hosts", "tv host", "مقدم", "مقدمة", "مقدمو برامج", "تقديم", "إعلام"],
   voice_actor: ["voice_actor", "voice", "voice over", "voiceover", "voice artist", "voice artists", "تعليق صوتي", "معلق صوتي", "معلقون صوتيون"],
-  singer: ["singer", "singers", "مغني", "مغنون", "غناء"],
-  dancer: ["dancer", "dancers", "راقص", "راقصون", "رقص"],
-  athlete: ["athlete", "athletes", "رياضي", "رياضيون"],
+  singer: ["singer", "singers", "مغني", "مغنية", "مغنون", "غناء"],
+  dancer: ["dancer", "dancers", "راقص", "راقصة", "راقصون", "رقص"],
+  musician: ["musician", "musicians", "موسيقي", "موسيقيون", "موسيقى"],
   extra: ["extra", "extras", "background", "كومبارس"],
-  influencer: ["influencer", "influencers", "مؤثر", "مؤثرون"],
+  influencer: ["influencer", "influencers", "مؤثر", "مؤثرة", "مؤثرون"],
 };
 
 function normalizeSearchValue(value?: string) {
@@ -274,11 +274,23 @@ async function getVisiblePublishedCandidates(options: VisiblePublishedCandidateO
   const talents: Talent[] = [];
   let total = 0;
   let offset = 0;
+
   while (true) {
-    let query = supabase.from("talents").select("*").eq("published", true).in("status", ["approved", "active"]).or("primary_role.in.(actor,model),category_slug.in.(actor,model)");
+    // Public directory is role-agnostic: any approved MLAMH Talent category may appear.
+    // Privacy is still enforced both in SQL and again through the visibility policy.
+    let query = supabase
+      .from("talents")
+      .select("*")
+      .eq("published", true)
+      .eq("profile_visibility", "public")
+      .in("status", ["approved", "active"]);
     query = applyTalentMarketFilter(query, countryCode);
     query = applyAdvancedDbFilters(query, options);
-    const { data, error } = await query.order("featured", { ascending: false, nullsFirst: false }).order("sort_order", { ascending: true, nullsFirst: false }).order("id", { ascending: false }).range(offset, offset + PUBLIC_DIRECTORY_BATCH_SIZE - 1);
+    const { data, error } = await query
+      .order("featured", { ascending: false, nullsFirst: false })
+      .order("sort_order", { ascending: true, nullsFirst: false })
+      .order("id", { ascending: false })
+      .range(offset, offset + PUBLIC_DIRECTORY_BATCH_SIZE - 1);
     if (error) throw new Error(`[public-talents:candidates] ${error.message}`);
     const rows = (data ?? []) as Talent[];
     const candidates = await attachProfileApprovalContext(rows);
@@ -312,15 +324,23 @@ async function qualifySingleTalentCandidate(
   return evaluateTalentQualification(candidate).qualified ? candidate : null;
 }
 
-async function getPublishedTalentCandidateBySlug(slug: string, countryCode: CountryCode = DEFAULT_PUBLIC_MARKET): Promise<PublicTalentCandidate | null> {
+async function getPublishedTalentCandidateBySlug(
+  slug: string,
+  countryCode: CountryCode = DEFAULT_PUBLIC_MARKET,
+): Promise<PublicTalentCandidate | null> {
   if (!canExposePublicMarket(countryCode, "publicTalentDirectory")) return null;
   const normalizedSlug = normalizeSlug(slug);
   const supabase = createAdminClient();
-  let query = supabase.from("talents").select("*").eq("slug", normalizedSlug).eq("published", true);
+  let query = supabase
+    .from("talents")
+    .select("*")
+    .eq("slug", normalizedSlug)
+    .eq("published", true)
+    .eq("profile_visibility", "public");
   query = applyTalentMarketFilter(query, countryCode);
   const { data, error } = await query.maybeSingle();
   if (error) throw new Error(`[getPublishedTalentBySlug] ${error.message}`);
-  return qualifySingleTalentCandidate(data as Talent | null, countryCode, false);
+  return qualifySingleTalentCandidate(data as Talent | null, countryCode, true);
 }
 
 export async function getPublicTalents(options: GetPublicTalentsOptions = {}): Promise<GetPublicTalentsResult> {
@@ -350,9 +370,11 @@ export async function getPublicTalents(options: GetPublicTalentsOptions = {}): P
   const normalizedCity = normalizeSearchValue(city);
   const normalizedGender = normalizeSearchValue(gender)?.toLowerCase();
   const normalizedNationality = normalizeSearchValue(nationality);
-  if (!canExposePublicMarket(countryCode, "publicTalentDirectory")) return { talents: [], total: 0, totalPages: 1, currentPage: safePage, pageSize: safePageSize };
+  if (!canExposePublicMarket(countryCode, "publicTalentDirectory")) {
+    return { talents: [], total: 0, totalPages: 1, currentPage: safePage, pageSize: safePageSize };
+  }
   const cacheKey = [
-    "public-talents-v9",
+    "public-talents-v10",
     countryCode,
     safePage,
     safePageSize,
@@ -391,15 +413,29 @@ export async function getPublicTalents(options: GetPublicTalentsOptions = {}): P
       availability: normalizeSearchValue(availability)?.toLowerCase(),
       readyToTravel,
     });
-    return { talents, total, totalPages: Math.max(1, Math.ceil(total / safePageSize)), currentPage: safePage, pageSize: safePageSize };
+    return {
+      talents,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / safePageSize)),
+      currentPage: safePage,
+      pageSize: safePageSize,
+    };
   });
 }
 
-export async function getPublishedTalentById(id: number, countryCode: CountryCode = DEFAULT_PUBLIC_MARKET): Promise<Talent | null> {
+export async function getPublishedTalentById(
+  id: number,
+  countryCode: CountryCode = DEFAULT_PUBLIC_MARKET,
+): Promise<Talent | null> {
   if (!canExposePublicMarket(countryCode, "publicTalentDirectory")) return null;
-  return getCachedValue(`published-talent:v7:${countryCode}:id:${id}`, async () => {
+  return getCachedValue(`published-talent:v8:${countryCode}:id:${id}`, async () => {
     const supabase = createAdminClient();
-    let query = supabase.from("talents").select("*").eq("id", id).eq("published", true);
+    let query = supabase
+      .from("talents")
+      .select("*")
+      .eq("id", id)
+      .eq("published", true)
+      .eq("profile_visibility", "public");
     query = applyTalentMarketFilter(query, countryCode);
     const { data, error } = await query.maybeSingle();
     if (error) throw new Error(`[getPublishedTalentById] ${error.message}`);
@@ -408,11 +444,17 @@ export async function getPublishedTalentById(id: number, countryCode: CountryCod
   });
 }
 
-export async function getPublishedTalentBySlug(slug: string, countryCode: CountryCode = DEFAULT_PUBLIC_MARKET): Promise<Talent | null> {
+export async function getPublishedTalentBySlug(
+  slug: string,
+  countryCode: CountryCode = DEFAULT_PUBLIC_MARKET,
+): Promise<Talent | null> {
   return getPublishedTalentBySlugForViewer(slug, countryCode);
 }
 
-export async function getPublishedTalentBySlugForViewer(slug: string, countryCode: CountryCode = DEFAULT_PUBLIC_MARKET): Promise<Talent | null> {
+export async function getPublishedTalentBySlugForViewer(
+  slug: string,
+  countryCode: CountryCode = DEFAULT_PUBLIC_MARKET,
+): Promise<Talent | null> {
   const candidate = await getPublishedTalentCandidateBySlug(slug, countryCode);
   if (!candidate) return null;
 
@@ -460,7 +502,7 @@ export async function getPublishedTalentBySlugForViewer(slug: string, countryCod
 
 export async function getPublishedTalents(countryCode: CountryCode = DEFAULT_PUBLIC_MARKET): Promise<Talent[]> {
   if (!canExposePublicMarket(countryCode, "publicTalentDirectory")) return [];
-  return getCachedValue(`published-talents:v8:${countryCode}:all`, async () => {
+  return getCachedValue(`published-talents:v9:${countryCode}:all`, async () => {
     const { talents } = await getVisiblePublishedCandidates({ collectAll: true, countryCode });
     return talents;
   });

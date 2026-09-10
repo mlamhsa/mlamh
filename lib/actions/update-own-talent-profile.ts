@@ -24,6 +24,10 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 type Locale = "ar" | "en";
 
 type ExistingTalentData = {
+  base_country_code?: string | null;
+  city_slug?: string | null;
+  city_ar?: string | null;
+  city_en?: string | null;
   nationality_slug?: string | null;
   nationality?: string | null;
   height_cm?: number | string | null;
@@ -60,7 +64,7 @@ export async function getOwnTalentProfileAction(locale: Locale) {
     adminClient.from("talents").select("*").eq("user_id", user.id).maybeSingle(),
     adminClient
       .from("profiles")
-      .select(`id, phone, approval_status`)
+      .select(`id, phone, approval_status, data_accuracy_contact_consent`)
       .eq("user_id", user.id)
       .maybeSingle(),
   ]);
@@ -96,6 +100,8 @@ export async function getOwnTalentProfileAction(locale: Locale) {
     ...talent,
     phone: profile?.phone ?? "",
     approval_status: profile?.approval_status ?? "not_submitted",
+    data_accuracy_contact_consent:
+      profile?.data_accuracy_contact_consent === true,
     review_reason: reviewReason,
   };
 }
@@ -144,7 +150,22 @@ function buildTalentSharedPayload(
   existingTalent?: ExistingTalentData,
 ) {
   const selectedCategory = getSelectedCategory(formData);
-  const selectedCity = getSelectedCity(formData);
+  const residenceCountryCode = normalizeComparable(
+    existingTalent?.base_country_code,
+  ).toUpperCase();
+
+  // New Talent accounts already have residence/city from signup. Legacy records
+  // that genuinely have no residence country must stay untouched until the user
+  // explicitly chooses one; unrelated profile edits must never backfill Saudi Arabia.
+  const selectedCity = residenceCountryCode
+    ? getSelectedCity(formData, residenceCountryCode)
+    : {
+        base_country_code: null,
+        city_slug: existingTalent?.city_slug ?? nullableStringValue(formData, "city_slug"),
+        city_ar: existingTalent?.city_ar ?? null,
+        city_en: existingTalent?.city_en ?? null,
+      };
+
   const selectedNationality = getSelectedNationality(
     formData,
     existingTalent?.nationality_slug ?? existingTalent?.nationality ?? null,
@@ -162,9 +183,7 @@ function buildTalentSharedPayload(
     acting_age_max: nullableNumberValue(formData, "acting_age_max"),
     modeling_types: modelingTypes,
 
-    // The active web market is Saudi Arabia. Keep country and city semantics
-    // consistent server-side rather than trusting a hidden browser field.
-    base_country_code: "SA",
+    base_country_code: selectedCity.base_country_code,
     city_slug: selectedCity.city_slug,
     city_en: selectedCity.city_en,
     city_ar: selectedCity.city_ar,
@@ -283,7 +302,7 @@ export async function createOwnTalentProfileAction(formData: FormData) {
   if (
     !createdTalent.category_slug ||
     !createdTalent.city_slug ||
-    createdTalent.base_country_code !== "SA"
+    !createdTalent.base_country_code
   ) {
     throw new Error(
       "[createOwnTalentProfileAction] Talent profile was created, but market/category/city data was not saved correctly.",
@@ -320,6 +339,10 @@ export async function updateOwnTalentProfileAction(formData: FormData) {
       .select(`
         id,
         slug,
+        base_country_code,
+        city_slug,
+        city_ar,
+        city_en,
         nationality_slug,
         nationality,
         height_cm,
@@ -375,13 +398,12 @@ export async function updateOwnTalentProfileAction(formData: FormData) {
     );
   }
 
-  if (
-    !updatedTalent.category_slug ||
-    !updatedTalent.city_slug ||
-    updatedTalent.base_country_code !== "SA"
-  ) {
+  // Legacy records may still be missing a residence country. Do not block or
+  // mutate unrelated edits; readiness keeps the country requirement incomplete
+  // until the user explicitly supplies it through the residence editor.
+  if (!updatedTalent.category_slug || !updatedTalent.city_slug) {
     throw new Error(
-      "[updateOwnTalentProfileAction] Talent profile was updated, but market/category/city data was not saved correctly.",
+      "[updateOwnTalentProfileAction] Talent profile was updated, but category/city data was not saved correctly.",
     );
   }
 

@@ -1,4 +1,5 @@
 import { getPublicTalents } from "@/lib/supabase/public-talents";
+import { TALENT_CATEGORIES } from "@/lib/data/talent-categories";
 import { applyActiveFeaturedTalentEntitlements } from "@/lib/talent/public-featured-entitlements";
 
 export type PublicTalentDirectoryFilters = {
@@ -20,8 +21,10 @@ export type PublicTalentDirectoryFilters = {
   readyToTravel?: string;
 };
 
-const PUBLIC_CATEGORIES = new Set(["actor", "model"]);
-const PUBLIC_GENDERS = new Set(["male", "female"]);
+const PUBLIC_CATEGORIES: Set<string> = new Set(
+  TALENT_CATEGORIES.map((category) => category.slug),
+);
+const PUBLIC_GENDERS: Set<string> = new Set(["male", "female"]);
 
 function normalized(value?: string | null) {
   return value?.trim().toLowerCase() || "";

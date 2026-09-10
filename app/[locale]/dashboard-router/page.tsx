@@ -27,7 +27,12 @@ export default async function DashboardRouterPage({
     .eq("user_id", user.id)
     .maybeSingle();
 
-  const accountType = profile?.account_type ?? user.user_metadata?.role;
+  const metadataAccountType =
+    user.user_metadata?.account_type ??
+    user.user_metadata?.role;
+
+  const accountType =
+    profile?.account_type ?? metadataAccountType;
 
   if (accountType === "talent") {
     redirect(`/${locale}/talent-dashboard`);

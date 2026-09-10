@@ -6,7 +6,7 @@ import {
   EVENT_TYPES,
 } from "@/lib/events";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getTalentProfileReadiness } from "@/lib/talent/profile-review-readiness";
+import { getTalentProfileReviewReadiness } from "@/lib/talent/profile-review-readiness";
 import {
   getNextTalentProfileRecoveryReminder,
 } from "@/lib/talent/profile-recovery-schedule";
@@ -19,16 +19,27 @@ import { calculateProfileCompletion } from "@/lib/utils/profile-completion";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const MIN_REVIEW_COMPLETION = 35;
+/*
+ * Legacy-safety contract:
+ * - Existing talent/profile rows are read-only in this recovery job.
+ * - We do not backfill, normalize, auto-complete, change approval state,
+ *   publish/unpublish, or rewrite any existing talent data here.
+ * - The only side effects are sending a reminder email and recording the
+ *   reminder event after a successful send.
+ *
+ * This lets us recover incomplete existing accounts without altering the
+ * information they originally submitted.
+ */
 
 // `talents` has no `updated_at` column. Selecting it made the entire recovery
 // cron fail before any automatic reminder could be classified or sent.
-const TALENT_SELECT = "id, user_id, created_at, name_ar, name_en, image_url, primary_role, city_slug, city_ar, city_en, gender, nationality, nationality_slug, date_of_birth, bio_ar, bio_en, languages, dialects, skills, availability_status, portfolio_url, showreel_url, gallery_images, acting_age_min, acting_age_max, modeling_types, height_cm, shoe_size, hair_color, eye_color, chest_size, waist_size, hip_size, previous_work" as const;
+const TALENT_SELECT = "id, user_id, created_at, name_ar, name_en, image_url, primary_role, base_country_code, city_slug, city_ar, city_en, gender, nationality, nationality_slug, date_of_birth, profile_visibility, bio_ar, bio_en, languages, dialects, skills, availability_status, portfolio_url, showreel_url, gallery_images, acting_age_min, acting_age_max, modeling_types, height_cm, shoe_size, hair_color, eye_color, chest_size, waist_size, hip_size, previous_work" as const;
 
 type ProfileRow = {
   id: string | number;
   user_id: string;
   approval_status: string | null;
+  data_accuracy_contact_consent: boolean | null;
   created_at: string | null;
   updated_at: string | null;
 };
@@ -41,6 +52,7 @@ type TalentRow = {
   name_en: string | null;
   image_url: string | null;
   primary_role: string | null;
+  base_country_code: string | null;
   city_slug: string | null;
   city_ar: string | null;
   city_en: string | null;
@@ -48,6 +60,7 @@ type TalentRow = {
   nationality: string | null;
   nationality_slug: string | null;
   date_of_birth: string | null;
+  profile_visibility: string | null;
   bio_ar: string | null;
   bio_en: string | null;
   languages: string[] | null;
@@ -95,8 +108,10 @@ function normalizeApprovalStatus(value: unknown) {
 
 function classifyTalentRecovery(
   talent: TalentRow,
-  approvalStatus: string,
+  profile: Pick<ProfileRow, "approval_status" | "data_accuracy_contact_consent">,
 ): RecoveryClassification | null {
+  const approvalStatus = normalizeApprovalStatus(profile.approval_status);
+
   if (approvalStatus === "changes_requested") {
     return {
       kind: "changes_requested",
@@ -109,12 +124,14 @@ function classifyTalentRecovery(
     return null;
   }
 
-  const readiness = getTalentProfileReadiness(talent);
+  const readiness = getTalentProfileReviewReadiness({
+    ...talent,
+    data_accuracy_contact_consent:
+      profile.data_accuracy_contact_consent === true,
+  });
   const profileCompletion = calculateProfileCompletion(talent);
-  const isProfileReady =
-    readiness.isReady && profileCompletion >= MIN_REVIEW_COMPLETION;
 
-  if (isProfileReady) {
+  if (readiness.canSubmitForReview) {
     return {
       kind: "ready_not_submitted",
       missingItems: [],
@@ -159,7 +176,7 @@ export async function GET(request: NextRequest) {
   const { data: profileData, error: profileError } =
     await adminClient
       .from("profiles")
-      .select("id, user_id, approval_status, created_at, updated_at")
+      .select("id, user_id, approval_status, data_accuracy_contact_consent, created_at, updated_at")
       .eq("account_type", "talent")
       .or(
         "approval_status.is.null,approval_status.eq.not_submitted,approval_status.eq.changes_requested",
@@ -295,8 +312,7 @@ export async function GET(request: NextRequest) {
       continue;
     }
 
-    const approvalStatus = normalizeApprovalStatus(profile.approval_status);
-    const classification = classifyTalentRecovery(talent, approvalStatus);
+    const classification = classifyTalentRecovery(talent, profile);
 
     if (!classification) {
       skipped += 1;
@@ -342,7 +358,7 @@ export async function GET(request: NextRequest) {
     const [currentProfileResult, currentTalentResult] = await Promise.all([
       adminClient
         .from("profiles")
-        .select("approval_status")
+        .select("approval_status, data_accuracy_contact_consent")
         .eq("id", profile.id)
         .maybeSingle(),
       adminClient
@@ -368,12 +384,13 @@ export async function GET(request: NextRequest) {
 
     const currentTalent =
       currentTalentResult.data as unknown as TalentRow;
-    const currentApprovalStatus = normalizeApprovalStatus(
-      currentProfileResult.data.approval_status,
-    );
     const currentClassification = classifyTalentRecovery(
       currentTalent,
-      currentApprovalStatus,
+      {
+        approval_status: currentProfileResult.data.approval_status,
+        data_accuracy_contact_consent:
+          currentProfileResult.data.data_accuracy_contact_consent,
+      },
     );
 
     if (!currentClassification || currentClassification.kind !== kind) {

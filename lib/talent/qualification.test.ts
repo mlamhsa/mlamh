@@ -18,6 +18,7 @@ const baseTalent: TalentQualificationInput = {
   city_slug: "riyadh",
   profile_approval_status: "approved",
   profile_status: "active",
+  profile_visibility: "public",
 };
 
 test("qualified talent is derived without profile_completion or availability", () => {
@@ -58,7 +59,7 @@ test("missing qualification fields return actionable Arabic reasons", () => {
   assert.equal(evaluation.state, "not_ready");
   assert.deepEqual(
     getTalentQualificationReasons(evaluation, "ar"),
-    ["أضف صورة", "حدد تخصصك", "حدد مدينتك"],
+    ["أضف صورة", "حدد نوع موهبتك", "حدد مدينتك"],
   );
 });
 
@@ -83,22 +84,53 @@ test("legacy published active talent without profiles row stays visible", () => 
   );
 });
 
-test("unsupported non-MVP category is not newly qualified", () => {
+test("all canonical Talent Flow V1 categories can qualify", () => {
+  const expandedRoles = [
+    "actor",
+    "model",
+    "voice_actor",
+    "presenter",
+    "content_creator",
+    "dancer",
+    "singer",
+    "musician",
+    "extra",
+    "influencer",
+  ];
+
+  for (const role of expandedRoles) {
+    const evaluation = evaluateTalentQualification({
+      ...baseTalent,
+      primary_role: role,
+      category_slug: role,
+    });
+    assert.equal(evaluation.qualified, true, `${role} should be a canonical talent role`);
+  }
+});
+
+test("unknown talent role is not newly qualified", () => {
   const evaluation = evaluateTalentQualification({
     ...baseTalent,
-    primary_role: null,
-    category_slug: "content_creator",
-    category_ar: "صانع محتوى",
-    category_en: "Content creator",
+    primary_role: "director",
+    category_slug: "director",
   });
 
   assert.equal(evaluation.qualified, false);
   assert.ok(evaluation.reasons.includes("missing_role"));
-  assert.equal(isTalentPubliclyVisible({
+});
+
+test("approved private talent stays hidden publicly but can qualify for private supply", () => {
+  const privateTalent = {
     ...baseTalent,
-    primary_role: null,
-    category_slug: "content_creator",
-  }), false);
+    published: false,
+    profile_visibility: "private",
+  };
+
+  assert.equal(isTalentPubliclyVisible(privateTalent), false);
+  assert.equal(
+    evaluateTalentQualification(privateTalent, { requirePublished: false }).qualified,
+    true,
+  );
 });
 
 test("production nine-talents compatibility fixture remains public", () => {

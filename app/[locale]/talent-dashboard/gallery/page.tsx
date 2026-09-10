@@ -14,7 +14,7 @@ import { normalizeGalleryImages } from "@/lib/utils/talent-gallery";
 import { GallerySortableList } from "./gallery-sortable-list";
 
 export const metadata = {
-  title: "My Gallery — MLAMH",
+  title: "Portfolio — MLAMH",
   robots: { index: false, follow: false },
 };
 
@@ -88,6 +88,10 @@ function GalleryIcon({
   );
 }
 
+function hasText(value: unknown) {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
 export default async function TalentGalleryPage({
   params,
   searchParams,
@@ -111,7 +115,7 @@ export default async function TalentGalleryPage({
 
   const { data: talent, error: talentError } = await adminClient
     .from("talents")
-    .select("id, slug, name_ar, name_en, gallery_images")
+    .select("id, slug, name_ar, name_en, gallery_images, showreel_url, video_intro, portfolio_url, previous_work")
     .eq("user_id", user.id)
     .maybeSingle();
 
@@ -133,13 +137,17 @@ export default async function TalentGalleryPage({
     (isArabic ? talent.name_ar || talent.name_en : talent.name_en || talent.name_ar) ||
     null;
 
-    const galleryProgress = Math.min(
-      100,
-      Math.round((galleryImages.length / MAX_GALLERY_IMAGES) * 100)
-    );
+  const galleryProgress = Math.min(
+    100,
+    Math.round((galleryImages.length / MAX_GALLERY_IMAGES) * 100)
+  );
     
-    const canUploadMore =
-      galleryImages.length < MAX_GALLERY_IMAGES;
+  const canUploadMore =
+    galleryImages.length < MAX_GALLERY_IMAGES;
+
+  const hasVideo = hasText(talent.showreel_url) || hasText(talent.video_intro);
+  const hasExternalPortfolio = hasText(talent.portfolio_url);
+  const hasPreviousWork = hasText(talent.previous_work);
 
   return (
     <main
@@ -159,21 +167,21 @@ export default async function TalentGalleryPage({
                 <span className={isArabic ? "rotate-180" : ""}>
                   <GalleryIcon name="arrow" className="h-4 w-4" />
                 </span>
-                {isArabic ? "العودة إلى لوحة التحكم" : "Back to Dashboard"}
+                {isArabic ? "العودة إلى لوحة الموهبة" : "Back to Talent Dashboard"}
               </Link>
 
               <p className="mt-8 text-[10px] uppercase tracking-[0.36em] text-gold">
-                {isArabic ? "لوحة الموهبة" : "Talent Workspace"}
+                {isArabic ? "لوحة الموهبة" : "Talent Dashboard"}
               </p>
 
               <h1 className="mt-3 text-4xl font-light leading-tight sm:text-5xl lg:text-6xl">
-                {isArabic ? "معرض الأعمال" : "My Gallery"}
+                {isArabic ? "معرض الأعمال" : "Portfolio"}
               </h1>
 
               <p className="mt-4 max-w-2xl text-sm leading-7 text-white/50 sm:text-base">
-              {isArabic
-  ? "اعرض أفضل صور أعمالك ورتّبها بالطريقة التي تريدها لتظهر للناشرين والشركات."
-  : "Showcase your best work and arrange it in the order you want publishers and companies to see."}
+                {isArabic
+                  ? "اجمع أفضل صورك وفيديوهاتك وروابط أعمالك في مكان واحد. كلما كان معرضك أقوى، أصبح فهم ملفك وترشيحك للفرص المناسبة أسهل."
+                  : "Keep your strongest photos, videos and work links in one place. A stronger portfolio helps MLAMH understand your profile and match you to relevant opportunities."}
               </p>
             </div>
 
@@ -183,7 +191,7 @@ export default async function TalentGalleryPage({
                 className="inline-flex items-center justify-center gap-2 rounded-full border border-white/10 px-5 py-3 text-xs text-white/60 transition hover:border-gold/35 hover:text-gold"
               >
                 <GalleryIcon name="profile" className="h-4 w-4" />
-                {isArabic ? "تعديل الملف" : "Edit Profile"}
+                {isArabic ? "تعديل البيانات المهنية" : "Edit Professional Profile"}
               </Link>
 
               <Link
@@ -191,7 +199,7 @@ export default async function TalentGalleryPage({
                 className="inline-flex items-center justify-center gap-2 rounded-full border border-white/10 px-5 py-3 text-xs text-white/60 transition hover:border-gold/35 hover:text-gold"
               >
                 <GalleryIcon name="dashboard" className="h-4 w-4" />
-                {isArabic ? "لوحة التحكم" : "Dashboard"}
+                {isArabic ? "لوحة الموهبة" : "Talent Dashboard"}
               </Link>
             </div>
           </div>
@@ -201,7 +209,7 @@ export default async function TalentGalleryPage({
           <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.07] px-5 py-4 text-sm text-emerald-200 sm:flex-row sm:items-center sm:justify-between">
             <span className="inline-flex items-center gap-2">
               <GalleryIcon name="check" className="h-4 w-4" />
-              {isArabic ? "تم تحديث معرض الأعمال بنجاح." : "Gallery updated successfully."}
+              {isArabic ? "تم تحديث معرض الأعمال بنجاح." : "Portfolio updated successfully."}
             </span>
 
             <Link
@@ -213,6 +221,45 @@ export default async function TalentGalleryPage({
           </div>
         ) : null}
 
+        <section className="mt-6 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.025] p-4">
+            <p className="text-[10px] uppercase tracking-[0.22em] text-white/35">
+              {isArabic ? "الصور" : "Photos"}
+            </p>
+            <p className="mt-2 text-sm text-white/70">
+              {isArabic ? `${galleryImages.length} صورة` : `${galleryImages.length} image(s)`}
+            </p>
+          </div>
+
+          <Link
+            href={`/${locale}/talent-dashboard/profile#links`}
+            className="rounded-2xl border border-white/10 bg-white/[0.025] p-4 transition hover:border-gold/30 hover:bg-gold/[0.04]"
+          >
+            <p className="text-[10px] uppercase tracking-[0.22em] text-white/35">
+              {isArabic ? "الفيديو / Showreel" : "Video / Showreel"}
+            </p>
+            <p className={`mt-2 text-sm ${hasVideo ? "text-emerald-300" : "text-white/50"}`}>
+              {hasVideo
+                ? isArabic ? "مضاف" : "Added"
+                : isArabic ? "إضافة فيديو" : "Add video"}
+            </p>
+          </Link>
+
+          <Link
+            href={`/${locale}/talent-dashboard/profile#experience`}
+            className="rounded-2xl border border-white/10 bg-white/[0.025] p-4 transition hover:border-gold/30 hover:bg-gold/[0.04]"
+          >
+            <p className="text-[10px] uppercase tracking-[0.22em] text-white/35">
+              {isArabic ? "أعمال وروابط إضافية" : "Work & External Links"}
+            </p>
+            <p className={`mt-2 text-sm ${hasExternalPortfolio || hasPreviousWork ? "text-emerald-300" : "text-white/50"}`}>
+              {hasExternalPortfolio || hasPreviousWork
+                ? isArabic ? "مضاف" : "Added"
+                : isArabic ? "إكمال القسم" : "Complete section"}
+            </p>
+          </Link>
+        </section>
+
         <section className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(280px,0.85fr)]">
           <div className="rounded-[2rem] border border-white/10 bg-white/[0.025] p-5 sm:p-6">
             <div className="flex items-start justify-between gap-4">
@@ -222,7 +269,7 @@ export default async function TalentGalleryPage({
                 </p>
 
                 <h2 className="mt-2 text-2xl font-light sm:text-3xl">
-                  {isArabic ? "أضف عملًا إلى معرضك" : "Add Work to Your Gallery"}
+                  {isArabic ? "أضف عملًا إلى معرضك" : "Add Work to Your Portfolio"}
                 </h2>
               </div>
 
@@ -233,11 +280,11 @@ export default async function TalentGalleryPage({
 
             {canUploadMore ? (
               <GalleryUploadButton
-              isArabic={isArabic}
-              locale={locale}
-              currentImageCount={galleryImages.length}
-              action={addOwnGalleryImageAction}
-            />
+                isArabic={isArabic}
+                locale={locale}
+                currentImageCount={galleryImages.length}
+                action={addOwnGalleryImageAction}
+              />
             ) : (
               <div className="mt-5 rounded-2xl border border-amber-300/20 bg-amber-300/[0.06] px-4 py-4 text-sm text-amber-100">
                 {isArabic
@@ -249,7 +296,7 @@ export default async function TalentGalleryPage({
 
           <div className="rounded-[2rem] border border-gold/20 bg-[radial-gradient(circle_at_top_right,rgba(201,169,98,0.13),transparent_45%),rgba(201,169,98,0.035)] p-5 sm:p-6">
             <p className="text-[10px] uppercase tracking-[0.3em] text-gold">
-              {isArabic ? "ملخص المعرض" : "Gallery Summary"}
+              {isArabic ? "ملخص الصور" : "Photo Summary"}
             </p>
 
             <div className="mt-5 flex items-end justify-between gap-4">
@@ -269,7 +316,7 @@ export default async function TalentGalleryPage({
 
             <div className="mt-5">
               <div className="flex items-center justify-between text-xs text-white/35">
-                <span>{isArabic ? "سعة المعرض" : "Gallery Capacity"}</span>
+                <span>{isArabic ? "سعة الصور" : "Photo Capacity"}</span>
                 <span>{galleryImages.length} / {MAX_GALLERY_IMAGES}</span>
               </div>
 
@@ -291,23 +338,23 @@ export default async function TalentGalleryPage({
               </div>
 
               <h3 className="mt-5 text-2xl font-light">
-                {isArabic ? "معرضك ما زال فارغًا" : "Your gallery is empty"}
+                {isArabic ? "معرض الصور ما زال فارغًا" : "Your photo gallery is empty"}
               </h3>
 
               <p className="mx-auto mt-3 max-w-md text-sm leading-7 text-white/45">
                 {isArabic
-                  ? "ابدأ بإضافة أفضل صورك حتى يتمكن الناشرون والشركات من مشاهدة أعمالك."
-                  : "Start adding your best images so publishers and companies can discover your work."}
+                  ? "ابدأ بإضافة أفضل صورك. الفيديو والروابط المهنية يمكنك إضافتها من الملف المهني."
+                  : "Start with your strongest photos. Videos and professional links can be added from your professional profile."}
               </p>
             </div>
           ) : (
             <GallerySortableList
-  images={galleryImages}
-  talentName={talentName}
-  locale={locale}
-  reorderAction={reorderOwnGalleryImagesAction}
-  removeAction={removeOwnGalleryImageAction}
-/>
+              images={galleryImages}
+              talentName={talentName}
+              locale={locale}
+              reorderAction={reorderOwnGalleryImagesAction}
+              removeAction={removeOwnGalleryImageAction}
+            />
           )}
         </section>
       </div>

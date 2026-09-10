@@ -17,10 +17,17 @@ type CompletionTalent = {
   skills?: string[] | null;
 
   availability_status?: string | null;
+  experience_years?: number | string | null;
 
   portfolio_url?: string | null;
   showreel_url?: string | null;
+  video_intro?: string | null;
   gallery_images?: string[] | null;
+  previous_work?: string | null;
+
+  instagram?: string | null;
+  tiktok?: string | null;
+  snapchat?: string | null;
 
   acting_age_min?: number | string | null;
   acting_age_max?: number | string | null;
@@ -36,8 +43,6 @@ type CompletionTalent = {
   chest_size?: number | string | null;
   waist_size?: number | string | null;
   hip_size?: number | string | null;
-
-  previous_work?: string | null;
 };
 
 function hasValue(value: unknown) {
@@ -56,154 +61,93 @@ function hasValue(value: unknown) {
   return true;
 }
 
-function hasPortfolioMaterial(
-  talent: CompletionTalent
-) {
+function hasPortfolioMaterial(talent: CompletionTalent) {
   return (
     hasValue(talent.portfolio_url) ||
     hasValue(talent.showreel_url) ||
-    (
-      Array.isArray(talent.gallery_images) &&
-      talent.gallery_images.length > 0
-    )
+    hasValue(talent.video_intro) ||
+    (Array.isArray(talent.gallery_images) && talent.gallery_images.length > 0)
   );
 }
 
-function calculateSharedCompletion(
-  talent: CompletionTalent
-) {
+function hasProfessionalMedia(talent: CompletionTalent) {
+  return (
+    hasValue(talent.previous_work) ||
+    hasValue(talent.showreel_url) ||
+    hasValue(talent.video_intro)
+  );
+}
+
+function hasSocialPresence(talent: CompletionTalent) {
+  return (
+    hasValue(talent.instagram) ||
+    hasValue(talent.tiktok) ||
+    hasValue(talent.snapchat)
+  );
+}
+
+function calculateSharedCompletion(talent: CompletionTalent) {
   let score = 0;
 
-  // التخصص الأساسي
-  if (hasValue(talent.primary_role)) {
-    score += 10;
-  }
+  // Shared profile-strength dimensions. These are useful for every Talent type
+  // and intentionally remain separate from approval readiness.
+  if (hasValue(talent.primary_role)) score += 10;
+  if (hasValue(talent.image_url)) score += 10;
 
-  // الصورة الشخصية
-  if (hasValue(talent.image_url)) {
-    score += 10;
-  }
-
-  // المدينة
   if (
     hasValue(talent.city_slug) ||
     hasValue(talent.city_en) ||
     hasValue(talent.city_ar)
   ) {
-    score += 10;
-  }
-
-  // تاريخ الميلاد
-  if (hasValue(talent.date_of_birth)) {
     score += 5;
   }
 
-  // النبذة
-  if (
-    hasValue(talent.bio_en) ||
-    hasValue(talent.bio_ar)
-  ) {
+  if (hasValue(talent.date_of_birth)) score += 5;
+
+  if (hasValue(talent.bio_en) || hasValue(talent.bio_ar)) {
     score += 10;
   }
 
-  // اللغات
-  if (
-    Array.isArray(talent.languages) &&
-    talent.languages.length > 0
-  ) {
+  if (Array.isArray(talent.languages) && talent.languages.length > 0) {
     score += 10;
   }
 
-  // حالة التوفر
-  if (hasValue(talent.availability_status)) {
+  if (Array.isArray(talent.skills) && talent.skills.length > 0) {
     score += 10;
   }
 
-  // Portfolio / Gallery / Showreel
-  if (hasPortfolioMaterial(talent)) {
-    score += 5;
-  }
+  if (hasValue(talent.availability_status)) score += 5;
+  if (hasPortfolioMaterial(talent)) score += 10;
+  if (hasValue(talent.experience_years)) score += 5;
 
-  return score;
+  return score; // max 80
 }
 
-function calculateActorCompletion(
-  talent: CompletionTalent
-) {
+function calculateActorCompletion(talent: CompletionTalent) {
   let score = 0;
 
-  // العمر التمثيلي يجب أن يحتوي الطرفين
-  if (
-    hasValue(talent.acting_age_min) &&
-    hasValue(talent.acting_age_max)
-  ) {
+  if (hasValue(talent.acting_age_min) && hasValue(talent.acting_age_max)) {
     score += 10;
   }
 
-  // الطول
-  if (hasValue(talent.height_cm)) {
+  if (hasValue(talent.height_cm)) score += 5;
+
+  if (Array.isArray(talent.dialects) && talent.dialects.length > 0) {
     score += 5;
   }
 
-  // اللهجات
-  if (
-    Array.isArray(talent.dialects) &&
-    talent.dialects.length > 0
-  ) {
-    score += 5;
-  }
-
-  // المهارات
-  if (
-    Array.isArray(talent.skills) &&
-    talent.skills.length > 0
-  ) {
-    score += 5;
-  }
-
-  // خبرة فعلية أو Showreel
-  if (
-    hasValue(talent.previous_work) ||
-    hasValue(talent.showreel_url)
-  ) {
-    score += 5;
-  }
-
-  return score;
+  return score; // max 20
 }
 
-function calculateModelCompletion(
-  talent: CompletionTalent
-) {
+function calculateModelCompletion(talent: CompletionTalent) {
   let score = 0;
 
-  // نوع أعمال المودل
-  if (
-    Array.isArray(talent.modeling_types) &&
-    talent.modeling_types.length > 0
-  ) {
+  if (Array.isArray(talent.modeling_types) && talent.modeling_types.length > 0) {
     score += 10;
   }
 
-  // الطول
-  if (hasValue(talent.height_cm)) {
-    score += 5;
-  }
+  if (hasValue(talent.height_cm)) score += 5;
 
-  // مقاس الحذاء
-  if (hasValue(talent.shoe_size)) {
-    score += 5;
-  }
-
-  // الشعر والعين
-  if (
-    hasValue(talent.hair_color) &&
-    hasValue(talent.eye_color)
-  ) {
-    score += 5;
-  }
-
-  // القياسات الأساسية
   if (
     hasValue(talent.chest_size) &&
     hasValue(talent.waist_size) &&
@@ -212,29 +156,31 @@ function calculateModelCompletion(
     score += 5;
   }
 
-  return score;
+  return score; // max 20
 }
 
-export function calculateProfileCompletion(
-  talent: CompletionTalent
-) {
-  const sharedScore =
-    calculateSharedCompletion(talent);
+function calculateGenericTalentCompletion(talent: CompletionTalent) {
+  let score = 0;
 
-  let roleScore = 0;
+  // Non Actor/Model categories should be able to reach the same 100% profile
+  // strength without being forced to provide irrelevant physical measurements.
+  if (hasProfessionalMedia(talent)) score += 10;
+  if (hasSocialPresence(talent)) score += 10;
 
+  return score; // max 20
+}
+
+export function calculateProfileCompletion(talent: CompletionTalent) {
+  const sharedScore = calculateSharedCompletion(talent);
+
+  let roleScore: number;
   if (talent.primary_role === "actor") {
-    roleScore =
-      calculateActorCompletion(talent);
+    roleScore = calculateActorCompletion(talent);
+  } else if (talent.primary_role === "model") {
+    roleScore = calculateModelCompletion(talent);
+  } else {
+    roleScore = calculateGenericTalentCompletion(talent);
   }
 
-  if (talent.primary_role === "model") {
-    roleScore =
-      calculateModelCompletion(talent);
-  }
-
-  return Math.min(
-    sharedScore + roleScore,
-    100
-  );
+  return Math.min(sharedScore + roleScore, 100);
 }
