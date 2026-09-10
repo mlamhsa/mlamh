@@ -152,14 +152,14 @@ export default async function PublisherNotificationsPage({
 
               <h1 className="mt-3 text-4xl font-light sm:text-5xl">
                 {isArabic
-                  ? "إشعارات الشركة"
-                  : "Company Notifications"}
+                  ? "إشعارات الناشر"
+                  : "Publisher Notifications"}
               </h1>
 
               <p className="mt-3 max-w-2xl text-sm leading-7 text-white/45">
                 {isArabic
-                  ? "تابع آخر التحديثات المتعلقة بالفرص والمتقدمين والمحادثات."
-                  : "Follow the latest updates related to opportunities, applicants, and conversations."}
+                  ? "تابع تحديثات الفرص والمتقدمين والحجوزات والمحادثات. اضغط على الإشعار لفتح الإجراء المرتبط به."
+                  : "Follow opportunity, applicant, booking, and conversation updates. Select a notification to open its related action."}
               </p>
             </div>
 
@@ -183,24 +183,13 @@ export default async function PublisherNotificationsPage({
               </div>
 
               {unreadCount > 0 ? (
-                <form
-                  action={
-                    markPublisherNotificationsReadAction
-                  }
-                >
-                  <input
-                    type="hidden"
-                    name="locale"
-                    value={locale}
-                  />
-
+                <form action={markPublisherNotificationsReadAction}>
+                  <input type="hidden" name="locale" value={locale} />
                   <button
                     type="submit"
                     className="rounded-2xl border border-gold/35 bg-gold/[0.08] px-5 py-4 text-xs text-gold transition hover:bg-gold hover:text-black"
                   >
-                    {isArabic
-                      ? "تعليم الكل كمقروء"
-                      : "Mark all as read"}
+                    {isArabic ? "تعليم الكل كمقروء" : "Mark all as read"}
                   </button>
                 </form>
               ) : null}
@@ -212,13 +201,13 @@ export default async function PublisherNotificationsPage({
           {notifications.length > 0 ? (
             <div className="divide-y divide-white/10">
               {notifications.map((notification) => {
-                const unread =
-                  isNotificationUnread(notification);
+                const unread = isNotificationUnread(notification);
 
                 return (
-                  <article
+                  <Link
                     key={notification.id}
-                    className={`relative p-5 sm:p-6 ${
+                    href={`/${locale}/publisher-dashboard/notifications/${notification.id}`}
+                    className={`relative block p-5 transition hover:bg-white/[0.035] sm:p-6 ${
                       unread ? "bg-gold/[0.035]" : ""
                     }`}
                   >
@@ -235,42 +224,35 @@ export default async function PublisherNotificationsPage({
                         }`}
                       >
                         {notification.title ||
-                          (isArabic
-                            ? "إشعار جديد"
-                            : "New notification")}
+                          (isArabic ? "إشعار جديد" : "New notification")}
                       </h2>
 
                       <p className="mt-2 max-w-3xl text-sm leading-7 text-white/45">
                         {notification.body ||
-                          (isArabic
-                            ? "لا توجد تفاصيل إضافية."
-                            : "No additional details.")}
+                          (isArabic ? "لا توجد تفاصيل إضافية." : "No additional details.")}
                       </p>
 
                       <div className="mt-4 flex flex-wrap items-center gap-3">
                         <time className="text-[10px] text-white/30">
-                          {formatNotificationDate(
-                            notification.created_at,
-                            locale,
-                          )}
+                          {formatNotificationDate(notification.created_at, locale)}
                         </time>
 
                         {unread ? (
                           <span className="rounded-full border border-gold/20 bg-gold/[0.06] px-2 py-1 text-[9px] text-gold">
-                            {isArabic
-                              ? "غير مقروء"
-                              : "Unread"}
+                            {isArabic ? "غير مقروء" : "Unread"}
                           </span>
                         ) : (
                           <span className="text-[9px] text-white/25">
-                            {isArabic
-                              ? "مقروء"
-                              : "Read"}
+                            {isArabic ? "مقروء" : "Read"}
                           </span>
                         )}
+
+                        <span className="text-[10px] text-gold/65">
+                          {isArabic ? "فتح ←" : "Open →"}
+                        </span>
                       </div>
                     </div>
-                  </article>
+                  </Link>
                 );
               })}
             </div>
@@ -280,26 +262,19 @@ export default async function PublisherNotificationsPage({
                 <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-gold/25 bg-gold/[0.08] text-2xl text-gold">
                   ♢
                 </div>
-
                 <h2 className="mt-5 text-2xl font-light">
-                  {isArabic
-                    ? "لا توجد إشعارات حتى الآن"
-                    : "No notifications yet"}
+                  {isArabic ? "لا توجد إشعارات حتى الآن" : "No notifications yet"}
                 </h2>
-
                 <p className="mt-3 text-sm leading-7 text-white/40">
                   {isArabic
-                    ? "ستظهر هنا إشعارات الفرص والمتقدمين والرسائل الجديدة عند توفرها."
-                    : "Notifications about opportunities, applicants, and new messages will appear here."}
+                    ? "ستظهر هنا إشعارات الفرص والمتقدمين والحجوزات والرسائل الجديدة عند توفرها."
+                    : "Notifications about opportunities, applicants, bookings, and new messages will appear here."}
                 </p>
-
                 <Link
                   href={`/${locale}/publisher-dashboard`}
                   className="mt-6 inline-flex rounded-full border border-gold/40 bg-gold/[0.06] px-6 py-3 text-sm text-gold transition hover:bg-gold hover:text-black"
                 >
-                  {isArabic
-                    ? "العودة إلى لوحة التحكم"
-                    : "Back to Dashboard"}
+                  {isArabic ? "العودة إلى لوحة التحكم" : "Back to Dashboard"}
                 </Link>
               </div>
             </div>
