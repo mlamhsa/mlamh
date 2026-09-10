@@ -114,7 +114,7 @@ export default async function TalentDashboardPage({ params }: PageProps) {
   const profileCompletion = calculateProfileCompletion(talent);
   const readinessTalent = {
     ...talent,
-    phone: String(profile.phone ?? talent.phone ?? "").trim(),
+    phone: String(profile.phone ?? "").trim(),
     data_accuracy_contact_consent: profile.data_accuracy_contact_consent === true,
   };
   const profileReadiness = getTalentProfileReadiness(readinessTalent);
