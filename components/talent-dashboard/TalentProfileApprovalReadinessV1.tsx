@@ -8,7 +8,7 @@ import {
   getOwnTalentProfileAction,
 } from "@/lib/actions/update-own-talent-profile";
 import { submitTalentProfileReviewAction } from "@/lib/actions/submit-talent-profile-review";
-import { getTalentProfileReadiness } from "@/lib/talent/profile-review-readiness";
+import { getTalentProfileReviewReadiness } from "@/lib/talent/profile-review-readiness";
 
 type Props = {
   locale: "ar" | "en";
@@ -69,7 +69,7 @@ export function TalentProfileApprovalReadinessV1({ locale }: Props) {
   const readiness = useMemo(() => {
     if (!talent) return null;
 
-    return getTalentProfileReadiness({
+    return getTalentProfileReviewReadiness({
       ...talent,
       name_ar: pending?.requested_name_ar?.trim() || talent.name_ar,
       name_en: pending?.requested_name_en?.trim() || talent.name_en,
