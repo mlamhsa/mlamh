@@ -10,7 +10,6 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 const BUCKET = "publisher-assets";
 
 const MAX_PROFILE_IMAGE_SIZE = 5 * 1024 * 1024;
-const MAX_COVER_IMAGE_SIZE = 10 * 1024 * 1024;
 
 const ALLOWED_IMAGE_TYPES = new Set([
   "image/jpeg",
@@ -37,13 +36,11 @@ const ALLOWED_PUBLISHER_TYPES = new Set([
 
 function value(formData: FormData, key: string) {
   const item = formData.get(key);
-
   return typeof item === "string" ? item.trim() : "";
 }
 
 function getLocale(formData: FormData): Locale {
   const locale = value(formData, "locale");
-
   return isValidLocale(locale) ? locale : "ar";
 }
 
@@ -57,12 +54,7 @@ function getPublisherType(formData: FormData) {
   return publisherType;
 }
 
-function getImageFile(
-  formData: FormData,
-  key: string,
-  maxSize: number,
-  label: "profile" | "cover",
-) {
+function getImageFile(formData: FormData, key: string, maxSize: number) {
   const item = formData.get(key);
 
   if (!(item instanceof File) || item.size === 0) {
@@ -70,17 +62,11 @@ function getImageFile(
   }
 
   if (!ALLOWED_IMAGE_TYPES.has(item.type)) {
-    throw new Error(
-      "Only JPEG, PNG, and WebP images are allowed.",
-    );
+    throw new Error("Only JPEG, PNG, and WebP images are allowed.");
   }
 
   if (item.size > maxSize) {
-    throw new Error(
-      label === "cover"
-        ? "Cover image size must not exceed 10 MB."
-        : "Profile image size must not exceed 5 MB.",
-    );
+    throw new Error("Profile image size must not exceed 5 MB.");
   }
 
   return item;
@@ -90,12 +76,10 @@ async function uploadPublisherImage({
   adminClient,
   publisherId,
   file,
-  folder,
 }: {
   adminClient: ReturnType<typeof createAdminClient>;
   publisherId: number | string;
   file: File;
-  folder: "profile" | "cover";
 }) {
   const extension = IMAGE_EXTENSIONS[file.type];
 
@@ -103,10 +87,7 @@ async function uploadPublisherImage({
     throw new Error("Unsupported image type.");
   }
 
-  const filePath =
-    `publishers/${publisherId}/` +
-    `${folder}-${Date.now()}.${extension}`;
-
+  const filePath = `publishers/${publisherId}/profile-${Date.now()}.${extension}`;
   const arrayBuffer = await file.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
 
@@ -121,16 +102,12 @@ async function uploadPublisherImage({
     throw new Error(uploadError.message);
   }
 
-  const { data } = adminClient.storage
-    .from(BUCKET)
-    .getPublicUrl(filePath);
-
+  const { data } = adminClient.storage.from(BUCKET).getPublicUrl(filePath);
   return data.publicUrl;
 }
 
 async function savePublisherProfile(formData: FormData) {
   const locale = getLocale(formData);
-
   const authClient = await createServerSupabaseClient();
   const adminClient = createAdminClient();
 
@@ -143,27 +120,21 @@ async function savePublisherProfile(formData: FormData) {
     redirect(`/${locale}/login`);
   }
 
-  const { data: profile, error: profileError } =
-    await adminClient
-      .from("profiles")
-      .select("id, account_type")
-      .eq("user_id", user.id)
-      .maybeSingle();
+  const { data: profile, error: profileError } = await adminClient
+    .from("profiles")
+    .select("id, account_type")
+    .eq("user_id", user.id)
+    .maybeSingle();
 
-  if (
-    profileError ||
-    !profile ||
-    profile.account_type !== "publisher"
-  ) {
+  if (profileError || !profile || profile.account_type !== "publisher") {
     throw new Error("Publisher profile not found.");
   }
 
-  const { data: publisher, error: publisherError } =
-    await adminClient
-      .from("publishers")
-      .select("id")
-      .eq("profile_id", profile.id)
-      .maybeSingle();
+  const { data: publisher, error: publisherError } = await adminClient
+    .from("publishers")
+    .select("id")
+    .eq("profile_id", profile.id)
+    .maybeSingle();
 
   if (publisherError || !publisher) {
     throw new Error("Publisher account not found.");
@@ -179,34 +150,15 @@ async function savePublisherProfile(formData: FormData) {
     formData,
     "profile_image",
     MAX_PROFILE_IMAGE_SIZE,
-    "profile",
-  );
-
-  const coverImage = getImageFile(
-    formData,
-    "cover_image",
-    MAX_COVER_IMAGE_SIZE,
-    "cover",
   );
 
   let profileImageUrl: string | null = null;
-  let coverImageUrl: string | null = null;
 
   if (profileImage) {
     profileImageUrl = await uploadPublisherImage({
       adminClient,
       publisherId: publisher.id,
       file: profileImage,
-      folder: "profile",
-    });
-  }
-
-  if (coverImage) {
-    coverImageUrl = await uploadPublisherImage({
-      adminClient,
-      publisherId: publisher.id,
-      file: coverImage,
-      folder: "cover",
     });
   }
 
@@ -214,7 +166,7 @@ async function savePublisherProfile(formData: FormData) {
     .from("profiles")
     .update({
       display_name: isIndividual
-        ? contactName || null
+        ? contactName || companyName || null
         : companyName || null,
       phone: phone || null,
     })
@@ -225,10 +177,7 @@ async function savePublisherProfile(formData: FormData) {
     throw new Error(profileUpdateError.message);
   }
 
-  const publisherUpdateData: Record<
-    string,
-    string | number | null
-  > = {
+  const publisherUpdateData: Record<string, string | number | null> = {
     company_name: companyName || null,
     contact_name: contactName || null,
     publisher_type: publisherType,
@@ -236,30 +185,25 @@ async function savePublisherProfile(formData: FormData) {
     description: value(formData, "description") || null,
     phone: phone || null,
     email: value(formData, "email") || null,
-    website: value(formData, "website") || null,
-    instagram: value(formData, "instagram") || null,
-    tiktok_url: value(formData, "tiktok_url") || null,
-    linkedin_url: value(formData, "linkedin_url") || null,
+    website: isIndividual ? null : value(formData, "website") || null,
+    instagram: null,
+    tiktok_url: null,
+    linkedin_url: null,
+    cover_image_url: null,
   };
 
   if (profileImageUrl) {
     publisherUpdateData.profile_image_url = profileImageUrl;
   }
 
-  if (coverImageUrl) {
-    publisherUpdateData.cover_image_url = coverImageUrl;
-  }
-
-  const {
-    data: updatedPublisher,
-    error: publisherUpdateError,
-  } = await adminClient
-    .from("publishers")
-    .update(publisherUpdateData)
-    .eq("id", publisher.id)
-    .eq("profile_id", profile.id)
-    .select("id")
-    .maybeSingle();
+  const { data: updatedPublisher, error: publisherUpdateError } =
+    await adminClient
+      .from("publishers")
+      .update(publisherUpdateData)
+      .eq("id", publisher.id)
+      .eq("profile_id", profile.id)
+      .select("id")
+      .maybeSingle();
 
   if (publisherUpdateError) {
     throw new Error(publisherUpdateError.message);
@@ -280,18 +224,7 @@ export async function updatePublisherProfileAction(
   formData: FormData,
 ): Promise<void> {
   const { locale } = await savePublisherProfile(formData);
-
   redirect(`/${locale}/publisher-dashboard/profile?saved=1`);
-}
-
-export async function autoSavePublisherProfileAction(
-  formData: FormData,
-) {
-  await savePublisherProfile(formData);
-
-  return {
-    success: true as const,
-  };
 }
 
 export async function submitPublisherProfileForReviewAction(
@@ -322,9 +255,7 @@ export async function submitPublisherProfileForReviewAction(
     throw new Error("Publisher profile not found.");
   }
 
-  const approvalStatus = String(
-    profile.approval_status ?? "not_submitted",
-  )
+  const approvalStatus = String(profile.approval_status ?? "not_submitted")
     .trim()
     .toLowerCase();
 
@@ -345,7 +276,6 @@ export async function submitPublisherProfileForReviewAction(
         contact_name,
         publisher_type,
         city,
-        description,
         profile_image_url
       `,
     )
@@ -357,8 +287,7 @@ export async function submitPublisherProfileForReviewAction(
   }
 
   const isIndividual = publisher.publisher_type === "individual";
-  const has = (input: string | null | undefined) =>
-    Boolean(input?.trim());
+  const has = (input: string | null | undefined) => Boolean(input?.trim());
 
   const missingRequiredFields = [
     !isIndividual && !has(publisher.company_name)
@@ -369,11 +298,11 @@ export async function submitPublisherProfileForReviewAction(
     !has(publisher.contact_name)
       ? locale === "ar"
         ? isIndividual
-          ? "الاسم المهني"
-          : "اسم المسؤول"
+          ? "الاسم"
+          : "اسم مسؤول الحساب"
         : isIndividual
-          ? "Professional name"
-          : "Contact name"
+          ? "Name"
+          : "Account manager"
       : null,
     !has(publisher.publisher_type)
       ? locale === "ar"
@@ -393,27 +322,30 @@ export async function submitPublisherProfileForReviewAction(
   ].filter((item): item is string => Boolean(item));
 
   if (missingRequiredFields.length > 0) {
-    const missing = encodeURIComponent(
-      missingRequiredFields.join(","),
-    );
-
+    const missing = encodeURIComponent(missingRequiredFields.join(","));
     redirect(
       `/${locale}/publisher-dashboard/profile?error=incomplete&missing=${missing}`,
     );
   }
 
-  const { error: approvalError } = await adminClient
+  const nextApprovalStatus = isIndividual ? "approved" : "pending";
+
+  const { data: updatedProfile, error: approvalError } = await adminClient
     .from("profiles")
     .update({
-      approval_status: "pending",
+      approval_status: nextApprovalStatus,
       updated_at: new Date().toISOString(),
     })
     .eq("id", profile.id)
-    .eq("user_id", user.id);
+    .eq("user_id", user.id)
+    .select("id")
+    .maybeSingle();
 
-  if (approvalError) {
+  if (approvalError || !updatedProfile) {
     throw new Error(
-      `[submitPublisherProfileForReviewAction] ${approvalError.message}`,
+      `[submitPublisherProfileForReviewAction] ${
+        approvalError?.message ?? "Profile state changed before submission."
+      }`,
     );
   }
 
@@ -421,5 +353,9 @@ export async function submitPublisherProfileForReviewAction(
   revalidatePath(`/${locale}/publisher-dashboard/profile`);
   revalidatePath("/admin/publishers");
 
-  redirect(`/${locale}/publisher-dashboard/profile?submitted=1`);
+  redirect(
+    isIndividual
+      ? `/${locale}/publisher-dashboard/profile?activated=1`
+      : `/${locale}/publisher-dashboard/profile?submitted=1`,
+  );
 }
