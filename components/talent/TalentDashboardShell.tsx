@@ -26,8 +26,8 @@ export default function TalentDashboardShell({ locale, children }: Props) {
       dir={locale === "ar" ? "rtl" : "ltr"}
       className="min-h-screen bg-black text-white"
     >
-      <div className="mx-auto max-w-7xl px-4 pb-24 pt-28 sm:px-6 lg:pt-32 xl:py-10 xl:pt-32">
-        <div className="flex flex-col gap-6 xl:flex-row">
+      <div className="w-full px-4 pb-24 pt-28 sm:px-6 lg:pt-32 xl:px-8 xl:py-10 xl:pt-32 2xl:px-10">
+        <div className="flex w-full flex-col gap-6 xl:flex-row">
           <aside className="hidden xl:block xl:w-80 xl:flex-shrink-0">
             <div className="sticky top-28">
               <TalentSidebar
