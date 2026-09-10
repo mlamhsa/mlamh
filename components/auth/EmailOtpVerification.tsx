@@ -70,6 +70,28 @@ export function EmailOtpVerification({ locale, email, accountType }: Props) {
     }
   }
 
+  async function finishWithSession(
+    accessToken: string,
+    user: { email?: string | null; user_metadata?: Record<string, unknown> },
+  ) {
+    const account = await ensureCanonicalAccount(accessToken, user);
+    if (!account.ok) {
+      if (account.code === "MISSING_TALENT_SIGNUP_DATA" && accountType === "talent") {
+        router.replace(`/${locale}/join/complete-account?type=talent&provider=email`);
+        return;
+      }
+      setError(
+        account.code === "MISSING_ACCOUNT_DETAILS"
+          ? (isRtl ? "تم تأكيد البريد، لكن بيانات الحساب الأساسية غير مكتملة. أكمل البيانات المطلوبة للمتابعة." : "Your email is verified, but required account details are missing. Complete them to continue.")
+          : (isRtl ? "تم تأكيد البريد، لكن تعذر تجهيز حسابك الآن. حاول مرة أخرى." : "Your email is verified, but we could not prepare your account. Please try again."),
+      );
+      return;
+    }
+
+    setMessage(isRtl ? "تم تأكيد بريدك وتجهيز حسابك بنجاح." : "Your email and account have been verified successfully.");
+    await continueAfterVerification();
+  }
+
   async function verify() {
     if (!email) {
       setError(isRtl ? "تعذر تحديد البريد الإلكتروني. ارجع إلى التسجيل وحاول مرة أخرى." : "We could not determine your email. Return to signup and try again.");
@@ -83,28 +105,27 @@ export function EmailOtpVerification({ locale, email, accountType }: Props) {
     setLoading(true); setError(""); setMessage("");
     try {
       const supabase = createBrowserSupabaseClient();
+
+      // OTP verification creates the auth session before MLAMH provisions the canonical
+      // profile/account rows. If provisioning fails after a successful OTP (for example,
+      // during a temporary DB/schema issue), that OTP is already consumed. On retry,
+      // resume provisioning from the verified session instead of asking the user for a
+      // new code or incorrectly reporting that the consumed code is invalid.
+      const { data: sessionData } = await supabase.auth.getSession();
+      const existingSession = sessionData.session;
+      const existingUserEmail = existingSession?.user.email?.trim().toLowerCase();
+      if (existingSession && existingUserEmail === email.trim().toLowerCase() && existingSession.user.email_confirmed_at) {
+        await finishWithSession(existingSession.access_token, existingSession.user);
+        return;
+      }
+
       const { data, error: verifyError } = await supabase.auth.verifyOtp({ email, token, type: "email" });
       if (verifyError || !data.session || !data.user) {
         setError(isRtl ? "الرمز غير صحيح أو انتهت صلاحيته. تحقق منه أو اطلب رمزًا جديدًا." : "That code is incorrect or expired. Check it or request a new code.");
         return;
       }
 
-      const account = await ensureCanonicalAccount(data.session.access_token, data.user);
-      if (!account.ok) {
-        if (account.code === "MISSING_TALENT_SIGNUP_DATA" && accountType === "talent") {
-          router.replace(`/${locale}/join/complete-account?type=talent&provider=email`);
-          return;
-        }
-        setError(
-          account.code === "MISSING_ACCOUNT_DETAILS"
-            ? (isRtl ? "تم تأكيد البريد، لكن بيانات الحساب الأساسية غير مكتملة. أكمل البيانات المطلوبة للمتابعة." : "Your email is verified, but required account details are missing. Complete them to continue.")
-            : (isRtl ? "تم تأكيد البريد، لكن تعذر تجهيز حسابك الآن. حاول مرة أخرى." : "Your email is verified, but we could not prepare your account. Please try again."),
-        );
-        return;
-      }
-
-      setMessage(isRtl ? "تم تأكيد بريدك وتجهيز حسابك بنجاح." : "Your email and account have been verified successfully.");
-      await continueAfterVerification();
+      await finishWithSession(data.session.access_token, data.user);
     } catch {
       setError(isRtl ? "تعذر تأكيد البريد الآن. تحقق من اتصالك وحاول مرة أخرى." : "We could not verify your email right now. Check your connection and try again.");
     } finally { setLoading(false); }
