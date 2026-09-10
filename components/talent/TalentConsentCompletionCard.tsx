@@ -79,8 +79,12 @@ export default function TalentConsentCompletionCard({ locale }: Props) {
     const result = await updateOwnTalentConsentAction(profileLocale);
     setMessage(result.message);
     if (result.success) {
-      setVisible(false);
+      // A same-route router.refresh() can preserve an already-rendered server payload.
+      // Navigate to the same profile with a short-lived cache-busting query so the
+      // readiness UI is re-fetched immediately from the canonical profile row.
+      router.replace(`${profilePath}?sync=${Date.now()}`, { scroll: false });
       router.refresh();
+      return;
     }
     setSaving(false);
   }
