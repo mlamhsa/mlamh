@@ -76,7 +76,12 @@ function markProfileImageRequired() {
   if (!imageInput) return;
 
   const container = imageInput.closest<HTMLElement>("label") ?? imageInput.parentElement;
-  if (!container || container.querySelector("[data-mlamh-image-required-hint]")) return;
+  if (!container) return;
+
+  if (!container.id) container.id = "profile-image";
+  container.classList.add("scroll-mt-28");
+
+  if (container.querySelector("[data-mlamh-image-required-hint]")) return;
 
   const hint = document.createElement("p");
   hint.dataset.mlamhImageRequiredHint = "1";
@@ -87,11 +92,31 @@ function markProfileImageRequired() {
   container.appendChild(hint);
 }
 
+function normalizeDateOfBirthField() {
+  const input = document.querySelector<HTMLInputElement>('input[name="date_of_birth"]');
+  if (!input) return;
+
+  const container = input.closest<HTMLElement>("label") ?? input.parentElement;
+  if (container && !container.id) {
+    container.id = "date-of-birth";
+    container.classList.add("scroll-mt-28");
+  }
+
+  input.lang = "en-CA";
+  input.dir = "ltr";
+  input.inputMode = "numeric";
+  input.max = new Date().toISOString().slice(0, 10);
+  input.title = isArabicPage()
+    ? "أدخل تاريخ الميلاد بالميلادي"
+    : "Enter your date of birth using the Gregorian calendar";
+}
+
 function enhanceCanonicalFields() {
   if (!window.location.pathname.includes("/talent-dashboard/profile")) return;
   normalizeGenderSelect();
   normalizeNameRequirementHint();
   markProfileImageRequired();
+  normalizeDateOfBirthField();
 }
 
 export function TalentProfileCanonicalFieldsV1() {
