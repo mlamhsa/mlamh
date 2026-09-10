@@ -32,6 +32,10 @@ function list(formData: FormData, key: string) {
     .slice(0, 20);
 }
 
+function booleanValue(formData: FormData, key: string) {
+  return text(formData, key) === "true";
+}
+
 export async function updateOwnTalentCoreDetailsAction(
   formData: FormData,
 ): Promise<UpdateTalentCoreDetailsResult> {
@@ -116,6 +120,15 @@ export async function updateOwnTalentCoreDetailsAction(
     city_en: city.en,
   };
 
+  // Shared optional matching signals. These existed in the legacy profile and are
+  // intentionally kept outside approval readiness.
+  if (formData.has("availability_status")) {
+    talentPayload.availability_status = text(formData, "availability_status") || "available_now";
+  }
+  for (const key of ["ready_to_travel", "has_passport", "has_car", "work_outside_city", "work_outside_country"] as const) {
+    if (formData.has(key)) talentPayload[key] = booleanValue(formData, key);
+  }
+
   // Role-specific fields improve profile strength and matching only.
   if (categorySlug === "actor") {
     const actingAgeMin = optionalNumber(formData, "acting_age_min");
@@ -140,6 +153,8 @@ export async function updateOwnTalentCoreDetailsAction(
     talentPayload.weight_kg = optionalNumber(formData, "weight_kg");
     talentPayload.eye_color = text(formData, "eye_color") || null;
     talentPayload.hair_color = text(formData, "hair_color") || null;
+    if (formData.has("hair_type")) talentPayload.hair_type = text(formData, "hair_type") || null;
+    if (formData.has("skin_color")) talentPayload.skin_color = text(formData, "skin_color") || null;
   }
 
   if (categorySlug === "model") {
@@ -152,6 +167,8 @@ export async function updateOwnTalentCoreDetailsAction(
     talentPayload.hip_size = optionalNumber(formData, "hip_size");
     talentPayload.eye_color = text(formData, "eye_color") || null;
     talentPayload.hair_color = text(formData, "hair_color") || null;
+    if (formData.has("hair_type")) talentPayload.hair_type = text(formData, "hair_type") || null;
+    if (formData.has("skin_color")) talentPayload.skin_color = text(formData, "skin_color") || null;
     talentPayload.modeling_types = list(formData, "modeling_types");
   }
 
