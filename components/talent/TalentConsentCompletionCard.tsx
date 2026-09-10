@@ -6,7 +6,6 @@ import { CheckCircle2, ShieldCheck } from "lucide-react";
 
 import { updateOwnTalentConsentAction } from "@/lib/actions/update-own-talent-consent";
 import { getOwnTalentProfileAction } from "@/lib/actions/update-own-talent-profile";
-import type { Locale } from "@/lib/i18n";
 
 type TalentProfileSnapshot = {
   approval_status?: string | null;
@@ -14,14 +13,15 @@ type TalentProfileSnapshot = {
 };
 
 type Props = {
-  locale: Locale;
+  locale: string;
 };
 
 export default function TalentConsentCompletionCard({ locale }: Props) {
   const pathname = usePathname();
   const router = useRouter();
-  const isArabic = locale === "ar";
-  const profilePath = `/${locale}/talent-dashboard/profile`;
+  const profileLocale: "ar" | "en" = locale === "en" ? "en" : "ar";
+  const isArabic = profileLocale === "ar";
+  const profilePath = `/${profileLocale}/talent-dashboard/profile`;
   const [visible, setVisible] = useState(false);
   const [checked, setChecked] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -36,7 +36,7 @@ export default function TalentConsentCompletionCard({ locale }: Props) {
     let cancelled = false;
     void (async () => {
       try {
-        const profile = (await getOwnTalentProfileAction(locale)) as TalentProfileSnapshot | null;
+        const profile = (await getOwnTalentProfileAction(profileLocale)) as TalentProfileSnapshot | null;
         if (cancelled || !profile) return;
         const status = String(profile.approval_status ?? "not_submitted").trim().toLowerCase();
         const canComplete = ["not_submitted", "changes_requested", "rejected"].includes(status);
@@ -49,7 +49,7 @@ export default function TalentConsentCompletionCard({ locale }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [locale, pathname, profilePath]);
+  }, [pathname, profileLocale, profilePath]);
 
   useEffect(() => {
     function handleRequirementClick(event: MouseEvent) {
@@ -76,7 +76,7 @@ export default function TalentConsentCompletionCard({ locale }: Props) {
     if (!checked || saving) return;
     setSaving(true);
     setMessage("");
-    const result = await updateOwnTalentConsentAction(isArabic ? "ar" : "en");
+    const result = await updateOwnTalentConsentAction(profileLocale);
     setMessage(result.message);
     if (result.success) {
       setVisible(false);
