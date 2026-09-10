@@ -42,6 +42,7 @@ function getPublicOrigin(request: Request) {
 }
 
 const BOOKING_EVENTS = new Set([
+  "booking_ready",
   "booking_proposed",
   "booking_updated",
   "booking_confirmed",
