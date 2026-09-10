@@ -12,7 +12,6 @@ import {
 import { trackMarketingEvent } from "@/lib/marketing/events/track";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { getTalentProfileReadiness } from "@/lib/talent/profile-review-readiness";
 
 export type ApplyResult = {
   status:
@@ -147,6 +146,10 @@ export async function applyToOpportunityAction(
     };
   }
 
+  // Approval is the canonical authorization gate. Once an admin has approved
+  // a Talent profile, newly introduced completion fields must not revoke that
+  // decision or block legacy users from applying. Missing professional/core
+  // data is surfaced as a completion prompt in the Talent dashboard instead.
   if (profile.approval_status !== "approved") {
     return {
       status: "unauthorized",
@@ -198,31 +201,6 @@ export async function applyToOpportunityAction(
         locale === "ar"
           ? "يجب إنشاء ملف موهبة قبل التقديم."
           : "Please create your talent profile before applying.",
-    };
-  }
-
-  const profileReadiness = getTalentProfileReadiness({
-    ...talent,
-    phone: profile.phone,
-  });
-
-  if (!profileReadiness.isReady) {
-    console.log("[Talent profile readiness]", {
-      talentId: talent.id,
-      primaryRole: talent.primary_role,
-      missingRequirements: profileReadiness.missingRequirements,
-    });
-
-    const missingLabels = profileReadiness.missingRequirements
-      .map((requirement) => (locale === "ar" ? requirement.ar : requirement.en))
-      .join(locale === "ar" ? "، " : ", ");
-
-    return {
-      status: "not_talent",
-      message:
-        locale === "ar"
-          ? `أكمل البيانات الأساسية قبل التقديم: ${missingLabels}.`
-          : `Complete the required profile information before applying: ${missingLabels}.`,
     };
   }
 
