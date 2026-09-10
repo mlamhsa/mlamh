@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { GalleryUploadButton } from "./GalleryUploadButton";
 
+import { GalleryUploadButton } from "./GalleryUploadButton";
+import { GallerySortableList } from "./gallery-sortable-list";
 import {
   addOwnGalleryImageAction,
   removeOwnGalleryImageAction,
@@ -11,8 +12,6 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { normalizeGalleryImages } from "@/lib/utils/talent-gallery";
 
-import { GallerySortableList } from "./gallery-sortable-list";
-
 export const metadata = {
   title: "Portfolio — MLAMH",
   robots: { index: false, follow: false },
@@ -20,23 +19,16 @@ export const metadata = {
 
 export const dynamic = "force-dynamic";
 
-type PageProps = {
-  params: Promise<{ locale: string }>;
-  searchParams: Promise<{ updated?: string }>;
-};
-
 const MAX_GALLERY_IMAGES = 20;
 
-function GalleryIcon({
-  name,
-  className = "h-5 w-5",
-}: {
-  name: "image" | "upload" | "profile" | "dashboard" | "arrow" | "check";
-  className?: string;
-}) {
+function hasText(value: unknown) {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function Icon({ name }: { name: "image" | "video" | "link" | "arrow" }) {
   if (name === "image") {
     return (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className={className} aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-5 w-5" aria-hidden="true">
         <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" />
         <circle cx="9" cy="9" r="1.5" />
         <path d="m5.5 17 4.5-4.5 3.2 3.2 2.2-2.2 3.1 3.5" />
@@ -44,317 +36,163 @@ function GalleryIcon({
     );
   }
 
-  if (name === "upload") {
+  if (name === "video") {
     return (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className={className} aria-hidden="true">
-        <path d="M12 16V5M8 9l4-4 4 4" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M5 14.5v3A1.5 1.5 0 0 0 6.5 19h11a1.5 1.5 0 0 0 1.5-1.5v-3" strokeLinecap="round" />
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-5 w-5" aria-hidden="true">
+        <rect x="3.5" y="5" width="13" height="14" rx="2.5" />
+        <path d="m16.5 9 4-2v10l-4-2" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     );
   }
 
-  if (name === "profile") {
+  if (name === "link") {
     return (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className={className} aria-hidden="true">
-        <circle cx="12" cy="8" r="3.5" />
-        <path d="M5.5 19c.8-3.2 3-5 6.5-5s5.7 1.8 6.5 5" strokeLinecap="round" />
-      </svg>
-    );
-  }
-
-  if (name === "dashboard") {
-    return (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className={className} aria-hidden="true">
-        <rect x="4" y="4" width="6" height="6" rx="1.5" />
-        <rect x="14" y="4" width="6" height="6" rx="1.5" />
-        <rect x="4" y="14" width="6" height="6" rx="1.5" />
-        <rect x="14" y="14" width="6" height="6" rx="1.5" />
-      </svg>
-    );
-  }
-
-  if (name === "check") {
-    return (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className={className} aria-hidden="true">
-        <path d="m6 12 4 4 8-8" strokeLinecap="round" strokeLinejoin="round" />
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-5 w-5" aria-hidden="true">
+        <path d="M10 13.5 8.5 15a3.2 3.2 0 0 1-4.5-4.5l3-3a3.2 3.2 0 0 1 4.5 0" strokeLinecap="round" />
+        <path d="M14 10.5 15.5 9A3.2 3.2 0 0 1 20 13.5l-3 3a3.2 3.2 0 0 1-4.5 0" strokeLinecap="round" />
+        <path d="m9 15 6-6" strokeLinecap="round" />
       </svg>
     );
   }
 
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className={className} aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-4 w-4" aria-hidden="true">
       <path d="M5 12h14M14 7l5 5-5 5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
 
-function hasText(value: unknown) {
-  return typeof value === "string" && value.trim().length > 0;
-}
-
 export default async function TalentGalleryPage({
   params,
   searchParams,
-}: PageProps) {
+}: {
+  params: Promise<{ locale: string }>;
+  searchParams: Promise<{ updated?: string }>;
+}) {
   const { locale } = await params;
   const { updated } = await searchParams;
   const isArabic = locale === "ar";
 
   const authClient = await createServerSupabaseClient();
-
   const {
     data: { user },
     error: userError,
   } = await authClient.auth.getUser();
 
-  if (userError || !user) {
-    redirect(`/${locale}/login`);
-  }
+  if (userError || !user) redirect(`/${locale}/login`);
 
   const adminClient = createAdminClient();
-
-  const { data: talent, error: talentError } = await adminClient
+  const { data: talent, error } = await adminClient
     .from("talents")
-    .select("id, slug, name_ar, name_en, gallery_images, showreel_url, video_intro, portfolio_url, previous_work")
+    .select("id, name_ar, name_en, gallery_images, showreel_url, video_intro, portfolio_url, instagram, tiktok, snapchat")
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (talentError) {
-    throw new Error(`[TalentGalleryPage talent] ${talentError.message}`);
-  }
+  if (error) throw new Error(`[TalentGalleryPage] ${error.message}`);
+  if (!talent) redirect(`/${locale}/talent-dashboard`);
 
-  if (!talent) {
-    redirect(`/${locale}/talent-dashboard`);
-  }
-
-  const gallery = normalizeGalleryImages(talent.gallery_images);
-
-  const galleryImages = Array.from(
-    new Set(gallery.filter(Boolean))
-  );
-
-  const talentName =
-    (isArabic ? talent.name_ar || talent.name_en : talent.name_en || talent.name_ar) ||
-    null;
-
-  const galleryProgress = Math.min(
-    100,
-    Math.round((galleryImages.length / MAX_GALLERY_IMAGES) * 100)
-  );
-    
-  const canUploadMore =
-    galleryImages.length < MAX_GALLERY_IMAGES;
-
+  const galleryImages = Array.from(new Set(normalizeGalleryImages(talent.gallery_images).filter(Boolean)));
+  const canUploadMore = galleryImages.length < MAX_GALLERY_IMAGES;
+  const talentName = (isArabic ? talent.name_ar || talent.name_en : talent.name_en || talent.name_ar) || null;
   const hasVideo = hasText(talent.showreel_url) || hasText(talent.video_intro);
-  const hasExternalPortfolio = hasText(talent.portfolio_url);
-  const hasPreviousWork = hasText(talent.previous_work);
+  const hasWorkLink = hasText(talent.portfolio_url);
+  const hasSocial = hasText(talent.instagram) || hasText(talent.tiktok) || hasText(talent.snapchat);
 
   return (
-    <main
-      dir={isArabic ? "rtl" : "ltr"}
-      className="min-h-screen bg-background px-4 pb-24 pt-36 text-white sm:px-6 sm:pt-40 lg:pt-32"
-    >
+    <main dir={isArabic ? "rtl" : "ltr"} className="min-h-screen bg-background px-4 pb-24 pt-36 text-white sm:px-6 lg:pt-32">
       <div className="mx-auto max-w-6xl">
-        <header className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-[radial-gradient(circle_at_top_right,rgba(201,169,98,0.12),transparent_38%),linear-gradient(135deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))] p-6 sm:p-8 lg:p-10">
-          <div className="pointer-events-none absolute inset-x-10 bottom-0 h-px bg-gradient-to-r from-transparent via-gold/40 to-transparent" aria-hidden="true" />
-
-          <div className="relative flex flex-col gap-7 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <Link
-                href={`/${locale}/talent-dashboard`}
-                className="inline-flex items-center gap-2 text-xs text-white/45 transition hover:text-gold"
-              >
-                <span className={isArabic ? "rotate-180" : ""}>
-                  <GalleryIcon name="arrow" className="h-4 w-4" />
-                </span>
-                {isArabic ? "العودة إلى لوحة الموهبة" : "Back to Talent Dashboard"}
-              </Link>
-
-              <p className="mt-8 text-[10px] uppercase tracking-[0.36em] text-gold">
-                {isArabic ? "لوحة الموهبة" : "Talent Dashboard"}
-              </p>
-
-              <h1 className="mt-3 text-4xl font-light leading-tight sm:text-5xl lg:text-6xl">
-                {isArabic ? "معرض الأعمال" : "Portfolio"}
-              </h1>
-
-              <p className="mt-4 max-w-2xl text-sm leading-7 text-white/50 sm:text-base">
-                {isArabic
-                  ? "اجمع أفضل صورك وفيديوهاتك وروابط أعمالك في مكان واحد. كلما كان معرضك أقوى، أصبح فهم ملفك وترشيحك للفرص المناسبة أسهل."
-                  : "Keep your strongest photos, videos and work links in one place. A stronger portfolio helps MLAMH understand your profile and match you to relevant opportunities."}
-              </p>
-            </div>
-
-            <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-              <Link
-                href={`/${locale}/talent-dashboard/profile`}
-                className="inline-flex items-center justify-center gap-2 rounded-full border border-white/10 px-5 py-3 text-xs text-white/60 transition hover:border-gold/35 hover:text-gold"
-              >
-                <GalleryIcon name="profile" className="h-4 w-4" />
-                {isArabic ? "تعديل البيانات المهنية" : "Edit Professional Profile"}
-              </Link>
-
-              <Link
-                href={`/${locale}/talent-dashboard`}
-                className="inline-flex items-center justify-center gap-2 rounded-full border border-white/10 px-5 py-3 text-xs text-white/60 transition hover:border-gold/35 hover:text-gold"
-              >
-                <GalleryIcon name="dashboard" className="h-4 w-4" />
-                {isArabic ? "لوحة الموهبة" : "Talent Dashboard"}
-              </Link>
-            </div>
-          </div>
+        <header className="rounded-[2rem] border border-white/10 bg-[radial-gradient(circle_at_top_right,rgba(201,169,98,0.12),transparent_40%),rgba(255,255,255,0.025)] p-6 sm:p-8 lg:p-10">
+          <Link href={`/${locale}/talent-dashboard`} className="inline-flex items-center gap-2 text-xs text-white/45 transition hover:text-gold">
+            <span className={isArabic ? "rotate-180" : ""}><Icon name="arrow" /></span>
+            {isArabic ? "العودة إلى لوحة الموهبة" : "Back to Talent Dashboard"}
+          </Link>
+          <p className="mt-8 text-[10px] uppercase tracking-[0.34em] text-gold">{isArabic ? "معرضك المهني" : "YOUR PORTFOLIO"}</p>
+          <h1 className="mt-3 text-4xl font-light sm:text-5xl">{isArabic ? "معرض الأعمال" : "Portfolio"}</h1>
+          <p className="mt-4 max-w-2xl text-sm leading-7 text-white/50 sm:text-base">
+            {isArabic
+              ? "الصور والفيديو وShowreel وروابط أعمالك وحساباتك المهنية في مكان واحد. جميع هذه العناصر اختيارية وتزيد قوة ملفك وفرص ترشيحك."
+              : "Keep photos, video, showreel, work links and professional social profiles in one place. These are optional and strengthen your profile and matching."}
+          </p>
         </header>
 
         {updated === "1" ? (
-          <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.07] px-5 py-4 text-sm text-emerald-200 sm:flex-row sm:items-center sm:justify-between">
-            <span className="inline-flex items-center gap-2">
-              <GalleryIcon name="check" className="h-4 w-4" />
-              {isArabic ? "تم تحديث معرض الأعمال بنجاح." : "Portfolio updated successfully."}
-            </span>
-
-            <Link
-              href={`/${locale}/talent-dashboard/gallery`}
-              className="text-[10px] uppercase tracking-[0.22em] text-emerald-200/70 transition hover:text-emerald-100"
-            >
-              {isArabic ? "إخفاء" : "Dismiss"}
-            </Link>
+          <div className="mt-5 rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.07] px-5 py-4 text-sm text-emerald-200">
+            {isArabic ? "تم تحديث روابط معرض الأعمال بنجاح." : "Portfolio links updated successfully."}
           </div>
         ) : null}
 
-        <section className="mt-6 grid gap-3 sm:grid-cols-3">
-          <div className="rounded-2xl border border-white/10 bg-white/[0.025] p-4">
-            <p className="text-[10px] uppercase tracking-[0.22em] text-white/35">
-              {isArabic ? "الصور" : "Photos"}
-            </p>
-            <p className="mt-2 text-sm text-white/70">
-              {isArabic ? `${galleryImages.length} صورة` : `${galleryImages.length} image(s)`}
-            </p>
+        <section className="mt-6 grid gap-3 md:grid-cols-4">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.025] p-5">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.22em] text-white/35">{isArabic ? "الصور" : "Photos"}</p>
+                <p className="mt-2 text-lg text-white/80">{galleryImages.length}</p>
+              </div>
+              <span className="text-gold"><Icon name="image" /></span>
+            </div>
           </div>
 
-          <Link
-            href={`/${locale}/talent-dashboard/profile#links`}
-            className="rounded-2xl border border-white/10 bg-white/[0.025] p-4 transition hover:border-gold/30 hover:bg-gold/[0.04]"
-          >
-            <p className="text-[10px] uppercase tracking-[0.22em] text-white/35">
-              {isArabic ? "الفيديو / Showreel" : "Video / Showreel"}
-            </p>
-            <p className={`mt-2 text-sm ${hasVideo ? "text-emerald-300" : "text-white/50"}`}>
-              {hasVideo
-                ? isArabic ? "مضاف" : "Added"
-                : isArabic ? "إضافة فيديو" : "Add video"}
-            </p>
+          <Link href={`/${locale}/talent-dashboard/gallery/links`} className="rounded-2xl border border-white/10 bg-white/[0.025] p-5 transition hover:border-gold/35 hover:bg-gold/[0.04]">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.22em] text-white/35">Showreel / Video</p>
+                <p className={`mt-2 text-sm ${hasVideo ? "text-emerald-300" : "text-white/50"}`}>{hasVideo ? (isArabic ? "مضاف" : "Added") : (isArabic ? "إضافة" : "Add")}</p>
+              </div>
+              <span className="text-gold"><Icon name="video" /></span>
+            </div>
           </Link>
 
-          <Link
-            href={`/${locale}/talent-dashboard/profile#experience`}
-            className="rounded-2xl border border-white/10 bg-white/[0.025] p-4 transition hover:border-gold/30 hover:bg-gold/[0.04]"
-          >
-            <p className="text-[10px] uppercase tracking-[0.22em] text-white/35">
-              {isArabic ? "أعمال وروابط إضافية" : "Work & External Links"}
-            </p>
-            <p className={`mt-2 text-sm ${hasExternalPortfolio || hasPreviousWork ? "text-emerald-300" : "text-white/50"}`}>
-              {hasExternalPortfolio || hasPreviousWork
-                ? isArabic ? "مضاف" : "Added"
-                : isArabic ? "إكمال القسم" : "Complete section"}
-            </p>
+          <Link href={`/${locale}/talent-dashboard/gallery/links`} className="rounded-2xl border border-white/10 bg-white/[0.025] p-5 transition hover:border-gold/35 hover:bg-gold/[0.04]">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.22em] text-white/35">{isArabic ? "رابط الأعمال" : "Work link"}</p>
+                <p className={`mt-2 text-sm ${hasWorkLink ? "text-emerald-300" : "text-white/50"}`}>{hasWorkLink ? (isArabic ? "مضاف" : "Added") : (isArabic ? "إضافة" : "Add")}</p>
+              </div>
+              <span className="text-gold"><Icon name="link" /></span>
+            </div>
+          </Link>
+
+          <Link href={`/${locale}/talent-dashboard/gallery/links`} className="rounded-2xl border border-white/10 bg-white/[0.025] p-5 transition hover:border-gold/35 hover:bg-gold/[0.04]">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.22em] text-white/35">{isArabic ? "السوشيال" : "Social"}</p>
+                <p className={`mt-2 text-sm ${hasSocial ? "text-emerald-300" : "text-white/50"}`}>{hasSocial ? (isArabic ? "مضاف" : "Added") : (isArabic ? "إضافة" : "Add")}</p>
+              </div>
+              <span className="text-gold"><Icon name="link" /></span>
+            </div>
           </Link>
         </section>
 
         <section className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(280px,0.85fr)]">
           <div className="rounded-[2rem] border border-white/10 bg-white/[0.025] p-5 sm:p-6">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.3em] text-gold">
-                  {isArabic ? "رفع صورة جديدة" : "Upload New Image"}
-                </p>
-
-                <h2 className="mt-2 text-2xl font-light sm:text-3xl">
-                  {isArabic ? "أضف عملًا إلى معرضك" : "Add Work to Your Portfolio"}
-                </h2>
-              </div>
-
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-gold/25 bg-gold/[0.07] text-gold">
-                <GalleryIcon name="upload" />
-              </div>
-            </div>
-
+            <p className="text-[10px] uppercase tracking-[0.28em] text-gold">{isArabic ? "صور الأعمال" : "WORK PHOTOS"}</p>
+            <h2 className="mt-2 text-2xl font-light">{isArabic ? "أضف أفضل صورك" : "Add your strongest images"}</h2>
+            <p className="mt-2 text-sm leading-7 text-white/45">{isArabic ? "معرض الصور اختياري ومستقل عن الصورة الشخصية الأساسية." : "Your photo portfolio is optional and separate from your required profile photo."}</p>
             {canUploadMore ? (
-              <GalleryUploadButton
-                isArabic={isArabic}
-                locale={locale}
-                currentImageCount={galleryImages.length}
-                action={addOwnGalleryImageAction}
-              />
+              <GalleryUploadButton isArabic={isArabic} locale={locale} currentImageCount={galleryImages.length} action={addOwnGalleryImageAction} />
             ) : (
               <div className="mt-5 rounded-2xl border border-amber-300/20 bg-amber-300/[0.06] px-4 py-4 text-sm text-amber-100">
-                {isArabic
-                  ? "وصلت إلى الحد الأقصى للصور. احذف صورة قبل إضافة صورة جديدة."
-                  : "You reached the maximum number of images. Remove an image before uploading another one."}
+                {isArabic ? "وصلت إلى الحد الأقصى للصور. احذف صورة قبل إضافة صورة جديدة." : "You reached the image limit. Remove an image before uploading another."}
               </div>
             )}
           </div>
 
-          <div className="rounded-[2rem] border border-gold/20 bg-[radial-gradient(circle_at_top_right,rgba(201,169,98,0.13),transparent_45%),rgba(201,169,98,0.035)] p-5 sm:p-6">
-            <p className="text-[10px] uppercase tracking-[0.3em] text-gold">
-              {isArabic ? "ملخص الصور" : "Photo Summary"}
-            </p>
-
-            <div className="mt-5 flex items-end justify-between gap-4">
-              <div>
-                <p className="text-sm text-white/40">
-                  {isArabic ? "إجمالي الصور" : "Total Images"}
-                </p>
-                <p className="mt-2 text-5xl font-light text-white">
-                  {galleryImages.length}
-                </p>
-              </div>
-
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-gold/25 bg-black/20 text-gold">
-                <GalleryIcon name="image" className="h-6 w-6" />
-              </div>
-            </div>
-
-            <div className="mt-5">
-              <div className="flex items-center justify-between text-xs text-white/35">
-                <span>{isArabic ? "سعة الصور" : "Photo Capacity"}</span>
-                <span>{galleryImages.length} / {MAX_GALLERY_IMAGES}</span>
-              </div>
-
-              <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10">
-                <div
-                  className="h-full rounded-full bg-gold transition-all"
-                  style={{ width: `${galleryProgress}%` }}
-                />
-              </div>
-            </div>
-          </div>
+          <Link href={`/${locale}/talent-dashboard/gallery/links`} className="group rounded-[2rem] border border-gold/20 bg-gold/[0.035] p-5 transition hover:border-gold/40 sm:p-6">
+            <p className="text-[10px] uppercase tracking-[0.28em] text-gold">{isArabic ? "روابطك المهنية" : "PROFESSIONAL LINKS"}</p>
+            <h2 className="mt-2 text-2xl font-light">{isArabic ? "الفيديو والسوشيال في مكان واحد" : "Video and social in one place"}</h2>
+            <p className="mt-3 text-sm leading-7 text-white/45">{isArabic ? "أضف أو عدّل Showreel، الفيديو التعريفي، البورتفوليو الخارجي وInstagram وTikTok وSnapchat." : "Add or edit your showreel, intro video, external portfolio, Instagram, TikTok and Snapchat."}</p>
+            <span className="mt-6 inline-flex items-center gap-2 text-sm text-gold">{isArabic ? "إدارة الروابط" : "Manage links"}<span className={isArabic ? "rotate-180" : ""}><Icon name="arrow" /></span></span>
+          </Link>
         </section>
 
         <section className="mt-6">
           {galleryImages.length === 0 ? (
-            <div className="rounded-[2rem] border border-dashed border-white/10 bg-white/[0.02] px-5 py-14 text-center sm:px-8 sm:py-20">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-gold/20 bg-gold/[0.05] text-gold">
-                <GalleryIcon name="image" className="h-6 w-6" />
-              </div>
-
-              <h3 className="mt-5 text-2xl font-light">
-                {isArabic ? "معرض الصور ما زال فارغًا" : "Your photo gallery is empty"}
-              </h3>
-
-              <p className="mx-auto mt-3 max-w-md text-sm leading-7 text-white/45">
-                {isArabic
-                  ? "ابدأ بإضافة أفضل صورك. الفيديو والروابط المهنية يمكنك إضافتها من الملف المهني."
-                  : "Start with your strongest photos. Videos and professional links can be added from your professional profile."}
-              </p>
+            <div className="rounded-[2rem] border border-dashed border-white/10 bg-white/[0.02] px-5 py-14 text-center">
+              <h3 className="text-2xl font-light">{isArabic ? "معرض الصور فارغ" : "Your photo gallery is empty"}</h3>
+              <p className="mx-auto mt-3 max-w-md text-sm leading-7 text-white/45">{isArabic ? "هذا طبيعي. الصور الإضافية اختيارية ويمكن إضافتها لاحقًا." : "That is okay. Additional portfolio photos are optional and can be added later."}</p>
             </div>
           ) : (
-            <GallerySortableList
-              images={galleryImages}
-              talentName={talentName}
-              locale={locale}
-              reorderAction={reorderOwnGalleryImagesAction}
-              removeAction={removeOwnGalleryImageAction}
-            />
+            <GallerySortableList images={galleryImages} talentName={talentName} locale={locale} reorderAction={reorderOwnGalleryImagesAction} removeAction={removeOwnGalleryImageAction} />
           )}
         </section>
       </div>

@@ -47,9 +47,7 @@ export async function updateOwnTalentCoreDetailsAction(
   if (authError || !user) {
     return {
       success: false,
-      message: isArabic
-        ? "انتهت الجلسة. سجل الدخول مرة أخرى."
-        : "Your session has expired. Please sign in again.",
+      message: isArabic ? "انتهت الجلسة. سجل الدخول مرة أخرى." : "Your session has expired. Please sign in again.",
     };
   }
 
@@ -60,10 +58,7 @@ export async function updateOwnTalentCoreDetailsAction(
   ]);
 
   if (profileError || talentError || !profile || !talent) {
-    return {
-      success: false,
-      message: isArabic ? "تعذر العثور على ملف الموهبة." : "Talent profile could not be found.",
-    };
+    return { success: false, message: isArabic ? "تعذر العثور على ملف الموهبة." : "Talent profile could not be found." };
   }
 
   const editableStatuses = new Set(["not_submitted", "rejected", "changes_requested"]);
@@ -88,9 +83,7 @@ export async function updateOwnTalentCoreDetailsAction(
   if (!name || !phone || !categorySlug || !gender || !nationality || !countryCode || !citySlug) {
     return {
       success: false,
-      message: isArabic
-        ? "أكمل جميع البيانات الأساسية قبل الحفظ."
-        : "Complete all required core details before saving.",
+      message: isArabic ? "أكمل جميع البيانات الأساسية قبل الحفظ." : "Complete all required core details before saving.",
     };
   }
 
@@ -103,9 +96,7 @@ export async function updateOwnTalentCoreDetailsAction(
   if (!category || !genderOption || !nationalityOption || !country || !city) {
     return {
       success: false,
-      message: isArabic
-        ? "إحدى القيم المختارة غير صحيحة. أعد اختيار البيانات."
-        : "One of the selected values is invalid. Please choose again.",
+      message: isArabic ? "إحدى القيم المختارة غير صحيحة. أعد اختيار البيانات." : "One of the selected values is invalid. Please choose again.",
     };
   }
 
@@ -125,17 +116,12 @@ export async function updateOwnTalentCoreDetailsAction(
     city_en: city.en,
   };
 
-  // Role-specific fields improve profile strength only. They are intentionally
-  // optional and must never become approval blockers.
+  // Role-specific fields improve profile strength and matching only.
   if (categorySlug === "actor") {
     const actingAgeMin = optionalNumber(formData, "acting_age_min");
     const actingAgeMax = optionalNumber(formData, "acting_age_max");
 
-    if (
-      actingAgeMin !== null &&
-      actingAgeMax !== null &&
-      actingAgeMin > actingAgeMax
-    ) {
+    if (actingAgeMin !== null && actingAgeMax !== null && actingAgeMin > actingAgeMax) {
       return {
         success: false,
         message: isArabic
@@ -147,9 +133,13 @@ export async function updateOwnTalentCoreDetailsAction(
     talentPayload.acting_age_min = actingAgeMin;
     talentPayload.acting_age_max = actingAgeMax;
     talentPayload.experience_years = optionalNumber(formData, "experience_years");
+    talentPayload.languages = list(formData, "languages");
     talentPayload.dialects = list(formData, "dialects");
     talentPayload.skills = list(formData, "skills");
-    talentPayload.showreel_url = text(formData, "showreel_url") || null;
+    talentPayload.height_cm = optionalNumber(formData, "height_cm");
+    talentPayload.weight_kg = optionalNumber(formData, "weight_kg");
+    talentPayload.eye_color = text(formData, "eye_color") || null;
+    talentPayload.hair_color = text(formData, "hair_color") || null;
   }
 
   if (categorySlug === "model") {
@@ -174,9 +164,7 @@ export async function updateOwnTalentCoreDetailsAction(
   if (updateTalentError) {
     return {
       success: false,
-      message: isArabic
-        ? "تعذر حفظ بيانات الموهبة. حاول مرة أخرى."
-        : "Unable to save talent details. Please try again.",
+      message: isArabic ? "تعذر حفظ بيانات الموهبة. حاول مرة أخرى." : "Unable to save talent details. Please try again.",
     };
   }
 
@@ -204,8 +192,5 @@ export async function updateOwnTalentCoreDetailsAction(
     revalidatePath(`/en/talent/${encodeURIComponent(talent.slug)}`);
   }
 
-  return {
-    success: true,
-    message: isArabic ? "تم حفظ بياناتك بنجاح." : "Your details were saved successfully.",
-  };
+  return { success: true, message: isArabic ? "تم حفظ بياناتك بنجاح." : "Your details were saved successfully." };
 }
