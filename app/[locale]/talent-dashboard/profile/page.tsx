@@ -5,6 +5,7 @@ import Link from "next/link";
 import { use, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import TalentProfileReviewSubmitButton from "@/components/talent/TalentProfileReviewSubmitButton";
 import { getOwnTalentProfileAction } from "@/lib/actions/update-own-talent-profile";
 import { updateOwnTalentBirthDateAction } from "@/lib/actions/update-own-talent-birth-date";
 import { updateOwnTalentMainImageAction } from "@/lib/actions/update-own-talent-main-image";
@@ -147,7 +148,7 @@ export default function TalentProfileGuidedPage({ params }: { params: Promise<{ 
   if (loading) {
     return (
       <main className="min-h-screen bg-background px-4 pb-24 pt-40 text-white" dir={isArabic ? "rtl" : "ltr"}>
-        <div className="mx-auto max-w-5xl animate-pulse space-y-4">
+        <div className="mx-auto w-full max-w-7xl animate-pulse space-y-4">
           <div className="h-10 w-56 rounded-xl bg-white/5" />
           <div className="h-48 rounded-[2rem] bg-white/[0.03]" />
           <div className="h-56 rounded-[2rem] bg-white/[0.03]" />
@@ -169,8 +170,8 @@ export default function TalentProfileGuidedPage({ params }: { params: Promise<{ 
   }
 
   return (
-    <main className="min-h-screen bg-background px-4 pb-28 pt-40 text-white sm:px-6 sm:pt-44 lg:pt-36" dir={isArabic ? "rtl" : "ltr"}>
-      <div className="mx-auto max-w-5xl">
+    <main className="min-h-screen w-full bg-background px-4 pb-28 pt-40 text-white sm:px-6 sm:pt-44 lg:pt-36" dir={isArabic ? "rtl" : "ltr"}>
+      <div className="mx-auto w-full max-w-7xl">
         <header className="mb-7">
           <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-gold">{isArabic ? "الملف المهني" : "PROFESSIONAL PROFILE"}</p>
           <h1 className="mt-3 text-3xl font-light leading-tight sm:text-5xl">{isArabic ? "أكمل ملفك المهني" : "Complete your professional profile"}</h1>
@@ -189,7 +190,7 @@ export default function TalentProfileGuidedPage({ params }: { params: Promise<{ 
               {!readiness.isReady && firstMissing ? (
                 <button onClick={() => goToRequirement(firstMissing.key)} className="mt-6 inline-flex min-h-12 items-center justify-center rounded-full bg-gold px-7 text-sm font-semibold text-black">{isArabic ? "أكمل الخطوة التالية" : "Complete next step"}</button>
               ) : (
-                <Link href={`/${locale}/talent-dashboard/profile/advanced`} className="mt-6 inline-flex min-h-12 items-center justify-center rounded-full bg-gold px-7 text-sm font-semibold text-black">{isArabic ? "مراجعة الملف وإرساله" : "Review and submit"}</Link>
+                <TalentProfileReviewSubmitButton locale={locale} onSubmitted={loadProfile} />
               )}
             </div>
             <div className="rounded-[1.5rem] border border-white/10 bg-black/25 p-5">
