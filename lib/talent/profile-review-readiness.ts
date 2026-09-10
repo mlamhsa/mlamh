@@ -5,7 +5,6 @@ export type TalentProfileReadinessData = {
   name_en?: unknown;
   phone?: unknown;
   image_url?: unknown;
-  gallery_images?: unknown;
   primary_role?: unknown;
   category_slug?: unknown;
   category_en?: unknown;
@@ -40,26 +39,6 @@ function hasValue(value: unknown) {
   return true;
 }
 
-function hasGalleryImage(value: unknown) {
-  if (Array.isArray(value)) {
-    return value.some((item) => typeof item === "string" && item.trim().length > 0);
-  }
-
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    if (!trimmed) return false;
-
-    try {
-      const parsed = JSON.parse(trimmed);
-      return hasGalleryImage(parsed);
-    } catch {
-      return true;
-    }
-  }
-
-  return false;
-}
-
 function hasValidVisibility(value: unknown) {
   const normalized = typeof value === "string" ? value.trim().toLowerCase() : "";
   return normalized === "public" || normalized === "private";
@@ -87,12 +66,7 @@ function getSharedRequirements(talent: TalentProfileReadinessData): ProfileReadi
   return [
     { key: "name", ar: "الاسم", en: "Name", completed: hasValue(talent.name_ar) || hasValue(talent.name_en) },
     { key: "phone", ar: "رقم الجوال", en: "Phone number", completed: hasValue(talent.phone) },
-    {
-      key: "profile_image",
-      ar: "الصورة الشخصية",
-      en: "Profile photo",
-      completed: hasValue(talent.image_url) || hasGalleryImage(talent.gallery_images),
-    },
+    { key: "profile_image", ar: "الصورة الشخصية", en: "Profile photo", completed: hasValue(talent.image_url) },
     { key: "primary_role", ar: "نوع الموهبة", en: "Talent type", completed: getCanonicalTalentRole(talent) !== null },
     { key: "country", ar: "بلد الإقامة", en: "Country of residence", completed: hasValue(talent.base_country_code) },
     { key: "city", ar: "المدينة", en: "City", completed: hasValue(talent.city_slug) },
