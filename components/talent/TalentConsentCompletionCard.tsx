@@ -6,6 +6,7 @@ import { CheckCircle2, ShieldCheck } from "lucide-react";
 
 import { updateOwnTalentConsentAction } from "@/lib/actions/update-own-talent-consent";
 import { getOwnTalentProfileAction } from "@/lib/actions/update-own-talent-profile";
+import type { Locale } from "@/lib/i18n";
 
 type TalentProfileSnapshot = {
   approval_status?: string | null;
@@ -13,7 +14,7 @@ type TalentProfileSnapshot = {
 };
 
 type Props = {
-  locale: string;
+  locale: Locale;
 };
 
 export default function TalentConsentCompletionCard({ locale }: Props) {
