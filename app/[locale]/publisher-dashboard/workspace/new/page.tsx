@@ -1,29 +1,40 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { ArrowLeft, BriefcaseBusiness, Sparkles } from "lucide-react";
 
 import { createCastingWorkspaceProjectAction } from "@/lib/actions/casting-workspace-actions";
+import { requirePublisher } from "@/lib/auth/require-publisher";
 
 export default async function NewWorkspaceProjectPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
-  const isArabic = locale === "ar";
+  const safeLocale = locale === "en" ? "en" : "ar";
+  const isArabic = safeLocale === "ar";
+  const { profile, publisher } = await requirePublisher(safeLocale);
+
+  const blocked =
+    profile.approval_status !== "approved" ||
+    publisher.publisher_type === "individual" ||
+    ["suspended", "blocked", "banned", "disabled"].includes(String(publisher.status));
+
+  if (blocked) redirect(`/${safeLocale}/publisher-dashboard`);
 
   return (
     <div dir={isArabic ? "rtl" : "ltr"} className="pb-24 lg:pb-10">
       <div className="mx-auto max-w-4xl">
-        <Link href={`/${locale}/publisher-dashboard/workspace`} className="inline-flex items-center gap-2 text-xs text-white/45 transition hover:text-gold">
+        <Link href={`/${safeLocale}/publisher-dashboard/workspace`} className="inline-flex items-center gap-2 text-xs text-white/45 transition hover:text-gold">
           <ArrowLeft size={16} className={isArabic ? "rotate-180" : ""} />
           {isArabic ? "العودة إلى مساحة العمل" : "Back to workspace"}
         </Link>
 
         <header className="mt-6 rounded-[2rem] border border-white/10 bg-[radial-gradient(circle_at_top_right,rgba(201,169,98,0.13),transparent_40%),linear-gradient(135deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))] p-6 sm:p-8">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-gold/25 bg-gold/[0.08] text-gold"><BriefcaseBusiness size={21} /></div>
-          <p className="mt-5 text-[10px] uppercase tracking-[0.3em] text-gold">CASTING BRIEF</p>
-          <h1 className="mt-3 text-3xl font-light sm:text-5xl">{isArabic ? "حوّل احتياجك إلى مشروع كاستينغ" : "Turn your brief into a casting project"}</h1>
+          <p className="mt-5 text-[10px] uppercase tracking-[0.3em] text-gold">CASTING BRIEF · ORGANIZATIONS</p>
+          <h1 className="mt-3 text-3xl font-light sm:text-5xl">{isArabic ? "حوّل احتياج الجهة إلى مشروع كاستينغ" : "Turn your organization brief into a casting project"}</h1>
           <p className="mt-4 max-w-2xl text-sm leading-7 text-white/45">{isArabic ? "ابدأ بأول دور فقط. بعد إنشاء المشروع يمكنك إضافة أدوار أخرى ومقارنة توفر المواهب لكل دور." : "Start with the first role. After creating the project, you can add more roles and compare talent supply for each one."}</p>
         </header>
 
         <form action={createCastingWorkspaceProjectAction} className="mt-6 space-y-6 rounded-[2rem] border border-white/10 bg-white/[0.025] p-5 sm:p-8">
-          <input type="hidden" name="locale" value={locale} />
+          <input type="hidden" name="locale" value={safeLocale} />
 
           <section>
             <p className="text-xs font-medium text-gold">01 · {isArabic ? "المشروع" : "Project"}</p>
@@ -87,7 +98,7 @@ export default async function NewWorkspaceProjectPage({ params }: { params: Prom
 
           <div className="rounded-2xl border border-gold/20 bg-gold/[0.05] p-4 text-xs leading-6 text-white/55">
             <span className="inline-flex items-center gap-2 text-gold"><Sparkles size={14} />{isArabic ? "بعد الإنشاء" : "After creation"}</span>
-            <p className="mt-2">{isArabic ? "ستعرض ملامح حجم المواهب المطابقة للدور مباشرة، دون تقديم أي موهبة تلقائيًا أو اتخاذ قرار نيابة عنك." : "MLAMH will show matching talent supply for the role without auto-applying anyone or making decisions on your behalf."}</p>
+            <p className="mt-2">{isArabic ? "ستعرض ملامح حجم المواهب المطابقة للدور مباشرة، دون تقديم أي موهبة تلقائيًا أو اتخاذ قرار نيابة عن الجهة." : "MLAMH will show matching talent supply for the role without auto-applying anyone or making decisions on behalf of the organization."}</p>
           </div>
 
           <button className="min-h-13 w-full rounded-full bg-gold px-6 py-4 text-sm font-medium text-black transition hover:bg-gold-soft">{isArabic ? "إنشاء مساحة المشروع" : "Create project workspace"}</button>
