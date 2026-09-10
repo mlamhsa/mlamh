@@ -1,33 +1,56 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import {
   ArrowUpRight,
   Sparkles,
   UserRound,
 } from "lucide-react";
 
+import { getOwnTalentProfileAction } from "@/lib/actions/update-own-talent-profile";
+
 type TalentHeaderProps = {
   locale: string;
   talentName: string;
   approvalStatus?: string | null;
-  profileStrength?: number;
 };
 
 export default function TalentHeader({
   locale,
   talentName,
   approvalStatus,
-  profileStrength = 0,
 }: TalentHeaderProps) {
   const isRtl = locale === "ar";
-  const normalizedStatus = String(approvalStatus ?? "not_submitted").trim().toLowerCase();
-  const isApproved = normalizedStatus === "approved";
+  const [resolvedStatus, setResolvedStatus] = useState(
+    String(approvalStatus ?? "not_submitted").trim().toLowerCase(),
+  );
+
+  useEffect(() => {
+    if (approvalStatus) return;
+
+    let active = true;
+    getOwnTalentProfileAction(locale === "en" ? "en" : "ar")
+      .then((talent) => {
+        if (!active || !talent) return;
+        const next = String(talent.approval_status ?? "not_submitted").trim().toLowerCase();
+        setResolvedStatus(next);
+      })
+      .catch(() => {
+        // Keep the safe default CTA if status lookup fails.
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [approvalStatus, locale]);
+
+  const isApproved = resolvedStatus === "approved";
   const profileHref = isApproved
     ? `/${locale}/talent-dashboard/profile/details`
     : `/${locale}/talent-dashboard/profile`;
   const profileLabel = isApproved
-    ? profileStrength >= 100
-      ? isRtl ? "تحديث الملف" : "Update Profile"
-      : isRtl ? "تحسين الملف" : "Improve Profile"
+    ? isRtl ? "تحسين الملف" : "Improve Profile"
     : isRtl ? "إكمال الملف" : "Complete Profile";
   const ProfileIcon = isApproved ? Sparkles : UserRound;
 
