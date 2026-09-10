@@ -22,7 +22,7 @@ const ALLOWED_PUBLISHER_TYPES = [
 
 export async function createPublisherDraftAction(
   _prevState: CreatePublisherDraftState,
-  formData: FormData
+  formData: FormData,
 ): Promise<CreatePublisherDraftState> {
   const localeValue = String(formData.get("locale") ?? "ar");
 
@@ -30,54 +30,49 @@ export async function createPublisherDraftAction(
     ? localeValue
     : "ar";
 
-    const publisherMode = String(
-      formData.get("publisher_mode") ?? ""
-    ).trim();
-    
-    const selectedPublisherType = String(
-      formData.get("publisher_type") ?? ""
-    ).trim();
-    
-    if (
-      publisherMode !== "individual" &&
-      publisherMode !== "organization"
-    ) {
-      return {
-        success: false,
-        message:
-          locale === "ar"
-            ? "اختر إذا كنت فردًا / مستقلًا أو تمثل شركة / جهة."
-            : "Choose whether you are an individual or represent an organization.",
-      };
-    }
-    
-    const publisherType =
-      publisherMode === "individual"
-        ? "individual"
-        : selectedPublisherType;
+  const publisherMode = String(
+    formData.get("publisher_mode") ?? "",
+  ).trim();
 
-        if (
-          !ALLOWED_PUBLISHER_TYPES.includes(
-            publisherType as (typeof ALLOWED_PUBLISHER_TYPES)[number]
-          ) ||
-          (
-            publisherMode === "organization" &&
-            publisherType === "individual"
-          )
-        ) {
-          return {
-            success: false,
-            message:
-              locale === "ar"
-                ? "اختر نوع الشركة أو الجهة للمتابعة."
-                : "Choose your organization type to continue.",
-          };
-        }
+  const selectedPublisherType = String(
+    formData.get("publisher_type") ?? "",
+  ).trim();
+
+  if (
+    publisherMode !== "individual" &&
+    publisherMode !== "organization"
+  ) {
+    return {
+      success: false,
+      message:
+        locale === "ar"
+          ? "اختر إذا كنت فردًا / مستقلًا أو تمثل شركة / جهة."
+          : "Choose whether you are an individual or represent an organization.",
+    };
+  }
+
+  const publisherType =
+    publisherMode === "individual"
+      ? "individual"
+      : selectedPublisherType;
+
+  if (
+    !ALLOWED_PUBLISHER_TYPES.includes(
+      publisherType as (typeof ALLOWED_PUBLISHER_TYPES)[number],
+    ) ||
+    (publisherMode === "organization" && publisherType === "individual")
+  ) {
+    return {
+      success: false,
+      message:
+        locale === "ar"
+          ? "اختر نوع الشركة أو الجهة للمتابعة."
+          : "Choose your organization type to continue.",
+    };
+  }
 
   try {
-    const authClient =
-      await createServerSupabaseClient();
-
+    const authClient = await createServerSupabaseClient();
     const adminClient = createAdminClient();
 
     const {
@@ -95,13 +90,10 @@ export async function createPublisherDraftAction(
       };
     }
 
-    const {
-      data: profile,
-      error: profileError,
-    } = await adminClient
+    const { data: profile, error: profileError } = await adminClient
       .from("profiles")
       .select(
-        "id, account_type, display_name, onboarding_status, onboarding_step"
+        "id, account_type, display_name, onboarding_status, onboarding_step",
       )
       .eq("user_id", user.id)
       .maybeSingle();
@@ -109,7 +101,7 @@ export async function createPublisherDraftAction(
     if (profileError) {
       console.error(
         "[createPublisherDraftAction profileLookup]",
-        profileError
+        profileError,
       );
 
       return {
@@ -131,10 +123,7 @@ export async function createPublisherDraftAction(
       };
     }
 
-    if (
-      profile.account_type &&
-      profile.account_type !== "publisher"
-    ) {
+    if (profile.account_type && profile.account_type !== "publisher") {
       return {
         success: false,
         message:
@@ -145,28 +134,28 @@ export async function createPublisherDraftAction(
     }
 
     const contactName =
-  String(
-    user.user_metadata?.contact_name ||
-      user.user_metadata?.full_name ||
-      user.user_metadata?.display_name ||
-      profile.display_name ||
-      user.email ||
-      "Publisher"
-  ).trim() || "Publisher";
+      String(
+        user.user_metadata?.contact_name ||
+          user.user_metadata?.full_name ||
+          user.user_metadata?.display_name ||
+          profile.display_name ||
+          user.email ||
+          "Publisher",
+      ).trim() || "Publisher";
 
     const {
       data: existingPublisher,
       error: publisherLookupError,
     } = await adminClient
       .from("publishers")
-      .select("id")
+      .select("id, publisher_type")
       .eq("profile_id", profile.id)
       .maybeSingle();
 
     if (publisherLookupError) {
       console.error(
         "[createPublisherDraftAction publisherLookup]",
-        publisherLookupError
+        publisherLookupError,
       );
 
       return {
@@ -178,28 +167,32 @@ export async function createPublisherDraftAction(
       };
     }
 
+    if (
+      existingPublisher &&
+      profile.account_type === "publisher" &&
+      profile.onboarding_status === "completed"
+    ) {
+      return {
+        success: true,
+        message: null,
+      };
+    }
+
     if (existingPublisher) {
-      const { error: updateError } =
-        await adminClient
-          .from("publishers")
-          .update({
-            publisher_type: publisherType,
-            contact_name: contactName,
-            verified: false,
-            verification_status: "unverified",
-            verification_method: null,
-            verification_email: null,
-            verification_document_url: null,
-            verification_submitted_at: null,
-            verification_reviewed_at: null,
-          })
-          .eq("id", existingPublisher.id)
-          .eq("profile_id", profile.id);
+      const { error: updateError } = await adminClient
+        .from("publishers")
+        .update({
+          publisher_type:
+            existingPublisher.publisher_type || publisherType,
+          contact_name: contactName,
+        })
+        .eq("id", existingPublisher.id)
+        .eq("profile_id", profile.id);
 
       if (updateError) {
         console.error(
           "[createPublisherDraftAction updatePublisher]",
-          updateError
+          updateError,
         );
 
         return {
@@ -211,26 +204,25 @@ export async function createPublisherDraftAction(
         };
       }
     } else {
-      const { error: insertError } =
-        await adminClient
-          .from("publishers")
-          .insert({
-            profile_id: profile.id,
-            publisher_type: publisherType,
-            contact_name: contactName,
-            verified: false,
-            verification_status: "unverified",
-            verification_method: null,
-            verification_email: null,
-            verification_document_url: null,
-            verification_submitted_at: null,
-            verification_reviewed_at: null,
-          });
+      const { error: insertError } = await adminClient
+        .from("publishers")
+        .insert({
+          profile_id: profile.id,
+          publisher_type: publisherType,
+          contact_name: contactName,
+          verified: false,
+          verification_status: "unverified",
+          verification_method: null,
+          verification_email: null,
+          verification_document_url: null,
+          verification_submitted_at: null,
+          verification_reviewed_at: null,
+        });
 
       if (insertError) {
         console.error(
           "[createPublisherDraftAction insertPublisher]",
-          insertError
+          insertError,
         );
 
         return {
@@ -243,22 +235,21 @@ export async function createPublisherDraftAction(
       }
     }
 
-    const { error: onboardingError } =
-      await adminClient
-        .from("profiles")
-        .update({
-          account_type: "publisher",
-          onboarding_status: "completed",
-          onboarding_step: "dashboard",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", profile.id)
-        .eq("user_id", user.id);
+    const { error: onboardingError } = await adminClient
+      .from("profiles")
+      .update({
+        account_type: "publisher",
+        onboarding_status: "completed",
+        onboarding_step: "dashboard",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", profile.id)
+      .eq("user_id", user.id);
 
     if (onboardingError) {
       console.error(
         "[createPublisherDraftAction onboarding]",
-        onboardingError
+        onboardingError,
       );
 
       return {
@@ -275,10 +266,7 @@ export async function createPublisherDraftAction(
       message: null,
     };
   } catch (error) {
-    console.error(
-      "[createPublisherDraftAction]",
-      error
-    );
+    console.error("[createPublisherDraftAction]", error);
 
     return {
       success: false,
