@@ -29,13 +29,18 @@ export default async function PublisherWorkspacePage({ params }: PageProps) {
     .maybeSingle();
   if (!publisher) redirect(`/${locale}/join/publisher`);
 
-  const blocked = profile.approval_status !== "approved" || ["suspended", "blocked", "banned", "disabled"].includes(String(profile.status)) || ["suspended", "blocked", "banned", "disabled"].includes(String(publisher.status));
+  const blocked =
+    profile.approval_status !== "approved" ||
+    publisher.publisher_type === "individual" ||
+    ["suspended", "blocked", "banned", "disabled"].includes(String(profile.status)) ||
+    ["suspended", "blocked", "banned", "disabled"].includes(String(publisher.status));
   if (blocked) redirect(`/${locale}/publisher-dashboard`);
 
   const { data: projects, error } = await admin
     .from("casting_projects")
     .select("id, project_title, talent_type, city, required_count, status, service_mode, created_at")
     .eq("publisher_id", publisher.id)
+    .eq("service_mode", "self_service")
     .order("updated_at", { ascending: false });
   if (error) throw new Error(`[PublisherWorkspacePage] ${error.message}`);
 
@@ -66,12 +71,12 @@ export default async function PublisherWorkspacePage({ params }: PageProps) {
         </Link>
         <div className="mt-7 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-[10px] uppercase tracking-[0.32em] text-gold">MLAMH CASTING WORKSPACE</p>
-            <h1 className="mt-3 text-4xl font-light sm:text-5xl">{isArabic ? "مساحة العمل" : "Workspace"}</h1>
+            <p className="text-[10px] uppercase tracking-[0.32em] text-gold">MLAMH SELF-SERVICE CASTING · ORGANIZATIONS</p>
+            <h1 className="mt-3 text-4xl font-light sm:text-5xl">{isArabic ? "مساحة عمل الكاستينغ" : "Casting Workspace"}</h1>
             <p className="mt-3 max-w-2xl text-sm leading-7 text-white/45">
               {isArabic
-                ? "أدر مشاريع الكاستينغ والأدوار والقوائم المختصرة من مكان واحد. الفرص السريعة تبقى مستقلة للمهمات اليومية."
-                : "Manage casting projects, roles, and shortlists in one place. Quick opportunities remain separate for day-to-day hiring."}
+                ? "مساحة احترافية للشركات والجهات لإدارة مشاريع الكاستينغ والأدوار والقوائم المختصرة من مكان واحد."
+                : "A professional workspace for companies and organizations to manage casting projects, roles, and shortlists in one place."}
             </p>
           </div>
           <Link href={`/${locale}/publisher-dashboard/workspace/new`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-gold px-6 text-sm font-medium text-black transition hover:bg-gold-soft">
@@ -94,7 +99,7 @@ export default async function PublisherWorkspacePage({ params }: PageProps) {
             <Link key={project.id} href={`/${locale}/publisher-dashboard/workspace/${project.id}`} className="group rounded-[1.75rem] border border-white/10 bg-white/[0.025] p-5 transition hover:-translate-y-0.5 hover:border-gold/30 sm:p-6">
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-gold/70">{project.service_mode === "self_service" ? (isArabic ? "إدارة ذاتية" : "Self-service") : (isArabic ? "كاستينغ مُدار" : "Managed casting")}</p>
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-gold/70">{isArabic ? "إدارة ذاتية" : "Self-service"}</p>
                   <h2 className="mt-2 truncate text-xl font-medium sm:text-2xl">{project.project_title}</h2>
                   <p className="mt-2 text-xs text-white/40">{project.city || (isArabic ? "كل المدن" : "All cities")} · {project.talent_type === "actor" ? (isArabic ? "ممثل" : "Actor") : (isArabic ? "مودل" : "Model")}</p>
                 </div>
