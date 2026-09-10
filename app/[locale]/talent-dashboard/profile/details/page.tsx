@@ -114,8 +114,6 @@ export default function TalentCoreDetailsPage({ params }: { params: Promise<{ lo
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [success, setSuccess] = useState(false);
-  const [savingBirthDate, setSavingBirthDate] = useState(false);
-  const [birthDateMessage, setBirthDateMessage] = useState("");
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -282,23 +280,30 @@ export default function TalentCoreDetailsPage({ params }: { params: Promise<{ lo
         })()
       : await updateOwnTalentProfessionalDetailsAction(payload);
 
-    setMessage(result.message);
-    setSuccess(result.success);
-    if (result.success) await load();
-    setSaving(false);
-  }
+    if (!result.success) {
+      setMessage(result.message);
+      setSuccess(false);
+      setSaving(false);
+      return;
+    }
 
-  async function saveBirthDate() {
-    if (!birthDate || savingBirthDate) return;
-    setSavingBirthDate(true);
-    setBirthDateMessage("");
-    const payload = new FormData();
-    payload.set("locale", locale);
-    payload.set("date_of_birth", birthDate);
-    const result = await updateOwnTalentBirthDateAction(payload);
-    setBirthDateMessage(result.message);
-    if (result.success) await load();
-    setSavingBirthDate(false);
+    if (birthDate) {
+      const birthDatePayload = new FormData();
+      birthDatePayload.set("locale", locale);
+      birthDatePayload.set("date_of_birth", birthDate);
+      const birthDateResult = await updateOwnTalentBirthDateAction(birthDatePayload);
+      if (!birthDateResult.success) {
+        setMessage(birthDateResult.message);
+        setSuccess(false);
+        setSaving(false);
+        return;
+      }
+    }
+
+    setMessage(result.message);
+    setSuccess(true);
+    await load();
+    setSaving(false);
   }
 
   if (loading) {
@@ -387,12 +392,8 @@ export default function TalentCoreDetailsPage({ params }: { params: Promise<{ lo
                   {(country?.cities ?? []).map((item) => <option key={item.value} value={item.value}>{isArabic ? item.ar : item.en}</option>)}
                 </select>
               </Field>
-              <Field label={isArabic ? "تاريخ الميلاد" : "Date of birth"} hint={isArabic ? "بالتقويم الميلادي" : "Gregorian calendar"}>
-                <div className="flex gap-2">
-                  <input type="date" value={birthDate} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setBirthDate(e.target.value)} dir="ltr" className="input min-w-0 flex-1" />
-                  <button type="button" onClick={() => void saveBirthDate()} disabled={!birthDate || savingBirthDate} className="rounded-xl border border-gold/30 px-4 text-xs text-gold disabled:opacity-40">{savingBirthDate ? (isArabic ? "حفظ..." : "Saving...") : (isArabic ? "حفظ" : "Save")}</button>
-                </div>
-                {birthDateMessage ? <span className="mt-2 block text-[11px] text-white/45">{birthDateMessage}</span> : null}
+              <Field label={isArabic ? "تاريخ الميلاد" : "Date of birth"} hint={isArabic ? "بالتقويم الميلادي — يُحفظ مع حفظ التعديلات" : "Gregorian calendar — saved with the form"}>
+                <input type="date" value={birthDate} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setBirthDate(e.target.value)} dir="ltr" className="input" />
               </Field>
             </div>
           </section>
