@@ -3,6 +3,7 @@ import { TalentBirthDateEnhancer } from "@/components/talent-dashboard/TalentBir
 import { TalentProfileCanonicalFieldsV1 } from "@/components/talent-dashboard/TalentProfileCanonicalFieldsV1";
 import { TalentProfileEditorEnhancer } from "@/components/talent-dashboard/TalentProfileEditorEnhancer";
 import { TalentProfileSectionNavigationV1 } from "@/components/talent-dashboard/TalentProfileSectionNavigationV1";
+import { TalentSidebarDockEnhancer } from "@/components/talent-dashboard/TalentSidebarDockEnhancer";
 import TalentDashboardShell from "@/components/talent/TalentDashboardShell";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -22,6 +23,7 @@ export default async function TalentDashboardLayout({
   return (
     <>
       <TalentBirthDateEnhancer />
+      <TalentSidebarDockEnhancer />
       <TalentProfileEditorEnhancer />
       <TalentProfileCanonicalFieldsV1 />
       <TalentProfileSectionNavigationV1 />
