@@ -148,7 +148,7 @@ export function EmailOtpVerification({ locale, email, accountType }: Props) {
 
           <button type="button" onClick={() => void verify()} disabled={loading || token.length !== 6} className="mt-5 min-h-14 w-full rounded-2xl bg-gold px-5 text-sm font-semibold text-black transition hover:bg-[#e0bd73] disabled:cursor-not-allowed disabled:opacity-50">{loading ? (isRtl ? "جارٍ التحقق..." : "Verifying...") : (isRtl ? "تأكيد الرمز والمتابعة" : "Verify and continue")}</button>
           <button type="button" onClick={() => void resend()} disabled={secondsLeft > 0 || resending} className="mt-3 min-h-11 w-full text-sm font-medium text-gold disabled:text-white/30">{resending ? (isRtl ? "جارٍ الإرسال..." : "Sending...") : secondsLeft > 0 ? (isRtl ? `إعادة الإرسال خلال ${secondsLeft} ثانية` : `Resend in ${secondsLeft}s`) : (isRtl ? "إعادة إرسال الرمز" : "Resend code")}</button>
-          <div className="mt-4 rounded-2xl bg-white/[0.035] px-4 py-3 text-xs leading-6 text-white/45">{isRtl ? "لم تجد الرسالة؟ تحقق من Spam / Junk قبل طلب رمز جديد." : "Can't find the email? Check Spam / Junk before requesting a new code."}</div>
+          <div className="mt-4 rounded-2xl bg-white/[0.035] px-4 py-3 text-xs leading-6 text-white/45">{isRtl ? "لم تجد الرسالة؟ تحقق من البريد غير المرغوب فيه قبل طلب رمز جديد." : "Can't find the email? Check Spam / Junk before requesting a new code."}</div>
           <Link href={`/${locale}/join?type=${accountType}`} className="mt-5 block text-center text-sm text-white/55 underline decoration-white/25 underline-offset-4 transition hover:text-white">{isRtl ? "تغيير البريد الإلكتروني" : "Change email address"}</Link>
         </div>
       </section>
