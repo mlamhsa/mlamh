@@ -29,8 +29,13 @@ export default function TalentApprovedCompletionBanner({
   }
 
   return (
-    <div dir={isArabic ? "rtl" : "ltr"} className="w-full px-4 pt-28 sm:px-6 lg:px-8 lg:pt-32">
-      <div className="mx-auto max-w-7xl rounded-[1.75rem] border border-emerald-400/20 bg-emerald-400/[0.045] p-5 sm:flex sm:items-center sm:justify-between sm:gap-5 sm:p-6">
+    <div
+      dir={isArabic ? "rtl" : "ltr"}
+      className={`w-full px-4 pt-28 sm:px-6 lg:px-8 lg:pt-32 ${
+        isArabic ? "xl:pr-[22rem]" : "xl:pl-[22rem]"
+      }`}
+    >
+      <div className="mx-auto max-w-5xl rounded-[1.75rem] border border-emerald-400/20 bg-emerald-400/[0.045] p-5 sm:flex sm:items-center sm:justify-between sm:gap-5 sm:p-6">
         <div className="flex min-w-0 gap-3">
           <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-emerald-400/20 bg-emerald-400/10 text-emerald-300">
             <CheckCircle2 size={20} aria-hidden="true" />
