@@ -12,7 +12,7 @@ import {
   type OwnTalentResidence,
 } from "@/lib/actions/get-own-talent-residence";
 import { NATIONALITIES } from "@/lib/data/nationalities";
-import { TALENT_SIGNUP_COUNTRIES } from "@/lib/data/talent-signup";
+import { GENDER_OPTIONS, TALENT_SIGNUP_COUNTRIES } from "@/lib/data/talent-signup";
 
 const PHYSICAL_MEASUREMENT_FIELDS = [
   "height_cm",
@@ -88,6 +88,40 @@ function buildNationalityOptions(select: HTMLSelectElement) {
   select.replaceChildren(fragment);
   select.value = currentValue;
   select.dataset.globalNationalityOptions = "1";
+}
+
+function buildGenderOptions(select: HTMLSelectElement) {
+  const ar = isArabicPage();
+  const currentValue = select.value;
+  const currentLabel =
+    Array.from(select.options).find((option) => option.value === currentValue)?.textContent?.trim() ||
+    currentValue;
+
+  const fragment = document.createDocumentFragment();
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = ar ? "اختر الجنس" : "Select gender";
+  fragment.appendChild(placeholder);
+
+  for (const gender of GENDER_OPTIONS) {
+    const option = document.createElement("option");
+    option.value = gender.value;
+    option.textContent = ar ? gender.ar : gender.en;
+    fragment.appendChild(option);
+  }
+
+  if (currentValue && !GENDER_OPTIONS.some((gender) => gender.value === currentValue)) {
+    const legacyOption = document.createElement("option");
+    legacyOption.value = currentValue;
+    legacyOption.textContent = ar
+      ? `القيمة الحالية: ${currentLabel}`
+      : `Current value: ${currentLabel}`;
+    fragment.appendChild(legacyOption);
+  }
+
+  select.replaceChildren(fragment);
+  select.value = currentValue;
+  select.dataset.canonicalGenderOptions = "1";
 }
 
 function ensureResidenceCountryContext(
@@ -361,6 +395,11 @@ function enhancePage(residence: OwnTalentResidence | null) {
   );
   if (nationalitySelect && nationalitySelect.dataset.globalNationalityOptions !== "1") {
     buildNationalityOptions(nationalitySelect);
+  }
+
+  const genderSelect = document.querySelector<HTMLSelectElement>('select[name="gender"]');
+  if (genderSelect && genderSelect.dataset.canonicalGenderOptions !== "1") {
+    buildGenderOptions(genderSelect);
   }
 
   const citySelect = document.querySelector<HTMLSelectElement>('select[name="city_slug"]');
