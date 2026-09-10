@@ -46,10 +46,9 @@ export class TalentService extends BaseService {
   }
 
   static async getAdminStats() {
-    // Keep the admin dashboard on the repository's stable public API.
-    // This deliberately avoids relying on private static helpers at runtime,
-    // which can be lost by server bundling/tree-shaking even though TypeScript
-    // resolves the call correctly during build.
+    // Use only the repository's stable public API here. Visibility is a newer
+    // dimension and some deployed database views may not expose it yet, so a
+    // visibility-stat failure must never take the entire admin dashboard down.
     const [
       totalResult,
       publishedResult,
@@ -64,8 +63,18 @@ export class TalentService extends BaseService {
       TalentRepository.getAdminTalents({ page: 1, pageSize: 1, status: "unpublished" }),
       TalentRepository.getAdminTalents({ page: 1, pageSize: 1, status: "active" }),
       TalentRepository.getAdminTalents({ page: 1, pageSize: 1, status: "suspended" }),
-      TalentRepository.getAdminTalents({ page: 1, pageSize: 1, visibility: "public" }),
-      TalentRepository.getAdminTalents({ page: 1, pageSize: 1, visibility: "private" }),
+      TalentRepository.getAdminTalents({ page: 1, pageSize: 1, visibility: "public" }).catch(
+        (error) => {
+          console.error("[TalentService.getAdminStats.publicVisibility]", error);
+          return null;
+        },
+      ),
+      TalentRepository.getAdminTalents({ page: 1, pageSize: 1, visibility: "private" }).catch(
+        (error) => {
+          console.error("[TalentService.getAdminStats.privateVisibility]", error);
+          return null;
+        },
+      ),
     ]);
 
     return {
@@ -74,8 +83,8 @@ export class TalentService extends BaseService {
       unpublished: unpublishedResult.total,
       active: activeResult.total,
       suspended: suspendedResult.total,
-      publicProfiles: publicResult.total,
-      privateProfiles: privateResult.total,
+      publicProfiles: publicResult?.total ?? 0,
+      privateProfiles: privateResult?.total ?? 0,
     };
   }
 
