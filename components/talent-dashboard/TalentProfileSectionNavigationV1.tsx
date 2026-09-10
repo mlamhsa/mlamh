@@ -30,6 +30,10 @@ function ensureFieldAnchor(fieldName: string, id: string) {
   target.classList.add("scroll-mt-32");
 }
 
+function setTextIfChanged(element: HTMLElement, value: string) {
+  if (element.textContent !== value) element.textContent = value;
+}
+
 function upsertNavLink(nav: HTMLElement, href: string, label: string, beforeHref?: string) {
   let link = nav.querySelector<HTMLAnchorElement>(`a[href="${href}"]`);
   if (!link) {
@@ -44,7 +48,7 @@ function upsertNavLink(nav: HTMLElement, href: string, label: string, beforeHref
     if (before) nav.insertBefore(link, before);
     else nav.appendChild(link);
   }
-  link.textContent = label;
+  setTextIfChanged(link, label);
 }
 
 function normalizeNavigation() {
@@ -60,7 +64,7 @@ function normalizeNavigation() {
 
   for (const [id, labels] of Object.entries(SECTION_LABELS)) {
     const link = nav.querySelector<HTMLAnchorElement>(`a[href="#${id}"]`);
-    if (link) link.textContent = ar ? labels.ar : labels.en;
+    if (link) setTextIfChanged(link, ar ? labels.ar : labels.en);
   }
 
   upsertNavLink(nav, "#skills", ar ? "المهارات" : "Skills", "#experience");
@@ -68,7 +72,7 @@ function normalizeNavigation() {
 
   document.querySelectorAll<HTMLElement>("p").forEach((element) => {
     if (element.textContent?.trim() === "Talent Workspace") {
-      element.textContent = "Talent Dashboard";
+      setTextIfChanged(element, "Talent Dashboard");
     }
   });
 }
