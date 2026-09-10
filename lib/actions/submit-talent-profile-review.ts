@@ -7,6 +7,7 @@ import { isValidLocale, type Locale } from "@/lib/i18n";
 import { TalentProfileService } from "@/lib/services/talent/TalentProfileService";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { evaluateTalentFastTrackApproval } from "@/lib/talent/fast-track-approval";
 import { getTalentProfileReviewReadiness } from "@/lib/talent/profile-review-readiness";
 
 type SubmitReviewResult = {
@@ -115,18 +116,21 @@ export async function submitTalentProfileReviewAction(
     };
   }
 
-  const isPublicProfile = String(talent.profile_visibility ?? "").trim().toLowerCase() === "public";
+  const fastTrack = evaluateTalentFastTrackApproval({
+    talent: enrichedTalent,
+    completion,
+  });
+  const shouldAutoApprove = fastTrack.decision === "auto_approve";
+  const isPublicProfile = String(talent.profile_visibility ?? "public").trim().toLowerCase() === "public";
+  const shouldPublishPublicly = shouldAutoApprove && isPublicProfile;
   const submittedAt = new Date().toISOString();
 
-  // Product policy: every new/resubmitted Talent profile requires an explicit
-  // Admin review decision. Readiness only controls whether the profile can be
-  // submitted; it must never grant approval automatically.
   const { error: profileUpdateError } = await adminClient
     .from("profiles")
     .update({
       onboarding_status: "completed",
       onboarding_step: "profile_review",
-      approval_status: "pending",
+      approval_status: shouldAutoApprove ? "approved" : "pending",
       profile_completed_at: submittedAt,
     })
     .eq("id", profile.id)
@@ -145,11 +149,10 @@ export async function submitTalentProfileReviewAction(
   const { error: talentUpdateError } = await adminClient
     .from("talents")
     .update({
-      status: "pending",
-      // Publication is only granted by the Admin approval flow. Private Talent
-      // profiles remain unpublished even after approval.
-      published: false,
-      // verified is a separate paid/verified identity concept, never review approval.
+      status: shouldAutoApprove ? "approved" : "pending",
+      // Privacy is authoritative: approved private talents stay internal and never publish publicly.
+      published: shouldPublishPublicly,
+      // verified is a separate paid/verified identity concept, never automatic approval.
       verified: false,
     })
     .eq("user_id", user.id);
@@ -193,8 +196,10 @@ export async function submitTalentProfileReviewAction(
         primary_role: talent.primary_role,
         city_slug: talent.city_slug,
         profile_visibility: isPublicProfile ? "public" : "private",
-        public_published: false,
-        review_route: "manual_review",
+        public_published: shouldPublishPublicly,
+        review_route: shouldAutoApprove ? "auto_approved" : "manual_review",
+        fast_track_decision: fastTrack.decision,
+        fast_track_reasons: fastTrack.reasons,
         profile_completion: completion,
       },
     });
@@ -209,11 +214,20 @@ export async function submitTalentProfileReviewAction(
   revalidatePath("/admin/talents");
   revalidatePath("/admin/notifications");
 
-  return {
-    success: true,
-    completion,
-    message: isArabic
+  let message: string;
+  if (shouldAutoApprove && isPublicProfile) {
+    message = isArabic
+      ? "تم اعتماد ملفك تلقائيًا وأصبح جاهزًا للظهور في دليل المواهب."
+      : "Your profile was automatically approved and is ready to appear in the talent directory.";
+  } else if (shouldAutoApprove) {
+    message = isArabic
+      ? "تم اعتماد ملفك تلقائيًا. وبحسب اختيارك، سيبقى ملفك خاصًا وغير ظاهر في دليل المواهب العام."
+      : "Your profile was automatically approved. Based on your privacy choice, it will remain private and hidden from the public talent directory.";
+  } else {
+    message = isArabic
       ? "تم إرسال ملفك للمراجعة بنجاح."
-      : "Your profile has been submitted for review.",
-  };
+      : "Your profile has been submitted for review.";
+  }
+
+  return { success: true, completion, message };
 }
