@@ -36,6 +36,8 @@ type DashboardCounts = {
 
 type DashboardCountsResponse = Partial<DashboardCounts> & {
   publisherId?: string | number | null;
+  publisherType?: string | null;
+  workspaceEligible?: boolean;
 };
 
 const EMPTY_COUNTS: DashboardCounts = {
@@ -50,6 +52,7 @@ export default function PublisherShell({ locale, isRtl, children }: Props) {
 
   const [counts, setCounts] = useState<DashboardCounts>(EMPTY_COUNTS);
   const [publisherId, setPublisherId] = useState<string | number | null>(null);
+  const [workspaceEligible, setWorkspaceEligible] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const activeRequestRef = useRef<AbortController | null>(null);
@@ -76,6 +79,7 @@ export default function PublisherShell({ locale, isRtl, children }: Props) {
         if (response.status === 401 || response.status === 403 || response.status === 404) {
           setCounts(EMPTY_COUNTS);
           setPublisherId(null);
+          setWorkspaceEligible(false);
         }
         return;
       }
@@ -84,6 +88,7 @@ export default function PublisherShell({ locale, isRtl, children }: Props) {
       if (controller.signal.aborted) return;
 
       setPublisherId(data.publisherId ?? null);
+      setWorkspaceEligible(data.workspaceEligible === true);
       setCounts({
         applicants: typeof data.applicants === "number" ? Math.max(0, data.applicants) : 0,
         messages: typeof data.messages === "number" ? Math.max(0, data.messages) : 0,
@@ -155,7 +160,9 @@ export default function PublisherShell({ locale, isRtl, children }: Props) {
   const items = [
     { href: dashboardHref, label: isRtl ? "الرئيسية" : "Dashboard", icon: <LayoutDashboard size={18} />, exact: true, badge: 0 },
     { href: `${dashboardHref}/opportunities`, label: isRtl ? "الفرص" : "Opportunities", icon: <BriefcaseBusiness size={18} />, badge: 0 },
-    { href: `${dashboardHref}/workspace`, label: isRtl ? "مساحة العمل" : "Workspace", icon: <LayoutTemplate size={18} />, badge: 0 },
+    ...(workspaceEligible
+      ? [{ href: `${dashboardHref}/workspace`, label: isRtl ? "مساحة العمل" : "Workspace", icon: <LayoutTemplate size={18} />, badge: 0 }]
+      : []),
     { href: `${dashboardHref}/applicants`, label: isRtl ? "المتقدمون" : "Applicants", icon: <UsersRound size={18} />, badge: counts.applicants },
     { href: `${dashboardHref}/featured`, label: isRtl ? "التمييز" : "Featured", icon: <Sparkles size={18} />, badge: 0 },
     { href: `${dashboardHref}/messages`, label: isRtl ? "الرسائل" : "Messages", icon: <MessageSquare size={18} />, badge: counts.messages },
@@ -170,6 +177,7 @@ export default function PublisherShell({ locale, isRtl, children }: Props) {
     activeRequestRef.current?.abort();
     setCounts(EMPTY_COUNTS);
     setPublisherId(null);
+    setWorkspaceEligible(false);
 
     const { error } = await supabase.auth.signOut();
     if (error) {
