@@ -36,7 +36,7 @@ function destinationForExistingAccount(locale: Locale, accountType: AccountType)
 function accountCopy(accountType: AccountType, isRtl: boolean) {
   if (accountType === "publisher") {
     return {
-      eyebrow: isRtl ? "الخطوة الثانية" : "STEP TWO",
+      eyebrow: isRtl ? "إنشاء الحساب" : "CREATE ACCOUNT",
       title: isRtl ? "إنشاء حساب الباحث عن مواهب" : "Create your talent-seeker account",
       body: isRtl
         ? "سواء كنت جهة أو فردًا، أنشئ حسابك أولًا ثم نكمل إعداد حساب الناشر خطوة بخطوة."
@@ -45,11 +45,11 @@ function accountCopy(accountType: AccountType, isRtl: boolean) {
   }
 
   return {
-    eyebrow: isRtl ? "الخطوة الثانية" : "STEP TWO",
+    eyebrow: isRtl ? "إنشاء الحساب" : "CREATE ACCOUNT",
     title: isRtl ? "إنشاء حساب الموهبة" : "Create your talent account",
     body: isRtl
-      ? "إذا اخترت البريد الإلكتروني ستدخل بياناتك الأساسية هنا. وإذا اخترت Google أو Apple سنستخدم البيانات المتوفرة ونطلب منك فقط المعلومات الضرورية الناقصة."
-      : "With email, enter your essential information here. With Google or Apple, we’ll use the information already available and ask only for required missing details.",
+      ? "سجّل بالبريد الإلكتروني أو استخدم Google أو Apple، وسنطلب فقط البيانات الضرورية لإكمال حسابك."
+      : "Continue with email, Google or Apple. We’ll only ask for the required information needed to complete your account.",
   };
 }
 
@@ -109,14 +109,9 @@ export default async function JoinPage({ params, searchParams }: PageProps) {
               </Link>
 
               <div className="mb-7 text-center">
-                <div className="mb-6 flex items-center justify-center gap-2">
-                  <span className="h-1.5 w-8 rounded-full bg-gold" />
-                  <span className="h-1.5 w-8 rounded-full bg-gold" />
-                  <span className="h-1.5 w-8 rounded-full bg-white/10" />
-                </div>
                 <p className="arabic-safe text-xs uppercase tracking-[0.3em] text-gold">{selectedCopy.eyebrow}</p>
-                <h1 className="mt-4 text-3xl font-light leading-tight sm:text-4xl">{selectedCopy.title}</h1>
-                <p className="mt-3 text-sm leading-7 text-white/45">{selectedCopy.body}</p>
+                <h1 className="mt-3 text-3xl font-light leading-tight sm:text-4xl">{selectedCopy.title}</h1>
+                <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-white/45">{selectedCopy.body}</p>
               </div>
 
               <GoogleSignupButton
@@ -182,7 +177,7 @@ function AudienceSelection({ locale, isRtl }: { locale: Locale; isRtl: boolean }
           eyebrow={isRtl ? "للمواهب" : "FOR TALENT"}
           title={isRtl ? "أنا موهبة" : "I’m talent"}
           description={isRtl ? "أنشئ حضورك المهني في ملامح، ثم اكتشف الفرص المناسبة وقدم عليها." : "Build your professional presence on MLAMH, discover relevant opportunities and apply."}
-          benefits={isRtl ? ["ملف مهني وPortfolio", "فرص مناسبة لتخصصك", "التقديم والمتابعة من مكان واحد"] : ["Professional profile & portfolio", "Opportunities matched to your craft", "Apply and track in one place"]}
+          benefits={isRtl ? ["ملف مهني ومعرض أعمال", "فرص مناسبة لتخصصك", "التقديم والمتابعة من مكان واحد"] : ["Professional profile & portfolio", "Opportunities matched to your craft", "Apply and track in one place"]}
           actionLabel={isRtl ? "ابدأ كموهبة" : "Start as talent"}
           featured
         />
