@@ -27,6 +27,9 @@ export default async function TalentDashboardLayout({
   let talentId: string | number | null = null;
   let approvalStatus: string | null = null;
   let profileStrength = 0;
+  let totalApplications = 0;
+  let notificationCount = 0;
+  let unreadMessagesCount = 0;
 
   if (user) {
     const [talentResult, profileResult] = await Promise.all([
@@ -44,6 +47,37 @@ export default async function TalentDashboardLayout({
     profileStrength = talentResult.data
       ? calculateProfileCompletion(talentResult.data as never)
       : 0;
+
+    if (talentId !== null) {
+      const id = String(talentId);
+      const [applicationsResult, notificationsResult, conversationsResult] = await Promise.all([
+        supabase
+          .from("opportunity_applications")
+          .select("id", { count: "exact", head: true })
+          .eq("talent_id", id),
+        supabase
+          .from("notifications")
+          .select("id", { count: "exact", head: true })
+          .eq("recipient_type", "talent")
+          .eq("recipient_id", id)
+          .eq("is_read", false),
+        supabase.from("conversations").select("id").eq("talent_id", id),
+      ]);
+
+      totalApplications = applicationsResult.count ?? 0;
+      notificationCount = notificationsResult.count ?? 0;
+      const conversationIds = (conversationsResult.data ?? []).map((item) => item.id);
+
+      if (conversationIds.length > 0) {
+        const unreadMessagesResult = await supabase
+          .from("messages")
+          .select("id", { count: "exact", head: true })
+          .in("conversation_id", conversationIds)
+          .neq("sender_user_id", user.id)
+          .is("read_at", null);
+        unreadMessagesCount = unreadMessagesResult.count ?? 0;
+      }
+    }
   }
 
   return (
@@ -65,7 +99,14 @@ export default async function TalentDashboardLayout({
         />
       ) : null}
       {user ? <TalentConsentCompletionCard locale={locale} /> : null}
-      <TalentDashboardShell locale={locale}>{children}</TalentDashboardShell>
+      <TalentDashboardShell
+        locale={locale}
+        totalApplications={totalApplications}
+        notificationCount={notificationCount}
+        unreadMessagesCount={unreadMessagesCount}
+      >
+        {children}
+      </TalentDashboardShell>
     </>
   );
 }
