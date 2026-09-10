@@ -4,7 +4,6 @@ import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 
 const MAX_PROFILE_SIZE = 5 * 1024 * 1024;
-
 const ALLOWED_IMAGE_TYPES = new Set([
   "image/jpeg",
   "image/png",
@@ -14,10 +13,12 @@ const ALLOWED_IMAGE_TYPES = new Set([
 export default function PublisherImageUploadFields({
   isRtl,
   currentProfileImageUrl,
+  isIndividual = false,
 }: {
   isRtl: boolean;
   currentProfileImageUrl?: string | null;
   currentCoverImageUrl?: string | null;
+  isIndividual?: boolean;
 }) {
   const [profileFile, setProfileFile] = useState<File | null>(null);
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -35,19 +36,28 @@ export default function PublisherImageUploadFields({
     };
   }, [profileObjectUrl]);
 
-  const profilePreviewUrl =
-    profileObjectUrl ?? currentProfileImageUrl ?? null;
+  const previewUrl = profileObjectUrl ?? currentProfileImageUrl ?? null;
 
   return (
     <section className="rounded-[2rem] border border-white/[0.07] bg-white/[0.018] p-5 sm:p-6 md:p-8">
       <div className="mb-6">
         <p className="text-sm font-medium text-gold">
-          {isRtl ? "شعار الجهة" : "Organization Logo"}
+          {isIndividual
+            ? isRtl
+              ? "الصورة أو شعار النشاط"
+              : "Photo or Business Logo"
+            : isRtl
+              ? "شعار الجهة"
+              : "Organization Logo"}
         </p>
         <p className="mt-2 text-sm leading-6 text-white/40">
-          {isRtl
-            ? "أضف شعارًا واضحًا للجهة. سيظهر في ملف الجهة والفرص المنشورة."
-            : "Add a clear organization logo. It will appear on the organization profile and published opportunities."}
+          {isIndividual
+            ? isRtl
+              ? "اختياري. أضف صورة شخصية أو شعار نشاطك إذا كان لديك متجر أو صالون أو مشروع صغير."
+              : "Optional. Add a personal photo or business logo if you run a shop, salon, or small business."
+            : isRtl
+              ? "استخدم شعارًا واضحًا ومربعًا ليظهر بشكل احترافي في ملف الجهة والفرص."
+              : "Use a clear square logo for a professional appearance across your profile and opportunities."}
         </p>
       </div>
 
@@ -56,13 +66,21 @@ export default function PublisherImageUploadFields({
           htmlFor="profile-image"
           className="group relative flex h-32 w-32 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-[1.75rem] border border-dashed border-gold/25 bg-gold/[0.025] transition hover:border-gold/50 sm:h-36 sm:w-36"
         >
-          {profilePreviewUrl ? (
+          {previewUrl ? (
             <>
               <Image
-                src={profilePreviewUrl}
-                alt={isRtl ? "معاينة شعار الجهة" : "Organization logo preview"}
+                src={previewUrl}
+                alt={
+                  isIndividual
+                    ? isRtl
+                      ? "معاينة الصورة"
+                      : "Image preview"
+                    : isRtl
+                      ? "معاينة شعار الجهة"
+                      : "Organization logo preview"
+                }
                 fill
-                unoptimized={profilePreviewUrl.startsWith("blob:")}
+                unoptimized={previewUrl.startsWith("blob:")}
                 sizes="144px"
                 className="object-cover"
               />
@@ -78,7 +96,13 @@ export default function PublisherImageUploadFields({
                 +
               </div>
               <p className="mt-2 text-xs text-white/45">
-                {isRtl ? "إضافة شعار" : "Add Logo"}
+                {isIndividual
+                  ? isRtl
+                    ? "إضافة صورة"
+                    : "Add Image"
+                  : isRtl
+                    ? "إضافة شعار"
+                    : "Add Logo"}
               </p>
             </div>
           )}
@@ -89,19 +113,19 @@ export default function PublisherImageUploadFields({
             htmlFor="profile-image"
             className="inline-flex min-h-11 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-white/[0.035] px-5 text-sm text-white/65 transition hover:border-gold/30 hover:text-gold"
           >
-            {profilePreviewUrl
+            {previewUrl
               ? isRtl
-                ? "تغيير الشعار"
-                : "Change Logo"
+                ? "تغيير الصورة"
+                : "Change Image"
               : isRtl
-                ? "اختيار شعار"
-                : "Choose Logo"}
+                ? "اختيار صورة"
+                : "Choose Image"}
           </label>
 
           <p className="mt-3 max-w-md text-xs leading-6 text-white/35">
             {isRtl
-              ? "يفضل صورة مربعة 800×800 بصيغة JPG أو PNG أو WEBP. يتم الحفظ عند الضغط على زر حفظ التغييرات."
-              : "A square 800×800 JPG, PNG or WEBP image is recommended. It is saved when you press Save Changes."}
+              ? "JPG أو PNG أو WEBP — بحد أقصى 5 ميجابايت. تُحفظ الصورة عند الضغط على «حفظ التغييرات»."
+              : "JPG, PNG or WEBP — up to 5 MB. The image is saved when you press “Save Changes”."}
           </p>
         </div>
       </div>
@@ -114,7 +138,6 @@ export default function PublisherImageUploadFields({
         onChange={(event) => {
           const input = event.currentTarget;
           const file = input.files?.[0] ?? null;
-
           setProfileError(null);
 
           if (!file) {
@@ -137,8 +160,8 @@ export default function PublisherImageUploadFields({
             setProfileFile(null);
             setProfileError(
               isRtl
-                ? "حجم الشعار يجب ألا يتجاوز 5 ميجابايت."
-                : "Logo must not exceed 5 MB.",
+                ? "حجم الصورة يجب ألا يتجاوز 5 ميجابايت."
+                : "Image must not exceed 5 MB.",
             );
             input.value = "";
             return;
@@ -150,9 +173,7 @@ export default function PublisherImageUploadFields({
       />
 
       {profileError ? (
-        <p className="mt-3 text-xs leading-6 text-red-300">
-          {profileError}
-        </p>
+        <p className="mt-3 text-xs leading-6 text-red-300">{profileError}</p>
       ) : null}
     </section>
   );
