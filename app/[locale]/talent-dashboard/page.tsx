@@ -1,32 +1,25 @@
 import TalentSidebar from "@/components/talent/TalentSidebar";
 import TalentHeader from "@/components/talent/TalentHeader";
-import TalentProfileCard from "@/components/talent/TalentProfileCard";
-import TalentApplications from "@/components/talent/TalentApplications";
-import DashboardApplicationStats from "@/components/talent/dashboard/DashboardApplicationStats";
-import DashboardQuickActions from "@/components/talent/dashboard/DashboardQuickActions";
-import DashboardProfileReadiness from "@/components/talent/dashboard/DashboardProfileReadiness";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireTalent } from "@/lib/auth/require-talent";
-import DashboardMessagesCard from "@/components/talent/dashboard/DashboardMessagesCard";
-import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { calculateProfileCompletion } from "@/lib/utils/profile-completion";
 import { getTalentProfileReadiness } from "@/lib/talent/profile-review-readiness";
 import { submitTalentProfileReviewAction } from "@/lib/actions/submit-talent-profile-review";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 type PageProps = {
   params: Promise<{ locale: string }>;
 };
 
-const APPLICATION_STATUSES = [
-  "pending",
-  "reviewing",
-  "shortlisted",
-  "accepted",
-  "rejected",
-] as const;
+type WorkflowState =
+  | "not_submitted"
+  | "pending"
+  | "changes_requested"
+  | "approved"
+  | "rejected";
 
-function normalizeStatus(status?: string | null) {
+function normalizeApplicationStatus(status?: string | null) {
   if (
     status === "reviewing" ||
     status === "shortlisted" ||
@@ -35,661 +28,244 @@ function normalizeStatus(status?: string | null) {
   ) {
     return status;
   }
-
   return "pending";
 }
 
-function availabilityLabel(status?: string | null, isRtl = false) {
-  if (status === "available_now") {
-    return isRtl ? "متاح حالياً" : "Available now";
-  }
-
-  if (status === "available_this_week") {
-    return isRtl
-      ? "متاح هذا الأسبوع"
-      : "Available this week";
-  }
-
-  if (status === "available_next_month") {
-    return isRtl
-      ? "متاح الشهر القادم"
-      : "Available next month";
-  }
-
-  if (status === "available") {
-    return isRtl ? "متاح" : "Available";
-  }
-
-  if (status === "busy") {
-    return isRtl ? "مشغول" : "Busy";
-  }
-
-  if (status === "unavailable") {
-    return isRtl ? "غير متاح" : "Unavailable";
-  }
-
-  return status ? status.replaceAll("_", " ") : "-";
-}
-
-export default async function TalentDashboardPage({
-  params,
-}: PageProps) {
+export default async function TalentDashboardPage({ params }: PageProps) {
   const { locale } = await params;
   const isRtl = locale === "ar";
   const adminClient = createAdminClient();
+  const { user, profile, talent } = await requireTalent(locale);
 
-  const {
-    user,
-    profile,
-    talent,
-  } = await requireTalent(locale);
-  
   if (!talent) {
     return (
-      <main
-        dir={isRtl ? "rtl" : "ltr"}
-        className="min-h-screen bg-black text-white"
-      >
-        <div className="mx-auto flex min-h-screen max-w-3xl flex-col items-center justify-center px-6 text-center">
-  
-          <div className="mb-8 flex h-20 w-20 items-center justify-center rounded-full border border-gold/30 bg-gold/10">
-            <span className="text-3xl">📋</span>
-          </div>
-  
-          <p className="arabic-safe text-xs uppercase tracking-[0.35em] text-gold">
-            {isRtl ? "ملف الموهبة" : "Talent Profile"}
+      <main dir={isRtl ? "rtl" : "ltr"} className="min-h-screen bg-black text-white">
+        <div className="mx-auto flex min-h-[70vh] max-w-2xl flex-col items-center justify-center px-6 text-center">
+          <p className="text-xs uppercase tracking-[0.3em] text-gold">
+            {isRtl ? "ملف الموهبة" : "Talent profile"}
           </p>
-  
-          <h1 className="mt-5 text-4xl font-light">
-            {isRtl
-              ? "ملفك غير مكتمل"
-              : "Your profile is incomplete"}
+          <h1 className="mt-4 text-3xl font-light sm:text-4xl">
+            {isRtl ? "ابدأ بإكمال ملفك" : "Start by completing your profile"}
           </h1>
-  
-          <p className="mt-5 max-w-xl text-sm leading-8 text-white/60">
+          <p className="mt-4 max-w-xl text-sm leading-7 text-white/55">
             {isRtl
-              ? "تم إنشاء حسابك بنجاح. أكمل البيانات الأساسية لتتمكن من التقديم على الفرص."
-              : "Your account has been created successfully. Complete the required information to start applying for opportunities."}
+              ? "أكمل البيانات الأساسية والصورة الشخصية حتى يصبح ملفك جاهزًا للمراجعة."
+              : "Complete your core details and profile photo to get your profile ready for review."}
           </p>
-  
-          <div className="mt-10 flex flex-col gap-4 sm:flex-row">
-  
-            <a
-              href={`/${locale}/talent-dashboard/profile`}
-              className="rounded-2xl bg-gold px-8 py-4 text-black transition hover:opacity-90"
-            >
-              {isRtl
-                ? "إكمال الملف"
-                : "Complete Profile"}
-            </a>
-  
-          </div>
-  
+          <a
+            href={`/${locale}/talent-dashboard/profile`}
+            className="mt-7 inline-flex min-h-12 items-center justify-center rounded-2xl bg-gold px-7 text-sm font-semibold text-black"
+          >
+            {isRtl ? "إكمال الملف" : "Complete profile"}
+          </a>
         </div>
       </main>
     );
   }
 
-  const {
-    data: talentConversations,
-    error: talentConversationsError,
-  } = await adminClient
-    .from("conversations")
-    .select("id, application_id, updated_at, status")
-    .eq("talent_id", talent.id)
-    .order("updated_at", { ascending: false });
-
-  if (talentConversationsError) {
-    console.error("Talent dashboard conversations error:", {
-      message: talentConversationsError.message,
-      details: talentConversationsError.details,
-      hint: talentConversationsError.hint,
-      code: talentConversationsError.code,
-    });
-  }
-
-  const conversations = talentConversations ?? [];
-  const conversationIds = conversations.map(
-    (conversation) => conversation.id
-  );
-
-  const {
-    data: unreadMessages,
-    error: unreadMessagesError,
-  } =
-    conversationIds.length > 0
-      ? await adminClient
-          .from("messages")
-          .select("id, conversation_id")
-          .in("conversation_id", conversationIds)
-          .neq("sender_user_id", user.id)
-          .is("read_at", null)
-      : {
-          data: [],
-          error: null,
-        };
-
-  if (unreadMessagesError) {
-    console.error("Talent dashboard unread messages error:", {
-      message: unreadMessagesError.message,
-      details: unreadMessagesError.details,
-      hint: unreadMessagesError.hint,
-      code: unreadMessagesError.code,
-    });
-  }
-
-  const unreadMessagesCount = unreadMessages?.length ?? 0;
-  const totalConversations = conversations.length;
-  const conversationByApplicationId = new Map(
-    conversations
-      .filter((conversation) => conversation.application_id != null)
-      .map((conversation) => [
-        String(conversation.application_id),
-        conversation.id,
-      ]),
-  );
-
-  const {
-    data: unreadNotifications,
-    error: unreadNotificationsError,
-  } = await adminClient
-    .from("notifications")
-    .select("id, title, body, is_read, created_at")
-    .eq("recipient_type", "talent")
-    .eq("recipient_id", String(talent.id))
-    .eq("is_read", false)
-    .order("created_at", { ascending: false })
-    .limit(5);
-
-  if (unreadNotificationsError) {
-    console.error(
-      "Talent dashboard notifications error:",
-      unreadNotificationsError
-    );
-  }
-
-  const unreadNotificationsCount =
-    unreadNotifications?.length ?? 0;
-
-  const {
-    data: pendingProfileChangeRequest,
-    error: pendingProfileChangeRequestError,
-  } = await adminClient
-    .from("talent_profile_change_requests")
-    .select(`
-      id,
-      requested_name_ar,
-      requested_name_en,
-      requested_phone,
-      requested_nationality_slug,
-      created_at
-    `)
-    .eq("talent_id", talent.id)
-    .eq("user_id", user.id)
-    .eq("status", "pending")
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  
-  if (pendingProfileChangeRequestError) {
-    console.error(
-      "Talent dashboard pending profile change request error:",
-      pendingProfileChangeRequestError,
-    );
-  }
-  
-  const hasPendingProfileChange =
-    Boolean(pendingProfileChangeRequest);
-
-  const {
-    data: latestReviewDecision,
-    error: latestReviewDecisionError,
-  } = await adminClient
-    .from("profile_review_history")
-    .select(`
-      id,
-      decision,
-      reason,
-      created_at
-    `)
-    .eq("profile_id", profile.id)
-    .eq("account_type", "talent")
-    .eq("decision", "changes_requested")
-    .order("created_at", {
-      ascending: false,
-    })
-    .limit(1)
-    .maybeSingle();
-      
-  if (latestReviewDecisionError) {
-    console.error(
-      "Talent dashboard review decision error:",
-      latestReviewDecisionError,
-    );
-  }
-      
-  const reviewChangeReason =
-    String(
-      latestReviewDecision?.reason ?? "",
-    ).trim();
-
-  const { data: applications, error: applicationsError } =
-    await adminClient
+  const [applicationsResult, savedResult, conversationsResult, notificationsResult] = await Promise.all([
+    adminClient
       .from("opportunity_applications")
-      .select(`
-        id,
-        status,
-        created_at,
-        opportunity_id,
-        opportunities (
-          id,
-          title,
-          city_ar,
-          city_en,
-          opportunity_type,
-          status,
-          created_at
-        )
-      `)
+      .select("id, status, created_at")
       .eq("talent_id", talent.id)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false }),
+    adminClient
+      .from("saved_opportunities")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id),
+    adminClient
+      .from("conversations")
+      .select("id")
+      .eq("talent_id", talent.id),
+    adminClient
+      .from("notifications")
+      .select("id", { count: "exact", head: true })
+      .eq("recipient_type", "talent")
+      .eq("recipient_id", String(talent.id))
+      .eq("is_read", false),
+  ]);
 
-  if (applicationsError) {
-    console.error(
-      "Talent dashboard applications error:",
-      applicationsError
-    );
+  const applications = applicationsResult.data ?? [];
+  const totalApplications = applications.length;
+  const savedCount = savedResult.count ?? 0;
+  const unreadNotificationsCount = notificationsResult.count ?? 0;
+  const conversationIds = (conversationsResult.data ?? []).map((item) => item.id);
+
+  let unreadMessagesCount = 0;
+  if (conversationIds.length > 0) {
+    const unreadMessagesResult = await adminClient
+      .from("messages")
+      .select("id", { count: "exact", head: true })
+      .in("conversation_id", conversationIds)
+      .neq("sender_user_id", user.id)
+      .is("read_at", null);
+    unreadMessagesCount = unreadMessagesResult.count ?? 0;
   }
 
-  const allApplications = applications ?? [];
-  const totalApplications = allApplications.length;
-
-  const counts = APPLICATION_STATUSES.reduce<Record<string, number>>(
-    (accumulator, status) => {
-      accumulator[status] = allApplications.filter(
-        (application: { status: string | null }) =>
-          normalizeStatus(application.status) === status
-      ).length;
-
-      return accumulator;
+  const counts = applications.reduce(
+    (acc, application) => {
+      const status = normalizeApplicationStatus(application.status);
+      acc[status] += 1;
+      return acc;
     },
-    {}
+    { pending: 0, reviewing: 0, shortlisted: 0, accepted: 0, rejected: 0 } as Record<string, number>,
   );
 
-  const recentApplications = allApplications.slice(0, 5).map((application) => ({
-    ...application,
-    conversationId:
-      conversationByApplicationId.get(String(application.id)) ?? null,
-  }));
+  const profileCompletion = calculateProfileCompletion(talent);
+  const readinessTalent = {
+    ...talent,
+    phone: String(profile.phone ?? "").trim(),
+    data_accuracy_contact_consent: profile.data_accuracy_contact_consent === true,
+  };
+  const profileReadiness = getTalentProfileReadiness(readinessTalent);
+  const missingRequirements = profileReadiness.requirements.filter((requirement) => !requirement.completed);
+  const incompleteItems = missingRequirements.length;
+  const readinessPercent = Math.round(
+    ((profileReadiness.requirements.length - incompleteItems) / Math.max(profileReadiness.requirements.length, 1)) * 100,
+  );
 
-  const {
-    data: savedOpportunities,
-    error: savedOpportunitiesError,
-  } = await adminClient
-    .from("saved_opportunities")
-    .select(`
-      id,
-      created_at,
-      opportunity_id,
-      opportunities (
-        id,
-        title,
-        city_ar,
-        city_en,
-        opportunity_type,
-        status,
-        created_at
-      )
-    `)
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false });
-  
-  if (savedOpportunitiesError) {
-    console.error(
-      "Talent dashboard saved opportunities error:",
-      savedOpportunitiesError
-    );
-  }
-  
-  const savedOpportunityItems = savedOpportunities ?? [];
-
-  async function removeSavedOpportunity(formData: FormData) {
-    "use server";
-  
-    const opportunityId = String(
-      formData.get("opportunityId") ?? ""
-    );
-  
-    if (!opportunityId) {
-      return;
-    }
-  
-    const {
-      user: currentUser,
-    } = await requireTalent(locale);
-  
-    const currentAdminClient = createAdminClient();
-  
-    const { error } = await currentAdminClient
-      .from("saved_opportunities")
-      .delete()
-      .eq("user_id", currentUser.id)
-      .eq("opportunity_id", opportunityId);
-  
-    if (error) {
-      console.error(
-        "Talent dashboard remove saved opportunity error:",
-        error
-      );
-    }
-  
-    revalidatePath(`/${locale}/talent-dashboard`);
-  }
+  const rawApprovalStatus = profile.approval_status ?? "not_submitted";
+  const workflowState: WorkflowState =
+    rawApprovalStatus === "approved"
+      ? "approved"
+      : rawApprovalStatus === "pending" || rawApprovalStatus === "submitted"
+        ? "pending"
+        : rawApprovalStatus === "changes_requested"
+          ? "changes_requested"
+          : rawApprovalStatus === "rejected"
+            ? "rejected"
+            : "not_submitted";
 
   const talentName =
     locale === "ar"
       ? talent.name_ar ?? talent.name_en ?? "موهبة"
       : talent.name_en ?? talent.name_ar ?? "Talent";
 
-  const talentCity =
-    locale === "ar"
-      ? talent.city_ar ?? talent.city_en ?? "-"
-      : talent.city_en ?? talent.city_ar ?? "-";
-
-  const profileCompletion =
-    calculateProfileCompletion(talent);
-    
-  const readinessTalent = {
-    ...talent,
-    
-    name_ar:
-      String(talent.name_ar ?? "").trim() ||
-      String(
-        pendingProfileChangeRequest?.requested_name_ar ?? "",
-      ).trim(),
-    
-    name_en:
-      String(talent.name_en ?? "").trim() ||
-      String(
-        pendingProfileChangeRequest?.requested_name_en ?? "",
-      ).trim(),
-    
-    phone:
-      String(profile.phone ?? "").trim() ||
-      String(
-        pendingProfileChangeRequest?.requested_phone ?? "",
-      ).trim(),
-    
-    nationality_slug:
-      String(talent.nationality_slug ?? "").trim() ||
-      String(
-        pendingProfileChangeRequest?.requested_nationality_slug ?? "",
-      ).trim(),
-
-    data_accuracy_contact_consent:
-      profile.data_accuracy_contact_consent === true,
-  };
-    
-  const profileReadiness =
-    getTalentProfileReadiness(readinessTalent);
-
-  // Approval readiness is controlled only by the canonical hard gates.
-  // Profile-strength percentage is separate and must never block submission.
-  const isProfileReady = profileReadiness.isReady;
-
-  const completionChecklist =
-    profileReadiness.requirements.map(
-      (requirement) => ({
-        label: isRtl
-          ? requirement.ar
-          : requirement.en,
-        done: requirement.completed,
-      }),
-    );
-
-  const profileStatus = isProfileReady
-    ? isRtl
-      ? "جاهز"
-      : "Ready"
-    : isRtl
-      ? "غير مكتمل"
-      : "Incomplete";
-
-  const availabilityStatus = availabilityLabel(
-    talent.availability_status,
-    isRtl
-  );
-
-  const reviewingCount = counts.reviewing ?? 0;
-  const acceptedCount = counts.accepted ?? 0;
-  const shortlistedCount = counts.shortlisted ?? 0;
-
-  const incompleteItems = completionChecklist.filter(
-    (item) => !item.done
-  ).length;
-
-  const notificationItems = [
-    ...(unreadNotifications ?? []).map((notification) =>
-      String(
-        notification.body ??
-          notification.title ??
-          ""
-      ).trim()
-    ),
-  
-    acceptedCount > 0
-      ? isRtl
-        ? `لديك ${acceptedCount} طلب مقبول.`
-        : `You have ${acceptedCount} accepted application(s).`
-      : null,
-  
-    shortlistedCount > 0
-      ? isRtl
-        ? `تمت إضافة ${shortlistedCount} طلب إلى القائمة المختصرة.`
-        : `${shortlistedCount} application(s) were shortlisted.`
-      : null,
-  
-    reviewingCount > 0
-      ? isRtl
-        ? `${reviewingCount} طلب قيد المراجعة حالياً.`
-        : `${reviewingCount} application(s) are currently under review.`
-      : null,
-  
-    unreadMessagesCount > 0
-      ? isRtl
-        ? `لديك ${unreadMessagesCount} رسالة غير مقروءة.`
-        : `You have ${unreadMessagesCount} unread message(s).`
-      : null,
-  
-    incompleteItems > 0
-      ? isRtl
-        ? `أكمل ${incompleteItems} من متطلبات الاعتماد المتبقية.`
-        : `Complete ${incompleteItems} remaining approval requirement(s).`
-      : null,
-  ].filter(Boolean) as string[];
-
-  const approvalStatus =
-    profile.approval_status ?? "not_submitted";
-
-  const workflowState:
-    | "not_submitted"
-    | "pending"
-    | "changes_requested"
-    | "approved"
-    | "rejected" =
-    approvalStatus === "approved"
-      ? "approved"
-      : approvalStatus === "pending" ||
-          approvalStatus === "submitted"
-        ? "pending"
-        : approvalStatus === "changes_requested"
-          ? "changes_requested"
-          : approvalStatus === "rejected"
-            ? "rejected"
-            : "not_submitted";
-
-  const workflowContent = {
-    not_submitted: {
-      title: isProfileReady
-        ? isRtl
-          ? "ملفك جاهز للمراجعة"
-          : "Your profile is ready for review"
-        : isRtl
-          ? "أكمل ملفك قبل إرساله للمراجعة"
-          : "Complete your profile before review",
-  
-      description: isProfileReady
-        ? isRtl
-          ? "يمكنك إرسال ملفك الآن إلى فريق ملامح لمراجعته واعتماده."
-          : "You can now submit your profile to the MLAMH team for review and approval."
-        : isRtl
-          ? "أكمل البيانات المطلوبة المعلّمة بنجمة ⭐ قبل إرسال ملفك للمراجعة. نسبة قوة الملف لا تمنع الإرسال."
-          : "Complete the required fields marked with ⭐ before submitting your profile. Profile strength does not block submission.",
-  
-      actionLabel: isProfileReady
-        ? isRtl
-          ? "إرسال الملف للمراجعة"
-          : "Submit for review"
-        : isRtl
-          ? "إكمال الملف"
-          : "Complete profile",
-  
-      actionHref: isProfileReady
-        ? null
-        : `/${locale}/talent-dashboard/profile`,
-  
-      badge: isProfileReady
-        ? isRtl
-          ? "جاهز للإرسال"
-          : "Ready to submit"
-        : isRtl
-          ? `${incompleteItems} متطلبات ناقصة`
-          : `${incompleteItems} requirement(s) missing`,
-  
-      badgeClass: isProfileReady
-        ? "border-gold/25 bg-gold/10 text-gold"
-        : "border-white/10 bg-white/[0.04] text-white/55",
-  
-      cardClass: isProfileReady
-        ? "border-gold/15 bg-gold/[0.045]"
-        : "border-white/10 bg-white/[0.025]",
-  
-      actionType: isProfileReady
-        ? ("submit" as const)
-        : ("link" as const),
-    },
+  const workflow = {
+    not_submitted: profileReadiness.isReady
+      ? {
+          eyebrow: isRtl ? "جاهز للمراجعة" : "Ready for review",
+          title: isRtl ? "ملفك جاهز للإرسال" : "Your profile is ready to submit",
+          description: isRtl
+            ? "اكتملت المتطلبات الأساسية. أرسل ملفك الآن ليتم مراجعته واعتماده."
+            : "Your required details are complete. Submit your profile now for review and approval.",
+          action: isRtl ? "إرسال للمراجعة" : "Submit for review",
+          href: null,
+          submit: true,
+          tone: "border-emerald-400/20 bg-emerald-400/[0.045]",
+          badge: "border-emerald-400/25 bg-emerald-400/10 text-emerald-300",
+        }
+      : {
+          eyebrow: isRtl ? "خطوتك التالية" : "Your next step",
+          title: isRtl
+            ? incompleteItems === 1
+              ? "باقي خطوة واحدة لإرسال ملفك"
+              : `باقي ${incompleteItems} خطوات لإرسال ملفك`
+            : incompleteItems === 1
+              ? "One step left to submit your profile"
+              : `${incompleteItems} steps left to submit your profile`,
+          description: isRtl
+            ? "أكمل فقط المتطلبات الأساسية المتبقية. البيانات المهنية الإضافية اختيارية."
+            : "Complete only the remaining required items. Extra professional details are optional.",
+          action: isRtl ? "إكمال الملف" : "Complete profile",
+          href: `/${locale}/talent-dashboard/profile`,
+          submit: false,
+          tone: "border-gold/20 bg-gold/[0.045]",
+          badge: "border-gold/25 bg-gold/10 text-gold",
+        },
     pending: {
-      title: isRtl
-        ? "ملفك قيد المراجعة"
-        : "Your profile is under review",
+      eyebrow: isRtl ? "قيد المراجعة" : "Under review",
+      title: isRtl ? "ملفك لدى فريق ملامح" : "Your profile is being reviewed",
       description: isRtl
-        ? "تم إرسال ملفك إلى فريق ملامح للمراجعة والاعتماد. يمكنك في هذه الأثناء استعراض الفرص وحفظ ما يناسبك في المفضلة، وسيتاح لك التقديم بعد اعتماد الملف."
-        : "Your profile has been submitted to the MLAMH team for review and approval. In the meantime, you can browse opportunities and save them to your favorites. Applying will be available once your profile is approved.",
-      actionLabel: null,
-      actionHref: null,
-      badge: isRtl
-        ? "قيد المراجعة"
-        : "Under review",
-      badgeClass:
-        "border-amber-400/25 bg-amber-400/10 text-amber-300",
-      cardClass:
-        "border-amber-400/15 bg-amber-400/[0.045]",
-      actionType: "none" as const,
+        ? "لا تحتاج لاتخاذ أي إجراء الآن. يمكنك استعراض الفرص وحفظ المناسب لك."
+        : "No action is needed right now. You can browse and save opportunities while you wait.",
+      action: isRtl ? "استعراض الفرص" : "Browse opportunities",
+      href: `/${locale}/opportunities`,
+      submit: false,
+      tone: "border-amber-400/20 bg-amber-400/[0.045]",
+      badge: "border-amber-400/25 bg-amber-400/10 text-amber-300",
     },
-
     changes_requested: {
-      title: isRtl
-        ? "مطلوب تعديل الملف"
-        : "Profile changes required",
+      eyebrow: isRtl ? "مطلوب تعديل" : "Changes required",
+      title: isRtl ? "راجع التعديلات المطلوبة" : "Review the requested changes",
       description: isRtl
-        ? "راجع بيانات ملفك وأكمل التعديلات المطلوبة، ثم أعد إرساله للمراجعة."
-        : "Review your profile, complete the requested changes, then submit it again for review.",
-      actionLabel: isRtl
-        ? "تعديل الملف"
-        : "Edit profile",
-      actionHref: `/${locale}/talent-dashboard/profile`,
-      badge: isRtl
-        ? "مطلوب تعديل"
-        : "Changes required",
-      badgeClass:
-        "border-orange-400/25 bg-orange-400/10 text-orange-300",
-      cardClass:
-        "border-orange-400/15 bg-orange-400/[0.045]",
-      actionType: "link" as const,
+        ? "عدّل المطلوب فقط ثم أعد إرسال الملف للمراجعة."
+        : "Update only what was requested, then submit your profile again.",
+      action: isRtl ? "تعديل الملف" : "Edit profile",
+      href: `/${locale}/talent-dashboard/profile`,
+      submit: false,
+      tone: "border-orange-400/20 bg-orange-400/[0.045]",
+      badge: "border-orange-400/25 bg-orange-400/10 text-orange-300",
     },
-
     approved: {
-      title: isRtl
-        ? "ملفك معتمد وجاهز"
-        : "Your profile is approved",
+      eyebrow: isRtl ? "ملف معتمد" : "Approved profile",
+      title: isRtl ? "أنت جاهز للفرص" : "You're ready for opportunities",
       description: isRtl
-        ? "تم اعتماد ملفك، ويمكنك الآن تصفح الفرص والتقديم عليها."
-        : "Your profile has been approved. You can now browse and apply to opportunities.",
-      actionLabel: isRtl
-        ? "استعراض الفرص"
-        : "Browse opportunities",
-      actionHref: `/${locale}/opportunities`,
-      badge: isRtl
-        ? "معتمد"
-        : "Approved",
-      badgeClass:
-        "border-emerald-400/25 bg-emerald-400/10 text-emerald-300",
-      cardClass:
-        "border-emerald-400/15 bg-emerald-400/[0.045]",
-      actionType: "link" as const,
+        ? "ملفك معتمد. اكتشف الفرص المناسبة وابدأ التقديم مباشرة."
+        : "Your profile is approved. Discover relevant opportunities and start applying.",
+      action: isRtl ? "استعراض الفرص" : "Browse opportunities",
+      href: `/${locale}/opportunities`,
+      submit: false,
+      tone: "border-emerald-400/20 bg-emerald-400/[0.045]",
+      badge: "border-emerald-400/25 bg-emerald-400/10 text-emerald-300",
     },
-
     rejected: {
-      title: isRtl
-        ? "لم يتم اعتماد الملف"
-        : "Profile not approved",
+      eyebrow: isRtl ? "تحتاج مراجعة" : "Needs review",
+      title: isRtl ? "راجع ملفك قبل المحاولة التالية" : "Review your profile before trying again",
       description: isRtl
-        ? "لم يتم اعتماد ملفك في المراجعة الحالية. راجع بيانات الملف قبل اتخاذ الخطوة التالية."
-        : "Your profile was not approved in the current review. Review your profile before proceeding.",
-      actionLabel: isRtl
-        ? "مراجعة الملف"
-        : "Review profile",
-      actionHref: `/${locale}/talent-dashboard/profile`,
-      badge: isRtl
-        ? "غير معتمد"
-        : "Not approved",
-      badgeClass:
-        "border-red-400/25 bg-red-400/10 text-red-300",
-      cardClass:
-        "border-red-400/15 bg-red-400/[0.045]",
-      actionType: "link" as const,
+        ? "راجع بياناتك وصورتك المهنية قبل إعادة إرسال الملف."
+        : "Review your details and profile photo before submitting again.",
+      action: isRtl ? "مراجعة الملف" : "Review profile",
+      href: `/${locale}/talent-dashboard/profile`,
+      submit: false,
+      tone: "border-red-400/20 bg-red-400/[0.045]",
+      badge: "border-red-400/25 bg-red-400/10 text-red-300",
     },
-  } as const;
-
-  const currentWorkflow =
-    workflowContent[workflowState];
+  }[workflowState];
 
   async function submitProfileForReview() {
     "use server";
-  
-    const result =
-      await submitTalentProfileReviewAction(
-        locale,
-      );
-  
-    if (!result.success) {
-      return;
-    }
-  
-    revalidatePath(
-      `/${locale}/talent-dashboard`,
-    );
-  
-    redirect(
-      `/${locale}/talent-dashboard`,
-    );
+    const result = await submitTalentProfileReviewAction(locale);
+    if (!result.success) return;
+    revalidatePath(`/${locale}/talent-dashboard`);
+    redirect(`/${locale}/talent-dashboard`);
   }
 
+  const metricCards = [
+    {
+      label: isRtl ? "جاهزية الاعتماد" : "Approval readiness",
+      value: `${readinessPercent}%`,
+      meta: profileReadiness.isReady
+        ? isRtl ? "مكتمل" : "Complete"
+        : isRtl ? `${incompleteItems} متبقي` : `${incompleteItems} remaining`,
+      href: `/${locale}/talent-dashboard/profile`,
+    },
+    {
+      label: isRtl ? "طلباتي" : "Applications",
+      value: String(totalApplications),
+      meta: counts.accepted > 0
+        ? isRtl ? `${counts.accepted} مقبول` : `${counts.accepted} accepted`
+        : isRtl ? "جميع الطلبات" : "All applications",
+      href: `/${locale}/talent-dashboard/applications`,
+    },
+    {
+      label: isRtl ? "المحفوظة" : "Saved",
+      value: String(savedCount),
+      meta: isRtl ? "فرص محفوظة" : "Saved opportunities",
+      href: `/${locale}/opportunities`,
+    },
+    {
+      label: isRtl ? "الرسائل" : "Messages",
+      value: String(unreadMessagesCount),
+      meta: unreadMessagesCount > 0
+        ? isRtl ? "غير مقروءة" : "Unread"
+        : isRtl ? "لا جديد" : "All caught up",
+      href: `/${locale}/talent-dashboard/messages`,
+    },
+  ];
+
   return (
-    <main
-      dir={isRtl ? "rtl" : "ltr"}
-      className="min-h-screen bg-black text-white"
-    >
+    <main dir={isRtl ? "rtl" : "ltr"} className="min-h-screen bg-black text-white">
       <div className="mx-auto max-w-7xl px-4 pb-24 pt-4 sm:px-6 lg:py-10">
         <div className="flex flex-col gap-6 xl:flex-row">
           <aside className="hidden xl:block xl:w-80 xl:flex-shrink-0">
@@ -703,271 +279,153 @@ export default async function TalentDashboardPage({
             </div>
           </aside>
 
-          <div className="min-w-0 flex-1 space-y-6">
-            <TalentHeader
-              locale={locale}
-              talentName={talentName}
-            />
+          <div className="min-w-0 flex-1 space-y-5">
+            <TalentHeader locale={locale} talentName={talentName} />
 
-            <section
-              className={`rounded-[1.75rem] border p-5 sm:p-6 ${currentWorkflow.cardClass}`}
-            >
-              <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-                <div className="min-w-0">
-                  <span
-                    className={`inline-flex rounded-full border px-3 py-1.5 text-xs ${currentWorkflow.badgeClass}`}
-                  >
-                    {currentWorkflow.badge}
-                  </span>
-
-                  <h2 className="mt-4 text-2xl font-light text-white sm:text-3xl">
-                    {currentWorkflow.title}
-                  </h2>
-
-                  <p className="mt-3 max-w-3xl text-sm leading-7 text-white/55">
-                    {currentWorkflow.description}
-                  </p>
-
-                  {workflowState === "changes_requested" && reviewChangeReason ? (
-                    <div className="mt-4 rounded-2xl border border-orange-400/15 bg-black/20 px-4 py-4">
-                      <p className="text-[11px] text-orange-300/70">
-                        {isRtl
-                          ? "التعديلات المطلوبة"
-                          : "Requested changes"}
-                      </p>
-
-                      <p className="mt-2 whitespace-pre-line text-sm leading-7 text-white/70">
-                        {reviewChangeReason}
-                      </p>
-                    </div>
-                  ) : null}
-                </div>
-
-                {currentWorkflow.actionType === "submit" ? (
-                  <form action={submitProfileForReview}>
-                    <button
-                      type="submit"
-                      className="inline-flex min-h-12 shrink-0 items-center justify-center rounded-2xl border border-gold/30 bg-gold/10 px-6 text-sm text-gold transition hover:bg-gold hover:text-black"
-                    >
-                      {currentWorkflow.actionLabel}
-                    </button>
-                  </form>
-                ) : currentWorkflow.actionType === "link" &&
-                  currentWorkflow.actionHref ? (
-                  <a
-                    href={currentWorkflow.actionHref}
-                    className="inline-flex min-h-12 shrink-0 items-center justify-center rounded-2xl border border-gold/30 bg-gold/10 px-6 text-sm text-gold transition hover:bg-gold hover:text-black"
-                  >
-                    {currentWorkflow.actionLabel}
-                  </a>
-                ) : null}
-              </div>
-            </section>
-
-            {hasPendingProfileChange ? (
-              <section className="rounded-[1.75rem] border border-amber-400/20 bg-amber-400/[0.045] p-5 sm:p-6">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="min-w-0">
-                    <span className="inline-flex rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-1.5 text-xs text-amber-300">
-                      {isRtl ? "قيد المراجعة" : "Under review"}
+            <section className={`overflow-hidden rounded-[2rem] border ${workflow.tone}`}>
+              <div className="p-6 sm:p-8 lg:p-9">
+                <div className="flex flex-col gap-7 lg:flex-row lg:items-end lg:justify-between">
+                  <div className="min-w-0 max-w-3xl">
+                    <span className={`inline-flex rounded-full border px-3 py-1.5 text-xs ${workflow.badge}`}>
+                      {workflow.eyebrow}
                     </span>
-
-                    <h2 className="mt-3 text-xl font-light text-white sm:text-2xl">
-                      {isRtl
-                        ? "لديك تعديل قيد المراجعة"
-                        : "You have a change under review"}
-                    </h2>
-
-                    <p className="mt-2 max-w-3xl text-sm leading-7 text-white/55">
-                      {isRtl
-                        ? "ستبقى بياناتك الحالية معتمدة حتى تتم مراجعة التعديل. يمكنك استخدام المنصة والتقديم على الفرص بشكل طبيعي."
-                        : "Your current information remains active until the change is reviewed. You can continue using the platform and applying for opportunities normally."}
+                    <h1 className="mt-5 text-3xl font-light leading-tight sm:text-4xl">
+                      {workflow.title}
+                    </h1>
+                    <p className="mt-3 max-w-2xl text-sm leading-7 text-white/55 sm:text-base">
+                      {workflow.description}
                     </p>
                   </div>
 
+                  {workflow.submit ? (
+                    <form action={submitProfileForReview}>
+                      <button
+                        type="submit"
+                        className="inline-flex min-h-12 w-full items-center justify-center rounded-2xl bg-gold px-7 text-sm font-semibold text-black transition hover:opacity-90 sm:w-auto"
+                      >
+                        {workflow.action}
+                      </button>
+                    </form>
+                  ) : workflow.href ? (
+                    <a
+                      href={workflow.href}
+                      className="inline-flex min-h-12 w-full items-center justify-center rounded-2xl bg-gold px-7 text-sm font-semibold text-black transition hover:opacity-90 sm:w-auto"
+                    >
+                      {workflow.action}
+                    </a>
+                  ) : null}
+                </div>
+              </div>
+            </section>
+
+            <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              {metricCards.map((item) => (
+                <a
+                  key={item.label}
+                  href={item.href}
+                  className="rounded-[1.5rem] border border-white/10 bg-white/[0.025] p-4 transition hover:border-gold/25 hover:bg-gold/[0.035] sm:p-5"
+                >
+                  <p className="text-xs text-white/45">{item.label}</p>
+                  <div className="mt-3 flex items-end justify-between gap-3">
+                    <strong className="text-2xl font-light text-white sm:text-3xl">{item.value}</strong>
+                    <span className="text-[11px] text-white/35">{item.meta}</span>
+                  </div>
+                </a>
+              ))}
+            </section>
+
+            {!profileReadiness.isReady && workflowState === "not_submitted" ? (
+              <section className="rounded-[1.75rem] border border-white/10 bg-white/[0.02] p-5 sm:p-6">
+                <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-xs text-gold/75">{isRtl ? "المطلوب الآن" : "Required now"}</p>
+                    <h2 className="mt-2 text-xl font-light sm:text-2xl">
+                      {isRtl ? "أكمل الأساسيات فقط" : "Complete the essentials only"}
+                    </h2>
+                  </div>
                   <a
                     href={`/${locale}/talent-dashboard/profile`}
-                    className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl border border-amber-400/20 px-5 text-sm text-amber-300 transition hover:bg-amber-400/10"
+                    className="text-sm text-gold transition hover:text-gold/80"
                   >
-                    {isRtl ? "عرض التعديل" : "View change"}
+                    {isRtl ? "إكمال الملف ←" : "Complete profile →"}
                   </a>
+                </div>
+
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                  {missingRequirements.slice(0, 4).map((requirement) => (
+                    <div key={requirement.key} className="flex items-center gap-3 rounded-2xl border border-white/8 bg-black/20 px-4 py-3">
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-gold/20 bg-gold/10 text-xs text-gold">•</span>
+                      <span className="text-sm text-white/65">{isRtl ? requirement.ar : requirement.en}</span>
+                    </div>
+                  ))}
                 </div>
               </section>
             ) : null}
 
-            <TalentProfileCard
-              locale={locale}
-              talent={talent}
-              profileCompletion={profileCompletion}
-              talentName={talentName}
-              talentCity={talentCity}
-              profileStatus={profileStatus}
-              availabilityStatus={availabilityStatus}
-            />
+            <section className="grid gap-3 sm:grid-cols-3">
+              <a
+                href={`/${locale}/opportunities`}
+                className="rounded-[1.5rem] border border-white/10 bg-white/[0.02] p-5 transition hover:border-gold/25"
+              >
+                <p className="text-xs text-gold/70">{isRtl ? "اكتشف" : "Discover"}</p>
+                <h3 className="mt-2 text-lg font-light">{isRtl ? "الفرص المناسبة" : "Relevant opportunities"}</h3>
+                <p className="mt-2 text-xs leading-6 text-white/40">
+                  {isRtl ? "تصفح أحدث الفرص واحفظ ما يناسبك." : "Browse the latest opportunities and save the best matches."}
+                </p>
+              </a>
 
-            <DashboardProfileReadiness
-              locale={locale}
-              isRtl={isRtl}
-              incompleteItems={incompleteItems}
-              profileCompletion={profileCompletion}
-              completionChecklist={completionChecklist}
-              isProfileReady={isProfileReady}
-              approvalStatus={approvalStatus}
-            />
+              <a
+                href={`/${locale}/talent-dashboard/gallery`}
+                className="rounded-[1.5rem] border border-white/10 bg-white/[0.02] p-5 transition hover:border-gold/25"
+              >
+                <p className="text-xs text-gold/70">{isRtl ? "اعرض نفسك" : "Showcase"}</p>
+                <h3 className="mt-2 text-lg font-light">{isRtl ? "معرض الأعمال" : "Portfolio"}</h3>
+                <p className="mt-2 text-xs leading-6 text-white/40">
+                  {isRtl ? "صورك وأعمالك وفيديوهاتك وروابطك المهنية." : "Your photos, work, videos and professional links."}
+                </p>
+              </a>
 
-            <TalentApplications
-              locale={locale}
-              isRtl={isRtl}
-              recentApplications={recentApplications}
-              notificationItems={notificationItems}
-              approvalStatus={approvalStatus}
-            />
-
-            <section className="rounded-[1.75rem] border border-white/10 bg-white/[0.025] p-5 sm:p-6">
-              <div className="mb-5 flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.22em] text-gold/70">
-                    {isRtl ? "المفضلة" : "Saved"}
-                  </p>
-
-                  <h2 className="mt-2 text-xl font-light text-white sm:text-2xl">
-                    {isRtl ? "الفرص المحفوظة" : "Saved opportunities"}
-                  </h2>
-                </div>
-
-                <span className="inline-flex min-w-9 items-center justify-center rounded-full border border-gold/20 bg-gold/10 px-3 py-1 text-xs text-gold">
-                  {savedOpportunityItems.length}
-                </span>
-              </div>
-
-              {savedOpportunityItems.length > 0 ? (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {savedOpportunityItems.slice(0, 4).map((saved) => {
-                    const opportunity = Array.isArray(saved.opportunities)
-                      ? saved.opportunities[0]
-                      : saved.opportunities;
-
-                    if (!opportunity) {
-                      return null;
-                    }
-
-                    const city = isRtl
-                      ? opportunity.city_ar ?? opportunity.city_en ?? "-"
-                      : opportunity.city_en ?? opportunity.city_ar ?? "-";
-
-                    return (
-                      <div
-                        key={saved.id}
-                        className="group relative rounded-2xl border border-white/10 bg-black/20 p-4 transition hover:border-gold/30 hover:bg-gold/[0.04]"
-                      >
-                        <a
-                          href={`/${locale}/opportunities/${opportunity.id}`}
-                          className="absolute inset-0 z-0 rounded-2xl"
-                          aria-label={
-                            isRtl
-                              ? `عرض فرصة ${opportunity.title}`
-                              : `View ${opportunity.title}`
-                          }
-                        />
-
-                        <div className="pointer-events-none relative z-10 flex items-start justify-between gap-4">
-                          <div className="min-w-0">
-                            <h3 className="truncate text-base text-white transition group-hover:text-gold">
-                              {opportunity.title}
-                            </h3>
-
-                            <p className="mt-2 text-xs text-white/45">
-                              {city}
-                            </p>
-                          </div>
-                        </div>
-
-                        <form
-                          action={removeSavedOpportunity}
-                          className="absolute left-4 top-4 z-20"
-                        >
-                          <input
-                            type="hidden"
-                            name="opportunityId"
-                            value={String(saved.opportunity_id)}
-                          />
-
-                          <button
-                            type="submit"
-                            className="flex h-9 w-9 items-center justify-center rounded-full border border-gold/20 bg-gold/10 text-lg text-gold transition hover:border-red-400/40 hover:bg-red-400/10 hover:text-red-300"
-                            title={
-                              isRtl
-                                ? "إزالة من المحفوظات"
-                                : "Remove from saved"
-                            }
-                            aria-label={
-                              isRtl
-                                ? "إزالة من المحفوظات"
-                                : "Remove from saved"
-                            }
-                          >
-                            ♥
-                          </button>
-                        </form>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="rounded-2xl border border-dashed border-white/10 bg-black/20 px-5 py-8 text-center">
-                  <div className="text-2xl text-gold/60">♡</div>
-
-                  <p className="mt-3 text-sm text-white/55">
-                    {isRtl
-                      ? "لا توجد فرص محفوظة حتى الآن."
-                      : "You don't have any saved opportunities yet."}
-                  </p>
-
-                  <a
-                    href={`/${locale}/opportunities`}
-                    className="mt-4 inline-flex min-h-10 items-center justify-center rounded-xl border border-gold/25 px-5 text-xs text-gold transition hover:bg-gold/10"
-                  >
-                    {isRtl ? "استعراض الفرص" : "Browse opportunities"}
-                  </a>
-                </div>
-              )}
-
-              {savedOpportunityItems.length > 4 ? (
-                <div className="mt-5 border-t border-white/10 pt-4">
-                  <a
-                    href={`/${locale}/opportunities`}
-                    className="text-sm text-gold transition hover:text-gold/80"
-                  >
-                    {isRtl
-                      ? `لديك ${savedOpportunityItems.length} فرص محفوظة`
-                      : `You have ${savedOpportunityItems.length} saved opportunities`}
-                  </a>
-                </div>
-              ) : null}
+              <a
+                href={`/${locale}/talent-dashboard/profile/details`}
+                className="rounded-[1.5rem] border border-white/10 bg-white/[0.02] p-5 transition hover:border-gold/25"
+              >
+                <p className="text-xs text-gold/70">{isRtl ? "طوّر" : "Improve"}</p>
+                <h3 className="mt-2 text-lg font-light">{isRtl ? "قوة الملف" : "Profile strength"}</h3>
+                <p className="mt-2 text-xs leading-6 text-white/40">
+                  {isRtl
+                    ? `قوة ملفك الحالية ${profileCompletion}٪. البيانات الإضافية تحسن المطابقة.`
+                    : `Your profile strength is ${profileCompletion}%. Extra details improve matching.`}
+                </p>
+              </a>
             </section>
 
-            <DashboardApplicationStats
-              locale={locale}
-              isRtl={isRtl}
-              totalApplications={totalApplications}
-              counts={counts}
-            />
-
-            <DashboardMessagesCard
-              locale={locale}
-              isRtl={isRtl}
-              unreadMessagesCount={unreadMessagesCount}
-              totalConversations={totalConversations}
-            />
-
-            <DashboardQuickActions
-              locale={locale}
-              isRtl={isRtl}
-              unreadMessagesCount={unreadMessagesCount}
-              unreadNotificationsCount={unreadNotificationsCount}
-              totalApplications={totalApplications}
-              profileCompletion={profileCompletion}
-            />
+            {totalApplications > 0 ? (
+              <section className="rounded-[1.75rem] border border-white/10 bg-white/[0.02] p-5 sm:p-6">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-xs text-gold/70">{isRtl ? "الطلبات" : "Applications"}</p>
+                    <h2 className="mt-2 text-xl font-light">{isRtl ? "حالة تقديماتك" : "Application status"}</h2>
+                  </div>
+                  <a href={`/${locale}/talent-dashboard/applications`} className="text-sm text-gold">
+                    {isRtl ? "عرض الكل" : "View all"}
+                  </a>
+                </div>
+                <div className="mt-5 grid grid-cols-3 gap-3">
+                  <div className="rounded-2xl border border-white/8 bg-black/20 p-4 text-center">
+                    <strong className="text-2xl font-light">{counts.reviewing + counts.pending}</strong>
+                    <p className="mt-1 text-[11px] text-white/40">{isRtl ? "قيد المراجعة" : "In review"}</p>
+                  </div>
+                  <div className="rounded-2xl border border-white/8 bg-black/20 p-4 text-center">
+                    <strong className="text-2xl font-light">{counts.shortlisted}</strong>
+                    <p className="mt-1 text-[11px] text-white/40">{isRtl ? "قائمة مختصرة" : "Shortlisted"}</p>
+                  </div>
+                  <div className="rounded-2xl border border-gold/15 bg-gold/[0.035] p-4 text-center">
+                    <strong className="text-2xl font-light text-gold">{counts.accepted}</strong>
+                    <p className="mt-1 text-[11px] text-white/40">{isRtl ? "مقبول" : "Accepted"}</p>
+                  </div>
+                </div>
+              </section>
+            ) : null}
           </div>
         </div>
       </div>
