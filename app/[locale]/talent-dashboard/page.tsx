@@ -334,34 +334,6 @@ export default async function TalentDashboardPage({ params }: PageProps) {
               ))}
             </section>
 
-            {!profileReadiness.isReady && workflowState === "not_submitted" ? (
-              <section className="rounded-[1.75rem] border border-white/10 bg-white/[0.02] p-5 sm:p-6">
-                <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-xs text-gold/75">{isRtl ? "المطلوب الآن" : "Required now"}</p>
-                    <h2 className="mt-2 text-xl font-light sm:text-2xl">
-                      {isRtl ? "أكمل الأساسيات فقط" : "Complete the essentials only"}
-                    </h2>
-                  </div>
-                  <a
-                    href={`/${locale}/talent-dashboard/profile`}
-                    className="text-sm text-gold transition hover:text-gold/80"
-                  >
-                    {isRtl ? "إكمال الملف ←" : "Complete profile →"}
-                  </a>
-                </div>
-
-                <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                  {missingRequirements.slice(0, 4).map((requirement) => (
-                    <div key={requirement.key} className="flex items-center gap-3 rounded-2xl border border-white/8 bg-black/20 px-4 py-3">
-                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-gold/20 bg-gold/10 text-xs text-gold">•</span>
-                      <span className="text-sm text-white/65">{isRtl ? requirement.ar : requirement.en}</span>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            ) : null}
-
             <section className="grid gap-3 sm:grid-cols-3">
               <a
                 href={`/${locale}/opportunities`}
