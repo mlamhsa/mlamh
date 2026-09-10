@@ -93,7 +93,7 @@ export async function createPublisherDraftAction(
     const { data: profile, error: profileError } = await adminClient
       .from("profiles")
       .select(
-        "id, account_type, display_name, onboarding_status, onboarding_step",
+        "id, account_type, display_name, onboarding_status, onboarding_step, approval_status",
       )
       .eq("user_id", user.id)
       .maybeSingle();
@@ -167,23 +167,43 @@ export async function createPublisherDraftAction(
       };
     }
 
-    if (
-      existingPublisher &&
-      profile.account_type === "publisher" &&
-      profile.onboarding_status === "completed"
-    ) {
-      return {
-        success: true,
-        message: null,
-      };
+    let hasExistingActivity = false;
+
+    if (existingPublisher) {
+      const { count, error: opportunityCountError } = await adminClient
+        .from("opportunities")
+        .select("id", { count: "exact", head: true })
+        .eq("publisher_id", existingPublisher.id);
+
+      if (opportunityCountError) {
+        console.error(
+          "[createPublisherDraftAction opportunityCount]",
+          opportunityCountError,
+        );
+      } else {
+        hasExistingActivity = (count ?? 0) > 0;
+      }
     }
+
+    const approvalStatus = String(
+      profile.approval_status ?? "not_submitted",
+    )
+      .trim()
+      .toLowerCase();
+
+    const isDraftAccount =
+      approvalStatus === "not_submitted" && !hasExistingActivity;
 
     if (existingPublisher) {
       const { error: updateError } = await adminClient
         .from("publishers")
         .update({
-          publisher_type:
-            existingPublisher.publisher_type || publisherType,
+          // During first-time/draft onboarding, the user's explicit selection is
+          // authoritative. Once the account has been submitted/approved or has
+          // live activity, preserve the established publisher identity.
+          publisher_type: isDraftAccount
+            ? publisherType
+            : existingPublisher.publisher_type || publisherType,
           contact_name: contactName,
         })
         .eq("id", existingPublisher.id)
