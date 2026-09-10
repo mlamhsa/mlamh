@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { CheckCircle2, ShieldCheck } from "lucide-react";
 
 import { updateOwnTalentConsentAction } from "@/lib/actions/update-own-talent-consent";
@@ -18,7 +18,6 @@ type Props = {
 
 export default function TalentConsentCompletionCard({ locale }: Props) {
   const pathname = usePathname();
-  const router = useRouter();
   const profileLocale: "ar" | "en" = locale === "en" ? "en" : "ar";
   const isArabic = profileLocale === "ar";
   const profilePath = `/${profileLocale}/talent-dashboard/profile`;
@@ -78,14 +77,19 @@ export default function TalentConsentCompletionCard({ locale }: Props) {
     setMessage("");
     const result = await updateOwnTalentConsentAction(profileLocale);
     setMessage(result.message);
+
     if (result.success) {
-      // A same-route router.refresh() can preserve an already-rendered server payload.
-      // Navigate to the same profile with a short-lived cache-busting query so the
-      // readiness UI is re-fetched immediately from the canonical profile row.
-      router.replace(`${profilePath}?sync=${Date.now()}`, { scroll: false });
-      router.refresh();
+      setSaving(false);
+      setVisible(false);
+
+      // The consent card and the guided profile page keep separate client state.
+      // A same-route router.refresh() can leave the readiness list stale, so load
+      // the canonical route once after the mutation and recompute all hard gates
+      // from the saved profile row.
+      window.location.replace(profilePath);
       return;
     }
+
     setSaving(false);
   }
 

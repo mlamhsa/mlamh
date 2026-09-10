@@ -1,4 +1,4 @@
-import { TALENT_CATEGORIES } from "@/lib/data/talent-categories";
+import { TALENT_CATEGORIES } from "../data/talent-categories.ts";
 
 export type TalentQualificationReason =
   | "missing_profile_approval"
