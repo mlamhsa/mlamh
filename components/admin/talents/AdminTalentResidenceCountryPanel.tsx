@@ -21,7 +21,9 @@ export async function AdminTalentResidenceCountryPanel({
   if (!talent) return null;
 
   const code = String(talent.base_country_code ?? "").trim().toUpperCase();
-  const value = COUNTRY_LABELS[code]?.[language] ?? code || (language === "ar" ? "غير محدد" : "Not set");
+  const value =
+    COUNTRY_LABELS[code]?.[language] ??
+    (code || (language === "ar" ? "غير محدد" : "Not set"));
   const isMissing = !code;
 
   return (
