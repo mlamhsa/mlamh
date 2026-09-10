@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
 import { createOpportunityAction } from "@/lib/actions/create-opportunity";
+import { updateApplicationStatusAction } from "@/lib/actions/application-status-actions";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -75,6 +76,55 @@ function roleRequirements(formData: FormData) {
     budget_max: optionalNumber(text(formData, "budgetMax")),
     currency: (text(formData, "currency") || "SAR").toUpperCase(),
   };
+}
+
+async function createWorkspaceNotification({
+  eventType,
+  targetId,
+  actorId,
+  recipientId,
+  title,
+  body,
+  metadata,
+}: {
+  eventType: string;
+  targetId: string;
+  actorId: string;
+  recipientId: number;
+  title: string;
+  body: string;
+  metadata: Record<string, unknown>;
+}) {
+  const admin = createAdminClient();
+  const { data: event, error: eventError } = await admin
+    .from("events")
+    .insert({
+      event_type: eventType,
+      target_type: "application",
+      target_id: targetId,
+      actor_id: actorId,
+      metadata,
+    })
+    .select("id")
+    .single();
+
+  if (eventError || !event) {
+    console.error("[workspace notification event]", eventError);
+    return;
+  }
+
+  const { error: notificationError } = await admin
+    .from("notifications")
+    .insert({
+      event_id: event.id,
+      recipient_type: "talent",
+      recipient_id: String(recipientId),
+      title,
+      body,
+      is_read: false,
+    });
+
+  if (notificationError) console.error("[workspace notification]", notificationError);
 }
 
 export async function createCastingWorkspaceProjectAction(formData: FormData) {
@@ -255,15 +305,15 @@ export async function shortlistCastingApplicationAction(formData: FormData) {
   if (![projectId, roleId, applicationId].every((value) => Number.isInteger(value) && value > 0)) throw new Error("Invalid shortlist request.");
 
   const admin = createAdminClient();
-  const { data: project } = await admin.from("casting_projects").select("id").eq("id", projectId).eq("publisher_id", actor.publisherId).maybeSingle();
+  const { data: project } = await admin.from("casting_projects").select("id, project_title").eq("id", projectId).eq("publisher_id", actor.publisherId).maybeSingle();
   if (!project) throw new Error("Project not found.");
 
-  const { data: role } = await admin.from("casting_roles").select("id, opportunity_id").eq("id", roleId).eq("casting_project_id", project.id).maybeSingle();
+  const { data: role } = await admin.from("casting_roles").select("id, opportunity_id, title").eq("id", roleId).eq("casting_project_id", project.id).maybeSingle();
   if (!role?.opportunity_id) throw new Error("Role is not linked to an opportunity.");
 
   const { data: application } = await admin
     .from("opportunity_applications")
-    .select("id, opportunity_id, status")
+    .select("id, opportunity_id, talent_id, status")
     .eq("id", applicationId)
     .eq("opportunity_id", role.opportunity_id)
     .maybeSingle();
@@ -294,9 +344,121 @@ export async function shortlistCastingApplicationAction(formData: FormData) {
     const { error: updateError } = await admin.from("opportunity_applications").update({ status: "shortlisted", updated_at: now }).eq("id", application.id).eq("status", application.status);
     if (updateError) throw new Error(updateError.message);
     await admin.from("application_status_logs").insert({ application_id: application.id, old_status: application.status, new_status: "shortlisted", changed_by: actor.userId, created_at: now });
+
+    await createWorkspaceNotification({
+      eventType: "casting_shortlisted",
+      targetId: String(application.id),
+      actorId: actor.userId,
+      recipientId: application.talent_id,
+      title: "تمت إضافتك إلى القائمة المختصرة",
+      body: `تمت إضافة طلبك إلى القائمة المختصرة في مشروع ${project.project_title} — ${role.title}.`,
+      metadata: {
+        projectId: project.id,
+        roleId: role.id,
+        applicationId: application.id,
+        opportunityId: role.opportunity_id,
+      },
+    });
   }
 
   revalidatePath(`/${locale}/publisher-dashboard/workspace/${project.id}`);
   revalidatePath(`/${locale}/publisher-dashboard/applicants`);
   revalidatePath(`/${locale}/talent-dashboard/applications`);
+  revalidatePath(`/${locale}/talent-dashboard/notifications`);
+}
+
+export async function selectCastingApplicationAction(formData: FormData) {
+  const actor = await requirePublisher();
+  const locale = text(formData, "locale") === "en" ? "en" : "ar";
+  const projectId = Number(text(formData, "projectId"));
+  const roleId = Number(text(formData, "roleId"));
+  const applicationId = Number(text(formData, "applicationId"));
+
+  if (![projectId, roleId, applicationId].every((value) => Number.isInteger(value) && value > 0)) {
+    throw new Error("Invalid selection request.");
+  }
+
+  const admin = createAdminClient();
+  const { data: project } = await admin
+    .from("casting_projects")
+    .select("id, status")
+    .eq("id", projectId)
+    .eq("publisher_id", actor.publisherId)
+    .maybeSingle();
+  if (!project) throw new Error("Project not found.");
+
+  const { data: role } = await admin
+    .from("casting_roles")
+    .select("id, required_count, opportunity_id")
+    .eq("id", roleId)
+    .eq("casting_project_id", project.id)
+    .maybeSingle();
+  if (!role?.opportunity_id) throw new Error("Role is not linked to an opportunity.");
+
+  const { data: shortlist } = await admin
+    .from("casting_shortlist")
+    .select("id, status, application_id")
+    .eq("casting_project_id", project.id)
+    .eq("casting_role_id", role.id)
+    .eq("application_id", applicationId)
+    .maybeSingle();
+  if (!shortlist || !["shortlisted", "presented", "selected"].includes(String(shortlist.status))) {
+    throw new Error("Application must be shortlisted before selection.");
+  }
+
+  const { data: application } = await admin
+    .from("opportunity_applications")
+    .select("id, opportunity_id, status")
+    .eq("id", applicationId)
+    .eq("opportunity_id", role.opportunity_id)
+    .maybeSingle();
+  if (!application) throw new Error("Application not found.");
+
+  if (application.status !== "accepted") {
+    await updateApplicationStatusAction(application.id, "accepted");
+  }
+
+  const now = new Date().toISOString();
+  const { error: shortlistError } = await admin
+    .from("casting_shortlist")
+    .update({ status: "selected", updated_at: now })
+    .eq("id", shortlist.id)
+    .eq("casting_project_id", project.id);
+  if (shortlistError) throw new Error(shortlistError.message);
+
+  const { count: selectedCount } = await admin
+    .from("casting_shortlist")
+    .select("id", { count: "exact", head: true })
+    .eq("casting_project_id", project.id)
+    .eq("casting_role_id", role.id)
+    .eq("status", "selected");
+
+  const roleComplete = (selectedCount ?? 0) >= Number(role.required_count || 1);
+  if (roleComplete) {
+    await admin.from("casting_roles").update({ status: "client_review", updated_at: now }).eq("id", role.id);
+  }
+
+  const { data: projectRoles } = await admin
+    .from("casting_roles")
+    .select("id, status")
+    .eq("casting_project_id", project.id);
+  const allRolesSelected = (projectRoles ?? []).length > 0 && (projectRoles ?? []).every((item) => ["client_review", "completed"].includes(String(item.status)));
+  if (allRolesSelected && !["completed", "cancelled"].includes(String(project.status))) {
+    await admin.from("casting_projects").update({ status: "client_review", updated_at: now }).eq("id", project.id).eq("publisher_id", actor.publisherId);
+  }
+
+  const { data: conversation } = await admin
+    .from("conversations")
+    .select("id")
+    .eq("application_id", application.id)
+    .maybeSingle();
+
+  revalidatePath(`/${locale}/publisher-dashboard/workspace/${project.id}`);
+  revalidatePath(`/${locale}/publisher-dashboard/messages`);
+  revalidatePath(`/${locale}/publisher-dashboard/notifications`);
+  revalidatePath(`/${locale}/talent-dashboard/applications`);
+
+  if (conversation?.id) {
+    redirect(`/${locale}/booking/${conversation.id}`);
+  }
 }
