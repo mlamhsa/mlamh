@@ -41,6 +41,20 @@ function getRequirementHref(locale: string, label: string) {
   }
 
   if (
+    normalized === "الصورة الشخصية" ||
+    normalized === "profile photo"
+  ) {
+    return `${profileBase}#profile-image`;
+  }
+
+  if (
+    normalized === "تاريخ الميلاد" ||
+    normalized === "date of birth"
+  ) {
+    return `${profileBase}#date-of-birth`;
+  }
+
+  if (
     normalized === "طريقة ظهور الملف" ||
     normalized === "profile visibility" ||
     normalized === "الموافقة على دقة البيانات والتواصل" ||
