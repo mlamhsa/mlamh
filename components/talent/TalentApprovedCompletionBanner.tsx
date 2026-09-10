@@ -18,13 +18,15 @@ export default function TalentApprovedCompletionBanner({
   const pathname = usePathname();
   const isArabic = locale === "ar";
   const normalizedStatus = String(approvalStatus ?? "").trim().toLowerCase();
-
-  if (normalizedStatus !== "approved" || profileStrength >= 100) return null;
-
-  // Keep the reminder focused on the dashboard/profile experience rather than
-  // repeating it across messages, applications and settings screens.
   const root = `/${locale}/talent-dashboard`;
-  if (pathname !== root && pathname !== `${root}/profile`) return null;
+
+  if (
+    normalizedStatus !== "approved" ||
+    profileStrength >= 100 ||
+    pathname !== root
+  ) {
+    return null;
+  }
 
   return (
     <div dir={isArabic ? "rtl" : "ltr"} className="w-full px-4 pt-28 sm:px-6 lg:px-8 lg:pt-32">
