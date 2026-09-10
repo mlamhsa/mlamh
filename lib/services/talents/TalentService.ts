@@ -46,7 +46,37 @@ export class TalentService extends BaseService {
   }
 
   static async getAdminStats() {
-    return TalentRepository.getAdminStats();
+    // Keep the admin dashboard on the repository's stable public API.
+    // This deliberately avoids relying on private static helpers at runtime,
+    // which can be lost by server bundling/tree-shaking even though TypeScript
+    // resolves the call correctly during build.
+    const [
+      totalResult,
+      publishedResult,
+      unpublishedResult,
+      activeResult,
+      suspendedResult,
+      publicResult,
+      privateResult,
+    ] = await Promise.all([
+      TalentRepository.getAdminTalents({ page: 1, pageSize: 1 }),
+      TalentRepository.getAdminTalents({ page: 1, pageSize: 1, status: "published" }),
+      TalentRepository.getAdminTalents({ page: 1, pageSize: 1, status: "unpublished" }),
+      TalentRepository.getAdminTalents({ page: 1, pageSize: 1, status: "active" }),
+      TalentRepository.getAdminTalents({ page: 1, pageSize: 1, status: "suspended" }),
+      TalentRepository.getAdminTalents({ page: 1, pageSize: 1, visibility: "public" }),
+      TalentRepository.getAdminTalents({ page: 1, pageSize: 1, visibility: "private" }),
+    ]);
+
+    return {
+      total: totalResult.total,
+      published: publishedResult.total,
+      unpublished: unpublishedResult.total,
+      active: activeResult.total,
+      suspended: suspendedResult.total,
+      publicProfiles: publicResult.total,
+      privateProfiles: privateResult.total,
+    };
   }
 
   static async getAdminOperationalStats() {
