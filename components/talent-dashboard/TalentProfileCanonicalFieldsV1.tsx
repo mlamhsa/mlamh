@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 
-import { GENDER_OPTIONS } from "@/lib/data/talent-signup";
+import { GENDER_OPTIONS, TALENT_SIGNUP_COUNTRIES } from "@/lib/data/talent-signup";
 
 function isArabicPage() {
   return document.documentElement.lang === "ar" || document.documentElement.dir === "rtl";
@@ -111,12 +111,76 @@ function normalizeDateOfBirthField() {
     : "Enter your date of birth using the Gregorian calendar";
 }
 
+function findPhoneField() {
+  const named = document.querySelector<HTMLInputElement>(
+    'input[name="phone"], input[name="mobile"], input[name="whatsapp"]',
+  );
+  if (named) return named;
+
+  return Array.from(document.querySelectorAll<HTMLInputElement>('input[type="text"], input[type="tel"], input:not([type])'))
+    .find((input) => {
+      const label = input.closest("label")?.textContent ?? input.parentElement?.parentElement?.textContent ?? "";
+      return label.includes("رقم الجوال") || label.toLowerCase().includes("phone number");
+    }) ?? null;
+}
+
+function findResidenceCountryCode() {
+  const select = document.querySelector<HTMLSelectElement>('select[name="base_country_code"]');
+  if (select?.value) return select.value.trim().toUpperCase();
+
+  const countryLabel = Array.from(document.querySelectorAll<HTMLElement>("label"))
+    .find((label) => {
+      const text = label.textContent ?? "";
+      return text.includes("بلد الإقامة") || text.toLowerCase().includes("country of residence");
+    });
+  const countrySelect = countryLabel?.querySelector<HTMLSelectElement>("select");
+  return countrySelect?.value?.trim().toUpperCase() ?? "";
+}
+
+function enhancePhoneField() {
+  const input = findPhoneField();
+  if (!input || input.dataset.mlamhDialCodeEnhanced === "1") return;
+
+  const countryCode = findResidenceCountryCode();
+  const country = TALENT_SIGNUP_COUNTRIES.find((item) => item.code === countryCode);
+  if (!country) return;
+
+  const wrapper = document.createElement("div");
+  wrapper.dataset.mlamhPhoneWrapper = "1";
+  wrapper.className = "flex min-h-14 overflow-hidden rounded-2xl border border-white/10 bg-black/20 focus-within:border-gold/50";
+  wrapper.dir = "ltr";
+
+  const prefix = document.createElement("span");
+  prefix.className = "flex shrink-0 items-center border-r border-white/10 px-4 text-sm font-semibold text-gold";
+  prefix.textContent = country.dialCode;
+
+  input.parentNode?.insertBefore(wrapper, input);
+  wrapper.appendChild(prefix);
+  wrapper.appendChild(input);
+
+  input.dataset.mlamhDialCodeEnhanced = "1";
+  input.type = "tel";
+  input.inputMode = "tel";
+  input.dir = "ltr";
+  input.placeholder = country.phoneExample;
+  input.classList.remove("rounded-2xl", "border", "border-white/10");
+  input.classList.add("min-w-0", "flex-1", "border-0", "bg-transparent", "px-4", "outline-none");
+
+  const dialDigits = country.dialCode.replace(/\D/g, "");
+  const currentDigits = input.value.replace(/\D/g, "");
+  if (currentDigits.startsWith(dialDigits)) {
+    input.value = currentDigits.slice(dialDigits.length).replace(/^0+/, "");
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+}
+
 function enhanceCanonicalFields() {
   if (!window.location.pathname.includes("/talent-dashboard/profile")) return;
   normalizeGenderSelect();
   normalizeNameRequirementHint();
   markProfileImageRequired();
   normalizeDateOfBirthField();
+  enhancePhoneField();
 }
 
 export function TalentProfileCanonicalFieldsV1() {

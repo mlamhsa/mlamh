@@ -5,6 +5,7 @@ import { TalentProfileEditorEnhancer } from "@/components/talent-dashboard/Talen
 import { TalentProfileSectionNavigationV1 } from "@/components/talent-dashboard/TalentProfileSectionNavigationV1";
 import { TalentSidebarDockEnhancer } from "@/components/talent-dashboard/TalentSidebarDockEnhancer";
 import TalentApprovedCompletionBanner from "@/components/talent/TalentApprovedCompletionBanner";
+import TalentConsentCompletionCard from "@/components/talent/TalentConsentCompletionCard";
 import TalentDashboardShell from "@/components/talent/TalentDashboardShell";
 import TalentRealtimeSync from "@/components/talent/TalentRealtimeSync";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -63,6 +64,7 @@ export default async function TalentDashboardLayout({
           profileStrength={profileStrength}
         />
       ) : null}
+      {user ? <TalentConsentCompletionCard locale={locale} /> : null}
       <TalentDashboardShell locale={locale}>{children}</TalentDashboardShell>
     </>
   );
