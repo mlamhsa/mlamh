@@ -20,43 +20,30 @@ const ALLOWED_METHODS = new Set<VerificationMethod>([
 ]);
 
 function getLocale(formData: FormData): SupportedLocale {
-  return formData.get("locale") === "en"
-    ? "en"
-    : "ar";
+  return formData.get("locale") === "en" ? "en" : "ar";
 }
 
-function getText(
-  formData: FormData,
-  key: string,
-) {
+function getText(formData: FormData, key: string) {
   const value = formData.get(key);
 
-  return typeof value === "string"
-    ? value.trim()
-    : "";
+  return typeof value === "string" ? value.trim() : "";
 }
 
-function getMethod(
-  formData: FormData,
-): VerificationMethod {
+function getMethod(formData: FormData): VerificationMethod {
   const method = getText(
     formData,
     "verification_method",
   ) as VerificationMethod;
 
   if (!ALLOWED_METHODS.has(method)) {
-    throw new Error(
-      "Invalid verification method.",
-    );
+    throw new Error("Invalid verification method.");
   }
 
   return method;
 }
 
 function isValidEmail(value: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-    value,
-  );
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
 export async function submitPublisherVerificationAction(
@@ -64,52 +51,45 @@ export async function submitPublisherVerificationAction(
 ): Promise<void> {
   const locale = getLocale(formData);
 
-  const { publisher } =
-    await requirePublisher(locale);
+  const { publisher, profile } = await requirePublisher(locale);
 
-  if (
-    publisher.publisher_type === "individual"
-  ) {
-    redirect(
-      `/${locale}/publisher-dashboard/profile`,
-    );
+  if (publisher.publisher_type === "individual") {
+    redirect(`/${locale}/publisher-dashboard/profile`);
+  }
+
+  const approvalStatus = String(
+    profile.approval_status ?? "not_submitted",
+  )
+    .trim()
+    .toLowerCase();
+
+  if (approvalStatus !== "approved") {
+    redirect(`/${locale}/publisher-dashboard/profile`);
+  }
+
+  if (publisher.status === "suspended") {
+    redirect(`/${locale}/publisher-dashboard`);
   }
 
   if (
-    publisher.verification_status === "verified"
-  ) {
-    redirect(
-      `/${locale}/publisher-dashboard/verification`,
-    );
-  }
-
-  if (
+    publisher.verification_status === "verified" ||
     publisher.verification_status === "pending"
   ) {
-    redirect(
-      `/${locale}/publisher-dashboard/verification`,
-    );
+    redirect(`/${locale}/publisher-dashboard/verification`);
   }
 
   const method = getMethod(formData);
-
-  const verificationEmail =
-    getText(
-      formData,
-      "verification_email",
-    );
-
-  const verificationDocumentUrl =
-    getText(
-      formData,
-      "verification_document_url",
-    );
+  const verificationEmail = getText(
+    formData,
+    "verification_email",
+  );
+  const verificationDocumentUrl = getText(
+    formData,
+    "verification_document_url",
+  );
 
   if (method === "company_email") {
-    if (
-      !verificationEmail ||
-      !isValidEmail(verificationEmail)
-    ) {
+    if (!verificationEmail || !isValidEmail(verificationEmail)) {
       throw new Error(
         locale === "ar"
           ? "أدخل بريدًا إلكترونيًا رسميًا صالحًا للجهة."
@@ -117,10 +97,9 @@ export async function submitPublisherVerificationAction(
       );
     }
 
-    const emailDomain =
-      verificationEmail
-        .split("@")[1]
-        ?.toLowerCase();
+    const emailDomain = verificationEmail
+      .split("@")[1]
+      ?.toLowerCase();
 
     const blockedDomains = new Set([
       "gmail.com",
@@ -133,10 +112,7 @@ export async function submitPublisherVerificationAction(
       "protonmail.com",
     ]);
 
-    if (
-      !emailDomain ||
-      blockedDomains.has(emailDomain)
-    ) {
+    if (!emailDomain || blockedDomains.has(emailDomain)) {
       throw new Error(
         locale === "ar"
           ? "يجب استخدام بريد رسمي على نطاق الجهة، وليس بريدًا شخصيًا عامًا."
@@ -158,8 +134,7 @@ export async function submitPublisherVerificationAction(
     }
   }
 
-  const adminClient =
-    createAdminClient();
+  const adminClient = createAdminClient();
 
   const {
     data: updatedPublisher,
@@ -170,33 +145,23 @@ export async function submitPublisherVerificationAction(
       verified: false,
       verification_status: "pending",
       verification_method: method,
-    
       verification_email:
-        method === "company_email"
-          ? verificationEmail
-          : null,
-    
+        method === "company_email" ? verificationEmail : null,
       verification_document_url:
-        method === "official_document" ||
-        method === "business_card"
+        method === "official_document" || method === "business_card"
           ? verificationDocumentUrl
           : null,
-    
-      verification_submitted_at:
-        new Date().toISOString(),
-    
+      verification_submitted_at: new Date().toISOString(),
       verification_rejection_reason: null,
       verification_reviewed_by: null,
       verification_reviewed_at: null,
     })
     .eq("id", publisher.id)
+    .neq("verification_status", "pending")
     .select("id")
     .maybeSingle();
 
-  if (
-    updateError ||
-    !updatedPublisher
-  ) {
+  if (updateError || !updatedPublisher) {
     throw new Error(
       locale === "ar"
         ? "تعذر إرسال طلب التوثيق. حاول مرة أخرى."
@@ -204,23 +169,10 @@ export async function submitPublisherVerificationAction(
     );
   }
 
-  revalidatePath(
-    `/${locale}/publisher-dashboard`,
-  );
+  revalidatePath(`/${locale}/publisher-dashboard`);
+  revalidatePath(`/${locale}/publisher-dashboard/profile`);
+  revalidatePath(`/${locale}/publisher-dashboard/verification`);
+  revalidatePath("/admin/publishers");
 
-  revalidatePath(
-    `/${locale}/publisher-dashboard/profile`,
-  );
-
-  revalidatePath(
-    `/${locale}/publisher-dashboard/verification`,
-  );
-
-  revalidatePath(
-    "/admin/publishers",
-  );
-
-  redirect(
-    `/${locale}/publisher-dashboard/verification`,
-  );
+  redirect(`/${locale}/publisher-dashboard/verification`);
 }
