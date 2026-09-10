@@ -41,18 +41,6 @@ function value(formData: FormData, key: string) {
   return typeof item === "string" ? item.trim() : "";
 }
 
-function numberValue(formData: FormData, key: string) {
-  const raw = value(formData, key);
-
-  if (!raw) {
-    return null;
-  }
-
-  const parsed = Number(raw);
-
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
 function getLocale(formData: FormData): Locale {
   const locale = value(formData, "locale");
 
@@ -140,9 +128,7 @@ async function uploadPublisherImage({
   return data.publicUrl;
 }
 
-async function savePublisherProfile(
-  formData: FormData,
-) {
+async function savePublisherProfile(formData: FormData) {
   const locale = getLocale(formData);
 
   const authClient = await createServerSupabaseClient();
@@ -187,8 +173,7 @@ async function savePublisherProfile(
   const contactName = value(formData, "contact_name");
   const phone = value(formData, "phone");
   const publisherType = getPublisherType(formData);
-  const isIndividual =
-  publisherType === "individual";
+  const isIndividual = publisherType === "individual";
 
   const profileImage = getImageFile(
     formData,
@@ -225,92 +210,78 @@ async function savePublisherProfile(
     });
   }
 
-  const { error: profileUpdateError } =
-    await adminClient
-      .from("profiles")
-      .update({
-  display_name: isIndividual
-    ? contactName || null
-    : companyName || null,
-  phone: phone || null,
-})
-      .eq("id", profile.id)
-      .eq("user_id", user.id);
+  const { error: profileUpdateError } = await adminClient
+    .from("profiles")
+    .update({
+      display_name: isIndividual
+        ? contactName || null
+        : companyName || null,
+      phone: phone || null,
+    })
+    .eq("id", profile.id)
+    .eq("user_id", user.id);
 
   if (profileUpdateError) {
     throw new Error(profileUpdateError.message);
   }
 
   const publisherUpdateData: Record<
-  string,
-  string | number | null
-> = {
-  company_name: companyName || null,
-  contact_name: contactName || null,
-  publisher_type: publisherType,
-  city: value(formData, "city") || null,
-  description: value(formData, "description") || null,
-  phone: phone || null,
-  email: value(formData, "email") || null,
-  website: value(formData, "website") || null,
-  instagram: value(formData, "instagram") || null,
-  tiktok_url: value(formData, "tiktok_url") || null,
-  linkedin_url: value(formData, "linkedin_url") || null,
-};
+    string,
+    string | number | null
+  > = {
+    company_name: companyName || null,
+    contact_name: contactName || null,
+    publisher_type: publisherType,
+    city: value(formData, "city") || null,
+    description: value(formData, "description") || null,
+    phone: phone || null,
+    email: value(formData, "email") || null,
+    website: value(formData, "website") || null,
+    instagram: value(formData, "instagram") || null,
+    tiktok_url: value(formData, "tiktok_url") || null,
+    linkedin_url: value(formData, "linkedin_url") || null,
+  };
 
   if (profileImageUrl) {
-    publisherUpdateData.profile_image_url =
-      profileImageUrl;
+    publisherUpdateData.profile_image_url = profileImageUrl;
   }
 
   if (coverImageUrl) {
-    publisherUpdateData.cover_image_url =
-      coverImageUrl;
+    publisherUpdateData.cover_image_url = coverImageUrl;
   }
 
-  const { data: updatedPublisher, error: publisherUpdateError } =
-    await adminClient
-      .from("publishers")
-      .update(publisherUpdateData)
-      .eq("id", publisher.id)
-      .eq("profile_id", profile.id)
-      .select("id")
-      .maybeSingle();
+  const {
+    data: updatedPublisher,
+    error: publisherUpdateError,
+  } = await adminClient
+    .from("publishers")
+    .update(publisherUpdateData)
+    .eq("id", publisher.id)
+    .eq("profile_id", profile.id)
+    .select("id")
+    .maybeSingle();
 
   if (publisherUpdateError) {
     throw new Error(publisherUpdateError.message);
   }
 
   if (!updatedPublisher) {
-    throw new Error(
-      "Publisher profile could not be updated.",
-    );
+    throw new Error("Publisher profile could not be updated.");
   }
 
   revalidatePath(`/${locale}/publisher-dashboard`);
+  revalidatePath(`/${locale}/publisher-dashboard/profile`);
+  revalidatePath(`/${locale}/publisher-dashboard/settings`);
 
-  revalidatePath(
-    `/${locale}/publisher-dashboard/profile`,
-  );
-
-  revalidatePath(
-    `/${locale}/publisher-dashboard/settings`,
-  );
-
-  return {
-    locale,
-  };
+  return { locale };
 }
 
 export async function updatePublisherProfileAction(
   formData: FormData,
 ): Promise<void> {
-  const { locale } =
-    await savePublisherProfile(formData);
+  const { locale } = await savePublisherProfile(formData);
 
-  redirect(
-    `/${locale}/publisher-dashboard/profile?saved=1`,
-  );
+  redirect(`/${locale}/publisher-dashboard/profile?saved=1`);
 }
 
 export async function autoSavePublisherProfileAction(
@@ -322,15 +293,13 @@ export async function autoSavePublisherProfileAction(
     success: true as const,
   };
 }
+
 export async function submitPublisherProfileForReviewAction(
   formData: FormData,
 ): Promise<void> {
-  const { locale } =
-    await savePublisherProfile(formData);
+  const { locale } = await savePublisherProfile(formData);
 
-  const authClient =
-    await createServerSupabaseClient();
-
+  const authClient = await createServerSupabaseClient();
   const adminClient = createAdminClient();
 
   const {
@@ -342,10 +311,7 @@ export async function submitPublisherProfileForReviewAction(
     redirect(`/${locale}/login`);
   }
 
-  const {
-    data: profile,
-    error: profileError,
-  } = await adminClient
+  const { data: profile, error: profileError } = await adminClient
     .from("profiles")
     .select("id, approval_status")
     .eq("user_id", user.id)
@@ -353,109 +319,107 @@ export async function submitPublisherProfileForReviewAction(
     .maybeSingle();
 
   if (profileError || !profile) {
-    throw new Error(
-      "Publisher profile not found."
-    );
+    throw new Error("Publisher profile not found.");
   }
 
-  const {
-    data: publisher,
-    error: publisherError,
-  } = await adminClient
-  .from("publishers")
-  .select(`
-    id,
-    company_name,
-    contact_name,
-    publisher_type,
-    city,
-    description,
-    profile_image_url
-  `)
+  const approvalStatus = String(
+    profile.approval_status ?? "not_submitted",
+  )
+    .trim()
+    .toLowerCase();
+
+  if (approvalStatus === "pending" || approvalStatus === "submitted") {
+    redirect(`/${locale}/publisher-dashboard/profile?submitted=1`);
+  }
+
+  if (approvalStatus === "approved") {
+    redirect(`/${locale}/publisher-dashboard/profile`);
+  }
+
+  const { data: publisher, error: publisherError } = await adminClient
+    .from("publishers")
+    .select(
+      `
+        id,
+        company_name,
+        contact_name,
+        publisher_type,
+        city,
+        description,
+        profile_image_url
+      `,
+    )
     .eq("profile_id", profile.id)
     .maybeSingle();
 
   if (publisherError || !publisher) {
-    throw new Error(
-      "Publisher account not found."
+    throw new Error("Publisher account not found.");
+  }
+
+  const isIndividual = publisher.publisher_type === "individual";
+  const has = (input: string | null | undefined) =>
+    Boolean(input?.trim());
+
+  const missingRequiredFields = [
+    !isIndividual && !has(publisher.company_name)
+      ? locale === "ar"
+        ? "اسم الجهة"
+        : "Company name"
+      : null,
+    !has(publisher.contact_name)
+      ? locale === "ar"
+        ? isIndividual
+          ? "الاسم المهني"
+          : "اسم المسؤول"
+        : isIndividual
+          ? "Professional name"
+          : "Contact name"
+      : null,
+    !has(publisher.publisher_type)
+      ? locale === "ar"
+        ? "نوع الحساب"
+        : "Account type"
+      : null,
+    !has(publisher.city)
+      ? locale === "ar"
+        ? "المدينة"
+        : "City"
+      : null,
+    !isIndividual && !has(publisher.profile_image_url)
+      ? locale === "ar"
+        ? "شعار الجهة"
+        : "Organization logo"
+      : null,
+  ].filter((item): item is string => Boolean(item));
+
+  if (missingRequiredFields.length > 0) {
+    const missing = encodeURIComponent(
+      missingRequiredFields.join(","),
+    );
+
+    redirect(
+      `/${locale}/publisher-dashboard/profile?error=incomplete&missing=${missing}`,
     );
   }
 
-  const isIndividual =
-  publisher.publisher_type === "individual";
-
-const missingRequiredFields = [
-  !isIndividual && !publisher.company_name
-    ? locale === "ar"
-      ? "اسم الجهة"
-      : "Company name"
-    : null,
-
-  !publisher.contact_name
-    ? locale === "ar"
-      ? isIndividual
-        ? "الاسم المهني"
-        : "اسم المسؤول"
-      : isIndividual
-        ? "Professional name"
-        : "Contact name"
-    : null,
-
-  !publisher.publisher_type
-    ? locale === "ar"
-      ? "نوع الحساب"
-      : "Account type"
-    : null,
-
-  !publisher.city
-    ? locale === "ar"
-      ? "المدينة"
-      : "City"
-    : null,
-    !isIndividual && !publisher.profile_image_url
-    ? locale === "ar"
-      ? "شعار الجهة"
-      : "Organization logo"
-    : null,
-    
-].filter(Boolean);
-if (missingRequiredFields.length > 0) {
-  const missing = encodeURIComponent(
-    missingRequiredFields.join(",")
-  );
-
-  redirect(
-    `/${locale}/publisher-dashboard/profile?error=incomplete&missing=${missing}`
-  );
-}
-
-  const { error: approvalError } =
-    await adminClient
-      .from("profiles")
-      .update({
-        approval_status: "pending",
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", profile.id)
-      .eq("user_id", user.id);
+  const { error: approvalError } = await adminClient
+    .from("profiles")
+    .update({
+      approval_status: "pending",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", profile.id)
+    .eq("user_id", user.id);
 
   if (approvalError) {
     throw new Error(
-      `[submitPublisherProfileForReviewAction] ${approvalError.message}`
+      `[submitPublisherProfileForReviewAction] ${approvalError.message}`,
     );
   }
 
-  revalidatePath(
-    `/${locale}/publisher-dashboard`
-  );
-
-  revalidatePath(
-    `/${locale}/publisher-dashboard/profile`
-  );
-
+  revalidatePath(`/${locale}/publisher-dashboard`);
+  revalidatePath(`/${locale}/publisher-dashboard/profile`);
   revalidatePath("/admin/publishers");
 
-  redirect(
-    `/${locale}/publisher-dashboard/profile?submitted=1`
-  );
+  redirect(`/${locale}/publisher-dashboard/profile?submitted=1`);
 }
