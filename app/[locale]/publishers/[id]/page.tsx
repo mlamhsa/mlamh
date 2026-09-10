@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { cityLabels } from "@/lib/constants/publisher";
 
 type PageProps = {
   params: Promise<{
@@ -62,6 +63,12 @@ function getCity(
     : opportunity.city_en ?? opportunity.city_ar;
 }
 
+function getPublisherCity(value: string | null | undefined, isRtl: boolean) {
+  if (!value) return null;
+  const normalized = value.trim().toLowerCase();
+  return cityLabels[normalized]?.[isRtl ? "ar" : "en"] ?? value;
+}
+
 export default async function PublisherPublicProfilePage({ params }: PageProps) {
   const { locale, id } = await params;
   const isRtl = locale === "ar";
@@ -108,6 +115,7 @@ export default async function PublisherPublicProfilePage({ params }: PageProps) 
 
   const publisherName = publisher.company_name ?? publisher.contact_name ?? "-";
   const initial = publisherName.slice(0, 1).toUpperCase();
+  const publisherCity = getPublisherCity(publisher.city, isRtl);
 
   return (
     <main
@@ -165,7 +173,7 @@ export default async function PublisherPublicProfilePage({ params }: PageProps) 
 
                 <p className="mt-4 text-sm text-white/50">
                   {publisherTypeLabel(publisher.publisher_type, isRtl)}
-                  {publisher.city ? ` · ${publisher.city}` : ""}
+                  {publisherCity ? ` · ${publisherCity}` : ""}
                   {isOrganizationVerified
                     ? isRtl
                       ? " · موثق"
