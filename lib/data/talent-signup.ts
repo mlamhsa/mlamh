@@ -239,7 +239,7 @@ export const PROFILE_VISIBILITY_OPTIONS = [
     value: "private",
     ar: "ملفي خاص",
     en: "Keep my profile private",
-    descriptionAr: "لن يظهر ملفك للعامة. يبقى داخل قاعدة ملامح للمطابقة الخاصة مع الفرص والـBriefs المناسبة.",
+    descriptionAr: "لن يظهر ملفك للعامة. يبقى داخل قاعدة ملامح للمطابقة الخاصة مع الفرص والطلبات المناسبة.",
     descriptionEn: "Your profile will not appear publicly. It remains in MLAMH for private matching with relevant opportunities and Briefs.",
   },
 ] as const;
