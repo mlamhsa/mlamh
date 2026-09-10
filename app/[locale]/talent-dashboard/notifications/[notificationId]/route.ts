@@ -87,6 +87,15 @@ function getPublicOrigin(request: Request) {
   return `${protocol}://${host}`;
 }
 
+const BOOKING_EVENTS = new Set([
+  "booking_proposed",
+  "booking_updated",
+  "booking_confirmed",
+  "booking_changes_requested",
+  "booking_completion_confirmed",
+  "booking_completed",
+]);
+
 export async function GET(
   request: Request,
   { params }: RouteProps,
@@ -94,12 +103,12 @@ export async function GET(
   const { locale: localeParam, notificationId } =
     await params;
 
-    const locale = isValidLocale(localeParam)
+  const locale = isValidLocale(localeParam)
     ? localeParam
     : "ar";
-  
+
   const publicOrigin = getPublicOrigin(request);
-  
+
   const fallbackUrl = new URL(
     `/${locale}/talent-dashboard/notifications`,
     publicOrigin,
@@ -206,6 +215,32 @@ export async function GET(
     typedNotification.events,
   );
 
+  if (event?.event_type && BOOKING_EVENTS.has(event.event_type)) {
+    const conversationId = getPositiveInteger(
+      event.metadata,
+      "conversationId",
+    );
+
+    if (!conversationId) {
+      return NextResponse.redirect(fallbackUrl);
+    }
+
+    const { data: conversation } = await adminClient
+      .from("conversations")
+      .select("id")
+      .eq("id", conversationId)
+      .eq("talent_id", talent.id)
+      .maybeSingle();
+
+    if (!conversation) {
+      return NextResponse.redirect(fallbackUrl);
+    }
+
+    return NextResponse.redirect(
+      new URL(`/${locale}/booking/${conversation.id}`, publicOrigin),
+    );
+  }
+
   if (
     event?.event_type !==
     "opportunity_invitation"
@@ -301,6 +336,6 @@ export async function GET(
     )}`,
     publicOrigin,
   );
-  
+
   return NextResponse.redirect(opportunityUrl);
 }
