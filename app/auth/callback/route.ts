@@ -19,6 +19,17 @@ function completeAccountUrl(
   return url.toString();
 }
 
+function existingAccountLoginUrl(
+  origin: string,
+  locale: "ar" | "en",
+  email: string | null | undefined,
+) {
+  const url = new URL(`/${locale}/login`, origin);
+  url.searchParams.set("error", "account_exists");
+  if (email) url.searchParams.set("email", email.trim().toLowerCase());
+  return url.toString();
+}
+
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
@@ -84,10 +95,8 @@ export async function GET(request: Request) {
       ? profile.account_type
       : null;
 
-  // If this email already belongs to an MLAMH account, the existing account is
-  // authoritative. OAuth may attach Google to the same Supabase Auth user, but
-  // it must never start a second talent/publisher onboarding journey or change
-  // the account type selected previously.
+  // The profile already attached to this Supabase user is authoritative.
+  // OAuth must never restart onboarding or change its account type.
   if (existingAccountType) {
     if (profile?.phone?.trim()) {
       return NextResponse.redirect(`${origin}/${locale}/dashboard-router`);
@@ -100,6 +109,37 @@ export async function GET(request: Request) {
         provider,
       }),
     );
+  }
+
+  // Some OAuth configurations can create a distinct Auth user even when the
+  // same normalized email already owns an MLAMH profile. Detect that case
+  // before onboarding. We intentionally do NOT merge identities by heuristic.
+  // The newly-created orphan Auth user has no profile, so remove it and send
+  // the person to the existing-account login path instead.
+  if (user.email) {
+    const { data: otherAccountRows, error: otherAccountError } = await adminClient.rpc(
+      "lookup_other_mlamh_account_by_email",
+      {
+        p_email: user.email,
+        p_exclude_user_id: user.id,
+      },
+    );
+
+    if (otherAccountError) {
+      console.error("[OAuthCallback.otherAccountLookup]", otherAccountError.message);
+    } else {
+      const otherAccount = Array.isArray(otherAccountRows) ? otherAccountRows[0] : null;
+
+      if (otherAccount?.account_exists) {
+        const { error: deleteError } = await adminClient.auth.admin.deleteUser(user.id);
+        if (deleteError) {
+          console.error("[OAuthCallback.duplicateOAuthCleanup]", deleteError.message);
+        }
+
+        await supabase.auth.signOut();
+        return NextResponse.redirect(existingAccountLoginUrl(origin, locale, user.email));
+      }
+    }
   }
 
   if (isSignup && accountType === "talent" && provider === "email") {
