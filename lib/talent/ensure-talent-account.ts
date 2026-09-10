@@ -6,15 +6,7 @@ import {
   TALENT_SIGNUP_COUNTRIES,
 } from "@/lib/data/talent-signup";
 import { createAdminClient } from "@/lib/supabase/admin";
-
-function createTalentSlug(name: string, userId: string) {
-  const base = name
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, "-")
-    .replace(/[^\w\u0600-\u06FF-]+/g, "");
-  return `${base || "talent"}-${userId.slice(0, 8)}`;
-}
+import { createStableTalentSlug } from "@/lib/talent/talent-slug";
 
 function stringValue(metadata: Record<string, unknown>, key: string) {
   const value = metadata[key];
@@ -95,14 +87,6 @@ export async function ensureTalentAccountFromSignupData(
   const city = country.cities.find((item) => item.value === data.citySlug)!;
   const now = new Date().toISOString();
 
-  /*
-   * Legacy-safety rule:
-   * this helper belongs to the NEW Talent Flow only. If a Talent row already
-   * exists for the auth user, never rewrite it from signup metadata. Existing
-   * talents keep their current category, city, nationality, privacy, status,
-   * publication state and profile data. Incomplete legacy accounts are handled
-   * by the recovery/reminder flow instead of silent backfills.
-   */
   const { data: existingTalent, error: talentLookupError } = await admin
     .from("talents")
     .select("id")
@@ -170,7 +154,7 @@ export async function ensureTalentAccountFromSignupData(
       gender: data.gender,
       profile_visibility: data.profileVisibility,
       image_url: null,
-      slug: createTalentSlug(data.displayName, userId),
+      slug: createStableTalentSlug(data.displayName, userId),
       status: "draft",
       published: false,
       verified: false,
