@@ -111,6 +111,25 @@ function normalizeDateOfBirthField() {
     : "Enter your date of birth using the Gregorian calendar";
 }
 
+function normalizeResidenceCountrySelect() {
+  const select = document.querySelector<HTMLSelectElement>('select[name="base_country_code"]');
+  if (!select || select.dataset.mlamhSaudiResidenceOnly === "1") return;
+
+  const sa = TALENT_SIGNUP_COUNTRIES.find((item) => item.code === "SA");
+  if (!sa) return;
+
+  const option = document.createElement("option");
+  option.value = "SA";
+  option.textContent = isArabicPage() ? sa.ar : sa.en;
+  select.replaceChildren(option);
+  select.value = "SA";
+  select.dataset.mlamhSaudiResidenceOnly = "1";
+  select.title = isArabicPage()
+    ? "ملامح متاحة حاليًا للمقيمين في السعودية"
+    : "MLAMH is currently available to residents of Saudi Arabia";
+  select.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
 function findPhoneField() {
   const named = document.querySelector<HTMLInputElement>(
     'input[name="phone"], input[name="mobile"], input[name="whatsapp"]',
@@ -180,6 +199,7 @@ function enhanceCanonicalFields() {
   normalizeNameRequirementHint();
   markProfileImageRequired();
   normalizeDateOfBirthField();
+  normalizeResidenceCountrySelect();
   enhancePhoneField();
 }
 
