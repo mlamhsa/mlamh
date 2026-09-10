@@ -22,6 +22,10 @@ function publisherTypeLabel(type?: string | null, isRtl = false) {
     store: { ar: "متجر", en: "Store" },
     agency: { ar: "وكالة", en: "Agency" },
     production_company: { ar: "شركة إنتاج", en: "Production Company" },
+    advertising_agency: { ar: "وكالة إعلانية", en: "Advertising Agency" },
+    casting_agency: { ar: "وكالة كاستينغ", en: "Casting Agency" },
+    talent_agency: { ar: "وكالة مواهب", en: "Talent Agency" },
+    content_company: { ar: "شركة محتوى", en: "Content Company" },
     brand: { ar: "براند", en: "Brand" },
     photographer: { ar: "مصور", en: "Photographer" },
     marketer: { ar: "مسوق", en: "Marketer" },
@@ -51,7 +55,7 @@ function getCity(
     city_ar?: string | null;
     city_en?: string | null;
   },
-  locale: string
+  locale: string,
 ) {
   return locale === "ar"
     ? opportunity.city_ar ?? opportunity.city_en
@@ -73,10 +77,29 @@ export default async function PublisherPublicProfilePage({ params }: PageProps) 
     notFound();
   }
 
+  const { data: profile } = await adminClient
+    .from("profiles")
+    .select("account_type, approval_status")
+    .eq("id", publisher.profile_id)
+    .maybeSingle();
+
+  if (
+    !profile ||
+    profile.account_type !== "publisher" ||
+    profile.approval_status !== "approved" ||
+    publisher.status === "suspended"
+  ) {
+    notFound();
+  }
+
+  const isOrganizationVerified =
+    publisher.publisher_type !== "individual" &&
+    publisher.verification_status === "verified";
+
   const { data: opportunities } = await adminClient
     .from("opportunities")
     .select(
-      "id, title, slug, city_ar, city_en, opportunity_type, status, created_at"
+      "id, title, slug, city_ar, city_en, opportunity_type, status, created_at",
     )
     .eq("publisher_id", publisher.id)
     .eq("published", true)
@@ -94,16 +117,16 @@ export default async function PublisherPublicProfilePage({ params }: PageProps) 
       <div className="mx-auto max-w-7xl px-6 py-16">
         <section className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.025]">
           <div className="relative h-72 border-b border-white/10 bg-black md:h-96">
-          {publisher.cover_image_url ? (
-  <Image
-    src={publisher.cover_image_url}
-    alt={publisherName}
-    fill
-    priority
-    sizes="(max-width: 1280px) 100vw, 1280px"
-    className="object-cover"
-  />
-) : (
+            {publisher.cover_image_url ? (
+              <Image
+                src={publisher.cover_image_url}
+                alt={publisherName}
+                fill
+                priority
+                sizes="(max-width: 1280px) 100vw, 1280px"
+                className="object-cover"
+              />
+            ) : (
               <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-gold/10 to-black" />
             )}
 
@@ -115,14 +138,14 @@ export default async function PublisherPublicProfilePage({ params }: PageProps) 
             <div className="-mt-24 mb-8 flex justify-start">
               {publisher.profile_image_url ? (
                 <div className="relative h-36 w-36 overflow-hidden rounded-full border-4 border-black bg-black shadow-2xl md:h-44 md:w-44">
-                <Image
-                  src={publisher.profile_image_url}
-                  alt={publisherName}
-                  fill
-                  sizes="(max-width: 768px) 144px, 176px"
-                  className="object-cover"
-                />
-              </div>
+                  <Image
+                    src={publisher.profile_image_url}
+                    alt={publisherName}
+                    fill
+                    sizes="(max-width: 768px) 144px, 176px"
+                    className="object-cover"
+                  />
+                </div>
               ) : (
                 <div className="flex h-36 w-36 items-center justify-center rounded-full border-4 border-black bg-black text-5xl font-light text-gold shadow-2xl md:h-44 md:w-44">
                   {initial}
@@ -143,7 +166,7 @@ export default async function PublisherPublicProfilePage({ params }: PageProps) 
                 <p className="mt-4 text-sm text-white/50">
                   {publisherTypeLabel(publisher.publisher_type, isRtl)}
                   {publisher.city ? ` · ${publisher.city}` : ""}
-                  {publisher.verified
+                  {isOrganizationVerified
                     ? isRtl
                       ? " · موثق"
                       : " · Verified"
@@ -256,8 +279,7 @@ export default async function PublisherPublicProfilePage({ params }: PageProps) 
             </div>
 
             <p className="text-sm text-white/45">
-              {(opportunities ?? []).length}{" "}
-              {isRtl ? "فرصة" : "opportunities"}
+              {(opportunities ?? []).length} {isRtl ? "فرصة" : "opportunities"}
             </p>
           </div>
 
@@ -272,7 +294,7 @@ export default async function PublisherPublicProfilePage({ params }: PageProps) 
                     <span>
                       {opportunityTypeLabel(
                         opportunity.opportunity_type,
-                        isRtl
+                        isRtl,
                       )}
                     </span>
                     <span>{getCity(opportunity, locale) ?? "-"}</span>
@@ -281,9 +303,7 @@ export default async function PublisherPublicProfilePage({ params }: PageProps) 
                   <h3 className="text-3xl font-light">{opportunity.title}</h3>
 
                   <Link
-                    href={`/${locale}/opportunities/${
-                      opportunity.slug ?? opportunity.id
-                    }`}
+                    href={`/${locale}/opportunities/${opportunity.slug ?? opportunity.id}`}
                     className="mt-6 inline-flex text-sm text-gold transition hover:text-white"
                   >
                     {isRtl ? "عرض الفرصة ←" : "View Opportunity →"}
