@@ -37,10 +37,10 @@ function accountCopy(accountType: AccountType, isRtl: boolean) {
   if (accountType === "publisher") {
     return {
       eyebrow: isRtl ? "الخطوة الثانية" : "STEP TWO",
-      title: isRtl ? "إنشاء حساب الباحث عن مواهب" : "Create your hiring account",
+      title: isRtl ? "إنشاء حساب الباحث عن مواهب" : "Create your talent-seeker account",
       body: isRtl
-        ? "أنشئ حسابك أولًا، ثم نكمل إعداد حساب الناشر خطوة بخطوة."
-        : "Create your account first, then we’ll complete your publisher setup step by step.",
+        ? "سواء كنت جهة أو فردًا، أنشئ حسابك أولًا ثم نكمل إعداد حساب الناشر خطوة بخطوة."
+        : "Whether you are an organization or an individual, create your account first and we’ll complete your publisher setup step by step.",
     };
   }
 
@@ -189,11 +189,11 @@ function AudienceSelection({ locale, isRtl }: { locale: Locale; isRtl: boolean }
         <ChoiceCard
           href={`/${locale}/join?type=publisher`}
           icon={<BriefcaseBusiness size={28} strokeWidth={1.7} />}
-          eyebrow={isRtl ? "للشركات والجهات" : "FOR COMPANIES & TEAMS"}
+          eyebrow={isRtl ? "للجهات والأفراد" : "FOR ORGANIZATIONS & INDIVIDUALS"}
           title={isRtl ? "أبحث عن مواهب" : "I’m looking for talent"}
-          description={isRtl ? "انشر احتياجك، استقبل المتقدمين، ووصل للمواهب المناسبة لمشروعك." : "Publish what you need, receive applications and reach the right talent for your project."}
+          description={isRtl ? "أنشئ حسابك، انشر احتياجك، استقبل المتقدمين، واختر الموهبة المناسبة لمشروعك." : "Create your account, publish what you need, receive applicants and choose the right talent for your project."}
           benefits={isRtl ? ["نشر الفرص بسهولة", "استقبال وفرز المتقدمين", "اختيار المواهب والتواصل"] : ["Publish opportunities easily", "Receive and review applicants", "Select talent and connect"]}
-          actionLabel={isRtl ? "ابدأ كجهة" : "Start as a company"}
+          actionLabel={isRtl ? "ابدأ كناشر" : "Start as a publisher"}
         />
       </div>
 
