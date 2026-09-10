@@ -33,6 +33,14 @@ function getRequirementHref(locale: string, label: string) {
   }
 
   if (
+    normalized === "بلد الإقامة" ||
+    normalized === "country of residence" ||
+    normalized === "residence country"
+  ) {
+    return `${profileBase}#residence-country`;
+  }
+
+  if (
     normalized === "طريقة ظهور الملف" ||
     normalized === "profile visibility" ||
     normalized === "الموافقة على دقة البيانات والتواصل" ||
