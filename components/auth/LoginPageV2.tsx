@@ -56,6 +56,10 @@ export function LoginPageV2({ locale, initialEmail = "", errorCode, messageCode 
     credentialError: isArabic
       ? "تعذر تسجيل الدخول بهذه البيانات. إذا أنشأت حسابك سابقًا باستخدام Google أو Apple فاستخدم الطريقة نفسها، أو استخدم «نسيت كلمة المرور؟» لحساب البريد الإلكتروني."
       : "We couldn’t sign you in with those credentials. If you created your account with Google or Apple, use the same provider, or use Forgot password for an email account.",
+    accountExistsTitle: isArabic ? "لديك حساب ملامح بالفعل" : "You already have an MLAMH account",
+    accountExistsBody: isArabic
+      ? "هذا البريد مرتبط بحساب موجود. لم ننشئ حسابًا جديدًا أو نغيّر حسابك الحالي. استخدم طريقة تسجيل الدخول التي سجلت بها سابقًا، أو «نسيت كلمة المرور؟» إذا كان حسابك بالبريد الإلكتروني."
+      : "This email is already linked to an existing account. We did not create a second account or change your current account. Use the sign-in method you originally used, or Forgot password for an email account.",
   };
 
   async function signInWithPassword(event: React.FormEvent<HTMLFormElement>) {
@@ -137,6 +141,7 @@ export function LoginPageV2({ locale, initialEmail = "", errorCode, messageCode 
   }
 
   const legacyVerifyMessage = messageCode === "verify_email";
+  const accountExists = errorCode === "account_exists";
 
   return (
     <main
@@ -173,7 +178,14 @@ export function LoginPageV2({ locale, initialEmail = "", errorCode, messageCode 
           </div>
         ) : null}
 
-        {errorCode || error ? (
+        {accountExists ? (
+          <div role="status" className="mb-5 rounded-2xl border border-gold/30 bg-gold/[0.07] px-4 py-4 text-sm leading-7 text-white/70">
+            <p className="font-medium text-white">{copy.accountExistsTitle}</p>
+            <p className="mt-1">{copy.accountExistsBody}</p>
+          </div>
+        ) : null}
+
+        {(errorCode && !accountExists) || error ? (
           <div role="alert" className="mb-5 rounded-2xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-center text-sm leading-6 text-red-200">
             {error || copy.credentialError}
           </div>
