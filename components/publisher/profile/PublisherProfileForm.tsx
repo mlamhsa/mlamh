@@ -351,9 +351,13 @@ export default function PublisherProfileForm({
                       ? "يحتاج الملف إلى تحديث"
                       : "Profile Needs Updates"
                     : isReviewReady
-                      ? isRtl
-                        ? "الملف جاهز للمراجعة"
-                        : "Profile Ready for Review"
+                      ? isIndividual
+                        ? isRtl
+                          ? "الحساب جاهز للتفعيل"
+                          : "Account Ready to Activate"
+                        : isRtl
+                          ? "ملف الجهة جاهز للمراجعة"
+                          : "Organization Ready for Review"
                       : isRtl
                         ? "أكمل البيانات المطلوبة"
                         : "Complete Required Details"}
@@ -365,16 +369,20 @@ export default function PublisherProfileForm({
                   : "Your account is approved and you can use publisher features and post opportunities."
                 : isProfilePending
                   ? isRtl
-                    ? "استلم فريق ملامح ملفك ويقوم بمراجعته الآن."
-                    : "MLAMH has received your profile and is reviewing it."
+                    ? "استلم فريق ملامح ملف الجهة ويقوم بمراجعته الآن."
+                    : "MLAMH has received the organization profile and is reviewing it."
                   : isProfileRejected
                     ? isRtl
-                      ? "حدّث البيانات المطلوبة ثم أعد إرسال الملف للمراجعة."
-                      : "Update the requested details, then resubmit your profile."
+                      ? "حدّث البيانات المطلوبة ثم أعد إرسال ملف الجهة للمراجعة."
+                      : "Update the requested details, then resubmit the organization profile."
                     : isReviewReady
-                      ? isRtl
-                        ? "اكتملت البيانات الأساسية ويمكنك إرسال الملف للمراجعة."
-                        : "Your required details are complete and the profile can be submitted for review."
+                      ? isIndividual
+                        ? isRtl
+                          ? "اكتملت البيانات الأساسية. فعّل الحساب وابدأ بنشر الفرص السريعة مباشرة."
+                          : "Your essential details are complete. Activate the account and start posting quick opportunities."
+                        : isRtl
+                          ? "اكتملت البيانات الأساسية ويمكنك إرسال ملف الجهة للمراجعة."
+                          : "The organization details are complete and ready for review."
                       : isRtl
                         ? "أكمل العناصر الناقصة ثم احفظ التغييرات."
                         : "Complete the missing items, then save your changes."}
@@ -426,13 +434,17 @@ export default function PublisherProfileForm({
                 formAction={submitPublisherProfileForReviewAction}
                 className="inline-flex min-h-12 items-center justify-center rounded-full bg-gold px-6 text-sm font-medium text-black transition hover:bg-gold-soft"
               >
-                {isProfileRejected
+                {isIndividual
                   ? isRtl
-                    ? "إعادة الإرسال للمراجعة"
-                    : "Resubmit for Review"
-                  : isRtl
-                    ? "إرسال للمراجعة"
-                    : "Submit for Review"}
+                    ? "تفعيل الحساب"
+                    : "Activate Account"
+                  : isProfileRejected
+                    ? isRtl
+                      ? "إعادة الإرسال للمراجعة"
+                      : "Resubmit for Review"
+                    : isRtl
+                      ? "إرسال للمراجعة"
+                      : "Submit for Review"}
               </button>
             ) : null}
           </div>
