@@ -13,9 +13,7 @@ const ALLOWED_APPLICATION_STATUSES = [
   "rejected",
 ] as const;
 
-type ApplicationStatus =
-  (typeof ALLOWED_APPLICATION_STATUSES)[number];
-
+type ApplicationStatus = (typeof ALLOWED_APPLICATION_STATUSES)[number];
 type AdminClient = ReturnType<typeof createAdminClient>;
 
 type AcceptedApplicationContext = {
@@ -25,20 +23,14 @@ type AcceptedApplicationContext = {
   talentId: string | number;
 };
 
-function isValidApplicationStatus(
-  status: string,
-): status is ApplicationStatus {
-  return ALLOWED_APPLICATION_STATUSES.includes(
-    status as ApplicationStatus,
-  );
+function isValidApplicationStatus(status: string): status is ApplicationStatus {
+  return ALLOWED_APPLICATION_STATUSES.includes(status as ApplicationStatus);
 }
 
 function normalizeApplicationStatus(
   status: string | null | undefined,
 ): ApplicationStatus {
-  return status && isValidApplicationStatus(status)
-    ? status
-    : "pending";
+  return status && isValidApplicationStatus(status) ? status : "pending";
 }
 
 function getNotificationMessage(
@@ -58,15 +50,7 @@ function getNotificationMessage(
   return messages[status];
 }
 
-/*
- * MVP flow:
- * Every non-final application can be accepted or rejected directly.
- * Reviewing and shortlisted remain supported for old test data only.
- */
-const validTransitions: Record<
-  ApplicationStatus,
-  ApplicationStatus[]
-> = {
+const validTransitions: Record<ApplicationStatus, ApplicationStatus[]> = {
   pending: ["accepted", "rejected"],
   reviewing: ["accepted", "rejected"],
   shortlisted: ["accepted", "rejected"],
@@ -128,74 +112,109 @@ async function ensureAcceptedConversation(
   adminClient: AdminClient,
   context: AcceptedApplicationContext,
 ) {
-  const {
-    applicationId,
-    opportunityId,
-    publisherId,
-    talentId,
-  } = context;
+  const { applicationId, opportunityId, publisherId, talentId } = context;
 
-  const { data: existingConversation, error: lookupError } =
-    await adminClient
+  const { data: existingConversation, error: lookupError } = await adminClient
+    .from("conversations")
+    .select("id, status")
+    .eq("application_id", applicationId)
+    .maybeSingle();
+
+  if (lookupError) {
+    throw new Error(`Failed to check the application conversation: ${lookupError.message}`);
+  }
+
+  if (existingConversation) return existingConversation.id;
+
+  const now = new Date().toISOString();
+  const { data: createdConversation, error: createError } = await adminClient
+    .from("conversations")
+    .insert({
+      application_id: applicationId,
+      opportunity_id: opportunityId,
+      publisher_id: publisherId,
+      talent_id: talentId,
+      status: "active",
+      created_at: now,
+      updated_at: now,
+    })
+    .select("id")
+    .single();
+
+  if (!createError && createdConversation) return createdConversation.id;
+
+  if (createError?.code === "23505") {
+    const { data: concurrentConversation, error: retryError } = await adminClient
       .from("conversations")
-      .select("id, status")
+      .select("id")
       .eq("application_id", applicationId)
       .maybeSingle();
 
-  if (lookupError) {
-    throw new Error(
-      `Failed to check the application conversation: ${lookupError.message}`,
-    );
-  }
-
-  if (existingConversation) {
-    return existingConversation.id;
-  }
-
-  const now = new Date().toISOString();
-
-  const { data: createdConversation, error: createError } =
-    await adminClient
-      .from("conversations")
-      .insert({
-        application_id: applicationId,
-        opportunity_id: opportunityId,
-        publisher_id: publisherId,
-        talent_id: talentId,
-        status: "active",
-        created_at: now,
-        updated_at: now,
-      })
-      .select("id")
-      .single();
-
-  if (!createError && createdConversation) {
-    return createdConversation.id;
-  }
-
-  if (createError?.code === "23505") {
-    const { data: concurrentConversation, error: retryError } =
-      await adminClient
-        .from("conversations")
-        .select("id")
-        .eq("application_id", applicationId)
-        .maybeSingle();
-
-    if (!retryError && concurrentConversation) {
-      return concurrentConversation.id;
-    }
+    if (!retryError && concurrentConversation) return concurrentConversation.id;
   }
 
   throw new Error(
-    `Failed to create the accepted application conversation: ${
-      createError?.message ?? "Unknown error"
-    }`,
+    `Failed to create the accepted application conversation: ${createError?.message ?? "Unknown error"}`,
   );
 }
 
-function revalidateApplicationPaths(
-  opportunityId: string | number,
-) {
+async function createCanonicalNotification({
+  adminClient,
+  eventType,
+  targetType,
+  targetId,
+  actorId,
+  recipientType,
+  recipientId,
+  title,
+  body,
+  metadata,
+}: {
+  adminClient: AdminClient;
+  eventType: string;
+  targetType: string;
+  targetId: string;
+  actorId: string;
+  recipientType: "talent" | "publisher";
+  recipientId: string | number;
+  title: string;
+  body: string;
+  metadata?: Record<string, unknown>;
+}) {
+  const { data: event, error: eventError } = await adminClient
+    .from("events")
+    .insert({
+      event_type: eventType,
+      target_type: targetType,
+      target_id: targetId,
+      actor_id: actorId,
+      metadata: metadata ?? {},
+    })
+    .select("id")
+    .single();
+
+  if (eventError || !event) {
+    console.error("Failed to create notification event:", eventError);
+    return;
+  }
+
+  const { error: notificationError } = await adminClient
+    .from("notifications")
+    .insert({
+      event_id: event.id,
+      recipient_type: recipientType,
+      recipient_id: String(recipientId),
+      title,
+      body,
+      is_read: false,
+    });
+
+  if (notificationError) {
+    console.error("Failed to create canonical notification:", notificationError);
+  }
+}
+
+function revalidateApplicationPaths(opportunityId: string | number) {
   const paths = [
     "/ar/publisher-dashboard/applicants",
     "/en/publisher-dashboard/applicants",
@@ -219,112 +238,63 @@ function revalidateApplicationPaths(
     "/en/talent-dashboard/notifications",
   ];
 
-  paths.forEach((path) => {
-    revalidatePath(path);
-  });
+  paths.forEach((path) => revalidatePath(path));
 }
 
 export async function updateApplicationStatusAction(
   applicationId: string | number,
   status: string,
 ) {
-  if (!applicationId) {
-    throw new Error("Application ID is required.");
-  }
-
-  if (!isValidApplicationStatus(status)) {
-    throw new Error("Invalid application status.");
-  }
+  if (!applicationId) throw new Error("Application ID is required.");
+  if (!isValidApplicationStatus(status)) throw new Error("Invalid application status.");
 
   const authClient = await createServerSupabaseClient();
   const adminClient = createAdminClient();
+  const { data: { user }, error: userError } = await authClient.auth.getUser();
+  if (userError || !user) throw new Error("Unauthorized.");
 
-  const {
-    data: { user },
-    error: userError,
-  } = await authClient.auth.getUser();
+  const { data: profile, error: profileError } = await adminClient
+    .from("profiles")
+    .select("id, account_type, approval_status, status")
+    .eq("user_id", user.id)
+    .maybeSingle();
 
-  if (userError || !user) {
-    throw new Error("Unauthorized.");
-  }
-
-  const { data: profile, error: profileError } =
-    await adminClient
-      .from("profiles")
-      .select("id, account_type, approval_status, status")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-  if (profileError || !profile) {
-    throw new Error("Profile not found.");
-  }
-
-  if (profile.account_type !== "publisher") {
-    throw new Error("Publisher access required.");
-  }
-
-  if (profile.approval_status !== "approved") {
-    throw new Error("Publisher account is not approved.");
-  }
-
-  if (
-    profile.status === "suspended" ||
-    profile.status === "blocked" ||
-    profile.status === "banned" ||
-    profile.status === "disabled"
-  ) {
+  if (profileError || !profile) throw new Error("Profile not found.");
+  if (profile.account_type !== "publisher") throw new Error("Publisher access required.");
+  if (profile.approval_status !== "approved") throw new Error("Publisher account is not approved.");
+  if (["suspended", "blocked", "banned", "disabled"].includes(String(profile.status))) {
     throw new Error("Publisher account is not active.");
   }
 
-  const { data: publisher, error: publisherError } =
-    await adminClient
-      .from("publishers")
-      .select("id, status")
-      .eq("profile_id", profile.id)
-      .maybeSingle();
+  const { data: publisher, error: publisherError } = await adminClient
+    .from("publishers")
+    .select("id, status")
+    .eq("profile_id", profile.id)
+    .maybeSingle();
 
-  if (publisherError || !publisher) {
-    throw new Error("Publisher account not found.");
-  }
-
-  if (
-    publisher.status === "suspended" ||
-    publisher.status === "blocked" ||
-    publisher.status === "banned" ||
-    publisher.status === "disabled"
-  ) {
+  if (publisherError || !publisher) throw new Error("Publisher account not found.");
+  if (["suspended", "blocked", "banned", "disabled"].includes(String(publisher.status))) {
     throw new Error("Publisher account is not active.");
   }
 
-  const { data: application, error: applicationError } =
-    await adminClient
-      .from("opportunity_applications")
-      .select("id, opportunity_id, talent_id, status")
-      .eq("id", applicationId)
-      .maybeSingle();
+  const { data: application, error: applicationError } = await adminClient
+    .from("opportunity_applications")
+    .select("id, opportunity_id, talent_id, status")
+    .eq("id", applicationId)
+    .maybeSingle();
 
-  if (applicationError || !application) {
-    throw new Error("Application not found.");
-  }
+  if (applicationError || !application) throw new Error("Application not found.");
 
-  const { data: opportunity, error: opportunityError } =
-    await adminClient
-      .from("opportunities")
-      .select("id, title, publisher_id")
-      .eq("id", application.opportunity_id)
-      .maybeSingle();
+  const { data: opportunity, error: opportunityError } = await adminClient
+    .from("opportunities")
+    .select("id, title, publisher_id")
+    .eq("id", application.opportunity_id)
+    .maybeSingle();
 
-  if (opportunityError || !opportunity) {
-    throw new Error("Opportunity not found.");
-  }
+  if (opportunityError || !opportunity) throw new Error("Opportunity not found.");
+  if (opportunity.publisher_id !== publisher.id) throw new Error("Access denied.");
 
-  if (opportunity.publisher_id !== publisher.id) {
-    throw new Error("Access denied.");
-  }
-
-  const currentStatus = normalizeApplicationStatus(
-    application.status,
-  );
+  const currentStatus = normalizeApplicationStatus(application.status);
 
   if (currentStatus === status) {
     if (status === "accepted") {
@@ -334,104 +304,87 @@ export async function updateApplicationStatusAction(
         publisherId: publisher.id,
         talentId: application.talent_id,
       });
-
       revalidateApplicationPaths(application.opportunity_id);
     }
-
     return;
   }
 
   if (!validTransitions[currentStatus].includes(status)) {
-    throw new Error(
-      `Invalid status transition: ${currentStatus} → ${status}.`,
-    );
+    throw new Error(`Invalid status transition: ${currentStatus} → ${status}.`);
   }
 
-  const { data: talent, error: talentError } =
-    await adminClient
-      .from("talents")
-      .select("id, user_id")
-      .eq("id", application.talent_id)
-      .maybeSingle();
+  const { data: talent, error: talentError } = await adminClient
+    .from("talents")
+    .select("id, user_id")
+    .eq("id", application.talent_id)
+    .maybeSingle();
 
-  if (talentError || !talent?.user_id) {
-    throw new Error("Talent user account not found.");
-  }
+  if (talentError || !talent?.user_id) throw new Error("Talent user account not found.");
 
   const now = new Date().toISOString();
-
-  const {
-    data: updatedApplication,
-    error: updateError,
-  } = await adminClient
+  const { data: updatedApplication, error: updateError } = await adminClient
     .from("opportunity_applications")
-    .update({
-      status,
-      updated_at: now,
-    })
+    .update({ status, updated_at: now })
     .eq("id", application.id)
     .eq("opportunity_id", application.opportunity_id)
     .eq("status", application.status)
     .select("id")
     .maybeSingle();
 
-  if (updateError) {
-    throw new Error(updateError.message);
-  }
+  if (updateError) throw new Error(updateError.message);
+  if (!updatedApplication) throw new Error("Application status changed before the update could complete.");
 
-  if (!updatedApplication) {
-    throw new Error(
-      "Application status changed before the update could complete.",
-    );
-  }
+  await logStatusChange(adminClient, application.id, currentStatus, status, user.id);
 
-  await logStatusChange(
-    adminClient,
-    application.id,
-    currentStatus,
-    status,
-    user.id,
-  );
-
+  let conversationId: number | null = null;
   if (status === "accepted") {
-    await ensureAcceptedConversation(adminClient, {
+    conversationId = Number(await ensureAcceptedConversation(adminClient, {
       applicationId: application.id,
       opportunityId: application.opportunity_id,
       publisherId: publisher.id,
       talentId: application.talent_id,
-    });
+    }));
   }
 
   if (["accepted", "rejected"].includes(status)) {
-    const { error: notificationError } = await adminClient
-      .from("notifications")
-      .insert({
-        user_id: talent.user_id,
-        type: "application_status",
-        message: getNotificationMessage(
-          status,
-          opportunity.title,
-        ),
-        reference_id: application.opportunity_id,
-        read: false,
-        created_at: now,
-      });
-
-    if (notificationError) {
-      console.error("Failed to create notification:", {
-        message: notificationError.message,
-        details: notificationError.details,
-        hint: notificationError.hint,
-        code: notificationError.code,
-      });
-    }
+    await createCanonicalNotification({
+      adminClient,
+      eventType: "application_status_changed",
+      targetType: "application",
+      targetId: String(application.id),
+      actorId: user.id,
+      recipientType: "talent",
+      recipientId: application.talent_id,
+      title: status === "accepted" ? "تم قبول طلبك" : "تحديث على طلبك",
+      body: getNotificationMessage(status, opportunity.title),
+      metadata: {
+        applicationId: application.id,
+        opportunityId: application.opportunity_id,
+        conversationId,
+        status,
+      },
+    });
   }
 
-  await updateEngagement(
-    adminClient,
-    application.talent_id,
-    status,
-  );
+  if (status === "accepted" && conversationId) {
+    await createCanonicalNotification({
+      adminClient,
+      eventType: "booking_ready",
+      targetType: "conversation",
+      targetId: String(conversationId),
+      actorId: user.id,
+      recipientType: "publisher",
+      recipientId: publisher.id,
+      title: "تم قبول الموهبة — أكمل تفاصيل الحجز",
+      body: "أرسل للموهبة تاريخ العمل والوقت والموقع والمقابل لتأكيد الحجز.",
+      metadata: {
+        applicationId: application.id,
+        opportunityId: application.opportunity_id,
+        conversationId,
+      },
+    });
+  }
 
+  await updateEngagement(adminClient, application.talent_id, status);
   revalidateApplicationPaths(application.opportunity_id);
 }
