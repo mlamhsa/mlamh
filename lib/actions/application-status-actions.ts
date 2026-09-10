@@ -51,7 +51,7 @@ function getNotificationMessage(
     pending: `Your application is pending${title}`,
     reviewing: `Your application is under review${title}`,
     shortlisted: `You have been shortlisted for the opportunity${title}`,
-    accepted: `Your application has been accepted${title}. You can now start a conversation with the company.`,
+    accepted: `Your application has been accepted${title}. You can now start a conversation with the publisher.`,
     rejected: `Your application has been rejected${title}`,
   };
 
@@ -249,42 +249,51 @@ export async function updateApplicationStatusAction(
   }
 
   const { data: profile, error: profileError } =
-  await adminClient
-    .from("profiles")
-    .select("id, account_type, approval_status, status")
-    .eq("user_id", user.id)
-    .maybeSingle();
+    await adminClient
+      .from("profiles")
+      .select("id, account_type, approval_status, status")
+      .eq("user_id", user.id)
+      .maybeSingle();
 
-if (profileError || !profile) {
-  throw new Error("Profile not found.");
-}
+  if (profileError || !profile) {
+    throw new Error("Profile not found.");
+  }
 
-if (profile.account_type !== "publisher") {
-  throw new Error("Publisher access required.");
-}
+  if (profile.account_type !== "publisher") {
+    throw new Error("Publisher access required.");
+  }
 
-if (profile.approval_status !== "approved") {
-  throw new Error("Publisher account is not approved.");
-}
+  if (profile.approval_status !== "approved") {
+    throw new Error("Publisher account is not approved.");
+  }
 
-if (
-  profile.status === "suspended" ||
-  profile.status === "blocked" ||
-  profile.status === "banned" ||
-  profile.status === "disabled"
-) {
-  throw new Error("Publisher account is not active.");
-}
+  if (
+    profile.status === "suspended" ||
+    profile.status === "blocked" ||
+    profile.status === "banned" ||
+    profile.status === "disabled"
+  ) {
+    throw new Error("Publisher account is not active.");
+  }
 
   const { data: publisher, error: publisherError } =
     await adminClient
       .from("publishers")
-      .select("id")
+      .select("id, status")
       .eq("profile_id", profile.id)
       .maybeSingle();
 
   if (publisherError || !publisher) {
     throw new Error("Publisher account not found.");
+  }
+
+  if (
+    publisher.status === "suspended" ||
+    publisher.status === "blocked" ||
+    publisher.status === "banned" ||
+    publisher.status === "disabled"
+  ) {
+    throw new Error("Publisher account is not active.");
   }
 
   const { data: application, error: applicationError } =
@@ -365,11 +374,11 @@ if (
     .eq("status", application.status)
     .select("id")
     .maybeSingle();
-  
+
   if (updateError) {
     throw new Error(updateError.message);
   }
-  
+
   if (!updatedApplication) {
     throw new Error(
       "Application status changed before the update could complete.",
