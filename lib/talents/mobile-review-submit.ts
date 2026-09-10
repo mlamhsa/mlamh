@@ -55,8 +55,12 @@ export async function submitMobileTalentProfileReview(userId: string, locale: "a
   const fastTrack = evaluateTalentFastTrackApproval({ talent, completion });
   const shouldAutoApprove = fastTrack.decision === "auto_approve";
   const submittedAt = new Date().toISOString();
+  const profileVisibility = String(talent.profile_visibility ?? "public").trim().toLowerCase();
+  const isPublicProfile = profileVisibility === "public";
+  const shouldPublish = shouldAutoApprove && isPublicProfile;
+  const previousApprovalStatus = profile.approval_status ?? "not_submitted";
 
-  const { error: profileUpdateError } = await admin
+  const { data: updatedProfile, error: profileUpdateError } = await admin
     .from("profiles")
     .update({
       onboarding_status: "completed",
@@ -66,26 +70,36 @@ export async function submitMobileTalentProfileReview(userId: string, locale: "a
       updated_at: submittedAt,
     })
     .eq("id", profile.id)
-    .eq("user_id", userId);
-  if (profileUpdateError) {
+    .eq("user_id", userId)
+    .eq("account_type", "talent")
+    .select("approval_status")
+    .single();
+  if (profileUpdateError || updatedProfile?.approval_status !== (shouldAutoApprove ? "approved" : "pending")) {
     return { ok: false as const, code: "PROFILE_UPDATE_FAILED" as const, completion, message: isArabic ? "تعذر إرسال الملف للمراجعة. حاول مرة أخرى." : "Unable to submit the profile for review. Please try again." };
   }
 
-  const { error: talentUpdateError } = await admin
+  const { data: updatedTalent, error: talentUpdateError } = await admin
     .from("talents")
     .update({
       status: shouldAutoApprove ? "approved" : "pending",
-      published: shouldAutoApprove,
+      published: shouldPublish,
       verified: false,
     })
-    .eq("user_id", userId);
+    .eq("user_id", userId)
+    .select("id,status,published")
+    .single();
 
-  if (talentUpdateError) {
+  if (
+    talentUpdateError ||
+    updatedTalent?.status !== (shouldAutoApprove ? "approved" : "pending") ||
+    Boolean(updatedTalent?.published) !== shouldPublish
+  ) {
     await admin
       .from("profiles")
-      .update({ approval_status: profile.approval_status ?? "not_submitted" })
+      .update({ approval_status: previousApprovalStatus })
       .eq("id", profile.id)
-      .eq("user_id", userId);
+      .eq("user_id", userId)
+      .eq("account_type", "talent");
     return { ok: false as const, code: "TALENT_UPDATE_FAILED" as const, completion, message: isArabic ? "تعذر تحديث حالة ملف الموهبة. تم إلغاء إرسال الملف للمراجعة، حاول مرة أخرى." : "Unable to update the talent profile status. The review submission was cancelled. Please try again." };
   }
 
@@ -93,6 +107,7 @@ export async function submitMobileTalentProfileReview(userId: string, locale: "a
     const talentName = locale === "ar"
       ? String(talent.name_ar || talent.name_en || "").trim()
       : String(talent.name_en || talent.name_ar || "").trim();
+
     await createEvent({
       type: EVENT_TYPES.talent_created,
       target: EVENT_TARGETS.ADMIN,
@@ -109,8 +124,31 @@ export async function submitMobileTalentProfileReview(userId: string, locale: "a
         fast_track_decision: fastTrack.decision,
         fast_track_reasons: fastTrack.reasons,
         profile_completion: completion,
+        approval_status: shouldAutoApprove ? "approved" : "pending",
+        profile_visibility: isPublicProfile ? "public" : "private",
+        public_published: shouldPublish,
       },
     });
+
+    // Auto-approved profiles must go through the same updated review outcome
+    // event as manual approvals so notifications/email reflect the persisted state.
+    if (shouldAutoApprove) {
+      await createEvent({
+        type: EVENT_TYPES.talent_approved,
+        target: EVENT_TARGETS.TALENT,
+        targetId: talent.id,
+        metadata: {
+          locale,
+          talent_id: talent.id,
+          profile_id: profile.id,
+          previous_status: previousApprovalStatus,
+          approval_status: "approved",
+          review_route: "auto_approved",
+          profile_visibility: isPublicProfile ? "public" : "private",
+          public_published: shouldPublish,
+        },
+      });
+    }
   } catch (eventError) {
     console.error("[submitMobileTalentProfileReview event]", eventError);
   }
@@ -120,7 +158,7 @@ export async function submitMobileTalentProfileReview(userId: string, locale: "a
     completion,
     approvalStatus: shouldAutoApprove ? "approved" as const : "pending" as const,
     message: shouldAutoApprove
-      ? (isArabic ? "تم اعتماد ملفك وأصبح جاهزًا للظهور على ملامح." : "Your profile has been approved and is now ready to appear on MLAMH.")
+      ? (isArabic ? "تم اعتماد ملفك وأصبح جاهزًا للاستخدام على ملامح." : "Your profile has been approved and is now ready to use on MLAMH.")
       : (isArabic ? "تم إرسال ملفك للمراجعة بنجاح." : "Your profile has been submitted for review."),
   };
 }

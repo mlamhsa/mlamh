@@ -98,33 +98,6 @@ async function updateTalentReviewStatus({
     };
   }
 
-  const { data: profile, error: profileError } = await adminClient
-    .from("profiles")
-    .select("id, approval_status")
-    .eq("user_id", talent.user_id)
-    .maybeSingle();
-
-  if (profileError) {
-    console.error("[updateTalentReviewStatus profile read]", profileError);
-    return {
-      success: false,
-      message: locale === "ar"
-        ? "تعذر قراءة حالة المراجعة الحالية."
-        : "Unable to read the current review status.",
-    };
-  }
-
-  if (!profile) {
-    return {
-      success: false,
-      message: locale === "ar"
-        ? "لم يتم العثور على حساب الموهبة المرتبط."
-        : "The linked talent account could not be found.",
-    };
-  }
-
-  const previousStatus = profile.approval_status ?? "not_submitted";
-
   if (decision === "changes_requested" && !reason) {
     return {
       success: false,
@@ -139,13 +112,73 @@ async function updateTalentReviewStatus({
     };
   }
 
-  const { error: profileUpdateError } = await adminClient
+  const { data: profile, error: profileError } = await adminClient
+    .from("profiles")
+    .select("id, account_type, approval_status")
+    .eq("user_id", talent.user_id)
+    .maybeSingle();
+
+  if (profileError) {
+    console.error("[updateTalentReviewStatus profile read]", profileError);
+    return {
+      success: false,
+      message: locale === "ar"
+        ? "تعذر قراءة حالة المراجعة الحالية."
+        : "Unable to read the current review status.",
+    };
+  }
+
+  if (!profile || profile.account_type !== "talent") {
+    return {
+      success: false,
+      message: locale === "ar"
+        ? "لم يتم العثور على حساب موهبة مرتبط بهذا الملف."
+        : "A linked talent account could not be found for this profile.",
+    };
+  }
+
+  const previousStatus = profile.approval_status ?? "not_submitted";
+  const talentStatus = decision === "changes_requested" ? "pending" : decision;
+  const visibility = String(talent.profile_visibility ?? "public").trim().toLowerCase();
+  const isPublicProfile = visibility === "public";
+  const published = decision === "approved" && isPublicProfile;
+
+  // Idempotent replay: the updated profiles.approval_status is canonical.
+  // Keep operational talent fields aligned, but do not create another review event/email.
+  if (previousStatus === decision) {
+    const { error: syncError } = await adminClient
+      .from("talents")
+      .update({ status: talentStatus, published })
+      .eq("id", id);
+
+    if (syncError) {
+      console.error("[updateTalentReviewStatus idempotent sync]", syncError);
+      return {
+        success: false,
+        message: locale === "ar"
+          ? "الحالة معتمدة في النظام، لكن تعذر مزامنة بيانات التشغيل."
+          : "The review state is already saved, but operational fields could not be synchronized.",
+      };
+    }
+
+    revalidateTalentReviewPaths(id);
+    return {
+      success: true,
+      status: decision,
+      message: locale === "ar" ? "الحالة محفوظة بالفعل وتمت مزامنة الملف." : "The status was already saved and the profile has been synchronized.",
+    };
+  }
+
+  const { data: updatedProfile, error: profileUpdateError } = await adminClient
     .from("profiles")
     .update({ approval_status: decision })
-    .eq("id", profile.id);
+    .eq("id", profile.id)
+    .eq("account_type", "talent")
+    .select("id, approval_status")
+    .single();
 
-  if (profileUpdateError) {
-    console.error("[updateTalentReviewStatus profile update]", profileUpdateError);
+  if (profileUpdateError || updatedProfile?.approval_status !== decision) {
+    console.error("[updateTalentReviewStatus profile update]", profileUpdateError ?? { updatedProfile });
     return {
       success: false,
       message: locale === "ar"
@@ -154,25 +187,24 @@ async function updateTalentReviewStatus({
     };
   }
 
-  const talentStatus = decision === "changes_requested" ? "pending" : decision;
-  const visibility = String(talent.profile_visibility ?? "public").trim().toLowerCase();
-  const isPublicProfile = visibility === "public";
-
-  // Approval and publication are separate concepts. Private talent may be approved
-  // and used for internal/Brief matching while remaining permanently unpublished.
-  const published = decision === "approved" && isPublicProfile;
-
-  const { error: talentUpdateError } = await adminClient
+  const { data: updatedTalent, error: talentUpdateError } = await adminClient
     .from("talents")
     .update({ status: talentStatus, published })
-    .eq("id", id);
+    .eq("id", id)
+    .select("id, status, published")
+    .single();
 
-  if (talentUpdateError) {
-    console.error("[updateTalentReviewStatus talent update]", talentUpdateError);
+  if (
+    talentUpdateError ||
+    updatedTalent?.status !== talentStatus ||
+    Boolean(updatedTalent?.published) !== published
+  ) {
+    console.error("[updateTalentReviewStatus talent update]", talentUpdateError ?? { updatedTalent });
     await adminClient
       .from("profiles")
       .update({ approval_status: previousStatus })
-      .eq("id", profile.id);
+      .eq("id", profile.id)
+      .eq("account_type", "talent");
 
     return {
       success: false,
@@ -202,7 +234,8 @@ async function updateTalentReviewStatus({
       adminClient
         .from("profiles")
         .update({ approval_status: previousStatus })
-        .eq("id", profile.id),
+        .eq("id", profile.id)
+        .eq("account_type", "talent"),
       adminClient
         .from("talents")
         .update({ status: talent.status, published: talent.published })
@@ -214,6 +247,24 @@ async function updateTalentReviewStatus({
       message: locale === "ar"
         ? "تعذر حفظ سجل المراجعة، لذلك تم إلغاء القرار."
         : "The review history could not be saved, so the decision was rolled back.",
+    };
+  }
+
+  // Verify the persisted updated-system state immediately before emitting notifications/email.
+  const { data: persistedProfile, error: verifyError } = await adminClient
+    .from("profiles")
+    .select("approval_status")
+    .eq("id", profile.id)
+    .eq("account_type", "talent")
+    .maybeSingle();
+
+  if (verifyError || persistedProfile?.approval_status !== decision) {
+    console.error("[updateTalentReviewStatus verify]", verifyError ?? { persistedProfile, decision });
+    return {
+      success: false,
+      message: locale === "ar"
+        ? "تم حفظ القرار جزئيًا، لكن تعذر التحقق من الحالة النهائية. لم يتم إرسال إشعار الاعتماد."
+        : "The decision was partially saved, but the final state could not be verified. No approval notification was sent.",
     };
   }
 
@@ -232,6 +283,8 @@ async function updateTalentReviewStatus({
       locale,
       talent_id: id,
       profile_id: profile.id,
+      previous_status: previousStatus,
+      approval_status: decision,
       profile_visibility: isPublicProfile ? "public" : "private",
       public_published: published,
       reason: reason ?? null,
