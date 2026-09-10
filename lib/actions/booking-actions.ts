@@ -75,10 +75,77 @@ function text(formData: FormData, key: string) {
 }
 
 function revalidateBooking(locale: string, conversationId: number) {
+  revalidatePath(`/${locale}/booking/${conversationId}`);
   revalidatePath(`/${locale}/publisher-dashboard/messages/${conversationId}`);
   revalidatePath(`/${locale}/talent-dashboard/messages/${conversationId}`);
   revalidatePath(`/${locale}/publisher-dashboard/messages`);
   revalidatePath(`/${locale}/talent-dashboard/messages`);
+  revalidatePath(`/${locale}/publisher-dashboard/notifications`);
+  revalidatePath(`/${locale}/talent-dashboard/notifications`);
+}
+
+async function createBookingNotification({
+  eventType,
+  bookingId,
+  conversationId,
+  recipientType,
+  recipientId,
+  actorUserId,
+  titleAr,
+  titleEn,
+  bodyAr,
+  bodyEn,
+}: {
+  eventType: string;
+  bookingId: number;
+  conversationId: number;
+  recipientType: Role;
+  recipientId: number;
+  actorUserId: string;
+  titleAr: string;
+  titleEn: string;
+  bodyAr: string;
+  bodyEn: string;
+}) {
+  const admin = createAdminClient();
+  const { data: event, error: eventError } = await admin
+    .from("events")
+    .insert({
+      event_type: eventType,
+      target_type: "booking",
+      target_id: String(bookingId),
+      actor_id: actorUserId,
+      metadata: {
+        bookingId,
+        conversationId,
+        title_ar: titleAr,
+        title_en: titleEn,
+        body_ar: bodyAr,
+        body_en: bodyEn,
+      },
+    })
+    .select("id")
+    .single();
+
+  if (eventError || !event) {
+    console.error("[booking notification event]", eventError);
+    return;
+  }
+
+  const { error: notificationError } = await admin
+    .from("notifications")
+    .insert({
+      event_id: event.id,
+      recipient_type: recipientType,
+      recipient_id: String(recipientId),
+      title: titleAr,
+      body: bodyAr,
+      is_read: false,
+    });
+
+  if (notificationError) {
+    console.error("[booking notification]", notificationError);
+  }
 }
 
 export async function proposeBookingAction(formData: FormData) {
@@ -106,7 +173,7 @@ export async function proposeBookingAction(formData: FormData) {
   }
 
   const compensationType = text(formData, "compensationType") || "negotiable";
-  if (!['fixed','negotiable','unpaid'].includes(compensationType)) throw new Error("Invalid compensation type.");
+  if (!["fixed", "negotiable", "unpaid"].includes(compensationType)) throw new Error("Invalid compensation type.");
   const amountRaw = text(formData, "compensationAmount");
   const amount = amountRaw ? Number(amountRaw) : null;
   if (amount !== null && (!Number.isFinite(amount) || amount < 0)) throw new Error("Invalid compensation amount.");
@@ -145,11 +212,24 @@ export async function proposeBookingAction(formData: FormData) {
     throw new Error("This booking can no longer be replaced.");
   }
 
-  const query = existing
-    ? admin.from("talent_bookings").update(payload).eq("id", existing.id)
-    : admin.from("talent_bookings").insert(payload);
-  const { error: saveError } = await query;
-  if (saveError) throw new Error(saveError.message);
+  const saveQuery = existing
+    ? admin.from("talent_bookings").update(payload).eq("id", existing.id).select("id").single()
+    : admin.from("talent_bookings").insert(payload).select("id").single();
+  const { data: savedBooking, error: saveError } = await saveQuery;
+  if (saveError || !savedBooking) throw new Error(saveError?.message ?? "Booking could not be saved.");
+
+  await createBookingNotification({
+    eventType: existing ? "booking_updated" : "booking_proposed",
+    bookingId: savedBooking.id,
+    conversationId: conversation.id,
+    recipientType: "talent",
+    recipientId: conversation.talent_id,
+    actorUserId: actor.userId,
+    titleAr: existing ? "تم تحديث تفاصيل الحجز" : "لديك تفاصيل عمل جديدة للتأكيد",
+    titleEn: existing ? "Booking details updated" : "New work details to confirm",
+    bodyAr: "راجع تفاصيل العمل وأكد الحجز أو اطلب تعديل التفاصيل.",
+    bodyEn: "Review the work details and confirm the booking or request changes.",
+  });
 
   revalidateBooking(locale, conversation.id);
 }
@@ -164,20 +244,23 @@ export async function respondToBookingAction(formData: FormData) {
 
   const { data: booking, error } = await admin
     .from("talent_bookings")
-    .select("id, conversation_id, talent_id, status")
+    .select("id, conversation_id, publisher_id, talent_id, status")
     .eq("id", bookingId)
     .eq("talent_id", actor.talentId!)
     .maybeSingle();
   if (error || !booking) throw new Error("Booking not found.");
-  if (!['proposed','changes_requested'].includes(booking.status)) throw new Error("Booking is not awaiting a response.");
+  if (!["proposed", "changes_requested"].includes(booking.status)) throw new Error("Booking is not awaiting a response.");
 
   const now = new Date().toISOString();
   const nextStatus = response === "confirm" ? "confirmed" : "changes_requested";
+  const responseNote = text(formData, "responseNote") || null;
+  if (response === "request_changes" && !responseNote) throw new Error("Please describe the requested change.");
+
   const { error: updateError } = await admin
     .from("talent_bookings")
     .update({
       status: nextStatus,
-      talent_response_note: text(formData, "responseNote") || null,
+      talent_response_note: responseNote,
       talent_response_at: now,
       confirmed_at: response === "confirm" ? now : null,
       updated_at: now,
@@ -185,6 +268,19 @@ export async function respondToBookingAction(formData: FormData) {
     .eq("id", booking.id)
     .eq("status", booking.status);
   if (updateError) throw new Error(updateError.message);
+
+  await createBookingNotification({
+    eventType: response === "confirm" ? "booking_confirmed" : "booking_changes_requested",
+    bookingId: booking.id,
+    conversationId: booking.conversation_id,
+    recipientType: "publisher",
+    recipientId: booking.publisher_id,
+    actorUserId: actor.userId,
+    titleAr: response === "confirm" ? "تم تأكيد الحجز" : "طلبت الموهبة تعديل تفاصيل الحجز",
+    titleEn: response === "confirm" ? "Booking confirmed" : "Talent requested booking changes",
+    bodyAr: response === "confirm" ? "أكدت الموهبة تفاصيل العمل وأصبح الحجز مؤكداً." : "راجع طلب التعديل وأرسل التفاصيل المحدثة.",
+    bodyEn: response === "confirm" ? "The talent confirmed the work details and the booking is confirmed." : "Review the requested change and send updated details.",
+  });
 
   revalidateBooking(locale, booking.conversation_id);
 }
@@ -201,7 +297,13 @@ export async function markBookingCompletedAction(formData: FormData) {
   query = role === "publisher" ? query.eq("publisher_id", actor.publisherId!) : query.eq("talent_id", actor.talentId!);
   const { data: booking, error } = await query.maybeSingle();
   if (error || !booking) throw new Error("Booking not found.");
-  if (!['confirmed','completed'].includes(booking.status)) throw new Error("Booking must be confirmed first.");
+  if (!["confirmed", "completed"].includes(booking.status)) throw new Error("Booking must be confirmed first.");
+
+  const alreadyConfirmed = role === "publisher" ? booking.publisher_completed_at : booking.talent_completed_at;
+  if (alreadyConfirmed) {
+    revalidateBooking(locale, booking.conversation_id);
+    return;
+  }
 
   const now = new Date().toISOString();
   const publisherCompletedAt = role === "publisher" ? now : booking.publisher_completed_at;
@@ -219,6 +321,22 @@ export async function markBookingCompletedAction(formData: FormData) {
     })
     .eq("id", booking.id);
   if (updateError) throw new Error(updateError.message);
+
+  const recipientType: Role = role === "publisher" ? "talent" : "publisher";
+  const recipientId = role === "publisher" ? booking.talent_id : booking.publisher_id;
+
+  await createBookingNotification({
+    eventType: bothComplete ? "booking_completed" : "booking_completion_confirmed",
+    bookingId: booking.id,
+    conversationId: booking.conversation_id,
+    recipientType,
+    recipientId,
+    actorUserId: actor.userId,
+    titleAr: bothComplete ? "تم إكمال الحجز" : "تم تأكيد تنفيذ العمل من الطرف الآخر",
+    titleEn: bothComplete ? "Booking completed" : "The other party confirmed completion",
+    bodyAr: bothComplete ? "تم تأكيد تنفيذ العمل من الطرفين. يمكنك الآن إضافة تقييمك." : "أكد الطرف الآخر تنفيذ العمل. أكد التنفيذ من طرفك عند اكتماله.",
+    bodyEn: bothComplete ? "Both parties confirmed the work was completed. You can now leave a review." : "The other party confirmed completion. Confirm from your side when the work is complete.",
+  });
 
   revalidateBooking(locale, booking.conversation_id);
 }
