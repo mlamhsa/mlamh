@@ -105,7 +105,7 @@ export async function createCastingWorkspaceProjectAction(formData: FormData) {
     .from("casting_projects")
     .insert({
       publisher_id: actor.publisherId,
-      service_mode: "self_serve",
+      service_mode: "self_service",
       status: "active",
       client_name: clientName,
       company_name: actor.companyName,
@@ -137,7 +137,7 @@ export async function createCastingWorkspaceProjectAction(formData: FormData) {
     required_count: requiredCount,
     description: summary || null,
     requirements,
-    status: "open",
+    status: "active",
     sort_order: 0,
     created_at: now,
     updated_at: now,
@@ -185,7 +185,7 @@ export async function addCastingRoleAction(formData: FormData) {
     required_count: Math.min(positiveInt(text(formData, "requiredCount"), 1), 1000),
     description: text(formData, "summary") || null,
     requirements,
-    status: "open",
+    status: "active",
     sort_order: count ?? 0,
     updated_at: new Date().toISOString(),
   });
