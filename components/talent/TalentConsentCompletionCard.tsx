@@ -89,7 +89,7 @@ export default function TalentConsentCompletionCard({ locale }: Props) {
     <div
       id="talent-consent"
       dir={isArabic ? "rtl" : "ltr"}
-      className="w-full scroll-mt-36 px-4 sm:px-6 lg:px-8"
+      className="w-full scroll-mt-36 px-4 pb-4 pt-28 sm:px-6 lg:px-8 lg:pt-32"
     >
       <div className="mx-auto max-w-7xl rounded-[1.75rem] border border-gold/20 bg-gold/[0.035] p-5 sm:p-6">
         <div className="flex items-start gap-3">
