@@ -50,6 +50,8 @@ async function refreshManagedBooking(projectId: number, conversationId: number) 
   revalidatePath(`/admin/messages/${conversationId}`);
   revalidatePath(`/admin/casting/${projectId}`);
   revalidatePath(`/admin/casting/${projectId}/applications`);
+  revalidatePath("/admin/casting");
+  revalidatePath("/admin/casting/analytics");
   if (project?.client_access_token) {
     revalidatePath(`/ar/casting/status/${project.client_access_token}`);
     revalidatePath(`/en/casting/status/${project.client_access_token}`);
@@ -173,6 +175,21 @@ export async function markManagedBookingCompletedByTalentAction(formData: FormDa
     projectId,
     actorUserId: actor.userId,
   });
+
+  if (bothComplete) {
+    const { count: remainingCount } = await admin
+      .from("talent_bookings")
+      .select("id", { count: "exact", head: true })
+      .eq("managed_casting_project_id", projectId)
+      .neq("status", "completed");
+    if ((remainingCount ?? 0) === 0) {
+      await admin.from("casting_projects").update({
+        status: "completed",
+        client_status_note: "اكتمل تنفيذ مشروع الكاستينغ والمواهب المؤكدة. يمكنكم الآن تقييم التجربة والمواهب.",
+        updated_at: now,
+      }).eq("id", projectId);
+    }
+  }
 
   await refreshManagedBooking(projectId, Number(booking.conversation_id));
 }
