@@ -8,9 +8,18 @@ import { submitTalentProfileReviewAction } from "@/lib/actions/submit-talent-pro
 type Props = {
   locale: string;
   onSubmitted?: () => void | Promise<void>;
+  label?: string;
+  wrapperClassName?: string;
+  buttonClassName?: string;
 };
 
-export default function TalentProfileReviewSubmitButton({ locale, onSubmitted }: Props) {
+export default function TalentProfileReviewSubmitButton({
+  locale,
+  onSubmitted,
+  label,
+  wrapperClassName = "mt-6",
+  buttonClassName = "inline-flex min-h-12 items-center justify-center rounded-full bg-gold px-7 text-sm font-semibold text-black transition hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 disabled:cursor-not-allowed disabled:opacity-50",
+}: Props) {
   const isArabic = locale === "ar";
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
@@ -46,20 +55,18 @@ export default function TalentProfileReviewSubmitButton({ locale, onSubmitted }:
   }
 
   return (
-    <div className="mt-6">
+    <div className={wrapperClassName}>
       <button
         type="button"
         onClick={() => void handleSubmit()}
         disabled={submitting}
-        className="inline-flex min-h-12 items-center justify-center rounded-full bg-gold px-7 text-sm font-semibold text-black transition hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 disabled:cursor-not-allowed disabled:opacity-50"
+        className={buttonClassName}
       >
         {submitting
           ? isArabic
             ? "جارٍ إرسال الملف..."
             : "Submitting profile..."
-          : isArabic
-            ? "إرسال الملف للمراجعة"
-            : "Submit profile for review"}
+          : label ?? (isArabic ? "إرسال الملف للمراجعة" : "Submit profile for review")}
       </button>
 
       {message ? (
