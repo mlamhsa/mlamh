@@ -129,6 +129,10 @@ export function AdminMfaGate() {
             <p className="text-xs text-white/50">المفتاح اليدوي عند تعذر مسح QR</p>
             <code className="mt-2 block break-all text-sm text-white">{enrollment.secret}</code>
           </div>
+
+          <div className="rounded-xl border border-amber-400/20 bg-amber-400/[0.06] p-3 text-sm leading-6 text-amber-100/80">
+            هذا الرمز والمفتاح خاصان بحساب إدارة ملامح. لا تشارك QR أو المفتاح اليدوي أو رمز التحقق مع أي شخص.
+          </div>
         </div>
       ) : (
         <div>
