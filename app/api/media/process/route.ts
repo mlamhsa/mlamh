@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import sharp from "sharp";
 
 import { getRequestUser } from "@/lib/auth/request-user";
+import { scanBufferForMalware } from "@/lib/security/malware-scanner";
 import {
   readTextBodyWithLimit,
   RequestBodyTooLargeError,
@@ -195,6 +196,35 @@ export async function POST(request: Request) {
       );
     }
 
+    const malwareScan = await scanBufferForMalware(input);
+
+    if (malwareScan.verdict === "unavailable") {
+      console.error("[api.media.process.malwareScan] scanner unavailable", {
+        userId: requestUser.user.id,
+        kind,
+        reason: malwareScan.reason,
+      });
+
+      // Fail closed while retaining the private quarantine object so the user
+      // can retry once the scanner is healthy again.
+      return Response.json(
+        { error: "MALWARE_SCAN_UNAVAILABLE" },
+        { status: 503, headers: { "Retry-After": "30" } },
+      );
+    }
+
+    if (malwareScan.verdict === "malicious") {
+      const fileDigest = createHash("sha256").update(input).digest("hex");
+      await removeQuarantinedObject();
+      console.warn("[api.media.process.malwareScan] upload blocked", {
+        userId: requestUser.user.id,
+        kind,
+        fileDigest,
+        signature: malwareScan.signature ?? "malware_detected",
+      });
+      return Response.json({ error: "MALWARE_DETECTED" }, { status: 422 });
+    }
+
     const metadata = await sharp(input, {
       failOn: "error",
       limitInputPixels: MAX_INPUT_PIXELS,
@@ -273,6 +303,7 @@ export async function POST(request: Request) {
       publicUrl: data.publicUrl,
       contentType,
       reconstructed: true,
+      malwareScanned: true,
     });
   } catch (error) {
     await removeQuarantinedObject();
