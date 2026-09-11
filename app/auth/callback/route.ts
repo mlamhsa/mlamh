@@ -45,6 +45,7 @@ export async function GET(request: Request) {
   const isSignup = mode === "signup";
   const isRecovery = mode === "recovery";
   const isCastingClaim = mode === "casting_claim";
+  const isCastingClientLogin = mode === "casting_client_login";
   const isValidAccountType = accountType === "talent" || accountType === "publisher";
   const origin = requestUrl.origin;
 
@@ -54,7 +55,9 @@ export async function GET(request: Request) {
         ? `${origin}/${locale}/forgot-password?error=invalid_link`
         : isCastingClaim
           ? `${origin}/${locale}/casting?claim=invalid_link`
-          : `${origin}/${locale}/login?error=oauth_callback`,
+          : isCastingClientLogin
+            ? `${origin}/${locale}/casting/client/login?error=invalid_link`
+            : `${origin}/${locale}/login?error=oauth_callback`,
     );
   }
 
@@ -68,7 +71,9 @@ export async function GET(request: Request) {
         ? `${origin}/${locale}/forgot-password?error=expired_link`
         : isCastingClaim
           ? `${origin}/${locale}/casting?claim=expired_link`
-          : `${origin}/${locale}/login?error=oauth_callback`,
+          : isCastingClientLogin
+            ? `${origin}/${locale}/casting/client/login?error=expired_link`
+            : `${origin}/${locale}/login?error=oauth_callback`,
     );
   }
 
@@ -81,12 +86,18 @@ export async function GET(request: Request) {
         ? `${origin}/${locale}/forgot-password?error=recovery_user`
         : isCastingClaim
           ? `${origin}/${locale}/casting?claim=user_error`
-          : `${origin}/${locale}/login?error=oauth_user`,
+          : isCastingClientLogin
+            ? `${origin}/${locale}/casting/client/login?error=user_error`
+            : `${origin}/${locale}/login?error=oauth_user`,
     );
   }
 
   if (isRecovery) {
     return NextResponse.redirect(`${origin}/${locale}/reset-password`);
+  }
+
+  if (isCastingClientLogin) {
+    return NextResponse.redirect(`${origin}/${locale}/casting/client`);
   }
 
   const adminClient = createAdminClient();
