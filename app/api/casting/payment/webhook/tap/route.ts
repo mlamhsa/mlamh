@@ -2,8 +2,14 @@ import { NextResponse } from "next/server";
 
 import { reconcileManagedCastingTapCharge } from "@/lib/casting/managed-payment-reconciliation";
 import { tapPaymentProvider } from "@/lib/payments/providers/tap/tap-provider";
+import {
+  readTextBodyWithLimit,
+  RequestBodyTooLargeError,
+} from "@/lib/security/request-guards";
 
 export const runtime = "nodejs";
+
+const MAX_WEBHOOK_BODY_BYTES = 256 * 1024;
 
 type TapPayload = { id?: unknown };
 
@@ -14,8 +20,27 @@ function providerObjectId(payload: unknown) {
 }
 
 export async function POST(request: Request) {
-  const rawBody = await request.text();
-  if (!rawBody) return NextResponse.json({ ok: false, error: "empty_body" }, { status: 400 });
+  let rawBody: string;
+
+  try {
+    rawBody = await readTextBodyWithLimit(request, MAX_WEBHOOK_BODY_BYTES);
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) {
+      return NextResponse.json(
+        { ok: false, error: "payload_too_large" },
+        { status: 413 },
+      );
+    }
+
+    return NextResponse.json(
+      { ok: false, error: "invalid_body" },
+      { status: 400 },
+    );
+  }
+
+  if (!rawBody) {
+    return NextResponse.json({ ok: false, error: "empty_body" }, { status: 400 });
+  }
 
   const verification = await tapPaymentProvider.verifyWebhook({ rawBody, headers: request.headers });
   if (!verification.valid) {
