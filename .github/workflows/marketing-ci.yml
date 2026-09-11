@@ -28,10 +28,14 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
+      - name: Production dependency audit
+        run: npm audit --omit=dev --audit-level=high
       - name: Marketing tests
         run: npm run test:marketing
       - name: Intelligence tests
         run: npm run test:intelligence
+      - name: Security tests
+        run: npm run test:security
       - name: Investor demo tests
         run: node --experimental-strip-types --test lib/intelligence/demo/investor.test.ts
       - name: Market intelligence tests
