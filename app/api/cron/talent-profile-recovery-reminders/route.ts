@@ -40,6 +40,7 @@ type ProfileRow = {
   id: string | number;
   user_id: string;
   approval_status: string | null;
+  phone: string | null;
   data_accuracy_contact_consent: boolean | null;
   created_at: string | null;
   updated_at: string | null;
@@ -109,7 +110,7 @@ function normalizeApprovalStatus(value: unknown) {
 
 function classifyTalentRecovery(
   talent: TalentRow,
-  profile: Pick<ProfileRow, "approval_status" | "data_accuracy_contact_consent">,
+  profile: Pick<ProfileRow, "approval_status" | "phone" | "data_accuracy_contact_consent">,
 ): RecoveryClassification | null {
   const approvalStatus = normalizeApprovalStatus(profile.approval_status);
 
@@ -127,6 +128,7 @@ function classifyTalentRecovery(
 
   const readiness = getTalentProfileReviewReadiness({
     ...talent,
+    phone: profile.phone,
     data_accuracy_contact_consent:
       profile.data_accuracy_contact_consent === true,
   });
@@ -177,7 +179,7 @@ export async function GET(request: NextRequest) {
   const { data: profileData, error: profileError } =
     await adminClient
       .from("profiles")
-      .select("id, user_id, approval_status, data_accuracy_contact_consent, created_at, updated_at")
+      .select("id, user_id, approval_status, phone, data_accuracy_contact_consent, created_at, updated_at")
       .eq("account_type", "talent")
       .or(
         "approval_status.is.null,approval_status.eq.not_submitted,approval_status.eq.changes_requested",
@@ -359,7 +361,7 @@ export async function GET(request: NextRequest) {
     const [currentProfileResult, currentTalentResult] = await Promise.all([
       adminClient
         .from("profiles")
-        .select("approval_status, data_accuracy_contact_consent")
+        .select("approval_status, phone, data_accuracy_contact_consent")
         .eq("id", profile.id)
         .maybeSingle(),
       adminClient
@@ -389,6 +391,7 @@ export async function GET(request: NextRequest) {
       currentTalent,
       {
         approval_status: currentProfileResult.data.approval_status,
+        phone: currentProfileResult.data.phone,
         data_accuracy_contact_consent:
           currentProfileResult.data.data_accuracy_contact_consent,
       },

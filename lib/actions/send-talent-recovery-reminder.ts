@@ -9,12 +9,10 @@ import { getTalentProfileReadiness } from "@/lib/talent/profile-review-readiness
 import { sendTalentProfileRecoveryReminder } from "@/lib/talent/send-profile-recovery-reminder";
 import { calculateProfileCompletion } from "@/lib/utils/profile-completion";
 
-const MIN_REVIEW_COMPLETION = 35;
-
 // Keep this select aligned with the real `talents` table schema. The table
 // does not have `updated_at`; selecting it makes the whole query fail before
 // the reminder workflow can resolve the linked account.
-const TALENT_SELECT = "id,user_id,created_at,name_ar,name_en,image_url,primary_role,city_slug,city_ar,city_en,gender,nationality,nationality_slug,date_of_birth,bio_ar,bio_en,languages,dialects,skills,availability_status,portfolio_url,showreel_url,gallery_images,acting_age_min,acting_age_max,modeling_types,height_cm,shoe_size,hair_color,eye_color,chest_size,waist_size,hip_size,previous_work" as const;
+const TALENT_SELECT = "id,user_id,created_at,name_ar,name_en,image_url,primary_role,base_country_code,city_slug,city_ar,city_en,gender,nationality,nationality_slug,date_of_birth,profile_visibility,bio_ar,bio_en,languages,dialects,skills,availability_status,portfolio_url,showreel_url,gallery_images,acting_age_min,acting_age_max,modeling_types,height_cm,shoe_size,hair_color,eye_color,chest_size,waist_size,hip_size,previous_work" as const;
 
 type ActionResult = {
   success: boolean;
@@ -59,8 +57,9 @@ export async function sendTalentRecoveryReminderAction(
 
   const { data: profile, error: profileError } = await adminClient
     .from("profiles")
-    .select("id,approval_status")
+    .select("id,approval_status,phone,data_accuracy_contact_consent")
     .eq("user_id", talent.user_id)
+    .eq("account_type", "talent")
     .maybeSingle();
 
   if (profileError || !profile) {
@@ -82,12 +81,17 @@ export async function sendTalentRecoveryReminderAction(
     };
   }
 
-  const readiness = getTalentProfileReadiness(talent);
+  const readiness = getTalentProfileReadiness({
+    ...talent,
+    phone: profile.phone,
+    data_accuracy_contact_consent:
+      profile.data_accuracy_contact_consent === true,
+  });
   const completion = calculateProfileCompletion(talent);
   const kind =
     status === "changes_requested"
       ? "changes_requested"
-      : readiness.isReady && completion >= MIN_REVIEW_COMPLETION
+      : readiness.isReady
         ? "ready_not_submitted"
         : "incomplete_profile";
 
