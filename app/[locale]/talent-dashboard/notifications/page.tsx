@@ -62,6 +62,11 @@ const BOOKING_EVENTS = new Set([
   "booking_changes_requested",
   "booking_completion_confirmed",
   "booking_completed",
+  "managed_casting_booking_proposed",
+  "managed_booking_confirmed",
+  "managed_booking_changes_requested",
+  "managed_booking_talent_completed",
+  "managed_booking_completed",
 ]);
 
 function relatedEvent(value: DatabaseNotification["events"]): NotificationEvent | null {
@@ -204,7 +209,7 @@ export default async function TalentNotificationsPage({ params }: PageProps) {
     const event = relatedEvent(notification.events);
     const eventType = event?.event_type ?? null;
     const isBooking = Boolean(eventType && BOOKING_EVENTS.has(eventType));
-    const isInvitation = eventType === "opportunity_invitation";
+    const isInvitation = eventType === "opportunity_invitation" || eventType === "managed_casting_invitation";
     const isMessage = eventType === "message_created" || notification.title?.trim().toLowerCase() === "new message";
     const conversationId = positiveInteger(event?.metadata?.conversationId);
 
@@ -264,8 +269,8 @@ export default async function TalentNotificationsPage({ params }: PageProps) {
               <h1 className="mt-3 text-4xl font-light sm:text-5xl">{isArabic ? "الإشعارات" : "Notifications"}</h1>
               <p className="mt-3 max-w-2xl text-sm leading-7 text-white/45">
                 {isArabic
-                  ? "تابع تحديثات الطلبات والرسائل والحجوزات. إشعارات الحجز تنقلك مباشرة إلى الإجراء المطلوب."
-                  : "Track applications, messages, and bookings. Booking notifications open the exact action that needs your attention."}
+                  ? "تابع الدعوات وتحديثات الطلبات والرسائل والحجوزات. كل إشعار ينقلك مباشرة إلى الإجراء المطلوب."
+                  : "Track invitations, applications, messages, and bookings. Each notification opens the exact action that needs your attention."}
               </p>
             </div>
 
@@ -289,7 +294,7 @@ export default async function TalentNotificationsPage({ params }: PageProps) {
               <div className="max-w-md">
                 <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-gold/25 bg-gold/[0.08] text-gold"><Bell size={24} /></div>
                 <h2 className="mt-5 text-2xl font-light">{isArabic ? "لا توجد إشعارات حاليًا" : "No notifications yet"}</h2>
-                <p className="mt-3 text-sm leading-7 text-white/40">{isArabic ? "ستظهر هنا تحديثات طلباتك ورسائلك وحجوزاتك." : "Application, message, and booking updates will appear here."}</p>
+                <p className="mt-3 text-sm leading-7 text-white/40">{isArabic ? "ستظهر هنا الدعوات وتحديثات طلباتك ورسائلك وحجوزاتك." : "Invitations, application updates, messages, and bookings will appear here."}</p>
               </div>
             </div>
           ) : (
