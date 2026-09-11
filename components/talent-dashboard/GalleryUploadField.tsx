@@ -59,6 +59,14 @@ export function GalleryUploadField({
     setUploading(true);
 
     try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.access_token || !session.user?.id) {
+        throw new Error("انتهت الجلسة. سجّل الدخول مرة أخرى ثم أعد المحاولة.");
+      }
+
       const uploadedUrls: string[] = [];
 
       for (const file of filesToUpload) {
@@ -72,25 +80,54 @@ export function GalleryUploadField({
           throw new Error("يجب ألا يتجاوز حجم كل صورة 5 ميجابايت.");
         }
 
-        const filePath = `gallery/${crypto.randomUUID()}.${extension}`;
+        let quarantinePath = `${session.user.id}/gallery/${crypto.randomUUID()}.${extension}`;
 
-        const { error: uploadError } = await supabase.storage
-          .from("talent-media")
-          .upload(filePath, file, {
-            cacheControl: "3600",
-            contentType: file.type,
-            upsert: false,
+        try {
+          const { error: uploadError } = await supabase.storage
+            .from("media-quarantine")
+            .upload(quarantinePath, file, {
+              cacheControl: "no-store",
+              contentType: file.type,
+              upsert: false,
+            });
+
+          if (uploadError) {
+            throw uploadError;
+          }
+
+          const response = await fetch("/api/media/process", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              path: quarantinePath,
+              kind: "gallery",
+            }),
           });
 
-        if (uploadError) {
-          throw uploadError;
+          const result = (await response.json()) as {
+            publicUrl?: string;
+            error?: string;
+          };
+
+          if (!response.ok || !result.publicUrl) {
+            throw new Error(
+              result.error === "INVALID_IMAGE_SIGNATURE"
+                ? "إحدى الملفات ليست صورة سليمة."
+                : "تعذر فحص إحدى الصور وتجهيزها للنشر.",
+            );
+          }
+
+          quarantinePath = "";
+          uploadedUrls.push(result.publicUrl);
+        } catch (imageError) {
+          if (quarantinePath) {
+            await supabase.storage.from("media-quarantine").remove([quarantinePath]);
+          }
+          throw imageError;
         }
-
-        const { data } = supabase.storage
-          .from("talent-media")
-          .getPublicUrl(filePath);
-
-        uploadedUrls.push(data.publicUrl);
       }
 
       setImages((current) => [...current, ...uploadedUrls]);
@@ -150,7 +187,7 @@ export function GalleryUploadField({
           onClick={() => inputRef.current?.click()}
           className="rounded-full border border-gold/40 px-5 py-3 text-[10px] uppercase tracking-[0.3em] text-gold transition hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {uploading ? "جاري الرفع..." : "رفع صور المعرض"}
+          {uploading ? "جاري فحص الصور..." : "رفع صور المعرض"}
         </button>
 
         <input
@@ -174,7 +211,7 @@ export function GalleryUploadField({
           <p className="mt-3 text-sm text-red-400">{error}</p>
         ) : (
           <p className="mt-3 text-xs leading-6 text-gray-muted">
-            حتى {maxImages} صور. الصيغ المدعومة: JPG و PNG و WebP. الحد الأقصى 5 ميجابايت لكل صورة.
+            حتى {maxImages} صور. JPG و PNG و WebP فقط، حتى 5 ميجابايت لكل صورة. يتم فحص كل صورة وإعادة بنائها قبل نشرها.
           </p>
         )}
       </div>
