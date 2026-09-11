@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 import ClientAccountBanner from "./client-account-banner";
 import ClientFilesAnchor from "./client-files-anchor";
@@ -49,6 +50,14 @@ export default async function CastingClientWorkspaceLayout({ children, params }:
 
   if (!project || project.service_mode !== "managed") return children;
 
+  const supabase = await createServerSupabaseClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const accountState = !project.client_user_id
+    ? "unclaimed"
+    : user?.id === project.client_user_id
+      ? "owned"
+      : "claimed";
+
   const [{ data: files, error }, { data: latestReplacement }] = await Promise.all([
     admin
       .from("casting_project_files")
@@ -90,7 +99,7 @@ export default async function CastingClientWorkspaceLayout({ children, params }:
   return <>
     <style>{`main section#files{display:none}`}</style>
     <PaymentReturnBanner locale={language} />
-    <ClientAccountBanner locale={language} token={cleanToken} claimed={Boolean(project.client_user_id)} canClaim={Boolean(project.contact_email?.trim())} />
+    <ClientAccountBanner locale={language} token={cleanToken} accountState={accountState} canClaim={Boolean(project.contact_email?.trim())} />
     {children}
     {latestReplacement && replacementLabel ? <section dir={ar ? "rtl" : "ltr"} className="bg-background px-4 pt-2 text-white sm:px-6">
       <div className="mx-auto max-w-6xl rounded-[2rem] border border-amber-300/20 bg-amber-300/[0.04] p-6 sm:p-8">
