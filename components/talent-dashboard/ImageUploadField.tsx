@@ -10,6 +10,12 @@ type ImageUploadFieldProps = {
   required?: boolean;
 };
 
+const ALLOWED_IMAGE_TYPES = new Map([
+  ["image/jpeg", "jpg"],
+  ["image/png", "png"],
+  ["image/webp", "webp"],
+]);
+
 export function ImageUploadField({
   name,
   label,
@@ -24,8 +30,10 @@ export function ImageUploadField({
   async function uploadImage(file: File) {
     setError("");
 
-    if (!file.type.startsWith("image/")) {
-      setError("يرجى رفع ملف صورة.");
+    const extension = ALLOWED_IMAGE_TYPES.get(file.type);
+
+    if (!extension) {
+      setError("الصيغ المسموحة فقط: JPG و PNG و WebP.");
       return;
     }
 
@@ -39,13 +47,13 @@ export function ImageUploadField({
     setUploading(true);
 
     try {
-      const extension = file.name.split(".").pop() || "jpg";
       const filePath = `profile-images/${crypto.randomUUID()}.${extension}`;
 
       const { error: uploadError } = await supabase.storage
         .from("talent-media")
         .upload(filePath, file, {
           cacheControl: "3600",
+          contentType: file.type,
           upsert: false,
         });
 
@@ -124,7 +132,7 @@ export function ImageUploadField({
         <input
           ref={inputRef}
           type="file"
-          accept="image/*"
+          accept="image/jpeg,image/png,image/webp"
           className="hidden"
           onChange={(event) => {
             const file = event.target.files?.[0];
