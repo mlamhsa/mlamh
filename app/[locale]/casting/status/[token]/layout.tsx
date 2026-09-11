@@ -1,8 +1,7 @@
-import Link from "next/link";
-
 import { createAdminClient } from "@/lib/supabase/admin";
 
 import ClientFilesAnchor from "./client-files-anchor";
+import PaymentReturnBanner from "./payment-return-banner";
 
 type Props = {
   children: React.ReactNode;
@@ -13,11 +12,6 @@ function fileSize(bytes: number | null) {
   if (!bytes) return "—";
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function money(value: unknown) {
-  const parsed = Number(value);
-  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(Number.isFinite(parsed) ? parsed : 0);
 }
 
 const categoryLabels: Record<string, { ar: string; en: string }> = {
@@ -41,26 +35,18 @@ export default async function CastingClientWorkspaceLayout({ children, params }:
   const admin = createAdminClient();
   const { data: project } = await admin
     .from("casting_projects")
-    .select("id,service_mode,launch_offer_slot,payment_plan,quoted_amount,currency,package_code,status")
+    .select("id,service_mode")
     .eq("client_access_token", cleanToken)
     .maybeSingle();
 
   if (!project || project.service_mode !== "managed") return children;
 
-  const [{ data: files, error }, { data: payments }] = await Promise.all([
-    admin
-      .from("casting_project_files")
-      .select("id,file_name,storage_path,mime_type,size_bytes,category,created_at")
-      .eq("casting_project_id", project.id)
-      .eq("visible_to_client", true)
-      .order("created_at", { ascending: false }),
-    admin
-      .from("casting_payments")
-      .select("id,status,amount,currency,milestone_code,milestone_sequence,due_percent")
-      .eq("casting_project_id", project.id)
-      .order("milestone_sequence", { ascending: true, nullsFirst: false })
-      .order("created_at", { ascending: true }),
-  ]);
+  const { data: files, error } = await admin
+    .from("casting_project_files")
+    .select("id,file_name,storage_path,mime_type,size_bytes,category,created_at")
+    .eq("casting_project_id", project.id)
+    .eq("visible_to_client", true)
+    .order("created_at", { ascending: false });
 
   if (error) console.error("[CastingClientWorkspaceLayout files]", error);
 
@@ -69,35 +55,9 @@ export default async function CastingClientWorkspaceLayout({ children, params }:
     return { ...file, signedUrl: data?.signedUrl ?? null };
   }));
 
-  const paymentRows = payments ?? [];
-  const duePayments = paymentRows.filter((item) => item.status === "pending" && Number(item.amount) > 0);
-  const freeLaunch = Boolean(project.launch_offer_slot) || project.payment_plan === "launch_free";
-
   return <>
     <style>{`main section#files{display:none}`}</style>
-
-    {(freeLaunch || duePayments.length > 0) ? <div dir={ar ? "rtl" : "ltr"} className="bg-black px-4 pt-20 text-white sm:px-6 lg:pt-28">
-      <div className="mx-auto max-w-6xl">
-        {freeLaunch ? <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.05] px-5 py-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm font-medium text-emerald-200">{ar ? "عرض الإطلاق — مشروعك الأول بدون رسوم خدمة" : "Launch offer — your first project has no service fee"}</p>
-              <p className="mt-1 text-xs leading-6 text-white/40">{ar ? `تم حجز مقعدكم ضمن أول 5 عملاء${project.launch_offer_slot ? ` · العميل #${project.launch_offer_slot}` : ""}.` : `Your place is reserved in the first 5 clients${project.launch_offer_slot ? ` · client #${project.launch_offer_slot}` : ""}.`}</p>
-            </div>
-            <span className="w-fit rounded-full border border-emerald-300/20 px-3 py-1.5 text-xs text-emerald-200">FREE LAUNCH PROJECT</span>
-          </div>
-        </div> : <div className="rounded-2xl border border-gold/25 bg-gold/[0.05] p-5">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <p className="text-sm font-medium text-gold">{ar ? "دفعة مطلوبة للمشروع" : "Project payment required"}</p>
-              <p className="mt-1 max-w-2xl text-xs leading-6 text-white/45">{project.payment_plan === "pro_50_50" ? (ar ? "Managed Pro يعمل بنظام 50% لبدء الكاستينغ و50% قبل تأكيد المواهب والحجز." : "Managed Pro uses 50% to activate casting and 50% before talent confirmation and booking.") : (ar ? "تبدأ ملامح مرحلة التشغيل المطلوبة بعد إتمام الدفعة بأمان عبر Tap." : "MLAMH starts the required operating stage after secure payment through Tap.")}</p>
-            </div>
-            <div className="flex flex-wrap gap-2">{duePayments.map((payment) => <Link key={payment.id} href={`/api/casting/payment/checkout?token=${encodeURIComponent(cleanToken)}&payment=${payment.id}&locale=${language}`} className="inline-flex min-h-11 items-center justify-center rounded-xl bg-gold px-5 py-2.5 text-sm font-medium text-black transition hover:brightness-110">{ar ? "ادفع" : "Pay"} {money(payment.amount)} {payment.currency}{payment.due_percent ? ` · ${money(payment.due_percent)}%` : ""}</Link>)}</div>
-          </div>
-        </div>}
-      </div>
-    </div> : null}
-
+    <PaymentReturnBanner locale={language} />
     {children}
     <ClientFilesAnchor />
     <section data-managed-client-files dir={ar ? "rtl" : "ltr"} className="bg-background px-4 pb-24 text-white sm:px-6">
