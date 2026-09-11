@@ -18,6 +18,16 @@ const ALLOWED_TYPES = new Set([
   "application/vnd.ms-excel",
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 ]);
+const ALLOWED_EXTENSIONS: Record<string, ReadonlySet<string>> = {
+  "application/pdf": new Set(["pdf"]),
+  "image/jpeg": new Set(["jpg", "jpeg"]),
+  "image/png": new Set(["png"]),
+  "image/webp": new Set(["webp"]),
+  "application/msword": new Set(["doc"]),
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": new Set(["docx"]),
+  "application/vnd.ms-excel": new Set(["xls"]),
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": new Set(["xlsx"]),
+};
 
 function positiveInt(value: FormDataEntryValue | null) {
   const parsed = Number(value);
@@ -28,6 +38,58 @@ function positiveInt(value: FormDataEntryValue | null) {
 function cleanName(name: string) {
   const normalized = name.normalize("NFKC").replace(/[\\/\0]/g, "-").replace(/\s+/g, " ").trim();
   return (normalized || "file").slice(0, 180);
+}
+
+function extensionOf(name: string) {
+  const match = name.toLowerCase().match(/\.([a-z0-9]+)$/);
+  return match?.[1] ?? "";
+}
+
+function startsWithBytes(buffer: Buffer, signature: readonly number[]) {
+  if (buffer.length < signature.length) return false;
+  return signature.every((byte, index) => buffer[index] === byte);
+}
+
+function hasZipSignature(buffer: Buffer) {
+  return (
+    startsWithBytes(buffer, [0x50, 0x4b, 0x03, 0x04]) ||
+    startsWithBytes(buffer, [0x50, 0x4b, 0x05, 0x06]) ||
+    startsWithBytes(buffer, [0x50, 0x4b, 0x07, 0x08])
+  );
+}
+
+function hasOleSignature(buffer: Buffer) {
+  return startsWithBytes(buffer, [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]);
+}
+
+function containsAscii(buffer: Buffer, value: string) {
+  return buffer.indexOf(Buffer.from(value, "ascii")) !== -1;
+}
+
+function hasExpectedSignature(mimeType: string, buffer: Buffer) {
+  switch (mimeType) {
+    case "application/pdf":
+      return buffer.subarray(0, 5).toString("ascii") === "%PDF-";
+    case "image/jpeg":
+      return startsWithBytes(buffer, [0xff, 0xd8, 0xff]);
+    case "image/png":
+      return startsWithBytes(buffer, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    case "image/webp":
+      return (
+        buffer.length >= 12 &&
+        buffer.subarray(0, 4).toString("ascii") === "RIFF" &&
+        buffer.subarray(8, 12).toString("ascii") === "WEBP"
+      );
+    case "application/msword":
+    case "application/vnd.ms-excel":
+      return hasOleSignature(buffer);
+    case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+      return hasZipSignature(buffer) && containsAscii(buffer, "[Content_Types].xml") && containsAscii(buffer, "word/");
+    case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+      return hasZipSignature(buffer) && containsAscii(buffer, "[Content_Types].xml") && containsAscii(buffer, "xl/");
+    default:
+      return false;
+  }
 }
 
 async function projectContext(projectId: number) {
@@ -62,11 +124,20 @@ export async function uploadCastingProjectFileAction(formData: FormData) {
   if (file.size > MAX_BYTES) throw new Error("File exceeds the 20 MB limit.");
   if (!ALLOWED_TYPES.has(file.type)) throw new Error("Unsupported file type.");
 
-  const admin = createAdminClient();
   const fileName = cleanName(file.name);
-  const extension = fileName.includes(".") ? `.${fileName.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || "bin"}` : "";
-  const storagePath = `${projectId}/${Date.now()}-${crypto.randomUUID()}${extension}`;
-  const buffer = await file.arrayBuffer();
+  const extension = extensionOf(fileName);
+  const allowedExtensions = ALLOWED_EXTENSIONS[file.type];
+  if (!extension || !allowedExtensions?.has(extension)) {
+    throw new Error("File extension does not match the declared file type.");
+  }
+
+  const buffer = Buffer.from(await file.arrayBuffer());
+  if (buffer.length !== file.size || !hasExpectedSignature(file.type, buffer)) {
+    throw new Error("File signature does not match the declared file type.");
+  }
+
+  const admin = createAdminClient();
+  const storagePath = `${projectId}/${Date.now()}-${crypto.randomUUID()}.${extension}`;
   const { error: uploadError } = await admin.storage.from(BUCKET).upload(storagePath, buffer, {
     contentType: file.type,
     upsert: false,
