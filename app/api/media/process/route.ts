@@ -1,8 +1,9 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import sharp from "sharp";
 
 import { getRequestUser } from "@/lib/auth/request-user";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 
@@ -12,6 +13,8 @@ const MAX_DIMENSION = 12_000;
 const QUARANTINE_BUCKET = "media-quarantine";
 const PUBLIC_BUCKET = "talent-media";
 const ALLOWED_KINDS = new Set(["profile-images", "gallery"]);
+const PROCESS_LIMIT = 30;
+const PROCESS_WINDOW_SECONDS = 600;
 
 type ImageKind = "profile-images" | "gallery";
 type DetectedImage = "jpeg" | "png" | "webp";
@@ -88,6 +91,43 @@ export async function POST(request: Request) {
     return Response.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
 
+  const adminClient = createAdminClient();
+  const rateKey = createHash("sha256")
+    .update(`media-process:${requestUser.user.id}`)
+    .digest("hex");
+
+  const { data: rateRows, error: rateError } = await adminClient.rpc(
+    "consume_support_rate_limit",
+    {
+      p_key_hash: rateKey,
+      p_limit: PROCESS_LIMIT,
+      p_window_seconds: PROCESS_WINDOW_SECONDS,
+    },
+  );
+
+  if (rateError) {
+    console.error("[api.media.process.rateLimit]", rateError);
+    return Response.json({ error: "RATE_LIMIT_UNAVAILABLE" }, { status: 503 });
+  }
+
+  const rate = Array.isArray(rateRows) ? rateRows[0] : rateRows;
+  if (rate && rate.allowed === false) {
+    return Response.json(
+      {
+        error: "RATE_LIMIT",
+        retryAfterSeconds: rate.retry_after_seconds ?? PROCESS_WINDOW_SECONDS,
+      },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(
+            rate.retry_after_seconds ?? PROCESS_WINDOW_SECONDS,
+          ),
+        },
+      },
+    );
+  }
+
   let payload: { path?: unknown; kind?: unknown };
 
   try {
@@ -111,19 +151,22 @@ export async function POST(request: Request) {
     return Response.json({ error: "INVALID_MEDIA_PATH" }, { status: 403 });
   }
 
-  const supabase = createUserStorageClient(requestUser.accessToken);
+  const userStorage = createUserStorageClient(requestUser.accessToken);
 
   const removeQuarantinedObject = async () => {
-    await supabase.storage.from(QUARANTINE_BUCKET).remove([path]);
+    await userStorage.storage.from(QUARANTINE_BUCKET).remove([path]);
   };
 
   try {
-    const { data: blob, error: downloadError } = await supabase.storage
+    const { data: blob, error: downloadError } = await userStorage.storage
       .from(QUARANTINE_BUCKET)
       .download(path);
 
     if (downloadError || !blob) {
-      return Response.json({ error: "QUARANTINE_OBJECT_NOT_FOUND" }, { status: 404 });
+      return Response.json(
+        { error: "QUARANTINE_OBJECT_NOT_FOUND" },
+        { status: 404 },
+      );
     }
 
     if (blob.size <= 0 || blob.size > MAX_INPUT_BYTES) {
@@ -136,7 +179,10 @@ export async function POST(request: Request) {
 
     if (!detectedType) {
       await removeQuarantinedObject();
-      return Response.json({ error: "INVALID_IMAGE_SIGNATURE" }, { status: 415 });
+      return Response.json(
+        { error: "INVALID_IMAGE_SIGNATURE" },
+        { status: 415 },
+      );
     }
 
     const metadata = await sharp(input, {
@@ -156,7 +202,10 @@ export async function POST(request: Request) {
       width * height > MAX_INPUT_PIXELS
     ) {
       await removeQuarantinedObject();
-      return Response.json({ error: "UNSAFE_IMAGE_DIMENSIONS" }, { status: 422 });
+      return Response.json(
+        { error: "UNSAFE_IMAGE_DIMENSIONS" },
+        { status: 422 },
+      );
     }
 
     const pipeline = sharp(input, {
@@ -185,11 +234,14 @@ export async function POST(request: Request) {
 
     if (output.length <= 0 || output.length > MAX_INPUT_BYTES) {
       await removeQuarantinedObject();
-      return Response.json({ error: "RECONSTRUCTED_IMAGE_TOO_LARGE" }, { status: 422 });
+      return Response.json(
+        { error: "RECONSTRUCTED_IMAGE_TOO_LARGE" },
+        { status: 422 },
+      );
     }
 
     const destinationPath = `${kind}/${randomUUID()}.${extension}`;
-    const { error: uploadError } = await supabase.storage
+    const { error: uploadError } = await adminClient.storage
       .from(PUBLIC_BUCKET)
       .upload(destinationPath, output, {
         cacheControl: "3600",
@@ -201,7 +253,7 @@ export async function POST(request: Request) {
       throw uploadError;
     }
 
-    const { data } = supabase.storage
+    const { data } = adminClient.storage
       .from(PUBLIC_BUCKET)
       .getPublicUrl(destinationPath);
 
