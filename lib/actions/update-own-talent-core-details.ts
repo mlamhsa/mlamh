@@ -57,8 +57,16 @@ export async function updateOwnTalentCoreDetailsAction(
 
   const admin = createAdminClient();
   const [{ data: profile, error: profileError }, { data: talent, error: talentError }] = await Promise.all([
-    admin.from("profiles").select("id, approval_status, phone").eq("user_id", user.id).maybeSingle(),
-    admin.from("talents").select("id, slug, primary_role, category_slug").eq("user_id", user.id).maybeSingle(),
+    admin
+      .from("profiles")
+      .select("id, approval_status, phone, data_accuracy_contact_consent")
+      .eq("user_id", user.id)
+      .maybeSingle(),
+    admin
+      .from("talents")
+      .select("id, slug, primary_role, category_slug, profile_visibility")
+      .eq("user_id", user.id)
+      .maybeSingle(),
   ]);
 
   if (profileError || talentError || !profile || !talent) {
@@ -83,6 +91,7 @@ export async function updateOwnTalentCoreDetailsAction(
   const nationality = text(formData, "nationality_slug");
   const countryCode = text(formData, "base_country_code").toUpperCase();
   const citySlug = text(formData, "city_slug");
+  const profileVisibility = text(formData, "profile_visibility").toLowerCase();
 
   const category = categorySlug
     ? TALENT_CATEGORIES.find((item) => item.slug === categorySlug)
@@ -99,13 +108,15 @@ export async function updateOwnTalentCoreDetailsAction(
   const city = citySlug && country
     ? country.cities.find((item) => item.value === citySlug)
     : null;
+  const visibilityIsValid = !profileVisibility || profileVisibility === "public" || profileVisibility === "private";
 
   if (
     (categorySlug && !category) ||
     (gender && !genderOption) ||
     (nationality && !nationalityOption) ||
     (countryCode && !country) ||
-    (citySlug && !city)
+    (citySlug && !city) ||
+    !visibilityIsValid
   ) {
     return {
       success: false,
@@ -138,6 +149,15 @@ export async function updateOwnTalentCoreDetailsAction(
     talentPayload.city_slug = city.value;
     talentPayload.city_ar = city.ar;
     talentPayload.city_en = city.en;
+  } else if (formData.has("city_slug") && countryCode) {
+    // A country change with no replacement city must not leave the previous
+    // city's labels attached to the new country.
+    talentPayload.city_slug = null;
+    talentPayload.city_ar = null;
+    talentPayload.city_en = null;
+  }
+  if (formData.has("profile_visibility") && profileVisibility) {
+    talentPayload.profile_visibility = profileVisibility;
   }
 
   // Shared optional matching signals. These existed in the legacy profile and are
@@ -209,10 +229,20 @@ export async function updateOwnTalentCoreDetailsAction(
     }
   }
 
+  const profilePayload: Record<string, unknown> = {};
   if (phone && phone !== String(profile.phone ?? "").trim()) {
+    profilePayload.phone = phone;
+  }
+  if (formData.has("data_accuracy_contact_consent") && profile.data_accuracy_contact_consent !== true) {
+    // Consent is a review hard gate and is treated as monotonic once granted.
+    // This draft editor may grant it, but must not silently downgrade true to false.
+    profilePayload.data_accuracy_contact_consent = booleanValue(formData, "data_accuracy_contact_consent");
+  }
+
+  if (Object.keys(profilePayload).length > 0) {
     const { error: updateProfileError } = await admin
       .from("profiles")
-      .update({ phone })
+      .update(profilePayload)
       .eq("id", profile.id)
       .eq("user_id", user.id);
 
@@ -220,8 +250,8 @@ export async function updateOwnTalentCoreDetailsAction(
       return {
         success: false,
         message: isArabic
-          ? "تم حفظ جزء من البيانات، لكن تعذر تحديث رقم الجوال. حاول مرة أخرى."
-          : "Some details were saved, but the phone number could not be updated. Please try again.",
+          ? "تم حفظ جزء من البيانات، لكن تعذر تحديث بيانات الحساب. حاول مرة أخرى."
+          : "Some details were saved, but the account details could not be updated. Please try again.",
       };
     }
   }
@@ -229,6 +259,7 @@ export async function updateOwnTalentCoreDetailsAction(
   revalidatePath(`/${locale}/talent-dashboard`);
   revalidatePath(`/${locale}/talent-dashboard/profile`);
   revalidatePath(`/${locale}/talent-dashboard/profile/details`);
+  revalidatePath(`/${locale}/talent-dashboard/profile/advanced`);
 
   if (talent.slug) {
     revalidatePath(`/ar/talent/${encodeURIComponent(talent.slug)}`);
