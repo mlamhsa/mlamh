@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { RequestBodyTooLargeError, readTextBodyWithLimit } from "@/lib/security/request-guards";
 
 import { prepareMetaDeauthorize } from "@/lib/marketing/channels/meta-lifecycle";
 import {
@@ -11,8 +12,18 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 
+const MAX_META_LIFECYCLE_BODY_BYTES = 64 * 1024;
+
 export async function POST(request: Request) {
-  const rawBody = await request.text();
+  let rawBody: string;
+  try {
+    rawBody = await readTextBodyWithLimit(request, MAX_META_LIFECYCLE_BODY_BYTES);
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) {
+      return NextResponse.json({ ok: false, error: "payload_too_large" }, { status: 413 });
+    }
+    return NextResponse.json({ ok: false, error: "invalid_request_body" }, { status: 400 });
+  }
   const signedRequest = new URLSearchParams(rawBody).get("signed_request")?.trim() ?? "";
   if (!signedRequest) {
     return NextResponse.json({ ok: false, error: "missing_signed_request" }, { status: 400 });

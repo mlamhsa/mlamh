@@ -11,6 +11,7 @@ import { sendIncompleteRegistrationReminder } from "@/lib/incomplete-registratio
 import { getNextIncompleteRegistrationReminder } from "@/lib/incomplete-registration/reminder-schedule";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { hasValidBearerSecret } from "@/lib/security/request-guards";
 
 export const runtime = "nodejs";
 
@@ -44,10 +45,7 @@ export async function GET(
       "authorization",
     );
 
-  if (
-    authorization !==
-    `Bearer ${cronSecret}`
-  ) {
+  if (!hasValidBearerSecret(authorization, cronSecret)) {
     return NextResponse.json(
       {
         success: false,

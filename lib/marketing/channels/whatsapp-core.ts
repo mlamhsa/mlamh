@@ -67,8 +67,11 @@ export function verifyWhatsAppSignature({ rawBody, signatureHeader, appSecret }:
 }
 
 export function verifyWhatsAppChallenge({ mode, verifyToken, challenge, expectedVerifyToken }: { mode: string | null; verifyToken: string | null; challenge: string | null; expectedVerifyToken: string }) {
-  if (mode !== "subscribe" || !challenge || !verifyToken) return null;
-  return verifyToken === expectedVerifyToken ? challenge : null;
+  if (mode !== "subscribe" || !challenge || !verifyToken || !expectedVerifyToken) return null;
+  if (verifyToken.length !== expectedVerifyToken.length) return null;
+  const provided = Buffer.from(verifyToken);
+  const expected = Buffer.from(expectedVerifyToken);
+  return timingSafeEqual(provided, expected) ? challenge : null;
 }
 
 export function normalizeWhatsAppWebhookPayload(payload: unknown): NormalizedWhatsAppEvent[] {

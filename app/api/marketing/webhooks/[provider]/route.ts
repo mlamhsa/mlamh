@@ -1,10 +1,13 @@
 import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
+import { RequestBodyTooLargeError, readTextBodyWithLimit } from "@/lib/security/request-guards";
 
 import { getMarketingChannelAdapter } from "@/lib/marketing/channels/adapters";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
+
+const MAX_WEBHOOK_BODY_BYTES = 1024 * 1024;
 
 export async function POST(
   request: Request,
@@ -17,7 +20,15 @@ export async function POST(
     return NextResponse.json({ ok: false, error: "provider_not_configured" }, { status: 503 });
   }
 
-  const rawBody = await request.text();
+  let rawBody: string;
+  try {
+    rawBody = await readTextBodyWithLimit(request, MAX_WEBHOOK_BODY_BYTES);
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) {
+      return NextResponse.json({ ok: false, error: "payload_too_large" }, { status: 413 });
+    }
+    return NextResponse.json({ ok: false, error: "invalid_request_body" }, { status: 400 });
+  }
   const fingerprint = createHash("sha256")
     .update(`${provider}:${rawBody}`)
     .digest("hex");
