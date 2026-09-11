@@ -52,7 +52,9 @@ const nextConfig: NextConfig = {
 
   experimental: {
     serverActions: {
-      bodySizeLimit: "50mb",
+      // Managed casting currently accepts files up to 20 MB. Keep a small
+      // multipart safety margin without exposing every Server Action to 50 MB.
+      bodySizeLimit: "25mb",
     },
   },
 
