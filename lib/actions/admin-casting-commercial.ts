@@ -29,17 +29,34 @@ function refresh(projectId?: number) {
   }
 }
 
+async function getManagedProject(projectId: number) {
+  const adminClient = createAdminClient();
+  const { data, error } = await adminClient
+    .from("casting_projects")
+    .select("id,currency,service_mode")
+    .eq("id", projectId)
+    .eq("service_mode", "managed")
+    .maybeSingle();
+
+  if (error) console.error("[getManagedProject]", error);
+  return data ?? null;
+}
+
 export async function updateCastingCommercialStatusAction(formData: FormData) {
   await requireAdminAccess();
   const projectId = positiveInt(formData.get("project_id"));
   const status = text(formData.get("commercial_status"));
   if (!projectId || !commercialStatuses.has(status)) return;
 
+  const project = await getManagedProject(projectId);
+  if (!project) return;
+
   const adminClient = createAdminClient();
   const { error } = await adminClient
     .from("casting_projects")
     .update({ commercial_status: status, updated_at: new Date().toISOString() })
-    .eq("id", projectId);
+    .eq("id", projectId)
+    .eq("service_mode", "managed");
 
   if (error) {
     console.error("[updateCastingCommercialStatusAction]", error);
@@ -61,25 +78,16 @@ export async function createCastingPaymentAction(formData: FormData) {
     amount <= 0 ||
     !paymentStatuses.has(status) ||
     !currencyPattern.test(requestedCurrency)
-  ) {
-    return;
-  }
+  ) return;
 
-  const adminClient = createAdminClient();
-  const { data: project } = await adminClient
-    .from("casting_projects")
-    .select("id,currency")
-    .eq("id", projectId)
-    .maybeSingle();
+  const project = await getManagedProject(projectId);
   if (!project) return;
 
   const projectCurrency = String(project.currency || "SAR").trim().toUpperCase();
   if (!currencyPattern.test(projectCurrency) || requestedCurrency !== projectCurrency) return;
 
-  const paidAt = status === "paid"
-    ? text(formData.get("paid_at")) || new Date().toISOString()
-    : null;
-
+  const paidAt = status === "paid" ? text(formData.get("paid_at")) || new Date().toISOString() : null;
+  const adminClient = createAdminClient();
   const { error } = await adminClient.from("casting_payments").insert({
     casting_project_id: projectId,
     amount,
@@ -105,6 +113,9 @@ export async function updateCastingPaymentStatusAction(formData: FormData) {
   const status = text(formData.get("status"));
   if (!paymentId || !projectId || !paymentStatuses.has(status)) return;
 
+  const project = await getManagedProject(projectId);
+  if (!project) return;
+
   const adminClient = createAdminClient();
   const { data: payment } = await adminClient
     .from("casting_payments")
@@ -114,26 +125,16 @@ export async function updateCastingPaymentStatusAction(formData: FormData) {
     .maybeSingle();
   if (!payment) return;
 
-  // Refunded rows are separate refund ledger entries so that collected revenue
-  // remains: paid entries minus refunded entries. Do not convert a payment row
-  // into a refund row (or mutate an existing refund into another status).
   if (payment.status === "refunded") {
     if (status !== "refunded") return;
   } else if (status === "refunded" || !mutablePaymentStatuses.has(status)) {
     return;
   }
 
-  const nextPaidAt = status === "paid"
-    ? payment.paid_at || new Date().toISOString()
-    : null;
-
+  const nextPaidAt = status === "paid" ? payment.paid_at || new Date().toISOString() : null;
   const { error } = await adminClient
     .from("casting_payments")
-    .update({
-      status,
-      paid_at: nextPaidAt,
-      updated_at: new Date().toISOString(),
-    })
+    .update({ status, paid_at: nextPaidAt, updated_at: new Date().toISOString() })
     .eq("id", paymentId)
     .eq("casting_project_id", projectId);
 
