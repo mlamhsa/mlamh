@@ -1,0 +1,105 @@
+name: Security External Integrations Hardening
+
+on:
+  push:
+    branches: [security-hardening-v1-external-integrations]
+
+permissions:
+  contents: write
+
+jobs:
+  harden:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: security-hardening-v1-external-integrations
+          persist-credentials: true
+      - name: Apply hardening
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          # 1) Cron endpoints: constant-time bearer secret comparison.
+          cron_paths = [
+              Path('app/api/cron/incomplete-registration-reminders/route.ts'),
+              Path('app/api/cron/talent-profile-recovery-reminders/route.ts'),
+          ]
+          for path in cron_paths:
+              text = path.read_text()
+              if '@/lib/security/request-guards' not in text:
+                  anchor = 'import { createAdminClient } from "@/lib/supabase/admin";\n'
+                  if anchor not in text:
+                      raise SystemExit(f'Missing cron import anchor: {path}')
+                  text = text.replace(anchor, anchor + 'import { hasValidBearerSecret } from "@/lib/security/request-guards";\n', 1)
+
+              old_multiline = '''  const authorization =\n    request.headers.get(\n      "authorization",\n    );\n\n  if (\n    authorization !==\n    `Bearer ${cronSecret}`\n  ) {'''
+              new_multiline = '''  const authorization =\n    request.headers.get(\n      "authorization",\n    );\n\n  if (!hasValidBearerSecret(authorization, cronSecret)) {'''
+              old_compact = '''  if (\n    request.headers.get("authorization") !==\n    `Bearer ${cronSecret}`\n  ) {'''
+              new_compact = '''  if (!hasValidBearerSecret(\n    request.headers.get("authorization"),\n    cronSecret,\n  )) {'''
+              if old_multiline in text:
+                  text = text.replace(old_multiline, new_multiline, 1)
+              elif old_compact in text:
+                  text = text.replace(old_compact, new_compact, 1)
+              elif 'hasValidBearerSecret' not in text.split('export async function GET', 1)[1]:
+                  raise SystemExit(f'Missing cron auth comparison: {path}')
+              path.write_text(text)
+
+          # Shared helper to add bounded body reading to a route.
+          def patch_body(path_str: str, limit_name: str, limit_expr: str):
+              path = Path(path_str)
+              text = path.read_text()
+              if '@/lib/security/request-guards' not in text:
+                  anchor = 'import { NextResponse } from "next/server";\n'
+                  if anchor not in text:
+                      raise SystemExit(f'Missing NextResponse import anchor: {path}')
+                  text = text.replace(anchor, anchor + 'import { RequestBodyTooLargeError, readTextBodyWithLimit } from "@/lib/security/request-guards";\n', 1)
+              runtime_anchor = 'export const runtime = "nodejs";\n'
+              const_line = f'const {limit_name} = {limit_expr};\n'
+              if const_line not in text:
+                  if runtime_anchor not in text:
+                      raise SystemExit(f'Missing runtime anchor: {path}')
+                  text = text.replace(runtime_anchor, runtime_anchor + '\n' + const_line, 1)
+              old = '  const rawBody = await request.text();\n'
+              new = f'''  let rawBody: string;\n  try {{\n    rawBody = await readTextBodyWithLimit(request, {limit_name});\n  }} catch (error) {{\n    if (error instanceof RequestBodyTooLargeError) {{\n      return NextResponse.json({{ ok: false, error: "payload_too_large" }}, {{ status: 413 }});\n    }}\n    return NextResponse.json({{ ok: false, error: "invalid_request_body" }}, {{ status: 400 }});\n  }}\n'''
+              if old in text:
+                  text = text.replace(old, new, 1)
+              elif 'readTextBodyWithLimit(request' not in text:
+                  raise SystemExit(f'Missing request.text() body read: {path}')
+              path.write_text(text)
+
+          for route in [
+              'app/api/marketing/integrations/meta/webhook/route.ts',
+              'app/api/marketing/integrations/whatsapp/webhook/route.ts',
+              'app/api/marketing/webhooks/[provider]/route.ts',
+          ]:
+              patch_body(route, 'MAX_WEBHOOK_BODY_BYTES', '1024 * 1024')
+
+          for route in [
+              'app/api/marketing/integrations/meta/data-deletion/route.ts',
+              'app/api/marketing/integrations/meta/deauthorize/route.ts',
+          ]:
+              patch_body(route, 'MAX_META_LIFECYCLE_BODY_BYTES', '64 * 1024')
+
+          # 3) WhatsApp webhook GET verify token: constant-time compare.
+          path = Path('lib/marketing/channels/whatsapp-core.ts')
+          text = path.read_text()
+          old = '''export function verifyWhatsAppChallenge({ mode, verifyToken, challenge, expectedVerifyToken }: { mode: string | null; verifyToken: string | null; challenge: string | null; expectedVerifyToken: string }) {\n  if (mode !== "subscribe" || !challenge || !verifyToken) return null;\n  return verifyToken === expectedVerifyToken ? challenge : null;\n}\n'''
+          new = '''export function verifyWhatsAppChallenge({ mode, verifyToken, challenge, expectedVerifyToken }: { mode: string | null; verifyToken: string | null; challenge: string | null; expectedVerifyToken: string }) {\n  if (mode !== "subscribe" || !challenge || !verifyToken || !expectedVerifyToken) return null;\n  if (verifyToken.length !== expectedVerifyToken.length) return null;\n  const provided = Buffer.from(verifyToken);\n  const expected = Buffer.from(expectedVerifyToken);\n  return timingSafeEqual(provided, expected) ? challenge : null;\n}\n'''
+          if old in text:
+              text = text.replace(old, new, 1)
+          elif 'return timingSafeEqual(provided, expected) ? challenge : null;' not in text:
+              raise SystemExit('Missing WhatsApp challenge comparison')
+          path.write_text(text)
+          PY
+      - name: Commit hardened external integrations
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/api/cron/incomplete-registration-reminders/route.ts app/api/cron/talent-profile-recovery-reminders/route.ts app/api/marketing/integrations/meta/webhook/route.ts app/api/marketing/integrations/whatsapp/webhook/route.ts 'app/api/marketing/webhooks/[provider]/route.ts' app/api/marketing/integrations/meta/data-deletion/route.ts app/api/marketing/integrations/meta/deauthorize/route.ts lib/marketing/channels/whatsapp-core.ts
+          git diff --cached --quiet && exit 0
+          git commit -m "security: harden external integration request boundaries"
+          git push origin HEAD:security-hardening-v1-external-integrations
