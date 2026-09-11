@@ -84,10 +84,21 @@ export default async function CastingPage({ params }: { params: Promise<{ locale
       <div className="mx-auto max-w-7xl">
         <section className="relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-[radial-gradient(circle_at_top_right,rgba(201,169,98,0.16),transparent_42%),linear-gradient(135deg,rgba(255,255,255,0.05),rgba(255,255,255,0.015))] px-6 py-12 sm:px-10 sm:py-16 lg:px-16 lg:py-20">
           <div className="max-w-4xl">
-            <div className="flex flex-wrap items-center gap-3"><p className="text-xs uppercase tracking-[0.28em] text-gold">MLAMH CASTING</p><span className="rounded-full border border-gold/25 bg-gold/10 px-3 py-1 text-[11px] text-gold">Managed Casting</span></div>
+            <div className="flex flex-wrap items-center gap-3"><p className="text-xs uppercase tracking-[0.28em] text-gold">MLAMH CASTING</p><span className="rounded-full border border-gold/25 bg-gold/10 px-3 py-1 text-[11px] text-gold">Managed Casting</span><span className="rounded-full border border-emerald-300/25 bg-emerald-300/[0.08] px-3 py-1 text-[11px] text-emerald-200">{isRtl ? "أول 5 عملاء مجانًا" : "First 5 clients free"}</span></div>
             <h1 className="mt-6 text-4xl font-light leading-tight sm:text-5xl lg:text-7xl">{isRtl ? "من الـBrief إلى موهبة مؤكدة وجاهزة للتنفيذ." : "From brief to confirmed talent, ready to work."}</h1>
             <p className="mt-6 max-w-3xl text-sm leading-8 text-white/60 sm:text-base">{isRtl ? "خدمة كاستينغ مُدارة للشركات وجهات الإنتاج والوكالات والعلامات. تتولى ملامح تنظيم الاحتياج، البحث والمطابقة، استقبال الطلبات والفرز، تسليم الـShortlist، ثم تأكيد المواهب والحجز بعد قرار العميل." : "A managed casting service for companies, production teams, agencies, and brands. MLAMH structures the brief, sources and matches talent, manages applications and screening, delivers the shortlist, then coordinates confirmation and booking after the client decision."}</p>
             <a href="#casting-brief" className="mt-8 inline-flex min-h-12 items-center justify-center rounded-xl bg-gold px-6 py-3 text-sm font-medium text-black transition hover:brightness-110">{isRtl ? "أرسل الـ Brief" : "Send a casting brief"}</a>
+          </div>
+        </section>
+
+        <section className="mt-5 rounded-[1.75rem] border border-emerald-300/20 bg-emerald-300/[0.045] p-5 sm:p-6">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.22em] text-emerald-200">LAUNCH COHORT</p>
+              <h2 className="mt-2 text-xl font-light text-white">{isRtl ? "أول مشروع لأول 5 عملاء بدون رسوم إدارة الكاستينغ" : "The first project for our first 5 clients has no casting management fee"}</h2>
+              <p className="mt-2 max-w-3xl text-sm leading-7 text-white/45">{isRtl ? "المقعد المجاني يُحجز بعد مراجعة الـBrief وقبول المشروع فعليًا، وليس بمجرد إرسال الطلب. لكل عميل مشروع إطلاق مجاني واحد." : "A free place is reserved only after MLAMH reviews and accepts the brief, not merely when a request is submitted. One launch project per client."}</p>
+            </div>
+            <a href="#casting-brief" className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl border border-emerald-300/25 px-5 py-2.5 text-sm text-emerald-200">{isRtl ? "احجز فرصة الإطلاق" : "Request a launch place"}</a>
           </div>
         </section>
 
