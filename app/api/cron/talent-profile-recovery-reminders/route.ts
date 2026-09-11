@@ -6,6 +6,7 @@ import {
   EVENT_TYPES,
 } from "@/lib/events";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { hasValidBearerSecret } from "@/lib/security/request-guards";
 import { getTalentProfileReviewReadiness } from "@/lib/talent/profile-review-readiness";
 import {
   getNextTalentProfileRecoveryReminder,
@@ -161,10 +162,10 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  if (
-    request.headers.get("authorization") !==
-    `Bearer ${cronSecret}`
-  ) {
+  if (!hasValidBearerSecret(
+    request.headers.get("authorization"),
+    cronSecret,
+  )) {
     return NextResponse.json(
       { success: false, error: "Unauthorized" },
       { status: 401 },
