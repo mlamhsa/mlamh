@@ -30,6 +30,10 @@ function existingAccountLoginUrl(
   return url.toString();
 }
 
+function normalizedEmail(value: string | null | undefined) {
+  return (value || "").trim().toLowerCase();
+}
+
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
@@ -40,6 +44,7 @@ export async function GET(request: Request) {
   const provider = requestUrl.searchParams.get("provider");
   const isSignup = mode === "signup";
   const isRecovery = mode === "recovery";
+  const isCastingClaim = mode === "casting_claim";
   const isValidAccountType = accountType === "talent" || accountType === "publisher";
   const origin = requestUrl.origin;
 
@@ -47,7 +52,9 @@ export async function GET(request: Request) {
     return NextResponse.redirect(
       isRecovery
         ? `${origin}/${locale}/forgot-password?error=invalid_link`
-        : `${origin}/${locale}/login?error=oauth_callback`,
+        : isCastingClaim
+          ? `${origin}/${locale}/casting?claim=invalid_link`
+          : `${origin}/${locale}/login?error=oauth_callback`,
     );
   }
 
@@ -59,7 +66,9 @@ export async function GET(request: Request) {
     return NextResponse.redirect(
       isRecovery
         ? `${origin}/${locale}/forgot-password?error=expired_link`
-        : `${origin}/${locale}/login?error=oauth_callback`,
+        : isCastingClaim
+          ? `${origin}/${locale}/casting?claim=expired_link`
+          : `${origin}/${locale}/login?error=oauth_callback`,
     );
   }
 
@@ -70,7 +79,9 @@ export async function GET(request: Request) {
     return NextResponse.redirect(
       isRecovery
         ? `${origin}/${locale}/forgot-password?error=recovery_user`
-        : `${origin}/${locale}/login?error=oauth_user`,
+        : isCastingClaim
+          ? `${origin}/${locale}/casting?claim=user_error`
+          : `${origin}/${locale}/login?error=oauth_user`,
     );
   }
 
@@ -79,6 +90,48 @@ export async function GET(request: Request) {
   }
 
   const adminClient = createAdminClient();
+
+  if (isCastingClaim) {
+    const token = (requestUrl.searchParams.get("token") || "").trim();
+    if (!token || token.length > 100 || !user.email) {
+      return NextResponse.redirect(`${origin}/${locale}/casting?claim=invalid`);
+    }
+
+    const { data: project, error: claimLookupError } = await adminClient
+      .from("casting_projects")
+      .select("id,service_mode,contact_email,client_user_id,client_access_token")
+      .eq("client_access_token", token)
+      .eq("service_mode", "managed")
+      .maybeSingle();
+
+    if (claimLookupError || !project) {
+      console.error("[OAuthCallback.castingClaimLookup]", claimLookupError);
+      return NextResponse.redirect(`${origin}/${locale}/casting?claim=project_not_found`);
+    }
+
+    if (normalizedEmail(project.contact_email) !== normalizedEmail(user.email)) {
+      return NextResponse.redirect(`${origin}/${locale}/casting/status/${encodeURIComponent(token)}?claim=email_mismatch`);
+    }
+
+    if (project.client_user_id && project.client_user_id !== user.id) {
+      return NextResponse.redirect(`${origin}/${locale}/casting/status/${encodeURIComponent(token)}?claim=already`);
+    }
+
+    const { error: bindError } = await adminClient
+      .from("casting_projects")
+      .update({ client_user_id: user.id, updated_at: new Date().toISOString() })
+      .eq("id", project.id)
+      .eq("service_mode", "managed")
+      .is("client_user_id", null);
+
+    if (bindError) {
+      console.error("[OAuthCallback.castingClaimBind]", bindError);
+      return NextResponse.redirect(`${origin}/${locale}/casting/status/${encodeURIComponent(token)}?claim=error`);
+    }
+
+    return NextResponse.redirect(`${origin}/${locale}/casting/client?claimed=1`);
+  }
+
   const { data: profile, error: profileError } = await adminClient
     .from("profiles")
     .select("id,account_type,phone")
