@@ -36,9 +36,9 @@ export default async function AdminMfaPage() {
       <section className="w-full max-w-md rounded-3xl border border-white/10 bg-[#0b0b0b] p-6 shadow-2xl shadow-black/40 sm:p-8">
         <div className="mb-7">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/40">MLAMH SECURITY</p>
-          <h1 className="mt-2 text-2xl font-semibold">دخول الإدارة المحمي</h1>
+          <h1 className="mt-2 text-2xl font-semibold">التحقق بخطوتين لحساب الإدارة</h1>
           <p className="mt-2 text-sm leading-6 text-white/60">
-            تتطلب لوحة الإدارة جلسة مصادقة بمستوى AAL2. لن يتم عرض بيانات الإدارة قبل إكمال التحقق بخطوتين.
+            هذه الخطوة مطلوبة فقط لحسابات إدارة ملامح، ولا تنطبق على المواهب أو الناشرين. لن يتم عرض بيانات الإدارة قبل إكمال جلسة المصادقة المحمية بمستوى AAL2.
           </p>
         </div>
 
