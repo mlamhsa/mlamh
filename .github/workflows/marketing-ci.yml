@@ -32,6 +32,8 @@ jobs:
         run: npm run test:marketing
       - name: Intelligence tests
         run: npm run test:intelligence
+      - name: Security tests
+        run: npm run test:security
       - name: Investor demo tests
         run: node --experimental-strip-types --test lib/intelligence/demo/investor.test.ts
       - name: Market intelligence tests
