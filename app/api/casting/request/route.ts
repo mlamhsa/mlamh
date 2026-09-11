@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 
+import { consumeServerRateLimit } from "@/lib/security/server-rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const allowedTalentTypes = new Set(["actor", "model", "mixed"]);
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const phonePattern = /^\+?[0-9][0-9\s()-]{6,24}$/;
 const isoDatePattern = /^\d{4}-\d{2}-\d{2}$/;
+const CASTING_REQUEST_LIMIT = 5;
+const CASTING_REQUEST_WINDOW_SECONDS = 60 * 60;
 
 function clean(value: unknown, maxLength: number) {
   return typeof value === "string" ? value.trim().slice(0, maxLength) : "";
@@ -83,6 +86,46 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: locale === "ar" ? "تاريخ العمل غير صحيح." : "Enter a valid work date." },
         { status: 400 },
+      );
+    }
+
+    // Anonymous casting requests are keyed by the normalized contact method rather
+    // than raw client-controlled headers. This avoids penalizing legitimate users
+    // who share an IP while preventing repeated submissions for the same contact.
+    try {
+      const rateLimit = await consumeServerRateLimit({
+        namespace: "casting-request-contact",
+        identifier: contactEmail || contactPhone,
+        limit: CASTING_REQUEST_LIMIT,
+        windowSeconds: CASTING_REQUEST_WINDOW_SECONDS,
+      });
+
+      if (!rateLimit.allowed) {
+        return NextResponse.json(
+          {
+            error:
+              locale === "ar"
+                ? "تم إرسال عدة طلبات خلال فترة قصيرة. حاول لاحقًا."
+                : "Too many requests were submitted in a short period. Please try again later.",
+          },
+          {
+            status: 429,
+            headers: {
+              "Retry-After": String(Math.max(1, rateLimit.retryAfterSeconds)),
+            },
+          },
+        );
+      }
+    } catch (rateLimitError) {
+      console.error("[casting/request] rate limit failed", rateLimitError);
+      return NextResponse.json(
+        {
+          error:
+            locale === "ar"
+              ? "الخدمة غير متاحة مؤقتًا. حاول بعد قليل."
+              : "The service is temporarily unavailable. Please try again shortly.",
+        },
+        { status: 503 },
       );
     }
 
