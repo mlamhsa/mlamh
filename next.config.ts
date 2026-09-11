@@ -16,6 +16,33 @@ const retiredOpportunitySlugs = [
   "تجربة-1788072689558",
 ] as const;
 
+const securityHeaders = [
+  {
+    key: "Strict-Transport-Security",
+    value: "max-age=63072000; includeSubDomains; preload",
+  },
+  {
+    key: "X-Content-Type-Options",
+    value: "nosniff",
+  },
+  {
+    key: "X-Frame-Options",
+    value: "DENY",
+  },
+  {
+    key: "Referrer-Policy",
+    value: "strict-origin-when-cross-origin",
+  },
+  {
+    key: "Permissions-Policy",
+    value: "camera=(), microphone=(), geolocation=()",
+  },
+  {
+    key: "Content-Security-Policy",
+    value: "frame-ancestors 'none'; object-src 'none'; base-uri 'self'",
+  },
+] as const;
+
 const nextConfig: NextConfig = {
   /**
    * السماح بفتح بيئة التطوير من الجوال عبر الشبكة المحلية.
@@ -27,6 +54,15 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: "50mb",
     },
+  },
+
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [...securityHeaders],
+      },
+    ];
   },
 
   async redirects() {
