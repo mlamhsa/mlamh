@@ -7,7 +7,7 @@ import { addSecureGalleryImagesAction } from "@/lib/actions/add-secure-gallery-i
 import {
   removeOwnGalleryImageAction,
   reorderOwnGalleryImagesAction,
-} from "@/lib/actions/update-own-talent-gallery";
+} from "@/lib/actions/manage-own-talent-gallery";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { normalizeGalleryImages } from "@/lib/utils/talent-gallery";
