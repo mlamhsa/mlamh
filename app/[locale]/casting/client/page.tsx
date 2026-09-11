@@ -28,7 +28,7 @@ export default async function CastingClientProjectsPage({ params, searchParams }
 
   const supabase = await createServerSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect(`/${locale}/login`);
+  if (!user) redirect(`/${locale}/casting/client/login`);
 
   const admin = createAdminClient();
   const { data: projects, error } = await admin
