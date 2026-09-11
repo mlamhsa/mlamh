@@ -1,23 +1,23 @@
 name: Security Dependency Lock Refresh
 
 on:
-  pull_request:
-    branches: [main]
-  workflow_dispatch:
+  push:
+    branches: [security-hardening-v1-external-body-guards]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   refresh-lockfile:
-    if: github.head_ref == 'security-hardening-v1-external-body-guards'
+    if: github.ref == 'refs/heads/security-hardening-v1-external-body-guards'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Checkout
+      - name: Checkout branch
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          persist-credentials: false
+          ref: security-hardening-v1-external-body-guards
+          persist-credentials: true
       - name: Setup Node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
@@ -29,13 +29,15 @@ jobs:
           npm audit fix --package-lock-only --omit=dev
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
-      - name: Upload dependency files
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: patched-dependency-files
-          path: |
-            package.json
-            package-lock.json
-          if-no-files-found: error
-          retention-days: 1
+      - name: Commit dependency files when changed
+        shell: bash
+        run: |
+          if git diff --quiet -- package.json package-lock.json; then
+            echo "Dependency files already up to date."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          git commit -m "security: patch production dependencies"
+          git push origin HEAD:security-hardening-v1-external-body-guards
