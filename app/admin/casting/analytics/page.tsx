@@ -17,23 +17,25 @@ export default async function CastingAnalyticsPage({ searchParams }: { searchPar
 
   const { data: projects, error } = await admin
     .from("casting_projects")
-    .select("id,status,commercial_status,package_code,quoted_amount,currency,opportunity_id")
+    .select("id,status,commercial_status,package_code,quoted_amount,currency,opportunity_id,launch_offer_slot,payment_plan")
     .eq("service_mode", "managed");
   if (error) console.error("[CastingAnalyticsPage projects]", error);
 
   const rows = projects ?? [];
   const projectIds = rows.map((item) => Number(item.id));
-  const [{ data: roles }, { data: shortlist }, { data: payments }, { data: invitations }] = projectIds.length ? await Promise.all([
+  const [{ data: roles }, { data: shortlist }, { data: payments }, { data: invitations }, { data: replacements }] = projectIds.length ? await Promise.all([
     admin.from("casting_roles").select("id,casting_project_id,opportunity_id,status").in("casting_project_id", projectIds),
     admin.from("casting_shortlist").select("id,casting_project_id,status").in("casting_project_id", projectIds),
     admin.from("casting_payments").select("id,casting_project_id,status,amount,currency").in("casting_project_id", projectIds),
     admin.from("managed_casting_invitations").select("id,casting_project_id,status").in("casting_project_id", projectIds),
-  ]) : [{ data: [] }, { data: [] }, { data: [] }, { data: [] }];
+    admin.from("managed_casting_replacements").select("id,casting_project_id,status").in("casting_project_id", projectIds),
+  ]) : [{ data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }];
 
   const roleRows = roles ?? [];
   const shortlistRows = shortlist ?? [];
   const paymentRows = payments ?? [];
   const invitationRows = invitations ?? [];
+  const replacementRows = replacements ?? [];
   const opportunityIds = Array.from(new Set([
     ...rows.map((item) => Number(item.opportunity_id)).filter((id) => id > 0),
     ...roleRows.map((item) => Number(item.opportunity_id)).filter((id) => id > 0),
@@ -56,6 +58,14 @@ export default async function CastingAnalyticsPage({ searchParams }: { searchPar
   const inviteViewRate = invitesSent ? Math.round((invitesViewed / invitesSent) * 100) : 0;
   const inviteApplyRate = invitesSent ? Math.round((invitesApplied / invitesSent) * 100) : 0;
 
+  const replacementsStarted = replacementRows.length;
+  const replacementsConfirmed = replacementRows.filter((item) => item.status === "replacement_confirmed").length;
+  const replacementSuccessRate = replacementsStarted ? Math.round((replacementsConfirmed / replacementsStarted) * 100) : 0;
+
+  const launchClients = rows.filter((item) => item.payment_plan === "launch_free" && item.launch_offer_slot != null).length;
+  const paidProjects = rows.filter((item) => item.payment_plan && item.payment_plan !== "launch_free").length;
+  const launchSlotsRemaining = Math.max(0, 5 - launchClients);
+
   const wonRows = rows.filter((item) => item.commercial_status === "won");
   const lostCount = rows.filter((item) => item.commercial_status === "lost").length;
   const decided = wonRows.length + lostCount;
@@ -74,11 +84,13 @@ export default async function CastingAnalyticsPage({ searchParams }: { searchPar
   ].map((item) => ({ ...item, count: rows.filter((row) => row.package_code === item.code).length, quoted: rows.filter((row) => row.package_code === item.code).reduce((sum, row) => sum + num(row.quoted_amount), 0) }));
 
   return <div dir={ar ? "rtl" : "ltr"} className="px-4 py-6 sm:px-6 lg:px-8"><div className="mx-auto max-w-7xl">
-    <header className="border-b border-white/10 pb-6"><Link href={`/admin/casting?lang=${language}`} className="text-xs text-gold hover:underline">{ar ? "← العودة إلى Managed Casting" : "← Back to Managed Casting"}</Link><p className="mt-4 text-xs uppercase tracking-[0.28em] text-gold">MANAGED CASTING ANALYTICS</p><h1 className="mt-3 text-3xl font-light text-white sm:text-4xl">{ar ? "الأداء التشغيلي والتجاري" : "Operational & Commercial Performance"}</h1><p className="mt-3 max-w-3xl text-sm leading-7 text-white/45">{ar ? "مؤشرات Managed Casting فقط، مع فصل واضح عن Self-Service وقياس رحلة الاستقطاب والفرز والتحصيل." : "Managed Casting only, isolated from Self-Service, with sourcing, screening, and collection metrics."}</p></header>
+    <header className="border-b border-white/10 pb-6"><Link href={`/admin/casting?lang=${language}`} className="text-xs text-gold hover:underline">{ar ? "← العودة إلى Managed Casting" : "← Back to Managed Casting"}</Link><p className="mt-4 text-xs uppercase tracking-[0.28em] text-gold">MANAGED CASTING ANALYTICS</p><h1 className="mt-3 text-3xl font-light text-white sm:text-4xl">{ar ? "الأداء التشغيلي والتجاري" : "Operational & Commercial Performance"}</h1><p className="mt-3 max-w-3xl text-sm leading-7 text-white/45">{ar ? "مؤشرات Managed Casting فقط، مع فصل واضح عن Self-Service وقياس رحلة الاستقطاب والفرز والتحصيل وضمان الاستبدال." : "Managed Casting only, isolated from Self-Service, with sourcing, screening, collections, launch cohort, and replacement-guarantee metrics."}</p></header>
 
     <section className="mt-6"><p className="mb-3 text-xs uppercase tracking-[0.22em] text-white/30">{ar ? "التشغيل" : "OPERATIONS"}</p><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{[[ar?"إجمالي المشاريع":"Projects",total],[ar?"مؤهلة":"Qualified",qualified],[ar?"نشطة":"Active",active],[ar?"مكتملة":"Completed",completed],[ar?"الطلبات":"Applications",appRows.length],[ar?"القائمة المختصرة":"Shortlisted",shortlisted],[ar?"المختارون":"Selected",selected],[ar?"الأدوار":"Roles",roleRows.length]].map(([label,value])=><div key={String(label)} className="rounded-2xl border border-white/10 bg-white/[0.025] p-5"><p className="text-xs text-white/40">{label}</p><p className="mt-3 text-3xl font-light text-white">{value}</p></div>)}</div></section>
 
     <section className="mt-6"><p className="mb-3 text-xs uppercase tracking-[0.22em] text-white/30">{ar ? "الاستقطاب الموجّه" : "TARGETED SOURCING"}</p><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"><Metric label={ar?"الدعوات":"Invitations"} value={String(invitesSent)}/><Metric label={ar?"تمت المشاهدة":"Viewed"} value={String(invitesViewed)} note={`${inviteViewRate}%`}/><Metric label={ar?"تحولت إلى طلب":"Applied"} value={String(invitesApplied)} note={`${inviteApplyRate}%`}/><Metric label={ar?"طلب ← اختيار":"Application → Selected"} value={`${appRows.length ? Math.round((selected/appRows.length)*100) : 0}%`}/></div></section>
+
+    <section className="mt-6"><p className="mb-3 text-xs uppercase tracking-[0.22em] text-white/30">{ar ? "الإطلاق وضمان التنفيذ" : "LAUNCH & DELIVERY GUARANTEE"}</p><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"><Metric label={ar?"عملاء الإطلاق المجاني":"Free launch clients"} value={`${launchClients}/5`} note={ar?`${launchSlotsRemaining} مقاعد متبقية`:`${launchSlotsRemaining} slots remaining`}/><Metric label={ar?"مشاريع مدفوعة":"Paid projects"} value={String(paidProjects)}/><Metric label={ar?"تفعيل ضمان الاستبدال":"Replacements"} value={String(replacementsStarted)}/><Metric label={ar?"استبدال مؤكد":"Confirmed replacements"} value={String(replacementsConfirmed)} note={`${replacementSuccessRate}%`}/></div></section>
 
     <section className="mt-6"><p className="mb-3 text-xs uppercase tracking-[0.22em] text-white/30">{ar ? "التجاري والتحصيل" : "COMMERCIAL & COLLECTIONS"}</p><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"><Metric label={ar?"قيمة العروض":"Quoted pipeline"} value={`${money(quoted)} SAR`}/><Metric label={ar?"صفقات رابحة":"Won deals"} value={String(wonRows.length)} note={`${money(wonValue)} SAR`}/><Metric label={ar?"المحصّل الصافي":"Net collected"} value={`${money(collected)} SAR`} note={`${collectionRate}%`}/><Metric label={ar?"معدل الفوز":"Win rate"} value={`${winRate}%`}/></div></section>
 
