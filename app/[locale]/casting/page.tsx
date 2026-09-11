@@ -2,9 +2,7 @@ import type { Metadata } from "next";
 
 import { CastingRequestForm } from "@/components/casting/CastingRequestForm";
 
-const SITE_URL = (
-  process.env.NEXT_PUBLIC_SITE_URL || "https://mlamh.net"
-).replace(/\/$/, "");
+const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://mlamh.net").replace(/\/$/, "");
 
 export async function generateMetadata({ params }: { params: Promise<{ locale?: string }> }): Promise<Metadata> {
   const { locale = "ar" } = await params;
@@ -13,46 +11,17 @@ export async function generateMetadata({ params }: { params: Promise<{ locale?: 
   const canonicalUrl = `${SITE_URL}/${normalizedLocale}/casting`;
   const arUrl = `${SITE_URL}/ar/casting`;
   const enUrl = `${SITE_URL}/en/casting`;
-  const title = isArabic
-    ? "إدارة الكاستينغ للمشاريع في السعودية | MLAMH Casting"
-    : "Managed Casting Service in Saudi Arabia | MLAMH Casting";
+  const title = isArabic ? "إدارة الكاستينغ للمشاريع في السعودية | MLAMH Casting" : "Managed Casting Service in Saudi Arabia | MLAMH Casting";
   const description = isArabic
-    ? "خدمة احترافية للشركات وجهات الإنتاج والوكالات والعلامات لإدارة الكاستينغ واحتياج الممثلين والمودلز من الـ Brief حتى قائمة مرشحين منظمة."
-    : "A managed casting service for companies, production teams, agencies, and brands in Saudi Arabia, from brief intake to organized actor and model shortlists.";
+    ? "خدمة Managed Casting للشركات وجهات الإنتاج والوكالات والعلامات: من الـBrief والبحث والفرز إلى اختيار العميل وتأكيد المواهب والحجز."
+    : "Managed casting for companies, production teams, agencies, and brands: from brief, sourcing, and screening to client selection, talent confirmation, and booking.";
 
   return {
     title,
     description,
-    alternates: {
-      canonical: canonicalUrl,
-      languages: {
-        "ar-SA": arUrl,
-        en: enUrl,
-        "x-default": arUrl,
-      },
-    },
-    openGraph: {
-      type: "website",
-      locale: isArabic ? "ar_SA" : "en_US",
-      title,
-      description,
-      url: canonicalUrl,
-      siteName: isArabic ? "ملامح" : "MLAMH",
-      images: [
-        {
-          url: `${SITE_URL}/og-image.png`,
-          width: 1200,
-          height: 630,
-          alt: title,
-        },
-      ],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title,
-      description,
-      images: [`${SITE_URL}/og-image.png`],
-    },
+    alternates: { canonical: canonicalUrl, languages: { "ar-SA": arUrl, en: enUrl, "x-default": arUrl } },
+    openGraph: { type: "website", locale: isArabic ? "ar_SA" : "en_US", title, description, url: canonicalUrl, siteName: isArabic ? "ملامح" : "MLAMH", images: [{ url: `${SITE_URL}/og-image.png`, width: 1200, height: 630, alt: title }] },
+    twitter: { card: "summary_large_image", title, description, images: [`${SITE_URL}/og-image.png`] },
   };
 }
 
@@ -65,18 +34,8 @@ export default async function CastingPage({ params }: { params: Promise<{ locale
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
-      {
-        "@type": "ListItem",
-        position: 1,
-        name: isRtl ? "ملامح" : "MLAMH",
-        item: `${SITE_URL}/${locale}`,
-      },
-      {
-        "@type": "ListItem",
-        position: 2,
-        name: isRtl ? "إدارة الكاستينغ" : "Managed Casting",
-        item: pageUrl,
-      },
+      { "@type": "ListItem", position: 1, name: isRtl ? "ملامح" : "MLAMH", item: `${SITE_URL}/${locale}` },
+      { "@type": "ListItem", position: 2, name: isRtl ? "إدارة الكاستينغ" : "Managed Casting", item: pageUrl },
     ],
   };
   const serviceJsonLd = {
@@ -85,124 +44,62 @@ export default async function CastingPage({ params }: { params: Promise<{ locale
     "@id": `${pageUrl}#service`,
     name: isRtl ? "خدمة إدارة الكاستينغ من ملامح" : "MLAMH Managed Casting Service",
     description: isRtl
-      ? "إدارة احتياج الممثلين والمودلز للشركات وجهات الإنتاج والوكالات والعلامات من الـ Brief حتى القائمة المختصرة."
-      : "Managed actor and model casting for companies, production teams, agencies, and brands from brief to shortlist.",
-    provider: {
-      "@type": "Organization",
-      "@id": `${SITE_URL}/#organization`,
-      name: "MLAMH",
-      alternateName: "ملامح",
-      url: SITE_URL,
-    },
-    areaServed: {
-      "@type": "Country",
-      name: "Saudi Arabia",
-    },
+      ? "إدارة احتياج الممثلين والمودلز من الـBrief والبحث والفرز إلى اختيار العميل وتأكيد الموهبة والحجز."
+      : "Managed actor and model casting from brief, sourcing, and screening to client selection, talent confirmation, and booking.",
+    provider: { "@type": "Organization", "@id": `${SITE_URL}/#organization`, name: "MLAMH", alternateName: "ملامح", url: SITE_URL },
+    areaServed: { "@type": "Country", name: "Saudi Arabia" },
     url: pageUrl,
   };
 
   const steps = isRtl
     ? [
-        ["01", "أرسل الـ Brief", "أرسل لنا احتياج المشروع والمتطلبات الأساسية بدل البدء من عشرات الرسائل والملفات."],
-        ["02", "نراجع وننظم", "يراجع فريق ملامح نطاق المشروع ويحوّل الاحتياج إلى عملية Casting منظمة."],
-        ["03", "نستقبل ونفرز", "تُجمع الطلبات داخل ملامح وننظم مرحلة الفرز والوصول إلى المرشحين المناسبين."],
-        ["04", "Shortlist للقرار", "تحصل الجهة على قائمة مختصرة واضحة تساعدها على اتخاذ قرار الكاستينغ."],
+        ["01", "أرسل الـ Brief", "أرسل احتياج المشروع والمتطلبات الأساسية، بدون الحاجة لتجهيز إعلان كامل."],
+        ["02", "نبحث ونفرز", "نحوّل الاحتياج إلى Roles، ونستخدم المطابقة الداخلية والدعوات والطلبات للوصول إلى المرشحين المناسبين."],
+        ["03", "راجع الـ Shortlist", "تحصل على مساحة عميل خاصة لمراجعة المرشحين واختيار الأساسي والاحتياط واعتماد القرار."],
+        ["04", "نؤكد ونحجز", "بعد اعتمادك نتولى تأكيد المواهب المختارة، تفاصيل الحجز، التنفيذ، والملفات المرتبطة بالمشروع."],
       ]
     : [
-        ["01", "Send the brief", "Tell us what the project needs without starting with scattered messages and files."],
-        ["02", "We structure it", "MLAMH reviews the scope and turns the brief into an organized casting workflow."],
-        ["03", "Applications & screening", "Applications are collected through MLAMH and screened into a clearer candidate pool."],
-        ["04", "Shortlist for decision", "Your team receives an organized shortlist to support the final casting decision."],
+        ["01", "Send the brief", "Share the project need and core requirements without preparing a complete casting notice."],
+        ["02", "We source & screen", "We structure roles and use internal matching, targeted invitations, and applications to build the right pool."],
+        ["03", "Review the shortlist", "Use your private client workspace to select primary and reserve talent and confirm the decision."],
+        ["04", "We confirm & book", "MLAMH coordinates talent confirmation, booking details, delivery, and project files after your approval."],
       ];
 
   const serviceScopes = isRtl
     ? [
-        ["إدارة أساسية", "تجهيز نطاق الكاستينغ، تنظيم استقبال الطلبات، وإعداد قائمة مرشحين للمراجعة."],
-        ["بحث وفرز متقدم", "بحث نشط ودعوات للمواهب المناسبة مع Screening وقائمة مختصرة منظمة."],
-        ["مشاريع متعددة الأدوار", "إدارة حملات ومشاريع تحتوي على عدة Roles أو أعداد كبيرة ونطاق عمل مخصص."],
+        ["Managed Basic", "تنظيم الـBrief، إعداد نطاق الكاستينغ، استقبال الطلبات، والـShortlist الجاهزة للمراجعة."],
+        ["Managed Pro", "بحث نشط ودعوات موجهة، Screening، Shortlist، تنسيق التوفر، وتأكيد المواهب المختارة."],
+        ["Managed Enterprise", "مشاريع متعددة الأدوار أو الأحجام الكبيرة، نطاق مخصص، تشغيل أعمق، وتسليمات واحتياجات خاصة بالمشروع."],
       ]
     : [
-        ["Core management", "Casting setup, organized application intake, and a review-ready candidate shortlist."],
-        ["Advanced sourcing & screening", "Active talent sourcing and targeted invitations with structured screening and shortlisting."],
-        ["Multi-role projects", "Managed casting for campaigns, multiple roles, larger volumes, and custom scopes."],
+        ["Managed Basic", "Brief structuring, casting setup, organized application intake, and a review-ready shortlist."],
+        ["Managed Pro", "Active sourcing, targeted invitations, screening, shortlist delivery, availability coordination, and talent confirmation."],
+        ["Managed Enterprise", "Multi-role or larger-volume projects with custom scope, deeper operations, and project-specific delivery needs."],
       ];
 
   return (
     <main dir={isRtl ? "rtl" : "ltr"} className="min-h-screen bg-black px-5 pb-24 pt-28 text-white sm:px-8 lg:px-10 lg:pt-36">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(serviceJsonLd) }}
-      />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(serviceJsonLd) }} />
       <div className="mx-auto max-w-7xl">
         <section className="relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-[radial-gradient(circle_at_top_right,rgba(201,169,98,0.16),transparent_42%),linear-gradient(135deg,rgba(255,255,255,0.05),rgba(255,255,255,0.015))] px-6 py-12 sm:px-10 sm:py-16 lg:px-16 lg:py-20">
           <div className="max-w-4xl">
-            <div className="flex flex-wrap items-center gap-3">
-              <p className="text-xs uppercase tracking-[0.28em] text-gold">MLAMH CASTING</p>
-              <span className="rounded-full border border-gold/25 bg-gold/10 px-3 py-1 text-[11px] text-gold">Managed Casting</span>
-            </div>
-            <h1 className="mt-6 text-4xl font-light leading-tight sm:text-5xl lg:text-7xl">
-              {isRtl ? "إدارة كاستينغ منظمة من الـ Brief إلى قائمة المرشحين." : "Managed casting from brief to shortlist."}
-            </h1>
-            <p className="mt-6 max-w-3xl text-sm leading-8 text-white/60 sm:text-base">
-              {isRtl
-                ? "MLAMH Casting خدمة مخصصة للشركات وجهات الإنتاج والوكالات والعلامات في السعودية التي تريد إدارة احتياج الممثلين والمودلز بشكل أكثر تنظيمًا. نساعد في تجهيز العملية، جمع الطلبات، والفرز وصولًا إلى Shortlist قابلة للمراجعة."
-                : "MLAMH Casting is a managed service for companies, production teams, agencies, and brands in Saudi Arabia that need a more organized way to source actors and models. We help structure the casting, collect applications, screen candidates, and prepare a review-ready shortlist."}
-            </p>
-            <a href="#casting-brief" className="mt-8 inline-flex min-h-12 items-center justify-center rounded-xl bg-gold px-6 py-3 text-sm font-medium text-black transition hover:brightness-110">
-              {isRtl ? "أرسل الـ Brief" : "Send a casting brief"}
-            </a>
+            <div className="flex flex-wrap items-center gap-3"><p className="text-xs uppercase tracking-[0.28em] text-gold">MLAMH CASTING</p><span className="rounded-full border border-gold/25 bg-gold/10 px-3 py-1 text-[11px] text-gold">Managed Casting</span></div>
+            <h1 className="mt-6 text-4xl font-light leading-tight sm:text-5xl lg:text-7xl">{isRtl ? "من الـBrief إلى موهبة مؤكدة وجاهزة للتنفيذ." : "From brief to confirmed talent, ready to work."}</h1>
+            <p className="mt-6 max-w-3xl text-sm leading-8 text-white/60 sm:text-base">{isRtl ? "خدمة كاستينغ مُدارة للشركات وجهات الإنتاج والوكالات والعلامات. تتولى ملامح تنظيم الاحتياج، البحث والمطابقة، استقبال الطلبات والفرز، تسليم الـShortlist، ثم تأكيد المواهب والحجز بعد قرار العميل." : "A managed casting service for companies, production teams, agencies, and brands. MLAMH structures the brief, sources and matches talent, manages applications and screening, delivers the shortlist, then coordinates confirmation and booking after the client decision."}</p>
+            <a href="#casting-brief" className="mt-8 inline-flex min-h-12 items-center justify-center rounded-xl bg-gold px-6 py-3 text-sm font-medium text-black transition hover:brightness-110">{isRtl ? "أرسل الـ Brief" : "Send a casting brief"}</a>
           </div>
         </section>
 
-        <section className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {steps.map(([number, title, description]) => (
-            <article key={number} className="rounded-[1.75rem] border border-white/10 bg-white/[0.025] p-6">
-              <span className="text-sm text-gold">{number}</span>
-              <h2 className="mt-4 text-xl font-light">{title}</h2>
-              <p className="mt-3 text-sm leading-7 text-white/50">{description}</p>
-            </article>
-          ))}
-        </section>
+        <section className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-4">{steps.map(([number,title,description])=><article key={number} className="rounded-[1.75rem] border border-white/10 bg-white/[0.025] p-6"><span className="text-sm text-gold">{number}</span><h2 className="mt-4 text-xl font-light">{title}</h2><p className="mt-3 text-sm leading-7 text-white/50">{description}</p></article>)}</section>
 
         <section className="mt-8 rounded-[2.25rem] border border-white/10 bg-white/[0.025] p-6 sm:p-8 lg:p-10">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-3xl">
-              <p className="text-xs uppercase tracking-[0.25em] text-gold">{isRtl ? "نطاق الخدمة" : "SERVICE SCOPE"}</p>
-              <h2 className="mt-4 text-3xl font-light">{isRtl ? "خدمة تتكيف مع حجم مشروعك" : "A service shaped around your project"}</h2>
-              <p className="mt-4 text-sm leading-8 text-white/50">
-                {isRtl
-                  ? "نراجع كل Brief أولًا ثم نحدد نطاق العمل والعرض المناسب حسب عدد الأدوار، حجم البحث، ومتطلبات الفرز. لا يوجد التزام مالي بمجرد إرسال الطلب."
-                  : "We review every brief first, then define the appropriate scope and quote based on roles, sourcing volume, and screening requirements. Sending a brief does not create a payment commitment."}
-              </p>
-            </div>
-            <a href="#casting-brief" className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl border border-gold/30 px-5 py-2.5 text-sm text-gold transition hover:bg-gold/10">
-              {isRtl ? "اطلب عرضًا للمشروع" : "Request a project quote"}
-            </a>
-          </div>
-          <div className="mt-7 grid gap-4 lg:grid-cols-3">
-            {serviceScopes.map(([title, description]) => (
-              <article key={title} className="rounded-[1.5rem] border border-white/[0.08] bg-black/25 p-6">
-                <h3 className="text-lg font-light text-white">{title}</h3>
-                <p className="mt-3 text-sm leading-7 text-white/45">{description}</p>
-              </article>
-            ))}
-          </div>
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"><div className="max-w-3xl"><p className="text-xs uppercase tracking-[0.25em] text-gold">{isRtl ? "نطاق الخدمة" : "SERVICE SCOPE"}</p><h2 className="mt-4 text-3xl font-light">{isRtl ? "ثلاثة مستويات تشغيل حسب احتياج المشروع" : "Three operating scopes for different project needs"}</h2><p className="mt-4 text-sm leading-8 text-white/50">{isRtl ? "نراجع كل Brief أولًا ثم نحدد المستوى والنطاق والعرض المناسب حسب عدد الأدوار، حجم البحث، ومتطلبات الفرز والتأكيد. إرسال الطلب لا ينشئ التزامًا ماليًا." : "We review every brief first, then define the service scope and quote based on roles, sourcing volume, screening, and confirmation needs. Sending a brief creates no payment commitment."}</p></div><a href="#casting-brief" className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl border border-gold/30 px-5 py-2.5 text-sm text-gold transition hover:bg-gold/10">{isRtl ? "اطلب عرضًا للمشروع" : "Request a project quote"}</a></div>
+          <div className="mt-7 grid gap-4 lg:grid-cols-3">{serviceScopes.map(([title,description])=><article key={title} className="rounded-[1.5rem] border border-white/[0.08] bg-black/25 p-6"><h3 className="text-lg font-light text-white">{title}</h3><p className="mt-3 text-sm leading-7 text-white/45">{description}</p></article>)}</div>
         </section>
 
         <section id="casting-brief" className="mt-8 scroll-mt-28 rounded-[2.25rem] border border-white/10 bg-white/[0.025] p-5 sm:p-8 lg:p-10">
-          <div className="mb-8 max-w-3xl">
-            <p className="text-xs uppercase tracking-[0.25em] text-gold">{isRtl ? "ابدأ المشروع" : "Start a project"}</p>
-            <h2 className="mt-4 text-3xl font-light sm:text-4xl">{isRtl ? "أرسل احتياج الكاستينغ" : "Send your casting brief"}</h2>
-            <p className="mt-4 text-sm leading-8 text-white/50">
-              {isRtl
-                ? "لا تحتاج إلى تجهيز إعلان كامل. أرسل ما تعرفه الآن، وسنراجع النطاق قبل أي التزام أو نشر."
-                : "You do not need a finished casting notice. Send what you know now and we will review the scope before any commitment or publication."}
-            </p>
-          </div>
+          <div className="mb-8 max-w-3xl"><p className="text-xs uppercase tracking-[0.25em] text-gold">{isRtl ? "ابدأ المشروع" : "Start a project"}</p><h2 className="mt-4 text-3xl font-light sm:text-4xl">{isRtl ? "أرسل احتياج الكاستينغ" : "Send your casting brief"}</h2><p className="mt-4 text-sm leading-8 text-white/50">{isRtl ? "لا تحتاج إلى تجهيز إعلان كامل. أرسل ما تعرفه الآن، وسنراجع النطاق ونحدد الخطوة التالية قبل أي التزام أو نشر." : "You do not need a finished casting notice. Send what you know now and we will review the scope and define the next step before any commitment or publication."}</p></div>
           <CastingRequestForm locale={locale} />
         </section>
       </div>
