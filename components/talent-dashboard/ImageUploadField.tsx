@@ -45,14 +45,23 @@ export function ImageUploadField({
     }
 
     setUploading(true);
+    let quarantinePath = "";
 
     try {
-      const filePath = `profile-images/${crypto.randomUUID()}.${extension}`;
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.access_token || !session.user?.id) {
+        throw new Error("انتهت الجلسة. سجّل الدخول مرة أخرى ثم أعد المحاولة.");
+      }
+
+      quarantinePath = `${session.user.id}/profile-images/${crypto.randomUUID()}.${extension}`;
 
       const { error: uploadError } = await supabase.storage
-        .from("talent-media")
-        .upload(filePath, file, {
-          cacheControl: "3600",
+        .from("media-quarantine")
+        .upload(quarantinePath, file, {
+          cacheControl: "no-store",
           contentType: file.type,
           upsert: false,
         });
@@ -61,12 +70,38 @@ export function ImageUploadField({
         throw uploadError;
       }
 
-      const { data } = supabase.storage
-        .from("talent-media")
-        .getPublicUrl(filePath);
+      const response = await fetch("/api/media/process", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          path: quarantinePath,
+          kind: "profile-images",
+        }),
+      });
 
-      setImageUrl(data.publicUrl);
+      const result = (await response.json()) as {
+        publicUrl?: string;
+        error?: string;
+      };
+
+      if (!response.ok || !result.publicUrl) {
+        throw new Error(
+          result.error === "INVALID_IMAGE_SIGNATURE"
+            ? "تعذر التحقق من أن الملف صورة سليمة."
+            : "تعذر فحص الصورة وتجهيزها للنشر.",
+        );
+      }
+
+      quarantinePath = "";
+      setImageUrl(result.publicUrl);
     } catch (uploadError) {
+      if (quarantinePath) {
+        await supabase.storage.from("media-quarantine").remove([quarantinePath]);
+      }
+
       setError(
         uploadError instanceof Error
           ? uploadError.message
@@ -105,7 +140,7 @@ export function ImageUploadField({
             className="rounded-full border border-gold/40 px-5 py-3 text-[10px] uppercase tracking-[0.3em] text-gold transition hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {uploading
-              ? "جاري الرفع..."
+              ? "جاري فحص الصورة..."
               : imageUrl
                 ? "تغيير الصورة"
                 : "رفع الصورة"}
@@ -149,7 +184,7 @@ export function ImageUploadField({
           <p className="mt-3 text-sm text-red-400">{error}</p>
         ) : (
           <p className="mt-3 text-xs leading-6 text-gray-muted">
-            الصيغ المدعومة: JPG و PNG و WebP. الحد الأقصى للحجم 5 ميجابايت.
+            JPG و PNG و WebP فقط، حتى 5 ميجابايت. يتم فحص الصورة وإعادة بنائها قبل نشرها.
           </p>
         )}
       </div>
