@@ -27,7 +27,16 @@ export default function OpportunityViewTracker({ opportunityId }: OpportunityVie
     })
       .then((response) => response.ok ? response.json() : null)
       .then((payload) => {
-        if (!cancelled && payload?.managedByMlamh === true) setManagedByMlamh(true);
+        if (cancelled || payload?.managedByMlamh !== true) return;
+
+        setManagedByMlamh(true);
+        void fetch(`/api/opportunities/${opportunityId}/managed-status`, {
+          method: "POST",
+          cache: "no-store",
+          credentials: "same-origin",
+        }).catch(() => {
+          // Invitation state tracking is supplementary and must never block viewing.
+        });
       })
       .catch(() => {
         // The badge is supplementary; never block the opportunity page.
