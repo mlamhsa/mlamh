@@ -1,14 +1,17 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import type { ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 
 export default function TalentProfileDetailsLayout({ children }: { children: ReactNode }) {
   const params = useParams<{ locale?: string }>();
   const isArabic = params?.locale !== "en";
+  const editorScopeRef = useRef<HTMLDivElement>(null);
 
   function saveCurrentDraft() {
-    const form = document.querySelector<HTMLFormElement>("main form");
+    // Scope the lookup to this route's editor only. This avoids submitting an
+    // unrelated form if the surrounding dashboard shell adds another form later.
+    const form = editorScopeRef.current?.querySelector<HTMLFormElement>("form");
     if (!form) return;
 
     // The profile editor contains approval hard-gate fields, but saving a draft
@@ -24,7 +27,7 @@ export default function TalentProfileDetailsLayout({ children }: { children: Rea
 
   return (
     <>
-      {children}
+      <div ref={editorScopeRef}>{children}</div>
       <div className="pointer-events-none fixed inset-x-0 bottom-20 z-40 px-4 sm:px-6 lg:bottom-6">
         <div className="mx-auto flex max-w-3xl justify-end">
           <button
