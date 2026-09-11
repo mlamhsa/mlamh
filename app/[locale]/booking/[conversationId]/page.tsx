@@ -8,6 +8,10 @@ import {
   respondToBookingAction,
   submitBookingRatingAction,
 } from "@/lib/actions/booking-actions";
+import {
+  markManagedBookingCompletedByTalentAction,
+  respondToManagedBookingAction,
+} from "@/lib/actions/managed-booking-actions";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -51,7 +55,7 @@ export default async function BookingWorkflowPage({ params }: PageProps) {
 
   let conversationQuery = admin
     .from("conversations")
-    .select("id, application_id, opportunity_id, publisher_id, talent_id, status")
+    .select("id, application_id, opportunity_id, publisher_id, talent_id, status, conversation_type")
     .eq("id", conversationId);
   conversationQuery = role === "publisher"
     ? conversationQuery.eq("publisher_id", participantId)
@@ -68,6 +72,7 @@ export default async function BookingWorkflowPage({ params }: PageProps) {
 
   if (!application || application.status !== "accepted") redirect(role === "publisher" ? `/${locale}/publisher-dashboard/messages` : `/${locale}/talent-dashboard/messages`);
 
+  const isManagedBooking = Boolean(booking?.managed_casting_project_id) || conversation.conversation_type === "mlamh_talent";
   const ownReview = (reviews ?? []).find((review) => review.reviewer_user_id === user.id);
   const backHref = role === "publisher"
     ? `/${locale}/publisher-dashboard/messages/${conversation.id}`
@@ -85,13 +90,18 @@ export default async function BookingWorkflowPage({ params }: PageProps) {
         </Link>
 
         <section className="mt-6 rounded-[2rem] border border-white/10 bg-white/[0.025] p-5 sm:p-8">
-          <p className="text-xs uppercase tracking-[0.3em] text-gold">MLAMH Booking</p>
+          <p className="text-xs uppercase tracking-[0.3em] text-gold">{isManagedBooking ? "MLAMH MANAGED BOOKING" : "MLAMH Booking"}</p>
           <h1 className="mt-3 text-3xl font-light sm:text-4xl">
             {isArabic ? "تأكيد تفاصيل العمل" : "Confirm Work Details"}
           </h1>
           <p className="mt-3 text-sm leading-7 text-white/50">
             {opportunity?.title ?? (isArabic ? "الفرصة" : "Opportunity")}
           </p>
+          {isManagedBooking ? (
+            <p className="mt-3 rounded-xl border border-gold/15 bg-gold/[0.05] px-4 py-3 text-xs leading-6 text-gold/80">
+              {isArabic ? "هذا الحجز مُدار بواسطة فريق ملامح نيابةً عن العميل." : "This booking is managed by the MLAMH team on the client's behalf."}
+            </p>
+          ) : null}
 
           {booking ? (
             <div className="mt-6 inline-flex rounded-full border border-gold/25 bg-gold/10 px-4 py-2 text-xs text-gold">
@@ -99,7 +109,7 @@ export default async function BookingWorkflowPage({ params }: PageProps) {
             </div>
           ) : null}
 
-          {role === "publisher" && (!booking || ["proposed", "changes_requested"].includes(booking.status)) ? (
+          {role === "publisher" && !isManagedBooking && (!booking || ["proposed", "changes_requested"].includes(booking.status)) ? (
             <form action={proposeBookingAction} className="mt-8 space-y-5">
               <input type="hidden" name="locale" value={locale} />
               <input type="hidden" name="conversationId" value={conversation.id} />
@@ -150,13 +160,13 @@ export default async function BookingWorkflowPage({ params }: PageProps) {
 
           {role === "talent" && booking?.status === "proposed" ? (
             <div className="mt-8 grid gap-3 sm:grid-cols-2">
-              <form action={respondToBookingAction}>
+              <form action={isManagedBooking ? respondToManagedBookingAction : respondToBookingAction}>
                 <input type="hidden" name="locale" value={locale} />
                 <input type="hidden" name="bookingId" value={booking.id} />
                 <input type="hidden" name="response" value="confirm" />
                 <button className="min-h-12 w-full rounded-full bg-gold px-6 font-medium text-black">{isArabic ? "تأكيد الحجز" : "Confirm booking"}</button>
               </form>
-              <form action={respondToBookingAction} className="space-y-3">
+              <form action={isManagedBooking ? respondToManagedBookingAction : respondToBookingAction} className="space-y-3">
                 <input type="hidden" name="locale" value={locale} />
                 <input type="hidden" name="bookingId" value={booking.id} />
                 <input type="hidden" name="response" value="request_changes" />
@@ -167,7 +177,7 @@ export default async function BookingWorkflowPage({ params }: PageProps) {
           ) : null}
 
           {booking?.status === "confirmed" ? (
-            <form action={markBookingCompletedAction} className="mt-8">
+            <form action={role === "talent" && isManagedBooking ? markManagedBookingCompletedByTalentAction : markBookingCompletedAction} className="mt-8">
               <input type="hidden" name="locale" value={locale} />
               <input type="hidden" name="bookingId" value={booking.id} />
               <input type="hidden" name="role" value={role} />
@@ -180,7 +190,7 @@ export default async function BookingWorkflowPage({ params }: PageProps) {
             </form>
           ) : null}
 
-          {booking?.status === "completed" && !ownReview ? (
+          {!isManagedBooking && booking?.status === "completed" && !ownReview ? (
             <form action={submitBookingRatingAction} className="mt-8 rounded-2xl border border-white/10 bg-black/20 p-5">
               <input type="hidden" name="locale" value={locale} />
               <input type="hidden" name="bookingId" value={booking.id} />
@@ -195,7 +205,7 @@ export default async function BookingWorkflowPage({ params }: PageProps) {
             </form>
           ) : null}
 
-          {ownReview ? (
+          {!isManagedBooking && ownReview ? (
             <div className="mt-8 rounded-2xl border border-white/10 bg-white/[0.025] p-5 text-sm text-white/65">
               {isArabic ? `تم إرسال تقييمك: ${ownReview.rating}/5` : `Your rating was submitted: ${ownReview.rating}/5`}
             </div>
