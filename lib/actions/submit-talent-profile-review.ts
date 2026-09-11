@@ -7,7 +7,6 @@ import { isValidLocale, type Locale } from "@/lib/i18n";
 import { TalentProfileService } from "@/lib/services/talent/TalentProfileService";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { evaluateTalentFastTrackApproval } from "@/lib/talent/fast-track-approval";
 import { getTalentProfileReviewReadiness } from "@/lib/talent/profile-review-readiness";
 
 type SubmitReviewResult = {
@@ -40,7 +39,9 @@ export async function submitTalentProfileReviewAction(
 
   const { data: profile, error: profileError } = await adminClient
     .from("profiles")
-    .select("id, account_type, approval_status, phone, data_accuracy_contact_consent")
+    .select(
+      "id, account_type, approval_status, phone, data_accuracy_contact_consent, onboarding_status, onboarding_step, profile_completed_at",
+    )
     .eq("user_id", user.id)
     .maybeSingle();
 
@@ -116,21 +117,22 @@ export async function submitTalentProfileReviewAction(
     };
   }
 
-  const fastTrack = evaluateTalentFastTrackApproval({
-    talent: enrichedTalent,
-    completion,
-  });
-  const shouldAutoApprove = fastTrack.decision === "auto_approve";
-  const isPublicProfile = String(talent.profile_visibility ?? "public").trim().toLowerCase() === "public";
-  const shouldPublishPublicly = shouldAutoApprove && isPublicProfile;
+  // Production policy: every talent profile is reviewed by an admin before approval.
+  // Profile strength may be used later for prioritization, but never grants approval automatically.
   const submittedAt = new Date().toISOString();
+  const previousProfileState = {
+    onboarding_status: profile.onboarding_status,
+    onboarding_step: profile.onboarding_step,
+    approval_status: profile.approval_status ?? "not_submitted",
+    profile_completed_at: profile.profile_completed_at,
+  };
 
   const { error: profileUpdateError } = await adminClient
     .from("profiles")
     .update({
       onboarding_status: "completed",
       onboarding_step: "profile_review",
-      approval_status: shouldAutoApprove ? "approved" : "pending",
+      approval_status: "pending",
       profile_completed_at: submittedAt,
     })
     .eq("id", profile.id)
@@ -149,9 +151,9 @@ export async function submitTalentProfileReviewAction(
   const { error: talentUpdateError } = await adminClient
     .from("talents")
     .update({
-      status: shouldAutoApprove ? "approved" : "pending",
-      // Privacy is authoritative: approved private talents stay internal and never publish publicly.
-      published: shouldPublishPublicly,
+      status: "pending",
+      // A profile must never be public while it is awaiting admin review.
+      published: false,
       // verified is a separate paid/verified identity concept, never automatic approval.
       verified: false,
     })
@@ -162,7 +164,7 @@ export async function submitTalentProfileReviewAction(
 
     const { error: rollbackError } = await adminClient
       .from("profiles")
-      .update({ approval_status: profile.approval_status ?? "not_submitted" })
+      .update(previousProfileState)
       .eq("id", profile.id)
       .eq("user_id", user.id);
 
@@ -195,11 +197,9 @@ export async function submitTalentProfileReviewAction(
         talent_name: talentName,
         primary_role: talent.primary_role,
         city_slug: talent.city_slug,
-        profile_visibility: isPublicProfile ? "public" : "private",
-        public_published: shouldPublishPublicly,
-        review_route: shouldAutoApprove ? "auto_approved" : "manual_review",
-        fast_track_decision: fastTrack.decision,
-        fast_track_reasons: fastTrack.reasons,
+        profile_visibility: String(talent.profile_visibility ?? "public").trim().toLowerCase(),
+        public_published: false,
+        review_route: "manual_review",
         profile_completion: completion,
       },
     });
@@ -214,20 +214,11 @@ export async function submitTalentProfileReviewAction(
   revalidatePath("/admin/talents");
   revalidatePath("/admin/notifications");
 
-  let message: string;
-  if (shouldAutoApprove && isPublicProfile) {
-    message = isArabic
-      ? "تم اعتماد ملفك تلقائيًا وأصبح جاهزًا للظهور في دليل المواهب."
-      : "Your profile was automatically approved and is ready to appear in the talent directory.";
-  } else if (shouldAutoApprove) {
-    message = isArabic
-      ? "تم اعتماد ملفك تلقائيًا. وبحسب اختيارك، سيبقى ملفك خاصًا وغير ظاهر في دليل المواهب العام."
-      : "Your profile was automatically approved. Based on your privacy choice, it will remain private and hidden from the public talent directory.";
-  } else {
-    message = isArabic
+  return {
+    success: true,
+    completion,
+    message: isArabic
       ? "تم إرسال ملفك للمراجعة بنجاح."
-      : "Your profile has been submitted for review.";
-  }
-
-  return { success: true, completion, message };
+      : "Your profile has been submitted for review.",
+  };
 }

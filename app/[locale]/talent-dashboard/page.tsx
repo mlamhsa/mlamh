@@ -1,12 +1,10 @@
 import TalentSidebar from "@/components/talent/TalentSidebar";
 import TalentHeader from "@/components/talent/TalentHeader";
+import TalentProfileReviewSubmitButton from "@/components/talent/TalentProfileReviewSubmitButton";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireTalent } from "@/lib/auth/require-talent";
 import { calculateProfileCompletion } from "@/lib/utils/profile-completion";
 import { getTalentProfileReadiness } from "@/lib/talent/profile-review-readiness";
-import { submitTalentProfileReviewAction } from "@/lib/actions/submit-talent-profile-review";
-import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 
 type PageProps = {
   params: Promise<{ locale: string }>;
@@ -223,14 +221,6 @@ export default async function TalentDashboardPage({ params }: PageProps) {
     },
   }[workflowState];
 
-  async function submitProfileForReview() {
-    "use server";
-    const result = await submitTalentProfileReviewAction(locale);
-    if (!result.success) return;
-    revalidatePath(`/${locale}/talent-dashboard`);
-    redirect(`/${locale}/talent-dashboard`);
-  }
-
   const metricCards = [
     {
       label: isRtl ? "جاهزية الاعتماد" : "Approval readiness",
@@ -298,14 +288,12 @@ export default async function TalentDashboardPage({ params }: PageProps) {
                   </div>
 
                   {workflow.submit ? (
-                    <form action={submitProfileForReview}>
-                      <button
-                        type="submit"
-                        className="inline-flex min-h-12 w-full items-center justify-center rounded-2xl bg-gold px-7 text-sm font-semibold text-black transition hover:opacity-90 sm:w-auto"
-                      >
-                        {workflow.action}
-                      </button>
-                    </form>
+                    <TalentProfileReviewSubmitButton
+                      locale={locale}
+                      label={workflow.action}
+                      wrapperClassName="w-full sm:w-auto"
+                      buttonClassName="inline-flex min-h-12 w-full items-center justify-center rounded-2xl bg-gold px-7 text-sm font-semibold text-black transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                    />
                   ) : workflow.href ? (
                     <a
                       href={workflow.href}
