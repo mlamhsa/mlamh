@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 const ADMIN_LOGIN_PATH = "/ar/login";
+const ADMIN_MFA_PATH = "/admin-mfa";
 
 export async function requireAdminAccess() {
   const authClient = await createServerSupabaseClient();
@@ -31,6 +32,14 @@ export async function requireAdminAccess() {
     profile.account_type !== "admin"
   ) {
     redirect(ADMIN_LOGIN_PATH);
+  }
+
+  const assurance = await authClient.auth.mfa.getAuthenticatorAssuranceLevel();
+
+  // Admin access fails closed: a valid admin role alone is not enough.
+  // The session must also prove a verified second factor (AAL2).
+  if (assurance.error || assurance.data.currentLevel !== "aal2") {
+    redirect(ADMIN_MFA_PATH);
   }
 
   return user;
