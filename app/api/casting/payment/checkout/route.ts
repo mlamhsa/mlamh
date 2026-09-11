@@ -70,6 +70,7 @@ export async function GET(request: Request) {
   }
 
   const baseUrl = siteUrl(request);
+  const returnParams = new URLSearchParams({ token, payment: String(payment.id), locale });
   const checkout = await tapPaymentProvider.createCheckout({
     paymentPublicId: String(payment.public_id),
     idempotencyKey: `managed-casting-${payment.public_id}`,
@@ -87,7 +88,7 @@ export async function GET(request: Request) {
       order: String(payment.public_id),
       transaction: String(payment.public_id),
     },
-    redirectUrl: `${baseUrl}/${locale}/casting/status/${token}?payment=return`,
+    redirectUrl: `${baseUrl}/api/casting/payment/return?${returnParams.toString()}`,
     webhookUrl: `${baseUrl}/api/casting/payment/webhook/tap`,
     metadata: {
       casting_project_id: String(project.id),
