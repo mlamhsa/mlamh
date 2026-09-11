@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
+import { RequestBodyTooLargeError, readTextBodyWithLimit } from "@/lib/security/request-guards";
 
 import {
   normalizeWhatsAppInbound,
@@ -11,6 +12,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 
+const MAX_WEBHOOK_BODY_BYTES = 1024 * 1024;
+
 export async function GET(request: Request) {
   const challenge = await verifyWhatsAppWebhookGet(new URL(request.url).searchParams).catch(() => null);
   if (!challenge) return new NextResponse("verification_failed", { status: 403 });
@@ -21,7 +24,15 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const rawBody = await request.text();
+  let rawBody: string;
+  try {
+    rawBody = await readTextBodyWithLimit(request, MAX_WEBHOOK_BODY_BYTES);
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) {
+      return NextResponse.json({ ok: false, error: "payload_too_large" }, { status: 413 });
+    }
+    return NextResponse.json({ ok: false, error: "invalid_request_body" }, { status: 400 });
+  }
   const signatureVerified = await verifyWhatsAppWebhookPost(request.headers, rawBody).catch(() => false);
   const db = createAdminClient();
   const fingerprint = createHash("sha256").update(`whatsapp:${rawBody}`).digest("hex");
