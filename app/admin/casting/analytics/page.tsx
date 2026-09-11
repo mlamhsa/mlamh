@@ -99,7 +99,7 @@ export default async function CastingAnalyticsPage({ searchParams }: { searchPar
   const completedProjects = rows.filter((item) => item.status === "completed").length;
   const activeRoles = roleRows.filter((item) => activeStatuses.has(item.status)).length;
   const linkedRoles = roleRows.filter((item) => item.opportunity_id).length;
-  const shortlisted = shortlistRows.filter((item) => ["shortlisted", "presented", "selected"].includes(item.status)).length;
+  const shortlisted = shortlistRows.filter((item) => ["shortlisted", "presented", "reserved", "selected"].includes(item.status)).length;
   const selected = shortlistRows.filter((item) => item.status === "selected").length;
 
   const quotedPipeline = rows.reduce((sum, item) => sum + number(item.quoted_amount), 0);
