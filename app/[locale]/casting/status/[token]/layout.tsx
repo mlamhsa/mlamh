@@ -25,6 +25,13 @@ const categoryLabels: Record<string, { ar: string; en: string }> = {
   other: { ar: "ملف", en: "File" },
 };
 
+const replacementLabels: Record<string, { ar: string; en: string }> = {
+  replacement_started: { ar: "بدأ الاستبدال", en: "Replacement started" },
+  replacement_confirming: { ar: "جاري تأكيد البديل", en: "Confirming replacement" },
+  replacement_confirmed: { ar: "تم تأكيد البديل", en: "Replacement confirmed" },
+  replacement_failed: { ar: "يحتاج متابعة من ملامح", en: "Needs MLAMH follow-up" },
+};
+
 export default async function CastingClientWorkspaceLayout({ children, params }: Props) {
   const { locale = "ar", token } = await params;
   const language = locale === "en" ? "en" : "ar";
@@ -41,12 +48,21 @@ export default async function CastingClientWorkspaceLayout({ children, params }:
 
   if (!project || project.service_mode !== "managed") return children;
 
-  const { data: files, error } = await admin
-    .from("casting_project_files")
-    .select("id,file_name,storage_path,mime_type,size_bytes,category,created_at")
-    .eq("casting_project_id", project.id)
-    .eq("visible_to_client", true)
-    .order("created_at", { ascending: false });
+  const [{ data: files, error }, { data: latestReplacement }] = await Promise.all([
+    admin
+      .from("casting_project_files")
+      .select("id,file_name,storage_path,mime_type,size_bytes,category,created_at")
+      .eq("casting_project_id", project.id)
+      .eq("visible_to_client", true)
+      .order("created_at", { ascending: false }),
+    admin
+      .from("managed_casting_replacements")
+      .select("id,status,replacement_talent_id,reason,created_at")
+      .eq("casting_project_id", project.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
 
   if (error) console.error("[CastingClientWorkspaceLayout files]", error);
 
@@ -55,12 +71,41 @@ export default async function CastingClientWorkspaceLayout({ children, params }:
     return { ...file, signedUrl: data?.signedUrl ?? null };
   }));
 
+  let replacementTalentName: string | null = null;
+  if (latestReplacement?.replacement_talent_id) {
+    const { data: talent } = await admin
+      .from("talents")
+      .select("display_name_ar,display_name_en,name_ar,name_en")
+      .eq("id", latestReplacement.replacement_talent_id)
+      .maybeSingle();
+    replacementTalentName = ar
+      ? talent?.display_name_ar || talent?.name_ar || talent?.display_name_en || talent?.name_en || null
+      : talent?.display_name_en || talent?.name_en || talent?.display_name_ar || talent?.name_ar || null;
+  }
+  const replacementLabel = latestReplacement
+    ? replacementLabels[latestReplacement.status] ?? { ar: latestReplacement.status, en: latestReplacement.status }
+    : null;
+
   return <>
     <style>{`main section#files{display:none}`}</style>
     <PaymentReturnBanner locale={language} />
     {children}
+    {latestReplacement && replacementLabel ? <section dir={ar ? "rtl" : "ltr"} className="bg-background px-4 pt-2 text-white sm:px-6">
+      <div className="mx-auto max-w-6xl rounded-[2rem] border border-amber-300/20 bg-amber-300/[0.04] p-6 sm:p-8">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="max-w-3xl">
+            <p className="text-xs uppercase tracking-[0.25em] text-amber-200">MLAMH CASTING GUARANTEE</p>
+            <h2 className="mt-2 text-2xl font-light text-white">{ar ? "ضمان الاستبدال مفعل" : "Replacement guarantee active"}</h2>
+            <p className="mt-3 text-sm leading-7 text-white/50">{ar
+              ? `عند تعذر استمرار إحدى المواهب المختارة، فعّلت ملامح موهبة احتياط بديلة${replacementTalentName ? ` (${replacementTalentName})` : ""} بدون إعادة دورة الاختيار أو رسوم إدارة إضافية.`
+              : `When a selected talent could no longer proceed, MLAMH activated a reserve replacement${replacementTalentName ? ` (${replacementTalentName})` : ""} without restarting your selection cycle or adding another management fee.`}</p>
+          </div>
+          <span className="shrink-0 rounded-full border border-amber-300/20 bg-black/20 px-4 py-2 text-xs text-amber-100">{ar ? replacementLabel.ar : replacementLabel.en}</span>
+        </div>
+      </div>
+    </section> : null}
     <ClientFilesAnchor />
-    <section data-managed-client-files dir={ar ? "rtl" : "ltr"} className="bg-background px-4 pb-24 text-white sm:px-6">
+    <section data-managed-client-files dir={ar ? "rtl" : "ltr"} className="bg-background px-4 pb-24 pt-6 text-white sm:px-6">
       <div className="mx-auto max-w-6xl scroll-mt-28 rounded-[2rem] border border-white/10 bg-white/[0.025] p-6 sm:p-8">
         <p className="text-xs uppercase tracking-[0.25em] text-gold">FILES & DELIVERABLES</p>
         <h2 className="mt-2 text-2xl font-light text-white">{ar ? "ملفات المشروع" : "Project files"}</h2>
