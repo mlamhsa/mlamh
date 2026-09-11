@@ -149,6 +149,12 @@ export async function updateOwnTalentCoreDetailsAction(
     talentPayload.city_slug = city.value;
     talentPayload.city_ar = city.ar;
     talentPayload.city_en = city.en;
+  } else if (formData.has("city_slug") && countryCode) {
+    // A country change with no replacement city must not leave the previous
+    // city's labels attached to the new country.
+    talentPayload.city_slug = null;
+    talentPayload.city_ar = null;
+    talentPayload.city_en = null;
   }
   if (formData.has("profile_visibility") && profileVisibility) {
     talentPayload.profile_visibility = profileVisibility;
@@ -227,7 +233,9 @@ export async function updateOwnTalentCoreDetailsAction(
   if (phone && phone !== String(profile.phone ?? "").trim()) {
     profilePayload.phone = phone;
   }
-  if (formData.has("data_accuracy_contact_consent")) {
+  if (formData.has("data_accuracy_contact_consent") && profile.data_accuracy_contact_consent !== true) {
+    // Consent is a review hard gate and is treated as monotonic once granted.
+    // This draft editor may grant it, but must not silently downgrade true to false.
     profilePayload.data_accuracy_contact_consent = booleanValue(formData, "data_accuracy_contact_consent");
   }
 
