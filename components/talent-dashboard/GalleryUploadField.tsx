@@ -10,6 +10,12 @@ type GalleryUploadFieldProps = {
   maxImages?: number;
 };
 
+const ALLOWED_IMAGE_TYPES = new Map([
+  ["image/jpeg", "jpg"],
+  ["image/png", "png"],
+  ["image/webp", "webp"],
+]);
+
 function parseInitialImages(value?: string[] | string | null) {
   if (!value) return [];
 
@@ -56,21 +62,23 @@ export function GalleryUploadField({
       const uploadedUrls: string[] = [];
 
       for (const file of filesToUpload) {
-        if (!file.type.startsWith("image/")) {
-          throw new Error("يرجى رفع ملفات صور فقط.");
+        const extension = ALLOWED_IMAGE_TYPES.get(file.type);
+
+        if (!extension) {
+          throw new Error("الصيغ المسموحة فقط: JPG و PNG و WebP.");
         }
 
         if (file.size > maxSize) {
           throw new Error("يجب ألا يتجاوز حجم كل صورة 5 ميجابايت.");
         }
 
-        const extension = file.name.split(".").pop() || "jpg";
         const filePath = `gallery/${crypto.randomUUID()}.${extension}`;
 
         const { error: uploadError } = await supabase.storage
           .from("talent-media")
           .upload(filePath, file, {
             cacheControl: "3600",
+            contentType: file.type,
             upsert: false,
           });
 
@@ -148,7 +156,7 @@ export function GalleryUploadField({
         <input
           ref={inputRef}
           type="file"
-          accept="image/*"
+          accept="image/jpeg,image/png,image/webp"
           multiple
           className="hidden"
           onChange={(event) => {
