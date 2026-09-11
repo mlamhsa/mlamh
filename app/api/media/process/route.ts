@@ -3,6 +3,10 @@ import { createClient } from "@supabase/supabase-js";
 import sharp from "sharp";
 
 import { getRequestUser } from "@/lib/auth/request-user";
+import {
+  readTextBodyWithLimit,
+  RequestBodyTooLargeError,
+} from "@/lib/security/request-guards";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -10,6 +14,7 @@ export const runtime = "nodejs";
 const MAX_INPUT_BYTES = 5 * 1024 * 1024;
 const MAX_INPUT_PIXELS = 40_000_000;
 const MAX_DIMENSION = 12_000;
+const MAX_REQUEST_BODY_BYTES = 8 * 1024;
 const QUARANTINE_BUCKET = "media-quarantine";
 const PUBLIC_BUCKET = "talent-media";
 const ALLOWED_KINDS = new Set(["profile-images", "gallery"]);
@@ -131,8 +136,13 @@ export async function POST(request: Request) {
   let payload: { path?: unknown; kind?: unknown };
 
   try {
-    payload = await request.json();
-  } catch {
+    const rawPayload = await readTextBodyWithLimit(request, MAX_REQUEST_BODY_BYTES);
+    payload = JSON.parse(rawPayload) as { path?: unknown; kind?: unknown };
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) {
+      return Response.json({ error: "PAYLOAD_TOO_LARGE" }, { status: 413 });
+    }
+
     return Response.json({ error: "INVALID_JSON" }, { status: 400 });
   }
 
