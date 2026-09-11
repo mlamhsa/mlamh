@@ -44,6 +44,13 @@ type AttachmentRow = Omit<
   "signed_url"
 >;
 
+type TypingBroadcastEvent = {
+  payload: {
+    userId?: string;
+    isTyping?: boolean;
+  };
+};
+
 const MESSAGE_ATTACHMENTS_BUCKET =
   "message-attachments";
 
@@ -290,11 +297,8 @@ export default function RealtimeMessageList({
         {
           event: "typing",
         },
-        ({ payload }) => {
-          const typingPayload = payload as {
-            userId?: string;
-            isTyping?: boolean;
-          };
+        ({ payload }: TypingBroadcastEvent) => {
+          const typingPayload = payload;
 
           if (
             !typingPayload.userId ||
