@@ -1,6 +1,14 @@
 import { createBrowserClient } from "@supabase/ssr";
 
-export function createBrowserSupabaseClient() {
+type BrowserSupabaseClient = ReturnType<typeof createBrowserClient>;
+
+let browserClient: BrowserSupabaseClient | undefined;
+
+export function createBrowserSupabaseClient(): BrowserSupabaseClient {
+  if (browserClient) {
+    return browserClient;
+  }
+
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -12,5 +20,8 @@ export function createBrowserSupabaseClient() {
     throw new Error("NEXT_PUBLIC_SUPABASE_ANON_KEY is not configured.");
   }
 
-  return createBrowserClient(url, anonKey);
+  browserClient = createBrowserClient(url, anonKey);
+  return browserClient;
 }
+
+export const supabase = createBrowserSupabaseClient();
