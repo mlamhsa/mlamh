@@ -22,7 +22,7 @@ begin
     join public.casting_projects cp on cp.id = cs.casting_project_id
    where cs.application_id = new.id
      and cp.service_mode = 'managed'
-     and cs.status in ('selected', 'accepted')
+     and cs.status = 'selected'
    order by cp.id desc
    limit 1;
 
@@ -61,7 +61,7 @@ begin
     join public.casting_projects cp on cp.id = cs.casting_project_id
    where cs.application_id = new.application_id
      and cp.service_mode = 'managed'
-     and cs.status in ('selected', 'accepted')
+     and cs.status = 'selected'
    order by cp.id desc
    limit 1;
 
