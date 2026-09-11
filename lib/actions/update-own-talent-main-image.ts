@@ -141,7 +141,7 @@ export async function updateOwnTalentMainImageAction(formData: FormData): Promis
     );
   }
 
-  let metadata: sharp.Metadata;
+  let metadata: { width?: number; height?: number };
   try {
     metadata = await sharp(input, {
       failOn: "error",
