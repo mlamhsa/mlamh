@@ -69,6 +69,14 @@ function publicOrigin(request: Request) {
   return `${protocol}://${host}`;
 }
 
+function opportunityIsAvailable(opportunity: OpportunityRecord | null) {
+  return Boolean(
+    opportunity?.slug &&
+    opportunity.published === true &&
+    ["published", "open"].includes(opportunity.status ?? ""),
+  );
+}
+
 export async function GET(request: Request, { params }: RouteProps) {
   const { locale: localeParam, notificationId } = await params;
   const locale = isValidLocale(localeParam) ? localeParam : "ar";
@@ -124,6 +132,41 @@ export async function GET(request: Request, { params }: RouteProps) {
     return NextResponse.redirect(new URL(`/${locale}/booking/${conversation.id}`, origin));
   }
 
+  if (event?.event_type === "managed_casting_invitation") {
+    const invitationId = positiveInteger(event.metadata, "invitationId");
+    if (!invitationId) return NextResponse.redirect(fallbackUrl);
+
+    const { data: invitation, error: invitationError } = await admin
+      .from("managed_casting_invitations")
+      .select(`id,status,opportunity_id,opportunities(id,slug,published,status)`)
+      .eq("id", invitationId)
+      .eq("talent_id", talent.id)
+      .maybeSingle();
+
+    if (invitationError || !invitation) {
+      if (invitationError) console.error("[notification-route:managed-invitation-lookup]", invitationError);
+      return NextResponse.redirect(fallbackUrl);
+    }
+
+    const typedInvitation = invitation as InvitationRecord;
+    if (typedInvitation.status === "sent") {
+      const now = new Date().toISOString();
+      const { error: updateError } = await admin.from("managed_casting_invitations")
+        .update({ status: "viewed", viewed_at: now, updated_at: now })
+        .eq("id", typedInvitation.id)
+        .eq("talent_id", talent.id)
+        .eq("status", "sent");
+      if (updateError) console.error("[notification-route:managed-invitation-update]", updateError);
+    }
+
+    const opportunity = relatedOpportunity(typedInvitation.opportunities);
+    if (!opportunityIsAvailable(opportunity) || !opportunity?.slug) return NextResponse.redirect(fallbackUrl);
+
+    return NextResponse.redirect(
+      new URL(`/${locale}/opportunities/${encodeURIComponent(opportunity.slug)}`, origin),
+    );
+  }
+
   if (event?.event_type !== "opportunity_invitation") return NextResponse.redirect(fallbackUrl);
 
   const invitationId = positiveInteger(event.metadata, "invitationId");
@@ -152,12 +195,7 @@ export async function GET(request: Request, { params }: RouteProps) {
   }
 
   const opportunity = relatedOpportunity(typedInvitation.opportunities);
-  const available = Boolean(
-    opportunity?.slug &&
-    opportunity.published === true &&
-    ["published", "open"].includes(opportunity.status ?? ""),
-  );
-  if (!available || !opportunity?.slug) return NextResponse.redirect(fallbackUrl);
+  if (!opportunityIsAvailable(opportunity) || !opportunity?.slug) return NextResponse.redirect(fallbackUrl);
 
   return NextResponse.redirect(
     new URL(`/${locale}/opportunities/${encodeURIComponent(opportunity.slug)}`, origin),
