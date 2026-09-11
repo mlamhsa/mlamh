@@ -57,8 +57,8 @@ export async function updateOwnTalentCoreDetailsAction(
 
   const admin = createAdminClient();
   const [{ data: profile, error: profileError }, { data: talent, error: talentError }] = await Promise.all([
-    admin.from("profiles").select("id, approval_status").eq("user_id", user.id).maybeSingle(),
-    admin.from("talents").select("id, slug").eq("user_id", user.id).maybeSingle(),
+    admin.from("profiles").select("id, approval_status, phone").eq("user_id", user.id).maybeSingle(),
+    admin.from("talents").select("id, slug, primary_role, category_slug").eq("user_id", user.id).maybeSingle(),
   ]);
 
   if (profileError || talentError || !profile || !talent) {
@@ -84,41 +84,61 @@ export async function updateOwnTalentCoreDetailsAction(
   const countryCode = text(formData, "base_country_code").toUpperCase();
   const citySlug = text(formData, "city_slug");
 
-  if (!name || !phone || !categorySlug || !gender || !nationality || !countryCode || !citySlug) {
-    return {
-      success: false,
-      message: isArabic ? "أكمل جميع البيانات الأساسية قبل الحفظ." : "Complete all required core details before saving.",
-    };
-  }
+  const category = categorySlug
+    ? TALENT_CATEGORIES.find((item) => item.slug === categorySlug)
+    : null;
+  const genderOption = gender
+    ? GENDER_OPTIONS.find((item) => item.value === gender)
+    : null;
+  const nationalityOption = nationality
+    ? NATIONALITY_OPTIONS.find((item) => item.value === nationality)
+    : null;
+  const country = countryCode
+    ? TALENT_SIGNUP_COUNTRIES.find((item) => item.code === countryCode)
+    : null;
+  const city = citySlug && country
+    ? country.cities.find((item) => item.value === citySlug)
+    : null;
 
-  const category = TALENT_CATEGORIES.find((item) => item.slug === categorySlug);
-  const genderOption = GENDER_OPTIONS.find((item) => item.value === gender);
-  const nationalityOption = NATIONALITY_OPTIONS.find((item) => item.value === nationality);
-  const country = TALENT_SIGNUP_COUNTRIES.find((item) => item.code === countryCode);
-  const city = country?.cities.find((item) => item.value === citySlug);
-
-  if (!category || !genderOption || !nationalityOption || !country || !city) {
+  if (
+    (categorySlug && !category) ||
+    (gender && !genderOption) ||
+    (nationality && !nationalityOption) ||
+    (countryCode && !country) ||
+    (citySlug && !city)
+  ) {
     return {
       success: false,
       message: isArabic ? "إحدى القيم المختارة غير صحيحة. أعد اختيار البيانات." : "One of the selected values is invalid. Please choose again.",
     };
   }
 
-  const talentPayload: Record<string, unknown> = {
-    name_ar: name,
-    name_en: name,
-    category_slug: category.slug,
-    category_ar: category.ar,
-    category_en: category.en,
-    primary_role: category.slug,
-    gender,
-    nationality_slug: nationality,
-    nationality,
-    base_country_code: country.code,
-    city_slug: city.value,
-    city_ar: city.ar,
-    city_en: city.en,
-  };
+  // Draft-safe behavior: core fields are hard gates for review submission, not
+  // hard gates for saving. Preserve anything the talent has already entered and
+  // allow the remaining required fields to be completed over multiple visits.
+  const talentPayload: Record<string, unknown> = {};
+
+  if (name) {
+    talentPayload.name_ar = name;
+    talentPayload.name_en = name;
+  }
+  if (category) {
+    talentPayload.category_slug = category.slug;
+    talentPayload.category_ar = category.ar;
+    talentPayload.category_en = category.en;
+    talentPayload.primary_role = category.slug;
+  }
+  if (gender) talentPayload.gender = gender;
+  if (nationality) {
+    talentPayload.nationality_slug = nationality;
+    talentPayload.nationality = nationality;
+  }
+  if (country) talentPayload.base_country_code = country.code;
+  if (city) {
+    talentPayload.city_slug = city.value;
+    talentPayload.city_ar = city.ar;
+    talentPayload.city_en = city.en;
+  }
 
   // Shared optional matching signals. These existed in the legacy profile and are
   // intentionally kept outside approval readiness.
@@ -129,8 +149,10 @@ export async function updateOwnTalentCoreDetailsAction(
     if (formData.has(key)) talentPayload[key] = booleanValue(formData, key);
   }
 
+  const effectiveRole = category?.slug ?? String(talent.primary_role ?? talent.category_slug ?? "").trim();
+
   // Role-specific fields improve profile strength and matching only.
-  if (categorySlug === "actor") {
+  if (effectiveRole === "actor") {
     const actingAgeMin = optionalNumber(formData, "acting_age_min");
     const actingAgeMax = optionalNumber(formData, "acting_age_max");
 
@@ -143,61 +165,65 @@ export async function updateOwnTalentCoreDetailsAction(
       };
     }
 
-    talentPayload.acting_age_min = actingAgeMin;
-    talentPayload.acting_age_max = actingAgeMax;
-    talentPayload.experience_years = optionalNumber(formData, "experience_years");
-    talentPayload.languages = list(formData, "languages");
-    talentPayload.dialects = list(formData, "dialects");
-    talentPayload.skills = list(formData, "skills");
-    talentPayload.height_cm = optionalNumber(formData, "height_cm");
-    talentPayload.weight_kg = optionalNumber(formData, "weight_kg");
-    talentPayload.eye_color = text(formData, "eye_color") || null;
-    talentPayload.hair_color = text(formData, "hair_color") || null;
+    if (formData.has("acting_age_min")) talentPayload.acting_age_min = actingAgeMin;
+    if (formData.has("acting_age_max")) talentPayload.acting_age_max = actingAgeMax;
+    if (formData.has("experience_years")) talentPayload.experience_years = optionalNumber(formData, "experience_years");
+    if (formData.has("languages")) talentPayload.languages = list(formData, "languages");
+    if (formData.has("dialects")) talentPayload.dialects = list(formData, "dialects");
+    if (formData.has("skills")) talentPayload.skills = list(formData, "skills");
+    if (formData.has("height_cm")) talentPayload.height_cm = optionalNumber(formData, "height_cm");
+    if (formData.has("weight_kg")) talentPayload.weight_kg = optionalNumber(formData, "weight_kg");
+    if (formData.has("eye_color")) talentPayload.eye_color = text(formData, "eye_color") || null;
+    if (formData.has("hair_color")) talentPayload.hair_color = text(formData, "hair_color") || null;
     if (formData.has("hair_type")) talentPayload.hair_type = text(formData, "hair_type") || null;
     if (formData.has("skin_color")) talentPayload.skin_color = text(formData, "skin_color") || null;
   }
 
-  if (categorySlug === "model") {
-    talentPayload.height_cm = optionalNumber(formData, "height_cm");
-    talentPayload.weight_kg = optionalNumber(formData, "weight_kg");
-    talentPayload.clothing_size = text(formData, "clothing_size") || null;
-    talentPayload.shoe_size = optionalNumber(formData, "shoe_size");
-    talentPayload.chest_size = optionalNumber(formData, "chest_size");
-    talentPayload.waist_size = optionalNumber(formData, "waist_size");
-    talentPayload.hip_size = optionalNumber(formData, "hip_size");
-    talentPayload.eye_color = text(formData, "eye_color") || null;
-    talentPayload.hair_color = text(formData, "hair_color") || null;
+  if (effectiveRole === "model") {
+    if (formData.has("height_cm")) talentPayload.height_cm = optionalNumber(formData, "height_cm");
+    if (formData.has("weight_kg")) talentPayload.weight_kg = optionalNumber(formData, "weight_kg");
+    if (formData.has("clothing_size")) talentPayload.clothing_size = text(formData, "clothing_size") || null;
+    if (formData.has("shoe_size")) talentPayload.shoe_size = optionalNumber(formData, "shoe_size");
+    if (formData.has("chest_size")) talentPayload.chest_size = optionalNumber(formData, "chest_size");
+    if (formData.has("waist_size")) talentPayload.waist_size = optionalNumber(formData, "waist_size");
+    if (formData.has("hip_size")) talentPayload.hip_size = optionalNumber(formData, "hip_size");
+    if (formData.has("eye_color")) talentPayload.eye_color = text(formData, "eye_color") || null;
+    if (formData.has("hair_color")) talentPayload.hair_color = text(formData, "hair_color") || null;
     if (formData.has("hair_type")) talentPayload.hair_type = text(formData, "hair_type") || null;
     if (formData.has("skin_color")) talentPayload.skin_color = text(formData, "skin_color") || null;
-    talentPayload.modeling_types = list(formData, "modeling_types");
+    if (formData.has("modeling_types")) talentPayload.modeling_types = list(formData, "modeling_types");
   }
 
-  const { error: updateTalentError } = await admin
-    .from("talents")
-    .update(talentPayload)
-    .eq("id", talent.id)
-    .eq("user_id", user.id);
+  if (Object.keys(talentPayload).length > 0) {
+    const { error: updateTalentError } = await admin
+      .from("talents")
+      .update(talentPayload)
+      .eq("id", talent.id)
+      .eq("user_id", user.id);
 
-  if (updateTalentError) {
-    return {
-      success: false,
-      message: isArabic ? "تعذر حفظ بيانات الموهبة. حاول مرة أخرى." : "Unable to save talent details. Please try again.",
-    };
+    if (updateTalentError) {
+      return {
+        success: false,
+        message: isArabic ? "تعذر حفظ بيانات الموهبة. حاول مرة أخرى." : "Unable to save talent details. Please try again.",
+      };
+    }
   }
 
-  const { error: updateProfileError } = await admin
-    .from("profiles")
-    .update({ phone })
-    .eq("id", profile.id)
-    .eq("user_id", user.id);
+  if (phone && phone !== String(profile.phone ?? "").trim()) {
+    const { error: updateProfileError } = await admin
+      .from("profiles")
+      .update({ phone })
+      .eq("id", profile.id)
+      .eq("user_id", user.id);
 
-  if (updateProfileError) {
-    return {
-      success: false,
-      message: isArabic
-        ? "تم حفظ جزء من البيانات، لكن تعذر تحديث رقم الجوال. حاول مرة أخرى."
-        : "Some details were saved, but the phone number could not be updated. Please try again.",
-    };
+    if (updateProfileError) {
+      return {
+        success: false,
+        message: isArabic
+          ? "تم حفظ جزء من البيانات، لكن تعذر تحديث رقم الجوال. حاول مرة أخرى."
+          : "Some details were saved, but the phone number could not be updated. Please try again.",
+      };
+    }
   }
 
   revalidatePath(`/${locale}/talent-dashboard`);
