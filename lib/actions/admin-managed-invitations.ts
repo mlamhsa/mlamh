@@ -77,6 +77,16 @@ export async function inviteManagedCastingTalentAction(formData: FormData) {
     throw new Error("Talent account is not available for invitation.");
   }
 
+  const { data: canSource, error: sourceGateError } = await admin.rpc("managed_casting_can_source", {
+    p_project_id: projectId,
+  });
+  if (sourceGateError) {
+    throw new Error(`Unable to verify Managed Casting activation: ${sourceGateError.message}`);
+  }
+  if (canSource !== true) {
+    throw new Error("Managed Casting payment activation is required before sourcing invitations can be sent.");
+  }
+
   const { data: opportunity } = await admin.from("opportunities")
     .select("id,published,status,managed_by_mlamh")
     .eq("id", role.opportunity_id)
