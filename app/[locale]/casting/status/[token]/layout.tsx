@@ -1,5 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 
+import ClientFilesAnchor from "./client-files-anchor";
+
 type Props = {
   children: React.ReactNode;
   params: Promise<{ locale?: string; token: string }>;
@@ -54,7 +56,8 @@ export default async function CastingClientWorkspaceLayout({ children, params }:
 
   return <>
     {children}
-    <section id="files" dir={ar ? "rtl" : "ltr"} className="bg-background px-4 pb-24 text-white sm:px-6">
+    <ClientFilesAnchor />
+    <section data-managed-client-files dir={ar ? "rtl" : "ltr"} className="bg-background px-4 pb-24 text-white sm:px-6">
       <div className="mx-auto max-w-6xl scroll-mt-28 rounded-[2rem] border border-white/10 bg-white/[0.025] p-6 sm:p-8">
         <p className="text-xs uppercase tracking-[0.25em] text-gold">FILES & DELIVERABLES</p>
         <h2 className="mt-2 text-2xl font-light text-white">{ar ? "ملفات المشروع" : "Project files"}</h2>
