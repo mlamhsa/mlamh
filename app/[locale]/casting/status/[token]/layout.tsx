@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 
+import ClientAccountBanner from "./client-account-banner";
 import ClientFilesAnchor from "./client-files-anchor";
 import PaymentReturnBanner from "./payment-return-banner";
 
@@ -42,7 +43,7 @@ export default async function CastingClientWorkspaceLayout({ children, params }:
   const admin = createAdminClient();
   const { data: project } = await admin
     .from("casting_projects")
-    .select("id,service_mode")
+    .select("id,service_mode,contact_email,client_user_id")
     .eq("client_access_token", cleanToken)
     .maybeSingle();
 
@@ -89,6 +90,7 @@ export default async function CastingClientWorkspaceLayout({ children, params }:
   return <>
     <style>{`main section#files{display:none}`}</style>
     <PaymentReturnBanner locale={language} />
+    <ClientAccountBanner locale={language} token={cleanToken} claimed={Boolean(project.client_user_id)} canClaim={Boolean(project.contact_email?.trim())} />
     {children}
     {latestReplacement && replacementLabel ? <section dir={ar ? "rtl" : "ltr"} className="bg-background px-4 pt-2 text-white sm:px-6">
       <div className="mx-auto max-w-6xl rounded-[2rem] border border-amber-300/20 bg-amber-300/[0.04] p-6 sm:p-8">
