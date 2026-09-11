@@ -34,6 +34,7 @@ const allowedRoleStatuses = new Set([
 const allowedShortlistStatuses = new Set([
   "shortlisted",
   "presented",
+  "reserved",
   "selected",
   "declined",
   "withdrawn",
