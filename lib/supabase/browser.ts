@@ -1,6 +1,7 @@
 import { createBrowserClient } from "@supabase/ssr";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
-type BrowserSupabaseClient = ReturnType<typeof createBrowserClient>;
+type BrowserSupabaseClient = SupabaseClient;
 
 let browserClient: BrowserSupabaseClient | undefined;
 
