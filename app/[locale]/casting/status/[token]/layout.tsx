@@ -55,6 +55,7 @@ export default async function CastingClientWorkspaceLayout({ children, params }:
   }));
 
   return <>
+    <style>{`main section#files{display:none}`}</style>
     {children}
     <ClientFilesAnchor />
     <section data-managed-client-files dir={ar ? "rtl" : "ltr"} className="bg-background px-4 pb-24 text-white sm:px-6">
