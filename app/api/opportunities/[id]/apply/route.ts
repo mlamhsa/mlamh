@@ -4,6 +4,7 @@ import type { ApplyOpportunityResult } from "@/lib/applications/apply-contract";
 import { isValidOpportunityId } from "@/lib/applications/apply-rules";
 import { applyToOpportunity } from "@/lib/applications/apply-service";
 import { getRequestUser } from "@/lib/auth/request-user";
+import { consumeServerRateLimit } from "@/lib/security/server-rate-limit";
 
 function getFailureStatus(result: Extract<ApplyOpportunityResult, { ok: false }>) {
   switch (result.code) {
@@ -19,7 +20,6 @@ function getFailureStatus(result: Extract<ApplyOpportunityResult, { ok: false }>
       return 422;
     case "OPPORTUNITY_NOT_AVAILABLE":
     case "APPLICATION_WINDOW_CLOSED":
-      return 409;
     case "ALREADY_APPLIED":
       return 409;
     default:
@@ -49,6 +49,31 @@ export async function POST(
       code: "UNAUTHENTICATED",
     };
     return NextResponse.json(result, { status: 401 });
+  }
+
+  try {
+    const rate = await consumeServerRateLimit({
+      namespace: "opportunity-apply",
+      identifier: auth.user.id,
+      limit: 10,
+      windowSeconds: 600,
+    });
+
+    if (!rate.allowed) {
+      return NextResponse.json(
+        { ok: false, code: "RATE_LIMITED" },
+        {
+          status: 429,
+          headers: { "Retry-After": String(rate.retryAfterSeconds) },
+        },
+      );
+    }
+  } catch (error) {
+    console.error("[api.opportunities.apply.rateLimit]", error);
+    return NextResponse.json(
+      { ok: false, code: "RATE_LIMIT_UNAVAILABLE" },
+      { status: 503 },
+    );
   }
 
   const result = await applyToOpportunity({
