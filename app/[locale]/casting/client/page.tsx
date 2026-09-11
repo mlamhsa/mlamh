@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -5,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = { robots: { index: false, follow: false } };
 
 const statusLabels: Record<string, { ar: string; en: string }> = {
   new: { ar: "جديد", en: "New" },
@@ -52,7 +54,7 @@ export default async function CastingClientProjectsPage({ params, searchParams }
         {(projects ?? []).length === 0 ? <div className="rounded-[2rem] border border-dashed border-white/10 bg-white/[0.02] p-8"><p className="text-lg font-light text-white/70">{ar ? "لا توجد مشاريع محفوظة بعد" : "No saved projects yet"}</p><p className="mt-3 text-sm leading-7 text-white/35">{ar ? "يمكنك حفظ أي مشروع Managed Casting من داخل رابط مساحة العميل الخاصة به." : "You can claim a Managed Casting project from its private client workspace."}</p><Link href={`/${locale}/casting`} className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl border border-gold/25 px-5 text-sm text-gold">{ar ? "ابدأ مشروع كاستينغ" : "Start a casting project"}</Link></div> : <div className="grid gap-4 md:grid-cols-2">{(projects ?? []).map((project) => {
           const status = statusLabels[project.status] ?? { ar: project.status, en: project.status };
           return <article key={project.id} className="rounded-[1.75rem] border border-white/10 bg-white/[0.025] p-6">
-            <div className="flex items-start justify-between gap-4"><div className="min-w-0"><p className="text-xs uppercase tracking-[0.2em] text-gold">PROJECT #{project.id}</p><h2 className="mt-3 truncate text-xl font-light text-white">{project.project_title}</h2><p className="mt-2 text-xs text-white/35">{project.company_name || (ar ? "Managed Casting by MLAMH" : "Managed Casting by MLAMH")}</p></div><span className="shrink-0 rounded-full border border-gold/20 bg-gold/[0.05] px-3 py-1.5 text-[11px] text-gold">{ar ? status.ar : status.en}</span></div>
+            <div className="flex items-start justify-between gap-4"><div className="min-w-0"><p className="text-xs uppercase tracking-[0.2em] text-gold">PROJECT #{project.id}</p><h2 className="mt-3 truncate text-xl font-light text-white">{project.project_title}</h2><p className="mt-2 text-xs text-white/35">{project.company_name || "Managed Casting by MLAMH"}</p></div><span className="shrink-0 rounded-full border border-gold/20 bg-gold/[0.05] px-3 py-1.5 text-[11px] text-gold">{ar ? status.ar : status.en}</span></div>
             <div className="mt-5 grid gap-2 text-xs text-white/40 sm:grid-cols-2"><p>{ar ? "المدينة" : "City"}: <span className="text-white/65">{project.city || "—"}</span></p><p>{ar ? "تاريخ العمل" : "Work date"}: <span className="text-white/65">{project.work_date || "—"}</span></p><p>{ar ? "الباقة" : "Package"}: <span className="text-white/65">{project.package_code || "—"}</span></p><p>{ar ? "آخر تحديث" : "Updated"}: <span className="text-white/65">{project.updated_at ? new Date(project.updated_at).toLocaleDateString(ar ? "ar-SA" : "en-US") : "—"}</span></p></div>
             {project.client_access_token ? <Link href={`/${locale}/casting/status/${project.client_access_token}`} className="mt-5 inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-gold px-5 text-sm font-medium text-black">{ar ? "فتح مساحة المشروع" : "Open project workspace"}</Link> : null}
           </article>;
