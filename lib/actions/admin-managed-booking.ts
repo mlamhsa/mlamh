@@ -125,6 +125,114 @@ export async function startManagedTalentConfirmationAction(formData: FormData) {
   revalidateManaged(projectId, conversation.id, project.client_access_token);
 }
 
+export async function replaceManagedTalentWithReserveAction(formData: FormData) {
+  const adminUser = await requireAdminAccess();
+  const projectId = positiveInt(formData.get("project_id"));
+  const bookingId = positiveInt(formData.get("booking_id"));
+  const reserveShortlistId = positiveInt(formData.get("reserve_shortlist_id"));
+  const reason = text(formData.get("reason")).slice(0, 2000);
+  if (!projectId || !bookingId || !reserveShortlistId) throw new Error("Invalid managed casting replacement request.");
+
+  const admin = createAdminClient();
+  const [{ data: project }, { data: oldBooking }] = await Promise.all([
+    admin.from("casting_projects").select("id,service_mode,client_access_token,client_selection_confirmed_at").eq("id", projectId).maybeSingle(),
+    admin.from("talent_bookings").select("id,application_id,conversation_id,opportunity_id,talent_id,status,cancelled_at,confirmed_at").eq("id", bookingId).eq("managed_casting_project_id", projectId).maybeSingle(),
+  ]);
+  if (!project || project.service_mode !== "managed" || !project.client_selection_confirmed_at) throw new Error("Managed casting project is not ready for replacement.");
+  if (!oldBooking || !["proposed", "changes_requested", "confirmed"].includes(String(oldBooking.status))) throw new Error("This booking cannot be replaced.");
+
+  const { data: oldShortlist } = await admin.from("casting_shortlist")
+    .select("id,application_id,casting_role_id,status")
+    .eq("casting_project_id", projectId).eq("application_id", oldBooking.application_id).maybeSingle();
+  const { data: reserveShortlist } = await admin.from("casting_shortlist")
+    .select("id,application_id,casting_role_id,status")
+    .eq("id", reserveShortlistId).eq("casting_project_id", projectId).maybeSingle();
+  if (!oldShortlist || oldShortlist.status !== "selected") throw new Error("The current talent is not an active selected candidate.");
+  if (!reserveShortlist || reserveShortlist.status !== "reserved") throw new Error("Replacement must come from the reserve shortlist.");
+  if ((oldShortlist.casting_role_id ?? null) !== (reserveShortlist.casting_role_id ?? null)) throw new Error("Replacement talent must belong to the same casting role.");
+
+  const { data: reserveApplication } = await admin.from("opportunity_applications")
+    .select("id,opportunity_id,talent_id,status").eq("id", reserveShortlist.application_id).maybeSingle();
+  if (!reserveApplication || Number(reserveApplication.opportunity_id) !== Number(oldBooking.opportunity_id)) throw new Error("Reserve candidate is not linked to the same opportunity.");
+  if (!["pending", "reviewing", "shortlisted", "accepted"].includes(String(reserveApplication.status))) throw new Error("Reserve candidate is no longer eligible for confirmation.");
+
+  const now = new Date().toISOString();
+  const originalBookingStatus = String(oldBooking.status);
+  const originalCancelledAt = oldBooking.cancelled_at;
+  const originalConfirmedAt = oldBooking.confirmed_at;
+  let replacementAuditId: number | null = null;
+
+  try {
+    const { error: cancelError } = await admin.from("talent_bookings").update({
+      status: "cancelled", cancelled_at: now, updated_at: now,
+    }).eq("id", oldBooking.id).eq("managed_casting_project_id", projectId);
+    if (cancelError) throw new Error(cancelError.message);
+
+    const { error: oldShortlistError } = await admin.from("casting_shortlist")
+      .update({ status: "replaced", updated_at: now }).eq("id", oldShortlist.id).eq("status", "selected");
+    if (oldShortlistError) throw new Error(oldShortlistError.message);
+
+    const { error: reserveUpdateError } = await admin.from("casting_shortlist")
+      .update({ status: "selected", updated_at: now }).eq("id", reserveShortlist.id).eq("status", "reserved");
+    if (reserveUpdateError) throw new Error(reserveUpdateError.message);
+
+    const { data: audit, error: auditError } = await admin.from("managed_casting_replacements").insert({
+      casting_project_id: projectId,
+      casting_role_id: oldShortlist.casting_role_id,
+      replaced_shortlist_id: oldShortlist.id,
+      replacement_shortlist_id: reserveShortlist.id,
+      replaced_application_id: oldBooking.application_id,
+      replacement_application_id: reserveApplication.id,
+      replaced_talent_id: oldBooking.talent_id,
+      replacement_talent_id: reserveApplication.talent_id,
+      replaced_booking_id: oldBooking.id,
+      reason: reason || null,
+      status: "replacement_started",
+      replaced_by: adminUser.id,
+      created_at: now,
+      updated_at: now,
+    }).select("id").single();
+    if (auditError || !audit) throw new Error(auditError?.message || "Unable to record replacement audit.");
+    replacementAuditId = Number(audit.id);
+
+    const confirmationForm = new FormData();
+    confirmationForm.set("project_id", String(projectId));
+    confirmationForm.set("shortlist_id", String(reserveShortlist.id));
+    await startManagedTalentConfirmationAction(confirmationForm);
+
+    const { data: newBooking } = await admin.from("talent_bookings")
+      .select("id,conversation_id,status").eq("application_id", reserveApplication.id).eq("managed_casting_project_id", projectId).maybeSingle();
+    if (!newBooking) throw new Error("Replacement booking was not created.");
+
+    await admin.from("managed_casting_replacements").update({
+      replacement_booking_id: newBooking.id,
+      status: newBooking.status === "confirmed" ? "replacement_confirmed" : "replacement_confirming",
+      updated_at: new Date().toISOString(),
+    }).eq("id", replacementAuditId);
+
+    await admin.from("conversations").update({ status: "closed", updated_at: new Date().toISOString() }).eq("id", oldBooking.conversation_id).eq("conversation_type", "mlamh_talent");
+    await admin.from("casting_projects").update({
+      client_status_note: "تم تفعيل ضمان الاستبدال. يجري فريق ملامح تأكيد موهبة احتياط بديلة دون إعادة دورة الاختيار.",
+      updated_at: new Date().toISOString(),
+    }).eq("id", projectId).eq("service_mode", "managed");
+
+    revalidateManaged(projectId, Number(newBooking.conversation_id), project.client_access_token);
+  } catch (error) {
+    if (replacementAuditId) {
+      await admin.from("managed_casting_replacements").update({ status: "replacement_failed", updated_at: new Date().toISOString() }).eq("id", replacementAuditId);
+    }
+    await admin.from("casting_shortlist").update({ status: "reserved", updated_at: new Date().toISOString() }).eq("id", reserveShortlist.id).eq("status", "selected");
+    await admin.from("casting_shortlist").update({ status: "selected", updated_at: new Date().toISOString() }).eq("id", oldShortlist.id).eq("status", "replaced");
+    await admin.from("talent_bookings").update({
+      status: originalBookingStatus,
+      cancelled_at: originalCancelledAt,
+      confirmed_at: originalConfirmedAt,
+      updated_at: new Date().toISOString(),
+    }).eq("id", oldBooking.id).eq("managed_casting_project_id", projectId);
+    throw error;
+  }
+}
+
 export async function updateManagedBookingDetailsAction(formData: FormData) {
   const adminUser = await requireAdminAccess();
   const projectId = positiveInt(formData.get("project_id"));
