@@ -124,20 +124,46 @@ export async function GET(request: Request) {
       return NextResponse.redirect(`${origin}/${locale}/casting/status/${encodeURIComponent(token)}?claim=email_mismatch`);
     }
 
-    if (project.client_user_id && project.client_user_id !== user.id) {
+    if (project.client_user_id === user.id) {
+      return NextResponse.redirect(`${origin}/${locale}/casting/client?claimed=1`);
+    }
+
+    if (project.client_user_id) {
       return NextResponse.redirect(`${origin}/${locale}/casting/status/${encodeURIComponent(token)}?claim=already`);
     }
 
-    const { error: bindError } = await adminClient
+    const { data: boundProject, error: bindError } = await adminClient
       .from("casting_projects")
       .update({ client_user_id: user.id, updated_at: new Date().toISOString() })
       .eq("id", project.id)
       .eq("service_mode", "managed")
-      .is("client_user_id", null);
+      .is("client_user_id", null)
+      .select("client_user_id")
+      .maybeSingle();
 
     if (bindError) {
       console.error("[OAuthCallback.castingClaimBind]", bindError);
       return NextResponse.redirect(`${origin}/${locale}/casting/status/${encodeURIComponent(token)}?claim=error`);
+    }
+
+    if (!boundProject || boundProject.client_user_id !== user.id) {
+      const { data: currentProject, error: ownerLookupError } = await adminClient
+        .from("casting_projects")
+        .select("client_user_id")
+        .eq("id", project.id)
+        .eq("service_mode", "managed")
+        .maybeSingle();
+
+      if (ownerLookupError) {
+        console.error("[OAuthCallback.castingClaimOwnerLookup]", ownerLookupError);
+        return NextResponse.redirect(`${origin}/${locale}/casting/status/${encodeURIComponent(token)}?claim=error`);
+      }
+
+      if (currentProject?.client_user_id === user.id) {
+        return NextResponse.redirect(`${origin}/${locale}/casting/client?claimed=1`);
+      }
+
+      return NextResponse.redirect(`${origin}/${locale}/casting/status/${encodeURIComponent(token)}?claim=already`);
     }
 
     return NextResponse.redirect(`${origin}/${locale}/casting/client?claimed=1`);
