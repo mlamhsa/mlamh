@@ -3,11 +3,11 @@ import { redirect } from "next/navigation";
 
 import { GalleryUploadButton } from "./GalleryUploadButton";
 import { GallerySortableList } from "./gallery-sortable-list";
+import { addSecureGalleryImagesAction } from "@/lib/actions/add-secure-gallery-images";
 import {
-  addOwnGalleryImageAction,
   removeOwnGalleryImageAction,
   reorderOwnGalleryImagesAction,
-} from "@/lib/actions/update-own-talent-gallery";
+} from "@/lib/actions/manage-own-talent-gallery";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { normalizeGalleryImages } from "@/lib/utils/talent-gallery";
@@ -169,7 +169,7 @@ export default async function TalentGalleryPage({
             <h2 className="mt-2 text-2xl font-light">{isArabic ? "أضف أفضل صورك" : "Add your strongest images"}</h2>
             <p className="mt-2 text-sm leading-7 text-white/45">{isArabic ? "معرض الصور اختياري ومستقل عن الصورة الشخصية الأساسية." : "Your photo portfolio is optional and separate from your required profile photo."}</p>
             {canUploadMore ? (
-              <GalleryUploadButton isArabic={isArabic} locale={locale} currentImageCount={galleryImages.length} action={addOwnGalleryImageAction} />
+              <GalleryUploadButton isArabic={isArabic} locale={locale} currentImageCount={galleryImages.length} action={addSecureGalleryImagesAction} />
             ) : (
               <div className="mt-5 rounded-2xl border border-amber-300/20 bg-amber-300/[0.06] px-4 py-4 text-sm text-amber-100">
                 {isArabic ? "وصلت إلى الحد الأقصى للصور. احذف صورة قبل إضافة صورة جديدة." : "You reached the image limit. Remove an image before uploading another."}

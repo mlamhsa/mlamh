@@ -240,7 +240,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const destinationPath = `${kind}/${randomUUID()}.${extension}`;
+    const destinationPath = `${requestUser.user.id}/${kind}/${randomUUID()}.${extension}`;
     const { error: uploadError } = await adminClient.storage
       .from(PUBLIC_BUCKET)
       .upload(destinationPath, output, {
