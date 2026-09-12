@@ -11,7 +11,7 @@ import {
 
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 
-type ServerAction = (formData: FormData) => void | Promise<void>;
+type ServerAction = (formData: FormData) => void | Promise<void | { success?: boolean }>;
 
 type SelectedImage = {
   id: string;
@@ -231,7 +231,15 @@ export function GalleryUploadButton({
       const formData = new FormData();
       formData.set("locale", locale);
       cleanUrls.forEach((url) => formData.append("image_url", url));
-      await action(formData);
+      const result = await action(formData);
+      if (result && "success" in result && result.success === false) {
+        throw new Error("gallery_update_failed");
+      }
+
+      selectedImages.forEach((image) => URL.revokeObjectURL(image.previewUrl));
+      setSelectedImages([]);
+      if (inputRef.current) inputRef.current.value = "";
+      window.location.assign(`/${locale}/talent-dashboard/gallery?updated=1`);
     } catch (error) {
       console.error("[GalleryUploadButton] secure upload failed", error);
       setErrorMessage(
