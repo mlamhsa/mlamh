@@ -15,6 +15,16 @@ export type UpdateTalentProfessionalDetailsResult = {
 export async function updateOwnTalentProfessionalDetailsAction(
   formData: FormData,
 ): Promise<UpdateTalentProfessionalDetailsResult> {
+  const startedAt = Date.now();
+
+  async function keepSavingStateVisible() {
+    const elapsed = Date.now() - startedAt;
+    const minimumVisibleMs = 700;
+    if (elapsed < minimumVisibleMs) {
+      await new Promise<void>((resolve) => window.setTimeout(resolve, minimumVisibleMs - elapsed));
+    }
+  }
+
   try {
     const response = await fetch("/api/talent/profile/professional-details", {
       method: "POST",
@@ -27,6 +37,7 @@ export async function updateOwnTalentProfessionalDetailsAction(
     });
 
     const result = (await response.json().catch(() => null)) as UpdateTalentProfessionalDetailsResult | null;
+    await keepSavingStateVisible();
 
     if (!response.ok || !result) {
       const locale = String(formData.get("locale") ?? "ar") === "en" ? "en" : "ar";
@@ -42,6 +53,7 @@ export async function updateOwnTalentProfessionalDetailsAction(
 
     return result;
   } catch {
+    await keepSavingStateVisible();
     const locale = String(formData.get("locale") ?? "ar") === "en" ? "en" : "ar";
     return {
       success: false,
