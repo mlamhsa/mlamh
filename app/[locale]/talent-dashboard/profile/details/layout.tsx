@@ -121,46 +121,50 @@ export default function TalentProfileDetailsLayout({ children }: { children: Rea
 
       <section
         dir={isArabic ? "rtl" : "ltr"}
-        className="mx-auto mb-32 mt-5 max-w-6xl rounded-[1.75rem] border border-gold/20 bg-gold/[0.035] p-5 sm:p-6"
+        className="mx-auto mt-5 max-w-6xl rounded-[1.75rem] border border-white/10 bg-white/[0.025] p-5 sm:p-6"
+      >
+        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gold">
+          {isArabic ? "حفظ البيانات" : "SAVE DETAILS"}
+        </p>
+        <h2 className="mt-2 text-xl font-light text-white">
+          {isArabic ? "احفظ بياناتك المهنية" : "Save your professional details"}
+        </h2>
+        <p className="mt-2 text-sm leading-7 text-white/50">
+          {isArabic
+            ? "احفظ ما أدخلته قبل الانتقال لأي صفحة أخرى. يمكنك العودة لاحقًا وإكمال بقية البيانات."
+            : "Save what you entered before moving to another page. You can return later to complete the rest."}
+        </p>
+        <button
+          type="button"
+          onClick={saveCurrentDraft}
+          className="mt-5 min-h-14 w-full rounded-2xl bg-gold px-6 text-base font-semibold text-black transition hover:brightness-105 sm:w-auto sm:min-w-64"
+        >
+          {isArabic ? "حفظ البيانات المهنية" : "Save professional details"}
+        </button>
+      </section>
+
+      <section
+        dir={isArabic ? "rtl" : "ltr"}
+        className="mx-auto mb-28 mt-5 max-w-6xl rounded-[1.75rem] border border-gold/20 bg-gold/[0.035] p-5 sm:p-6"
       >
         <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gold">
           {isArabic ? "الخطوة التالية" : "NEXT STEP"}
         </p>
         <h2 className="mt-2 text-xl font-light text-white">
-          {isArabic ? "احفظ بياناتك المهنية أولًا" : "Save your professional details first"}
+          {isArabic ? "بعد الحفظ، انتقل إلى معرض الأعمال" : "After saving, continue to your portfolio"}
         </h2>
         <p className="mt-2 text-sm leading-7 text-white/55">
           {isArabic
-            ? "اضغط «حفظ البيانات المهنية» بالأسفل حتى لا تفقد أي تعديل. بعد نجاح الحفظ انتقل إلى معرض الأعمال لإضافة الصور والفيديو والروابط."
-            : "Tap “Save professional details” below so you do not lose any changes. After the save succeeds, continue to your portfolio to add photos, video and links."}
+            ? "أضف صورك وفيديوهاتك وروابطك المهنية في معرض الأعمال. تأكد أولًا من ظهور رسالة نجاح الحفظ أعلاه."
+            : "Add your photos, videos and professional links in your portfolio. Make sure the save confirmation appears first."}
         </p>
         <Link
           href={`/${locale}/talent-dashboard/gallery`}
           className="mt-5 inline-flex min-h-12 items-center justify-center rounded-2xl border border-gold/30 px-5 text-sm font-medium text-gold transition hover:bg-gold hover:text-black"
         >
-          {isArabic ? "بعد الحفظ: فتح معرض الأعمال" : "After saving: Open portfolio"}
+          {isArabic ? "فتح معرض الأعمال" : "Open portfolio"}
         </Link>
       </section>
-
-      <div className="pointer-events-none fixed inset-x-0 bottom-20 z-40 px-4 sm:px-6 lg:bottom-6">
-        <div className="mx-auto flex max-w-6xl justify-end">
-          <div className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/10 bg-black/90 p-1.5 shadow-2xl backdrop-blur-xl">
-            <Link
-              href={`/${locale}/talent-dashboard/profile`}
-              className="inline-flex min-h-11 items-center justify-center rounded-full px-4 text-xs text-white/55 transition hover:text-white"
-            >
-              {isArabic ? "إلغاء" : "Cancel"}
-            </Link>
-            <button
-              type="button"
-              onClick={saveCurrentDraft}
-              className="min-h-11 rounded-full bg-gold px-6 text-sm font-semibold text-black transition hover:brightness-105"
-            >
-              {isArabic ? "حفظ البيانات المهنية" : "Save professional details"}
-            </button>
-          </div>
-        </div>
-      </div>
 
       <style jsx global>{`
         .talent-profile-editor > main > div:first-child {
