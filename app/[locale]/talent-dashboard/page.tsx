@@ -271,6 +271,81 @@ export default async function TalentDashboardPage({ params }: PageProps) {
     },
   ];
 
+  const quickActions =
+    workflowState === "approved"
+      ? [
+          {
+            eyebrow: isRtl ? "ابدأ الآن" : "Start now",
+            title: isRtl ? "اكتشف الفرص" : "Discover opportunities",
+            description: isRtl ? "تصفح الفرص المناسبة وابدأ التقديم مباشرة." : "Browse relevant opportunities and start applying.",
+            href: `/${locale}/opportunities`,
+            primary: true,
+          },
+          {
+            eyebrow: isRtl ? "تابع" : "Track",
+            title: isRtl ? "طلباتك" : "Your applications",
+            description: isRtl ? "راجع حالة طلباتك وما وصل إلى القائمة المختصرة." : "Review your applications and shortlist progress.",
+            href: `/${locale}/talent-dashboard/applications`,
+            primary: false,
+          },
+          {
+            eyebrow: unreadMessagesCount > 0 ? (isRtl ? "يحتاج انتباهك" : "Needs attention") : (isRtl ? "طوّر" : "Improve"),
+            title: unreadMessagesCount > 0 ? (isRtl ? "لديك رسائل جديدة" : "You have new messages") : (isRtl ? "قوة الملف" : "Profile strength"),
+            description: unreadMessagesCount > 0
+              ? (isRtl ? `${unreadMessagesCount} رسالة غير مقروءة بانتظارك.` : `${unreadMessagesCount} unread messages are waiting for you.`)
+              : (isRtl ? `قوة ملفك الحالية ${profileCompletion}٪. حسّن بياناتك المهنية لرفع جودة المطابقة.` : `Your profile strength is ${profileCompletion}%. Improve professional details for better matching.`),
+            href: unreadMessagesCount > 0 ? `/${locale}/talent-dashboard/messages` : `/${locale}/talent-dashboard/profile/details`,
+            primary: unreadMessagesCount > 0,
+          },
+        ]
+      : workflowState === "pending"
+        ? [
+            {
+              eyebrow: isRtl ? "أثناء المراجعة" : "While you wait",
+              title: isRtl ? "استكشف الفرص" : "Explore opportunities",
+              description: isRtl ? "يمكنك تصفح الفرص وحفظ المناسب لك حتى اكتمال المراجعة." : "Browse and save relevant opportunities while your profile is reviewed.",
+              href: `/${locale}/opportunities`,
+              primary: true,
+            },
+            {
+              eyebrow: isRtl ? "جهّز ملفك" : "Get ready",
+              title: isRtl ? "معرض الأعمال" : "Portfolio",
+              description: isRtl ? "أضف أفضل صورك وأعمالك حتى يكون ملفك أقوى بعد الاعتماد." : "Add your strongest work so your profile is ready after approval.",
+              href: `/${locale}/talent-dashboard/gallery`,
+              primary: false,
+            },
+            {
+              eyebrow: isRtl ? "الحالة" : "Status",
+              title: isRtl ? "متابعة الملف" : "Profile review",
+              description: isRtl ? "لا يلزم أي إجراء حاليًا. يمكنك مراجعة حالة الملف في أي وقت." : "No action is required. You can review your profile status at any time.",
+              href: `/${locale}/talent-dashboard/profile`,
+              primary: false,
+            },
+          ]
+        : [
+            {
+              eyebrow: isRtl ? "الأولوية" : "Priority",
+              title: isRtl ? "أكمل ملفك" : "Complete your profile",
+              description: isRtl ? "ابدأ بالمتطلبات الأساسية المتبقية حتى يصبح الملف جاهزًا للمراجعة." : "Finish the remaining required details so your profile can be submitted for review.",
+              href: `/${locale}/talent-dashboard/profile`,
+              primary: true,
+            },
+            {
+              eyebrow: isRtl ? "بعدها" : "Then",
+              title: isRtl ? "جهّز معرض الأعمال" : "Build your portfolio",
+              description: isRtl ? "أضف أفضل الصور والأعمال التي تعرّف الناشرين عليك بسرعة." : "Add your strongest photos and work so publishers can evaluate you quickly.",
+              href: `/${locale}/talent-dashboard/gallery`,
+              primary: false,
+            },
+            {
+              eyebrow: isRtl ? "استكشف" : "Explore",
+              title: isRtl ? "تعرّف على الفرص" : "Browse opportunities",
+              description: isRtl ? "شاهد نوع الفرص الموجودة وما الذي يبحث عنه الناشرون." : "See available opportunities and what publishers are looking for.",
+              href: `/${locale}/opportunities`,
+              primary: false,
+            },
+          ];
+
   return (
     <main dir={isRtl ? "rtl" : "ltr"} className="min-h-screen bg-black text-white">
       <div className="mx-auto max-w-7xl px-4 pb-24 pt-4 sm:px-6 lg:py-10">
@@ -339,41 +414,26 @@ export default async function TalentDashboardPage({ params }: PageProps) {
               ))}
             </section>
 
-            <section className="grid gap-3 sm:grid-cols-3">
-              <a
-                href={`/${locale}/opportunities`}
-                className="rounded-[1.5rem] border border-white/10 bg-white/[0.02] p-5 transition hover:border-gold/25"
-              >
-                <p className="text-xs text-gold/70">{isRtl ? "اكتشف" : "Discover"}</p>
-                <h3 className="mt-2 text-lg font-light">{isRtl ? "الفرص المناسبة" : "Relevant opportunities"}</h3>
-                <p className="mt-2 text-xs leading-6 text-white/40">
-                  {isRtl ? "تصفح أحدث الفرص واحفظ ما يناسبك." : "Browse the latest opportunities and save the best matches."}
-                </p>
-              </a>
-
-              <a
-                href={`/${locale}/talent-dashboard/gallery`}
-                className="rounded-[1.5rem] border border-white/10 bg-white/[0.02] p-5 transition hover:border-gold/25"
-              >
-                <p className="text-xs text-gold/70">{isRtl ? "اعرض نفسك" : "Showcase"}</p>
-                <h3 className="mt-2 text-lg font-light">{isRtl ? "معرض الأعمال" : "Portfolio"}</h3>
-                <p className="mt-2 text-xs leading-6 text-white/40">
-                  {isRtl ? "صورك وأعمالك وفيديوهاتك وروابطك المهنية." : "Your photos, work, videos and professional links."}
-                </p>
-              </a>
-
-              <a
-                href={`/${locale}/talent-dashboard/profile/details`}
-                className="rounded-[1.5rem] border border-white/10 bg-white/[0.02] p-5 transition hover:border-gold/25"
-              >
-                <p className="text-xs text-gold/70">{isRtl ? "طوّر" : "Improve"}</p>
-                <h3 className="mt-2 text-lg font-light">{isRtl ? "قوة الملف" : "Profile strength"}</h3>
-                <p className="mt-2 text-xs leading-6 text-white/40">
-                  {isRtl
-                    ? `قوة ملفك الحالية ${profileCompletion}٪. البيانات الإضافية تحسن المطابقة.`
-                    : `Your profile strength is ${profileCompletion}%. Extra details improve matching.`}
-                </p>
-              </a>
+            <section>
+              <div className="mb-3 flex items-end justify-between gap-4">
+                <div>
+                  <p className="text-xs text-gold/70">{isRtl ? "ماذا تفعل الآن؟" : "What to do next"}</p>
+                  <h2 className="mt-1 text-xl font-light">{isRtl ? "خطواتك التالية" : "Your next actions"}</h2>
+                </div>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-3">
+                {quickActions.map((item) => (
+                  <a
+                    key={`${item.eyebrow}-${item.title}`}
+                    href={item.href}
+                    className={`rounded-[1.5rem] border p-5 transition ${item.primary ? "border-gold/25 bg-gold/[0.055] hover:bg-gold/[0.08]" : "border-white/10 bg-white/[0.02] hover:border-gold/25"}`}
+                  >
+                    <p className="text-xs text-gold/70">{item.eyebrow}</p>
+                    <h3 className="mt-2 text-lg font-light">{item.title}</h3>
+                    <p className="mt-2 text-xs leading-6 text-white/40">{item.description}</p>
+                  </a>
+                ))}
+              </div>
             </section>
 
             {totalApplications > 0 ? (
