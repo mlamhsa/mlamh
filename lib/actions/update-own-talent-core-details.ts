@@ -77,14 +77,16 @@ export async function updateOwnTalentCoreDetailsAction(
     return { success: false, message: isArabic ? "تعذر العثور على ملف الموهبة." : "Talent profile could not be found." };
   }
 
-  const editableStatuses = new Set(["not_submitted", "rejected", "changes_requested"]);
+  // Approved talents must be able to keep their profile current. Only a real
+  // in-review state is locked to avoid changing the exact data being reviewed.
+  const editableStatuses = new Set(["not_submitted", "rejected", "changes_requested", "approved"]);
   const approvalStatus = getEffectiveTalentApprovalStatus(profile);
   if (!editableStatuses.has(approvalStatus)) {
     return {
       success: false,
       message: isArabic
-        ? "ملفك قيد المراجعة أو معتمد. تغييرات البيانات الأساسية تحتاج مسار مراجعة منفصل."
-        : "Your profile is under review or approved. Core identity changes require a separate review flow.",
+        ? "ملفك قيد المراجعة حاليًا. يمكنك تعديل البيانات بعد صدور قرار المراجعة."
+        : "Your profile is currently under review. You can edit these details after the review decision.",
     };
   }
 
@@ -128,9 +130,9 @@ export async function updateOwnTalentCoreDetailsAction(
     };
   }
 
-  // Draft-safe behavior: core fields are hard gates for review submission, not
-  // hard gates for saving. Preserve anything the talent has already entered and
-  // allow the remaining required fields to be completed over multiple visits.
+  // Core fields are review hard gates for unapproved profiles, but saving remains
+  // incremental. Approved profiles may also keep these details current without
+  // losing their approval state.
   const talentPayload: Record<string, unknown> = {};
 
   if (name) {
@@ -245,7 +247,7 @@ export async function updateOwnTalentCoreDetailsAction(
   }
   if (formData.has("data_accuracy_contact_consent") && profile.data_accuracy_contact_consent !== true) {
     // Consent is a review hard gate and is treated as monotonic once granted.
-    // This draft editor may grant it, but must not silently downgrade true to false.
+    // This editor may grant it, but must not silently downgrade true to false.
     profilePayload.data_accuracy_contact_consent = booleanValue(formData, "data_accuracy_contact_consent");
   }
 
