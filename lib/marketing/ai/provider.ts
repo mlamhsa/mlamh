@@ -65,10 +65,11 @@ type MarketingAIConfiguration = {
 type ExpiredFreeModelFallback = {
   model: string;
   reason: "expired_free_alias" | "free_provider_unavailable";
+  freeOnly: true;
 };
 
 const DEFAULT_MODEL = "gpt-5.6-luna";
-const DEFAULT_FREE_FALLBACK_MODEL = "minimax/minimax-m3-free";
+const DEFAULT_FREE_FALLBACK_MODEL = "minimax/minimax-m3";
 const VERCEL_AI_GATEWAY_BASE_URL = "https://ai-gateway.vercel.sh/v1";
 let provider: MarketingAIProvider | null = null;
 
@@ -89,12 +90,13 @@ export function expiredFreeModelFallback(model: string, message: string): Expire
   const freeProviderUnavailable = /no providers for model .*required capabilities:\s*free/i.test(message);
   if (!expiredAlias && !freeProviderUnavailable) return null;
 
-  // Free promotional aliases expire over time. Rotate only to another explicit
-  // free alias instead of stripping `-free` and silently allowing paid usage.
-  if (normalized === DEFAULT_FREE_FALLBACK_MODEL) return null;
+  // Free promotional aliases expire over time. Use the stable base model while
+  // requiring a provider that advertises the `free` capability. This avoids
+  // silently falling through to paid routing when an alias disappears.
   return {
     model: DEFAULT_FREE_FALLBACK_MODEL,
     reason: freeProviderUnavailable ? "free_provider_unavailable" : "expired_free_alias",
+    freeOnly: true,
   };
 }
 
@@ -221,7 +223,7 @@ class ResponsesMarketingProvider implements MarketingAIProvider {
     };
     if (leadResearch) baseBody.tools = [{ type: "web_search" }];
 
-    const executeRequest = async (model: string) => {
+    const executeRequest = async (model: string, freeOnly = false) => {
       const response = await fetch(`${this.baseUrl}/responses`, {
         method: "POST",
         headers: {
@@ -233,6 +235,9 @@ class ResponsesMarketingProvider implements MarketingAIProvider {
         body: JSON.stringify({
           ...baseBody,
           model,
+          ...(freeOnly && this.id === "vercel-ai-gateway"
+            ? { providerOptions: { gateway: { has: ["free"] } } }
+            : {}),
         }),
         cache: "no-store",
       });
@@ -248,6 +253,7 @@ class ResponsesMarketingProvider implements MarketingAIProvider {
 
     let activeModel = this.model;
     let freeAliasFallbackReason: ExpiredFreeModelFallback["reason"] | null = null;
+    let freeOnlyRouting = false;
     let { response, payload } = await executeRequest(activeModel);
 
     if (!response.ok && this.id === "vercel-ai-gateway") {
@@ -256,7 +262,8 @@ class ResponsesMarketingProvider implements MarketingAIProvider {
       if (fallback && fallback.model !== activeModel) {
         activeModel = fallback.model;
         freeAliasFallbackReason = fallback.reason;
-        ({ response, payload } = await executeRequest(activeModel));
+        freeOnlyRouting = fallback.freeOnly;
+        ({ response, payload } = await executeRequest(activeModel, freeOnlyRouting));
       }
     }
 
@@ -299,7 +306,7 @@ class ResponsesMarketingProvider implements MarketingAIProvider {
           expired_free_model_fallback: true,
           requested_model: this.model,
           fallback_model: activeModel,
-          free_only_fallback: true,
+          free_only_fallback: freeOnlyRouting,
           free_alias_fallback_reason: freeAliasFallbackReason,
         } : {}),
         ...(leadResearch ? {
