@@ -80,7 +80,7 @@ export default async function JoinTalentPage({ params, searchParams }: PageProps
     existingTalent &&
     profile?.account_type === "talent" &&
     profile.onboarding_status === "profile_in_progress" &&
-    profile.onboarding_step === "core_data"
+    profile.onboarding_step === "talent_profile"
   ) {
     redirect(`/${locale}/talent-dashboard/profile`);
   }
