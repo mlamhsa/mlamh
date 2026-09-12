@@ -14,11 +14,11 @@ export default async function TalentAdvancedProfileLayout({
   const { profile } = await requireTalent(locale);
   const approvalStatus = String(profile?.approval_status ?? "").trim().toLowerCase();
 
-  // Approved talents must not hit a dead-end protection screen. Protected
-  // identity edits go through the existing reviewed change-request workflow,
-  // while professional/non-protected details remain editable elsewhere.
+  // For approved talents, “Edit details” should open the normal profile editor.
+  // Professional data stays directly editable there, while protected identity
+  // changes remain available as a separate reviewed request only when needed.
   if (approvalStatus === "approved") {
-    redirect(`/${locale}/talent-dashboard/profile/change-request`);
+    redirect(`/${locale}/talent-dashboard/profile/details`);
   }
 
   return children;
