@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { isValidLocale, type Locale } from "@/lib/i18n";
+import { sanitizeRasterImage } from "@/lib/security/sanitize-raster-image";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -16,12 +17,6 @@ const ALLOWED_IMAGE_TYPES = new Set([
   "image/png",
   "image/webp",
 ]);
-
-const IMAGE_EXTENSIONS: Record<string, string> = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-};
 
 const ALLOWED_PUBLISHER_TYPES = new Set([
   "production_company",
@@ -81,20 +76,25 @@ async function uploadPublisherImage({
   publisherId: number | string;
   file: File;
 }) {
-  const extension = IMAGE_EXTENSIONS[file.type];
+  let sanitized: Awaited<ReturnType<typeof sanitizeRasterImage>>;
 
-  if (!extension) {
-    throw new Error("Unsupported image type.");
+  try {
+    sanitized = await sanitizeRasterImage(file, MAX_PROFILE_IMAGE_SIZE);
+  } catch (error) {
+    console.error(
+      "[uploadPublisherImage:sanitize]",
+      error instanceof Error ? error.message : "unknown_error",
+    );
+    throw new Error("The profile image is invalid or could not be safely processed.");
   }
 
-  const filePath = `publishers/${publisherId}/profile-${Date.now()}.${extension}`;
-  const arrayBuffer = await file.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
+  const filePath = `publishers/${publisherId}/profile-${Date.now()}-${crypto.randomUUID()}.${sanitized.extension}`;
 
   const { error: uploadError } = await adminClient.storage
     .from(BUCKET)
-    .upload(filePath, buffer, {
-      contentType: file.type,
+    .upload(filePath, sanitized.buffer, {
+      contentType: sanitized.contentType,
+      cacheControl: "3600",
       upsert: false,
     });
 
