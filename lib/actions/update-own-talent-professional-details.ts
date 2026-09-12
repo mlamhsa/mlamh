@@ -1,7 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -140,15 +138,10 @@ export async function updateOwnTalentProfessionalDetailsAction(
     };
   }
 
-  revalidatePath(`/${locale}/talent-dashboard`);
-  revalidatePath(`/${locale}/talent-dashboard/profile`);
-  revalidatePath(`/${locale}/talent-dashboard/profile/details`);
-
-  if (talent.slug) {
-    revalidatePath(`/ar/talent/${encodeURIComponent(talent.slug)}`);
-    revalidatePath(`/en/talent/${encodeURIComponent(talent.slug)}`);
-  }
-
+  // Do not call revalidatePath here. This action is used from an interactive client
+  // form that immediately re-reads the saved record. Server-side path revalidation
+  // was forcing the active route to refresh, which cleared the saving overlay and
+  // success/error feedback before the user could see it.
   return {
     success: true,
     message: isArabic ? "تم حفظ تحسينات ملفك المهني." : "Your professional profile improvements were saved.",
