@@ -115,6 +115,7 @@ export default function TalentProfileGuidedPage({ params }: { params: Promise<{ 
   const nationality = NATIONALITY_LABELS[nationalityKey]?.[locale] || nationalityKey || (isArabic ? "غير محدد" : "Not set");
   const firstMissing = readiness.missingRequirements[0];
   const missingCount = readiness.missingRequirements.length;
+  const isBirthDateMissing = readiness.missingRequirements.some((requirement) => requirement.key === "date_of_birth");
   const hasProfileImage = Boolean(clean(talent?.image_url));
   const publicSlug = clean(talent?.slug);
   const approvalStatus = clean(talent?.approval_status).toLowerCase() || "not_submitted";
@@ -225,35 +226,10 @@ export default function TalentProfileGuidedPage({ params }: { params: Promise<{ 
                         ? (isArabic ? "الملف يحتاج مراجعة قبل إعادة الإرسال" : "Review your profile before resubmitting")
                         : readiness.isReady
                           ? (isArabic ? "ملفك جاهز للمراجعة" : "Your profile is ready for review")
-                          : (isArabic ? `باقي ${missingCount === 1 ? "خطوة واحدة" : `${missingCount} خطوات`} لإرسال ملفك` : `${missingCount} step${missingCount === 1 ? "" : "s"} left before review`)}
+                          : (isArabic ? `باقي ${missingCount === 1 ? "خطوة واحدة" : `${missingCount} خطوات`} لإرسال ملفك` : `${missingCount} steps left to submit your profile`)}
               </h2>
-
-              {isApproved ? (
-                <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                  <Link href={`/${locale}/talent-dashboard/profile/details`} className="inline-flex min-h-12 items-center justify-center rounded-full bg-gold px-7 text-sm font-semibold text-black">
-                    {isArabic ? "تعديل الملف" : "Edit profile"}
-                  </Link>
-                  {publicSlug ? (
-                    <Link href={`/${locale}/talent/${publicSlug}`} className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/10 px-7 text-sm font-semibold text-white/75 hover:border-gold/30 hover:text-gold">
-                      {isArabic ? "عرض الملف العام" : "View public profile"}
-                    </Link>
-                  ) : null}
-                </div>
-              ) : isUnderReview ? (
-                <div className="mt-6 inline-flex min-h-12 items-center rounded-full border border-amber-300/25 bg-amber-300/[0.08] px-6 text-sm text-amber-100">
-                  {isArabic ? "قيد المراجعة — لا يلزم أي إجراء الآن" : "Under review — no action needed now"}
-                </div>
-              ) : isRejected ? (
-                <Link href={`/${locale}/talent-dashboard`} className="mt-6 inline-flex min-h-12 items-center justify-center rounded-full border border-white/10 px-7 text-sm font-semibold text-white/75">
-                  {isArabic ? "عرض حالة الملف" : "View profile status"}
-                </Link>
-              ) : !readiness.isReady && firstMissing ? (
-                <button onClick={() => goToRequirement(firstMissing.key)} className="mt-6 inline-flex min-h-12 items-center justify-center rounded-full bg-gold px-7 text-sm font-semibold text-black">{isArabic ? "أكمل الخطوة التالية" : "Complete next step"}</button>
-              ) : (
-                <TalentProfileReviewSubmitButton locale={locale} onSubmitted={loadProfile} />
-              )}
+              {!isApproved && !isUnderReview && firstMissing ? <button onClick={() => goToRequirement(firstMissing.key)} className="mt-5 rounded-full bg-gold px-6 py-3 text-sm font-semibold text-black">{isArabic ? "أكمل الخطوة التالية" : "Complete next step"}</button> : null}
             </div>
-
             <div className="rounded-[1.5rem] border border-white/10 bg-black/25 p-5">
               {isApproved ? (
                 <>
@@ -334,7 +310,7 @@ export default function TalentProfileGuidedPage({ params }: { params: Promise<{ 
           </section>
         ) : null}
 
-        {canShowCompletionTasks && firstMissing?.key === "date_of_birth" ? (
+        {canShowCompletionTasks && isBirthDateMissing ? (
           <section className="mb-6 rounded-[2rem] border border-gold/20 bg-gold/[0.035] p-5 sm:p-7">
             <p className="text-[11px] uppercase tracking-[0.25em] text-gold">{isArabic ? "الخطوة الحالية" : "CURRENT STEP"}</p>
             <h2 className="mt-2 text-2xl font-light">{isArabic ? "أضف تاريخ ميلادك" : "Add your date of birth"}</h2>
