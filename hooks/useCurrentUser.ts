@@ -4,11 +4,7 @@ import { useEffect, useState } from "react";
 
 import { supabase } from "@/lib/supabase/client";
 
-export type CurrentAccountType =
-  | "admin"
-  | "publisher"
-  | "talent"
-  | null;
+export type CurrentAccountType = "admin" | "publisher" | "talent" | null;
 
 type CurrentUserState = {
   userId: string;
@@ -51,17 +47,10 @@ const initialState: CurrentUserState = {
   loading: true,
 };
 
-function normalizeAccountType(
-  value: string | null | undefined,
-): CurrentAccountType {
-  if (
-    value === "admin" ||
-    value === "publisher" ||
-    value === "talent"
-  ) {
+function normalizeAccountType(value: string | null | undefined): CurrentAccountType {
+  if (value === "admin" || value === "publisher" || value === "talent") {
     return value;
   }
-
   return null;
 }
 
@@ -71,12 +60,8 @@ function getMetadataString(
 ) {
   for (const key of keys) {
     const value = metadata?.[key];
-
-    if (typeof value === "string" && value.trim()) {
-      return value.trim();
-    }
+    if (typeof value === "string" && value.trim()) return value.trim();
   }
-
   return "";
 }
 
@@ -87,14 +72,8 @@ function resolveDisplayName(user: AuthUserSnapshot) {
     "display_name",
     "user_name",
   ]);
-
-  if (metadataName) {
-    return metadataName;
-  }
-
-  const emailName = user.email?.split("@")[0]?.trim();
-
-  return emailName || "";
+  if (metadataName) return metadataName;
+  return user.email?.split("@")[0]?.trim() || "";
 }
 
 function resolveAvatarUrl(user: AuthUserSnapshot) {
@@ -108,239 +87,130 @@ function resolveAvatarUrl(user: AuthUserSnapshot) {
   );
 }
 
-function getReadableError(error: unknown) {
-  if (error instanceof Error) {
-    return {
-      message: error.message,
-      name: error.name,
-    };
-  }
-
+function readableError(error: unknown) {
+  if (error instanceof Error) return { message: error.message, name: error.name };
   if (error && typeof error === "object") {
-    const value = error as {
-      message?: unknown;
-      code?: unknown;
-      details?: unknown;
-      hint?: unknown;
-    };
-
+    const value = error as { message?: unknown; code?: unknown; details?: unknown; hint?: unknown };
     return {
-      message:
-        typeof value.message === "string"
-          ? value.message
-          : "Unknown profile lookup error",
-      code:
-        typeof value.code === "string"
-          ? value.code
-          : undefined,
-      details:
-        typeof value.details === "string"
-          ? value.details
-          : undefined,
-      hint:
-        typeof value.hint === "string"
-          ? value.hint
-          : undefined,
+      message: typeof value.message === "string" ? value.message : "Unknown profile lookup error",
+      code: typeof value.code === "string" ? value.code : undefined,
+      details: typeof value.details === "string" ? value.details : undefined,
+      hint: typeof value.hint === "string" ? value.hint : undefined,
     };
   }
-
-  return {
-    message:
-      typeof error === "string"
-        ? error
-        : "Unknown profile lookup error",
-  };
+  return { message: typeof error === "string" ? error : "Unknown profile lookup error" };
 }
 
 export function useCurrentUser(): CurrentUserState {
-  const [state, setState] =
-    useState<CurrentUserState>(initialState);
+  const [state, setState] = useState<CurrentUserState>(initialState);
 
   useEffect(() => {
-    let isActive = true;
+    let active = true;
     let requestVersion = 0;
 
-    function commitState(
-      version: number,
-      nextState: CurrentUserState,
-    ) {
-      if (!isActive || version !== requestVersion) {
-        return;
-      }
-
-      setState(nextState);
+    function commit(version: number, next: CurrentUserState) {
+      if (active && version === requestVersion) setState(next);
     }
 
-    async function resolveUser(
-      user?: AuthUserSnapshot | null,
-    ) {
+    async function resolveUser(user?: AuthUserSnapshot | null) {
       const version = ++requestVersion;
 
       if (!user?.id) {
-        commitState(version, {
-          userId: "",
-          isLoggedIn: false,
-          accountType: null,
-          userName: "",
-          avatarUrl: null,
-          loading: false,
-        });
-
+        commit(version, { ...initialState, loading: false });
         return;
       }
 
-      const userName = resolveDisplayName(user);
-      const avatarUrl = resolveAvatarUrl(user);
+      const fallbackName = resolveDisplayName(user);
+      const fallbackAvatar = resolveAvatarUrl(user);
 
-      commitState(version, {
+      commit(version, {
         userId: user.id,
         isLoggedIn: true,
         accountType: null,
-        userName,
-        avatarUrl,
+        userName: fallbackName,
+        avatarUrl: fallbackAvatar,
         loading: true,
       });
 
       try {
-        const {
-          data: profile,
-          error,
-        } = await supabase
+        const { data: profile, error } = await supabase
           .from("profiles")
           .select("id, account_type")
           .eq("user_id", user.id)
           .maybeSingle<ProfileAccountTypeRow>();
 
-        if (!isActive || version !== requestVersion) {
-          return;
-        }
+        if (!active || version !== requestVersion) return;
 
-        if (error) {
-          console.warn(
-            "Unable to resolve current user profile:",
-            getReadableError(error),
-          );
-        
-          commitState(version, {
+        if (error || !profile) {
+          if (error) console.warn("Unable to resolve current user profile:", readableError(error));
+          commit(version, {
             userId: user.id,
             isLoggedIn: true,
             accountType: null,
-            userName,
-            avatarUrl,
+            userName: fallbackName,
+            avatarUrl: fallbackAvatar,
             loading: false,
           });
-        
           return;
         }
-        
-        if (!profile) {
-          console.warn(
-            "Current user profile was not found:",
-            user.id,
-          );
-        
-          commitState(version, {
-            userId: user.id,
-            isLoggedIn: true,
-            accountType: null,
-            userName,
-            avatarUrl,
-            loading: false,
-          });
-        
-          return;
-        }
-        
-        const accountType = normalizeAccountType(
-          profile.account_type,
-        );
 
-        let resolvedAvatarUrl = avatarUrl;
-        let resolvedUserName = userName;
+        let accountType = normalizeAccountType(profile.account_type);
+        let resolvedName = fallbackName;
+        let resolvedAvatar = fallbackAvatar;
 
         if (accountType === "publisher") {
-          const {
-            data: publisher,
-            error: publisherError,
-          } = await supabase
+          const { data: publisher, error: publisherError } = await supabase
             .from("publishers")
-            .select(
-              "company_name, contact_name, profile_image_url",
-            )
+            .select("company_name, contact_name, profile_image_url")
             .eq("profile_id", profile.id)
             .maybeSingle<PublisherNavigationRow>();
 
           if (publisherError) {
-            console.warn(
-              "Unable to load publisher profile:",
-              getReadableError(publisherError),
-            );
-          } else {
-          
-            if (publisher) {
-              resolvedAvatarUrl =
-                publisher.profile_image_url?.trim() ||
-                resolvedAvatarUrl;
-          
-              resolvedUserName =
-                publisher.company_name?.trim() ||
-                publisher.contact_name?.trim() ||
-                resolvedUserName;
-            }
+            console.warn("Unable to load publisher profile:", readableError(publisherError));
+          } else if (publisher) {
+            resolvedAvatar = publisher.profile_image_url?.trim() || resolvedAvatar;
+            resolvedName =
+              publisher.company_name?.trim() ||
+              publisher.contact_name?.trim() ||
+              resolvedName;
           }
         }
 
-        if (accountType === "talent") {
-          const {
-            data: talent,
-            error: talentError,
-          } = await supabase
+        if (accountType === "talent" || accountType === null) {
+          const { data: talent, error: talentError } = await supabase
             .from("talents")
             .select("name_ar, name_en, image_url")
             .eq("user_id", user.id)
             .maybeSingle<TalentNavigationRow>();
 
           if (talentError) {
-            console.warn(
-              "Unable to load talent profile:",
-              getReadableError(talentError),
-            );
+            console.warn("Unable to load talent profile:", readableError(talentError));
           } else if (talent) {
-            resolvedAvatarUrl =
-              talent.image_url?.trim() ||
-              resolvedAvatarUrl;
-
-            resolvedUserName =
-              talent.name_ar?.trim() ||
-              talent.name_en?.trim() ||
-              resolvedUserName;
+            // Backward-compatible UI fallback only: if an existing talent row exists,
+            // treat this session as talent navigation without mutating stored account data.
+            if (accountType === null) accountType = "talent";
+            resolvedAvatar = talent.image_url?.trim() || resolvedAvatar;
+            resolvedName = talent.name_ar?.trim() || talent.name_en?.trim() || resolvedName;
           }
         }
 
-        commitState(version, {
+        commit(version, {
           userId: user.id,
           isLoggedIn: true,
           accountType,
-          userName: resolvedUserName,
-          avatarUrl: resolvedAvatarUrl,
+          userName: resolvedName,
+          avatarUrl: resolvedAvatar,
           loading: false,
         });
       } catch (error) {
-        if (!isActive || version !== requestVersion) {
-          return;
-        }
-
-        console.warn(
-          "Unexpected current user profile lookup failure:",
-          getReadableError(error),
-        );
-
-        commitState(version, {
+        if (!active || version !== requestVersion) return;
+        console.warn("Unexpected current user profile lookup failure:", readableError(error));
+        commit(version, {
           userId: user.id,
           isLoggedIn: true,
           accountType: null,
-          userName,
-          avatarUrl,
+          userName: fallbackName,
+          avatarUrl: fallbackAvatar,
           loading: false,
         });
       }
@@ -348,87 +218,43 @@ export function useCurrentUser(): CurrentUserState {
 
     async function initialise() {
       try {
-        const {
-          data: { session },
-          error,
-        } = await supabase.auth.getSession();
-
-        if (!isActive) {
-          return;
-        }
-
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (!active) return;
         if (error) {
-          console.warn(
-            "Unable to resolve current authentication session:",
-            getReadableError(error),
-          );
-
+          console.warn("Unable to resolve current authentication session:", readableError(error));
           await resolveUser();
-
           return;
         }
-
         await resolveUser(session?.user ?? null);
       } catch (error) {
-        if (!isActive) {
-          return;
-        }
-
-        console.warn(
-          "Unexpected authentication session failure:",
-          getReadableError(error),
-        );
-
+        if (!active) return;
+        console.warn("Unexpected authentication session failure:", readableError(error));
         await resolveUser();
       }
     }
 
     function refreshCurrentUser() {
-      void supabase.auth
-        .getUser()
-        .then(({ data }) => {
-          if (!isActive) {
-            return;
-          }
-    
-          void resolveUser(
-            data.user ?? null,
-          );
-        });
+      void supabase.auth.getUser().then(({ data }) => {
+        if (active) void resolveUser(data.user ?? null);
+      });
     }
 
     void initialise();
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        queueMicrotask(() => {
-          if (!isActive) {
-            return;
-          }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      queueMicrotask(() => {
+        if (active) void resolveUser(session?.user ?? null);
+      });
+    });
 
-          void resolveUser(session?.user ?? null);
-        });
-      },
-    );
-
-    window.addEventListener(
-      "mlamh:account-updated",
-      refreshCurrentUser,
-    );
+    window.addEventListener("mlamh:account-updated", refreshCurrentUser);
 
     return () => {
-  isActive = false;
-  requestVersion += 1;
-
-  window.removeEventListener(
-    "mlamh:account-updated",
-    refreshCurrentUser,
-  );
-
-  subscription.unsubscribe();
-};
+      active = false;
+      requestVersion += 1;
+      window.removeEventListener("mlamh:account-updated", refreshCurrentUser);
+      subscription.unsubscribe();
+    };
   }, []);
 
   return state;
