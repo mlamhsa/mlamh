@@ -8,12 +8,14 @@ import {
   Building2,
   CircleHelp,
   FileText,
+  GalleryVerticalEnd,
   Globe2,
   Info,
   LayoutDashboard,
   LogIn,
   LogOut,
   Menu,
+  MessageSquareText,
   Search,
   Settings,
   ShieldCheck,
@@ -789,6 +791,55 @@ export function Navbar({ locale }: { locale: Locale }) {
             <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-gold" />
           ) : null}
         </Link>
+
+        {accountType === "talent" ? (
+          <>
+            <p className="px-3 pb-1 pt-4 text-[11px] font-semibold text-white/35">
+              {isAr ? "نشاطي" : "MY ACTIVITY"}
+            </p>
+
+            <Link
+              href={`/${routeLocale}/talent-dashboard/gallery`}
+              onClick={closeMobileMenu}
+              className="flex min-h-12 items-center gap-4 rounded-xl border border-transparent px-3 text-sm text-white/75 transition active:scale-[0.99] active:bg-white/[0.06] active:text-white"
+            >
+              <GalleryVerticalEnd size={18} className="shrink-0 text-white/45" />
+              <span className="flex-1">{isAr ? "معرض الأعمال" : "Portfolio"}</span>
+            </Link>
+
+            <Link
+              href={`/${routeLocale}/talent-dashboard/applications`}
+              onClick={closeMobileMenu}
+              className="flex min-h-12 items-center gap-4 rounded-xl border border-transparent px-3 text-sm text-white/75 transition active:scale-[0.99] active:bg-white/[0.06] active:text-white"
+            >
+              <BriefcaseBusiness size={18} className="shrink-0 text-white/45" />
+              <span className="flex-1">{isAr ? "طلباتي" : "Applications"}</span>
+            </Link>
+
+            <Link
+              href={`/${routeLocale}/talent-dashboard/messages`}
+              onClick={closeMobileMenu}
+              className="flex min-h-12 items-center gap-4 rounded-xl border border-transparent px-3 text-sm text-white/75 transition active:scale-[0.99] active:bg-white/[0.06] active:text-white"
+            >
+              <MessageSquareText size={18} className="shrink-0 text-white/45" />
+              <span className="flex-1">{isAr ? "الرسائل" : "Messages"}</span>
+            </Link>
+
+            <Link
+              href={`/${routeLocale}/talent-dashboard/notifications`}
+              onClick={closeMobileMenu}
+              className="flex min-h-12 items-center gap-4 rounded-xl border border-transparent px-3 text-sm text-white/75 transition active:scale-[0.99] active:bg-white/[0.06] active:text-white"
+            >
+              <Bell size={18} className="shrink-0 text-white/45" />
+              <span className="flex-1">{isAr ? "الإشعارات" : "Notifications"}</span>
+              {notifications.length > 0 ? (
+                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-gold px-1.5 text-[9px] font-semibold text-black">
+                  {notifications.length > 99 ? "99+" : notifications.length}
+                </span>
+              ) : null}
+            </Link>
+          </>
+        ) : null}
       </div>
     ) : null}
 
