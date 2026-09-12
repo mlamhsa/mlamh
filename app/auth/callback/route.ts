@@ -34,6 +34,10 @@ function normalizedEmail(value: string | null | undefined) {
   return (value || "").trim().toLowerCase();
 }
 
+function escapeIlikeLiteral(value: string) {
+  return value.replace(/[\\%_]/g, (character) => `\\${character}`);
+}
+
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
@@ -120,49 +124,44 @@ export async function GET(request: Request) {
       return NextResponse.redirect(`${origin}/${locale}/casting?claim=project_not_found`);
     }
 
-    if (normalizedEmail(project.contact_email) !== normalizedEmail(user.email)) {
+    const verifiedEmail = normalizedEmail(user.email);
+    if (normalizedEmail(project.contact_email) !== verifiedEmail) {
       return NextResponse.redirect(`${origin}/${locale}/casting/status/${encodeURIComponent(token)}?claim=email_mismatch`);
     }
 
-    if (project.client_user_id === user.id) {
-      return NextResponse.redirect(`${origin}/${locale}/casting/client?claimed=1`);
-    }
-
-    if (project.client_user_id) {
+    if (project.client_user_id && project.client_user_id !== user.id) {
       return NextResponse.redirect(`${origin}/${locale}/casting/status/${encodeURIComponent(token)}?claim=already`);
     }
 
-    const { data: boundProject, error: bindError } = await adminClient
+    // The magic link proves ownership of the project email. Bind every older
+    // unclaimed Managed Casting project using that same email so the client
+    // gets their real project history instead of claiming projects one by one.
+    const now = new Date().toISOString();
+    const { error: historyBindError } = await adminClient
       .from("casting_projects")
-      .update({ client_user_id: user.id, updated_at: new Date().toISOString() })
-      .eq("id", project.id)
+      .update({ client_user_id: user.id, updated_at: now })
       .eq("service_mode", "managed")
-      .is("client_user_id", null)
-      .select("client_user_id")
-      .maybeSingle();
+      .ilike("contact_email", escapeIlikeLiteral(verifiedEmail))
+      .is("client_user_id", null);
 
-    if (bindError) {
-      console.error("[OAuthCallback.castingClaimBind]", bindError);
+    if (historyBindError) {
+      console.error("[OAuthCallback.castingClaimHistoryBind]", historyBindError);
       return NextResponse.redirect(`${origin}/${locale}/casting/status/${encodeURIComponent(token)}?claim=error`);
     }
 
-    if (!boundProject || boundProject.client_user_id !== user.id) {
-      const { data: currentProject, error: ownerLookupError } = await adminClient
-        .from("casting_projects")
-        .select("client_user_id")
-        .eq("id", project.id)
-        .eq("service_mode", "managed")
-        .maybeSingle();
+    const { data: currentProject, error: ownerLookupError } = await adminClient
+      .from("casting_projects")
+      .select("client_user_id")
+      .eq("id", project.id)
+      .eq("service_mode", "managed")
+      .maybeSingle();
 
-      if (ownerLookupError) {
-        console.error("[OAuthCallback.castingClaimOwnerLookup]", ownerLookupError);
-        return NextResponse.redirect(`${origin}/${locale}/casting/status/${encodeURIComponent(token)}?claim=error`);
-      }
+    if (ownerLookupError) {
+      console.error("[OAuthCallback.castingClaimOwnerLookup]", ownerLookupError);
+      return NextResponse.redirect(`${origin}/${locale}/casting/status/${encodeURIComponent(token)}?claim=error`);
+    }
 
-      if (currentProject?.client_user_id === user.id) {
-        return NextResponse.redirect(`${origin}/${locale}/casting/client?claimed=1`);
-      }
-
+    if (currentProject?.client_user_id !== user.id) {
       return NextResponse.redirect(`${origin}/${locale}/casting/status/${encodeURIComponent(token)}?claim=already`);
     }
 
