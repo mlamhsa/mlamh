@@ -21,5 +21,23 @@ export default async function TalentAdvancedProfileLayout({
     redirect(`/${locale}/talent-dashboard/profile/details`);
   }
 
-  return children;
+  return (
+    <div className="talent-required-fields-shell">
+      {children}
+      <style>{`
+        .talent-required-fields-shell > main {
+          padding-top: 0 !important;
+        }
+        .talent-required-fields-shell > main > div {
+          max-width: 72rem !important;
+        }
+        @media (min-width: 1024px) {
+          .talent-required-fields-shell > main {
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+          }
+        }
+      `}</style>
+    </div>
+  );
 }
