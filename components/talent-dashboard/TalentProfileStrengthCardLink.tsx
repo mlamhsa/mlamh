@@ -14,25 +14,26 @@ export function TalentProfileStrengthCardLink({ locale }: { locale: "ar" | "en" 
       const target = event.target;
       if (!(target instanceof Element)) return;
 
-      let current: Element | null = target;
-      while (current && current !== document.body) {
-        const text = current.textContent?.replace(/\s+/g, " ").trim() ?? "";
-        const isStrengthCard =
-          (text.includes("قوِّ ملفك") && text.includes("قوة الملف")) ||
-          (text.includes("Strengthen your profile") && text.includes("PROFILE STRENGTH"));
+      // Scope the professional-details shortcut to the exact strength section only.
+      // The old ancestor walk reached the page wrapper, whose text also contained
+      // "قوِّ ملفك", so unrelated clicks such as the profile-photo picker were
+      // incorrectly redirected to /profile/details on mobile.
+      const section = target.closest("section");
+      if (!section) return;
 
-        if (isStrengthCard) {
-          event.preventDefault();
-          if (opening) return;
-          setOpening(true);
-          window.setTimeout(() => {
-            window.location.assign(`/${locale}/talent-dashboard/profile/details`);
-          }, 80);
-          return;
-        }
+      const text = section.textContent?.replace(/\s+/g, " ").trim() ?? "";
+      const isStrengthCard =
+        (text.includes("قوِّ ملفك") && text.includes("قوة الملف")) ||
+        (text.includes("Strengthen your profile") && text.includes("PROFILE STRENGTH"));
 
-        current = current.parentElement;
-      }
+      if (!isStrengthCard) return;
+
+      event.preventDefault();
+      if (opening) return;
+      setOpening(true);
+      window.setTimeout(() => {
+        window.location.assign(`/${locale}/talent-dashboard/profile/details`);
+      }, 80);
     };
 
     document.addEventListener("click", handleClick);
