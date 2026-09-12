@@ -224,6 +224,9 @@ export function Navbar({ locale }: { locale: Locale }) {
           ? "لوحة الموهبة"
           : "Talent Dashboard";
 
+  const showTalentActivity =
+    accountType === "talent" || pathname.includes("/talent-dashboard");
+
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 32);
     onScroll();
@@ -792,7 +795,7 @@ export function Navbar({ locale }: { locale: Locale }) {
           ) : null}
         </Link>
 
-        {accountType === "talent" ? (
+        {showTalentActivity ? (
           <>
             <p className="px-3 pb-1 pt-4 text-[11px] font-semibold text-white/35">
               {isAr ? "نشاطي" : "MY ACTIVITY"}
