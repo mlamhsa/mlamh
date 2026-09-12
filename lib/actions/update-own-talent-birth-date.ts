@@ -1,7 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -51,9 +49,6 @@ export async function updateOwnTalentBirthDateAction(formData: FormData) {
       message: locale === "ar" ? "تعذر حفظ تاريخ الميلاد الآن." : "We could not save your date of birth right now.",
     };
   }
-
-  revalidatePath(`/${locale}/talent-dashboard`);
-  revalidatePath(`/${locale}/talent-dashboard/profile`);
 
   return {
     success: true,
