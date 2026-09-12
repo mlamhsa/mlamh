@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
 export function TalentProfileStrengthCardLink({ locale }: { locale: "ar" | "en" }) {
   const pathname = usePathname();
+  const [opening, setOpening] = useState(false);
 
   useEffect(() => {
     if (!pathname.endsWith("/talent-dashboard/profile")) return;
@@ -22,9 +23,11 @@ export function TalentProfileStrengthCardLink({ locale }: { locale: "ar" | "en" 
 
         if (isStrengthCard) {
           event.preventDefault();
-          // Use a full navigation here so the authenticated session cookies are
-          // read fresh by the professional-details route and its server actions.
-          window.location.assign(`/${locale}/talent-dashboard/profile/details`);
+          if (opening) return;
+          setOpening(true);
+          window.setTimeout(() => {
+            window.location.assign(`/${locale}/talent-dashboard/profile/details`);
+          }, 80);
           return;
         }
 
@@ -34,7 +37,21 @@ export function TalentProfileStrengthCardLink({ locale }: { locale: "ar" | "en" 
 
     document.addEventListener("click", handleClick);
     return () => document.removeEventListener("click", handleClick);
-  }, [locale, pathname]);
+  }, [locale, opening, pathname]);
 
-  return null;
+  if (!opening) return null;
+
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/55 px-5 backdrop-blur-sm"
+      dir={locale === "ar" ? "rtl" : "ltr"}
+    >
+      <div className="flex min-w-[250px] items-center justify-center gap-3 rounded-2xl border border-gold/25 bg-black/95 px-5 py-4 text-sm text-white shadow-2xl">
+        <span className="h-5 w-5 animate-spin rounded-full border-2 border-gold/25 border-t-gold" />
+        <span>{locale === "ar" ? "جارٍ فتح بياناتك المهنية..." : "Opening your professional details..."}</span>
+      </div>
+    </div>
+  );
 }
