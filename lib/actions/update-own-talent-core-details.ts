@@ -6,6 +6,10 @@ import { TALENT_CATEGORIES } from "@/lib/data/talent-categories";
 import { GENDER_OPTIONS, NATIONALITY_OPTIONS, TALENT_SIGNUP_COUNTRIES } from "@/lib/data/talent-signup";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import {
+  getEffectiveTalentApprovalStatus,
+  isLegacyUnsubmittedTalentPending,
+} from "@/lib/talent/approval-status";
 
 export type UpdateTalentCoreDetailsResult = {
   success: boolean;
@@ -59,7 +63,7 @@ export async function updateOwnTalentCoreDetailsAction(
   const [{ data: profile, error: profileError }, { data: talent, error: talentError }] = await Promise.all([
     admin
       .from("profiles")
-      .select("id, approval_status, phone, data_accuracy_contact_consent")
+      .select("id, approval_status, phone, data_accuracy_contact_consent, onboarding_step, profile_completed_at")
       .eq("user_id", user.id)
       .maybeSingle(),
     admin
@@ -74,7 +78,7 @@ export async function updateOwnTalentCoreDetailsAction(
   }
 
   const editableStatuses = new Set(["not_submitted", "rejected", "changes_requested"]);
-  const approvalStatus = String(profile.approval_status ?? "not_submitted");
+  const approvalStatus = getEffectiveTalentApprovalStatus(profile);
   if (!editableStatuses.has(approvalStatus)) {
     return {
       success: false,
@@ -230,6 +234,12 @@ export async function updateOwnTalentCoreDetailsAction(
   }
 
   const profilePayload: Record<string, unknown> = {};
+  if (isLegacyUnsubmittedTalentPending(profile)) {
+    // Repair only the user's own known false-pending draft when they explicitly
+    // save. Genuine review-pending profiles carry the submission markers and
+    // remain protected above.
+    profilePayload.approval_status = "not_submitted";
+  }
   if (phone && phone !== String(profile.phone ?? "").trim()) {
     profilePayload.phone = phone;
   }
