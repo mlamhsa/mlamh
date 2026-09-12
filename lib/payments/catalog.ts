@@ -88,8 +88,7 @@ export async function getPurchasableCatalogItem(
     .eq("product_id", product.id)
     .eq("active", true)
     .eq("billing_type", "one_time")
-    .order("created_at", { ascending: false })
-    .limit(1);
+    .order("created_at", { ascending: false });
 
   if (marketCountry) {
     priceQuery = priceQuery.or(
@@ -105,12 +104,16 @@ export async function getPurchasableCatalogItem(
   }
 
   const now = Date.now();
-  const price = (prices ?? []).find((candidate) => {
+  const validPrices = (prices ?? []).filter((candidate) => {
     if (candidate.active !== true) return false;
     if (candidate.valid_from && Date.parse(candidate.valid_from) > now) return false;
     if (candidate.valid_until && Date.parse(candidate.valid_until) <= now) return false;
     return true;
   });
+  const price = marketCountry
+    ? validPrices.find((candidate) => candidate.market_country === marketCountry) ??
+      validPrices[0]
+    : validPrices[0];
 
   if (!price) return null;
 
