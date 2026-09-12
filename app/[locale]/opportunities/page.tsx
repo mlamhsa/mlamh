@@ -3,7 +3,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Fragment } from "react";
+import { FeaturedOpportunityBadge } from "@/components/opportunities/FeaturedOpportunityBadge";
 import { getCurrentAccountType } from "@/lib/auth/get-current-account-type";
+import { compareFeaturedThenNewest } from "@/lib/opportunities/featured";
 import { getPublishedOpportunities } from "@/lib/supabase/opportunities";
 
 const SITE_URL = (
@@ -458,6 +460,8 @@ export default async function OpportunitiesPage({
     company?: string | null;
     cover_image?: string | null;
     image_url?: string | null;
+    featured?: boolean | null;
+    featured_until?: string | null;
   
     required_count?: number | null;
     work_date?: string | null;
@@ -670,10 +674,7 @@ const selectedSort = resolvedSearchParams.sort || "newest";
         );
       }
 
-      return (
-        new Date(b.created_at ?? 0).getTime() -
-        new Date(a.created_at ?? 0).getTime()
-      );
+      return compareFeaturedThenNewest(a, b);
     });
 
     const activeOpportunities =
@@ -1088,6 +1089,13 @@ const showExpiredDivider =
                     ) : null}
 
                     <div className="p-5">
+                      <FeaturedOpportunityBadge
+                        isRtl={isRtl}
+                        featured={item.featured}
+                        featuredUntil={item.featured_until}
+                        isOpen={isOpen}
+                        className="mb-3"
+                      />
                       {!imageUrl ? (
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="rounded-full border border-gold/25 bg-gold/[0.07] px-3 py-1 text-[10px] text-gold">
@@ -1601,6 +1609,13 @@ const showExpiredDivider =
                     ) : null}
 
                     <div className="flex min-h-[360px] flex-col p-6">
+                      <FeaturedOpportunityBadge
+                        isRtl={isRtl}
+                        featured={item.featured}
+                        featuredUntil={item.featured_until}
+                        isOpen={isOpen}
+                        className="mb-3 self-start"
+                      />
                       {!imageUrl ? (
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="rounded-full border border-gold/25 bg-gold/[0.07] px-3 py-1 text-[10px] text-gold">
