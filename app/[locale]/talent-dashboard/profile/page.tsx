@@ -70,7 +70,6 @@ export default function TalentProfileGuidedPage({ params }: { params: Promise<{ 
   const isArabic = locale === "ar";
   const router = useRouter();
   const photoRef = useRef<HTMLElement>(null);
-  const photoFormRef = useRef<HTMLFormElement>(null);
   const dateRef = useRef<HTMLInputElement>(null);
 
   const [talent, setTalent] = useState<TalentRecord | null>(null);
@@ -178,6 +177,20 @@ export default function TalentProfileGuidedPage({ params }: { params: Promise<{ 
     setSavingDate(false);
   }
 
+  async function uploadProfilePhoto(file: File) {
+    if (uploadingPhoto) return;
+    const payload = new FormData();
+    payload.set("locale", locale);
+    payload.set("return_to", "profile");
+    payload.set("profile_image", file, file.name);
+    setUploadingPhoto(true);
+    try {
+      await updateOwnTalentMainImageAction(payload);
+    } finally {
+      setUploadingPhoto(false);
+    }
+  }
+
   if (loading) {
     return (
       <main className="min-h-screen bg-background px-4 pb-24 pt-40 text-white" dir={isArabic ? "rtl" : "ltr"}>
@@ -273,24 +286,21 @@ export default function TalentProfileGuidedPage({ params }: { params: Promise<{ 
                     : (isArabic ? "الصورة الشخصية شرط أساسي لإرسال الملف للمراجعة. معرض الأعمال منفصل واختياري." : "A profile photo is required before review. Your work gallery is separate and optional.")}
               </p>
               {canEditProfile ? (
-                <form ref={photoFormRef} action={updateOwnTalentMainImageAction} className="mt-5">
-                  <input type="hidden" name="locale" value={locale} />
-                  <input type="hidden" name="return_to" value="profile" />
-                  <label className={`relative flex min-h-14 w-full items-center justify-center overflow-hidden rounded-2xl bg-gold px-6 text-sm font-semibold text-black transition active:scale-[0.99] sm:w-auto ${uploadingPhoto ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}>
+                <div className="mt-5">
+                  <label className={`relative flex min-h-14 w-full items-center justify-center overflow-hidden rounded-2xl bg-gold px-6 text-sm font-semibold text-black transition active:scale-[0.99] sm:w-auto ${uploadingPhoto ? "pointer-events-none cursor-not-allowed opacity-60" : "cursor-pointer"}`}>
                     <input
                       type="file"
                       name="profile_image"
                       required
                       accept="image/jpeg,image/png,image/webp"
-                      disabled={uploadingPhoto}
                       className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
                       onClick={(event) => {
                         event.currentTarget.value = "";
                       }}
                       onChange={(event) => {
-                        if (!event.currentTarget.files?.length || uploadingPhoto) return;
-                        setUploadingPhoto(true);
-                        window.setTimeout(() => photoFormRef.current?.requestSubmit(), 0);
+                        const file = event.currentTarget.files?.[0];
+                        if (!file || uploadingPhoto) return;
+                        void uploadProfilePhoto(file);
                       }}
                     />
                     <span className="pointer-events-none">
@@ -306,7 +316,7 @@ export default function TalentProfileGuidedPage({ params }: { params: Promise<{ 
                       ? (isArabic ? "جارٍ رفع الصورة، لا تغلق الصفحة." : "Uploading your photo. Please keep this page open.")
                       : (isArabic ? "اختر صورة JPG أو PNG أو WEBP وسيبدأ الرفع مباشرة." : "Choose a JPG, PNG or WEBP image and upload will start automatically.")}
                   </p>
-                </form>
+                </div>
               ) : null}
             </div>
           </div>
