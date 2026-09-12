@@ -80,8 +80,9 @@ export default function TalentProfileGuidedPage({ params }: { params: Promise<{ 
   const [dateMessage, setDateMessage] = useState("");
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
-  async function loadProfile() {
-    setLoading(true);
+  async function loadProfile(options?: { silent?: boolean }) {
+    const silent = options?.silent === true;
+    if (!silent) setLoading(true);
     setLoadError("");
     try {
       const result = (await getOwnTalentProfileAction(locale)) as TalentRecord | null;
@@ -90,7 +91,7 @@ export default function TalentProfileGuidedPage({ params }: { params: Promise<{ 
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : isArabic ? "تعذر تحميل الملف." : "Unable to load your profile.");
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }
 
@@ -187,6 +188,8 @@ export default function TalentProfileGuidedPage({ params }: { params: Promise<{ 
     try {
       await updateOwnTalentMainImageAction(payload);
     } finally {
+      await loadProfile({ silent: true });
+      router.refresh();
       setUploadingPhoto(false);
     }
   }
@@ -287,12 +290,12 @@ export default function TalentProfileGuidedPage({ params }: { params: Promise<{ 
               </p>
               {canEditProfile ? (
                 <div className="mt-5">
-                  <label className={`relative flex min-h-14 w-full items-center justify-center overflow-hidden rounded-2xl bg-gold px-6 text-sm font-semibold text-black transition active:scale-[0.99] sm:w-auto ${uploadingPhoto ? "pointer-events-none cursor-not-allowed opacity-60" : "cursor-pointer"}`}>
+                  <label className={`relative flex min-h-14 w-full items-center justify-center overflow-hidden rounded-2xl bg-gold px-6 text-sm font-semibold text-black transition active:scale-[0.99] sm:w-auto ${uploadingPhoto ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}>
                     <input
                       type="file"
                       name="profile_image"
-                      required
                       accept="image/jpeg,image/png,image/webp"
+                      disabled={uploadingPhoto}
                       className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
                       onClick={(event) => {
                         event.currentTarget.value = "";
