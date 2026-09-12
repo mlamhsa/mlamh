@@ -221,15 +221,32 @@ export default async function TalentDashboardPage({ params }: PageProps) {
     },
   }[workflowState];
 
+  const primaryMetric =
+    workflowState === "approved"
+      ? {
+          label: isRtl ? "قوة الملف" : "Profile strength",
+          value: `${profileCompletion}%`,
+          meta: isRtl ? "حسّن المطابقة" : "Improve matching",
+          href: `/${locale}/talent-dashboard/profile/details`,
+        }
+      : workflowState === "pending"
+        ? {
+            label: isRtl ? "حالة الملف" : "Profile status",
+            value: isRtl ? "قيد المراجعة" : "In review",
+            meta: isRtl ? "لا يلزم إجراء" : "No action needed",
+            href: `/${locale}/talent-dashboard/profile`,
+          }
+        : {
+            label: isRtl ? "جاهزية الاعتماد" : "Approval readiness",
+            value: `${readinessPercent}%`,
+            meta: profileReadiness.isReady
+              ? isRtl ? "مكتمل" : "Complete"
+              : isRtl ? `${incompleteItems} متبقي` : `${incompleteItems} remaining`,
+            href: `/${locale}/talent-dashboard/profile`,
+          };
+
   const metricCards = [
-    {
-      label: isRtl ? "جاهزية الاعتماد" : "Approval readiness",
-      value: `${readinessPercent}%`,
-      meta: profileReadiness.isReady
-        ? isRtl ? "مكتمل" : "Complete"
-        : isRtl ? `${incompleteItems} متبقي` : `${incompleteItems} remaining`,
-      href: `/${locale}/talent-dashboard/profile`,
-    },
+    primaryMetric,
     {
       label: isRtl ? "طلباتي" : "Applications",
       value: String(totalApplications),
