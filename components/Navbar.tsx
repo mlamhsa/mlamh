@@ -227,6 +227,19 @@ export function Navbar({ locale }: { locale: Locale }) {
   const showTalentActivity =
     isLoggedIn && accountType !== "admin" && accountType !== "publisher";
 
+  const mobileExploreItems: NavigationItem[] = showTalentActivity
+    ? [
+        {
+          key: "messages",
+          ar: "الرسائل",
+          en: "Messages",
+          href: "/talent-dashboard/messages",
+          icon: MessageSquareText,
+        },
+        ...exploreItems.slice(1),
+      ]
+    : exploreItems;
+
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 32);
     onScroll();
@@ -272,7 +285,7 @@ export function Navbar({ locale }: { locale: Locale }) {
   async function handleLogout() {
     const { error } =
       await supabase.auth.signOut();
-  
+
     if (error) {
       console.error(
         "[Navbar.logout]",
@@ -280,11 +293,11 @@ export function Navbar({ locale }: { locale: Locale }) {
       );
       return;
     }
-  
+
     setProfileOpen(false);
     setNotificationsOpen(false);
     setMenuOpen(false);
-  
+
     window.location.replace(
       `/${routeLocale}/login`,
     );
@@ -294,7 +307,7 @@ export function Navbar({ locale }: { locale: Locale }) {
     if (href.startsWith("#")) {
       return `/${routeLocale}${href}`;
     }
-  
+
     return `/${routeLocale}${href}`;
   }
 
@@ -466,8 +479,6 @@ export function Navbar({ locale }: { locale: Locale }) {
                   >
                     <span className="relative flex h-8 w-8 shrink-0 overflow-hidden rounded-full border border-gold/30 bg-gold/10">
                       {avatarUrl ? (
-                        // A normal img supports arbitrary Supabase storage hosts.
-                        // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={avatarUrl}
                           alt={displayName}
@@ -686,7 +697,6 @@ export function Navbar({ locale }: { locale: Locale }) {
       <div className="flex items-center gap-3">
         <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full border border-gold/30 bg-gold/10">
           {avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={avatarUrl}
               alt={displayName}
@@ -856,7 +866,7 @@ export function Navbar({ locale }: { locale: Locale }) {
             </p>
 
             <div className="grid grid-cols-3 gap-2">
-              {exploreItems.map((item) => {
+              {mobileExploreItems.map((item) => {
                 const Icon = item.icon ?? UsersRound;
 
                 return (
