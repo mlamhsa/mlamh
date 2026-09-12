@@ -148,6 +148,25 @@ export async function persistZohoConnectionError(error: unknown) {
   }, { onConflict: "provider" });
 }
 
+async function persistZohoConnectionRecovered() {
+  const db = createAdminClient();
+  const now = new Date().toISOString();
+  const { error } = await db
+    .from("marketing_integrations")
+    .update({
+      status: "connected",
+      last_sync_at: now,
+      last_success_at: now,
+      last_error: null,
+      updated_at: now,
+    })
+    .eq("provider", "email");
+
+  if (error) {
+    console.error("[Zoho Mail] Access token refreshed, but integration health could not be persisted.", error);
+  }
+}
+
 export async function getZohoMailConnectionState(): Promise<ZohoConnectionState> {
   const db = createAdminClient();
   const { data, error } = await db.from("marketing_integrations")
@@ -173,17 +192,24 @@ export async function getZohoDurableAccessToken(): Promise<string> {
       .select("status,configuration_state")
       .eq("provider", "email")
       .maybeSingle();
-    if (error || !data || data.status !== "connected") throw new Error("Zoho Mail durable connection is not active.");
+    if (error || !data) throw new Error("Zoho Mail durable connection is not configured.");
+
     const state = data.configuration_state && typeof data.configuration_state === "object" && !Array.isArray(data.configuration_state)
       ? data.configuration_state as Record<string, unknown>
       : {};
     const credentialRef = typeof state.credential_ref === "string" ? state.credential_ref : "";
     if (!credentialRef) throw new Error("Zoho credential reference is missing.");
+
+    // A transient refresh/network failure marks the integration as `error`.
+    // Do not make that status terminal: when a durable credential reference is
+    // still present, retry the refresh so the channel can recover automatically.
     const refreshToken = await readZohoRefreshTokenSecret({ credentialRef });
     const tokenSet = await exchangeZohoRefreshToken({
       refreshToken,
       config: await getZohoMailRuntimeConfig(),
     });
+
+    await persistZohoConnectionRecovered();
     return tokenSet.accessToken;
   } catch (error) {
     await persistZohoConnectionError(error);
