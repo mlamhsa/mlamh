@@ -1,13 +1,80 @@
-name: Temp workflow test
+name: Apply featured opportunity patch
 
 on:
   push:
     branches:
       - fix/featured-opportunity-public-display-current
 
+permissions:
+  contents: write
+
 jobs:
-  test:
+  patch:
     runs-on: ubuntu-latest
     steps:
-      - name: Echo
-        run: echo ok
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/featured-opportunity-public-display-current
+          fetch-depth: 0
+
+      - name: Apply minimal patch to current page
+        shell: bash
+        run: |
+          python <<'PY'
+          from pathlib import Path
+
+          path = Path('app/[locale]/opportunities/page.tsx')
+          text = path.read_text()
+          original = text
+
+          old_imports = '''import { Fragment } from "react";\nimport { getCurrentAccountType } from "@/lib/auth/get-current-account-type";\nimport { getPublishedOpportunities } from "@/lib/supabase/opportunities";'''
+          new_imports = '''import { Fragment } from "react";\nimport { FeaturedOpportunityBadge } from "@/components/opportunities/FeaturedOpportunityBadge";\nimport { getCurrentAccountType } from "@/lib/auth/get-current-account-type";\nimport { compareFeaturedThenNewest } from "@/lib/opportunities/featured";\nimport { getPublishedOpportunities } from "@/lib/supabase/opportunities";'''
+          if old_imports in text:
+              text = text.replace(old_imports, new_imports, 1)
+          elif 'FeaturedOpportunityBadge' not in text or 'compareFeaturedThenNewest' not in text:
+              raise SystemExit('Import anchor changed unexpectedly')
+
+          old_type = '''    cover_image?: string | null;\n    image_url?: string | null;\n  \n    required_count?: number | null;'''
+          new_type = '''    cover_image?: string | null;\n    image_url?: string | null;\n    featured?: boolean | null;\n    featured_until?: string | null;\n  \n    required_count?: number | null;'''
+          if old_type in text:
+              text = text.replace(old_type, new_type, 1)
+          elif 'featured_until?: string | null;' not in text:
+              raise SystemExit('Opportunity type anchor changed unexpectedly')
+
+          default_sort = '''      return (\n        new Date(b.created_at ?? 0).getTime() -\n        new Date(a.created_at ?? 0).getTime()\n      );'''
+          if 'return compareFeaturedThenNewest(a, b);' not in text:
+              index = text.rfind(default_sort)
+              if index == -1:
+                  raise SystemExit('Default sort anchor changed unexpectedly')
+              text = text[:index] + '      return compareFeaturedThenNewest(a, b);' + text[index + len(default_sort):]
+
+          mobile_anchor = '''                    <div className="p-5">\n                      {!imageUrl ? ('''
+          mobile_replacement = '''                    <div className="p-5">\n                      <FeaturedOpportunityBadge\n                        isRtl={isRtl}\n                        featured={item.featured}\n                        featuredUntil={item.featured_until}\n                        isOpen={isOpen}\n                        className="mb-3"\n                      />\n                      {!imageUrl ? ('''
+          if mobile_anchor in text:
+              text = text.replace(mobile_anchor, mobile_replacement, 1)
+          elif 'className="mb-3"' not in text:
+              raise SystemExit('Mobile card anchor changed unexpectedly')
+
+          desktop_anchor = '''                    <div className="flex min-h-[360px] flex-col p-6">\n                      {!imageUrl ? ('''
+          desktop_replacement = '''                    <div className="flex min-h-[360px] flex-col p-6">\n                      <FeaturedOpportunityBadge\n                        isRtl={isRtl}\n                        featured={item.featured}\n                        featuredUntil={item.featured_until}\n                        isOpen={isOpen}\n                        className="mb-3 self-start"\n                      />\n                      {!imageUrl ? ('''
+          if desktop_anchor in text:
+              text = text.replace(desktop_anchor, desktop_replacement, 1)
+          elif 'className="mb-3 self-start"' not in text:
+              raise SystemExit('Desktop card anchor changed unexpectedly')
+
+          if text != original:
+              path.write_text(text)
+
+          workflow = Path('.github/workflows/test-temp.yml')
+          if workflow.exists():
+              workflow.unlink()
+          PY
+
+          git config user.name "MLAMH Automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add 'app/[locale]/opportunities/page.tsx' .github/workflows/test-temp.yml
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m 'fix(opportunities): surface active featured listings'
+          git push origin HEAD:fix/featured-opportunity-public-display-current
