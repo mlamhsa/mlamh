@@ -121,7 +121,9 @@ export default function TalentDashboardShell({
             <div className="sticky top-28">{sidebar}</div>
           </aside>
 
-          <div className="min-w-0 flex-1">{children}</div>
+          <div className="min-w-0 flex-1 [&>main]:!min-h-0 [&>main]:!bg-transparent [&>main]:!px-0 [&>main]:!pb-0 [&>main]:!pt-0">
+            {children}
+          </div>
         </div>
       </div>
     </div>
