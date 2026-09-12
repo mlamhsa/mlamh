@@ -23,7 +23,7 @@ export function TalentProfileStrengthCardLink({ locale }: { locale: "ar" | "en" 
 
         if (isStrengthCard) {
           event.preventDefault();
-          router.push(`/${locale}/talent-dashboard/profile/advanced`);
+          router.push(`/${locale}/talent-dashboard/profile/details`);
           return;
         }
 
