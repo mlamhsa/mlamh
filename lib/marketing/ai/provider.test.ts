@@ -16,19 +16,38 @@ test.after(() => {
   delete process.env.AI_GATEWAY_API_KEY;
 });
 
-test("expired promotional free aliases retry the same model family through free-only gateway providers", () => {
+test("expired promotional free aliases rotate to the current explicit free model without enabling paid fallback", () => {
   assert.deepEqual(
     expiredFreeModelFallback(
       "minimax/minimax-m2.7-free",
       "Model 'minimax/minimax-m2.7-free' not found. If you were using its free tier, that has ended.",
     ),
     {
-      model: "minimax/minimax-m2.7",
-      providerOptions: { gateway: { has: ["free"] } },
+      model: "minimax/minimax-m3-free",
+      reason: "expired_free_alias",
     },
   );
+
+  assert.deepEqual(
+    expiredFreeModelFallback(
+      "minimax/minimax-m2.7-free",
+      "No providers for model minimax/minimax-m2.7 have the required capabilities: free. Providers considered: minimax, gmicloud, novita",
+    ),
+    {
+      model: "minimax/minimax-m3-free",
+      reason: "free_provider_unavailable",
+    },
+  );
+
   assert.equal(expiredFreeModelFallback("minimax/minimax-m2.7-free", "gateway unavailable"), null);
   assert.equal(expiredFreeModelFallback("minimax/minimax-m2.7", "Model not found"), null);
+  assert.equal(
+    expiredFreeModelFallback(
+      "minimax/minimax-m3-free",
+      "Model 'minimax/minimax-m3-free' not found. If you were using its free tier, that has ended.",
+    ),
+    null,
+  );
 });
 
 test("lead enrichment uses Vercel AI Gateway Responses API with staged web research and preserves source evidence", async () => {
