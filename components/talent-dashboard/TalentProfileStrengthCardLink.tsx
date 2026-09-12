@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 
 export function TalentProfileStrengthCardLink({ locale }: { locale: "ar" | "en" }) {
   const pathname = usePathname();
-  const router = useRouter();
 
   useEffect(() => {
     if (!pathname.endsWith("/talent-dashboard/profile")) return;
@@ -23,7 +22,9 @@ export function TalentProfileStrengthCardLink({ locale }: { locale: "ar" | "en" 
 
         if (isStrengthCard) {
           event.preventDefault();
-          router.push(`/${locale}/talent-dashboard/profile/details`);
+          // Use a full navigation here so the authenticated session cookies are
+          // read fresh by the professional-details route and its server actions.
+          window.location.assign(`/${locale}/talent-dashboard/profile/details`);
           return;
         }
 
@@ -33,7 +34,7 @@ export function TalentProfileStrengthCardLink({ locale }: { locale: "ar" | "en" 
 
     document.addEventListener("click", handleClick);
     return () => document.removeEventListener("click", handleClick);
-  }, [locale, pathname, router]);
+  }, [locale, pathname]);
 
   return null;
 }
