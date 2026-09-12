@@ -54,14 +54,33 @@ export async function POST(request: Request) {
   }
 
   const adminClient = createAdminClient();
-  const { data: profile, error: profileError } = await adminClient
-    .from("profiles")
-    .select("account_type,approval_status,profile_completed_at,onboarding_step")
-    .eq("user_id", user.id)
-    .maybeSingle();
+  const [profileResult, talentResult] = await Promise.all([
+    adminClient
+      .from("profiles")
+      .select("account_type,approval_status,profile_completed_at,onboarding_step")
+      .eq("user_id", user.id)
+      .maybeSingle(),
+    adminClient
+      .from("talents")
+      .select("id,date_of_birth")
+      .eq("user_id", user.id)
+      .maybeSingle(),
+  ]);
 
-  if (profileError || !profile || profile.account_type !== "talent") {
-    console.error("[birth-date POST profile]", profileError?.message || "Talent profile row not found");
+  const profile = profileResult.data;
+  const talent = talentResult.data;
+
+  if (
+    profileResult.error ||
+    talentResult.error ||
+    !profile ||
+    !talent ||
+    profile.account_type !== "talent"
+  ) {
+    console.error(
+      "[birth-date POST profile]",
+      profileResult.error?.message || talentResult.error?.message || "Talent account state not found",
+    );
     return NextResponse.json(
       {
         success: false,
@@ -72,7 +91,20 @@ export async function POST(request: Request) {
   }
 
   const approvalStatus = getEffectiveTalentApprovalStatus(profile);
+  const currentDate = String(talent.date_of_birth ?? "").slice(0, 10);
+
   if (!EDITABLE_APPROVAL_STATUSES.has(approvalStatus)) {
+    // The professional-details form can submit the already-saved birth date along
+    // with optional fields. Treat an unchanged value as a safe no-op so approved
+    // or in-review users can still save optional professional details without
+    // reopening a protected core identity field.
+    if (currentDate === rawDate) {
+      return NextResponse.json({
+        success: true,
+        message: locale === "ar" ? "تاريخ الميلاد محفوظ." : "Date of birth is already saved.",
+      });
+    }
+
     return NextResponse.json(
       {
         success: false,
@@ -88,6 +120,7 @@ export async function POST(request: Request) {
   const { data: updatedTalent, error } = await adminClient
     .from("talents")
     .update({ date_of_birth: rawDate })
+    .eq("id", talent.id)
     .eq("user_id", user.id)
     .select("id")
     .maybeSingle();
