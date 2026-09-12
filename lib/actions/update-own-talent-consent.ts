@@ -53,7 +53,7 @@ export async function updateOwnTalentConsentAction(
   }
 
   const status = String(profile.approval_status ?? "not_submitted").trim().toLowerCase();
-  if (!["not_submitted", "changes_requested", "rejected"].includes(status)) {
+  if (!["not_submitted", "changes_requested", "rejected", "approved"].includes(status)) {
     return {
       success: false,
       message: isArabic
@@ -62,6 +62,8 @@ export async function updateOwnTalentConsentAction(
     };
   }
 
+  // Consent is monotonic. Allow approved legacy profiles that predate this
+  // requirement to grant it without changing or reopening their approval.
   const { error: updateError } = await admin
     .from("profiles")
     .update({ data_accuracy_contact_consent: true })
