@@ -345,6 +345,24 @@ export default async function TalentDashboardPage({ params }: PageProps) {
             },
           ];
 
+  const activeApplications = counts.reviewing + counts.pending;
+  const applicationSummary =
+    counts.accepted > 0
+      ? isRtl
+        ? `لديك ${counts.accepted} طلب مقبول. افتح طلباتك لمراجعة الخطوة التالية.`
+        : `You have ${counts.accepted} accepted application${counts.accepted === 1 ? "" : "s"}. Open your applications for the next step.`
+      : counts.shortlisted > 0
+        ? isRtl
+          ? `لديك ${counts.shortlisted} طلب في القائمة المختصرة.`
+          : `${counts.shortlisted} application${counts.shortlisted === 1 ? " is" : "s are"} shortlisted.`
+        : activeApplications > 0
+          ? isRtl
+            ? `${activeApplications} من طلباتك ما زالت قيد المراجعة.`
+            : `${activeApplications} application${activeApplications === 1 ? " is" : "s are"} still in review.`
+          : isRtl
+            ? "راجع نتائج طلباتك السابقة من صفحة طلباتي."
+            : "Review your previous application results from Applications.";
+
   return (
     <main dir={isRtl ? "rtl" : "ltr"} className="min-h-screen bg-black text-white">
       <div className="mx-auto max-w-7xl px-4 pb-24 pt-4 sm:px-6 lg:py-10">
@@ -437,26 +455,35 @@ export default async function TalentDashboardPage({ params }: PageProps) {
 
             {totalApplications > 0 ? (
               <section className="rounded-[1.75rem] border border-white/10 bg-white/[0.02] p-5 sm:p-6">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-xs text-gold/70">{isRtl ? "الطلبات" : "Applications"}</p>
-                    <h2 className="mt-2 text-xl font-light">{isRtl ? "حالة تقديماتك" : "Application status"}</h2>
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-xs text-gold/70">{isRtl ? "طلباتك" : "Your applications"}</p>
+                      <span className="rounded-full border border-white/10 bg-white/[0.035] px-2.5 py-1 text-[11px] text-white/55">
+                        {isRtl ? `${totalApplications} طلب` : `${totalApplications} total`}
+                      </span>
+                    </div>
+                    <h2 className="mt-2 text-xl font-light">{isRtl ? "أين وصلت طلباتك؟" : "Where your applications stand"}</h2>
+                    <p className="mt-2 max-w-2xl text-xs leading-6 text-white/45 sm:text-sm">{applicationSummary}</p>
                   </div>
-                  <a href={`/${locale}/talent-dashboard/applications`} className="text-sm text-gold">
-                    {isRtl ? "عرض الكل" : "View all"}
+                  <a
+                    href={`/${locale}/talent-dashboard/applications`}
+                    className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-xl border border-gold/25 bg-gold/[0.045] px-4 text-xs font-medium text-gold transition hover:bg-gold/[0.08]"
+                  >
+                    {isRtl ? "عرض التفاصيل" : "View details"}
                   </a>
                 </div>
-                <div className="mt-5 grid grid-cols-3 gap-3">
-                  <div className="rounded-2xl border border-white/8 bg-black/20 p-4 text-center">
-                    <strong className="text-2xl font-light">{counts.reviewing + counts.pending}</strong>
+                <div className="mt-5 grid grid-cols-3 gap-2 sm:gap-3">
+                  <div className={`rounded-2xl border p-3 text-center sm:p-4 ${activeApplications > 0 ? "border-amber-400/20 bg-amber-400/[0.035]" : "border-white/8 bg-black/20"}`}>
+                    <strong className="text-2xl font-light">{activeApplications}</strong>
                     <p className="mt-1 text-[11px] text-white/40">{isRtl ? "قيد المراجعة" : "In review"}</p>
                   </div>
-                  <div className="rounded-2xl border border-white/8 bg-black/20 p-4 text-center">
-                    <strong className="text-2xl font-light">{counts.shortlisted}</strong>
+                  <div className={`rounded-2xl border p-3 text-center sm:p-4 ${counts.shortlisted > 0 ? "border-gold/20 bg-gold/[0.035]" : "border-white/8 bg-black/20"}`}>
+                    <strong className={counts.shortlisted > 0 ? "text-2xl font-light text-gold" : "text-2xl font-light"}>{counts.shortlisted}</strong>
                     <p className="mt-1 text-[11px] text-white/40">{isRtl ? "قائمة مختصرة" : "Shortlisted"}</p>
                   </div>
-                  <div className="rounded-2xl border border-gold/15 bg-gold/[0.035] p-4 text-center">
-                    <strong className="text-2xl font-light text-gold">{counts.accepted}</strong>
+                  <div className={`rounded-2xl border p-3 text-center sm:p-4 ${counts.accepted > 0 ? "border-emerald-400/20 bg-emerald-400/[0.04]" : "border-white/8 bg-black/20"}`}>
+                    <strong className={counts.accepted > 0 ? "text-2xl font-light text-emerald-300" : "text-2xl font-light"}>{counts.accepted}</strong>
                     <p className="mt-1 text-[11px] text-white/40">{isRtl ? "مقبول" : "Accepted"}</p>
                   </div>
                 </div>
