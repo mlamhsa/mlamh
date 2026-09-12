@@ -2,6 +2,13 @@ import { NextResponse } from "next/server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getEffectiveTalentApprovalStatus } from "@/lib/talent/approval-status";
+
+const EDITABLE_APPROVAL_STATUSES = new Set([
+  "not_submitted",
+  "rejected",
+  "changes_requested",
+]);
 
 export async function POST(request: Request) {
   const formData = await request.formData();
@@ -47,6 +54,37 @@ export async function POST(request: Request) {
   }
 
   const adminClient = createAdminClient();
+  const { data: profile, error: profileError } = await adminClient
+    .from("profiles")
+    .select("account_type,approval_status,profile_completed_at,onboarding_step")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (profileError || !profile || profile.account_type !== "talent") {
+    console.error("[birth-date POST profile]", profileError?.message || "Talent profile row not found");
+    return NextResponse.json(
+      {
+        success: false,
+        message: locale === "ar" ? "تعذر التحقق من حالة ملفك." : "We could not verify your profile state.",
+      },
+      { status: 403 },
+    );
+  }
+
+  const approvalStatus = getEffectiveTalentApprovalStatus(profile);
+  if (!EDITABLE_APPROVAL_STATUSES.has(approvalStatus)) {
+    return NextResponse.json(
+      {
+        success: false,
+        message:
+          locale === "ar"
+            ? "تاريخ الميلاد من البيانات الأساسية، ولا يمكن تغييره أثناء المراجعة أو بعد الاعتماد من هذا المسار."
+            : "Date of birth is a core profile field and cannot be changed here while under review or after approval.",
+      },
+      { status: 409 },
+    );
+  }
+
   const { data: updatedTalent, error } = await adminClient
     .from("talents")
     .update({ date_of_birth: rawDate })
