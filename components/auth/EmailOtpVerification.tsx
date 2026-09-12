@@ -40,7 +40,7 @@ export function EmailOtpVerification({ locale, email, accountType }: Props) {
       router.replace(`/${locale}/join/publisher`);
       return;
     }
-    router.replace(`/${locale}/dashboard-router`);
+    router.replace(`/${locale}/talent-dashboard/profile`);
   }
 
   async function ensureCanonicalAccount(accessToken: string, user: { email?: string | null; user_metadata?: Record<string, unknown> }) {
