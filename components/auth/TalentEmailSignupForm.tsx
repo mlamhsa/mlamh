@@ -49,6 +49,8 @@ export function TalentEmailSignupForm({ locale }: Props) {
   const [talentType, setTalentType] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showPasswordConfirmation, setShowPasswordConfirmation] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [acceptedAccuracy, setAcceptedAccuracy] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -220,8 +222,22 @@ export function TalentEmailSignupForm({ locale }: Props) {
       </div>
 
       <div className="grid gap-5 sm:grid-cols-2">
-        <Field label={isRtl ? "كلمة المرور" : "Password"} requiredMark={requiredMark}><input required minLength={8} type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.currentTarget.value)} className={inputClass} /></Field>
-        <Field label={isRtl ? "تأكيد كلمة المرور" : "Confirm password"} requiredMark={requiredMark}><input required minLength={8} type="password" autoComplete="new-password" value={passwordConfirmation} onChange={(e) => setPasswordConfirmation(e.currentTarget.value)} className={inputClass} /></Field>
+        <Field label={isRtl ? "كلمة المرور" : "Password"} requiredMark={requiredMark}>
+          <div className="relative">
+            <input required minLength={8} type={showPassword ? "text" : "password"} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.currentTarget.value)} className={`${inputClass} ${isRtl ? "pl-20" : "pr-20"}`} />
+            <button type="button" onClick={() => setShowPassword((value) => !value)} aria-pressed={showPassword} className={`absolute top-1/2 -translate-y-1/2 text-xs font-medium text-gold ${isRtl ? "left-4" : "right-4"}`}>
+              {showPassword ? (isRtl ? "إخفاء" : "Hide") : (isRtl ? "إظهار" : "Show")}
+            </button>
+          </div>
+        </Field>
+        <Field label={isRtl ? "تأكيد كلمة المرور" : "Confirm password"} requiredMark={requiredMark}>
+          <div className="relative">
+            <input required minLength={8} type={showPasswordConfirmation ? "text" : "password"} autoComplete="new-password" value={passwordConfirmation} onChange={(e) => setPasswordConfirmation(e.currentTarget.value)} className={`${inputClass} ${isRtl ? "pl-20" : "pr-20"}`} />
+            <button type="button" onClick={() => setShowPasswordConfirmation((value) => !value)} aria-pressed={showPasswordConfirmation} className={`absolute top-1/2 -translate-y-1/2 text-xs font-medium text-gold ${isRtl ? "left-4" : "right-4"}`}>
+              {showPasswordConfirmation ? (isRtl ? "إخفاء" : "Hide") : (isRtl ? "إظهار" : "Show")}
+            </button>
+          </div>
+        </Field>
       </div>
 
       <p className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3 text-xs leading-6 text-white/45">{isRtl ? "السوق النشط حاليًا هو السعودية، لذلك تم حذف اختيار بلد الإقامة من التسجيل. الجنسية تبقى مستقلة ويمكن اختيار أي جنسية." : "Saudi Arabia is the currently active market, so residence-country selection has been removed from signup. Nationality remains independent."}</p>
