@@ -107,5 +107,5 @@ export async function addSecureGalleryImagesAction(formData: FormData) {
     revalidatePath(`/en/talent/${slug}`);
   }
 
-  redirect(`/${locale}/talent-dashboard/gallery?updated=1`);
+  return { success: true };
 }
