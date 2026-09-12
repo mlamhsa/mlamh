@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getMarketingChannelAdapter } from "./adapters";
 import { evaluateControlledExecution, getExternalExecutionSettings } from "./controlled-execution";
 import { withMlamhEmailSignature } from "./email-signature";
+import { assertExternalMarketingCopyPolicy } from "./external-copy-policy";
 import { replyToZohoMessage } from "./zoho-reply";
 import { buildEmailOutreachIdempotencyKey, sanitizeZohoError } from "./zoho-mail-core";
 
@@ -129,6 +130,7 @@ export async function executeMarketingEmailJob(jobId: number) {
     await db.from("marketing_channel_jobs").update({ status: "failed", retry_count: job.retry_count + 1, last_error: message, updated_at: new Date().toISOString() }).eq("id", job.id);
     throw new Error(message);
   }
+  const approvedText = assertExternalMarketingCopyPolicy(text);
 
   const executionSettings = await getExternalExecutionSettings();
   const emailProductionEnabled = executionSettings.productionEnabled && executionSettings.productionChannels.includes("email");
@@ -166,7 +168,7 @@ export async function executeMarketingEmailJob(jobId: number) {
   }
 
   try {
-    const signedText = withMlamhEmailSignature(text);
+    const signedText = withMlamhEmailSignature(approvedText);
     const replyTarget = payload.kind === "external_reply" ? stringValue(payload.reply_to_zoho_message_id) : null;
     const result = replyTarget
       ? await replyToZohoMessage({ messageId: replyTarget, text: signedText })

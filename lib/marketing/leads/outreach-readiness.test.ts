@@ -92,7 +92,8 @@ test("main marketing orchestrator applies CEO-approved contact auto-verification
 
   assert.match(route, /materializeAutoVerifiedLeadResearch/);
   assert.match(route, /const result = await runAutonomousMarketingCycle/);
-  assert.match(route, /const contactAutoVerification = await materializeAutoVerifiedLeadResearch/);
+  assert.match(route, /const contactAutoVerification = await autoVerifyResearchSafely/);
+  assert.match(route, /return await materializeAutoVerifiedLeadResearch\(\{ limit: 12 \}\)/);
   assert.match(autoMaterializer, /ceo_approved_auto_verification_policy/);
   assert.match(autoMaterializer, /external_send_allowed: false/);
   assert.match(autoMaterializer, /getOutreachReadiness\(current\)\.isReady/);

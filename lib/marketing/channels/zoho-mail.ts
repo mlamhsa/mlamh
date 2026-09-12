@@ -12,6 +12,7 @@ import {
   MLAMH_ZOHO_MAIL_ADDRESS,
   ZOHO_MAIL_PHASE1_SCOPES,
   createZohoMailAdapter,
+  deriveZohoRuntimeStatus,
   exchangeZohoRefreshToken,
   normalizeZohoBaseUrl,
   sanitizeZohoError,
@@ -177,11 +178,19 @@ export async function getZohoMailConnectionState(): Promise<ZohoConnectionState>
   const state = data.configuration_state && typeof data.configuration_state === "object" && !Array.isArray(data.configuration_state)
     ? data.configuration_state as Record<string, unknown>
     : {};
+  const accountId = typeof state.account_id === "string" ? state.account_id : null;
+  const apiBaseUrl = typeof state.api_base_url === "string" ? state.api_base_url : "";
+  const credentialRef = typeof state.credential_ref === "string" ? state.credential_ref : "";
   return {
-    status: data.status as MarketingChannelStatus,
-    accountId: typeof state.account_id === "string" ? state.account_id : null,
+    status: deriveZohoRuntimeStatus({
+      persistedStatus: data.status as MarketingChannelStatus,
+      accountId,
+      apiBaseUrl,
+      credentialRef,
+    }),
+    accountId,
     fromAddress: typeof state.verified_address === "string" ? state.verified_address : MLAMH_ZOHO_MAIL_ADDRESS,
-    apiBaseUrl: typeof state.api_base_url === "string" ? state.api_base_url : "",
+    apiBaseUrl,
   };
 }
 
