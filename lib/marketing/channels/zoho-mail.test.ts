@@ -7,6 +7,7 @@ import {
   buildEmailOutreachIdempotencyKey,
   createZohoMailAdapter,
   createZohoOAuthRequest,
+  deriveZohoRuntimeStatus,
   sanitizeZohoError,
   verifyZohoMailAccount,
   type ZohoMailRuntimeConfig,
@@ -37,6 +38,29 @@ test("Zoho OAuth request uses configured base URL, PKCE, and inbound-capable sco
 test("email outreach idempotency key is deterministic", () => {
   assert.equal(buildEmailOutreachIdempotencyKey(42), "outreach-42-email");
   assert.equal(buildEmailOutreachIdempotencyKey(42), buildEmailOutreachIdempotencyKey(42));
+});
+
+test("durable Zoho configuration can retry recovery after transient error", () => {
+  assert.equal(deriveZohoRuntimeStatus({
+    persistedStatus: "error",
+    accountId: "acct-1",
+    apiBaseUrl: "https://mail.example.test",
+    credentialRef: "infisical://prod/zoho/ZOHO_REFRESH_TOKEN",
+  }), "connected");
+
+  assert.equal(deriveZohoRuntimeStatus({
+    persistedStatus: "error",
+    accountId: "acct-1",
+    apiBaseUrl: "https://mail.example.test",
+    credentialRef: "",
+  }), "error");
+
+  assert.equal(deriveZohoRuntimeStatus({
+    persistedStatus: "limited",
+    accountId: "acct-1",
+    apiBaseUrl: "https://mail.example.test",
+    credentialRef: "infisical://prod/zoho/ZOHO_REFRESH_TOKEN",
+  }), "limited");
 });
 
 test("Zoho READ verification accepts only hello@mlamh.net", async () => {
