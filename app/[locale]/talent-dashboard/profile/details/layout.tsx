@@ -32,14 +32,11 @@ export default function TalentProfileDetailsLayout({ children }: { children: Rea
   }, [locale]);
 
   function saveCurrentDraft() {
-    // Scope the lookup to this route's editor only. This avoids submitting an
-    // unrelated form if the surrounding dashboard shell adds another form later.
     const form = editorScopeRef.current?.querySelector<HTMLFormElement>("form");
     if (!form) return;
 
-    // The profile editor contains approval hard-gate fields, but saving a draft
-    // must remain possible before every hard gate is complete. Submission for
-    // review is validated separately by the canonical readiness engine.
+    // Saving a draft must stay possible before every approval requirement is
+    // complete. Final review submission is validated separately by readiness.
     const previousNoValidate = form.noValidate;
     form.noValidate = true;
     form.requestSubmit();
@@ -50,6 +47,26 @@ export default function TalentProfileDetailsLayout({ children }: { children: Rea
 
   return (
     <>
+      <div
+        dir={isArabic ? "rtl" : "ltr"}
+        className="mb-5 flex flex-wrap items-center justify-between gap-3"
+      >
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-gold">
+            {isArabic ? "محرر الملف" : "PROFILE EDITOR"}
+          </p>
+          <p className="mt-1 text-xs text-white/40">
+            {isArabic ? "يمكنك الحفظ والعودة لاحقًا في أي وقت." : "Save your progress and return any time."}
+          </p>
+        </div>
+        <Link
+          href={`/${locale}/talent-dashboard/profile`}
+          className="inline-flex min-h-10 items-center justify-center rounded-full border border-white/10 px-4 text-xs text-white/60 transition hover:border-gold/30 hover:text-gold"
+        >
+          {isArabic ? "العودة لملفي" : "Back to my profile"}
+        </Link>
+      </div>
+
       {isApproved ? (
         <section
           dir={isArabic ? "rtl" : "ltr"}
@@ -89,13 +106,21 @@ export default function TalentProfileDetailsLayout({ children }: { children: Rea
 
       <div className="pointer-events-none fixed inset-x-0 bottom-20 z-40 px-4 sm:px-6 lg:bottom-6">
         <div className="mx-auto flex max-w-3xl justify-end">
-          <button
-            type="button"
-            onClick={saveCurrentDraft}
-            className="pointer-events-auto min-h-12 rounded-full border border-gold/35 bg-black/90 px-6 text-sm font-semibold text-gold shadow-2xl backdrop-blur-xl transition hover:bg-gold hover:text-black"
-          >
-            {isArabic ? "حفظ التعديلات" : "Save changes"}
-          </button>
+          <div className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/10 bg-black/90 p-1.5 shadow-2xl backdrop-blur-xl">
+            <Link
+              href={`/${locale}/talent-dashboard/profile`}
+              className="inline-flex min-h-11 items-center justify-center rounded-full px-4 text-xs text-white/55 transition hover:text-white"
+            >
+              {isArabic ? "إلغاء" : "Cancel"}
+            </Link>
+            <button
+              type="button"
+              onClick={saveCurrentDraft}
+              className="min-h-11 rounded-full bg-gold px-6 text-sm font-semibold text-black transition hover:brightness-105"
+            >
+              {isArabic ? "حفظ التعديلات" : "Save changes"}
+            </button>
+          </div>
         </div>
       </div>
     </>
