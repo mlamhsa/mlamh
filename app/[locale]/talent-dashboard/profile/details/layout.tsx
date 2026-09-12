@@ -35,8 +35,8 @@ export default function TalentProfileDetailsLayout({ children }: { children: Rea
     const form = editorScopeRef.current?.querySelector<HTMLFormElement>("form");
     if (!form) return;
 
-    // Saving a draft must stay possible before every approval requirement is
-    // complete. Final review submission is validated separately by readiness.
+    // Draft/profile improvements must remain saveable independently from the
+    // final review gate. The canonical review readiness check runs elsewhere.
     const previousNoValidate = form.noValidate;
     form.noValidate = true;
     form.requestSubmit();
@@ -47,48 +47,64 @@ export default function TalentProfileDetailsLayout({ children }: { children: Rea
 
   return (
     <>
-      <div
+      <section
         dir={isArabic ? "rtl" : "ltr"}
-        className="mb-5 flex flex-wrap items-center justify-between gap-3"
+        className="mb-5 overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/[0.025] p-5 sm:p-6"
       >
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-gold">
-            {isArabic ? "محرر الملف" : "PROFILE EDITOR"}
-          </p>
-          <p className="mt-1 text-xs text-white/40">
-            {isArabic ? "يمكنك الحفظ والعودة لاحقًا في أي وقت." : "Save your progress and return any time."}
-          </p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-gold">
+                {isArabic ? "تعديل الملف" : "EDIT PROFILE"}
+              </p>
+              {isApproved ? (
+                <span className="rounded-full border border-emerald-300/20 bg-emerald-300/[0.07] px-2.5 py-1 text-[10px] text-emerald-100">
+                  {isArabic ? "ملف معتمد" : "Approved profile"}
+                </span>
+              ) : null}
+            </div>
+            <h1 className="mt-2 text-2xl font-light text-white sm:text-3xl">
+              {isArabic ? "حدّث بياناتك بسهولة" : "Keep your profile up to date"}
+            </h1>
+            <p className="mt-2 max-w-2xl text-sm leading-7 text-white/50">
+              {isApproved
+                ? isArabic
+                  ? "التعديلات المهنية تُحفظ مباشرة، واعتماد ملفك يبقى محفوظًا. البيانات الأساسية المحمية لها مسار مراجعة منفصل."
+                  : "Professional updates save directly and your approval stays active. Protected identity details use a separate review flow."
+                : isArabic
+                  ? "احفظ ما أدخلته الآن وارجع لاحقًا لإكمال بقية البيانات."
+                  : "Save what you have now and come back later to finish the rest."}
+            </p>
+          </div>
+
+          <Link
+            href={`/${locale}/talent-dashboard/profile`}
+            className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full border border-white/10 px-4 text-xs text-white/60 transition hover:border-gold/30 hover:text-gold"
+          >
+            {isArabic ? "العودة لملفي" : "Back to my profile"}
+          </Link>
         </div>
-        <Link
-          href={`/${locale}/talent-dashboard/profile`}
-          className="inline-flex min-h-10 items-center justify-center rounded-full border border-white/10 px-4 text-xs text-white/60 transition hover:border-gold/30 hover:text-gold"
-        >
-          {isArabic ? "العودة لملفي" : "Back to my profile"}
-        </Link>
-      </div>
+      </section>
 
       {isApproved ? (
         <section
           dir={isArabic ? "rtl" : "ltr"}
-          className="mb-5 overflow-hidden rounded-[1.75rem] border border-emerald-400/20 bg-[linear-gradient(135deg,rgba(52,211,153,0.08),rgba(197,160,89,0.035))] p-5 sm:p-6"
+          className="mb-5 rounded-[1.75rem] border border-emerald-400/20 bg-[linear-gradient(135deg,rgba(52,211,153,0.075),rgba(197,160,89,0.025))] p-5 sm:p-6"
         >
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="max-w-2xl">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-full border border-emerald-300/25 bg-emerald-300/[0.08] px-3 py-1 text-[11px] font-medium text-emerald-100">
+              <div className="flex flex-wrap gap-2">
+                <span className="rounded-full border border-emerald-300/20 bg-emerald-300/[0.07] px-3 py-1 text-[11px] text-emerald-100">
                   {isArabic ? "الاعتماد محفوظ" : "Approval stays active"}
                 </span>
-                <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[11px] text-white/50">
-                  {isArabic ? "تعديل مباشر للبيانات المهنية" : "Professional details save directly"}
+                <span className="rounded-full border border-gold/20 bg-gold/[0.045] px-3 py-1 text-[11px] text-gold">
+                  {isArabic ? "حفظ مباشر للبيانات المهنية" : "Professional details save directly"}
                 </span>
               </div>
-              <h1 className="mt-4 text-2xl font-light text-white sm:text-3xl">
-                {isArabic ? "عدّل ملفك بحرية" : "Edit your profile with confidence"}
-              </h1>
-              <p className="mt-2 text-sm leading-7 text-white/55">
+              <p className="mt-4 text-sm leading-7 text-white/60">
                 {isArabic
-                  ? "الطول والوزن والمقاسات والمهارات والخبرة والتوفر وغيرها تُحفظ مباشرة. فقط الاسم والجوال والجنسية تحتاج مراجعة منفصلة لحماية هوية الملف المعتمد."
-                  : "Measurements, skills, experience, availability and other professional details save directly. Only name, phone and nationality use a separate review to protect an approved profile identity."}
+                  ? "عدّل الطول والوزن والمقاسات والمهارات والخبرة والتوفر والتنقل وغيرها من بياناتك المهنية مباشرة. لن نعرض لك حقولًا مقفلة داخل هذا المحرر؛ تعديل البيانات الأساسية المحمية يتم من المسار المخصص."
+                  : "Update measurements, skills, experience, availability, mobility and other professional details directly. Protected identity fields are handled in their dedicated flow instead of appearing as disabled inputs here."}
               </p>
             </div>
 
@@ -96,13 +112,18 @@ export default function TalentProfileDetailsLayout({ children }: { children: Rea
               href={`/${locale}/talent-dashboard/profile/change-request`}
               className="inline-flex min-h-12 shrink-0 items-center justify-center rounded-2xl border border-gold/30 bg-gold/[0.055] px-5 text-sm font-medium text-gold transition hover:bg-gold hover:text-black"
             >
-              {isArabic ? "تعديل الاسم أو الجوال أو الجنسية" : "Change name, phone or nationality"}
+              {isArabic ? "طلب تعديل البيانات الأساسية" : "Request core detail changes"}
             </Link>
           </div>
         </section>
       ) : null}
 
-      <div ref={editorScopeRef}>{children}</div>
+      <div
+        ref={editorScopeRef}
+        className={isApproved ? "talent-profile-editor talent-profile-editor--approved" : "talent-profile-editor"}
+      >
+        {children}
+      </div>
 
       <div className="pointer-events-none fixed inset-x-0 bottom-20 z-40 px-4 sm:px-6 lg:bottom-6">
         <div className="mx-auto flex max-w-3xl justify-end">
@@ -123,6 +144,22 @@ export default function TalentProfileDetailsLayout({ children }: { children: Rea
           </div>
         </div>
       </div>
+
+      <style jsx global>{`
+        .talent-profile-editor > main > div > div:first-child {
+          display: none;
+        }
+        .talent-profile-editor--approved > main form > section:first-of-type {
+          display: none;
+        }
+        .talent-profile-editor > main form > div:last-child {
+          display: none;
+        }
+        .talent-profile-editor > main {
+          padding-top: 0 !important;
+          padding-bottom: 8.5rem !important;
+        }
+      `}</style>
     </>
   );
 }
