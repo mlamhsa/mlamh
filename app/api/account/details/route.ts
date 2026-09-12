@@ -67,7 +67,7 @@ export async function POST(request: Request) {
         phone_verified: false,
         account_type: "talent",
         onboarding_status: "profile_in_progress",
-        onboarding_step: "dashboard",
+        onboarding_step: "talent_profile",
       },
     });
     if (authUpdateError) return NextResponse.json({ ok: false, code: "AUTH_METADATA_UPDATE_FAILED" }, { status: 500 });
