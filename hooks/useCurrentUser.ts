@@ -112,6 +112,39 @@ export function useCurrentUser(): CurrentUserState {
       if (active && version === requestVersion) setState(next);
     }
 
+    async function resolveTalentFallback(
+      user: AuthUserSnapshot,
+      version: number,
+      fallbackName: string,
+      fallbackAvatar: string | null,
+    ) {
+      const { data: talent, error: talentError } = await supabase
+        .from("talents")
+        .select("name_ar, name_en, image_url")
+        .eq("user_id", user.id)
+        .maybeSingle<TalentNavigationRow>();
+
+      if (!active || version !== requestVersion) return true;
+
+      if (talentError) {
+        console.warn("Unable to load talent profile fallback:", readableError(talentError));
+        return false;
+      }
+
+      if (!talent) return false;
+
+      commit(version, {
+        userId: user.id,
+        isLoggedIn: true,
+        accountType: "talent",
+        userName: talent.name_ar?.trim() || talent.name_en?.trim() || fallbackName,
+        avatarUrl: talent.image_url?.trim() || fallbackAvatar,
+        loading: false,
+      });
+
+      return true;
+    }
+
     async function resolveUser(user?: AuthUserSnapshot | null) {
       const version = ++requestVersion;
 
@@ -143,6 +176,16 @@ export function useCurrentUser(): CurrentUserState {
 
         if (error || !profile) {
           if (error) console.warn("Unable to resolve current user profile:", readableError(error));
+
+          const resolvedAsTalent = await resolveTalentFallback(
+            user,
+            version,
+            fallbackName,
+            fallbackAvatar,
+          );
+
+          if (resolvedAsTalent || !active || version !== requestVersion) return;
+
           commit(version, {
             userId: user.id,
             isLoggedIn: true,
@@ -186,8 +229,6 @@ export function useCurrentUser(): CurrentUserState {
           if (talentError) {
             console.warn("Unable to load talent profile:", readableError(talentError));
           } else if (talent) {
-            // Backward-compatible UI fallback only: if an existing talent row exists,
-            // treat this session as talent navigation without mutating stored account data.
             if (accountType === null) accountType = "talent";
             resolvedAvatar = talent.image_url?.trim() || resolvedAvatar;
             resolvedName = talent.name_ar?.trim() || talent.name_en?.trim() || resolvedName;
@@ -205,6 +246,16 @@ export function useCurrentUser(): CurrentUserState {
       } catch (error) {
         if (!active || version !== requestVersion) return;
         console.warn("Unexpected current user profile lookup failure:", readableError(error));
+
+        const resolvedAsTalent = await resolveTalentFallback(
+          user,
+          version,
+          fallbackName,
+          fallbackAvatar,
+        );
+
+        if (resolvedAsTalent || !active || version !== requestVersion) return;
+
         commit(version, {
           userId: user.id,
           isLoggedIn: true,
