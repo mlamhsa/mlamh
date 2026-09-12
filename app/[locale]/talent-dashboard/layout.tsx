@@ -7,6 +7,7 @@ import { TalentProfileEditorEnhancer } from "@/components/talent-dashboard/Talen
 import { TalentProfileSectionNavigationV1 } from "@/components/talent-dashboard/TalentProfileSectionNavigationV1";
 import { TalentSidebarDockEnhancer } from "@/components/talent-dashboard/TalentSidebarDockEnhancer";
 import TalentApprovedCompletionBanner from "@/components/talent/TalentApprovedCompletionBanner";
+import TalentApprovedLegacyRequiredFieldsCard from "@/components/talent/TalentApprovedLegacyRequiredFieldsCard";
 import TalentConsentCompletionCard from "@/components/talent/TalentConsentCompletionCard";
 import TalentDashboardShell from "@/components/talent/TalentDashboardShell";
 import TalentRealtimeSync from "@/components/talent/TalentRealtimeSync";
@@ -112,6 +113,7 @@ export default async function TalentDashboardLayout({
         />
       ) : null}
       {user ? <TalentConsentCompletionCard locale={locale} /> : null}
+      {user ? <TalentApprovedLegacyRequiredFieldsCard locale={locale} /> : null}
       <TalentDashboardShell
         locale={locale}
         totalApplications={totalApplications}
