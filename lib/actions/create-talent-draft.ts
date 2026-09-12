@@ -147,7 +147,9 @@ export async function createTalentDraftAction(
       .update({
         account_type: "talent",
         onboarding_status: "profile_in_progress",
-        onboarding_step: "core_data",
+        // Keep onboarding_step aligned with the canonical DB constraint and the
+        // existing production state machine. `core_data` is not a valid value.
+        onboarding_step: "talent_profile",
         // A talent draft has not entered review yet. Do not inherit the legacy
         // database default `pending`, which would make the editor think review
         // has already started and lock the required fields.
