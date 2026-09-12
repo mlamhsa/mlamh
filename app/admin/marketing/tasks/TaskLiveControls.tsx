@@ -23,3 +23,17 @@ export function RunNextTaskButton({ isArabic }: { isArabic: boolean }) {
     </button>
   );
 }
+
+export function RunSafeInternalTaskButton({ isArabic }: { isArabic: boolean }) {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      aria-busy={pending}
+      className="inline-flex min-h-9 items-center justify-center rounded-lg border border-emerald-400/25 bg-emerald-400/[0.06] px-3 py-1.5 text-xs font-medium text-emerald-200 transition hover:bg-emerald-400/[0.1] disabled:pointer-events-none disabled:opacity-50"
+    >
+      {pending ? (isArabic ? "يعمل..." : "Running...") : (isArabic ? "تشغيل داخلي آمن" : "Run safe internal")}
+    </button>
+  );
+}
