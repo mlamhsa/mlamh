@@ -10,6 +10,8 @@ export type CreateTalentDraftState = {
   message: string | null;
 };
 
+const EDITABLE_APPROVAL_STATUSES = new Set(["not_submitted", "rejected", "changes_requested"]);
+
 function createTalentSlug(name: string, userId: string) {
   const base = name
     .toLowerCase()
@@ -55,7 +57,7 @@ export async function createTalentDraftAction(
 
     const { data: profile, error: profileError } = await adminClient
       .from("profiles")
-      .select("id, display_name, account_type")
+      .select("id, display_name, account_type, approval_status")
       .eq("user_id", user.id)
       .maybeSingle();
 
@@ -71,6 +73,16 @@ export async function createTalentDraftAction(
       return {
         success: false,
         message: locale === "ar" ? "نوع هذا الحساب لا يسمح بإنشاء ملف موهبة." : "This account cannot create a talent profile.",
+      };
+    }
+
+    const approvalStatus = String(profile?.approval_status ?? "not_submitted").trim().toLowerCase();
+    if (!EDITABLE_APPROVAL_STATUSES.has(approvalStatus)) {
+      return {
+        success: false,
+        message: locale === "ar"
+          ? "لا يمكن تغيير نوع الموهبة أثناء المراجعة أو بعد اعتماد الملف."
+          : "Talent type cannot be changed while the profile is under review or after approval.",
       };
     }
 
@@ -95,6 +107,8 @@ export async function createTalentDraftAction(
       };
     }
 
+    let createdTalentId: number | string | null = null;
+
     if (existingTalent) {
       const { error: updateError } = await adminClient
         .from("talents")
@@ -116,30 +130,36 @@ export async function createTalentDraftAction(
       }
     } else {
       const slug = createTalentSlug(displayName, user.id);
-      const { error: insertError } = await adminClient.from("talents").insert({
-        user_id: user.id,
-        name_en: displayName,
-        name_ar: displayName,
-        category_slug: selectedCategory.slug,
-        category_en: selectedCategory.en,
-        category_ar: selectedCategory.ar,
-        primary_role: selectedCategory.slug,
-        image_url: null,
-        slug,
-        status: "draft",
-        published: false,
-        verified: false,
-        featured: false,
-        profile_completion: 0,
-      });
+      const { data: createdTalent, error: insertError } = await adminClient
+        .from("talents")
+        .insert({
+          user_id: user.id,
+          name_en: displayName,
+          name_ar: displayName,
+          category_slug: selectedCategory.slug,
+          category_en: selectedCategory.en,
+          category_ar: selectedCategory.ar,
+          primary_role: selectedCategory.slug,
+          image_url: null,
+          slug,
+          status: "draft",
+          published: false,
+          verified: false,
+          featured: false,
+          profile_completion: 0,
+        })
+        .select("id")
+        .single();
 
-      if (insertError) {
+      if (insertError || !createdTalent) {
         console.error("[createTalentDraftAction insertTalent]", insertError);
         return {
           success: false,
           message: locale === "ar" ? "تعذر إنشاء ملف الموهبة." : "Unable to create your talent profile.",
         };
       }
+
+      createdTalentId = createdTalent.id;
     }
 
     const { error: onboardingError } = await adminClient
@@ -147,12 +167,7 @@ export async function createTalentDraftAction(
       .update({
         account_type: "talent",
         onboarding_status: "profile_in_progress",
-        // Keep onboarding_step aligned with the canonical DB constraint and the
-        // existing production state machine. `core_data` is not a valid value.
         onboarding_step: "talent_profile",
-        // A talent draft has not entered review yet. Do not inherit the legacy
-        // database default `pending`, which would make the editor think review
-        // has already started and lock the required fields.
         approval_status: "not_submitted",
         profile_completed_at: null,
         updated_at: new Date().toISOString(),
@@ -161,9 +176,25 @@ export async function createTalentDraftAction(
 
     if (onboardingError) {
       console.error("[createTalentDraftAction onboarding]", onboardingError);
+
+      if (createdTalentId !== null) {
+        const { error: rollbackError } = await adminClient
+          .from("talents")
+          .delete()
+          .eq("id", createdTalentId)
+          .eq("user_id", user.id)
+          .eq("status", "draft")
+          .eq("published", false);
+        if (rollbackError) {
+          console.error("[createTalentDraftAction rollbackTalent]", rollbackError);
+        }
+      }
+
       return {
         success: false,
-        message: locale === "ar" ? "تم إنشاء الملف لكن تعذر تحديث حالة الحساب." : "The profile was created, but account status could not be updated.",
+        message: locale === "ar"
+          ? "تعذر إكمال إنشاء ملف الموهبة. حاول مرة أخرى."
+          : "Unable to complete talent profile setup. Please try again.",
       };
     }
 
