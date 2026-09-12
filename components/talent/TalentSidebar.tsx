@@ -7,15 +7,16 @@ import { useCallback, useState } from "react";
 import {
   Bell,
   BriefcaseBusiness,
+  Building2,
   CalendarDays,
-  GalleryVerticalEnd,
+  Info,
   Languages,
   LayoutDashboard,
   LogOut,
   MessageSquareText,
-  ReceiptText,
   Settings,
   UserRound,
+  UsersRound,
 } from "lucide-react";
 
 import { supabase } from "@/lib/supabase/client";
@@ -33,6 +34,15 @@ type SidebarLinkProps = {
   icon: ReactNode;
   badge?: number;
   active?: boolean;
+};
+
+type NavItem = SidebarLinkProps & {
+  exact?: boolean;
+};
+
+type NavGroup = {
+  label: string;
+  items: NavItem[];
 };
 
 export default function TalentSidebar({
@@ -67,103 +77,129 @@ export default function TalentSidebar({
     window.location.replace(`/${locale}/login`);
   }, [locale, loggingOut]);
 
-  // Canonical Talent navigation order. Keep Portfolio next to Profile and make
-  // Opportunities a first-class destination rather than a detached CTA.
-  // "Workspace" is intentionally reserved for the future Brief product.
-  const items = [
+  const groups: NavGroup[] = [
     {
-      href: dashboardHref,
-      label: isAr ? "الرئيسية" : "Home",
-      icon: <LayoutDashboard size={18} aria-hidden="true" />,
-      exact: true,
-      badge: undefined,
+      label: isAr ? "حسابي" : "My account",
+      items: [
+        {
+          href: `${dashboardHref}/profile`,
+          label: isAr ? "الملف الشخصي" : "Profile",
+          icon: <UserRound size={19} aria-hidden="true" />,
+        },
+        {
+          href: `${dashboardHref}/settings`,
+          label: isAr ? "الإعدادات" : "Settings",
+          icon: <Settings size={19} aria-hidden="true" />,
+        },
+      ],
     },
     {
-      href: `${dashboardHref}/profile`,
-      label: isAr ? "الملف الشخصي" : "Profile",
-      icon: <UserRound size={18} aria-hidden="true" />,
-      exact: false,
-      badge: undefined,
+      label: isAr ? "اكتشف" : "Discover",
+      items: [
+        {
+          href: `/${locale}/talents`,
+          label: isAr ? "المواهب" : "Talents",
+          icon: <UsersRound size={19} aria-hidden="true" />,
+        },
+        {
+          href: `/${locale}/opportunities`,
+          label: isAr ? "الفرص" : "Opportunities",
+          icon: <CalendarDays size={19} aria-hidden="true" />,
+        },
+        {
+          href: `/${locale}/publishers`,
+          label: isAr ? "الشركات" : "Companies",
+          icon: <Building2 size={19} aria-hidden="true" />,
+        },
+      ],
     },
     {
-      href: `${dashboardHref}/gallery`,
-      label: isAr ? "معرض الأعمال" : "Portfolio",
-      icon: <GalleryVerticalEnd size={18} aria-hidden="true" />,
-      exact: false,
-      badge: undefined,
+      label: isAr ? "نشاطي" : "Activity",
+      items: [
+        {
+          href: `${dashboardHref}/applications`,
+          label: isAr ? "طلباتي" : "Applications",
+          icon: <BriefcaseBusiness size={19} aria-hidden="true" />,
+          badge: totalApplications > 0 ? totalApplications : undefined,
+        },
+        {
+          href: `${dashboardHref}/messages`,
+          label: isAr ? "الرسائل" : "Messages",
+          icon: <MessageSquareText size={19} aria-hidden="true" />,
+          badge: unreadMessagesCount > 0 ? unreadMessagesCount : undefined,
+        },
+        {
+          href: `${dashboardHref}/notifications`,
+          label: isAr ? "الإشعارات" : "Notifications",
+          icon: <Bell size={19} aria-hidden="true" />,
+          badge: notificationCount > 0 ? notificationCount : undefined,
+        },
+      ],
     },
     {
-      href: `/${locale}/opportunities`,
-      label: isAr ? "الفرص" : "Opportunities",
-      icon: <CalendarDays size={18} aria-hidden="true" />,
-      exact: false,
-      badge: undefined,
-    },
-    {
-      href: `${dashboardHref}/applications`,
-      label: isAr ? "طلباتي" : "Applications",
-      icon: <BriefcaseBusiness size={18} aria-hidden="true" />,
-      exact: false,
-      badge: totalApplications > 0 ? totalApplications : undefined,
-    },
-    {
-      href: `${dashboardHref}/messages`,
-      label: isAr ? "الرسائل" : "Messages",
-      icon: <MessageSquareText size={18} aria-hidden="true" />,
-      exact: false,
-      badge: unreadMessagesCount > 0 ? unreadMessagesCount : undefined,
-    },
-    {
-      href: `${dashboardHref}/notifications`,
-      label: isAr ? "الإشعارات" : "Notifications",
-      icon: <Bell size={18} aria-hidden="true" />,
-      exact: false,
-      badge: notificationCount > 0 ? notificationCount : undefined,
-    },
-    {
-      href: `${dashboardHref}/settings`,
-      label: isAr ? "الإعدادات" : "Settings",
-      icon: <Settings size={18} aria-hidden="true" />,
-      exact: false,
-      badge: undefined,
-    },
-    {
-      href: `${dashboardHref}/subscriptions`,
-      label: isAr ? "اشتراكاتي" : "Subscriptions",
-      icon: <ReceiptText size={18} aria-hidden="true" />,
-      exact: false,
-      badge: undefined,
+      label: isAr ? "الدعم" : "Support",
+      items: [
+        {
+          href: `/${locale}/about`,
+          label: isAr ? "عن ملامح" : "About MLAMH",
+          icon: <Info size={19} aria-hidden="true" />,
+        },
+      ],
     },
   ];
 
   return (
-    <aside className="w-full overflow-hidden rounded-[2rem] border border-white/10 bg-black/80 p-5 backdrop-blur-xl sm:p-6">
-      <Link href={dashboardHref} className="block border-b border-white/10 pb-5">
-        <p className="arabic-safe text-xs uppercase tracking-[0.28em] text-white/35">
-          {isAr ? "لوحة الموهبة" : "Talent Dashboard"}
+    <aside className="w-full overflow-hidden rounded-[2rem] border border-white/10 bg-black/88 p-5 backdrop-blur-xl sm:p-6">
+      <div className="border-b border-white/10 pb-5">
+        <p className="arabic-safe text-xs uppercase tracking-[0.26em] text-white/35">
+          {isAr ? "لوحة الموهبة" : "Talent dashboard"}
         </p>
-      </Link>
+        <Link
+          href={dashboardHref}
+          aria-current={isActive(dashboardHref, true) ? "page" : undefined}
+          className={`mt-4 flex min-h-14 w-full items-center justify-between rounded-2xl border px-4 py-3 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 ${
+            isActive(dashboardHref, true)
+              ? "border-gold/45 bg-gold text-black"
+              : "border-gold/25 bg-gold/[0.055] text-gold hover:bg-gold/10"
+          }`}
+        >
+          <span className="flex items-center gap-3 text-sm font-semibold">
+            <LayoutDashboard size={19} aria-hidden="true" />
+            {isAr ? "لوحة الموهبة" : "Talent dashboard"}
+          </span>
+          <span className="text-xs opacity-60">↗</span>
+        </Link>
+      </div>
 
-      <nav className="mt-6 flex w-full flex-col gap-2" aria-label={isAr ? "تنقل الموهبة" : "Talent navigation"}>
-        {items.map((item) => (
-          <SidebarLink
-            key={item.href}
-            href={item.href}
-            label={item.label}
-            icon={item.icon}
-            badge={item.badge}
-            active={isActive(item.href, item.exact)}
-          />
+      <nav className="mt-6 space-y-6" aria-label={isAr ? "تنقل الموهبة" : "Talent navigation"}>
+        {groups.map((group) => (
+          <section key={group.label}>
+            <p className="px-1 text-[11px] font-medium uppercase tracking-[0.2em] text-white/30">
+              {group.label}
+            </p>
+            <div className="mt-2 space-y-1">
+              {group.items.map((item) => (
+                <SidebarLink
+                  key={item.href}
+                  href={item.href}
+                  label={item.label}
+                  icon={item.icon}
+                  badge={item.badge}
+                  active={isActive(item.href, item.exact)}
+                />
+              ))}
+            </div>
+          </section>
         ))}
       </nav>
 
-      <div className="mt-6 grid w-full gap-3 border-t border-white/10 pt-6">
+      <div className="mt-7 grid w-full gap-2 border-t border-white/10 pt-5">
         <Link
           href={`/${switchedLocale}/talent-dashboard`}
           aria-label={isAr ? "Switch to English" : "التبديل إلى العربية"}
-          className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl border border-white/10 px-5 py-4 text-center text-sm text-white/55 transition hover:border-gold/40 hover:bg-gold/5 hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+          className="flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-sm text-white/45 transition hover:bg-white/[0.035] hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
         >
-          <Languages size={17} aria-hidden="true" />
+          <Languages size={18} aria-hidden="true" />
           <span>{isAr ? "English" : "العربية"}</span>
         </Link>
 
@@ -172,13 +208,13 @@ export default function TalentSidebar({
           onClick={handleLogout}
           disabled={loggingOut}
           aria-label={isAr ? "تسجيل الخروج" : "Sign out"}
-          className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl border border-red-500/20 bg-red-500/5 px-5 py-4 text-sm text-red-300 transition hover:bg-red-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300/60 disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex min-h-12 w-full items-center gap-3 rounded-xl border border-red-500/15 bg-red-500/[0.025] px-3 text-sm text-red-300 transition hover:bg-red-500/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300/60 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <LogOut size={17} aria-hidden="true" />
+          <LogOut size={18} aria-hidden="true" />
           <span>
             {loggingOut
               ? isAr ? "جارٍ تسجيل الخروج..." : "Signing out..."
-              : isAr ? "تسجيل الخروج" : "Sign Out"}
+              : isAr ? "تسجيل الخروج" : "Sign out"}
           </span>
         </button>
       </div>
@@ -191,13 +227,19 @@ function SidebarLink({ href, label, icon, badge, active = false }: SidebarLinkPr
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
-      className={`relative flex min-h-14 w-full min-w-0 items-center gap-3 rounded-2xl border px-4 py-3 text-start transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 ${
+      className={`relative flex min-h-12 w-full min-w-0 items-center gap-3 rounded-xl px-3 py-2.5 text-start transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 ${
         active
-          ? "border-gold/40 bg-gold/10 text-gold"
-          : "border-white/10 text-white/60 hover:bg-white/[0.03] hover:text-white"
+          ? "bg-gold/[0.09] text-gold"
+          : "text-white/60 hover:bg-white/[0.035] hover:text-white"
       }`}
     >
-      <span className={`shrink-0 ${active ? "text-gold" : "text-white/35"}`}>{icon}</span>
+      <span
+        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
+          active ? "bg-gold/[0.12] text-gold" : "bg-white/[0.035] text-white/35"
+        }`}
+      >
+        {icon}
+      </span>
       <span className="min-w-0 flex-1 text-sm leading-5">{label}</span>
       {badge !== undefined && badge > 0 ? (
         <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-gold px-1.5 text-[9px] font-semibold leading-none text-black">
