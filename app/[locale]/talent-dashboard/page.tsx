@@ -228,6 +228,7 @@ export default async function TalentDashboardPage({ params }: PageProps) {
           value: `${profileCompletion}%`,
           meta: isRtl ? "حسّن المطابقة" : "Improve matching",
           href: `/${locale}/talent-dashboard/profile/details`,
+          emphasis: true,
         }
       : workflowState === "pending"
         ? {
@@ -235,6 +236,7 @@ export default async function TalentDashboardPage({ params }: PageProps) {
             value: isRtl ? "قيد المراجعة" : "In review",
             meta: isRtl ? "لا يلزم إجراء" : "No action needed",
             href: `/${locale}/talent-dashboard/profile`,
+            emphasis: true,
           }
         : {
             label: isRtl ? "جاهزية الاعتماد" : "Approval readiness",
@@ -243,6 +245,7 @@ export default async function TalentDashboardPage({ params }: PageProps) {
               ? isRtl ? "مكتمل" : "Complete"
               : isRtl ? `${incompleteItems} متبقي` : `${incompleteItems} remaining`,
             href: `/${locale}/talent-dashboard/profile`,
+            emphasis: true,
           };
 
   const metricCards = [
@@ -254,12 +257,7 @@ export default async function TalentDashboardPage({ params }: PageProps) {
         ? isRtl ? `${counts.accepted} مقبول` : `${counts.accepted} accepted`
         : isRtl ? "جميع الطلبات" : "All applications",
       href: `/${locale}/talent-dashboard/applications`,
-    },
-    {
-      label: isRtl ? "المحفوظة" : "Saved",
-      value: String(savedCount),
-      meta: isRtl ? "فرص محفوظة" : "Saved opportunities",
-      href: `/${locale}/opportunities`,
+      emphasis: false,
     },
     {
       label: isRtl ? "الرسائل" : "Messages",
@@ -268,6 +266,7 @@ export default async function TalentDashboardPage({ params }: PageProps) {
         ? isRtl ? "غير مقروءة" : "Unread"
         : isRtl ? "لا جديد" : "All caught up",
       href: `/${locale}/talent-dashboard/messages`,
+      emphasis: unreadMessagesCount > 0,
     },
   ];
 
@@ -398,12 +397,12 @@ export default async function TalentDashboardPage({ params }: PageProps) {
               </div>
             </section>
 
-            <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <section className="grid gap-3 sm:grid-cols-3">
               {metricCards.map((item) => (
                 <a
                   key={item.label}
                   href={item.href}
-                  className="rounded-[1.5rem] border border-white/10 bg-white/[0.025] p-4 transition hover:border-gold/25 hover:bg-gold/[0.035] sm:p-5"
+                  className={`rounded-[1.5rem] border p-4 transition sm:p-5 ${item.emphasis ? "border-gold/20 bg-gold/[0.035] hover:bg-gold/[0.055]" : "border-white/10 bg-white/[0.025] hover:border-gold/25 hover:bg-gold/[0.035]"}`}
                 >
                   <p className="text-xs text-white/45">{item.label}</p>
                   <div className="mt-3 flex items-end justify-between gap-3">
