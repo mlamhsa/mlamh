@@ -22,6 +22,7 @@ export default function TalentConsentCompletionCard({ locale }: Props) {
   const isArabic = profileLocale === "ar";
   const profilePath = `/${profileLocale}/talent-dashboard/profile`;
   const [visible, setVisible] = useState(false);
+  const [approvedLegacy, setApprovedLegacy] = useState(false);
   const [checked, setChecked] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -29,6 +30,7 @@ export default function TalentConsentCompletionCard({ locale }: Props) {
   useEffect(() => {
     if (pathname !== profilePath) {
       setVisible(false);
+      setApprovedLegacy(false);
       return;
     }
 
@@ -38,10 +40,12 @@ export default function TalentConsentCompletionCard({ locale }: Props) {
         const profile = (await getOwnTalentProfileAction(profileLocale)) as TalentProfileSnapshot | null;
         if (cancelled || !profile) return;
         const status = String(profile.approval_status ?? "not_submitted").trim().toLowerCase();
-        const canComplete = ["not_submitted", "changes_requested", "rejected"].includes(status);
+        const canComplete = ["not_submitted", "changes_requested", "rejected", "approved"].includes(status);
+        setApprovedLegacy(status === "approved");
         setVisible(canComplete && profile.data_accuracy_contact_consent !== true);
       } catch {
         setVisible(false);
+        setApprovedLegacy(false);
       }
     })();
 
@@ -108,11 +112,24 @@ export default function TalentConsentCompletionCard({ locale }: Props) {
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-xs text-gold/80">
-              {isArabic ? "خطوة مطلوبة للاعتماد" : "Required for approval"}
+              {approvedLegacy
+                ? isArabic
+                  ? "تحديث مطلوب للملفات القديمة"
+                  : "Legacy profile update"
+                : isArabic
+                  ? "خطوة مطلوبة للاعتماد"
+                  : "Required for approval"}
             </p>
             <h2 className="mt-1 text-xl font-light text-white">
               {isArabic ? "تأكيد دقة البيانات والتواصل" : "Confirm data accuracy and communication"}
             </h2>
+            {approvedLegacy ? (
+              <p className="mt-2 text-xs leading-6 text-white/50">
+                {isArabic
+                  ? "اعتمادك محفوظ ولن تحتاج لإعادة المراجعة. نحتاج فقط هذا التأكيد لتحديث ملفك إلى النظام الحالي."
+                  : "Your approval stays protected and no new review is required. We only need this confirmation to bring your profile up to the current system."}
+              </p>
+            ) : null}
             <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-2xl border border-white/10 bg-black/20 p-4">
               <input
                 type="checkbox"
