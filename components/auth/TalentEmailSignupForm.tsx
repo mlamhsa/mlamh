@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Eye, EyeOff } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -224,17 +225,17 @@ export function TalentEmailSignupForm({ locale }: Props) {
       <div className="grid gap-5 sm:grid-cols-2">
         <Field label={isRtl ? "كلمة المرور" : "Password"} requiredMark={requiredMark}>
           <div className="relative">
-            <input required minLength={8} type={showPassword ? "text" : "password"} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.currentTarget.value)} className={`${inputClass} ${isRtl ? "pl-20" : "pr-20"}`} />
-            <button type="button" onClick={() => setShowPassword((value) => !value)} aria-pressed={showPassword} className={`absolute top-1/2 -translate-y-1/2 text-xs font-medium text-gold ${isRtl ? "left-4" : "right-4"}`}>
-              {showPassword ? (isRtl ? "إخفاء" : "Hide") : (isRtl ? "إظهار" : "Show")}
+            <input required minLength={8} type={showPassword ? "text" : "password"} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.currentTarget.value)} className={`${inputClass} ${isRtl ? "pl-14" : "pr-14"}`} />
+            <button type="button" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? (isRtl ? "إخفاء كلمة المرور" : "Hide password") : (isRtl ? "إظهار كلمة المرور" : "Show password")} aria-pressed={showPassword} className={`absolute top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full text-white/45 transition hover:bg-white/5 hover:text-gold ${isRtl ? "left-2" : "right-2"}`}>
+              {showPassword ? <EyeOff size={20} aria-hidden="true" /> : <Eye size={20} aria-hidden="true" />}
             </button>
           </div>
         </Field>
         <Field label={isRtl ? "تأكيد كلمة المرور" : "Confirm password"} requiredMark={requiredMark}>
           <div className="relative">
-            <input required minLength={8} type={showPasswordConfirmation ? "text" : "password"} autoComplete="new-password" value={passwordConfirmation} onChange={(e) => setPasswordConfirmation(e.currentTarget.value)} className={`${inputClass} ${isRtl ? "pl-20" : "pr-20"}`} />
-            <button type="button" onClick={() => setShowPasswordConfirmation((value) => !value)} aria-pressed={showPasswordConfirmation} className={`absolute top-1/2 -translate-y-1/2 text-xs font-medium text-gold ${isRtl ? "left-4" : "right-4"}`}>
-              {showPasswordConfirmation ? (isRtl ? "إخفاء" : "Hide") : (isRtl ? "إظهار" : "Show")}
+            <input required minLength={8} type={showPasswordConfirmation ? "text" : "password"} autoComplete="new-password" value={passwordConfirmation} onChange={(e) => setPasswordConfirmation(e.currentTarget.value)} className={`${inputClass} ${isRtl ? "pl-14" : "pr-14"}`} />
+            <button type="button" onClick={() => setShowPasswordConfirmation((value) => !value)} aria-label={showPasswordConfirmation ? (isRtl ? "إخفاء تأكيد كلمة المرور" : "Hide password confirmation") : (isRtl ? "إظهار تأكيد كلمة المرور" : "Show password confirmation")} aria-pressed={showPasswordConfirmation} className={`absolute top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full text-white/45 transition hover:bg-white/5 hover:text-gold ${isRtl ? "left-2" : "right-2"}`}>
+              {showPasswordConfirmation ? <EyeOff size={20} aria-hidden="true" /> : <Eye size={20} aria-hidden="true" />}
             </button>
           </div>
         </Field>
