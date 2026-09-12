@@ -49,7 +49,7 @@ export default function TalentProfileDetailsLayout({ children }: { children: Rea
     <>
       <section
         dir={isArabic ? "rtl" : "ltr"}
-        className="mb-5 overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/[0.025] p-5 sm:p-6"
+        className="mx-auto mb-5 max-w-6xl overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/[0.025] p-5 sm:p-6"
       >
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -66,7 +66,7 @@ export default function TalentProfileDetailsLayout({ children }: { children: Rea
             <h1 className="mt-2 text-2xl font-light text-white sm:text-3xl">
               {isArabic ? "حدّث بياناتك بسهولة" : "Keep your profile up to date"}
             </h1>
-            <p className="mt-2 max-w-2xl text-sm leading-7 text-white/50">
+            <p className="mt-2 max-w-3xl text-sm leading-7 text-white/50">
               {isApproved
                 ? isArabic
                   ? "التعديلات المهنية تُحفظ مباشرة، واعتماد ملفك يبقى محفوظًا. البيانات الأساسية المحمية لها مسار مراجعة منفصل."
@@ -89,10 +89,10 @@ export default function TalentProfileDetailsLayout({ children }: { children: Rea
       {isApproved ? (
         <section
           dir={isArabic ? "rtl" : "ltr"}
-          className="mb-5 rounded-[1.75rem] border border-emerald-400/20 bg-[linear-gradient(135deg,rgba(52,211,153,0.075),rgba(197,160,89,0.025))] p-5 sm:p-6"
+          className="mx-auto mb-5 max-w-6xl rounded-[1.75rem] border border-emerald-400/20 bg-[linear-gradient(135deg,rgba(52,211,153,0.075),rgba(197,160,89,0.025))] p-5 sm:p-6"
         >
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="max-w-2xl">
+            <div className="max-w-3xl">
               <div className="flex flex-wrap gap-2">
                 <span className="rounded-full border border-emerald-300/20 bg-emerald-300/[0.07] px-3 py-1 text-[11px] text-emerald-100">
                   {isArabic ? "الاعتماد محفوظ" : "Approval stays active"}
@@ -126,7 +126,7 @@ export default function TalentProfileDetailsLayout({ children }: { children: Rea
       </div>
 
       <div className="pointer-events-none fixed inset-x-0 bottom-20 z-40 px-4 sm:px-6 lg:bottom-6">
-        <div className="mx-auto flex max-w-3xl justify-end">
+        <div className="mx-auto flex max-w-6xl justify-end">
           <div className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/10 bg-black/90 p-1.5 shadow-2xl backdrop-blur-xl">
             <Link
               href={`/${locale}/talent-dashboard/profile`}
@@ -146,6 +146,9 @@ export default function TalentProfileDetailsLayout({ children }: { children: Rea
       </div>
 
       <style jsx global>{`
+        .talent-profile-editor > main > div:first-child {
+          max-width: 72rem !important;
+        }
         .talent-profile-editor > main > div > div:first-child {
           display: none;
         }
