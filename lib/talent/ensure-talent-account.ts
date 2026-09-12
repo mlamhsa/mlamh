@@ -117,24 +117,15 @@ export async function ensureTalentAccountFromSignupData(
     phone: data.phone,
     status: "active",
     onboarding_status: "profile_in_progress",
-    onboarding_step: "dashboard",
+    onboarding_step: "talent_profile",
     data_accuracy_contact_consent: true,
     data_accuracy_contact_consent_at: data.consentAt ?? now,
     updated_at: now,
   };
 
-  if (profile) {
-    const { error } = await admin.from("profiles").update(profilePayload).eq("id", profile.id).eq("user_id", userId);
-    if (error) throw new Error(`[ensureTalentAccount.profileUpdate] ${error.message}`);
-  } else {
-    const { error } = await admin.from("profiles").insert({
-      user_id: userId,
-      ...profilePayload,
-      approval_status: "not_submitted",
-    });
-    if (error) throw new Error(`[ensureTalentAccount.profileInsert] ${error.message}`);
-  }
-
+  // Create the talent row first, then persist the lifecycle profile. If the profile
+  // write fails, remove only the draft row created by this call so we never leave
+  // account_type=talent pointing at a missing talent record.
   const { data: createdTalent, error: insertError } = await admin
     .from("talents")
     .insert({
@@ -164,7 +155,34 @@ export async function ensureTalentAccountFromSignupData(
     .select("id")
     .single();
 
-  if (insertError) throw new Error(`[ensureTalentAccount.talentInsert] ${insertError.message}`);
+  if (insertError || !createdTalent) throw new Error(`[ensureTalentAccount.talentInsert] ${insertError?.message ?? "No talent returned"}`);
+
+  let profileWriteError: { message?: string } | null = null;
+  if (profile) {
+    const { error } = await admin.from("profiles").update(profilePayload).eq("id", profile.id).eq("user_id", userId);
+    profileWriteError = error;
+  } else {
+    const { error } = await admin.from("profiles").insert({
+      user_id: userId,
+      ...profilePayload,
+      approval_status: "not_submitted",
+    });
+    profileWriteError = error;
+  }
+
+  if (profileWriteError) {
+    const { error: rollbackError } = await admin
+      .from("talents")
+      .delete()
+      .eq("id", createdTalent.id)
+      .eq("user_id", userId)
+      .eq("status", "draft")
+      .eq("published", false);
+    if (rollbackError) {
+      console.error("[ensureTalentAccount.rollbackTalent]", rollbackError.message);
+    }
+    throw new Error(`[ensureTalentAccount.profileWrite] ${profileWriteError.message ?? "Unknown profile error"}`);
+  }
 
   return {
     ok: true as const,
