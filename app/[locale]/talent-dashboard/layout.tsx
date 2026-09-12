@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation";
+
 import { TalentFeaturedEntryPoint } from "@/components/payments/TalentFeaturedEntryPoint";
 import { TalentBirthDateEnhancer } from "@/components/talent-dashboard/TalentBirthDateEnhancer";
 import { TalentProfileCanonicalFieldsV1 } from "@/components/talent-dashboard/TalentProfileCanonicalFieldsV1";
@@ -19,6 +21,7 @@ export default async function TalentDashboardLayout({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
+  const safeLocale = locale === "en" ? "en" : "ar";
   const supabase = await createServerSupabaseClient();
   const {
     data: { user },
@@ -36,11 +39,21 @@ export default async function TalentDashboardLayout({
       supabase.from("talents").select("*").eq("user_id", user.id).maybeSingle(),
       supabase
         .from("profiles")
-        .select("approval_status")
+        .select("approval_status, account_type")
         .eq("user_id", user.id)
-        .eq("account_type", "talent")
         .maybeSingle(),
     ]);
+
+    // Some legacy users selected Talent before a row was ever created in
+    // `talents`. Keep them out of a dead-end dashboard/profile loop and route
+    // them through the one-time recovery step that creates their draft.
+    if (
+      profileResult.data?.account_type === "talent" &&
+      !talentResult.data &&
+      !talentResult.error
+    ) {
+      redirect(`/${safeLocale}/join/talent?message=recovery`);
+    }
 
     talentId = talentResult.data?.id ?? null;
     approvalStatus = profileResult.data?.approval_status ?? null;
