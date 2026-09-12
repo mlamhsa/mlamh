@@ -16,14 +16,14 @@ test.after(() => {
   delete process.env.AI_GATEWAY_API_KEY;
 });
 
-test("expired promotional free aliases rotate to a stable base model with free-only capability routing", () => {
+test("expired promotional free aliases rotate to an active free-only gateway model", () => {
   assert.deepEqual(
     expiredFreeModelFallback(
       "minimax/minimax-m2.7-free",
       "Model 'minimax/minimax-m2.7-free' not found. If you were using its free tier, that has ended.",
     ),
     {
-      model: "minimax/minimax-m3",
+      model: "inclusionai/ling-3.0-flash-sante-free",
       reason: "expired_free_alias",
       freeOnly: true,
     },
@@ -35,7 +35,7 @@ test("expired promotional free aliases rotate to a stable base model with free-o
       "No providers for model minimax/minimax-m2.7 have the required capabilities: free. Providers considered: minimax, gmicloud, novita",
     ),
     {
-      model: "minimax/minimax-m3",
+      model: "inclusionai/ling-3.0-flash-sante-free",
       reason: "free_provider_unavailable",
       freeOnly: true,
     },
@@ -47,7 +47,7 @@ test("expired promotional free aliases rotate to a stable base model with free-o
       "Model 'minimax/minimax-m3-free' not found. If you were using its free tier, that has ended. Use 'minimax/minimax-m3' for paid access, or request 'minimax/minimax-m3' with providerOptions.gateway.has: ['free'] to stay free-only.",
     ),
     {
-      model: "minimax/minimax-m3",
+      model: "inclusionai/ling-3.0-flash-sante-free",
       reason: "expired_free_alias",
       freeOnly: true,
     },

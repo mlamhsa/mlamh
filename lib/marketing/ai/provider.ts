@@ -69,7 +69,7 @@ type ExpiredFreeModelFallback = {
 };
 
 const DEFAULT_MODEL = "gpt-5.6-luna";
-const DEFAULT_FREE_FALLBACK_MODEL = "minimax/minimax-m3";
+const DEFAULT_FREE_FALLBACK_MODEL = "inclusionai/ling-3.0-flash-sante-free";
 const VERCEL_AI_GATEWAY_BASE_URL = "https://ai-gateway.vercel.sh/v1";
 let provider: MarketingAIProvider | null = null;
 
@@ -90,9 +90,9 @@ export function expiredFreeModelFallback(model: string, message: string): Expire
   const freeProviderUnavailable = /no providers for model .*required capabilities:\s*free/i.test(message);
   if (!expiredAlias && !freeProviderUnavailable) return null;
 
-  // Free promotional aliases expire over time. Use the stable base model while
-  // requiring a provider that advertises the `free` capability. This avoids
-  // silently falling through to paid routing when an alias disappears.
+  // Promotional free aliases and provider capacity change over time. Fail over
+  // only to a currently free gateway model, while keeping the free capability
+  // requirement so Marketing AI can never silently fall through to paid routing.
   return {
     model: DEFAULT_FREE_FALLBACK_MODEL,
     reason: freeProviderUnavailable ? "free_provider_unavailable" : "expired_free_alias",
