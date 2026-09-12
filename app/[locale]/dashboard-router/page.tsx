@@ -27,11 +27,18 @@ export default async function DashboardRouterPage({
 
   const adminClient = createAdminClient();
 
-  const { data: profile } = await adminClient
-    .from("profiles")
-    .select("account_type")
-    .eq("user_id", user.id)
-    .maybeSingle();
+  const [{ data: profile }, { data: legacyTalent }] = await Promise.all([
+    adminClient
+      .from("profiles")
+      .select("id,account_type")
+      .eq("user_id", user.id)
+      .maybeSingle(),
+    adminClient
+      .from("talents")
+      .select("id")
+      .eq("user_id", user.id)
+      .maybeSingle(),
+  ]);
 
   const profileAccountType = normalizeAccountType(profile?.account_type);
   const metadataAccountType = normalizeAccountType(
@@ -58,6 +65,14 @@ export default async function DashboardRouterPage({
 
   if (accountType === "admin") {
     redirect("/admin");
+  }
+
+  // Very old talent accounts can predate the current profiles lifecycle and have
+  // a valid talent row while profiles.account_type still contains a legacy value.
+  // The existing talent row is enough evidence to restore the user to the talent
+  // dashboard without asking them to choose an account type again.
+  if (legacyTalent) {
+    redirect(`/${locale}/talent-dashboard`);
   }
 
   // Keep authenticated legacy users inside the signed-in recovery path rather
