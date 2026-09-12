@@ -5,7 +5,6 @@ import { use, useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { getOwnTalentProfileAction } from "@/lib/actions/update-own-talent-profile";
 import { updateOwnTalentBirthDateAction } from "@/lib/actions/update-own-talent-birth-date";
-import { updateOwnTalentCoreDetailsAction } from "@/lib/actions/update-own-talent-core-details";
 import { updateOwnTalentProfessionalDetailsAction } from "@/lib/actions/update-own-talent-professional-details";
 import { TALENT_CATEGORIES } from "@/lib/data/talent-categories";
 import {
@@ -266,28 +265,22 @@ export default function TalentCoreDetailsPage({ params }: { params: Promise<{ lo
     event.preventDefault();
     if (saving) return;
 
-    const scrollPosition = window.scrollY;
     setSaving(true);
     setMessage("");
     setSuccess(false);
 
     try {
+      // Give the browser a frame to paint the saving state before the server action starts.
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 30));
+
       const payload = new FormData();
       payload.set("locale", locale);
       appendProfessionalPayload(payload);
 
-      const result = coreEditable
-        ? await (async () => {
-            payload.set("name", name);
-            payload.set("phone", phone);
-            payload.set("primary_role", role);
-            payload.set("gender", gender);
-            payload.set("nationality_slug", nationality);
-            payload.set("base_country_code", "SA");
-            payload.set("city_slug", citySlug);
-            return updateOwnTalentCoreDetailsAction(payload);
-          })()
-        : await updateOwnTalentProfessionalDetailsAction(payload);
+      // This page saves professional details only. Do not route through the core
+      // profile action, because that can refresh the active route and wipe the
+      // visible saving/success state on mobile.
+      const result = await updateOwnTalentProfessionalDetailsAction(payload);
 
       if (!result.success) {
         setMessage(result.message);
@@ -311,10 +304,10 @@ export default function TalentCoreDetailsPage({ params }: { params: Promise<{ lo
         ? "تم حفظ بياناتك المهنية بنجاح ✓"
         : "Your professional details were saved successfully ✓";
 
+      // Keep the current local values in place after save. A second server read here
+      // was causing the page to re-render/reset before the feedback was visible.
       setMessage(successMessage);
       setSuccess(true);
-      await load(true);
-      window.requestAnimationFrame(() => window.scrollTo({ top: scrollPosition, behavior: "auto" }));
       window.setTimeout(() => {
         setMessage((current) => (current === successMessage ? "" : current));
       }, 4500);
