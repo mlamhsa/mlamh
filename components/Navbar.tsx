@@ -225,7 +225,7 @@ export function Navbar({ locale }: { locale: Locale }) {
           : "Talent Dashboard";
 
   const showTalentActivity =
-    accountType === "talent" || pathname.includes("/talent-dashboard");
+    isLoggedIn && accountType !== "admin" && accountType !== "publisher";
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 32);
@@ -466,8 +466,6 @@ export function Navbar({ locale }: { locale: Locale }) {
                   >
                     <span className="relative flex h-8 w-8 shrink-0 overflow-hidden rounded-full border border-gold/30 bg-gold/10">
                       {avatarUrl ? (
-                        // A normal img supports arbitrary Supabase storage hosts.
-                        // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={avatarUrl}
                           alt={displayName}
@@ -484,126 +482,7 @@ export function Navbar({ locale }: { locale: Locale }) {
                       {displayName}
                     </span>
                   </button>
-
-                  {profileOpen ? (
-  <div className="absolute mt-3 w-64 overflow-hidden rounded-2xl border border-white/10 bg-black p-2 shadow-2xl">
-    <div className="border-b border-white/10 px-3 py-3">
-      <p className="truncate text-sm font-semibold text-white">
-        {displayName}
-      </p>
-
-      <span className="mt-2 inline-flex items-center rounded-full border border-gold/25 bg-gold/10 px-2.5 py-1 text-[11px] font-medium text-gold">
-        {accountTypeLabel}
-      </span>
-    </div>
-
-    <div className="mt-2 space-y-1">
-      <Link
-        href={dashboardHref}
-        onClick={() => setProfileOpen(false)}
-        aria-current={
-          pathname.includes("/dashboard") &&
-          !pathname.includes("/profile") &&
-          !pathname.includes("/settings")
-            ? "page"
-            : undefined
-        }
-        className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm tracking-normal transition ${
-          pathname.includes("/dashboard") &&
-          !pathname.includes("/profile") &&
-          !pathname.includes("/settings")
-            ? "border border-gold/20 bg-gold/10 text-gold"
-            : "border border-transparent text-white/70 hover:bg-white/5 hover:text-gold"
-        }`}
-      >
-        <LayoutDashboard size={16} />
-        <span className="flex-1">{dashboardLabel}</span>
-
-        {pathname.includes("/dashboard") &&
-        !pathname.includes("/profile") &&
-        !pathname.includes("/settings") ? (
-          <span className="h-1.5 w-1.5 rounded-full bg-gold" />
-        ) : null}
-      </Link>
-
-      {accountType !== "admin" ? (
-        <>
-          <Link
-            href={profileHref}
-            onClick={() => setProfileOpen(false)}
-            aria-current={
-              pathname.includes("/profile") ? "page" : undefined
-            }
-            className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm tracking-normal transition ${
-              pathname.includes("/profile")
-                ? "border border-gold/20 bg-gold/10 text-gold"
-                : "border border-transparent text-white/70 hover:bg-white/5 hover:text-gold"
-            }`}
-          >
-            <UserCircle size={16} />
-            <span className="flex-1">
-              {isAr ? "الملف الشخصي" : "Profile"}
-            </span>
-
-            {pathname.includes("/profile") ? (
-              <span className="h-1.5 w-1.5 rounded-full bg-gold" />
-            ) : null}
-          </Link>
-
-          <Link
-            href={settingsHref}
-            onClick={() => setProfileOpen(false)}
-            aria-current={
-              pathname.includes("/settings") ? "page" : undefined
-            }
-            className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm tracking-normal transition ${
-              pathname.includes("/settings")
-                ? "border border-gold/20 bg-gold/10 text-gold"
-                : "border border-transparent text-white/70 hover:bg-white/5 hover:text-gold"
-            }`}
-          >
-            <Settings size={16} />
-            <span className="flex-1">
-              {isAr ? "الإعدادات" : "Settings"}
-            </span>
-
-            {pathname.includes("/settings") ? (
-              <span className="h-1.5 w-1.5 rounded-full bg-gold" />
-            ) : null}
-          </Link>
-        </>
-      ) : null}
-    </div>
-
-    <div className="mx-2 my-2 h-px bg-white/10" />
-
-    <button
-      type="button"
-      onClick={handleLogout}
-      className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-start text-sm tracking-normal text-red-400 transition hover:bg-red-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/40"
-    >
-      <LogOut size={16} />
-      {isAr ? "تسجيل الخروج" : "Logout"}
-    </button>
-  </div>
-) : null}
                 </div>
-              </>
-            ) : !loading ? (
-              <>
-                <Link
-                  href={`/${routeLocale}/login`}
-                  className="rounded-full border border-white/10 px-5 py-3 text-sm tracking-normal text-white/70 transition hover:border-gold/40 hover:text-gold"
-                >
-                  {isAr ? "دخول" : "Login"}
-                </Link>
-
-                <Link
-                  href={`/${routeLocale}/join`}
-                  className="rounded-full bg-gold px-5 py-3 text-sm tracking-normal text-black transition hover:bg-gold-soft"
-                >
-                  {isAr ? "ابدأ" : "Join"}
-                </Link>
               </>
             ) : null}
           </div>
@@ -612,17 +491,7 @@ export function Navbar({ locale }: { locale: Locale }) {
             type="button"
             className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 text-white transition hover:border-gold/40 hover:text-gold lg:hidden"
             onClick={() => setMenuOpen((value) => !value)}
-            aria-label={
-              menuOpen
-                ? isAr
-                  ? "إغلاق القائمة"
-                  : "Close menu"
-                : isAr
-                  ? "فتح القائمة"
-                  : "Open menu"
-            }
-            aria-expanded={menuOpen}
-            aria-controls="mobile-navigation-drawer"
+            aria-label={menuOpen ? "Close menu" : "Open menu"}
           >
             {menuOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
@@ -632,9 +501,7 @@ export function Navbar({ locale }: { locale: Locale }) {
       {menuOpen ? (
         <button
           type="button"
-          aria-label={
-            isAr ? "إغلاق القائمة" : "Close menu"
-          }
+          aria-label="Close menu"
           onClick={closeMobileMenu}
           className="fixed inset-0 z-[101] bg-black/65 backdrop-blur-sm lg:hidden"
         />
@@ -646,230 +513,69 @@ export function Navbar({ locale }: { locale: Locale }) {
         aria-hidden={!menuOpen}
         className={`fixed bottom-0 top-0 z-[102] flex w-[min(88vw,23rem)] flex-col overflow-hidden border-white/10 bg-[#090909] shadow-2xl transition-transform duration-300 ease-out lg:hidden ${
           isAr
-            ? `right-0 border-l ${
-                menuOpen
-                  ? "translate-x-0"
-                  : "translate-x-full"
-              }`
-            : `left-0 border-r ${
-                menuOpen
-                  ? "translate-x-0"
-                  : "-translate-x-full"
-              }`
+            ? `right-0 border-l ${menuOpen ? "translate-x-0" : "translate-x-full"}`
+            : `left-0 border-r ${menuOpen ? "translate-x-0" : "-translate-x-full"}`
         }`}
       >
         <div className="flex h-20 shrink-0 items-center justify-between border-b border-white/10 px-5">
-          <Image
-            src={logoSrc}
-            alt="MLAMH"
-            width={180}
-            height={72}
-            className="h-auto w-36"
-          />
-
-          <button
-            type="button"
-            onClick={closeMobileMenu}
-            aria-label={
-              isAr ? "إغلاق القائمة" : "Close menu"
-            }
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 text-white/70 transition active:bg-white/5"
-          >
+          <Image src={logoSrc} alt="MLAMH" width={180} height={72} className="h-auto w-36" />
+          <button type="button" onClick={closeMobileMenu} className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 text-white/70">
             <X size={20} />
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 py-5">
-        {!loading && isLoggedIn ? (
-  <section>
-    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-      <div className="flex items-center gap-3">
-        <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full border border-gold/30 bg-gold/10">
-          {avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={avatarUrl}
-              alt={displayName}
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-lg font-semibold text-gold">
-              {avatarInitial}
-            </div>
-          )}
-        </div>
+          {!loading && isLoggedIn ? (
+            <section>
+              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                <div className="flex items-center gap-3">
+                  <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full border border-gold/30 bg-gold/10">
+                    {avatarUrl ? <img src={avatarUrl} alt={displayName} className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-lg font-semibold text-gold">{avatarInitial}</div>}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-white">{displayName}</p>
+                    <span className="mt-2 inline-flex items-center rounded-full border border-gold/25 bg-gold/10 px-2.5 py-1 text-[11px] font-medium text-gold">{accountTypeLabel}</span>
+                  </div>
+                </div>
+                <Link href={dashboardHref} onClick={closeMobileMenu} className="mt-4 flex min-h-12 items-center justify-center gap-2 rounded-xl border border-gold/30 bg-gold/10 px-4 text-sm font-semibold text-gold">
+                  <LayoutDashboard size={17} />
+                  {dashboardLabel}
+                </Link>
+              </div>
 
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-white">
-            {displayName}
-          </p>
+              {accountType !== "admin" ? (
+                <div className="mt-3 space-y-1">
+                  <Link href={profileHref} onClick={closeMobileMenu} className="flex min-h-12 items-center gap-4 rounded-xl border border-transparent px-3 text-sm text-white/75">
+                    <UserCircle size={18} className="shrink-0 text-white/45" />
+                    <span className="flex-1">{isAr ? "الملف الشخصي" : "Profile"}</span>
+                  </Link>
+                  <Link href={settingsHref} onClick={closeMobileMenu} className="flex min-h-12 items-center gap-4 rounded-xl border border-transparent px-3 text-sm text-white/75">
+                    <Settings size={18} className="shrink-0 text-white/45" />
+                    <span className="flex-1">{isAr ? "الإعدادات" : "Settings"}</span>
+                  </Link>
 
-          <span className="mt-2 inline-flex items-center rounded-full border border-gold/25 bg-gold/10 px-2.5 py-1 text-[11px] font-medium text-gold">
-            {accountTypeLabel}
-          </span>
-        </div>
-      </div>
-
-      <Link
-        href={dashboardHref}
-        onClick={closeMobileMenu}
-        aria-current={
-          pathname.includes("/dashboard") &&
-          !pathname.includes("/profile") &&
-          !pathname.includes("/settings")
-            ? "page"
-            : undefined
-        }
-        className={`mt-4 flex min-h-12 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-semibold transition active:scale-[0.98] ${
-          pathname.includes("/dashboard") &&
-          !pathname.includes("/profile") &&
-          !pathname.includes("/settings")
-            ? "border-gold bg-gold text-black"
-            : "border-gold/30 bg-gold/10 text-gold active:bg-gold/15"
-        }`}
-      >
-        <LayoutDashboard size={17} />
-        {dashboardLabel}
-      </Link>
-    </div>
-
-    {accountType !== "admin" ? (
-      <div className="mt-3 space-y-1">
-        <Link
-          href={profileHref}
-          onClick={closeMobileMenu}
-          aria-current={
-            pathname.includes("/profile") ? "page" : undefined
-          }
-          className={`flex min-h-12 items-center gap-4 rounded-xl border px-3 text-sm transition active:scale-[0.99] ${
-            pathname.includes("/profile")
-              ? "border-gold/20 bg-gold/10 text-gold"
-              : "border-transparent text-white/75 active:bg-white/[0.06] active:text-white"
-          }`}
-        >
-          <UserCircle
-            size={18}
-            className={`shrink-0 ${
-              pathname.includes("/profile")
-                ? "text-gold"
-                : "text-white/45"
-            }`}
-          />
-
-          <span className="flex-1">
-            {isAr ? "الملف الشخصي" : "Profile"}
-          </span>
-
-          {pathname.includes("/profile") ? (
-            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-gold" />
-          ) : null}
-        </Link>
-
-        <Link
-          href={settingsHref}
-          onClick={closeMobileMenu}
-          aria-current={
-            pathname.includes("/settings") ? "page" : undefined
-          }
-          className={`flex min-h-12 items-center gap-4 rounded-xl border px-3 text-sm transition active:scale-[0.99] ${
-            pathname.includes("/settings")
-              ? "border-gold/20 bg-gold/10 text-gold"
-              : "border-transparent text-white/75 active:bg-white/[0.06] active:text-white"
-          }`}
-        >
-          <Settings
-            size={18}
-            className={`shrink-0 ${
-              pathname.includes("/settings")
-                ? "text-gold"
-                : "text-white/45"
-            }`}
-          />
-
-          <span className="flex-1">
-            {isAr ? "الإعدادات" : "Settings"}
-          </span>
-
-          {pathname.includes("/settings") ? (
-            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-gold" />
-          ) : null}
-        </Link>
-
-        {showTalentActivity ? (
-          <>
-            <p className="px-3 pb-1 pt-4 text-[11px] font-semibold text-white/35">
-              {isAr ? "نشاطي" : "MY ACTIVITY"}
-            </p>
-
-            <Link
-              href={`/${routeLocale}/talent-dashboard/gallery`}
-              onClick={closeMobileMenu}
-              className="flex min-h-12 items-center gap-4 rounded-xl border border-transparent px-3 text-sm text-white/75 transition active:scale-[0.99] active:bg-white/[0.06] active:text-white"
-            >
-              <GalleryVerticalEnd size={18} className="shrink-0 text-white/45" />
-              <span className="flex-1">{isAr ? "معرض الأعمال" : "Portfolio"}</span>
-            </Link>
-
-            <Link
-              href={`/${routeLocale}/talent-dashboard/applications`}
-              onClick={closeMobileMenu}
-              className="flex min-h-12 items-center gap-4 rounded-xl border border-transparent px-3 text-sm text-white/75 transition active:scale-[0.99] active:bg-white/[0.06] active:text-white"
-            >
-              <BriefcaseBusiness size={18} className="shrink-0 text-white/45" />
-              <span className="flex-1">{isAr ? "طلباتي" : "Applications"}</span>
-            </Link>
-
-            <Link
-              href={`/${routeLocale}/talent-dashboard/messages`}
-              onClick={closeMobileMenu}
-              className="flex min-h-12 items-center gap-4 rounded-xl border border-transparent px-3 text-sm text-white/75 transition active:scale-[0.99] active:bg-white/[0.06] active:text-white"
-            >
-              <MessageSquareText size={18} className="shrink-0 text-white/45" />
-              <span className="flex-1">{isAr ? "الرسائل" : "Messages"}</span>
-            </Link>
-
-            <Link
-              href={`/${routeLocale}/talent-dashboard/notifications`}
-              onClick={closeMobileMenu}
-              className="flex min-h-12 items-center gap-4 rounded-xl border border-transparent px-3 text-sm text-white/75 transition active:scale-[0.99] active:bg-white/[0.06] active:text-white"
-            >
-              <Bell size={18} className="shrink-0 text-white/45" />
-              <span className="flex-1">{isAr ? "الإشعارات" : "Notifications"}</span>
-              {notifications.length > 0 ? (
-                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-gold px-1.5 text-[9px] font-semibold text-black">
-                  {notifications.length > 99 ? "99+" : notifications.length}
-                </span>
+                  {showTalentActivity ? (
+                    <>
+                      <p className="px-3 pb-1 pt-4 text-[11px] font-semibold text-white/35">{isAr ? "نشاطي" : "MY ACTIVITY"}</p>
+                      <Link href={`/${routeLocale}/talent-dashboard/gallery`} onClick={closeMobileMenu} className="flex min-h-12 items-center gap-4 rounded-xl px-3 text-sm text-white/75"><GalleryVerticalEnd size={18} className="text-white/45" /><span>{isAr ? "معرض الأعمال" : "Portfolio"}</span></Link>
+                      <Link href={`/${routeLocale}/talent-dashboard/applications`} onClick={closeMobileMenu} className="flex min-h-12 items-center gap-4 rounded-xl px-3 text-sm text-white/75"><BriefcaseBusiness size={18} className="text-white/45" /><span>{isAr ? "طلباتي" : "Applications"}</span></Link>
+                      <Link href={`/${routeLocale}/talent-dashboard/messages`} onClick={closeMobileMenu} className="flex min-h-12 items-center gap-4 rounded-xl px-3 text-sm text-white/75"><MessageSquareText size={18} className="text-white/45" /><span>{isAr ? "الرسائل" : "Messages"}</span></Link>
+                      <Link href={`/${routeLocale}/talent-dashboard/notifications`} onClick={closeMobileMenu} className="flex min-h-12 items-center gap-4 rounded-xl px-3 text-sm text-white/75"><Bell size={18} className="text-white/45" /><span>{isAr ? "الإشعارات" : "Notifications"}</span></Link>
+                    </>
+                  ) : null}
+                </div>
               ) : null}
-            </Link>
-          </>
-        ) : null}
-      </div>
-    ) : null}
 
-    <div className="my-5 h-px bg-white/10" />
-  </section>
-) : null}
+              <div className="my-5 h-px bg-white/10" />
+            </section>
+          ) : null}
 
           <section>
-            <p className="mb-3 px-1 text-[11px] font-semibold text-white/35">
-              {isAr ? "استكشف" : "EXPLORE"}
-            </p>
-
+            <p className="mb-3 px-1 text-[11px] font-semibold text-white/35">{isAr ? "استكشف" : "EXPLORE"}</p>
             <div className="grid grid-cols-3 gap-2">
               {exploreItems.map((item) => {
                 const Icon = item.icon ?? UsersRound;
-
-                return (
-                  <Link
-                    key={item.key}
-                    href={localizedHref(item.href)}
-                    onClick={closeMobileMenu}
-                    className="flex min-h-24 flex-col items-center justify-center gap-3 rounded-2xl border border-white/10 bg-white/[0.035] px-2 text-center text-xs text-white/75 transition active:scale-[0.98] active:border-gold/30 active:text-gold"
-                  >
-                    <Icon size={21} className="text-gold" />
-                    <span>{isAr ? item.ar : item.en}</span>
-                  </Link>
-                );
+                return <Link key={item.key} href={localizedHref(item.href)} onClick={closeMobileMenu} className="flex min-h-24 flex-col items-center justify-center gap-3 rounded-2xl border border-white/10 bg-white/[0.035] px-2 text-center text-xs text-white/75"><Icon size={21} className="text-gold" /><span>{isAr ? item.ar : item.en}</span></Link>;
               })}
             </div>
           </section>
@@ -877,74 +583,20 @@ export function Navbar({ locale }: { locale: Locale }) {
           <div className="my-5 h-px bg-white/10" />
 
           <section>
-            <p className="mb-2 px-3 text-[11px] font-semibold text-white/35">
-              {isAr ? "الدعم" : "SUPPORT"}
-            </p>
-
+            <p className="mb-2 px-3 text-[11px] font-semibold text-white/35">{isAr ? "الدعم" : "SUPPORT"}</p>
             <div className="space-y-1">
               {supportItems.map((item) => {
                 const Icon = item.icon ?? Info;
-
-                return (
-                  <Link
-                    key={item.key}
-                    href={localizedHref(item.href)}
-                    onClick={closeMobileMenu}
-                    className="flex min-h-12 items-center gap-4 rounded-xl px-3 text-sm text-white/65 transition active:bg-white/[0.06] active:text-white"
-                  >
-                    <Icon
-                      size={18}
-                      className="shrink-0 text-white/35"
-                    />
-                    <span>{isAr ? item.ar : item.en}</span>
-                  </Link>
-                );
+                return <Link key={item.key} href={localizedHref(item.href)} onClick={closeMobileMenu} className="flex min-h-12 items-center gap-4 rounded-xl px-3 text-sm text-white/65"><Icon size={18} className="shrink-0 text-white/35" /><span>{isAr ? item.ar : item.en}</span></Link>;
               })}
-
-              <Link
-                href={languageHref}
-                onClick={closeMobileMenu}
-                className="flex min-h-12 items-center gap-4 rounded-xl px-3 text-sm text-white/65 transition active:bg-white/[0.06] active:text-white"
-              >
-                <Globe2
-                  size={18}
-                  className="shrink-0 text-white/35"
-                />
-                <span>{isAr ? "English" : "العربية"}</span>
-              </Link>
+              <Link href={languageHref} onClick={closeMobileMenu} className="flex min-h-12 items-center gap-4 rounded-xl px-3 text-sm text-white/65"><Globe2 size={18} className="shrink-0 text-white/35" /><span>{isAr ? "English" : "العربية"}</span></Link>
             </div>
           </section>
         </div>
 
         <div className="shrink-0 border-t border-white/10 bg-black/70 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
           {!loading && isLoggedIn ? (
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-red-400/25 text-sm text-red-300 transition active:scale-[0.98] active:bg-red-500/10"
-            >
-              <LogOut size={17} />
-              {isAr ? "تسجيل الخروج" : "Logout"}
-            </button>
-          ) : !loading ? (
-            <div className="grid grid-cols-2 gap-3">
-              <Link
-                href={`/${routeLocale}/login`}
-                onClick={closeMobileMenu}
-                className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-white/15 px-3 text-sm text-white transition active:scale-[0.98] active:bg-white/[0.06]"
-              >
-                <LogIn size={17} />
-                {isAr ? "دخول" : "Login"}
-              </Link>
-
-              <Link
-                href={`/${routeLocale}/join`}
-                onClick={closeMobileMenu}
-                className="flex min-h-12 items-center justify-center rounded-xl bg-gold px-3 text-sm font-semibold text-black transition active:scale-[0.98]"
-              >
-                {isAr ? "انضم الآن" : "Join Now"}
-              </Link>
-            </div>
+            <button type="button" onClick={handleLogout} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-red-400/25 text-sm text-red-300"><LogOut size={17} />{isAr ? "تسجيل الخروج" : "Logout"}</button>
           ) : null}
         </div>
       </aside>
