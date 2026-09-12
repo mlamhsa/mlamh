@@ -35,8 +35,6 @@ export default function TalentProfileDetailsLayout({ children }: { children: Rea
     const form = editorScopeRef.current?.querySelector<HTMLFormElement>("form");
     if (!form) return;
 
-    // Draft/profile improvements must remain saveable independently from the
-    // final review gate. The canonical review readiness check runs elsewhere.
     const previousNoValidate = form.noValidate;
     form.noValidate = true;
     form.requestSubmit();
@@ -55,7 +53,7 @@ export default function TalentProfileDetailsLayout({ children }: { children: Rea
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-gold">
-                {isArabic ? "تعديل الملف" : "EDIT PROFILE"}
+                {isArabic ? "قوة الملف" : "PROFILE STRENGTH"}
               </p>
               {isApproved ? (
                 <span className="rounded-full border border-emerald-300/20 bg-emerald-300/[0.07] px-2.5 py-1 text-[10px] text-emerald-100">
@@ -64,16 +62,12 @@ export default function TalentProfileDetailsLayout({ children }: { children: Rea
               ) : null}
             </div>
             <h1 className="mt-2 text-2xl font-light text-white sm:text-3xl">
-              {isArabic ? "حدّث بياناتك بسهولة" : "Keep your profile up to date"}
+              {isArabic ? "بياناتك المهنية" : "Professional details"}
             </h1>
             <p className="mt-2 max-w-3xl text-sm leading-7 text-white/50">
-              {isApproved
-                ? isArabic
-                  ? "التعديلات المهنية تُحفظ مباشرة، واعتماد ملفك يبقى محفوظًا. البيانات الأساسية المحمية لها مسار مراجعة منفصل."
-                  : "Professional updates save directly and your approval stays active. Protected identity details use a separate review flow."
-                : isArabic
-                  ? "احفظ ما أدخلته الآن وارجع لاحقًا لإكمال بقية البيانات."
-                  : "Save what you have now and come back later to finish the rest."}
+              {isArabic
+                ? "أضف التوفر والتنقل والمقاسات والمظهر والخبرة والمهارات حسب نوع موهبتك. هذه البيانات تقوّي ملفك وتحسّن المطابقة مع الفرص."
+                : "Add availability, mobility, measurements, appearance, experience and skills for your talent type. These details strengthen your profile and improve matching."}
             </p>
           </div>
 
@@ -103,8 +97,8 @@ export default function TalentProfileDetailsLayout({ children }: { children: Rea
               </div>
               <p className="mt-4 text-sm leading-7 text-white/60">
                 {isArabic
-                  ? "عدّل الطول والوزن والمقاسات والمهارات والخبرة والتوفر والتنقل وغيرها من بياناتك المهنية مباشرة. لن نعرض لك حقولًا مقفلة داخل هذا المحرر؛ تعديل البيانات الأساسية المحمية يتم من المسار المخصص."
-                  : "Update measurements, skills, experience, availability, mobility and other professional details directly. Protected identity fields are handled in their dedicated flow instead of appearing as disabled inputs here."}
+                  ? "تعديل البيانات المهنية لا يغيّر حالة اعتماد ملفك. البيانات الأساسية مثل الاسم والجوال والجنسية لها مسار منفصل."
+                  : "Professional edits do not change your approval status. Core identity details such as name, phone and nationality use a separate flow."}
               </p>
             </div>
 
@@ -152,7 +146,7 @@ export default function TalentProfileDetailsLayout({ children }: { children: Rea
         .talent-profile-editor > main > div > div:first-child {
           display: none;
         }
-        .talent-profile-editor--approved > main form > section:first-of-type {
+        .talent-profile-editor > main form > section:first-of-type {
           display: none;
         }
         .talent-profile-editor > main form > div:last-child {
