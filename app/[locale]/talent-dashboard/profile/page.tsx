@@ -71,7 +71,6 @@ export default function TalentProfileGuidedPage({ params }: { params: Promise<{ 
   const router = useRouter();
   const photoRef = useRef<HTMLElement>(null);
   const photoFormRef = useRef<HTMLFormElement>(null);
-  const photoInputRef = useRef<HTMLInputElement>(null);
   const dateRef = useRef<HTMLInputElement>(null);
 
   const [talent, setTalent] = useState<TalentRecord | null>(null);
@@ -277,34 +276,31 @@ export default function TalentProfileGuidedPage({ params }: { params: Promise<{ 
                 <form ref={photoFormRef} action={updateOwnTalentMainImageAction} className="mt-5">
                   <input type="hidden" name="locale" value={locale} />
                   <input type="hidden" name="return_to" value="profile" />
-                  <input
-                    ref={photoInputRef}
-                    type="file"
-                    name="profile_image"
-                    required
-                    accept="image/jpeg,image/png,image/webp"
-                    className="sr-only"
-                    onClick={(event) => {
-                      event.currentTarget.value = "";
-                    }}
-                    onChange={(event) => {
-                      if (!event.currentTarget.files?.length || uploadingPhoto) return;
-                      setUploadingPhoto(true);
-                      window.setTimeout(() => photoFormRef.current?.requestSubmit(), 0);
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => photoInputRef.current?.click()}
-                    disabled={uploadingPhoto}
-                    className="flex min-h-14 w-full items-center justify-center rounded-2xl bg-gold px-6 text-sm font-semibold text-black transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
-                  >
-                    {uploadingPhoto
-                      ? (isArabic ? "جارٍ رفع الصورة..." : "Uploading photo...")
-                      : hasProfileImage
-                        ? (isArabic ? "اختيار صورة جديدة" : "Choose a new photo")
-                        : (isArabic ? "اختيار صورة من الاستديو" : "Choose photo from library")}
-                  </button>
+                  <label className={`relative flex min-h-14 w-full items-center justify-center overflow-hidden rounded-2xl bg-gold px-6 text-sm font-semibold text-black transition active:scale-[0.99] sm:w-auto ${uploadingPhoto ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}>
+                    <input
+                      type="file"
+                      name="profile_image"
+                      required
+                      accept="image/jpeg,image/png,image/webp"
+                      disabled={uploadingPhoto}
+                      className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
+                      onClick={(event) => {
+                        event.currentTarget.value = "";
+                      }}
+                      onChange={(event) => {
+                        if (!event.currentTarget.files?.length || uploadingPhoto) return;
+                        setUploadingPhoto(true);
+                        window.setTimeout(() => photoFormRef.current?.requestSubmit(), 0);
+                      }}
+                    />
+                    <span className="pointer-events-none">
+                      {uploadingPhoto
+                        ? (isArabic ? "جارٍ رفع الصورة..." : "Uploading photo...")
+                        : hasProfileImage
+                          ? (isArabic ? "اختيار صورة جديدة" : "Choose a new photo")
+                          : (isArabic ? "اختيار صورة من الاستديو" : "Choose photo from library")}
+                    </span>
+                  </label>
                   <p className={`mt-3 text-xs ${uploadingPhoto ? "text-gold" : "text-white/35"}`}>
                     {uploadingPhoto
                       ? (isArabic ? "جارٍ رفع الصورة، لا تغلق الصفحة." : "Uploading your photo. Please keep this page open.")
