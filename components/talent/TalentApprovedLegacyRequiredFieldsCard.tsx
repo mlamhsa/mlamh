@@ -6,11 +6,14 @@ import { CheckCircle2, ShieldCheck } from "lucide-react";
 
 import { getOwnTalentProfileAction } from "@/lib/actions/update-own-talent-profile";
 import { updateApprovedLegacyTalentRequiredFieldsAction } from "@/lib/actions/update-approved-legacy-talent-required-fields";
+import { TALENT_CATEGORIES } from "@/lib/data/talent-categories";
 import { GENDER_OPTIONS, NATIONALITY_OPTIONS } from "@/lib/data/talent-signup";
 
 type TalentSnapshot = {
   approval_status?: string | null;
   phone?: string | null;
+  primary_role?: string | null;
+  category_slug?: string | null;
   gender?: string | null;
   nationality?: string | null;
   nationality_slug?: string | null;
@@ -34,6 +37,7 @@ export default function TalentApprovedLegacyRequiredFieldsCard({ locale }: Props
 
   const [snapshot, setSnapshot] = useState<TalentSnapshot | null>(null);
   const [phone, setPhone] = useState("");
+  const [role, setRole] = useState("");
   const [gender, setGender] = useState("");
   const [nationality, setNationality] = useState("");
   const [dateOfBirth, setDateOfBirth] = useState("");
@@ -69,6 +73,7 @@ export default function TalentApprovedLegacyRequiredFieldsCard({ locale }: Props
 
     const missing: string[] = [];
     if (!clean(snapshot.phone)) missing.push("phone");
+    if (!clean(snapshot.primary_role) && !clean(snapshot.category_slug)) missing.push("primary_role");
     if (!clean(snapshot.gender)) missing.push("gender");
     if (!clean(snapshot.nationality_slug) && !clean(snapshot.nationality)) missing.push("nationality");
     if (!clean(snapshot.date_of_birth)) missing.push("date_of_birth");
@@ -90,6 +95,7 @@ export default function TalentApprovedLegacyRequiredFieldsCard({ locale }: Props
     const payload = new FormData();
     payload.set("locale", profileLocale);
     if (missingFields.includes("phone")) payload.set("phone", phone);
+    if (missingFields.includes("primary_role")) payload.set("primary_role", role);
     if (missingFields.includes("gender")) payload.set("gender", gender);
     if (missingFields.includes("nationality")) payload.set("nationality_slug", nationality);
     if (missingFields.includes("date_of_birth")) payload.set("date_of_birth", dateOfBirth);
@@ -146,6 +152,22 @@ export default function TalentApprovedLegacyRequiredFieldsCard({ locale }: Props
                     dir="ltr"
                     className="min-h-12 w-full rounded-2xl border border-white/10 bg-black/20 px-4 text-left text-white outline-none focus:border-gold/50"
                   />
+                </label>
+              ) : null}
+
+              {missingFields.includes("primary_role") ? (
+                <label className="block">
+                  <span className="mb-2 block text-sm text-white/70">{isArabic ? "نوع الموهبة" : "Talent type"}</span>
+                  <select
+                    value={role}
+                    onChange={(event) => setRole(event.target.value)}
+                    className="min-h-12 w-full rounded-2xl border border-white/10 bg-black/20 px-4 text-white outline-none focus:border-gold/50"
+                  >
+                    <option value="">{isArabic ? "اختر" : "Select"}</option>
+                    {TALENT_CATEGORIES.map((option) => (
+                      <option key={option.slug} value={option.slug}>{isArabic ? option.ar : option.en}</option>
+                    ))}
+                  </select>
                 </label>
               ) : null}
 

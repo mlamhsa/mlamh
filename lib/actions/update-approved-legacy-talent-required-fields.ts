@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { TALENT_CATEGORIES } from "@/lib/data/talent-categories";
 import { GENDER_OPTIONS, NATIONALITY_OPTIONS } from "@/lib/data/talent-signup";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -48,7 +49,7 @@ export async function updateApprovedLegacyTalentRequiredFieldsAction(
       .maybeSingle(),
     admin
       .from("talents")
-      .select("id, gender, nationality, nationality_slug, date_of_birth")
+      .select("id, primary_role, category_slug, gender, nationality, nationality_slug, date_of_birth")
       .eq("user_id", user.id)
       .maybeSingle(),
   ]);
@@ -70,6 +71,7 @@ export async function updateApprovedLegacyTalentRequiredFieldsAction(
   }
 
   const phone = text(formData, "phone");
+  const role = text(formData, "primary_role");
   const gender = text(formData, "gender");
   const nationality = text(formData, "nationality_slug");
   const dateOfBirth = text(formData, "date_of_birth");
@@ -81,6 +83,20 @@ export async function updateApprovedLegacyTalentRequiredFieldsAction(
   // exists on an approved profile, and never change approval state.
   if (missing(profile.phone) && phone) {
     profilePayload.phone = phone;
+  }
+
+  if (missing(talent.primary_role) && missing(talent.category_slug) && role) {
+    const category = TALENT_CATEGORIES.find((item) => item.slug === role);
+    if (!category) {
+      return {
+        success: false,
+        message: isArabic ? "اختر نوع موهبة صحيحًا." : "Choose a valid talent type.",
+      };
+    }
+    talentPayload.primary_role = category.slug;
+    talentPayload.category_slug = category.slug;
+    talentPayload.category_ar = category.ar;
+    talentPayload.category_en = category.en;
   }
 
   if (missing(talent.gender) && gender) {
