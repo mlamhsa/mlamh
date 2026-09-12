@@ -2,6 +2,12 @@ import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
+const KNOWN_ACCOUNT_TYPES = new Set(["talent", "publisher", "admin"]);
+
+function normalizeAccountType(value: unknown) {
+  return typeof value === "string" ? value.trim().toLowerCase() : "";
+}
+
 export default async function DashboardRouterPage({
   params,
 }: {
@@ -27,12 +33,20 @@ export default async function DashboardRouterPage({
     .eq("user_id", user.id)
     .maybeSingle();
 
-  const metadataAccountType =
-    user.user_metadata?.account_type ??
-    user.user_metadata?.role;
+  const profileAccountType = normalizeAccountType(profile?.account_type);
+  const metadataAccountType = normalizeAccountType(
+    user.user_metadata?.account_type ?? user.user_metadata?.role,
+  );
 
-  const accountType =
-    profile?.account_type ?? metadataAccountType;
+  // Some early accounts still carry the old generic `user` profile default while
+  // their auth metadata already identifies them as talent/publisher. Do not let
+  // that stale legacy value override a valid account type and bounce a signed-in
+  // user back to /login.
+  const accountType = KNOWN_ACCOUNT_TYPES.has(profileAccountType)
+    ? profileAccountType
+    : KNOWN_ACCOUNT_TYPES.has(metadataAccountType)
+      ? metadataAccountType
+      : profileAccountType || metadataAccountType;
 
   if (accountType === "talent") {
     redirect(`/${locale}/talent-dashboard`);
@@ -46,5 +60,7 @@ export default async function DashboardRouterPage({
     redirect("/admin");
   }
 
-  redirect(`/${locale}/login`);
+  // Keep authenticated legacy users inside the signed-in recovery path rather
+  // than sending them back to the login screen in a loop.
+  redirect(`/${locale}/join/account-type`);
 }
