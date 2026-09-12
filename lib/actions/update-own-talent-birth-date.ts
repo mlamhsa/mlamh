@@ -1,57 +1,50 @@
-"use server";
+export type UpdateTalentBirthDateResult = {
+  success: boolean;
+  message: string;
+};
 
-import { createAdminClient } from "@/lib/supabase/admin";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+/**
+ * Browser transport for saving date of birth without invoking a Server Action.
+ * This keeps the active talent editor mounted so its local form state and
+ * feedback are not reset after save.
+ */
+export async function updateOwnTalentBirthDateAction(
+  formData: FormData,
+): Promise<UpdateTalentBirthDateResult> {
+  try {
+    const response = await fetch("/api/talent/profile/birth-date", {
+      method: "POST",
+      body: formData,
+      credentials: "same-origin",
+      cache: "no-store",
+      headers: {
+        Accept: "application/json",
+      },
+    });
 
-export async function updateOwnTalentBirthDateAction(formData: FormData) {
-  const locale = formData.get("locale") === "en" ? "en" : "ar";
-  const rawDate = String(formData.get("date_of_birth") ?? "").trim();
+    const result = (await response.json().catch(() => null)) as UpdateTalentBirthDateResult | null;
+    const locale = String(formData.get("locale") ?? "ar") === "en" ? "en" : "ar";
 
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
+    if (!response.ok || !result) {
+      return {
+        success: false,
+        message:
+          result?.message ||
+          (locale === "ar"
+            ? "تعذر حفظ تاريخ الميلاد الآن."
+            : "We could not save your date of birth right now."),
+      };
+    }
+
+    return result;
+  } catch {
+    const locale = String(formData.get("locale") ?? "ar") === "en" ? "en" : "ar";
     return {
       success: false,
-      message: locale === "ar" ? "أدخل تاريخ ميلاد صحيحًا." : "Enter a valid date of birth.",
+      message:
+        locale === "ar"
+          ? "تعذر الاتصال بالخادم لحفظ تاريخ الميلاد."
+          : "Could not reach the server to save your date of birth.",
     };
   }
-
-  const parsed = new Date(`${rawDate}T00:00:00Z`);
-  const now = new Date();
-  if (Number.isNaN(parsed.getTime()) || parsed > now) {
-    return {
-      success: false,
-      message: locale === "ar" ? "تحقق من تاريخ الميلاد." : "Check your date of birth.",
-    };
-  }
-
-  const authClient = await createServerSupabaseClient();
-  const {
-    data: { user },
-    error: authError,
-  } = await authClient.auth.getUser();
-
-  if (authError || !user) {
-    return {
-      success: false,
-      message: locale === "ar" ? "انتهت الجلسة. سجل الدخول مرة أخرى." : "Your session expired. Sign in again.",
-    };
-  }
-
-  const adminClient = createAdminClient();
-  const { error } = await adminClient
-    .from("talents")
-    .update({ date_of_birth: rawDate })
-    .eq("user_id", user.id);
-
-  if (error) {
-    console.error("[updateOwnTalentBirthDateAction]", error.message);
-    return {
-      success: false,
-      message: locale === "ar" ? "تعذر حفظ تاريخ الميلاد الآن." : "We could not save your date of birth right now.",
-    };
-  }
-
-  return {
-    success: true,
-    message: locale === "ar" ? "تم حفظ تاريخ الميلاد." : "Date of birth saved.",
-  };
 }
