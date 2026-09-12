@@ -56,6 +56,13 @@ export default async function DashboardRouterPage({
       : profileAccountType || metadataAccountType;
 
   if (accountType === "talent") {
+    // A small set of legacy/incomplete accounts have account_type=talent but no
+    // matching row in talents. Sending them to the dashboard causes a broken
+    // signed-in experience; the join/talent page already has a safe recovery path
+    // that creates the missing draft without losing account data.
+    if (!legacyTalent) {
+      redirect(`/${locale}/join/talent`);
+    }
     redirect(`/${locale}/talent-dashboard`);
   }
 
