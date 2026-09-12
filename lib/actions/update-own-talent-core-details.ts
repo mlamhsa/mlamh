@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { updateOwnTalentProfessionalDetailsAction } from "@/lib/actions/update-own-talent-professional-details";
 import { TALENT_CATEGORIES } from "@/lib/data/talent-categories";
 import { GENDER_OPTIONS, NATIONALITY_OPTIONS, TALENT_SIGNUP_COUNTRIES } from "@/lib/data/talent-signup";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -45,6 +46,20 @@ export async function updateOwnTalentCoreDetailsAction(
 ): Promise<UpdateTalentCoreDetailsResult> {
   const locale = text(formData, "locale") === "en" ? "en" : "ar";
   const isArabic = locale === "ar";
+
+  // The professional-details screen historically reused this core action for draft
+  // profiles. Keep core identity updates isolated: requests carrying professional
+  // availability data but no core-review controls are routed to the dedicated
+  // professional action instead. This avoids touching identity/review fields when
+  // the user only pressed "Save professional details".
+  const isProfessionalDetailsRequest =
+    formData.has("availability_status") &&
+    !formData.has("profile_visibility") &&
+    !formData.has("data_accuracy_contact_consent");
+
+  if (isProfessionalDetailsRequest) {
+    return updateOwnTalentProfessionalDetailsAction(formData);
+  }
 
   const authClient = await createServerSupabaseClient();
   const {
