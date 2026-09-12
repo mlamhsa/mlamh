@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { TalentFeaturedEntryPoint } from "@/components/payments/TalentFeaturedEntryPoint";
 import { TalentBirthDateEnhancer } from "@/components/talent-dashboard/TalentBirthDateEnhancer";
+import { TalentImageUploadPendingEnhancer } from "@/components/talent-dashboard/TalentImageUploadPendingEnhancer";
 import { TalentProfileCanonicalFieldsV1 } from "@/components/talent-dashboard/TalentProfileCanonicalFieldsV1";
 import { TalentProfileEditorEnhancer } from "@/components/talent-dashboard/TalentProfileEditorEnhancer";
 import { TalentProfileSectionNavigationV1 } from "@/components/talent-dashboard/TalentProfileSectionNavigationV1";
@@ -97,6 +98,7 @@ export default async function TalentDashboardLayout({
   return (
     <>
       <TalentBirthDateEnhancer />
+      <TalentImageUploadPendingEnhancer />
       <TalentSidebarDockEnhancer />
       <TalentProfileEditorEnhancer />
       <TalentProfileCanonicalFieldsV1 />
