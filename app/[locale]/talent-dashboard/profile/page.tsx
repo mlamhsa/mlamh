@@ -70,6 +70,8 @@ export default function TalentProfileGuidedPage({ params }: { params: Promise<{ 
   const isArabic = locale === "ar";
   const router = useRouter();
   const photoRef = useRef<HTMLElement>(null);
+  const photoFormRef = useRef<HTMLFormElement>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const dateRef = useRef<HTMLInputElement>(null);
 
   const [talent, setTalent] = useState<TalentRecord | null>(null);
@@ -78,6 +80,7 @@ export default function TalentProfileGuidedPage({ params }: { params: Promise<{ 
   const [birthDate, setBirthDate] = useState("");
   const [savingDate, setSavingDate] = useState(false);
   const [dateMessage, setDateMessage] = useState("");
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   async function loadProfile() {
     setLoading(true);
@@ -271,11 +274,42 @@ export default function TalentProfileGuidedPage({ params }: { params: Promise<{ 
                     : (isArabic ? "الصورة الشخصية شرط أساسي لإرسال الملف للمراجعة. معرض الأعمال منفصل واختياري." : "A profile photo is required before review. Your work gallery is separate and optional.")}
               </p>
               {canEditProfile ? (
-                <form action={updateOwnTalentMainImageAction} className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <form ref={photoFormRef} action={updateOwnTalentMainImageAction} className="mt-5">
                   <input type="hidden" name="locale" value={locale} />
                   <input type="hidden" name="return_to" value="profile" />
-                  <input type="file" name="profile_image" required accept="image/jpeg,image/png,image/webp" className="block min-h-12 flex-1 rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white/70 file:me-4 file:rounded-full file:border-0 file:bg-gold file:px-4 file:py-2 file:text-xs file:font-semibold file:text-black" />
-                  <button type="submit" className="min-h-12 rounded-2xl bg-gold px-6 text-sm font-semibold text-black">{hasProfileImage ? (isArabic ? "تغيير الصورة" : "Change photo") : (isArabic ? "حفظ الصورة" : "Save photo")}</button>
+                  <input
+                    ref={photoInputRef}
+                    type="file"
+                    name="profile_image"
+                    required
+                    accept="image/jpeg,image/png,image/webp"
+                    className="sr-only"
+                    onClick={(event) => {
+                      event.currentTarget.value = "";
+                    }}
+                    onChange={(event) => {
+                      if (!event.currentTarget.files?.length || uploadingPhoto) return;
+                      setUploadingPhoto(true);
+                      window.setTimeout(() => photoFormRef.current?.requestSubmit(), 0);
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => photoInputRef.current?.click()}
+                    disabled={uploadingPhoto}
+                    className="flex min-h-14 w-full items-center justify-center rounded-2xl bg-gold px-6 text-sm font-semibold text-black transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+                  >
+                    {uploadingPhoto
+                      ? (isArabic ? "جارٍ رفع الصورة..." : "Uploading photo...")
+                      : hasProfileImage
+                        ? (isArabic ? "اختيار صورة جديدة" : "Choose a new photo")
+                        : (isArabic ? "اختيار صورة من الاستديو" : "Choose photo from library")}
+                  </button>
+                  <p className={`mt-3 text-xs ${uploadingPhoto ? "text-gold" : "text-white/35"}`}>
+                    {uploadingPhoto
+                      ? (isArabic ? "جارٍ رفع الصورة، لا تغلق الصفحة." : "Uploading your photo. Please keep this page open.")
+                      : (isArabic ? "اختر صورة JPG أو PNG أو WEBP وسيبدأ الرفع مباشرة." : "Choose a JPG, PNG or WEBP image and upload will start automatically.")}
+                  </p>
                 </form>
               ) : null}
             </div>
