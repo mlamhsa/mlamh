@@ -8,10 +8,6 @@
       "schedule": "0 * * * *"
     },
     {
-      "path": "/api/marketing/internal-ai-probe",
-      "schedule": "* * * * *"
-    },
-    {
       "path": "/api/cron/incomplete-registration-reminders",
       "schedule": "15 * * * *"
     },
