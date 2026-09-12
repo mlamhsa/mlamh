@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "path": "/api/marketing/internal-ai-probe",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/api/marketing/orchestrator",
       "schedule": "0 * * * *"
     },
