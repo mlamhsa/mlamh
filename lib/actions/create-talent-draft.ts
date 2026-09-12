@@ -148,6 +148,11 @@ export async function createTalentDraftAction(
         account_type: "talent",
         onboarding_status: "profile_in_progress",
         onboarding_step: "core_data",
+        // A talent draft has not entered review yet. Do not inherit the legacy
+        // database default `pending`, which would make the editor think review
+        // has already started and lock the required fields.
+        approval_status: "not_submitted",
+        profile_completed_at: null,
         updated_at: new Date().toISOString(),
       })
       .eq("user_id", user.id);

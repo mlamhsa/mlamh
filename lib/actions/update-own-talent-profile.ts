@@ -20,6 +20,7 @@ import {
 } from "@/lib/actions/talent-profile-utils";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getEffectiveTalentApprovalStatus } from "@/lib/talent/approval-status";
 
 type Locale = "ar" | "en";
 
@@ -64,7 +65,7 @@ export async function getOwnTalentProfileAction(locale: Locale) {
     adminClient.from("talents").select("*").eq("user_id", user.id).maybeSingle(),
     adminClient
       .from("profiles")
-      .select(`id, phone, approval_status, data_accuracy_contact_consent`)
+      .select(`id, phone, approval_status, data_accuracy_contact_consent, onboarding_step, profile_completed_at`)
       .eq("user_id", user.id)
       .maybeSingle(),
   ]);
@@ -76,8 +77,10 @@ export async function getOwnTalentProfileAction(locale: Locale) {
     throw new Error("[getOwnTalentProfileAction profile] " + profileError.message);
   }
 
+  const effectiveApprovalStatus = getEffectiveTalentApprovalStatus(profile);
+
   let reviewReason = "";
-  if (profile?.id && profile.approval_status === "changes_requested") {
+  if (profile?.id && effectiveApprovalStatus === "changes_requested") {
     const { data: latestReview, error: latestReviewError } = await adminClient
       .from("profile_review_history")
       .select(`reason, created_at`)
@@ -99,7 +102,7 @@ export async function getOwnTalentProfileAction(locale: Locale) {
   return {
     ...talent,
     phone: profile?.phone ?? "",
-    approval_status: profile?.approval_status ?? "not_submitted",
+    approval_status: effectiveApprovalStatus,
     data_accuracy_contact_consent:
       profile?.data_accuracy_contact_consent === true,
     review_reason: reviewReason,

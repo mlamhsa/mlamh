@@ -7,6 +7,7 @@ import { isValidLocale, type Locale } from "@/lib/i18n";
 import { TalentProfileService } from "@/lib/services/talent/TalentProfileService";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getEffectiveTalentApprovalStatus } from "@/lib/talent/approval-status";
 import { getTalentProfileReviewReadiness } from "@/lib/talent/profile-review-readiness";
 
 type SubmitReviewResult = {
@@ -62,14 +63,16 @@ export async function submitTalentProfileReviewAction(
     };
   }
 
-  if (profile.approval_status === "pending" || profile.approval_status === "submitted") {
+  const effectiveApprovalStatus = getEffectiveTalentApprovalStatus(profile);
+
+  if (effectiveApprovalStatus === "pending" || effectiveApprovalStatus === "submitted") {
     return {
       success: false,
       message: isArabic ? "ملفك قيد المراجعة بالفعل." : "Your profile is already under review.",
     };
   }
 
-  if (profile.approval_status === "approved") {
+  if (effectiveApprovalStatus === "approved") {
     return {
       success: false,
       message: isArabic ? "ملفك معتمد بالفعل." : "Your profile is already approved.",
