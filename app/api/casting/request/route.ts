@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { consumeServerRateLimit } from "@/lib/security/server-rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 const allowedTalentTypes = new Set(["actor", "model", "mixed"]);
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -12,6 +13,10 @@ const CASTING_REQUEST_WINDOW_SECONDS = 60 * 60;
 
 function clean(value: unknown, maxLength: number) {
   return typeof value === "string" ? value.trim().slice(0, maxLength) : "";
+}
+
+function normalizedEmail(value: string | null | undefined) {
+  return (value || "").trim().toLowerCase();
 }
 
 function isValidWorkDate(value: string) {
@@ -129,6 +134,19 @@ export async function POST(request: Request) {
       );
     }
 
+    let clientUserId: string | null = null;
+    if (contactEmail) {
+      try {
+        const supabase = await createServerSupabaseClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.email && normalizedEmail(user.email) === normalizedEmail(contactEmail)) {
+          clientUserId = user.id;
+        }
+      } catch (sessionError) {
+        console.error("[casting/request] client session lookup", sessionError);
+      }
+    }
+
     const clientAccessToken = crypto.randomUUID();
     const adminClient = createAdminClient();
     const { data, error } = await adminClient
@@ -149,6 +167,7 @@ export async function POST(request: Request) {
         brief,
         source: "website_casting_request",
         client_access_token: clientAccessToken,
+        client_user_id: clientUserId,
         client_shared_at: new Date().toISOString(),
         client_status_note:
           locale === "ar"
