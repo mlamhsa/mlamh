@@ -1,6 +1,6 @@
 {
   "env": {
-    "MARKETING_AI_MODEL": "google/gemini-3-flash"
+    "MARKETING_AI_MODEL": "inclusionai/ling-3.0-tiny-free"
   },
   "crons": [
     {
