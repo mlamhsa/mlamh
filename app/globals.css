@@ -365,6 +365,11 @@ option:hover {
   transition: border-color 160ms ease, box-shadow 160ms ease;
 }
 
+/* Keep save/status feedback above mobile navbars and sticky headers. */
+:where([role="status"], [role="alert"])[aria-live] {
+  z-index: 10060 !important;
+}
+
 .mlamh-route-progress {
   position: fixed;
   inset: 0 0 auto 0;
