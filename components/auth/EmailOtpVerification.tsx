@@ -40,7 +40,7 @@ export function EmailOtpVerification({ locale, email, accountType }: Props) {
       router.replace(`/${locale}/join/publisher`);
       return;
     }
-    router.replace(`/${locale}/dashboard-router`);
+    router.replace(`/${locale}/talent-dashboard/profile`);
   }
 
   async function ensureCanonicalAccount(accessToken: string, user: { email?: string | null; user_metadata?: Record<string, unknown> }) {
@@ -66,7 +66,7 @@ export function EmailOtpVerification({ locale, email, accountType }: Props) {
       if (!response.ok || !payload?.ok) return { ok: false as const, code: payload?.code ?? "ACCOUNT_DETAILS_FAILED" };
       return { ok: true as const };
     } catch {
-      return { ok: false as const, code: "ACCOUNT_DETAILS_FAILED" };
+      return { ok: false as const, code: "ACCOUNT_DETAILS_FAILED" as const };
     }
   }
 
@@ -105,12 +105,6 @@ export function EmailOtpVerification({ locale, email, accountType }: Props) {
     setLoading(true); setError(""); setMessage("");
     try {
       const supabase = createBrowserSupabaseClient();
-
-      // OTP verification creates the auth session before MLAMH provisions the canonical
-      // profile/account rows. If provisioning fails after a successful OTP (for example,
-      // during a temporary DB/schema issue), that OTP is already consumed. On retry,
-      // resume provisioning from the verified session instead of asking the user for a
-      // new code or incorrectly reporting that the consumed code is invalid.
       const { data: sessionData } = await supabase.auth.getSession();
       const existingSession = sessionData.session;
       const existingUserEmail = existingSession?.user.email?.trim().toLowerCase();
