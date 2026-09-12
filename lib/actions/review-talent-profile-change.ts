@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 
 import { requireAdminAccess } from "@/lib/auth/require-admin";
-import { createDisplayName } from "@/lib/actions/talent-profile-utils";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 type ReviewTalentProfileChangeResult = {
@@ -15,43 +14,42 @@ type TalentProfileChangeRequest = {
   id: number | string;
   user_id: string;
   talent_id: number | string;
-  requested_name_ar: string | null;
-  requested_name_en: string | null;
-  requested_phone: string | null;
-  requested_nationality_slug: string | null;
   status: string;
 };
+
+function revalidateTalentProfileChangePaths(talentId: number | string) {
+  revalidatePath("/admin/talents");
+  revalidatePath(`/admin/talents/${talentId}`);
+  revalidatePath("/ar/talent-dashboard");
+  revalidatePath("/ar/talent-dashboard/profile");
+  revalidatePath("/en/talent-dashboard");
+  revalidatePath("/en/talent-dashboard/profile");
+  revalidatePath("/ar/talent");
+  revalidatePath("/en/talent");
+}
 
 export async function approveTalentProfileChangeAction(
   requestId: number | string,
 ): Promise<ReviewTalentProfileChangeResult> {
   const adminUser = await requireAdminAccess();
   const adminClient = createAdminClient();
+  const normalizedRequestId = Number(requestId);
 
-  const {
-    data: request,
-    error: requestError,
-  } = await adminClient
+  if (!Number.isInteger(normalizedRequestId) || normalizedRequestId <= 0) {
+    return {
+      success: false,
+      message: "طلب التعديل غير صالح.",
+    };
+  }
+
+  const { data: request, error: requestError } = await adminClient
     .from("talent_profile_change_requests")
-    .select(`
-      id,
-      user_id,
-      talent_id,
-      requested_name_ar,
-      requested_name_en,
-      requested_phone,
-      requested_nationality_slug,
-      status
-    `)
-    .eq("id", requestId)
+    .select("id, user_id, talent_id, status")
+    .eq("id", normalizedRequestId)
     .maybeSingle();
 
   if (requestError) {
-    console.error(
-      "[approveTalentProfileChangeAction request]",
-      requestError,
-    );
-
+    console.error("[approveTalentProfileChangeAction request]", requestError);
     return {
       success: false,
       message: "تعذر تحميل طلب التعديل.",
@@ -65,8 +63,7 @@ export async function approveTalentProfileChangeAction(
     };
   }
 
-  const changeRequest =
-    request as TalentProfileChangeRequest;
+  const changeRequest = request as TalentProfileChangeRequest;
 
   if (changeRequest.status !== "pending") {
     return {
@@ -75,136 +72,30 @@ export async function approveTalentProfileChangeAction(
     };
   }
 
-  /*
-   * نحدّث فقط البيانات المحمية.
-   *
-   * لا نلمس:
-   * - verified
-   * - approval_status
-   * - talents.status
-   */
-  const talentPayload: Record<string, unknown> = {};
+  const { data: approved, error: approvalError } = await adminClient.rpc(
+    "approve_talent_profile_change_request",
+    {
+      p_request_id: normalizedRequestId,
+      p_reviewer_user_id: adminUser.id,
+    },
+  );
 
-  if (changeRequest.requested_name_ar !== null) {
-    talentPayload.name_ar =
-      changeRequest.requested_name_ar;
-
-    talentPayload.display_name_ar =
-      createDisplayName(
-        changeRequest.requested_name_ar,
-      );
-  }
-
-  if (changeRequest.requested_name_en !== null) {
-    talentPayload.name_en =
-      changeRequest.requested_name_en;
-
-    talentPayload.display_name_en =
-      createDisplayName(
-        changeRequest.requested_name_en,
-      );
-  }
-
-  if (
-    changeRequest.requested_nationality_slug !== null
-  ) {
-    talentPayload.nationality_slug =
-      changeRequest.requested_nationality_slug;
-
-    /*
-     * المشروع حاليًا يحفظ نفس القيمة في الحقلين
-     * nationality و nationality_slug.
-     */
-    talentPayload.nationality =
-      changeRequest.requested_nationality_slug;
-  }
-
-  /*
-   * ننفذ تحديث الموهبة فقط إذا كان هناك شيء
-   * فعلي مطلوب تحديثه.
-   */
-  if (Object.keys(talentPayload).length > 0) {
-    const { error: talentUpdateError } =
-      await adminClient
-        .from("talents")
-        .update(talentPayload)
-        .eq("id", changeRequest.talent_id)
-        .eq("user_id", changeRequest.user_id);
-
-    if (talentUpdateError) {
-      console.error(
-        "[approveTalentProfileChangeAction talent]",
-        talentUpdateError,
-      );
-
-      return {
-        success: false,
-        message: "تعذر تحديث بيانات الموهبة.",
-      };
-    }
-  }
-
-  /*
-   * رقم الجوال موجود في profiles وليس talents.
-   */
-  if (changeRequest.requested_phone !== null) {
-    const { error: phoneUpdateError } =
-      await adminClient
-        .from("profiles")
-        .update({
-          phone: changeRequest.requested_phone,
-        })
-        .eq("user_id", changeRequest.user_id);
-
-    if (phoneUpdateError) {
-      console.error(
-        "[approveTalentProfileChangeAction phone]",
-        phoneUpdateError,
-      );
-
-      return {
-        success: false,
-        message: "تعذر تحديث رقم الجوال.",
-      };
-    }
-  }
-
-  const reviewedAt = new Date().toISOString();
-
-  const { error: reviewUpdateError } =
-    await adminClient
-      .from("talent_profile_change_requests")
-      .update({
-        status: "approved",
-        reviewed_at: reviewedAt,
-        reviewed_by: adminUser.id,
-      })
-      .eq("id", changeRequest.id)
-      .eq("status", "pending");
-
-  if (reviewUpdateError) {
-    console.error(
-      "[approveTalentProfileChangeAction review]",
-      reviewUpdateError,
-    );
-
+  if (approvalError) {
+    console.error("[approveTalentProfileChangeAction rpc]", approvalError);
     return {
       success: false,
-      message:
-        "تم تحديث البيانات، لكن تعذر إغلاق طلب المراجعة.",
+      message: "تعذر اعتماد التغييرات. لم يتم تطبيق أي تعديل.",
     };
   }
 
-  revalidatePath("/admin/talents");
-  revalidatePath(
-    `/admin/talents/${changeRequest.talent_id}`,
-  );
+  if (approved !== true) {
+    return {
+      success: false,
+      message: "تمت معالجة هذا الطلب مسبقًا أو تعذر التحقق منه.",
+    };
+  }
 
-  revalidatePath("/ar/talent-dashboard");
-  revalidatePath("/ar/talent-dashboard/profile");
-
-  revalidatePath("/en/talent-dashboard");
-  revalidatePath("/en/talent-dashboard/profile");
+  revalidateTalentProfileChangePaths(changeRequest.talent_id);
 
   return {
     success: true,
@@ -218,10 +109,7 @@ export async function rejectTalentProfileChangeAction(
   const adminUser = await requireAdminAccess();
   const adminClient = createAdminClient();
 
-  const {
-    data: request,
-    error: requestError,
-  } = await adminClient
+  const { data: request, error: requestError } = await adminClient
     .from("talent_profile_change_requests")
     .select(`
       id,
@@ -260,16 +148,15 @@ export async function rejectTalentProfileChangeAction(
 
   const reviewedAt = new Date().toISOString();
 
-  const { error: reviewUpdateError } =
-    await adminClient
-      .from("talent_profile_change_requests")
-      .update({
-        status: "rejected",
-        reviewed_at: reviewedAt,
-        reviewed_by: adminUser.id,
-      })
-      .eq("id", request.id)
-      .eq("status", "pending");
+  const { error: reviewUpdateError } = await adminClient
+    .from("talent_profile_change_requests")
+    .update({
+      status: "rejected",
+      reviewed_at: reviewedAt,
+      reviewed_by: adminUser.id,
+    })
+    .eq("id", request.id)
+    .eq("status", "pending");
 
   if (reviewUpdateError) {
     console.error(
@@ -283,20 +170,10 @@ export async function rejectTalentProfileChangeAction(
     };
   }
 
-  revalidatePath("/admin/talents");
-  revalidatePath(
-    `/admin/talents/${request.talent_id}`,
-  );
-
-  revalidatePath("/ar/talent-dashboard");
-  revalidatePath("/ar/talent-dashboard/profile");
-
-  revalidatePath("/en/talent-dashboard");
-  revalidatePath("/en/talent-dashboard/profile");
+  revalidateTalentProfileChangePaths(request.talent_id);
 
   return {
     success: true,
-    message:
-      "تم رفض التغييرات والإبقاء على البيانات الحالية.",
+    message: "تم رفض التغييرات والإبقاء على البيانات الحالية.",
   };
 }
