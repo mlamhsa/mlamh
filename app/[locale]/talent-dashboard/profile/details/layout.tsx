@@ -119,6 +119,29 @@ export default function TalentProfileDetailsLayout({ children }: { children: Rea
         {children}
       </div>
 
+      <section
+        dir={isArabic ? "rtl" : "ltr"}
+        className="mx-auto mb-32 mt-5 max-w-6xl rounded-[1.75rem] border border-gold/20 bg-gold/[0.035] p-5 sm:p-6"
+      >
+        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gold">
+          {isArabic ? "الخطوة التالية" : "NEXT STEP"}
+        </p>
+        <h2 className="mt-2 text-xl font-light text-white">
+          {isArabic ? "احفظ بياناتك المهنية أولًا" : "Save your professional details first"}
+        </h2>
+        <p className="mt-2 text-sm leading-7 text-white/55">
+          {isArabic
+            ? "اضغط «حفظ البيانات المهنية» بالأسفل حتى لا تفقد أي تعديل. بعد نجاح الحفظ انتقل إلى معرض الأعمال لإضافة الصور والفيديو والروابط."
+            : "Tap “Save professional details” below so you do not lose any changes. After the save succeeds, continue to your portfolio to add photos, video and links."}
+        </p>
+        <Link
+          href={`/${locale}/talent-dashboard/gallery`}
+          className="mt-5 inline-flex min-h-12 items-center justify-center rounded-2xl border border-gold/30 px-5 text-sm font-medium text-gold transition hover:bg-gold hover:text-black"
+        >
+          {isArabic ? "بعد الحفظ: فتح معرض الأعمال" : "After saving: Open portfolio"}
+        </Link>
+      </section>
+
       <div className="pointer-events-none fixed inset-x-0 bottom-20 z-40 px-4 sm:px-6 lg:bottom-6">
         <div className="mx-auto flex max-w-6xl justify-end">
           <div className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/10 bg-black/90 p-1.5 shadow-2xl backdrop-blur-xl">
@@ -133,7 +156,7 @@ export default function TalentProfileDetailsLayout({ children }: { children: Rea
               onClick={saveCurrentDraft}
               className="min-h-11 rounded-full bg-gold px-6 text-sm font-semibold text-black transition hover:brightness-105"
             >
-              {isArabic ? "حفظ التعديلات" : "Save changes"}
+              {isArabic ? "حفظ البيانات المهنية" : "Save professional details"}
             </button>
           </div>
         </div>
@@ -152,9 +175,12 @@ export default function TalentProfileDetailsLayout({ children }: { children: Rea
         .talent-profile-editor > main form > div:last-child {
           display: none;
         }
+        .talent-profile-editor a[href*="/talent-dashboard/gallery"] {
+          display: none !important;
+        }
         .talent-profile-editor > main {
           padding-top: 0 !important;
-          padding-bottom: 8.5rem !important;
+          padding-bottom: 3rem !important;
         }
       `}</style>
     </>
