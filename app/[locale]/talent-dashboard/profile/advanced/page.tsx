@@ -99,7 +99,8 @@ export default function TalentRequiredFieldsPage({
     () => TALENT_SIGNUP_COUNTRIES.find((item) => item.code === countryCode),
     [countryCode],
   );
-  const coreEditable = ["not_submitted", "rejected", "changes_requested"].includes(approvalStatus);
+  const coreEditable = ["not_submitted", "rejected", "changes_requested", "approved"].includes(approvalStatus);
+  const isApproved = approvalStatus === "approved";
 
   function selectCountry(value: string) {
     setCountryCode(value);
@@ -182,15 +183,23 @@ export default function TalentRequiredFieldsPage({
         <div className="mb-7 flex items-start justify-between gap-4">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-gold">
-              {isArabic ? "متطلبات الاعتماد" : "REVIEW REQUIREMENTS"}
+              {isApproved
+                ? (isArabic ? "البيانات الأساسية" : "CORE DETAILS")
+                : (isArabic ? "متطلبات الاعتماد" : "REVIEW REQUIREMENTS")}
             </p>
             <h1 className="mt-2 text-3xl font-light sm:text-4xl">
-              {isArabic ? "أكمل بياناتك الأساسية" : "Complete your core details"}
+              {isApproved
+                ? (isArabic ? "تعديل بياناتك الأساسية" : "Edit your core details")
+                : (isArabic ? "أكمل بياناتك الأساسية" : "Complete your core details")}
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-7 text-white/50">
-              {isArabic
-                ? "احفظ ما أدخلته في أي وقت. لا يلزم إكمال جميع الحقول في جلسة واحدة، لكن يجب اكتمالها قبل إرسال الملف للمراجعة."
-                : "Save whatever you have entered at any time. You do not need to finish every field in one session, but all are required before review submission."}
+              {isApproved
+                ? (isArabic
+                    ? "ملفك معتمد. يمكنك تحديث بياناتك وحفظها دون فقدان اعتماد الملف."
+                    : "Your profile is approved. You can keep these details current without losing approval.")
+                : (isArabic
+                    ? "احفظ ما أدخلته في أي وقت. لا يلزم إكمال جميع الحقول في جلسة واحدة، لكن يجب اكتمالها قبل إرسال الملف للمراجعة."
+                    : "Save whatever you have entered at any time. You do not need to finish every field in one session, but all are required before review submission.")}
             </p>
           </div>
           <Link href={`/${locale}/talent-dashboard/profile`} className="shrink-0 rounded-full border border-white/10 px-4 py-2 text-sm text-white/60 hover:text-gold">
@@ -201,8 +210,8 @@ export default function TalentRequiredFieldsPage({
         {!coreEditable ? (
           <div className="rounded-[2rem] border border-amber-300/20 bg-amber-300/[0.06] p-6 text-sm leading-7 text-amber-100">
             {isArabic
-              ? "البيانات الأساسية محمية لأن ملفك قيد المراجعة أو معتمد حاليًا."
-              : "Core profile details are protected while your profile is under review or approved."}
+              ? "ملفك قيد المراجعة حاليًا، لذلك تتوقف تعديلات البيانات الأساسية مؤقتًا حتى يصدر قرار المراجعة."
+              : "Your profile is currently under review, so core-detail edits are temporarily paused until a review decision is made."}
           </div>
         ) : (
           <form onSubmit={save} className="space-y-5" noValidate>
