@@ -143,7 +143,7 @@ export function useCurrentUser(): CurrentUserState {
 
       if (!talent) {
         return {
-          accountType: null as CurrentAccountType,
+          accountType: "talent" as CurrentAccountType,
           userName: fallbackName,
           avatarUrl: fallbackAvatar,
         };
