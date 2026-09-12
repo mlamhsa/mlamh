@@ -18,6 +18,10 @@ type ProfileRow = {
   onboarding_step: string | null;
 };
 
+type TalentRow = {
+  id: number | string;
+};
+
 function parseTalentRole(value: unknown): TalentRole | null {
   return value === "actor" || value === "model" ? value : null;
 }
@@ -37,20 +41,32 @@ export default async function JoinTalentPage({ params, searchParams }: PageProps
 
   if (userError || !user) redirect(`/${locale}/join`);
 
-  const { data: profile, error: profileError } = await authClient
-    .from("profiles")
-    .select("account_type, onboarding_status, onboarding_step")
-    .eq("user_id", user.id)
-    .maybeSingle<ProfileRow>();
+  const [profileResult, talentResult] = await Promise.all([
+    authClient
+      .from("profiles")
+      .select("account_type, onboarding_status, onboarding_step")
+      .eq("user_id", user.id)
+      .maybeSingle<ProfileRow>(),
+    authClient
+      .from("talents")
+      .select("id")
+      .eq("user_id", user.id)
+      .maybeSingle<TalentRow>(),
+  ]);
 
-  if (profileError) console.error("[JoinTalentPage profileLookup]", profileError);
+  const profile = profileResult.data;
+  const existingTalent = talentResult.data;
+
+  if (profileResult.error) console.error("[JoinTalentPage profileLookup]", profileResult.error);
+  if (talentResult.error) console.error("[JoinTalentPage talentLookup]", talentResult.error);
 
   if (profile?.account_type === "publisher") redirect(`/${locale}/publisher-dashboard`);
 
-  // Talent Flow V1 no longer uses /join/talent for newly created accounts.
-  // New accounts go straight to the dashboard; this page remains only as a
-  // legacy fallback for old Actor/Model accounts that never saved a role.
+  // Only redirect an existing talent profile. Older accounts can have
+  // account_type=talent without a row in talents; those accounts must stay on
+  // this recovery step so they can create the missing draft and continue.
   if (
+    existingTalent &&
     profile?.account_type === "talent" &&
     (
       profile.onboarding_status === "completed" ||
@@ -61,6 +77,7 @@ export default async function JoinTalentPage({ params, searchParams }: PageProps
   }
 
   if (
+    existingTalent &&
     profile?.account_type === "talent" &&
     profile.onboarding_status === "profile_in_progress" &&
     profile.onboarding_step === "core_data"
@@ -74,6 +91,7 @@ export default async function JoinTalentPage({ params, searchParams }: PageProps
   const queryIntent = parseTalentRole(query.intent);
   const initialRole = metadataIntent ?? queryIntent;
   const emailVerified = query.message === "email_verified";
+  const isRecovery = !existingTalent && profile?.account_type === "talent";
 
   return (
     <main
@@ -94,14 +112,14 @@ export default async function JoinTalentPage({ params, searchParams }: PageProps
                 {isRtl ? "✓ تم تأكيد بريدك الإلكتروني" : "✓ Your email has been verified"}
               </p>
               <p className="mt-1 text-xs leading-6 text-gray-muted sm:text-sm">
-                {isRtl ? "نكمل الآن إعداد حسابك القديم مرة واحدة." : "We’ll finish this legacy account setup once."}
+                {isRtl ? "نكمل الآن إعداد ملف موهبتك." : "We’ll finish setting up your talent profile now."}
               </p>
             </div>
           ) : null}
 
           <header className={`mb-10 sm:mb-14 ${isRtl ? "text-right" : "text-left"}`}>
             <p className="arabic-safe text-[10px] uppercase tracking-[0.4em] text-gold">
-              {isRtl ? "استكمال حساب قديم" : "LEGACY ACCOUNT SETUP"}
+              {isRtl ? "استكمال ملف الموهبة" : "COMPLETE TALENT PROFILE"}
             </p>
             <h1 className="mt-4 text-[clamp(2.4rem,8vw,4.2rem)] font-light leading-[1.08] text-white">
               {initialRole
@@ -113,9 +131,13 @@ export default async function JoinTalentPage({ params, searchParams }: PageProps
                   : "Choose your primary role"}
             </h1>
             <p className="mt-5 max-w-2xl text-sm leading-7 text-gray-muted md:text-base">
-              {isRtl
-                ? "هذه الصفحة احتياطية للحسابات القديمة فقط. التسجيلات الجديدة تدخل لوحة التحكم مباشرة بدون تكرار هذه الخطوة."
-                : "This page is only a fallback for older accounts. New signups go directly to the dashboard without repeating this step."}
+              {isRecovery
+                ? isRtl
+                  ? "حسابك موجود، ونحتاج فقط إنشاء ملف الموهبة بالنظام الجديد. لن تفقد بيانات حسابك، وبعد هذه الخطوة يمكنك إكمال بقية البيانات وحفظها على مراحل."
+                  : "Your account already exists. We only need to create your talent profile in the new flow. Your account data is preserved, and you can complete the remaining details over time."
+                : isRtl
+                  ? "حدد تخصصك الأساسي للمتابعة، وبعدها يمكنك إكمال ملفك وحفظ بياناتك على مراحل."
+                  : "Choose your primary role to continue. You can then complete and save your profile in stages."}
             </p>
           </header>
 
