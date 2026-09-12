@@ -1,0 +1,13 @@
+name: Temp workflow test
+
+on:
+  push:
+    branches:
+      - fix/featured-opportunity-public-display-current
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Echo
+        run: echo ok
