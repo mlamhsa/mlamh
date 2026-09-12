@@ -83,6 +83,21 @@ export function normalizeZohoBaseUrl(value: string, name: string) {
   return trimmed;
 }
 
+export function deriveZohoRuntimeStatus({
+  persistedStatus,
+  accountId,
+  apiBaseUrl,
+  credentialRef,
+}: {
+  persistedStatus: MarketingChannelStatus;
+  accountId: string | null;
+  apiBaseUrl: string;
+  credentialRef: string;
+}): MarketingChannelStatus {
+  const durableConfigurationPresent = Boolean(accountId && apiBaseUrl && credentialRef);
+  return persistedStatus === "error" && durableConfigurationPresent ? "connected" : persistedStatus;
+}
+
 export function buildEmailOutreachIdempotencyKey(outreachId: number) {
   if (!Number.isInteger(outreachId) || outreachId <= 0) throw new Error("Invalid outreach id.");
   return `outreach-${outreachId}-email`;
@@ -264,17 +279,21 @@ export function createZohoMailAdapter(dependencies: ZohoMailAdapterDependencies)
           cache: "no-store",
         });
         const payload = await response.json().catch(() => ({})) as ZohoSendResponse;
-        const messageId = payload.data?.messageId;
-        if (!response.ok || payload.status?.code !== 200 || messageId === undefined || messageId === null) {
-          return { ok: false, errorCode: "ZOHO_SEND_FAILED", errorMessage: "Zoho Mail send request failed." };
+        const externalId = payload.data?.messageId == null ? null : String(payload.data.messageId);
+        if (!response.ok || payload.status?.code !== 200 || !externalId) {
+          return {
+            ok: false,
+            errorCode: "ZOHO_SEND_FAILED",
+            errorMessage: `Zoho Mail send failed with status ${response.status}.`,
+          };
         }
         return {
           ok: true,
-          externalId: String(messageId),
+          externalId,
           metadata: {
-            provider: "zoho_mail",
-            external_message_id: String(messageId),
+            external_message_id: externalId,
             mail_id: payload.data?.mailId ?? null,
+            provider: "zoho_mail",
           },
         };
       } catch (error) {
