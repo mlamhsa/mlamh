@@ -90,15 +90,26 @@ function resolveAvatarUrl(user: AuthUserSnapshot) {
 function readableError(error: unknown) {
   if (error instanceof Error) return { message: error.message, name: error.name };
   if (error && typeof error === "object") {
-    const value = error as { message?: unknown; code?: unknown; details?: unknown; hint?: unknown };
+    const value = error as {
+      message?: unknown;
+      code?: unknown;
+      details?: unknown;
+      hint?: unknown;
+    };
     return {
-      message: typeof value.message === "string" ? value.message : "Unknown profile lookup error",
+      message:
+        typeof value.message === "string"
+          ? value.message
+          : "Unknown profile lookup error",
       code: typeof value.code === "string" ? value.code : undefined,
       details: typeof value.details === "string" ? value.details : undefined,
       hint: typeof value.hint === "string" ? value.hint : undefined,
     };
   }
-  return { message: typeof error === "string" ? error : "Unknown profile lookup error" };
+  return {
+    message:
+      typeof error === "string" ? error : "Unknown profile lookup error",
+  };
 }
 
 export function useCurrentUser(): CurrentUserState {
@@ -113,36 +124,39 @@ export function useCurrentUser(): CurrentUserState {
     }
 
     async function resolveTalentFallback(
-      user: AuthUserSnapshot,
-      version: number,
+      userId: string,
       fallbackName: string,
       fallbackAvatar: string | null,
     ) {
       const { data: talent, error: talentError } = await supabase
         .from("talents")
         .select("name_ar, name_en, image_url")
-        .eq("user_id", user.id)
+        .eq("user_id", userId)
         .maybeSingle<TalentNavigationRow>();
 
-      if (!active || version !== requestVersion) return true;
-
       if (talentError) {
-        console.warn("Unable to load talent profile fallback:", readableError(talentError));
-        return false;
+        console.warn(
+          "Unable to load talent profile fallback:",
+          readableError(talentError),
+        );
       }
 
-      if (!talent) return false;
+      if (!talent) {
+        return {
+          accountType: null as CurrentAccountType,
+          userName: fallbackName,
+          avatarUrl: fallbackAvatar,
+        };
+      }
 
-      commit(version, {
-        userId: user.id,
-        isLoggedIn: true,
-        accountType: "talent",
-        userName: talent.name_ar?.trim() || talent.name_en?.trim() || fallbackName,
+      return {
+        accountType: "talent" as CurrentAccountType,
+        userName:
+          talent.name_ar?.trim() ||
+          talent.name_en?.trim() ||
+          fallbackName,
         avatarUrl: talent.image_url?.trim() || fallbackAvatar,
-        loading: false,
-      });
-
-      return true;
+      };
     }
 
     async function resolveUser(user?: AuthUserSnapshot | null) {
@@ -175,23 +189,27 @@ export function useCurrentUser(): CurrentUserState {
         if (!active || version !== requestVersion) return;
 
         if (error || !profile) {
-          if (error) console.warn("Unable to resolve current user profile:", readableError(error));
+          if (error) {
+            console.warn(
+              "Unable to resolve current user profile:",
+              readableError(error),
+            );
+          }
 
-          const resolvedAsTalent = await resolveTalentFallback(
-            user,
-            version,
+          const fallback = await resolveTalentFallback(
+            user.id,
             fallbackName,
             fallbackAvatar,
           );
 
-          if (resolvedAsTalent || !active || version !== requestVersion) return;
+          if (!active || version !== requestVersion) return;
 
           commit(version, {
             userId: user.id,
             isLoggedIn: true,
-            accountType: null,
-            userName: fallbackName,
-            avatarUrl: fallbackAvatar,
+            accountType: fallback.accountType,
+            userName: fallback.userName,
+            avatarUrl: fallback.avatarUrl,
             loading: false,
           });
           return;
@@ -209,9 +227,13 @@ export function useCurrentUser(): CurrentUserState {
             .maybeSingle<PublisherNavigationRow>();
 
           if (publisherError) {
-            console.warn("Unable to load publisher profile:", readableError(publisherError));
+            console.warn(
+              "Unable to load publisher profile:",
+              readableError(publisherError),
+            );
           } else if (publisher) {
-            resolvedAvatar = publisher.profile_image_url?.trim() || resolvedAvatar;
+            resolvedAvatar =
+              publisher.profile_image_url?.trim() || resolvedAvatar;
             resolvedName =
               publisher.company_name?.trim() ||
               publisher.contact_name?.trim() ||
@@ -220,18 +242,18 @@ export function useCurrentUser(): CurrentUserState {
         }
 
         if (accountType === "talent" || accountType === null) {
-          const { data: talent, error: talentError } = await supabase
-            .from("talents")
-            .select("name_ar, name_en, image_url")
-            .eq("user_id", user.id)
-            .maybeSingle<TalentNavigationRow>();
+          const fallback = await resolveTalentFallback(
+            user.id,
+            resolvedName,
+            resolvedAvatar,
+          );
 
-          if (talentError) {
-            console.warn("Unable to load talent profile:", readableError(talentError));
-          } else if (talent) {
-            if (accountType === null) accountType = "talent";
-            resolvedAvatar = talent.image_url?.trim() || resolvedAvatar;
-            resolvedName = talent.name_ar?.trim() || talent.name_en?.trim() || resolvedName;
+          if (!active || version !== requestVersion) return;
+
+          if (fallback.accountType === "talent") {
+            accountType = "talent";
+            resolvedName = fallback.userName;
+            resolvedAvatar = fallback.avatarUrl;
           }
         }
 
@@ -245,23 +267,26 @@ export function useCurrentUser(): CurrentUserState {
         });
       } catch (error) {
         if (!active || version !== requestVersion) return;
-        console.warn("Unexpected current user profile lookup failure:", readableError(error));
 
-        const resolvedAsTalent = await resolveTalentFallback(
-          user,
-          version,
+        console.warn(
+          "Unexpected current user profile lookup failure:",
+          readableError(error),
+        );
+
+        const fallback = await resolveTalentFallback(
+          user.id,
           fallbackName,
           fallbackAvatar,
         );
 
-        if (resolvedAsTalent || !active || version !== requestVersion) return;
+        if (!active || version !== requestVersion) return;
 
         commit(version, {
           userId: user.id,
           isLoggedIn: true,
-          accountType: null,
-          userName: fallbackName,
-          avatarUrl: fallbackAvatar,
+          accountType: fallback.accountType,
+          userName: fallback.userName,
+          avatarUrl: fallback.avatarUrl,
           loading: false,
         });
       }
@@ -269,17 +294,29 @@ export function useCurrentUser(): CurrentUserState {
 
     async function initialise() {
       try {
-        const { data: { session }, error } = await supabase.auth.getSession();
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession();
+
         if (!active) return;
+
         if (error) {
-          console.warn("Unable to resolve current authentication session:", readableError(error));
+          console.warn(
+            "Unable to resolve current authentication session:",
+            readableError(error),
+          );
           await resolveUser();
           return;
         }
+
         await resolveUser(session?.user ?? null);
       } catch (error) {
         if (!active) return;
-        console.warn("Unexpected authentication session failure:", readableError(error));
+        console.warn(
+          "Unexpected authentication session failure:",
+          readableError(error),
+        );
         await resolveUser();
       }
     }
@@ -292,7 +329,9 @@ export function useCurrentUser(): CurrentUserState {
 
     void initialise();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       queueMicrotask(() => {
         if (active) void resolveUser(session?.user ?? null);
       });
