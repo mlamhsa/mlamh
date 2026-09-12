@@ -1,6 +1,6 @@
 {
   "env": {
-    "MARKETING_AI_MODEL": "anthropic/claude-haiku-4.5"
+    "MARKETING_AI_MODEL": "google/gemini-3-flash"
   },
   "crons": [
     {
