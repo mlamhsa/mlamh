@@ -6,6 +6,7 @@ import { TalentImageUploadPendingEnhancer } from "@/components/talent-dashboard/
 import { TalentProfileCanonicalFieldsV1 } from "@/components/talent-dashboard/TalentProfileCanonicalFieldsV1";
 import { TalentProfileEditorEnhancer } from "@/components/talent-dashboard/TalentProfileEditorEnhancer";
 import { TalentProfileSectionNavigationV1 } from "@/components/talent-dashboard/TalentProfileSectionNavigationV1";
+import { TalentProfileStrengthCardLink } from "@/components/talent-dashboard/TalentProfileStrengthCardLink";
 import { TalentSidebarDockEnhancer } from "@/components/talent-dashboard/TalentSidebarDockEnhancer";
 import TalentApprovedCompletionBanner from "@/components/talent/TalentApprovedCompletionBanner";
 import TalentApprovedLegacyRequiredFieldsCard from "@/components/talent/TalentApprovedLegacyRequiredFieldsCard";
@@ -96,6 +97,7 @@ export default async function TalentDashboardLayout({
     <>
       <TalentBirthDateEnhancer />
       <TalentImageUploadPendingEnhancer />
+      <TalentProfileStrengthCardLink locale={safeLocale} />
       <TalentSidebarDockEnhancer />
       <TalentProfileEditorEnhancer />
       <TalentProfileCanonicalFieldsV1 />
