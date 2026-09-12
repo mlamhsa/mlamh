@@ -152,9 +152,11 @@ export default function TalentCoreDetailsPage({ params }: { params: Promise<{ lo
   const [skinColor, setSkinColor] = useState("");
   const [modelingTypes, setModelingTypes] = useState<string[]>([]);
 
-  async function load() {
-    setLoading(true);
-    setLoadError("");
+  async function load(silent = false) {
+    if (!silent) {
+      setLoading(true);
+      setLoadError("");
+    }
     try {
       const timeout = new Promise<never>((_, reject) =>
         window.setTimeout(
@@ -201,9 +203,13 @@ export default function TalentCoreDetailsPage({ params }: { params: Promise<{ lo
       setSkinColor(clean(talent.skin_color));
       setModelingTypes(listValues(talent.modeling_types));
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : isArabic ? "تعذر تحميل البيانات." : "Unable to load details.");
+      if (!silent) {
+        setLoadError(error instanceof Error ? error.message : isArabic ? "تعذر تحميل البيانات." : "Unable to load details.");
+      } else {
+        console.error("Unable to silently refresh professional details", error);
+      }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }
 
@@ -259,51 +265,66 @@ export default function TalentCoreDetailsPage({ params }: { params: Promise<{ lo
   async function save(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (saving) return;
+
+    const scrollPosition = window.scrollY;
     setSaving(true);
     setMessage("");
     setSuccess(false);
 
-    const payload = new FormData();
-    payload.set("locale", locale);
-    appendProfessionalPayload(payload);
+    try {
+      const payload = new FormData();
+      payload.set("locale", locale);
+      appendProfessionalPayload(payload);
 
-    const result = coreEditable
-      ? await (async () => {
-          payload.set("name", name);
-          payload.set("phone", phone);
-          payload.set("primary_role", role);
-          payload.set("gender", gender);
-          payload.set("nationality_slug", nationality);
-          payload.set("base_country_code", "SA");
-          payload.set("city_slug", citySlug);
-          return updateOwnTalentCoreDetailsAction(payload);
-        })()
-      : await updateOwnTalentProfessionalDetailsAction(payload);
+      const result = coreEditable
+        ? await (async () => {
+            payload.set("name", name);
+            payload.set("phone", phone);
+            payload.set("primary_role", role);
+            payload.set("gender", gender);
+            payload.set("nationality_slug", nationality);
+            payload.set("base_country_code", "SA");
+            payload.set("city_slug", citySlug);
+            return updateOwnTalentCoreDetailsAction(payload);
+          })()
+        : await updateOwnTalentProfessionalDetailsAction(payload);
 
-    if (!result.success) {
-      setMessage(result.message);
-      setSuccess(false);
-      setSaving(false);
-      return;
-    }
-
-    if (birthDate) {
-      const birthDatePayload = new FormData();
-      birthDatePayload.set("locale", locale);
-      birthDatePayload.set("date_of_birth", birthDate);
-      const birthDateResult = await updateOwnTalentBirthDateAction(birthDatePayload);
-      if (!birthDateResult.success) {
-        setMessage(birthDateResult.message);
+      if (!result.success) {
+        setMessage(result.message);
         setSuccess(false);
-        setSaving(false);
         return;
       }
-    }
 
-    setMessage(result.message);
-    setSuccess(true);
-    await load();
-    setSaving(false);
+      if (birthDate) {
+        const birthDatePayload = new FormData();
+        birthDatePayload.set("locale", locale);
+        birthDatePayload.set("date_of_birth", birthDate);
+        const birthDateResult = await updateOwnTalentBirthDateAction(birthDatePayload);
+        if (!birthDateResult.success) {
+          setMessage(birthDateResult.message);
+          setSuccess(false);
+          return;
+        }
+      }
+
+      const successMessage = isArabic
+        ? "تم حفظ بياناتك المهنية بنجاح ✓"
+        : "Your professional details were saved successfully ✓";
+
+      setMessage(successMessage);
+      setSuccess(true);
+      await load(true);
+      window.requestAnimationFrame(() => window.scrollTo({ top: scrollPosition, behavior: "auto" }));
+      window.setTimeout(() => {
+        setMessage((current) => (current === successMessage ? "" : current));
+      }, 4500);
+    } catch (error) {
+      console.error("Unable to save professional details", error);
+      setMessage(isArabic ? "تعذر حفظ بياناتك المهنية. حاول مرة أخرى." : "Unable to save your professional details. Please try again.");
+      setSuccess(false);
+    } finally {
+      setSaving(false);
+    }
   }
 
   if (loading) {
@@ -331,6 +352,23 @@ export default function TalentCoreDetailsPage({ params }: { params: Promise<{ lo
 
   return (
     <main className="min-h-screen bg-background px-4 pb-28 pt-40 text-white sm:px-6 lg:pt-36" dir={isArabic ? "rtl" : "ltr"}>
+      {saving ? (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/55 px-5 backdrop-blur-[2px]" role="status" aria-live="polite">
+          <div className="flex min-h-20 w-full max-w-sm items-center justify-center gap-4 rounded-3xl border border-gold/25 bg-[#0b0b0b]/95 px-6 py-5 shadow-2xl">
+            <span className="h-6 w-6 shrink-0 animate-spin rounded-full border-2 border-gold/25 border-t-gold" aria-hidden="true" />
+            <span className="text-sm font-medium text-white">{isArabic ? "جارٍ حفظ بياناتك المهنية..." : "Saving your professional details..."}</span>
+          </div>
+        </div>
+      ) : null}
+
+      {message ? (
+        <div className="pointer-events-none fixed left-4 right-4 top-28 z-[115] mx-auto max-w-xl" role={success ? "status" : "alert"} aria-live="polite">
+          <div className={`rounded-2xl border px-5 py-4 text-center text-sm shadow-2xl backdrop-blur-md ${success ? "border-emerald-400/30 bg-[#082019]/95 text-emerald-100" : "border-red-400/30 bg-[#240d0d]/95 text-red-100"}`}>
+            {message}
+          </div>
+        </div>
+      ) : null}
+
       <div className="mx-auto max-w-3xl">
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
@@ -461,10 +499,8 @@ export default function TalentCoreDetailsPage({ params }: { params: Promise<{ lo
             <section className="rounded-[2rem] border border-white/10 bg-white/[0.02] p-5 sm:p-6"><p className="text-sm leading-7 text-white/50">{isArabic ? "يمكنك إضافة الصور والفيديو والروابط المهنية من معرض الأعمال، ومعلومات التوفر أعلاه تساعد في المطابقة." : "Portfolio media and the availability signals above can strengthen matching."}</p><Link href={`/${locale}/talent-dashboard/gallery`} className="mt-4 inline-flex text-sm text-gold">{isArabic ? "فتح معرض الأعمال" : "Open Portfolio"}</Link></section>
           ) : null}
 
-          {message ? <div className={`rounded-2xl border p-4 text-sm ${success ? "border-emerald-400/20 bg-emerald-400/[0.06] text-emerald-100" : "border-red-400/20 bg-red-400/[0.05] text-red-100"}`}>{message}</div> : null}
-
           <div className="flex flex-col gap-3 sm:flex-row">
-            <button type="submit" disabled={saving} className="min-h-12 rounded-2xl bg-gold px-7 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:opacity-40">{saving ? (isArabic ? "جارٍ الحفظ..." : "Saving...") : coreEditable ? (isArabic ? "حفظ التعديلات" : "Save changes") : (isArabic ? "حفظ تحسينات الملف" : "Save profile improvements")}</button>
+            <button type="submit" disabled={saving} className="min-h-12 rounded-2xl bg-gold px-7 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:opacity-40">{saving ? (isArabic ? "جارٍ الحفظ..." : "Saving...") : (isArabic ? "حفظ البيانات المهنية" : "Save professional details")}</button>
             <Link href={`/${locale}/talent-dashboard/profile`} className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-white/10 px-7 text-sm text-white/60 hover:border-gold/30 hover:text-gold">{isArabic ? "إلغاء" : "Cancel"}</Link>
           </div>
         </form>
