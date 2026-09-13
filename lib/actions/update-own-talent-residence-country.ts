@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { TALENT_SIGNUP_COUNTRIES } from "@/lib/data/talent-signup";
+import { getActiveTalentCountry } from "@/lib/data/talent-active-market";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -24,12 +24,10 @@ export async function updateOwnTalentResidenceCountryAction(
   }
 
   const normalizedCountryCode = countryCode.trim().toUpperCase();
-  const country = TALENT_SIGNUP_COUNTRIES.find(
-    (item) => item.code === normalizedCountryCode,
-  );
+  const country = getActiveTalentCountry(normalizedCountryCode);
 
   if (!country) {
-    return { success: false, error: "Invalid residence country." };
+    return { success: false, error: "Residence country is not active yet." };
   }
 
   const admin = createAdminClient();
