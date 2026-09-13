@@ -1,0 +1,58 @@
+name: Workspace QA Shortlist Privacy
+
+on:
+  push:
+    branches:
+      - fix/workspace-role-opportunity-idempotency
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/workspace-role-opportunity-idempotency
+      - name: Hide shortlist until client review stage
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('app/[locale]/casting/status/[token]/page.tsx')
+          text = path.read_text()
+
+          old_project = '''  if (!project || project.service_mode !== "managed") notFound();
+          const projectId = Number(project.id);
+
+          const [{ data: roles }, { data: shortlist }, { data: payments }] = await Promise.all(['''
+          new_project = '''  if (!project || project.service_mode !== "managed") notFound();
+          const projectId = Number(project.id);
+          const canViewShortlist = ["shortlist_ready", "client_review", "completed"].includes(project.status);
+
+          const [{ data: roles }, { data: shortlist }, { data: payments }] = await Promise.all(['''
+
+          old_shortlist = '''    adminClient.from("casting_shortlist").select("id,application_id,casting_role_id,status,rank,created_at").eq("casting_project_id", projectId).order("rank", { ascending: true, nullsFirst: false }).order("created_at", { ascending: true }),'''
+          new_shortlist = '''    canViewShortlist
+              ? adminClient.from("casting_shortlist").select("id,application_id,casting_role_id,status,rank,created_at").eq("casting_project_id", projectId).order("rank", { ascending: true, nullsFirst: false }).order("created_at", { ascending: true })
+              : Promise.resolve({ data: [] }),'''
+
+          if text.count(old_project) != 1:
+              raise SystemExit('project insertion anchor mismatch')
+          if text.count(old_shortlist) != 1:
+              raise SystemExit('shortlist query anchor mismatch')
+
+          text = text.replace(old_project, new_project).replace(old_shortlist, new_shortlist)
+          path.write_text(text)
+          PY
+      - name: Commit privacy guard
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add 'app/[locale]/casting/status/[token]/page.tsx'
+          git diff --cached --check
+          git commit -m "fix(workspace): hide shortlist until client review"
+          git push origin HEAD:fix/workspace-role-opportunity-idempotency
