@@ -87,25 +87,46 @@ Implemented:
 - Reused `opportunity_invitations.status` for consent: `sent` → `accepted` or `declined`.
 - Invitation responses are ownership-checked against the signed-in talent.
 - Acceptance explicitly keeps contact inside MLAMH; phone/WhatsApp are not exposed.
-- Full chat opening remains deferred to Phase 8.
 - Optional interest note was not added because no confirmed safe existing field was established; no column/schema was invented.
 - No migration/backfill or parallel invitation/application system was introduced.
 
 ## Phase 7 — Talent Directory Invitations
+Status: CLOSED / merged to `main` via PR #329 after successful Vercel validation.
+
+Implemented:
+- Reused the existing public talent directory and `PublisherTalentInvitePanel` invitation foundation.
+- Publisher viewers now see a direct `دعوة للتواصل / Invite` shortcut on public talent cards.
+- The shortcut opens the existing invitation section on the talent profile instead of duplicating invitation UI or authorization.
+- Guests and talent accounts keep the existing directory-card behavior.
+- Existing server-side publisher eligibility, talent visibility and privacy checks remain authoritative.
+- No migration/backfill, phone exposure, or parallel invitation system.
+
+## Phase 8 — Chat Integration
+Status: CLOSED / merged to `main` via PR #331 after successful Vercel validation.
+
+Implemented:
+- Reused the existing realtime MLAMH chat foundation; no second messaging system.
+- Quick Request talent interest creates/reuses a conversation tied to the same opportunity and application.
+- Publisher opportunity invitations create/reuse an opportunity-linked conversation immediately, allowing the publisher to send the first message.
+- Every new publisher↔talent conversation requires an opportunity, publisher and talent context; no open unsolicited DMs were introduced.
+- Added an idempotent opportunity-conversation helper that prevents duplicate chats and links a later talent application to an invite-created conversation.
+- Conversation detail access now follows actual conversation membership, matching the existing secure message action.
+- Traditional Casting/Project applications remain accepted-first because their conversation is still created only by the existing acceptance flow.
+- Invitation decline closes the request conversation only when the talent has not independently expressed interest in the same opportunity.
+- Existing realtime messages, attachments, voice, drafts, reporting and close behavior remain unchanged.
+- Phone/WhatsApp remain hidden; no migration/backfill.
+
+## Phase 9 — Notifications + Statuses
 Status: NEXT
 
 Scope:
-- Reuse the existing public talent directory and `PublisherTalentInvitePanel` / `OpportunityInviteModal` foundation.
-- Make the publisher invitation action easy to discover from eligible public talent profiles/directory flows.
-- Keep all invitation eligibility/verification checks server-side in the existing action.
-- Prefer matching/relevance cues where available; do not create a second talent discovery engine.
-- Preserve talent privacy and profile visibility rules.
-- No open direct messages and no phone/WhatsApp exposure.
-- Do not change invitation consent semantics established in Phase 6.
-- No migration/backfill.
+- Reuse the existing Events + Notifications foundation.
+- Add clear, request-aware notifications for Quick Request interest, publisher invitations, invitation responses and newly available conversations.
+- Keep statuses understandable across publisher and talent dashboards without creating a parallel workflow state machine.
+- Preserve existing Casting application notifications and accepted/rejected semantics.
+- Avoid duplicate notifications when actions are retried or already exist.
+- No migration/backfill unless separately reviewed.
 
 ## Remaining phases
-8. Chat Integration
-9. Notifications + Statuses
 10. Trust / Anti-abuse
 11. Final Desktop + Mobile E2E
