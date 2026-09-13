@@ -59,23 +59,38 @@ Implemented:
 - Moved additional profile/account tools below the core dashboard content.
 - Kept non-approved talent states focused on completion/review readiness.
 - No talent/account/application/message/conversation records were modified.
-- Matching behavior itself was intentionally left unchanged for Phase 5.
 
 ## Phase 5 — Matching
+Status: CLOSED / merged to `main` via PR #325 after successful Vercel validation.
+
+Implemented:
+- Extended the existing Qualification/Supply engine; no duplicate matching engine.
+- Added explicit city match states: `local`, `travel`, `none`.
+- Exact-city matches remain strongest and are ranked first on the talent dashboard.
+- Out-of-city matches require both request flexibility and talent opt-in via `ready_to_travel` or `work_outside_city`.
+- Publisher local-only requirements override talent travel willingness.
+- Added Quick Request city-flexibility checkbox, persisted in existing `role_requirements.city_flexible` JSONB; no migration.
+- Existing opportunities without the flag remain local-only by default.
+- Talent dashboard displays `✈️ يتطلب السفر إلى ...` for travel matches.
+- Added regression coverage for local, flexible, travel-enabled, and local-only cases.
+- No migration/backfill or production data mutation.
+
+## Phase 6 — Interest + Invitations
 Status: NEXT
 
 Scope:
-- Extend the existing Qualification/Supply engine; do not create a second matching engine.
-- Preserve exact-city matching as the strongest local match.
-- Support out-of-city matches only when the talent explicitly allows travel/outside-city work and the request allows flexibility.
-- A publisher local-only hard requirement must override talent travel willingness.
-- Distinguish local matches from travel-required matches so UI can show `✈️ يتطلب السفر إلى ...`.
-- Keep launch market scope Saudi Arabia and Actor/Model unchanged.
-- Add regression tests for city-local, city-flexible, travel-enabled, and local-only cases.
-- No migration/backfill or mutation of existing production data.
+- Reuse existing opportunity/application/invitation foundations; do not create open unsolicited DMs.
+- Talent can express `مهتم / Interested` on a relevant opportunity with an optional short note.
+- Publisher can review interested talent profiles and decide whether to start contact.
+- Reuse `opportunity_invitations` for publisher-initiated contact wherever compatible.
+- Publisher invitations require talent acceptance before chat can open.
+- Talent-initiated interest is the consent signal that allows the publisher to proceed toward contact.
+- Do not expose phone/WhatsApp details.
+- Do not rebuild chat in this phase; full chat integration remains Phase 8.
+- Preserve current application flow and existing invitations.
+- No migration/backfill unless existing schema proves insufficient and is separately reviewed.
 
 ## Remaining phases
-6. Interest + Invitations
 7. Talent Directory Invitations
 8. Chat Integration
 9. Notifications + Statuses
