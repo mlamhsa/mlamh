@@ -73,6 +73,7 @@ export function TalentPagination({
 }: TalentPaginationProps) {
   if (totalPages <= 1) return null;
 
+  const isArabic = locale === "ar";
   const previousPage = Math.max(1, currentPage - 1);
   const nextPage = Math.min(totalPages, currentPage + 1);
   const query = {
@@ -89,32 +90,37 @@ export function TalentPagination({
   };
 
   return (
-    <div className="mt-12 flex items-center justify-center gap-3">
+    <nav
+      aria-label={isArabic ? "التنقل بين صفحات المواهب" : "Talent directory pagination"}
+      className="mt-12 flex items-center justify-center gap-3"
+    >
       <Link
         href={buildTalentQueryString({ ...query, page: previousPage })}
+        aria-disabled={currentPage === 1}
         className={`rounded-full border px-5 py-2 text-sm transition ${
           currentPage === 1
             ? "pointer-events-none border-white/5 text-white/20"
             : "border-white/10 text-white/70 hover:border-gold/30 hover:text-gold"
         }`}
       >
-        Previous
+        {isArabic ? "السابق" : "Previous"}
       </Link>
 
-      <div className="rounded-full border border-white/10 px-5 py-2 text-sm text-white/70">
-        Page {currentPage} of {totalPages}
+      <div className="rounded-full border border-white/10 px-5 py-2 text-sm text-white/70" aria-current="page">
+        {isArabic ? `صفحة ${currentPage} من ${totalPages}` : `Page ${currentPage} of ${totalPages}`}
       </div>
 
       <Link
         href={buildTalentQueryString({ ...query, page: nextPage })}
+        aria-disabled={currentPage >= totalPages}
         className={`rounded-full border px-5 py-2 text-sm transition ${
           currentPage >= totalPages
             ? "pointer-events-none border-white/5 text-white/20"
             : "border-white/10 text-white/70 hover:border-gold/30 hover:text-gold"
         }`}
       >
-        Next
+        {isArabic ? "التالي" : "Next"}
       </Link>
-    </div>
+    </nav>
   );
 }
