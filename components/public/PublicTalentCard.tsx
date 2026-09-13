@@ -1,3 +1,4 @@
+import { cache } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -8,6 +9,7 @@ import {
   UserRoundPlus,
 } from "lucide-react";
 
+import { getCurrentAccountType } from "@/lib/auth/get-current-account-type";
 import type { Locale } from "@/lib/i18n";
 import type { Talent } from "@/lib/types/talent";
 import {
@@ -17,18 +19,22 @@ import {
 } from "@/lib/utils/talent-formatters";
 import { talentPath } from "@/lib/utils/routes";
 
+const getCachedCurrentAccountType = cache(getCurrentAccountType);
+
 type PublicTalentCardProps = {
   talent: Talent;
   locale: Locale;
   showInviteAction?: boolean;
 };
 
-export function PublicTalentCard({
+export async function PublicTalentCard({
   talent,
   locale,
-  showInviteAction = false,
+  showInviteAction,
 }: PublicTalentCardProps) {
   const isRtl = locale === "ar";
+  const shouldShowInviteAction =
+    showInviteAction ?? ((await getCachedCurrentAccountType()) === "publisher");
 
   const name = getTalentName(talent, locale);
   const category = getTalentCategory(talent, locale);
@@ -165,7 +171,7 @@ export function PublicTalentCard({
           />
         </div>
 
-        <div className={`mt-auto grid gap-2 pt-5 ${showInviteAction ? "grid-cols-2" : "grid-cols-1"}`}>
+        <div className={`mt-auto grid gap-2 pt-5 ${shouldShowInviteAction ? "grid-cols-2" : "grid-cols-1"}`}>
           <Link
             href={profileHref}
             className="inline-flex min-h-11 items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.02] px-3 text-xs text-white/55 transition hover:border-gold/30 hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
@@ -174,7 +180,7 @@ export function PublicTalentCard({
             <ViewProfileIcon size={15} aria-hidden="true" />
           </Link>
 
-          {showInviteAction ? (
+          {shouldShowInviteAction ? (
             <Link
               href={inviteHref}
               aria-label={
