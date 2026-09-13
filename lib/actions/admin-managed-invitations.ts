@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getTalentSupplyForBrief } from "@/lib/talent/supply";
 
 function positiveInt(value: FormDataEntryValue | null) {
   const parsed = Number(value);
@@ -13,6 +14,12 @@ function positiveInt(value: FormDataEntryValue | null) {
 
 function cleanMessage(value: FormDataEntryValue | null) {
   return typeof value === "string" ? value.trim().slice(0, 2000) : "";
+}
+
+function asRequirements(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
 }
 
 async function createTalentNotification({
@@ -66,8 +73,17 @@ export async function inviteManagedCastingTalentAction(formData: FormData) {
   const admin = createAdminClient();
 
   const [{ data: project }, { data: role }, { data: talent }] = await Promise.all([
-    admin.from("casting_projects").select("id,service_mode,status").eq("id", projectId).maybeSingle(),
-    admin.from("casting_roles").select("id,casting_project_id,opportunity_id,title,title_en,status").eq("id", roleId).eq("casting_project_id", projectId).maybeSingle(),
+    admin
+      .from("casting_projects")
+      .select("id,service_mode,status,city,country_code")
+      .eq("id", projectId)
+      .maybeSingle(),
+    admin
+      .from("casting_roles")
+      .select("id,casting_project_id,opportunity_id,title,title_en,status,talent_type,requirements")
+      .eq("id", roleId)
+      .eq("casting_project_id", projectId)
+      .maybeSingle(),
     admin.from("talents").select("id,user_id,status").eq("id", talentId).maybeSingle(),
   ]);
 
@@ -93,6 +109,30 @@ export async function inviteManagedCastingTalentAction(formData: FormData) {
     .maybeSingle();
   if (!opportunity?.managed_by_mlamh || opportunity.published !== true || !["published", "open"].includes(String(opportunity.status))) {
     throw new Error("The managed role opportunity must be published before talent can be invited.");
+  }
+
+  // Re-run the canonical Qualified → Sendable engine at the action boundary.
+  // The Supply UI is advisory; this is the authoritative server-side gate so an
+  // arbitrary Talent id cannot be invited when it does not satisfy the Brief.
+  const requirements = asRequirements(role.requirements);
+  const roleCity = typeof requirements.city === "string" && requirements.city.trim()
+    ? requirements.city.trim()
+    : String(project.city ?? "").trim();
+  const supply = await getTalentSupplyForBrief({
+    talent_type: String(role.talent_type ?? ""),
+    country_code: "SA",
+    city: roleCity || null,
+    required_gender:
+      typeof requirements.gender === "string" ? requirements.gender : null,
+    city_flexible: requirements.city_flexible === true,
+    requirements,
+  });
+  const candidate = supply.evaluations.find(
+    (evaluation) => Number(evaluation.talent.id) === talentId,
+  );
+  if (!candidate?.sendable) {
+    const reasons = candidate?.reasons?.join(", ") || "not_in_qualified_supply";
+    throw new Error(`Talent is not sendable for this Brief: ${reasons}`);
   }
 
   const { data: existingApplication } = await admin.from("opportunity_applications")
