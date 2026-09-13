@@ -273,15 +273,15 @@ export async function sendMessageAction(formData: FormData) {
   const { data: messageEvent, error: messageEventError } = await adminClient
     .from("events")
     .insert({
-      event_type: "message_received",
+      event_type: "message_created",
       target_type: "conversation",
       target_id: String(conversationId),
       actor_id: user.id,
       metadata: {
-        conversation_id: conversationId,
-        message_id: createdMessage.id,
-        sender_dashboard: dashboard,
-        has_attachment: hasAttachment,
+        conversationId,
+        messageId: createdMessage.id,
+        senderDashboard: dashboard,
+        hasAttachment,
       },
     })
     .select("id")
@@ -353,7 +353,7 @@ export async function markConversationReadAction(conversationId: number) {
   const { data: messageEvents, error: eventLookupError } = await adminClient
     .from("events")
     .select("id")
-    .eq("event_type", "message_received")
+    .eq("event_type", "message_created")
     .eq("target_type", "conversation")
     .eq("target_id", String(conversationId));
 
