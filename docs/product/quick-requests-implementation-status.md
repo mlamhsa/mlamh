@@ -132,16 +132,38 @@ Implemented:
 - No migration/backfill or phone/WhatsApp exposure.
 
 ## Phase 10 — Trust / Anti-abuse
-Status: NEXT
+Status: CLOSED / merged to `main` via PR #334 after successful Vercel validation.
 
-Scope:
-- Reuse existing authentication, publisher/talent eligibility checks, reporting, conversation close controls and private contact rules.
-- Verify that Quick Request interest/invitation cannot bypass account restrictions, profile approval, talent visibility or publisher eligibility.
-- Prevent repeated invite/contact abuse without creating a new moderation platform.
-- Keep contact inside MLAMH and prevent accidental phone/WhatsApp exposure in Quick Request surfaces.
-- Preserve existing report flows and admin review paths; strengthen only where a concrete gap exists.
-- OTP/payment/business verification remain deferred and must not be simulated with misleading badges.
-- No migration/backfill unless separately reviewed.
+Implemented:
+- Separated publisher invitation eligibility from private talent-content access.
+- Approved, active publishers can invite talent to an owned published opportunity even when a fast-track individual/store account is not business-verified.
+- Protected/private talent content remains limited to genuinely verified publishers.
+- Inactive, suspended, blocked, banned, disabled or rejected accounts cannot bypass invitation/chat restrictions.
+- Hardened the shared conversation participant gate without changing realtime messaging, attachments, voice, reporting or close behavior.
+- Preserved one invitation per talent/opportunity through the existing server-side uniqueness/upsert flow; no arbitrary rate-limit policy was invented.
+- Kept phone/WhatsApp hidden and did not simulate OTP, payment or verification trust badges.
+- Fixed public Quick Requests/Casting acquisition CTAs so guests, talents and publishers each see role-appropriate actions.
+- No migration/backfill.
 
-## Remaining phases
-11. Final Desktop + Mobile E2E
+## Phase 11 — Final Desktop + Mobile E2E
+Status: CLOSED / final launch-fix PR #335 validated successfully before merge.
+
+Implemented / verified:
+- Fixed the Talent desktop sidebar public-directory route from legacy `/{locale}/talents` to `/{locale}/talent`.
+- Removed the persistent approved-profile completion banner from the talent dashboard.
+- Approved talent dashboard now places `مناسب لك اليوم / Matched for you today` immediately after the greeting.
+- Removed the duplicated approved-state `أنت جاهز للفرص` workflow card and repeated `خطواتك التالية` section.
+- Pending, incomplete, changes-requested and rejected talent states retain their required workflow guidance.
+- Confirmed the approved five-item mobile talent navigation: Home / Opportunities / Applications / Messages / Profile.
+- Production publisher E2E confirmed role-aware CTAs on both Quick Requests and Casting directories.
+- Production publisher → talent profile flow confirmed invitations remain opportunity-bound and do not expose phone/WhatsApp.
+- Production publisher conversation remained functional after anti-abuse hardening, including message composer, attachments, voice and quick replies.
+- Opportunity detail page already distinguishes guest vs talent approval state and does not show talent acquisition CTA to an authenticated talent.
+- Vercel production runtime errors: none observed in the final one-hour validation window.
+- No production records were created or mutated solely for E2E testing.
+
+## Deferred by product decision
+- OTP / phone verification.
+- Payment-before-publish flow until company/payment setup is ready.
+- Automatic return to the original opportunity after auth.
+- A numeric invitation-rate limit until an explicit abuse policy is defined.

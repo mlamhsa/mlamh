@@ -88,6 +88,7 @@ export default async function TalentDashboardPage({ params }: PageProps) {
   const applications = applicationsResult.data ?? [];
   const totalApplications = applications.length;
   const savedCount = savedResult.count ?? 0;
+  void savedCount;
   const unreadNotificationsCount = notificationsResult.count ?? 0;
   const conversationIds = (conversationsResult.data ?? []).map((item) => item.id);
 
@@ -274,31 +275,7 @@ export default async function TalentDashboardPage({ params }: PageProps) {
 
   const quickActions =
     workflowState === "approved"
-      ? [
-          {
-            eyebrow: isRtl ? "ابدأ الآن" : "Start now",
-            title: isRtl ? "اكتشف الفرص" : "Discover opportunities",
-            description: isRtl ? "تصفح الفرص المناسبة وابدأ التقديم مباشرة." : "Browse relevant opportunities and start applying.",
-            href: `/${locale}/opportunities`,
-            primary: true,
-          },
-          {
-            eyebrow: isRtl ? "تابع" : "Track",
-            title: isRtl ? "طلباتك" : "Your applications",
-            description: isRtl ? "راجع حالة طلباتك وما وصل إلى القائمة المختصرة." : "Review your applications and shortlist progress.",
-            href: `/${locale}/talent-dashboard/applications`,
-            primary: false,
-          },
-          {
-            eyebrow: unreadMessagesCount > 0 ? (isRtl ? "يحتاج انتباهك" : "Needs attention") : (isRtl ? "طوّر" : "Improve"),
-            title: unreadMessagesCount > 0 ? (isRtl ? "لديك رسائل جديدة" : "You have new messages") : (isRtl ? "قوة الملف" : "Profile strength"),
-            description: unreadMessagesCount > 0
-              ? (isRtl ? `${unreadMessagesCount} رسالة غير مقروءة بانتظارك.` : `${unreadMessagesCount} unread messages are waiting for you.`)
-              : (isRtl ? `قوة ملفك الحالية ${profileCompletion}٪. حسّن بياناتك المهنية لرفع جودة المطابقة.` : `Your profile strength is ${profileCompletion}%. Improve professional details for better matching.`),
-            href: unreadMessagesCount > 0 ? `/${locale}/talent-dashboard/messages` : `/${locale}/talent-dashboard/profile/details`,
-            primary: unreadMessagesCount > 0,
-          },
-        ]
+      ? []
       : workflowState === "pending"
         ? [
             {
@@ -383,39 +360,41 @@ export default async function TalentDashboardPage({ params }: PageProps) {
           <div className="min-w-0 flex-1 space-y-5">
             <TalentHeader locale={locale} talentName={talentName} />
 
-            <section className={`overflow-hidden rounded-[2rem] border ${workflow.tone}`}>
-              <div className="p-6 sm:p-8 lg:p-9">
-                <div className="flex flex-col gap-7 lg:flex-row lg:items-end lg:justify-between">
-                  <div className="min-w-0 max-w-3xl">
-                    <span className={`inline-flex rounded-full border px-3 py-1.5 text-xs ${workflow.badge}`}>
-                      {workflow.eyebrow}
-                    </span>
-                    <h1 className="mt-5 text-3xl font-light leading-tight sm:text-4xl">
-                      {workflow.title}
-                    </h1>
-                    <p className="mt-3 max-w-2xl text-sm leading-7 text-white/55 sm:text-base">
-                      {workflow.description}
-                    </p>
-                  </div>
+            {workflowState !== "approved" ? (
+              <section className={`overflow-hidden rounded-[2rem] border ${workflow.tone}`}>
+                <div className="p-6 sm:p-8 lg:p-9">
+                  <div className="flex flex-col gap-7 lg:flex-row lg:items-end lg:justify-between">
+                    <div className="min-w-0 max-w-3xl">
+                      <span className={`inline-flex rounded-full border px-3 py-1.5 text-xs ${workflow.badge}`}>
+                        {workflow.eyebrow}
+                      </span>
+                      <h1 className="mt-5 text-3xl font-light leading-tight sm:text-4xl">
+                        {workflow.title}
+                      </h1>
+                      <p className="mt-3 max-w-2xl text-sm leading-7 text-white/55 sm:text-base">
+                        {workflow.description}
+                      </p>
+                    </div>
 
-                  {workflow.submit ? (
-                    <TalentProfileReviewSubmitButton
-                      locale={locale}
-                      label={workflow.action}
-                      wrapperClassName="w-full sm:w-auto"
-                      buttonClassName="inline-flex min-h-12 w-full items-center justify-center rounded-2xl bg-gold px-7 text-sm font-semibold text-black transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
-                    />
-                  ) : workflow.href ? (
-                    <a
-                      href={workflow.href}
-                      className="inline-flex min-h-12 w-full items-center justify-center rounded-2xl bg-gold px-7 text-sm font-semibold text-black transition hover:opacity-90 sm:w-auto"
-                    >
-                      {workflow.action}
-                    </a>
-                  ) : null}
+                    {workflow.submit ? (
+                      <TalentProfileReviewSubmitButton
+                        locale={locale}
+                        label={workflow.action}
+                        wrapperClassName="w-full sm:w-auto"
+                        buttonClassName="inline-flex min-h-12 w-full items-center justify-center rounded-2xl bg-gold px-7 text-sm font-semibold text-black transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                      />
+                    ) : workflow.href ? (
+                      <a
+                        href={workflow.href}
+                        className="inline-flex min-h-12 w-full items-center justify-center rounded-2xl bg-gold px-7 text-sm font-semibold text-black transition hover:opacity-90 sm:w-auto"
+                      >
+                        {workflow.action}
+                      </a>
+                    ) : null}
+                  </div>
                 </div>
-              </div>
-            </section>
+              </section>
+            ) : null}
 
             <TalentDashboardRecommendations
               locale={safeLocale}
@@ -440,27 +419,29 @@ export default async function TalentDashboardPage({ params }: PageProps) {
               ))}
             </section>
 
-            <section>
-              <div className="mb-3 flex items-end justify-between gap-4">
-                <div>
-                  <p className="text-xs text-gold/70">{isRtl ? "ماذا تفعل الآن؟" : "What to do next"}</p>
-                  <h2 className="mt-1 text-xl font-light">{isRtl ? "خطواتك التالية" : "Your next actions"}</h2>
+            {workflowState !== "approved" && quickActions.length > 0 ? (
+              <section>
+                <div className="mb-3 flex items-end justify-between gap-4">
+                  <div>
+                    <p className="text-xs text-gold/70">{isRtl ? "ماذا تفعل الآن؟" : "What to do next"}</p>
+                    <h2 className="mt-1 text-xl font-light">{isRtl ? "خطواتك التالية" : "Your next actions"}</h2>
+                  </div>
                 </div>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-3">
-                {quickActions.map((item) => (
-                  <a
-                    key={`${item.eyebrow}-${item.title}`}
-                    href={item.href}
-                    className={`rounded-[1.5rem] border p-5 transition ${item.primary ? "border-gold/25 bg-gold/[0.055] hover:bg-gold/[0.08]" : "border-white/10 bg-white/[0.02] hover:border-gold/25"}`}
-                  >
-                    <p className="text-xs text-gold/70">{item.eyebrow}</p>
-                    <h3 className="mt-2 text-lg font-light">{item.title}</h3>
-                    <p className="mt-2 text-xs leading-6 text-white/40">{item.description}</p>
-                  </a>
-                ))}
-              </div>
-            </section>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {quickActions.map((item) => (
+                    <a
+                      key={`${item.eyebrow}-${item.title}`}
+                      href={item.href}
+                      className={`rounded-[1.5rem] border p-5 transition ${item.primary ? "border-gold/25 bg-gold/[0.055] hover:bg-gold/[0.08]" : "border-white/10 bg-white/[0.02] hover:border-gold/25"}`}
+                    >
+                      <p className="text-xs text-gold/70">{item.eyebrow}</p>
+                      <h3 className="mt-2 text-lg font-light">{item.title}</h3>
+                      <p className="mt-2 text-xs leading-6 text-white/40">{item.description}</p>
+                    </a>
+                  ))}
+                </div>
+              </section>
+            ) : null}
 
             {totalApplications > 0 ? (
               <section className="rounded-[1.75rem] border border-white/10 bg-white/[0.02] p-5 sm:p-6">

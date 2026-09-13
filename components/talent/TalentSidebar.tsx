@@ -97,7 +97,7 @@ export default function TalentSidebar({
       label: isAr ? "اكتشف" : "Discover",
       items: [
         {
-          href: `/${locale}/talents`,
+          href: `/${locale}/talent`,
           label: isAr ? "المواهب" : "Talents",
           icon: <UsersRound size={19} aria-hidden="true" />,
         },

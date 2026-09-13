@@ -8,13 +8,11 @@ import { TalentProfileEditorEnhancer } from "@/components/talent-dashboard/Talen
 import { TalentProfileSectionNavigationV1 } from "@/components/talent-dashboard/TalentProfileSectionNavigationV1";
 import { TalentProfileStrengthCardLink } from "@/components/talent-dashboard/TalentProfileStrengthCardLink";
 import { TalentSidebarDockEnhancer } from "@/components/talent-dashboard/TalentSidebarDockEnhancer";
-import TalentApprovedCompletionBanner from "@/components/talent/TalentApprovedCompletionBanner";
 import TalentApprovedLegacyRequiredFieldsCard from "@/components/talent/TalentApprovedLegacyRequiredFieldsCard";
 import TalentConsentCompletionCard from "@/components/talent/TalentConsentCompletionCard";
 import TalentDashboardShell from "@/components/talent/TalentDashboardShell";
 import TalentRealtimeSync from "@/components/talent/TalentRealtimeSync";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { calculateProfileCompletion } from "@/lib/utils/profile-completion";
 
 export default async function TalentDashboardLayout({
   children,
@@ -31,8 +29,6 @@ export default async function TalentDashboardLayout({
   } = await supabase.auth.getUser();
 
   let talentId: string | number | null = null;
-  let approvalStatus: string | null = null;
-  let profileStrength = 0;
   let totalApplications = 0;
   let notificationCount = 0;
   let unreadMessagesCount = 0;
@@ -42,7 +38,7 @@ export default async function TalentDashboardLayout({
       supabase.from("talents").select("*").eq("user_id", user.id).maybeSingle(),
       supabase
         .from("profiles")
-        .select("approval_status, account_type")
+        .select("account_type")
         .eq("user_id", user.id)
         .maybeSingle(),
     ]);
@@ -56,10 +52,6 @@ export default async function TalentDashboardLayout({
     }
 
     talentId = talentResult.data?.id ?? null;
-    approvalStatus = profileResult.data?.approval_status ?? null;
-    profileStrength = talentResult.data
-      ? calculateProfileCompletion(talentResult.data as never)
-      : 0;
 
     if (talentId !== null) {
       const id = String(talentId);
@@ -105,13 +97,6 @@ export default async function TalentDashboardLayout({
       {user ? <TalentRealtimeSync userId={user.id} talentId={talentId} /> : null}
       {user ? (
         <TalentFeaturedEntryPoint locale={locale} userId={user.id} />
-      ) : null}
-      {user ? (
-        <TalentApprovedCompletionBanner
-          locale={locale}
-          approvalStatus={approvalStatus}
-          profileStrength={profileStrength}
-        />
       ) : null}
       {user ? <TalentConsentCompletionCard locale={locale} /> : null}
       {user ? <TalentApprovedLegacyRequiredFieldsCard locale={locale} /> : null}
