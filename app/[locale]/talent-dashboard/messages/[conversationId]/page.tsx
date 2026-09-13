@@ -126,7 +126,7 @@ export default async function TalentConversationPage({
     conversationId <= 0
   ) {
     redirect(
-      `/${locale}/talent-dashboard/applications`,
+      `/${locale}/talent-dashboard/messages`,
     );
   }
 
@@ -191,52 +191,15 @@ export default async function TalentConversationPage({
 
   if (!conversationData) {
     redirect(
-      `/${locale}/talent-dashboard/applications`,
+      `/${locale}/talent-dashboard/messages`,
     );
   }
 
   const conversation =
     conversationData as ConversationRecord;
-    const isMlamhConversation =
+  const isMlamhConversation =
     conversation.conversation_type === "mlamh_talent";
-    if (!conversation.application_id) {
-      redirect(
-        `/${locale}/talent-dashboard/applications`,
-      );
-    }
-    
-    const {
-      data: application,
-      error: applicationError,
-    } = await adminClient
-      .from("opportunity_applications")
-      .select("id, status, opportunity_id, talent_id")
-      .eq("id", conversation.application_id)
-      .eq(
-        "opportunity_id",
-        conversation.opportunity_id,
-      )
-      .eq(
-        "talent_id",
-        conversation.talent_id,
-      )
-      .maybeSingle();
-    
-    if (applicationError) {
-      throw new Error(
-        `[TalentConversationPage application] ${applicationError.message}`,
-      );
-    }
-    
-    if (
-      !application ||
-      application.status !== "accepted"
-    ) {
-      redirect(
-        `/${locale}/talent-dashboard/applications`,
-      );
-    }
-    
+
   const [
     messagesResult,
     attachmentsResult,
@@ -293,7 +256,7 @@ export default async function TalentConversationPage({
       )
       .maybeSingle(),
 
-      conversation.publisher_id !== null
+    conversation.publisher_id !== null
       ? adminClient
           .from("publishers")
           .select(`
@@ -427,23 +390,23 @@ export default async function TalentConversationPage({
   );
 
   const publisherName =
-  isMlamhConversation
-    ? isArabic
-      ? "ملامح"
-      : "MLAMH"
-    : publisher?.company_name ||
-      publisher?.contact_name ||
-      (isArabic ? "الناشر" : "Publisher");
+    isMlamhConversation
+      ? isArabic
+        ? "ملامح"
+        : "MLAMH"
+      : publisher?.company_name ||
+        publisher?.contact_name ||
+        (isArabic ? "الناشر" : "Publisher");
 
-      const publisherType =
-      isMlamhConversation
-        ? ""
-        : publisher?.publisher_type ?? "";
-    
-    const publisherCity =
-      isMlamhConversation
-        ? ""
-        : publisher?.city ?? "";
+  const publisherType =
+    isMlamhConversation
+      ? ""
+      : publisher?.publisher_type ?? "";
+
+  const publisherCity =
+    isMlamhConversation
+      ? ""
+      : publisher?.city ?? "";
 
   const opportunityTitle =
     opportunity?.title ??
@@ -463,10 +426,10 @@ export default async function TalentConversationPage({
         )
       : null;
 
-      const publisherHref =
-      !isMlamhConversation && publisher?.id
-        ? `/${locale}/publishers/${publisher.id}`
-        : null;
+  const publisherHref =
+    !isMlamhConversation && publisher?.id
+      ? `/${locale}/publishers/${publisher.id}`
+      : null;
 
   const opportunityHref =
     opportunity?.slug
@@ -479,53 +442,53 @@ export default async function TalentConversationPage({
       className="h-[100dvh] overflow-hidden bg-background px-3 pb-[calc(5.5rem+env(safe-area-inset-bottom))] pt-24 text-white sm:px-6 sm:pt-28 lg:pb-6"
     >
       <div className="mx-auto h-full max-w-7xl">
-      <section className="flex h-full min-h-0 overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/[0.025] shadow-2xl shadow-black/30">
-      <div className="flex min-w-0 flex-1 flex-col">
+        <section className="flex h-full min-h-0 overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/[0.025] shadow-2xl shadow-black/30">
+          <div className="flex min-w-0 flex-1 flex-col">
             <header className="shrink-0 border-b border-white/10 bg-black/35 px-4 py-3 backdrop-blur-xl sm:px-5">
               <div className="flex items-center gap-3">
-              <Link
-  href={`/${locale}/talent-dashboard/messages`}
-  aria-label={
-    isArabic
-      ? "العودة إلى الرسائل"
-      : "Back to messages"
-  }
-  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 text-white/65 transition hover:border-gold/40 hover:text-gold"
->
-  <ArrowLeft
-    size={18}
-    className={
-      isArabic
-        ? "rotate-180"
-        : ""
-    }
-  />
-</Link>
+                <Link
+                  href={`/${locale}/talent-dashboard/messages`}
+                  aria-label={
+                    isArabic
+                      ? "العودة إلى الرسائل"
+                      : "Back to messages"
+                  }
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 text-white/65 transition hover:border-gold/40 hover:text-gold"
+                >
+                  <ArrowLeft
+                    size={18}
+                    className={
+                      isArabic
+                        ? "rotate-180"
+                        : ""
+                    }
+                  />
+                </Link>
 
-<div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full border border-gold/25 bg-black">
-  {isMlamhConversation ? (
-    <Image
-    src="/brand/mlamh-logo.png?v=2"
-    alt={isArabic ? "ملامح" : "MLAMH"}
-    fill
-    sizes="44px"
-    unoptimized
-    className="object-cover"
-  />
-  ) : publisher?.profile_image_url ? (
-    <Image
-      src={publisher.profile_image_url}
-      alt={publisherName}
-      fill
-      sizes="44px"
-      className="object-cover"
-    />
-  ) : (
-    <div className="flex h-full w-full items-center justify-center font-medium text-gold">
-      {publisherName.slice(0, 1)}
-    </div>
-  )}
-</div>
+                <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full border border-gold/25 bg-black">
+                  {isMlamhConversation ? (
+                    <Image
+                      src="/brand/mlamh-logo.png?v=2"
+                      alt={isArabic ? "ملامح" : "MLAMH"}
+                      fill
+                      sizes="44px"
+                      unoptimized
+                      className="object-cover"
+                    />
+                  ) : publisher?.profile_image_url ? (
+                    <Image
+                      src={publisher.profile_image_url}
+                      alt={publisherName}
+                      fill
+                      sizes="44px"
+                      className="object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center font-medium text-gold">
+                      {publisherName.slice(0, 1)}
+                    </div>
+                  )}
+                </div>
 
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
@@ -647,9 +610,9 @@ export default async function TalentConversationPage({
                 <div className="px-4 py-4 sm:px-5">
                   <div className="rounded-2xl border border-amber-300/20 bg-amber-300/[0.06] px-5 py-4 text-center">
                     <p className="text-sm text-amber-100/85">
-                    {isArabic
-  ? "تم إغلاق هذه المحادثة، ولا يمكن إرسال رسائل جديدة."
-  : "This conversation has been closed and no new messages can be sent."}
+                      {isArabic
+                        ? "تم إغلاق هذه المحادثة، ولا يمكن إرسال رسائل جديدة."
+                        : "This conversation has been closed and no new messages can be sent."}
                     </p>
 
                     {closedAtLabel ? (
@@ -668,30 +631,30 @@ export default async function TalentConversationPage({
           <aside className="hidden w-72 shrink-0 border-s border-white/10 bg-black/20 p-5 xl:block">
             <div className="flex h-full flex-col">
               <div className="text-center">
-              <div className="relative mx-auto h-20 w-20 overflow-hidden rounded-full border border-gold/25 bg-black">
-  {isMlamhConversation ? (
-    <Image
-    src="/brand/mlamh-logo.png?v=2"
-    alt={isArabic ? "ملامح" : "MLAMH"}
-    fill
-    sizes="80px"
-    unoptimized
-    className="object-cover"
-  />
-  ) : publisher?.profile_image_url ? (
-    <Image
-      src={publisher.profile_image_url}
-      alt={publisherName}
-      fill
-      sizes="80px"
-      className="object-cover"
-    />
-  ) : (
-    <div className="flex h-full w-full items-center justify-center text-2xl text-gold">
-      {publisherName.slice(0, 1)}
-    </div>
-  )}
-</div>
+                <div className="relative mx-auto h-20 w-20 overflow-hidden rounded-full border border-gold/25 bg-black">
+                  {isMlamhConversation ? (
+                    <Image
+                      src="/brand/mlamh-logo.png?v=2"
+                      alt={isArabic ? "ملامح" : "MLAMH"}
+                      fill
+                      sizes="80px"
+                      unoptimized
+                      className="object-cover"
+                    />
+                  ) : publisher?.profile_image_url ? (
+                    <Image
+                      src={publisher.profile_image_url}
+                      alt={publisherName}
+                      fill
+                      sizes="80px"
+                      className="object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-2xl text-gold">
+                      {publisherName.slice(0, 1)}
+                    </div>
+                  )}
+                </div>
 
                 <h2 className="mt-4 truncate text-lg font-medium">
                   {publisherName}
