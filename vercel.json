@@ -15,7 +15,7 @@
     },
     {
       "path": "/api/cron/talent-profile-recovery-reminders",
-      "schedule": "30 * * * *"
+      "schedule": "*/5 * * * *"
     }
   ]
 }
