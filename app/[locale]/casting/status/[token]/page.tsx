@@ -50,10 +50,13 @@ export default async function CastingStatusPage({ params }: { params: Promise<{ 
   if (error) console.error("[CastingStatusPage project]", error);
   if (!project || project.service_mode !== "managed") notFound();
   const projectId = Number(project.id);
+  const canViewShortlist = ["shortlist_ready", "client_review", "completed"].includes(project.status);
 
   const [{ data: roles }, { data: shortlist }, { data: payments }] = await Promise.all([
     adminClient.from("casting_roles").select("id,title,title_en,opportunity_id,status,required_count,sort_order").eq("casting_project_id", projectId).order("sort_order", { ascending: true }),
-    adminClient.from("casting_shortlist").select("id,application_id,casting_role_id,status,rank,created_at").eq("casting_project_id", projectId).order("rank", { ascending: true, nullsFirst: false }).order("created_at", { ascending: true }),
+    canViewShortlist
+      ? adminClient.from("casting_shortlist").select("id,application_id,casting_role_id,status,rank,created_at").eq("casting_project_id", projectId).order("rank", { ascending: true, nullsFirst: false }).order("created_at", { ascending: true })
+      : Promise.resolve({ data: [] }),
     adminClient.from("casting_payments").select("id,status,amount,currency,paid_at,created_at").eq("casting_project_id", projectId).order("created_at", { ascending: false }),
   ]);
   const roleRows = (roles ?? []) as CastingRole[];
