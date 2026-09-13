@@ -18,41 +18,24 @@ jobs:
         with:
           ref: fix/mobile-home-performance
 
-      - name: Patch homepage hero loading
+      - name: Normalize mobile hero formatting
         run: |
           python - <<'PY'
           from pathlib import Path
-
-          hero_path = Path('components/Hero.tsx')
-          hero = hero_path.read_text()
-          replacements = [
-              ('"use client";\n\n', ''),
-              ('import { useParams } from "next/navigation";\n\n', ''),
-              ('''export function Hero({\n  locale: propLocale,\n  data,\n}: HeroProps) {\n  const params = useParams();\n\n  const locale =\n    propLocale ||\n    (params?.locale as Locale) ||\n    "ar";\n''', '''export function Hero({\n  locale: propLocale,\n  data,\n}: HeroProps) {\n  const locale = propLocale ?? "ar";\n'''),
-          ]
-          for old, new in replacements:
-              if old not in hero:
-                  raise SystemExit(f'Missing Hero anchor: {old[:80]!r}')
-              hero = hero.replace(old, new, 1)
-          priority_count = hero.count('                    priority\n')
-          if priority_count != 3:
-              raise SystemExit(f'Expected 3 desktop hero priority flags, found {priority_count}')
-          hero = hero.replace('                    priority\n', '')
-          hero_path.write_text(hero)
-
-          mobile_path = Path('components/mobile/home/MobileHero.tsx')
-          mobile = mobile_path.read_text()
-          unoptimized_count = mobile.count('              unoptimized\n')
-          if unoptimized_count != 3:
-              raise SystemExit(f'Expected 3 mobile unoptimized flags, found {unoptimized_count}')
-          mobile = mobile.replace('              unoptimized\n', '')
-          mobile_path.write_text(mobile)
+          path = Path('components/mobile/home/MobileHero.tsx')
+          text = path.read_text()
+          old = '                  sizes="35vw"\n'
+          count = text.count(old)
+          if count != 2:
+              raise SystemExit(f'Expected 2 formatting anchors, found {count}')
+          text = text.replace(old, '                sizes="35vw"\n')
+          path.write_text(text)
           PY
 
       - name: Commit patch
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add components/Hero.tsx components/mobile/home/MobileHero.tsx
-          git commit -m "perf(home): reduce hidden hero work on mobile"
+          git add components/mobile/home/MobileHero.tsx
+          git commit -m "chore(home): normalize mobile hero formatting"
           git push origin HEAD:fix/mobile-home-performance
