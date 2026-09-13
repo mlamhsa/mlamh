@@ -176,46 +176,8 @@ export default async function PublisherConversationPage({
     redirect(`/${locale}/publisher-dashboard/messages`);
   }
 
-  const conversation =
-    conversationData as ConversationRecord;
-    if (!conversation.application_id) {
-      redirect(
-        `/${locale}/publisher-dashboard/messages`,
-      );
-    }
-    
-    const {
-      data: application,
-      error: applicationError,
-    } = await adminClient
-      .from("opportunity_applications")
-      .select("id, status, opportunity_id, talent_id")
-      .eq("id", conversation.application_id)
-      .eq(
-        "opportunity_id",
-        conversation.opportunity_id,
-      )
-      .eq(
-        "talent_id",
-        conversation.talent_id,
-      )
-      .maybeSingle();
-    
-    if (applicationError) {
-      throw new Error(
-        `[PublisherConversationPage application] ${applicationError.message}`,
-      );
-    }
-    
-    if (
-      !application ||
-      application.status !== "accepted"
-    ) {
-      redirect(
-        `/${locale}/publisher-dashboard/messages`,
-      );
-    }
-    
+  const conversation = conversationData as ConversationRecord;
+
   const [messagesResult, opportunityResult, talentResult] =
     await Promise.all([
       adminClient
@@ -274,158 +236,90 @@ export default async function PublisherConversationPage({
     );
   }
 
-  const rawMessages =
-  messagesResult.data ?? [];
+  const rawMessages = messagesResult.data ?? [];
 
-const messageIds =
-  rawMessages.map(
-    (message) => Number(message.id),
-  );
+  const messageIds = rawMessages.map((message) => Number(message.id));
 
-const attachmentsResult =
-  messageIds.length > 0
-    ? await adminClient
-        .from("message_attachments")
-        .select(`
-          id,
-          message_id,
-          conversation_id,
-          uploader_user_id,
-          storage_path,
-          file_name,
-          mime_type,
-          size_bytes,
-          created_at
-        `)
-        .in(
-          "message_id",
-          messageIds,
-        )
-        .order(
-          "created_at",
-          {
+  const attachmentsResult =
+    messageIds.length > 0
+      ? await adminClient
+          .from("message_attachments")
+          .select(`
+            id,
+            message_id,
+            conversation_id,
+            uploader_user_id,
+            storage_path,
+            file_name,
+            mime_type,
+            size_bytes,
+            created_at
+          `)
+          .in("message_id", messageIds)
+          .order("created_at", {
             ascending: true,
-          },
-        )
-    : {
-        data: [],
-        error: null,
-      };
-
-if (
-  attachmentsResult.error
-) {
-  throw new Error(
-    `[PublisherConversationPage attachments] ${attachmentsResult.error.message}`,
-  );
-}
-
-const rawAttachments =
-  attachmentsResult.data ?? [];
-
-const attachmentsWithSignedUrls =
-  await Promise.all(
-    rawAttachments.map(
-      async (attachment) => {
-        const {
-          data: signedData,
-          error: signedError,
-        } =
-          await adminClient.storage
-            .from("message-attachments")
-            .createSignedUrl(
-              attachment.storage_path,
-              60 * 60,
-            );
-
-        if (signedError) {
-          console.error(
-            "[PublisherConversationPage signed attachment]",
-            signedError,
-          );
-        }
-
-        return {
-          id:
-            attachment.id,
-
-          message_id:
-            attachment.message_id,
-
-          conversation_id:
-            attachment.conversation_id,
-
-          uploader_user_id:
-            attachment.uploader_user_id,
-
-          storage_path:
-            attachment.storage_path,
-
-          file_name:
-            attachment.file_name,
-
-          mime_type:
-            attachment.mime_type,
-
-          size_bytes:
-            Number(
-              attachment.size_bytes,
-            ),
-
-          created_at:
-            attachment.created_at,
-
-          signed_url:
-            signedError
-              ? null
-              : signedData?.signedUrl ??
-                null,
+          })
+      : {
+          data: [],
+          error: null,
         };
-      },
-    ),
+
+  if (attachmentsResult.error) {
+    throw new Error(
+      `[PublisherConversationPage attachments] ${attachmentsResult.error.message}`,
+    );
+  }
+
+  const rawAttachments = attachmentsResult.data ?? [];
+
+  const attachmentsWithSignedUrls = await Promise.all(
+    rawAttachments.map(async (attachment) => {
+      const {
+        data: signedData,
+        error: signedError,
+      } = await adminClient.storage
+        .from("message-attachments")
+        .createSignedUrl(attachment.storage_path, 60 * 60);
+
+      if (signedError) {
+        console.error(
+          "[PublisherConversationPage signed attachment]",
+          signedError,
+        );
+      }
+
+      return {
+        id: attachment.id,
+        message_id: attachment.message_id,
+        conversation_id: attachment.conversation_id,
+        uploader_user_id: attachment.uploader_user_id,
+        storage_path: attachment.storage_path,
+        file_name: attachment.file_name,
+        mime_type: attachment.mime_type,
+        size_bytes: Number(attachment.size_bytes),
+        created_at: attachment.created_at,
+        signed_url: signedError ? null : signedData?.signedUrl ?? null,
+      };
+    }),
   );
 
-const attachmentsByMessage =
-  new Map<
+  const attachmentsByMessage = new Map<
     number,
     typeof attachmentsWithSignedUrls
   >();
 
-for (
-  const attachment
-  of attachmentsWithSignedUrls
-) {
-  const messageId =
-    Number(
-      attachment.message_id,
-    );
+  for (const attachment of attachmentsWithSignedUrls) {
+    const messageId = Number(attachment.message_id);
+    const existing = attachmentsByMessage.get(messageId) ?? [];
+    existing.push(attachment);
+    attachmentsByMessage.set(messageId, existing);
+  }
 
-  const existing =
-    attachmentsByMessage.get(
-      messageId,
-    ) ?? [];
-
-  existing.push(
-    attachment,
-  );
-
-  attachmentsByMessage.set(
-    messageId,
-    existing,
-  );
-}
-
-const messages: MessageRecord[] =
-  rawMessages.map(
-    (message) => ({
-      ...message,
-
-      attachments:
-        attachmentsByMessage.get(
-          Number(message.id),
-        ) ?? [],
-    }),
-  );
+  const messages: MessageRecord[] = rawMessages.map((message) => ({
+    ...message,
+    attachments:
+      attachmentsByMessage.get(Number(message.id)) ?? [],
+  }));
   const opportunity =
     opportunityResult.data as OpportunityRecord | null;
   const talent = talentResult.data as TalentRecord | null;
@@ -617,10 +511,10 @@ const messages: MessageRecord[] =
             <footer className="shrink-0 border-t border-white/10 bg-black/45 backdrop-blur-xl">
               {isActive ? (
                 <MessageComposer
-                conversationId={conversation.id}
-                currentUserId={user.id}
-                locale={locale}
-              />
+                  conversationId={conversation.id}
+                  currentUserId={user.id}
+                  locale={locale}
+                />
               ) : (
                 <div className="px-4 py-4 sm:px-5">
                   <div className="rounded-2xl border border-amber-300/20 bg-amber-300/[0.06] px-5 py-4 text-center">

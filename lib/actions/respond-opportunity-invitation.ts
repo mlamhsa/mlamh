@@ -42,7 +42,7 @@ export async function respondOpportunityInvitationAction(
   const admin = createAdminClient();
   const { data: invitation, error: lookupError } = await admin
     .from("opportunity_invitations")
-    .select("id,talent_id,status,opportunity_id")
+    .select("id,talent_id,publisher_id,status,opportunity_id")
     .eq("id", invitationId)
     .eq("talent_id", talent.id)
     .maybeSingle();
@@ -91,7 +91,36 @@ export async function respondOpportunityInvitationAction(
     };
   }
 
+  if (response === "declined") {
+    const { data: talentInterest, error: interestError } = await admin
+      .from("opportunity_applications")
+      .select("id")
+      .eq("opportunity_id", invitation.opportunity_id)
+      .eq("talent_id", talent.id)
+      .maybeSingle();
+
+    if (interestError) {
+      console.error("[respondOpportunityInvitationAction.interest]", interestError);
+    } else if (!talentInterest) {
+      const now = new Date().toISOString();
+      const { error: closeError } = await admin
+        .from("conversations")
+        .update({ status: "closed", closed_at: now, updated_at: now })
+        .eq("opportunity_id", invitation.opportunity_id)
+        .eq("publisher_id", invitation.publisher_id)
+        .eq("talent_id", talent.id)
+        .eq("conversation_type", "publisher_talent")
+        .eq("status", "active");
+
+      if (closeError) {
+        console.error("[respondOpportunityInvitationAction.closeConversation]", closeError);
+      }
+    }
+  }
+
   revalidatePath(`/${locale}/talent-dashboard/requests`);
+  revalidatePath(`/${locale}/talent-dashboard/messages`);
+  revalidatePath(`/${locale}/publisher-dashboard/messages`);
   revalidatePath(`/${locale}/talent-dashboard`);
 
   return {

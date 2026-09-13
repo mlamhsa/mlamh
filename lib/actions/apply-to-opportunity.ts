@@ -10,6 +10,7 @@ import {
   parseMarketingAttributionCookie,
 } from "@/lib/marketing/attribution/context";
 import { trackMarketingEvent } from "@/lib/marketing/events/track";
+import { ensureOpportunityConversation } from "@/lib/messages/ensure-opportunity-conversation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -205,7 +206,7 @@ export async function applyToOpportunityAction(
 
   const { data: opportunity, error: opportunityError } = await adminClient
     .from("opportunities")
-    .select("id, slug, status, published, created_at, application_days, opportunity_type")
+    .select("id, slug, status, published, created_at, application_days, opportunity_type, posting_mode, publisher_id")
     .eq("id", opportunityId)
     .maybeSingle();
 
@@ -300,12 +301,29 @@ export async function applyToOpportunityAction(
   }
 
   if (existingApplication) {
+    if (opportunity.posting_mode === "quick" && opportunity.publisher_id) {
+      try {
+        await ensureOpportunityConversation(adminClient, {
+          applicationId: existingApplication.id,
+          opportunityId: opportunity.id,
+          publisherId: opportunity.publisher_id,
+          talentId: talent.id,
+        });
+      } catch (error) {
+        console.error("Ensure quick interest conversation error:", error);
+      }
+    }
+
     return {
       status: "already_applied",
       message:
         locale === "ar"
-          ? "لقد قدمت على هذه الفرصة مسبقًا."
-          : "You have already applied to this opportunity.",
+          ? opportunity.posting_mode === "quick"
+            ? "سبق أن أرسلت اهتمامك بهذا الطلب."
+            : "لقد قدمت على هذه الفرصة مسبقًا."
+          : opportunity.posting_mode === "quick"
+            ? "You have already expressed interest in this request."
+            : "You have already applied to this opportunity.",
     };
   }
 
@@ -325,8 +343,12 @@ export async function applyToOpportunityAction(
         status: "already_applied",
         message:
           locale === "ar"
-            ? "لقد قدمت على هذه الفرصة مسبقًا."
-            : "You have already applied to this opportunity.",
+            ? opportunity.posting_mode === "quick"
+              ? "سبق أن أرسلت اهتمامك بهذا الطلب."
+              : "لقد قدمت على هذه الفرصة مسبقًا."
+            : opportunity.posting_mode === "quick"
+              ? "You have already expressed interest in this request."
+              : "You have already applied to this opportunity.",
       };
     }
 
@@ -340,6 +362,26 @@ export async function applyToOpportunityAction(
     };
   }
 
+  if (opportunity.posting_mode === "quick" && opportunity.publisher_id) {
+    try {
+      await ensureOpportunityConversation(adminClient, {
+        applicationId: insertedApplication.id,
+        opportunityId: opportunity.id,
+        publisherId: opportunity.publisher_id,
+        talentId: talent.id,
+      });
+    } catch (error) {
+      console.error("Create quick interest conversation error:", error);
+      return {
+        status: "error",
+        message:
+          locale === "ar"
+            ? "تم تسجيل اهتمامك، لكن تعذر فتح المحادثة الآن. حاول مرة أخرى."
+            : "Your interest was saved, but the conversation could not be opened yet. Please try again.",
+      };
+    }
+  }
+
   await trackEvent({
     type: "application_submitted",
     target: "application",
@@ -348,6 +390,7 @@ export async function applyToOpportunityAction(
     metadata: {
       opportunity_id: opportunity.id,
       talent_id: talent.id,
+      posting_mode: opportunity.posting_mode,
       logged_in: true,
     },
   });
@@ -365,6 +408,8 @@ export async function applyToOpportunityAction(
   }
 
   revalidatePath(`/${locale}/talent-dashboard/applications`);
+  revalidatePath(`/${locale}/talent-dashboard/messages`);
+  revalidatePath(`/${locale}/publisher-dashboard/messages`);
   revalidatePath(`/${locale}/talent-dashboard`);
   revalidatePath(`/admin/opportunities/${opportunity.id}`);
   revalidatePath("/admin/opportunity-applications");
@@ -373,7 +418,11 @@ export async function applyToOpportunityAction(
     status: "success",
     message:
       locale === "ar"
-        ? "تم تقديم طلبك بنجاح."
-        : "Your application has been submitted successfully.",
+        ? opportunity.posting_mode === "quick"
+          ? "تم إرسال اهتمامك ويمكنك بدء المحادثة الآن."
+          : "تم تقديم طلبك بنجاح."
+        : opportunity.posting_mode === "quick"
+          ? "Your interest was sent and you can start the conversation now."
+          : "Your application has been submitted successfully.",
   };
 }
