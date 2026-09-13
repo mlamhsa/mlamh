@@ -13,54 +13,54 @@ Last updated: 2026-09-13
 Status: CLOSED / merged to `main` via PR #319 after successful Vercel validation.
 
 Implemented:
-- Added three user-facing publisher choices:
-  - Individual / Project owner
-  - Store / Business
-  - Company / Organization
-- Preserved the canonical backend split:
-  - Fast-track choices continue to use `publisher_type=individual`.
-  - Professional organizations continue to use existing organization publisher types.
-- Required for fast-track onboarding:
-  - Full name
-  - Mobile number (required, not marked verified)
-  - City
-  - Individual role + use case, or business name + business type
-  - Optional social/profile link
-- Reused existing `publishers.publisher_type_other` to persist the fast-track subtype; no schema migration added.
-- Reused existing publisher fields for company/project name, city, phone, description, and social link.
-- Fast-track account activation preserves the existing product rule that individual publishers can activate without organization review; opportunity review remains separate.
-- Added compatibility guard: established publisher accounts or accounts with existing opportunities are not rewritten by onboarding.
+- Added three user-facing publisher choices: Individual / Project owner, Store / Business, Company / Organization.
+- Preserved the canonical backend split: fast-track uses `publisher_type=individual`; professional organizations keep existing publisher types.
+- Fast-track requires full name, mobile number, city, role/use case or business identity, with optional social/profile link.
+- Reused existing `publishers.publisher_type_other`; no schema migration.
+- Added compatibility guard so established accounts / accounts with opportunities are not rewritten.
 - No talent, application, message, conversation, or opportunity records were modified.
 
 ## Phase 2 — Quick Request Creation
 Status: CLOSED / merged to `main` via PR #321 after successful Vercel validation.
 
 Implemented:
-- Kept existing `posting_mode=quick`; no parallel request system or schema changes.
-- Fast-track publishers now enter a WhatsApp-style “What do you need?” flow directly.
-- Professional organizations retain the existing Quick Request vs Project / Casting chooser.
-- Added an isolated deterministic quick-request parser for talent type, city, gender, date, duration, compensation, budget, and count.
-- At most one essential follow-up is asked when talent type cannot be inferred.
-- Added structured editable preview before submission.
-- Submits through the existing `/api/create-opportunity` endpoint and current `createOpportunityAction`.
-- Current opportunity review behavior remains unchanged; no payment is introduced yet.
-- Fast-track publishers can still switch to the existing detailed Project / Casting flow.
-- Legacy individual publishers without the new fast subtype remain on the existing flow.
-- No talent, application, message, conversation, or existing opportunity records were modified.
+- Kept existing `posting_mode=quick`; no parallel request system.
+- Fast-track publishers enter the WhatsApp-style “What do you need?” flow directly.
+- Professional organizations retain Quick Request vs Project / Casting.
+- Added isolated deterministic parser and structured editable preview.
+- Uses the existing `/api/create-opportunity` and current review flow.
+- No payment, migration, backfill, or mutation of existing production data.
 
 ## Phase 3 — Public Opportunities
+Status: CLOSED / merged to `main` via PR #322 after successful Vercel validation.
+
+Implemented:
+- Public browsing remains open.
+- Homepage desktop/mobile now distinguishes `⚡ طلب الآن` from Casting.
+- Added additive public routes:
+  - `/{locale}/opportunities/quick`
+  - `/{locale}/opportunities/casting`
+- Added two-option opportunity navigation: `طلبات الآن` and `فرص الكاستينغ`.
+- Legacy/null `posting_mode` opportunities remain visible under Casting for backward compatibility.
+- Added visitor-to-talent acquisition CTA while preserving the current auth/application foundation.
+- Read-only Production check confirmed no slug conflict for `quick` or `casting`.
+- No opportunity, talent, account, application, message, or conversation records were modified.
+- Automatic return-to-the-same-opportunity after auth remains deferred to avoid changing the approved auth/callback foundation prematurely.
+
+## Phase 4 — Talent Dashboard
 Status: NEXT
 
 Scope:
-- Keep public opportunity browsing open to visitors.
-- Visually distinguish Quick Requests from Project / Casting opportunities.
-- Update homepage opportunities section to present both content types clearly.
-- Make public opportunity pages acquisition-aware: unauthenticated visitors should be guided to sign up as talent and return to the same opportunity intent.
-- Preserve the current opportunity/application foundation and SEO behavior.
-- Do not implement Interest/Invitation mechanics yet; those remain Phase 6/7.
+- For approved talent, make `مناسب لك اليوم` the primary dashboard section.
+- Keep other approval states focused on completion/review readiness.
+- Show attention items only when relevant (new messages / invitations later when Phase 6 exists).
+- Keep compact metrics for profile strength, applications, and messages.
+- Move profile-development tools lower in the dashboard.
+- Preserve current talent records and approval/application behavior.
+- Do not implement Matching changes yet; Phase 4 may only consume the safest existing relevance signals available today.
+- Do not implement Interest/Invitation mechanics yet.
 
 ## Remaining phases
-4. Talent Dashboard
 5. Matching
 6. Interest + Invitations
 7. Talent Directory Invitations
