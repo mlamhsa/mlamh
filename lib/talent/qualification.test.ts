@@ -85,9 +85,20 @@ test("legacy published active talent without profiles row stays visible", () => 
 });
 
 test("all canonical Talent Flow V1 categories can qualify", () => {
-  const expandedRoles = [
-    "actor",
-    "model",
+  const canonicalRoles = ["actor", "model"];
+
+  for (const role of canonicalRoles) {
+    const evaluation = evaluateTalentQualification({
+      ...baseTalent,
+      primary_role: role,
+      category_slug: role,
+    });
+    assert.equal(evaluation.qualified, true, `${role} should be a canonical talent role`);
+  }
+});
+
+test("future talent roles are not newly qualified before activation", () => {
+  const futureRoles = [
     "voice_actor",
     "presenter",
     "content_creator",
@@ -98,13 +109,14 @@ test("all canonical Talent Flow V1 categories can qualify", () => {
     "influencer",
   ];
 
-  for (const role of expandedRoles) {
+  for (const role of futureRoles) {
     const evaluation = evaluateTalentQualification({
       ...baseTalent,
       primary_role: role,
       category_slug: role,
     });
-    assert.equal(evaluation.qualified, true, `${role} should be a canonical talent role`);
+    assert.equal(evaluation.qualified, false, `${role} must remain inactive until product activation`);
+    assert.ok(evaluation.reasons.includes("missing_role"));
   }
 });
 
