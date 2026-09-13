@@ -140,8 +140,8 @@ export function ValueProps({
             <BriefcaseMini />
             <span>
               {isAr
-                ? "فرص حقيقية من جهات موثوقة"
-                : "Real opportunities from trusted organizations"}
+                ? "فرص من جهات تبحث عن مواهب"
+                : "Opportunities from organizations looking for talent"}
             </span>
           </div>
 

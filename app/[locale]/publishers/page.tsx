@@ -11,8 +11,8 @@ export async function generateMetadata({ params }: { params: Promise<{ locale?: 
     ? "انشر فرص المواهب في السعودية | ملامح للناشرين"
     : "Post Talent Opportunities in Saudi Arabia | MLAMH for Publishers";
   const description = isArabic
-    ? "انشر فرص التمثيل والمودل، استقبل الطلبات، واختر المواهب المناسبة عبر ملامح — للأفراد وأصحاب المشاريع والشركات والوكالات والعلامات التجارية."
-    : "Post acting and modeling opportunities, receive applications, and select the right talent on MLAMH — for individuals, small businesses, companies, agencies, and brands.";
+    ? "انشر فرص التمثيل والمودل، استقبل الطلبات، واختر المواهب المناسبة عبر ملامح — للأفراد وأصحاب المشاريع والمتاجر والأنشطة التجارية والشركات والوكالات والعلامات التجارية."
+    : "Post acting and modeling opportunities, receive applications, and select the right talent on MLAMH — for individuals, project owners, stores, small businesses, companies, agencies, and brands.";
   const canonical = `${SITE_URL}/${locale}/publishers`;
 
   return {
@@ -65,29 +65,29 @@ export default async function PublishersPage({ params }: { params: Promise<{ loc
       n: "01",
       ar: "أنشئ حساب الناشر",
       en: "Create your publisher account",
-      arText: "اختر فرد / صاحب مشروع أو شركة / جهة، وأكمل البيانات الأساسية فقط.",
-      enText: "Choose Individual / Small Business or Company / Organization and complete only the essentials.",
+      arText: "اختر فرد / صاحب مشروع، متجر / نشاط تجاري، أو شركة / جهة، وأكمل البيانات الأساسية المناسبة لمسارك.",
+      enText: "Choose Individual / Project Owner, Store / Business, or Company / Organization and complete the essentials for your path.",
     },
     {
       n: "02",
-      ar: "انشر الفرصة",
-      en: "Post the opportunity",
-      arText: "حدد نوع الموهبة والمدينة والمتطلبات والمقابل ومدة استقبال الطلبات.",
-      enText: "Set the talent type, city, requirements, compensation, and application window.",
+      ar: "انشر احتياجك",
+      en: "Post what you need",
+      arText: "أنشئ طلبًا سريعًا أو فرصة كاستينغ وحدد نوع الموهبة والمدينة والمتطلبات والمقابل.",
+      enText: "Create a Quick Request or Casting opportunity and set the talent type, city, requirements, and compensation.",
     },
     {
       n: "03",
-      ar: "راجع المتقدمين",
-      en: "Review applicants",
-      arText: "استعرض ملفات المواهب واتخذ قرار القبول أو الرفض من لوحة واحدة.",
-      enText: "Review talent profiles and accept or reject applications from one workspace.",
+      ar: "اكتشف المواهب",
+      en: "Discover talent",
+      arText: "راجع المتقدمين والمواهب المناسبة، ويمكنك دعوة موهبة إلى طلب أو فرصة منشورة من حسابك.",
+      enText: "Review applicants and matched talent, and invite talent to a request or opportunity published from your account.",
     },
     {
       n: "04",
       ar: "ابدأ التواصل",
       en: "Start the conversation",
-      arText: "عند قبول الموهبة تفتح المحادثة مباشرة لتنسيق تفاصيل العمل.",
-      enText: "Once talent is accepted, messaging opens so both sides can coordinate the work.",
+      arText: "يبدأ التواصل داخل ملامح عندما يُظهر أحد الطرفين اهتمامًا مرتبطًا بطلب أو فرصة، مع بقاء التواصل داخل المنصة.",
+      enText: "Messaging starts inside MLAMH when either side expresses interest tied to a request or opportunity, keeping communication on-platform.",
     },
   ];
 
@@ -104,8 +104,8 @@ export default async function PublishersPage({ params }: { params: Promise<{ loc
             </h1>
             <p className="mt-6 max-w-3xl text-sm leading-8 text-white/60 sm:text-base">
               {isRtl
-                ? "ملامح تجمع الأفراد وأصحاب المشاريع والشركات والوكالات والعلامات التجارية مع المواهب المناسبة في تجربة واحدة سريعة ومنظمة."
-                : "MLAMH connects individuals, small businesses, companies, agencies, and brands with the right talent through one fast, organized experience."}
+                ? "ملامح تجمع الأفراد وأصحاب المشاريع والمتاجر والأنشطة التجارية والشركات والوكالات والعلامات التجارية مع المواهب المناسبة في تجربة واحدة سريعة ومنظمة."
+                : "MLAMH connects individuals, project owners, stores, small businesses, companies, agencies, and brands with the right talent through one fast, organized experience."}
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
@@ -119,23 +119,36 @@ export default async function PublishersPage({ params }: { params: Promise<{ loc
           </div>
         </section>
 
-        <section className="mt-8 grid gap-5 lg:grid-cols-2">
+        <section className="mt-8 grid gap-5 lg:grid-cols-3">
           <article className="rounded-[2rem] border border-gold/20 bg-gold/[0.035] p-6 sm:p-8">
-            <p className="text-xs text-gold">{isRtl ? "فرص سريعة" : "Quick Opportunities"}</p>
-            <h2 className="mt-4 text-3xl font-light">{isRtl ? "فرد / صاحب مشروع" : "Individual / Small Business"}</h2>
+            <p className="text-xs text-gold">{isRtl ? "مسار سريع" : "Fast Track"}</p>
+            <h2 className="mt-4 text-3xl font-light">{isRtl ? "فرد / صاحب مشروع" : "Individual / Project Owner"}</h2>
             <p className="mt-5 text-sm leading-8 text-white/60">
               {isRtl
-                ? "لأصحاب المتاجر والصالونات والمصورين ومنظمي الفعاليات والمشاريع الصغيرة. إعداد سريع يساعدك على نشر احتياجك والوصول للمواهب بدون تعقيد حسابات الشركات."
-                : "For shop owners, salons, photographers, event organizers, and small businesses. A lightweight setup helps you post quickly without enterprise-style friction."}
+                ? "للمصورين ومنظمي الفعاليات وأصحاب المشاريع والاحتياجات الفردية. إعداد مختصر يوصلك مباشرة إلى إنشاء طلبك."
+                : "For photographers, event organizers, project owners, and individual needs. A lightweight setup takes you straight to creating your request."}
             </p>
             <div className="mt-6 rounded-[1.5rem] border border-white/10 bg-black/20 p-5 text-sm leading-7 text-white/50">
-              {isRtl ? "بيانات أساسية → تفعيل الحساب → نشر الفرصة." : "Essentials → activate account → post opportunity."}
+              {isRtl ? "بيانات أساسية → إنشاء الطلب → المراجعة والنشر." : "Essentials → create request → review and publish."}
+            </div>
+          </article>
+
+          <article className="rounded-[2rem] border border-gold/20 bg-gold/[0.025] p-6 sm:p-8">
+            <p className="text-xs text-gold">{isRtl ? "مسار سريع للأعمال" : "Business Fast Track"}</p>
+            <h2 className="mt-4 text-3xl font-light">{isRtl ? "متجر / نشاط تجاري" : "Store / Business"}</h2>
+            <p className="mt-5 text-sm leading-8 text-white/60">
+              {isRtl
+                ? "للمتاجر والصالونات والمشاريع التجارية الصغيرة التي تحتاج مودلز أو ممثلين للتصوير والمحتوى والحملات."
+                : "For stores, salons, and small businesses that need models or actors for shoots, content, and campaigns."}
+            </p>
+            <div className="mt-6 rounded-[1.5rem] border border-white/10 bg-black/20 p-5 text-sm leading-7 text-white/50">
+              {isRtl ? "اسم النشاط ونوعه والمدينة → إنشاء الطلب → المراجعة والنشر." : "Business name, type, and city → create request → review and publish."}
             </div>
           </article>
 
           <article className="rounded-[2rem] border border-white/10 bg-white/[0.025] p-6 sm:p-8">
             <p className="text-xs text-gold">{isRtl ? "حضور احترافي" : "Professional Presence"}</p>
-            <h2 className="mt-4 text-3xl font-light">{isRtl ? "شركة / جهة" : "Company / Organization"}</h2>
+            <h2 className="mt-4 text-3xl font-light">{isRtl ? "شركة / مؤسسة / جهة" : "Company / Organization"}</h2>
             <p className="mt-5 text-sm leading-8 text-white/60">
               {isRtl
                 ? "للشركات ووكالات الإعلان والكاستينغ ووكالات المواهب والعلامات التجارية وشركات المحتوى. ملف جهة احترافي، مراجعة حساب، وتوثيق اختياري لزيادة الثقة."
