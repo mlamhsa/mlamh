@@ -145,8 +145,7 @@ export function MobileTalentShowcase({
               ) || "Talent"
             }
             fill
-            priority
-            sizes="100vw"
+            sizes="calc(100vw - 2rem)"
             className="object-cover object-top transition duration-700 group-active:scale-[1.015]"
           />
 
