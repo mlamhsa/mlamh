@@ -41,7 +41,7 @@ function opportunityBrief(item: DashboardOpportunity): TalentBrief {
     city_required: Boolean(item.city_slug || item.city_en || item.city_ar),
     city_flexible: false,
     required_gender: normalizedGender(item.required_gender),
-    requirements: null,
+    requirements: item.role_requirements ?? null,
   };
 }
 
@@ -71,7 +71,7 @@ export default async function TalentDashboardRecommendations({
   } as BriefTalent;
 
   const opportunities = (await getPublishedOpportunities()) as DashboardOpportunity[];
-  const matched = opportunities
+  const allMatches = opportunities
     .filter(isOpen)
     .filter((item) => {
       try {
@@ -80,11 +80,12 @@ export default async function TalentDashboardRecommendations({
         console.warn("[TalentDashboardRecommendations.evaluate]", item.id, error);
         return false;
       }
-    })
-    .slice(0, 3);
+    });
+
+  const visibleMatches = allMatches.slice(0, 3);
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-4 px-4 pt-24 sm:px-6 lg:px-8 lg:pt-28">
+    <div className="space-y-4">
       <section className="overflow-hidden rounded-[2rem] border border-gold/20 bg-[radial-gradient(circle_at_top_right,rgba(201,169,98,0.12),transparent_42%),rgba(255,255,255,0.02)] p-5 sm:p-7 lg:p-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -92,19 +93,19 @@ export default async function TalentDashboardRecommendations({
               <Zap size={13} />
               {isRtl ? "مناسب لك اليوم" : "Matched for you today"}
             </div>
-            <h1 className="mt-4 text-2xl font-light text-white sm:text-3xl">
-              {matched.length > 0
+            <h2 className="mt-4 text-2xl font-light text-white sm:text-3xl">
+              {allMatches.length > 0
                 ? isRtl
-                  ? `${matched.length} ${matched.length === 1 ? "فرصة مناسبة" : "فرص مناسبة"} لملفك الآن`
-                  : `${matched.length} matched opportunit${matched.length === 1 ? "y" : "ies"} for you now`
+                  ? `${allMatches.length} ${allMatches.length === 1 ? "فرصة مناسبة" : "فرص مناسبة"} لملفك الآن`
+                  : `${allMatches.length} matched opportunit${allMatches.length === 1 ? "y" : "ies"} for you now`
                 : isRtl
                   ? "ما فيه فرص مطابقة لملفك حاليًا"
                   : "No exact matches for your profile right now"}
-            </h1>
+            </h2>
             <p className="mt-2 max-w-2xl text-sm leading-7 text-white/45">
               {isRtl
-                ? "نستخدم بيانات ملفك الحالية لعرض الفرص الأقرب لك. ستتحسن المطابقة أكثر في المرحلة التالية."
-                : "We use your current profile data to surface the closest opportunities. Matching will become richer in the next phase."}
+                ? "نعرض هنا الفرص الأقرب لبيانات ملفك الحالية. كلما كان ملفك أكمل وأحدث، زادت فرص ظهور الفرص المناسبة لك."
+                : "We surface opportunities closest to your current profile. A more complete and up-to-date profile improves the relevance of what appears here."}
             </p>
           </div>
           <Link
@@ -115,9 +116,9 @@ export default async function TalentDashboardRecommendations({
           </Link>
         </div>
 
-        {matched.length > 0 ? (
+        {visibleMatches.length > 0 ? (
           <div className="mt-6 grid gap-3 lg:grid-cols-3">
-            {matched.map((item) => {
+            {visibleMatches.map((item) => {
               const quick = item.posting_mode === "quick";
               const city = isRtl ? item.city_ar || item.city_en || "—" : item.city_en || item.city_ar || "—";
               return (
@@ -135,7 +136,7 @@ export default async function TalentDashboardRecommendations({
                     </span>
                   </div>
 
-                  <h2 className="mt-4 line-clamp-2 text-lg font-medium leading-7 text-white transition group-hover:text-gold">{item.title}</h2>
+                  <h3 className="mt-4 line-clamp-2 text-lg font-medium leading-7 text-white transition group-hover:text-gold">{item.title}</h3>
                   <div className="mt-4 space-y-2 text-xs text-white/45">
                     <div className="flex items-center gap-2"><MapPin size={13} className="text-gold/70" /><span className="truncate">{city}</span></div>
                     <div className="flex items-center gap-2"><Wallet size={13} className="text-gold/70" /><span className="truncate">{formatCompensation(item, isRtl)}</span></div>
@@ -152,9 +153,12 @@ export default async function TalentDashboardRecommendations({
                 ? "يمكنك استعراض طلبات الآن وفرص الكاستينغ، أو تطوير ملفك لزيادة فرص المطابقة."
                 : "Browse Quick Requests and Casting Opportunities, or strengthen your profile to improve matching."}
             </p>
-            <div className="mt-4 flex gap-2 sm:mt-0">
+            <div className="mt-4 flex flex-wrap gap-2 sm:mt-0">
               <Link href={`/${locale}/opportunities/quick`} className="rounded-full border border-white/10 px-4 py-2.5 text-xs text-white/60 transition hover:border-gold/30 hover:text-gold">
                 {isRtl ? "طلبات الآن" : "Quick Requests"}
+              </Link>
+              <Link href={`/${locale}/opportunities/casting`} className="rounded-full border border-white/10 px-4 py-2.5 text-xs text-white/60 transition hover:border-gold/30 hover:text-gold">
+                {isRtl ? "فرص الكاستينغ" : "Casting Opportunities"}
               </Link>
               <Link href={`/${locale}/talent-dashboard/profile/details`} className="rounded-full border border-white/10 px-4 py-2.5 text-xs text-white/60 transition hover:border-gold/30 hover:text-gold">
                 {isRtl ? "طوّر ملفك" : "Improve profile"}
