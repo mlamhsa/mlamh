@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { checkAuthEmailExistsAction } from "@/lib/actions/check-auth-email";
 import { TALENT_CATEGORIES } from "@/lib/data/talent-categories";
 import {
   GENDER_OPTIONS,
@@ -62,6 +63,7 @@ export function QuickJoinForm({ locale, accountType, intent }: QuickJoinFormProp
   const [showPasswordConfirmation, setShowPasswordConfirmation] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [existingAccount, setExistingAccount] = useState(false);
 
   const selectedPhoneCountry = useMemo(
     () => TALENT_SIGNUP_COUNTRIES.find((country) => country.code === phoneCountryCode) ?? TALENT_SIGNUP_COUNTRIES[0],
@@ -80,6 +82,7 @@ export function QuickJoinForm({ locale, accountType, intent }: QuickJoinFormProp
     event.preventDefault();
     if (submitting) return;
     setErrorMessage("");
+    setExistingAccount(false);
 
     const cleanName = fullName.trim().replace(/\s+/g, " ");
     const cleanEmail = email.trim().toLowerCase();
@@ -114,6 +117,13 @@ export function QuickJoinForm({ locale, accountType, intent }: QuickJoinFormProp
 
     setSubmitting(true);
     try {
+      const duplicate = await checkAuthEmailExistsAction(cleanEmail);
+      if (duplicate.exists) {
+        setExistingAccount(true);
+        setSubmitting(false);
+        return;
+      }
+
       const supabase = createBrowserSupabaseClient();
       const resolvedIntent = isTalent ? talentType : (intent ?? "publisher");
       const now = new Date().toISOString();
@@ -155,6 +165,12 @@ export function QuickJoinForm({ locale, accountType, intent }: QuickJoinFormProp
         return;
       }
 
+      if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+        setExistingAccount(true);
+        setSubmitting(false);
+        return;
+      }
+
       if (data.session && data.user) {
         router.replace(isTalent ? `/${locale}/join/talent` : `/${locale}/join/publisher`);
         return;
@@ -174,6 +190,17 @@ export function QuickJoinForm({ locale, accountType, intent }: QuickJoinFormProp
     <form onSubmit={(event) => void submit(event)} className="space-y-5">
       <p className="text-xs text-white/40">{isRtl ? <><span className="text-gold">*</span> حقل مطلوب</> : <><span className="text-gold">*</span> Required field</>}</p>
 
+      {existingAccount ? (
+        <div role="alert" className="rounded-2xl border border-gold/30 bg-gold/[0.07] p-5">
+          <h3 className="text-base font-medium text-white">{isRtl ? "هذا البريد مسجل مسبقًا" : "This email is already registered"}</h3>
+          <p className="mt-2 text-sm leading-7 text-white/55">{isRtl ? "لديك حساب سابق في ملامح. سجّل الدخول بدل إنشاء حساب جديد، أو استعد كلمة المرور إذا نسيتها." : "You already have an MLAMH account. Sign in instead of creating another account, or reset your password if needed."}</p>
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+            <Link href={`/${locale}/login`} className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-gold px-4 text-sm font-medium text-black">{isRtl ? "تسجيل الدخول" : "Sign in"}</Link>
+            <Link href={`/${locale}/forgot-password`} className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl border border-white/10 px-4 text-sm text-white/70">{isRtl ? "نسيت كلمة المرور؟" : "Forgot password?"}</Link>
+          </div>
+        </div>
+      ) : null}
+
       {errorMessage ? <div role="alert" className="rounded-2xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-center text-sm leading-6 text-red-300">{errorMessage}</div> : null}
 
       <div className="grid gap-5 sm:grid-cols-2">
@@ -184,7 +211,7 @@ export function QuickJoinForm({ locale, accountType, intent }: QuickJoinFormProp
 
         <div className="sm:col-span-2">
           <label htmlFor="join-email" className="mb-2 block text-sm text-white/65">{isRtl ? "البريد الإلكتروني" : "Email address"}{requiredMark}</label>
-          <input id="join-email" type="email" required inputMode="email" autoComplete="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} value={email} onChange={(event) => setEmail(event.currentTarget.value)} placeholder="name@example.com" dir="ltr" className={`${inputClass} text-left`}/>
+          <input id="join-email" type="email" required inputMode="email" autoComplete="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} value={email} onChange={(event) => { setEmail(event.currentTarget.value); setExistingAccount(false); }} placeholder="name@example.com" dir="ltr" className={`${inputClass} text-left`}/>
         </div>
 
         <div className="sm:col-span-2">

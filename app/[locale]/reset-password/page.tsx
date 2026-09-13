@@ -103,10 +103,10 @@ export default function ResetPasswordPage({
               {isArabic ? "تم تحديث كلمة المرور" : "Password updated"}
             </p>
             <Link
-              href={`/${locale}/login`}
+              href={`/${locale}/dashboard-router`}
               className="mt-4 inline-flex rounded-xl bg-gold px-5 py-3 text-sm font-medium text-black"
             >
-              {isArabic ? "العودة لتسجيل الدخول" : "Back to sign in"}
+              {isArabic ? "الانتقال إلى حسابي" : "Continue to my account"}
             </Link>
           </div>
         ) : (

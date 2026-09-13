@@ -81,6 +81,10 @@ async function completePublisherSocialAccount(formData: FormData) {
     redirect(`/${locale}/join/complete-account?${baseQuery.toString()}`);
   }
 
+  if (existing?.account_type && existing.account_type !== "publisher") {
+    redirect(`/${locale}/dashboard-router`);
+  }
+
   const profilePayload = {
     account_type: "publisher" as const,
     display_name: fullName,
@@ -166,7 +170,14 @@ export default async function CompleteAccountPage({ params, searchParams }: Page
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (profile?.account_type && profile.phone?.trim()) redirect(`/${locale}/dashboard-router`);
+  if (profile?.account_type === "talent" || profile?.account_type === "publisher") {
+    if (profile.phone?.trim()) redirect(`/${locale}/dashboard-router`);
+    if (profile.account_type !== accountType) {
+      const safeQuery = new URLSearchParams({ type: profile.account_type, provider });
+      if (profile.account_type === "publisher") safeQuery.set("intent", "publisher");
+      redirect(`/${locale}/join/complete-account?${safeQuery.toString()}`);
+    }
+  }
 
   const suggestedName = String(
     user.user_metadata?.full_name ??
