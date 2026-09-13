@@ -9,6 +9,7 @@ import {
   EVENT_TYPES,
 } from "@/lib/events";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { canRequestTalentFromProfile } from "@/lib/talent/public-profile-access";
 
 export type SendOpportunityInvitationsState = {
   success: boolean;
@@ -81,19 +82,25 @@ export async function sendOpportunityInvitationsAction(
     };
   }
 
-  const { user, publisher } =
+  const { user, profile, publisher } =
     await requirePublisher(locale);
 
-  if (
-    publisher.verified !== true ||
-    publisher.status === "suspended"
-  ) {
+  const publisherCanInvite = canRequestTalentFromProfile({
+    userId: user.id,
+    accountType: profile.account_type,
+    approvalStatus: profile.approval_status,
+    publisherVerified: publisher.verified,
+    publisherVerificationStatus: publisher.verification_status,
+    publisherStatus: publisher.status,
+  });
+
+  if (!publisherCanInvite) {
     return {
       success: false,
       message:
         locale === "ar"
-          ? "حساب الناشر غير مؤهل لإرسال الدعوات."
-          : "Your publisher account cannot send invitations.",
+          ? "حساب الناشر غير مؤهل لإرسال الدعوات. يجب أن يكون الحساب معتمدًا وموثقًا ونشطًا."
+          : "Your publisher account must be approved, verified, and active before sending invitations.",
       sentCount: 0,
     };
   }
@@ -101,12 +108,13 @@ export async function sendOpportunityInvitationsAction(
   const adminClient = createAdminClient();
 
   /*
-   * تأكيد وجود الموهبة قبل إنشاء أي دعوات.
+   * لا نثق بمعرّف الموهبة القادم من الواجهة. يجب أن يكون الملف نفسه
+   * معتمدًا ومنشورًا وعامًا، وليس مجرد صف موجود في قاعدة البيانات.
    */
   const { data: talent, error: talentError } =
     await adminClient
       .from("talents")
-      .select("id")
+      .select("id,user_id,published,status,profile_visibility")
       .eq("id", talentId)
       .maybeSingle();
 
@@ -126,13 +134,51 @@ export async function sendOpportunityInvitationsAction(
     };
   }
 
-  if (!talent) {
+  const talentStatus = String(talent?.status ?? "").trim().toLowerCase();
+  const talentVisibility = String(talent?.profile_visibility ?? "public").trim().toLowerCase();
+  const talentOperationallyPublic = Boolean(
+    talent?.id &&
+      talent.user_id &&
+      talent.published === true &&
+      talentVisibility === "public" &&
+      ["approved", "active"].includes(talentStatus),
+  );
+
+  if (!talentOperationallyPublic || !talent?.user_id) {
     return {
       success: false,
       message:
         locale === "ar"
-          ? "ملف الموهبة غير موجود."
-          : "Talent profile not found.",
+          ? "هذه الموهبة غير متاحة للدعوات حاليًا."
+          : "This talent is not currently available for invitations.",
+      sentCount: 0,
+    };
+  }
+
+  const { data: talentProfile, error: talentProfileError } = await adminClient
+    .from("profiles")
+    .select("approval_status,account_type")
+    .eq("user_id", talent.user_id)
+    .maybeSingle();
+
+  if (
+    talentProfileError ||
+    talentProfile?.account_type !== "talent" ||
+    talentProfile.approval_status !== "approved"
+  ) {
+    if (talentProfileError) {
+      console.error(
+        "[sendOpportunityInvitationsAction:talentProfile]",
+        talentProfileError,
+      );
+    }
+
+    return {
+      success: false,
+      message:
+        locale === "ar"
+          ? "هذه الموهبة غير متاحة للدعوات حاليًا."
+          : "This talent is not currently available for invitations.",
       sentCount: 0,
     };
   }
@@ -199,10 +245,6 @@ export async function sendOpportunityInvitationsAction(
     }),
   );
 
-  /*
-   * ignoreDuplicates يمنع فشل العملية إذا كانت دعوة
-   * لنفس الموهبة والفرصة موجودة سابقًا.
-   */
   const { data: insertedInvitations, error: insertError } =
     await adminClient
       .from("opportunity_invitations")
@@ -248,10 +290,6 @@ export async function sendOpportunityInvitationsAction(
     ]),
   );
 
-  /*
-   * ننشئ Event فقط للدعوات الجديدة،
-   * وبالتالي لن تصل إشعارات مكررة.
-   */
   const eventResults = await Promise.allSettled(
     insertedRows.map(async (invitation) => {
       const opportunity = opportunityById.get(
