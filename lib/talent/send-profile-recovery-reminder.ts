@@ -2,7 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import {
   formatRecoveryItems,
   resolveTalentCommunicationLocale,
-  type LocalizedRecoveryItem,
+  type RecoveryItemInput,
   type TalentCommunicationLocale,
 } from "@/lib/talent/recovery-communication";
 
@@ -17,9 +17,11 @@ type MessageLocale = "ar" | "en";
 type SendTalentProfileRecoveryReminderInput = {
   userId: string;
   kind: TalentProfileRecoveryKind;
-  missingItems?: LocalizedRecoveryItem[];
+  missingItems?: RecoveryItemInput[];
   changeReason?: string | null;
   operatorLocale?: OperatorLocale;
+  /** @deprecated Recipient language is resolved from the user's preferred_locale. */
+  locale?: OperatorLocale;
 };
 
 type SendTalentProfileRecoveryReminderResult =
@@ -132,7 +134,7 @@ function buildMessageSection({
   locale: MessageLocale;
   kind: TalentProfileRecoveryKind;
   name: string;
-  missingItems: LocalizedRecoveryItem[];
+  missingItems: RecoveryItemInput[];
   changeReason?: string | null;
   baseUrl: string;
 }) {
@@ -214,8 +216,11 @@ export async function sendTalentProfileRecoveryReminder({
   kind,
   missingItems = [],
   changeReason,
-  operatorLocale = "en",
+  operatorLocale,
+  locale: legacyOperatorLocale,
 }: SendTalentProfileRecoveryReminderInput): Promise<SendTalentProfileRecoveryReminderResult> {
+  const resolvedOperatorLocale =
+    operatorLocale ?? legacyOperatorLocale ?? "en";
   const adminClient = createAdminClient();
   const { data, error } = await adminClient.auth.admin.getUserById(userId);
 
@@ -225,7 +230,7 @@ export async function sendTalentProfileRecoveryReminder({
       success: false,
       status: "user_not_found",
       message: operatorMessage(
-        operatorLocale,
+        resolvedOperatorLocale,
         "تعذر العثور على المستخدم.",
         "Unable to find the user.",
       ),
@@ -240,7 +245,7 @@ export async function sendTalentProfileRecoveryReminder({
       success: false,
       status: "missing_email",
       message: operatorMessage(
-        operatorLocale,
+        resolvedOperatorLocale,
         "لا يوجد بريد إلكتروني للمستخدم.",
         "The user does not have an email address.",
       ),
@@ -256,7 +261,7 @@ export async function sendTalentProfileRecoveryReminder({
       success: false,
       status: "missing_email_config",
       message: operatorMessage(
-        operatorLocale,
+        resolvedOperatorLocale,
         "إعدادات البريد غير مكتملة.",
         "Email configuration is incomplete.",
       ),
@@ -323,7 +328,7 @@ export async function sendTalentProfileRecoveryReminder({
       success: false,
       status: "send_failed",
       message: operatorMessage(
-        operatorLocale,
+        resolvedOperatorLocale,
         "تعذر إرسال التذكير.",
         "Unable to send the reminder.",
       ),
