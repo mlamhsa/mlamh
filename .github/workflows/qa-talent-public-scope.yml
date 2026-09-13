@@ -1,0 +1,41 @@
+name: QA Talent Public Scope
+
+on:
+  push:
+    paths:
+      - '.github/workflows/qa-talent-public-scope.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enforce active public Talent roles
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('lib/supabase/public-talents.ts')
+          s = p.read_text()
+          def rep(old, new):
+              global s
+              n=s.count(old)
+              if n != 1: raise SystemExit(f'expected 1 match, got {n}: {old[:80]!r}')
+              s=s.replace(old,new,1)
+          rep('import { findNationality } from "@/lib/data/nationalities";\n', 'import { findNationality } from "@/lib/data/nationalities";\nimport { TALENT_CATEGORIES } from "@/lib/data/talent-categories";\n')
+          rep('const PUBLIC_DIRECTORY_BATCH_SIZE = 100;\n', 'const PUBLIC_DIRECTORY_BATCH_SIZE = 100;\nconst ACTIVE_PUBLIC_TALENT_ROLES = new Set(TALENT_CATEGORIES.map((category) => category.slug));\n\nfunction isActivePublicTalentRole(talent: Pick<Talent, "primary_role" | "category_slug">) {\n  const role = String(talent.primary_role ?? talent.category_slug ?? "").trim().toLowerCase();\n  return ACTIVE_PUBLIC_TALENT_ROLES.has(role);\n}\n')
+          rep('        !canExposePublicTalent(candidate, countryCode) ||\n        !passesPublicTalentVisibilityPolicy(candidate) ||', '        !canExposePublicTalent(candidate, countryCode) ||\n        !isActivePublicTalentRole(candidate) ||\n        !passesPublicTalentVisibilityPolicy(candidate) ||')
+          rep('  if (!talent || !canExposePublicTalent(talent, countryCode)) return null;\n', '  if (!talent || !canExposePublicTalent(talent, countryCode) || !isActivePublicTalentRole(talent)) return null;\n')
+          s=s.replace('"public-talents-v10"','"public-talents-v11"')
+          s=s.replace('`published-talent:v8:${countryCode}:id:${id}`','`published-talent:v9:${countryCode}:id:${id}`')
+          s=s.replace('`published-talents:v9:${countryCode}:all`','`published-talents:v10:${countryCode}:all`')
+          p.write_text(s)
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add lib/supabase/public-talents.ts
+          git commit -m 'fix(qa): enforce active Actor Model public scope'
+          git push origin HEAD:main
