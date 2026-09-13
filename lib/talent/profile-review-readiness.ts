@@ -1,4 +1,4 @@
-import { TALENT_CATEGORIES, type TalentCategorySlug } from "@/lib/data/talent-categories";
+import { TALENT_CATEGORIES, type TalentCategorySlug } from "../data/talent-categories.ts";
 
 export type TalentProfileReadinessData = {
   name_ar?: unknown;
