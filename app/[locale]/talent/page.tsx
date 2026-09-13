@@ -42,8 +42,8 @@ export async function generateMetadata({ params }: Pick<PageProps, "params">): P
     ? "مواهب احترافية في السعودية | دليل المواهب | ملامح"
     : "Professional Talent in Saudi Arabia | MLAMH Talent Directory";
   const description = isArabic
-    ? "اكتشف مواهب معتمدة في السعودية عبر ملامح: ممثلون، مودلز، أصوات، مقدمو محتوى، صنّاع محتوى، مؤثرون، مغنون، راقصون، موسيقيون وكومبارس. ابحث حسب التخصص والمدينة والعمر والجنسية."
-    : "Discover approved talent in Saudi Arabia on MLAMH: actors, models, voice talent, presenters, creators, influencers, singers, dancers, musicians and extras. Search by role, city, age and nationality.";
+    ? "اكتشف ممثلين ومودلز معتمدين في السعودية عبر ملامح. ابحث حسب النوع والمدينة والعمر والجنسية للوصول إلى الموهبة المناسبة لمشروعك."
+    : "Discover approved actors and models in Saudi Arabia on MLAMH. Search by talent type, city, age and nationality to find the right fit for your project.";
   const canonical = `${SITE_URL}/${locale}/talent`;
   return {
     title,
@@ -97,9 +97,6 @@ export default async function TalentListingPage({ params, searchParams }: PagePr
   const seoLinks = [
     { href: `/${locale}/talent/category/actor`, label: isRtl ? "ممثلون في السعودية" : "Actors in Saudi Arabia" },
     { href: `/${locale}/talent/category/model`, label: isRtl ? "مودلز في السعودية" : "Models in Saudi Arabia" },
-    { href: `/${locale}/talent/category/voice_actor`, label: isRtl ? "مواهب تعليق صوتي" : "Voice Talent" },
-    { href: `/${locale}/talent/category/content_creator`, label: isRtl ? "صنّاع محتوى" : "Content Creators" },
-    { href: `/${locale}/talent/category/influencer`, label: isRtl ? "مؤثرون" : "Influencers" },
     { href: `/${locale}/talent/city/riyadh`, label: isRtl ? "مواهب في الرياض" : "Talent in Riyadh" },
   ];
 
@@ -156,8 +153,8 @@ export default async function TalentListingPage({ params, searchParams }: PagePr
             <h1 className="text-3xl font-semibold leading-tight text-white">{isRtl ? "اكتشف المواهب" : "Discover talents"}</h1>
             <p className="mt-2 max-w-sm text-sm leading-6 text-white/50">
               {isRtl
-                ? "ابحث عن مواهب معتمدة بمختلف التخصصات، ثم صفِّ النتائج حسب احتياج مشروعك."
-                : "Find approved talent across multiple specialties, then filter results for your project needs."}
+                ? "ابحث عن ممثلين ومودلز معتمدين، ثم صفِّ النتائج حسب احتياج مشروعك."
+                : "Find approved actors and models, then filter results for your project needs."}
             </p>
             <SeoLinks />
           </header>
@@ -216,8 +213,8 @@ export default async function TalentListingPage({ params, searchParams }: PagePr
               </h1>
               <p className="mt-6 max-w-2xl text-sm leading-relaxed text-gray-muted md:text-base">
                 {isRtl
-                  ? "اكتشف مواهب منشورة بمختلف التخصصات على ملامح، واستخدم الفلاتر للوصول إلى الأنسب للكاستينج والإعلانات والمحتوى والفعاليات والمشاريع الإبداعية."
-                  : "Discover published talent across multiple specialties on MLAMH and use filters to find the right fit for casting, campaigns, content, events and creative projects."}
+                  ? "اكتشف ممثلين ومودلز منشورين على ملامح، واستخدم الفلاتر للوصول إلى الأنسب للكاستينج والإعلانات والمحتوى والفعاليات والمشاريع الإبداعية."
+                  : "Discover published actors and models on MLAMH and use filters to find the right fit for casting, campaigns, content, events and creative projects."}
               </p>
               <SeoLinks />
             </header>

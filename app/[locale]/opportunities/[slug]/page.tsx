@@ -430,9 +430,13 @@ function getDeadlineDisplay(
     isUrgent: remainingDays <= 3,
     label: isRtl ? "متاح للتقديم" : "Open for Applications",
     detail: isRtl
-      ? `متبقي ${remainingDays} ${
-          remainingDays === 1 ? "يوم" : "أيام"
-        }`
+      ? remainingDays === 1
+        ? "متبقي يوم واحد"
+        : remainingDays === 2
+          ? "متبقي يومان"
+          : remainingDays <= 10
+            ? `متبقي ${remainingDays} أيام`
+            : `متبقي ${remainingDays} يومًا`
       : `${remainingDays} day${
           remainingDays === 1 ? "" : "s"
         } remaining`,

@@ -257,13 +257,22 @@ function getRelativeDate(date: string, locale: "ar" | "en") {
   if (locale === "ar") {
     if (minutes < 1) return "الآن";
     if (minutes < 60) {
-      return `منذ ${minutes} ${minutes === 1 ? "دقيقة" : "دقائق"}`;
+      if (minutes === 1) return "منذ دقيقة واحدة";
+      if (minutes === 2) return "منذ دقيقتين";
+      if (minutes <= 10) return `منذ ${minutes} دقائق`;
+      return `منذ ${minutes} دقيقة`;
     }
     if (hours < 24) {
-      return `منذ ${hours} ${hours === 1 ? "ساعة" : "ساعات"}`;
+      if (hours === 1) return "منذ ساعة واحدة";
+      if (hours === 2) return "منذ ساعتين";
+      if (hours <= 10) return `منذ ${hours} ساعات`;
+      return `منذ ${hours} ساعة`;
     }
     if (days < 30) {
-      return `منذ ${days} ${days === 1 ? "يوم" : "أيام"}`;
+      if (days === 1) return "منذ يوم واحد";
+      if (days === 2) return "منذ يومين";
+      if (days <= 10) return `منذ ${days} أيام`;
+      return `منذ ${days} يومًا`;
     }
 
     return new Intl.DateTimeFormat("ar-SA-u-nu-latn", {
@@ -1456,7 +1465,13 @@ const showExpiredDivider =
           <div className="mt-6 flex items-center justify-between text-xs text-white/35">
             <p>
               {isRtl
-                ? `عرض ${filteredOpportunities.length} فرصة`
+                ? filteredOpportunities.length === 1
+                  ? "عرض فرصة واحدة"
+                  : filteredOpportunities.length === 2
+                    ? "عرض فرصتين"
+                    : filteredOpportunities.length >= 3 && filteredOpportunities.length <= 10
+                      ? `عرض ${filteredOpportunities.length} فرص`
+                      : `عرض ${filteredOpportunities.length} فرصة`
                 : `Showing ${filteredOpportunities.length} opportunities`}
             </p>
 
