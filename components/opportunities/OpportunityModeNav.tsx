@@ -14,11 +14,19 @@ export default function OpportunityModeNav({ locale }: { locale: "ar" | "en" }) 
   const shouldShow = pathname === root || pathname === quickPath || pathname === castingPath;
   if (!shouldShow) return null;
 
+  const isRoot = pathname === root;
   const quickActive = pathname === quickPath;
   const castingActive = pathname === castingPath;
 
   return (
-    <div dir={isRtl ? "rtl" : "ltr"} className="mx-auto w-full max-w-7xl px-4 pt-5 sm:px-6 lg:px-6 lg:pt-28">
+    <div
+      dir={isRtl ? "rtl" : "ltr"}
+      className={
+        isRoot
+          ? "mx-auto w-full max-w-7xl px-4 pt-5 sm:px-6 lg:absolute lg:inset-x-0 lg:top-20 lg:z-40 lg:px-6 lg:pt-0"
+          : "mx-auto w-full max-w-7xl px-4 pt-5 sm:px-6 lg:px-6 lg:pt-28"
+      }
+    >
       <div className="rounded-[1.5rem] border border-white/10 bg-black/85 p-2 shadow-xl backdrop-blur-xl sm:inline-flex sm:rounded-full">
         <div className="grid grid-cols-2 gap-2 sm:flex">
           <Link
@@ -46,7 +54,7 @@ export default function OpportunityModeNav({ locale }: { locale: "ar" | "en" }) 
           </Link>
         </div>
 
-        {pathname === root ? (
+        {isRoot ? (
           <p className="px-3 pb-1 pt-2 text-center text-[10px] leading-5 text-white/30 sm:hidden">
             {isRtl ? "اختر نوع الفرص التي تريد استعراضها." : "Choose the type of opportunities you want to browse."}
           </p>
