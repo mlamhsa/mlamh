@@ -5,6 +5,7 @@ import {
   ArrowRight,
   BadgeCheck,
   Sparkles,
+  UserRoundPlus,
 } from "lucide-react";
 
 import type { Locale } from "@/lib/i18n";
@@ -19,17 +20,21 @@ import { talentPath } from "@/lib/utils/routes";
 type PublicTalentCardProps = {
   talent: Talent;
   locale: Locale;
+  showInviteAction?: boolean;
 };
 
 export function PublicTalentCard({
   talent,
   locale,
+  showInviteAction = false,
 }: PublicTalentCardProps) {
   const isRtl = locale === "ar";
 
   const name = getTalentName(talent, locale);
   const category = getTalentCategory(talent, locale);
   const city = getTalentCity(talent, locale);
+  const profileHref = talentPath(locale, talent.slug ?? talent.id);
+  const inviteHref = `${profileHref}#request-talent`;
 
   const displayName =
     name || (isRtl ? "موهبة غير مسماة" : "Unnamed Talent");
@@ -47,16 +52,16 @@ export function PublicTalentCard({
   const ViewProfileIcon = isRtl ? ArrowLeft : ArrowRight;
 
   return (
-    <Link
-      href={talentPath(locale, talent.slug ?? talent.id)}
-      aria-label={
-        isRtl
-          ? `عرض ملف ${displayName}`
-          : `View ${displayName}'s profile`
-      }
-      className="group flex h-full min-w-0 flex-col overflow-hidden rounded-[1.75rem] border border-white/[0.08] bg-gray-elevated/20 transition duration-500 hover:-translate-y-1 hover:border-gold/25 hover:bg-gray-elevated/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/70"
-    >
-      <div className="relative aspect-[4/5] w-full overflow-hidden bg-black/70">
+    <article className="group flex h-full min-w-0 flex-col overflow-hidden rounded-[1.75rem] border border-white/[0.08] bg-gray-elevated/20 transition duration-500 hover:-translate-y-1 hover:border-gold/25 hover:bg-gray-elevated/30 focus-within:ring-2 focus-within:ring-gold/50">
+      <Link
+        href={profileHref}
+        aria-label={
+          isRtl
+            ? `عرض ملف ${displayName}`
+            : `View ${displayName}'s profile`
+        }
+        className="relative block aspect-[4/5] w-full overflow-hidden bg-black/70 focus-visible:outline-none"
+      >
         {talent.image_url ? (
           <Image
             src={talent.image_url}
@@ -143,7 +148,7 @@ export function PublicTalentCard({
             {displayName}
           </h2>
         </div>
-      </div>
+      </Link>
 
       <div className="flex min-w-0 flex-1 flex-col p-4 sm:p-5">
         <div className="grid min-w-0 grid-cols-2 gap-4 border-b border-white/[0.08] pb-4">
@@ -160,30 +165,32 @@ export function PublicTalentCard({
           />
         </div>
 
-        <div className="mt-auto flex items-center justify-between gap-3 pt-5">
-          <span
-            className={`min-w-0 truncate text-[10px] text-white/45 transition-colors group-hover:text-gold ${
-              isRtl
-                ? "tracking-normal"
-                : "uppercase tracking-[0.26em]"
-            }`}
+        <div className={`mt-auto grid gap-2 pt-5 ${showInviteAction ? "grid-cols-2" : "grid-cols-1"}`}>
+          <Link
+            href={profileHref}
+            className="inline-flex min-h-11 items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.02] px-3 text-xs text-white/55 transition hover:border-gold/30 hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
           >
-            {isRtl ? "عرض الملف" : "View Profile"}
-          </span>
+            <span>{isRtl ? "عرض الملف" : "View profile"}</span>
+            <ViewProfileIcon size={15} aria-hidden="true" />
+          </Link>
 
-          <span
-            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] text-white/35 transition duration-300 group-hover:border-gold/30 group-hover:bg-gold/[0.06] group-hover:text-gold ${
-              isRtl
-                ? "group-hover:-translate-x-1"
-                : "group-hover:translate-x-1"
-            }`}
-            aria-hidden="true"
-          >
-            <ViewProfileIcon size={16} />
-          </span>
+          {showInviteAction ? (
+            <Link
+              href={inviteHref}
+              aria-label={
+                isRtl
+                  ? `دعوة ${displayName} للتواصل`
+                  : `Invite ${displayName} to connect`
+              }
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-gold px-3 text-center text-xs font-semibold text-black transition hover:bg-gold-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/70"
+            >
+              <UserRoundPlus size={15} aria-hidden="true" />
+              <span>{isRtl ? "دعوة للتواصل" : "Invite"}</span>
+            </Link>
+          ) : null}
         </div>
       </div>
-    </Link>
+    </article>
   );
 }
 
