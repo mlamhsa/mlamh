@@ -21,31 +21,23 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
 
           path = Path('app/[locale]/casting/status/[token]/page.tsx')
           text = path.read_text()
 
-          old_project = '''  if (!project || project.service_mode !== "managed") notFound();
-          const projectId = Number(project.id);
-
-          const [{ data: roles }, { data: shortlist }, { data: payments }] = await Promise.all(['''
-          new_project = '''  if (!project || project.service_mode !== "managed") notFound();
-          const projectId = Number(project.id);
-          const canViewShortlist = ["shortlist_ready", "client_review", "completed"].includes(project.status);
-
-          const [{ data: roles }, { data: shortlist }, { data: payments }] = await Promise.all(['''
-
-          old_shortlist = '''    adminClient.from("casting_shortlist").select("id,application_id,casting_role_id,status,rank,created_at").eq("casting_project_id", projectId).order("rank", { ascending: true, nullsFirst: false }).order("created_at", { ascending: true }),'''
-          new_shortlist = '''    canViewShortlist
-              ? adminClient.from("casting_shortlist").select("id,application_id,casting_role_id,status,rank,created_at").eq("casting_project_id", projectId).order("rank", { ascending: true, nullsFirst: false }).order("created_at", { ascending: true })
-              : Promise.resolve({ data: [] }),'''
-
-          if text.count(old_project) != 1:
+          project_anchor = r'(if \(!project \|\| project\.service_mode !== "managed"\) notFound\(\);\s*const projectId = Number\(project\.id\);)'
+          replacement = r'\1\n  const canViewShortlist = ["shortlist_ready", "client_review", "completed"].includes(project.status);'
+          text, project_count = re.subn(project_anchor, replacement, text, count=1)
+          if project_count != 1:
               raise SystemExit('project insertion anchor mismatch')
-          if text.count(old_shortlist) != 1:
+
+          shortlist_anchor = r'adminClient\.from\("casting_shortlist"\)\.select\("id,application_id,casting_role_id,status,rank,created_at"\)\.eq\("casting_project_id", projectId\)\.order\("rank", \{ ascending: true, nullsFirst: false \}\)\.order\("created_at", \{ ascending: true \}\),'
+          shortlist_replacement = 'canViewShortlist\n      ? adminClient.from("casting_shortlist").select("id,application_id,casting_role_id,status,rank,created_at").eq("casting_project_id", projectId).order("rank", { ascending: true, nullsFirst: false }).order("created_at", { ascending: true })\n      : Promise.resolve({ data: [] }),' 
+          text, shortlist_count = re.subn(shortlist_anchor, shortlist_replacement, text, count=1)
+          if shortlist_count != 1:
               raise SystemExit('shortlist query anchor mismatch')
 
-          text = text.replace(old_project, new_project).replace(old_shortlist, new_shortlist)
           path.write_text(text)
           PY
       - name: Commit privacy guard
