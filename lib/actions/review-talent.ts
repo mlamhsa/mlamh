@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { createEvent } from "@/lib/events/create-event";
 import { requireAdminAccess } from "@/lib/auth/require-admin";
+import { TALENT_CATEGORIES } from "@/lib/data/talent-categories";
+import { isActiveTalentCountryCode } from "@/lib/data/talent-active-market";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getTalentProfileReviewReadiness } from "@/lib/talent/profile-review-readiness";
 
@@ -130,6 +132,17 @@ async function updateTalentReviewStatus({
   }
 
   if (decision === "approved") {
+    const activeRole = String(talent.primary_role ?? talent.category_slug ?? "").trim().toLowerCase();
+    const roleIsActive = TALENT_CATEGORIES.some((category) => category.slug === activeRole);
+    if (!roleIsActive || !isActiveTalentCountryCode(talent.base_country_code)) {
+      return {
+        success: false,
+        message: locale === "ar"
+          ? "لا يمكن اعتماد الملف: الإطلاق الحالي متاح للممثلين والمودلز المقيمين في السعودية فقط."
+          : "The profile cannot be approved: the current launch is limited to actors and models based in Saudi Arabia.",
+      };
+    }
+
     const readiness = getTalentProfileReviewReadiness({
       ...talent,
       phone: profile.phone,

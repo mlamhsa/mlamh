@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 
 import { createEvent, EVENT_TARGETS, EVENT_TYPES } from "@/lib/events";
 import { isValidLocale, type Locale } from "@/lib/i18n";
+import { TALENT_CATEGORIES } from "@/lib/data/talent-categories";
+import { isActiveTalentCountryCode } from "@/lib/data/talent-active-market";
 import { TalentProfileService } from "@/lib/services/talent/TalentProfileService";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -90,6 +92,17 @@ export async function submitTalentProfileReviewAction(
     return {
       success: false,
       message: isArabic ? "أكمل إنشاء ملف الموهبة أولًا." : "Complete your talent profile first.",
+    };
+  }
+
+  const activeRole = String(talent.primary_role ?? talent.category_slug ?? "").trim().toLowerCase();
+  const roleIsActive = TALENT_CATEGORIES.some((category) => category.slug === activeRole);
+  if (!roleIsActive || !isActiveTalentCountryCode(talent.base_country_code)) {
+    return {
+      success: false,
+      message: isArabic
+        ? "الإطلاق الحالي لملامح متاح للممثلين والمودلز المقيمين في السعودية فقط."
+        : "MLAMH is currently open to actors and models based in Saudi Arabia only.",
     };
   }
 

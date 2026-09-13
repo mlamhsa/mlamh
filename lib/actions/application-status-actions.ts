@@ -287,7 +287,7 @@ export async function updateApplicationStatusAction(
 
   const { data: opportunity, error: opportunityError } = await adminClient
     .from("opportunities")
-    .select("id, title, publisher_id")
+    .select("id, title, publisher_id, opportunity_type")
     .eq("id", application.opportunity_id)
     .maybeSingle();
 
@@ -315,11 +315,19 @@ export async function updateApplicationStatusAction(
 
   const { data: talent, error: talentError } = await adminClient
     .from("talents")
-    .select("id, user_id")
+    .select("id, user_id, primary_role, category_slug")
     .eq("id", application.talent_id)
     .maybeSingle();
 
   if (talentError || !talent?.user_id) throw new Error("Talent user account not found.");
+
+  if (status === "accepted") {
+    const opportunityRole = String(opportunity.opportunity_type ?? "").trim().toLowerCase();
+    const talentRole = String(talent.primary_role ?? talent.category_slug ?? "").trim().toLowerCase();
+    if ((opportunityRole === "actor" || opportunityRole === "model") && talentRole !== opportunityRole) {
+      throw new Error("This application cannot be accepted because the Talent role does not match the opportunity.");
+    }
+  }
 
   const now = new Date().toISOString();
   const { data: updatedApplication, error: updateError } = await adminClient

@@ -59,9 +59,11 @@ type PublicTalentCandidate = Talent & {
 
 const DEFAULT_PUBLIC_MARKET: CountryCode = "SA";
 const PUBLIC_DIRECTORY_BATCH_SIZE = 100;
-const ACTIVE_PUBLIC_TALENT_ROLES = new Set(TALENT_CATEGORIES.map((category) => category.slug));
+const ACTIVE_PUBLIC_TALENT_ROLES: Set<string> = new Set(TALENT_CATEGORIES.map((category) => category.slug));
 
-function isActivePublicTalentRole(talent: Pick<Talent, "primary_role" | "category_slug">) {
+type ActivePublicTalentRoleShape = { primary_role?: string | null; category_slug?: string | null };
+
+function isActivePublicTalentRole(talent: ActivePublicTalentRoleShape) {
   const role = String(talent.primary_role ?? talent.category_slug ?? "").trim().toLowerCase();
   return ACTIVE_PUBLIC_TALENT_ROLES.has(role);
 }
