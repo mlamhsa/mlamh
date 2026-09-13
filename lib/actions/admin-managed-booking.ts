@@ -81,9 +81,24 @@ export async function startManagedTalentConfirmationAction(formData: FormData) {
   const now = new Date().toISOString();
   if (application.status !== "accepted") {
     if (!["pending", "reviewing", "shortlisted"].includes(String(application.status))) throw new Error(`Application cannot be accepted from ${application.status}.`);
-    const { error: applicationUpdateError } = await admin.from("opportunity_applications").update({ status: "accepted", updated_at: now }).eq("id", application.id).eq("status", application.status);
+    const { data: acceptedApplication, error: applicationUpdateError } = await admin
+      .from("opportunity_applications")
+      .update({ status: "accepted", updated_at: now })
+      .eq("id", application.id)
+      .eq("status", application.status)
+      .select("id")
+      .maybeSingle();
     if (applicationUpdateError) throw new Error(applicationUpdateError.message);
-    await admin.from("application_status_logs").insert({ application_id: application.id, old_status: application.status, new_status: "accepted", changed_by: adminUser.id, created_at: now });
+    if (acceptedApplication) {
+      const { error: auditError } = await admin.from("events").insert({
+        event_type: "managed_casting_application_accepted",
+        target_type: "application",
+        target_id: String(application.id),
+        actor_id: adminUser.id,
+        metadata: { old_status: application.status, new_status: "accepted", project_id: projectId },
+      });
+      if (auditError && auditError.code !== "23505") console.error("[managed casting application audit]", auditError);
+    }
   }
 
   let { data: conversation, error: conversationLookupError } = await admin.from("conversations").select("id,conversation_type,admin_user_id,status").eq("application_id", application.id).maybeSingle();
@@ -93,8 +108,19 @@ export async function startManagedTalentConfirmationAction(formData: FormData) {
       application_id: application.id, opportunity_id: application.opportunity_id, publisher_id: null, talent_id: application.talent_id,
       admin_user_id: adminUser.id, conversation_type: "mlamh_talent", status: "active", created_at: now, updated_at: now,
     }).select("id,conversation_type,admin_user_id,status").single();
-    if (createConversationError || !createdConversation) throw new Error(createConversationError?.message || "Unable to create MLAMH conversation.");
-    conversation = createdConversation;
+    if (createConversationError?.code === "23505") {
+      const { data: racedConversation, error: racedConversationError } = await admin
+        .from("conversations")
+        .select("id,conversation_type,admin_user_id,status")
+        .eq("application_id", application.id)
+        .maybeSingle();
+      if (racedConversationError || !racedConversation) throw new Error(racedConversationError?.message || "Unable to recover concurrent MLAMH conversation.");
+      conversation = racedConversation;
+    } else if (createConversationError || !createdConversation) {
+      throw new Error(createConversationError?.message || "Unable to create MLAMH conversation.");
+    } else {
+      conversation = createdConversation;
+    }
   } else if (conversation.conversation_type !== "mlamh_talent") {
     throw new Error("Application already belongs to a publisher conversation.");
   } else if (conversation.admin_user_id !== adminUser.id) {
@@ -117,10 +143,25 @@ export async function startManagedTalentConfirmationAction(formData: FormData) {
   };
   const { data: existingBooking } = await admin.from("talent_bookings").select("id,status").eq("application_id", application.id).maybeSingle();
   if (existingBooking && ["confirmed", "completed", "cancelled"].includes(existingBooking.status)) { revalidateManaged(projectId, conversation.id, project.client_access_token); return; }
-  const saveQuery = existingBooking ? admin.from("talent_bookings").update(payload).eq("id", existingBooking.id).select("id").single() : admin.from("talent_bookings").insert(payload).select("id").single();
-  const { data: booking, error: bookingError } = await saveQuery;
+  const shouldNotify = !existingBooking || existingBooking.status === "changes_requested";
+  const saveQuery = existingBooking ? admin.from("talent_bookings").update(payload).eq("id", existingBooking.id).select("id,status").single() : admin.from("talent_bookings").insert(payload).select("id,status").single();
+  let { data: booking, error: bookingError } = await saveQuery;
+  let notifyTalent = shouldNotify;
+  if (!existingBooking && bookingError?.code === "23505") {
+    const { data: racedBooking, error: racedBookingError } = await admin
+      .from("talent_bookings")
+      .select("id,status")
+      .eq("application_id", application.id)
+      .maybeSingle();
+    if (racedBookingError || !racedBooking) throw new Error(racedBookingError?.message || "Unable to recover concurrent managed booking.");
+    booking = racedBooking;
+    bookingError = null;
+    notifyTalent = false;
+  }
   if (bookingError || !booking) throw new Error(bookingError?.message || "Unable to create managed booking.");
-  await createTalentNotification({ admin, adminUserId: adminUser.id, talentId: Number(application.talent_id), bookingId: Number(booking.id), conversationId: Number(conversation.id), opportunityId: Number(application.opportunity_id), title: "تم اختيارك لمشروع مُدار بواسطة ملامح", body: "راجع تفاصيل العمل وأكد الحجز أو اطلب تعديل التفاصيل من فريق ملامح." });
+  if (notifyTalent) {
+    await createTalentNotification({ admin, adminUserId: adminUser.id, talentId: Number(application.talent_id), bookingId: Number(booking.id), conversationId: Number(conversation.id), opportunityId: Number(application.opportunity_id), title: "تم اختيارك لمشروع مُدار بواسطة ملامح", body: "راجع تفاصيل العمل وأكد الحجز أو اطلب تعديل التفاصيل من فريق ملامح." });
+  }
   await admin.from("casting_projects").update({ client_status_note: "تم اعتماد الاختيارات وبدأ فريق ملامح مرحلة تأكيد توفر المواهب المختارة.", updated_at: now }).eq("id", projectId);
   revalidateManaged(projectId, conversation.id, project.client_access_token);
 }
