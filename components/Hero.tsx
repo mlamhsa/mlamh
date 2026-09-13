@@ -1,5 +1,3 @@
-"use client";
-
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -11,8 +9,6 @@ import {
   Sparkles,
   UsersRound,
 } from "lucide-react";
-import { useParams } from "next/navigation";
-
 import type { Locale } from "@/lib/i18n";
 import type { PublicHomepageHero } from "@/lib/types/homepage";
 
@@ -32,12 +28,7 @@ export function Hero({
   locale: propLocale,
   data,
 }: HeroProps) {
-  const params = useParams();
-
-  const locale =
-    propLocale ||
-    (params?.locale as Locale) ||
-    "ar";
+  const locale = propLocale ?? "ar";
 
   const isAr = locale === "ar";
   const DirectionArrow = isAr
@@ -196,7 +187,6 @@ export function Hero({
                         : "Actor on MLAMH"
                     }
                     fill
-                    priority
                     sizes="(min-width: 1280px) 28vw, 32vw"
                     className="object-cover object-center transition duration-700 group-hover:scale-[1.025]"
                   />
@@ -228,7 +218,6 @@ export function Hero({
                         : "Model on MLAMH"
                     }
                     fill
-                    priority
                     sizes="(min-width: 1280px) 18vw, 20vw"
                     className="object-cover object-center transition duration-700 group-hover:scale-[1.03]"
                   />
@@ -250,7 +239,6 @@ export function Hero({
                         : "Saudi talent"
                     }
                     fill
-                    priority
                     sizes="(min-width: 1280px) 18vw, 20vw"
                     className="object-cover object-top transition duration-700 group-hover:scale-[1.03]"
                   />
