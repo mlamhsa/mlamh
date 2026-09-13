@@ -7,11 +7,11 @@ import { updateOwnTalentBirthDateAction } from "@/lib/actions/update-own-talent-
 import { updateOwnTalentCoreDetailsAction } from "@/lib/actions/update-own-talent-core-details";
 import { getOwnTalentProfileAction } from "@/lib/actions/update-own-talent-profile";
 import { TALENT_CATEGORIES } from "@/lib/data/talent-categories";
+import { ACTIVE_TALENT_SIGNUP_COUNTRIES } from "@/lib/data/talent-active-market";
 import {
   GENDER_OPTIONS,
   NATIONALITY_OPTIONS,
   PROFILE_VISIBILITY_OPTIONS,
-  TALENT_SIGNUP_COUNTRIES,
 } from "@/lib/data/talent-signup";
 import { isValidLocale, type Locale } from "@/lib/i18n";
 
@@ -96,7 +96,7 @@ export default function TalentRequiredFieldsPage({
   }, [locale]);
 
   const country = useMemo(
-    () => TALENT_SIGNUP_COUNTRIES.find((item) => item.code === countryCode),
+    () => ACTIVE_TALENT_SIGNUP_COUNTRIES.find((item) => item.code === countryCode),
     [countryCode],
   );
   const coreEditable = ["not_submitted", "rejected", "changes_requested"].includes(approvalStatus);
@@ -246,7 +246,7 @@ export default function TalentRequiredFieldsPage({
                 <Field label={isArabic ? "بلد الإقامة" : "Country of residence"}>
                   <select id="country" value={countryCode} onChange={(e) => selectCountry(e.target.value)} className="input">
                     <option value="">{isArabic ? "اختر" : "Select"}</option>
-                    {TALENT_SIGNUP_COUNTRIES.map((item) => (
+                    {ACTIVE_TALENT_SIGNUP_COUNTRIES.map((item) => (
                       <option key={item.code} value={item.code}>{isArabic ? item.ar : item.en}</option>
                     ))}
                   </select>

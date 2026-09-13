@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { updateOwnTalentProfessionalDetailsAction } from "@/lib/actions/update-own-talent-professional-details";
 import { TALENT_CATEGORIES } from "@/lib/data/talent-categories";
+import { getActiveTalentCountry, isActiveTalentCountryCode } from "@/lib/data/talent-active-market";
 import { GENDER_OPTIONS, NATIONALITY_OPTIONS, TALENT_SIGNUP_COUNTRIES } from "@/lib/data/talent-signup";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -83,7 +84,7 @@ export async function updateOwnTalentCoreDetailsAction(
       .maybeSingle(),
     admin
       .from("talents")
-      .select("id, slug, primary_role, category_slug, profile_visibility")
+      .select("id, slug, primary_role, category_slug, profile_visibility, base_country_code")
       .eq("user_id", user.id)
       .maybeSingle(),
   ]);
@@ -121,8 +122,10 @@ export async function updateOwnTalentCoreDetailsAction(
   const nationalityOption = nationality
     ? NATIONALITY_OPTIONS.find((item) => item.value === nationality)
     : null;
+  const existingCountryCode = String(talent.base_country_code ?? "").trim().toUpperCase();
+  const countryChanged = Boolean(countryCode) && countryCode !== existingCountryCode;
   const country = countryCode
-    ? TALENT_SIGNUP_COUNTRIES.find((item) => item.code === countryCode)
+    ? (countryChanged ? getActiveTalentCountry(countryCode) : TALENT_SIGNUP_COUNTRIES.find((item) => item.code === countryCode))
     : null;
   const city = citySlug && country
     ? country.cities.find((item) => item.value === citySlug)
@@ -133,7 +136,7 @@ export async function updateOwnTalentCoreDetailsAction(
     (categorySlug && !category) ||
     (gender && !genderOption) ||
     (nationality && !nationalityOption) ||
-    (countryCode && !country) ||
+    (countryCode && (!country || (countryChanged && !isActiveTalentCountryCode(countryCode)))) ||
     (citySlug && !city) ||
     !visibilityIsValid
   ) {

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getEffectiveTalentApprovalStatus } from "@/lib/talent/approval-status";
 
 function normalizeGallery(value: unknown): string[] {
   if (Array.isArray(value)) {
@@ -48,13 +49,13 @@ export async function setOwnTalentProfileImageFromGalleryAction(
   }
 
   const adminClient = createAdminClient();
-  const { data: talent, error: talentError } = await adminClient
-    .from("talents")
-    .select("id, slug, image_url, gallery_images")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (talentError || !talent) {
+  const [talentResult, profileResult] = await Promise.all([
+    adminClient.from("talents").select("id, slug, image_url, gallery_images").eq("user_id", user.id).maybeSingle(),
+    adminClient.from("profiles").select("account_type,approval_status,profile_completed_at,onboarding_step").eq("user_id", user.id).maybeSingle(),
+  ]);
+  const talent = talentResult.data;
+  const profile = profileResult.data;
+  if (talentResult.error || profileResult.error || !talent || !profile || profile.account_type !== "talent") {
     return {
       success: false,
       message:
@@ -62,6 +63,11 @@ export async function setOwnTalentProfileImageFromGalleryAction(
           ? "تعذر العثور على ملف الموهبة."
           : "Talent profile could not be found.",
     };
+  }
+
+  const approvalStatus = getEffectiveTalentApprovalStatus(profile);
+  if (approvalStatus === "pending" || approvalStatus === "submitted") {
+    return { success: false, message: locale === "ar" ? "لا يمكن تغيير الصورة الشخصية أثناء مراجعة الملف." : "The profile photo cannot be changed while the profile is under review." };
   }
 
   const gallery = normalizeGallery(talent.gallery_images);

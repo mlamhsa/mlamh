@@ -7,6 +7,7 @@ import sharp from "sharp";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getEffectiveTalentApprovalStatus } from "@/lib/talent/approval-status";
 
 const CLEAN_MEDIA_BUCKET = "talent-media";
 const LEGACY_GALLERY_BUCKET = "talent-gallery";
@@ -213,16 +214,19 @@ export async function updateOwnTalentMainImageAction(formData: FormData): Promis
   if (authError || !user) redirect(`/${locale}/login`);
 
   const supabase = createAdminClient();
-  const { data: talent, error: talentError } = await supabase
-    .from("talents")
-    .select("id,slug,image_url")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (talentError) {
-    throw new Error(`[updateOwnTalentMainImageAction:talent] ${talentError.message}`);
+  const [talentResult, profileResult] = await Promise.all([
+    supabase.from("talents").select("id,slug,image_url").eq("user_id", user.id).maybeSingle(),
+    supabase.from("profiles").select("account_type,approval_status,profile_completed_at,onboarding_step").eq("user_id", user.id).maybeSingle(),
+  ]);
+  const talent = talentResult.data;
+  const profile = profileResult.data;
+  if (talentResult.error) throw new Error(`[updateOwnTalentMainImageAction:talent] ${talentResult.error.message}`);
+  if (profileResult.error) throw new Error(`[updateOwnTalentMainImageAction:profile] ${profileResult.error.message}`);
+  if (!talent || !profile || profile.account_type !== "talent") redirect(`/${locale}/talent-dashboard/profile`);
+  const approvalStatus = getEffectiveTalentApprovalStatus(profile);
+  if (approvalStatus === "pending" || approvalStatus === "submitted") {
+    throw new Error(locale === "ar" ? "لا يمكن تغيير الصورة الشخصية أثناء مراجعة الملف." : "The profile photo cannot be changed while the profile is under review.");
   }
-  if (!talent) redirect(`/${locale}/talent-dashboard/profile`);
 
   const filePath = `${user.id}/profile-images/${randomUUID()}.${extension}`;
   const { error: uploadError } = await supabase.storage
