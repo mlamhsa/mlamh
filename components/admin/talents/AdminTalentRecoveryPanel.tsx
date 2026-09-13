@@ -249,8 +249,8 @@ export function AdminTalentRecoveryPanel(props: Props) {
               </p>
               <p className="mt-1 text-xs leading-6 text-amber-100/65">
                 {ar
-                  ? "توجد قياسات صفرية أو سالبة محفوظة في هذا الملف. لم يتم تعديلها تلقائيًا؛ راجعها مع الموهبة قبل الاعتماد."
-                  : "This profile contains zero or negative saved measurements. Nothing was changed automatically; review them with the talent before approval."}
+                  ? "توجد قياسات سالبة محفوظة في هذا الملف. لم يتم تعديلها تلقائيًا؛ راجعها مع الموهبة قبل الاعتماد."
+                  : "This profile contains negative saved measurements. Nothing was changed automatically; review them with the talent before approval."}
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {props.dataQualityIssues.map((issue) => (

@@ -27,7 +27,14 @@ const LABELS: Record<
 };
 
 function numericValue(value: unknown) {
-  if (value === null || value === undefined || value === "") return null;
+  if (
+    value === null ||
+    value === undefined ||
+    (typeof value === "string" && value.trim() === "")
+  ) {
+    return null;
+  }
+
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
 }
@@ -41,10 +48,8 @@ export function getTalentProfileDataQualityIssues(
     const value = numericValue(talent[key]);
     if (value === null) continue;
 
-    // Waist is optional. Zero means "not provided" and should not be treated as a data-quality issue.
-    if (key === "waist_size" && value === 0) continue;
-
-    if (value > 0) continue;
+    // Measurements are optional. Zero means "not provided" and must not affect the talent.
+    if (value >= 0) continue;
 
     issues.push({
       key,
