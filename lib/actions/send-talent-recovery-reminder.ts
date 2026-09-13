@@ -21,7 +21,8 @@ type ActionResult = {
 };
 
 function adminLocaleFrom(formData: FormData): "ar" | "en" {
-  return formData.get("admin_locale") === "en" ? "en" : "ar";
+  const value = formData.get("admin_locale") ?? formData.get("locale");
+  return value === "en" ? "en" : "ar";
 }
 
 export async function sendTalentRecoveryReminderAction(
