@@ -107,34 +107,34 @@ export default function TalentPortfolioLinksPage({ params }: { params: Promise<{
           <div>
             <p className="text-[11px] uppercase tracking-[0.25em] text-gold">{isArabic ? "معرض الأعمال" : "PORTFOLIO"}</p>
             <h1 className="mt-2 text-3xl font-light sm:text-4xl">{isArabic ? "الفيديو وروابطك المهنية" : "Video & professional links"}</h1>
-            <p className="mt-3 text-sm leading-7 text-white/50">{isArabic ? "مكان واحد لكل المواهب لإضافة Showreel وروابط الأعمال وحسابات السوشيال ميديا. جميعها اختيارية ولا تمنع اعتماد الملف." : "One place for every talent type to add a showreel, work links and social profiles. All are optional and never block approval."}</p>
+            <p className="mt-3 text-sm leading-7 text-white/50">{isArabic ? "أضف Showreel وروابط الأعمال وحسابات السوشيال ميديا. جميعها اختيارية ولا تمنع اعتماد الملف." : "Add a showreel, work links and social profiles. All are optional and never block approval."}</p>
           </div>
           <Link href={`/${locale}/talent-dashboard/gallery`} className="shrink-0 rounded-full border border-white/10 px-4 py-2 text-sm text-white/60 hover:text-gold">{isArabic ? "رجوع" : "Back"}</Link>
         </div>
 
-        <form onSubmit={save} className="space-y-5">
+        <form onSubmit={save} className="space-y-5" noValidate>
           <section className="rounded-[2rem] border border-gold/20 bg-gold/[0.025] p-5 sm:p-7">
             <p className="text-[11px] uppercase tracking-[0.22em] text-gold">{isArabic ? "الفيديو والأعمال" : "VIDEO & WORK"}</p>
             <div className="mt-5 grid gap-5">
-              <Field label={isArabic ? "رابط Showreel" : "Showreel URL"} hint={isArabic ? "YouTube أو Vimeo أو أي رابط مشاهدة مباشر" : "YouTube, Vimeo or another direct viewing link"}>
-                <input type="url" value={showreelUrl} onChange={(e) => setShowreelUrl(e.target.value)} placeholder="https://..." dir="ltr" className="input text-left" />
+              <Field label={isArabic ? "رابط Showreel" : "Showreel URL"} hint={isArabic ? "YouTube أو Vimeo أو أي رابط مشاهدة آمن" : "YouTube, Vimeo or another secure viewing link"}>
+                <input type="text" inputMode="url" value={showreelUrl} onChange={(e) => setShowreelUrl(e.target.value)} placeholder="https://..." dir="ltr" className="input text-left" />
               </Field>
               <Field label={isArabic ? "فيديو تعريفي" : "Intro video"} hint={isArabic ? "رابط فيديو قصير يعرّف بك" : "A short video introducing yourself"}>
-                <input type="url" value={videoIntro} onChange={(e) => setVideoIntro(e.target.value)} placeholder="https://..." dir="ltr" className="input text-left" />
+                <input type="text" inputMode="url" value={videoIntro} onChange={(e) => setVideoIntro(e.target.value)} placeholder="https://..." dir="ltr" className="input text-left" />
               </Field>
-              <Field label={isArabic ? "رابط بورتفوليو خارجي" : "External portfolio"}>
-                <input type="url" value={portfolioUrl} onChange={(e) => setPortfolioUrl(e.target.value)} placeholder="https://..." dir="ltr" className="input text-left" />
+              <Field label={isArabic ? "رابط بورتفوليو خارجي" : "External portfolio"} hint={isArabic ? "يمكن إدخال الرابط مع https:// أو بدونه" : "You can enter the link with or without https://"}>
+                <input type="text" inputMode="url" value={portfolioUrl} onChange={(e) => setPortfolioUrl(e.target.value)} placeholder="https://..." dir="ltr" className="input text-left" />
               </Field>
             </div>
           </section>
 
           <section className="rounded-[2rem] border border-white/10 bg-white/[0.025] p-5 sm:p-7">
             <p className="text-[11px] uppercase tracking-[0.22em] text-gold">{isArabic ? "السوشيال ميديا" : "SOCIAL MEDIA"}</p>
-            <p className="mt-2 text-sm leading-7 text-white/45">{isArabic ? "أضف فقط الحسابات المهنية التي تريد أن تراها الجهات." : "Add only the professional accounts you want publishers to see."}</p>
+            <p className="mt-2 text-sm leading-7 text-white/45">{isArabic ? "أدخل اسم المستخدم أو رابط الحساب الرسمي. سنحوّله تلقائيًا إلى رابط آمن على المنصة نفسها." : "Enter a username or the official profile URL. We normalize it to a secure link on the same platform."}</p>
             <div className="mt-5 grid gap-5 sm:grid-cols-2">
-              <Field label="Instagram"><input type="url" value={instagram} onChange={(e) => setInstagram(e.target.value)} placeholder="https://instagram.com/..." dir="ltr" className="input text-left" /></Field>
-              <Field label="TikTok"><input type="url" value={tiktok} onChange={(e) => setTiktok(e.target.value)} placeholder="https://tiktok.com/@..." dir="ltr" className="input text-left" /></Field>
-              <Field label="Snapchat"><input type="url" value={snapchat} onChange={(e) => setSnapchat(e.target.value)} placeholder="https://snapchat.com/add/..." dir="ltr" className="input text-left" /></Field>
+              <Field label="Instagram"><input type="text" inputMode="url" autoCapitalize="none" value={instagram} onChange={(e) => setInstagram(e.target.value)} placeholder="@username أو https://instagram.com/..." dir="ltr" className="input text-left" /></Field>
+              <Field label="TikTok"><input type="text" inputMode="url" autoCapitalize="none" value={tiktok} onChange={(e) => setTiktok(e.target.value)} placeholder="@username أو https://tiktok.com/@..." dir="ltr" className="input text-left" /></Field>
+              <Field label="Snapchat"><input type="text" inputMode="url" autoCapitalize="none" value={snapchat} onChange={(e) => setSnapchat(e.target.value)} placeholder="username أو https://snapchat.com/add/..." dir="ltr" className="input text-left" /></Field>
             </div>
           </section>
 
