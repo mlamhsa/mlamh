@@ -1,5 +1,6 @@
 import { requirePublisher } from "@/lib/auth/require-publisher";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { canRequestTalentFromProfile } from "@/lib/talent/public-profile-access";
 import {
   getPublishedOpportunitiesByPublisher,
 } from "@/lib/supabase/opportunities";
@@ -15,7 +16,27 @@ export async function PublisherTalentInvitePanel({
   talentId,
   locale,
 }: Props) {
-  const { publisher } = await requirePublisher(locale);
+  const { user, profile, publisher } = await requirePublisher(locale);
+  const isArabic = locale === "ar";
+
+  const canInvite = canRequestTalentFromProfile({
+    userId: user.id,
+    accountType: profile.account_type,
+    approvalStatus: profile.approval_status,
+    publisherVerified: publisher.verified,
+    publisherVerificationStatus: publisher.verification_status,
+    publisherStatus: publisher.status,
+  });
+
+  if (!canInvite) {
+    return (
+      <div className="rounded-2xl border border-amber-300/20 bg-amber-300/[0.06] p-4 text-sm leading-7 text-amber-100">
+        {isArabic
+          ? "إرسال الدعوات متاح بعد اعتماد حساب الناشر وإكمال التحقق منه، مع بقاء الحساب في حالة نشطة."
+          : "Invitations become available once the publisher account is approved, verified, and active."}
+      </div>
+    );
+  }
 
   const opportunities =
     await getPublishedOpportunitiesByPublisher(
