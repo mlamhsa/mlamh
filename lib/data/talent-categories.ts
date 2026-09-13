@@ -1,14 +1,6 @@
 export const TALENT_CATEGORIES = [
   { slug: "actor", ar: "ممثل / ممثلة", en: "Actor" },
   { slug: "model", ar: "مودل", en: "Model" },
-  { slug: "voice_actor", ar: "تعليق صوتي", en: "Voice Over" },
-  { slug: "presenter", ar: "مقدم / مقدمة", en: "Presenter / Host" },
-  { slug: "content_creator", ar: "صانع محتوى", en: "Content Creator" },
-  { slug: "dancer", ar: "راقص / راقصة", en: "Dancer" },
-  { slug: "singer", ar: "مغني / مغنية", en: "Singer" },
-  { slug: "musician", ar: "موسيقي", en: "Musician" },
-  { slug: "extra", ar: "كومبارس", en: "Extra" },
-  { slug: "influencer", ar: "مؤثر / مؤثرة", en: "Influencer" },
 ] as const;
 
 export type TalentCategorySlug =
