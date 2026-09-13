@@ -1,0 +1,107 @@
+name: QA Auth Fixes
+
+on:
+  push:
+    paths:
+      - ".github/workflows/qa-auth-fixes.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch-auth-qa:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply exact auth QA fixes
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str):
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"Expected exactly one match in {path}, found {count}: {old[:100]!r}")
+              p.write_text(text.replace(old, new, 1))
+
+          quick = "components/auth/QuickJoinForm.tsx"
+          replace_once(
+              quick,
+              'import { TALENT_CATEGORIES } from "@/lib/data/talent-categories";\n',
+              'import { checkAuthEmailExistsAction } from "@/lib/actions/check-auth-email";\nimport { TALENT_CATEGORIES } from "@/lib/data/talent-categories";\n'
+          )
+          replace_once(
+              quick,
+              '  const [errorMessage, setErrorMessage] = useState("");\n',
+              '  const [errorMessage, setErrorMessage] = useState("");\n  const [existingAccount, setExistingAccount] = useState(false);\n'
+          )
+          replace_once(
+              quick,
+              '    setErrorMessage("");\n\n    const cleanName',
+              '    setErrorMessage("");\n    setExistingAccount(false);\n\n    const cleanName'
+          )
+          replace_once(
+              quick,
+              '    setSubmitting(true);\n    try {\n      const supabase = createBrowserSupabaseClient();',
+              '    setSubmitting(true);\n    try {\n      const duplicate = await checkAuthEmailExistsAction(cleanEmail);\n      if (duplicate.exists) {\n        setExistingAccount(true);\n        setSubmitting(false);\n        return;\n      }\n\n      const supabase = createBrowserSupabaseClient();'
+          )
+          replace_once(
+              quick,
+              '      if (data.session && data.user) {\n',
+              '      if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {\n        setExistingAccount(true);\n        setSubmitting(false);\n        return;\n      }\n\n      if (data.session && data.user) {\n'
+          )
+          replace_once(
+              quick,
+              'value={email} onChange={(event) => setEmail(event.currentTarget.value)} placeholder="name@example.com"',
+              'value={email} onChange={(event) => { setEmail(event.currentTarget.value); setExistingAccount(false); }} placeholder="name@example.com"'
+          )
+          replace_once(
+              quick,
+              '      {errorMessage ? <div role="alert" className="rounded-2xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-center text-sm leading-6 text-red-300">{errorMessage}</div> : null}\n',
+              '      {existingAccount ? (\n        <div role="alert" className="rounded-2xl border border-gold/30 bg-gold/[0.07] p-5">\n          <h3 className="text-base font-medium text-white">{isRtl ? "هذا البريد مسجل مسبقًا" : "This email is already registered"}</h3>\n          <p className="mt-2 text-sm leading-7 text-white/55">{isRtl ? "لديك حساب سابق في ملامح. سجّل الدخول بدل إنشاء حساب جديد، أو استعد كلمة المرور إذا نسيتها." : "You already have an MLAMH account. Sign in instead of creating another account, or reset your password if needed."}</p>\n          <div className="mt-4 flex flex-col gap-3 sm:flex-row">\n            <Link href={`/${locale}/login`} className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-gold px-4 text-sm font-medium text-black">{isRtl ? "تسجيل الدخول" : "Sign in"}</Link>\n            <Link href={`/${locale}/forgot-password`} className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl border border-white/10 px-4 text-sm text-white/70">{isRtl ? "نسيت كلمة المرور؟" : "Forgot password?"}</Link>\n          </div>\n        </div>\n      ) : null}\n\n      {errorMessage ? <div role="alert" className="rounded-2xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-center text-sm leading-6 text-red-300">{errorMessage}</div> : null}\n'
+          )
+
+          complete = "app/[locale]/join/complete-account/page.tsx"
+          replace_once(
+              complete,
+              '  if (lookupError) {\n    console.error("[completePublisherSocialAccount.lookup]", lookupError);\n    baseQuery.set("error", "save");\n    redirect(`/${locale}/join/complete-account?${baseQuery.toString()}`);\n  }\n\n  const profilePayload = {',
+              '  if (lookupError) {\n    console.error("[completePublisherSocialAccount.lookup]", lookupError);\n    baseQuery.set("error", "save");\n    redirect(`/${locale}/join/complete-account?${baseQuery.toString()}`);\n  }\n\n  if (existing?.account_type && existing.account_type !== "publisher") {\n    redirect(`/${locale}/dashboard-router`);\n  }\n\n  const profilePayload = {'
+          )
+          replace_once(
+              complete,
+              '  if (profile?.account_type && profile.phone?.trim()) redirect(`/${locale}/dashboard-router`);\n\n  const suggestedName',
+              '  if (profile?.account_type === "talent" || profile?.account_type === "publisher") {\n    if (profile.phone?.trim()) redirect(`/${locale}/dashboard-router`);\n    if (profile.account_type !== accountType) {\n      const safeQuery = new URLSearchParams({ type: profile.account_type, provider });\n      if (profile.account_type === "publisher") safeQuery.set("intent", "publisher");\n      redirect(`/${locale}/join/complete-account?${safeQuery.toString()}`);\n    }\n  }\n\n  const suggestedName'
+          )
+
+          reset = "app/[locale]/reset-password/page.tsx"
+          replace_once(
+              reset,
+              '              href={`/${locale}/login`}\n',
+              '              href={`/${locale}/dashboard-router`}\n'
+          )
+          replace_once(
+              reset,
+              '{isArabic ? "العودة لتسجيل الدخول" : "Back to sign in"}',
+              '{isArabic ? "الانتقال إلى حسابي" : "Continue to my account"}'
+          )
+          PY
+
+      - name: Commit QA fixes
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "No changes to commit"
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add components/auth/QuickJoinForm.tsx app/'[locale]'/join/complete-account/page.tsx app/'[locale]'/reset-password/page.tsx
+          git commit -m "fix(qa): harden auth onboarding account boundaries"
+          git push origin HEAD:main
