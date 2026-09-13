@@ -50,11 +50,14 @@ export type BriefTalent = TalentQualificationInput & {
   [key: string]: unknown;
 };
 
+export type TalentCityMatch = "local" | "travel" | "none";
+
 export type TalentBriefEvaluation = {
   sendable: boolean;
   status: "sendable_for_brief" | "not_sendable_for_brief";
   reasons: string[];
   qualification: TalentQualificationEvaluation;
+  cityMatch: TalentCityMatch;
 };
 
 export type TalentSupplyGap = {
@@ -155,6 +158,19 @@ function getBriefCountryCode(brief: TalentBrief): CountryCode {
   return "SA";
 }
 
+function isBriefCityFlexible(brief: TalentBrief) {
+  return (
+    brief.city_flexible === true ||
+    brief.requirements?.city_flexible === true ||
+    brief.city_required === false ||
+    brief.requirements?.city_required === false
+  );
+}
+
+function talentAllowsOutOfCityWork(talent: BriefTalent) {
+  return talent.ready_to_travel === true || talent.work_outside_city === true;
+}
+
 function evaluateForPrivateSupply(talent: BriefTalent) {
   // Brief/managed-casting supply is not the public directory. A talent may explicitly
   // choose a private profile and still be approved, qualified and sendable to a relevant
@@ -168,6 +184,7 @@ export function evaluateTalentForBrief(
 ): TalentBriefEvaluation {
   const qualification = evaluateForPrivateSupply(talent);
   const reasons: string[] = [];
+  let cityMatch: TalentCityMatch = "none";
 
   if (!qualification.qualified) {
     reasons.push(...qualification.reasons.map((reason) => `not_qualified:${reason}`));
@@ -191,15 +208,23 @@ export function evaluateTalentForBrief(
   }
 
   const requiredCity = text(brief.city) || text(brief.requirements?.city);
-  const cityFlexible =
-    brief.city_flexible === true ||
-    brief.requirements?.city_flexible === true ||
-    brief.city_required === false ||
-    brief.requirements?.city_required === false;
-  if (requiredCity && !cityFlexible) {
+  if (requiredCity) {
     const actualCity = getTalentCity(talent);
-    if (!actualCity) reasons.push("missing_required_city");
-    else if (actualCity !== requiredCity) reasons.push("city_mismatch");
+    const cityFlexible = isBriefCityFlexible(brief);
+
+    if (!actualCity) {
+      reasons.push("missing_required_city");
+    } else if (actualCity === requiredCity) {
+      cityMatch = "local";
+    } else if (!cityFlexible) {
+      // Publisher/request explicitly requires local talent. Travel willingness must not override it.
+      reasons.push("city_mismatch");
+    } else if (talentAllowsOutOfCityWork(talent)) {
+      // Out-of-city matches require consent from both sides: flexible request + talent travel preference.
+      cityMatch = "travel";
+    } else {
+      reasons.push("city_mismatch");
+    }
   }
 
   const requiredGender = getRequiredGender(brief);
@@ -236,6 +261,7 @@ export function evaluateTalentForBrief(
     status: sendable ? "sendable_for_brief" : "not_sendable_for_brief",
     reasons: uniqueReasons,
     qualification,
+    cityMatch,
   };
 }
 
