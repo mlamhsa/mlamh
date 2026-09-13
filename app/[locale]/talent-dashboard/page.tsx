@@ -1,6 +1,7 @@
 import TalentSidebar from "@/components/talent/TalentSidebar";
 import TalentHeader from "@/components/talent/TalentHeader";
 import TalentProfileReviewSubmitButton from "@/components/talent/TalentProfileReviewSubmitButton";
+import TalentDashboardRecommendations from "@/components/talent-dashboard/TalentDashboardRecommendations";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireTalent } from "@/lib/auth/require-talent";
 import { calculateProfileCompletion } from "@/lib/utils/profile-completion";
@@ -32,6 +33,7 @@ function normalizeApplicationStatus(status?: string | null) {
 export default async function TalentDashboardPage({ params }: PageProps) {
   const { locale } = await params;
   const isRtl = locale === "ar";
+  const safeLocale = locale === "en" ? "en" : "ar";
   const adminClient = createAdminClient();
   const { user, profile, talent } = await requireTalent(locale);
 
@@ -414,6 +416,13 @@ export default async function TalentDashboardPage({ params }: PageProps) {
                 </div>
               </div>
             </section>
+
+            <TalentDashboardRecommendations
+              locale={safeLocale}
+              talent={talent as Record<string, unknown>}
+              approvalStatus={rawApprovalStatus}
+              unreadMessagesCount={unreadMessagesCount}
+            />
 
             <section className="grid gap-3 sm:grid-cols-3">
               {metricCards.map((item) => (
