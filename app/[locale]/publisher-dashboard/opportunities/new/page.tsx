@@ -1,36 +1,42 @@
 import { redirect } from "next/navigation";
 
 import CreateOpportunityForm from "@/components/publisher/CreateOpportunityForm";
+import FastQuickRequestForm from "@/components/publisher/FastQuickRequestForm";
 import { requirePublisher } from "@/lib/auth/require-publisher";
 
 type PageProps = {
-  params: Promise<{
-    locale: string;
-  }>;
+  params: Promise<{ locale: string }>;
+  searchParams: Promise<{ mode?: string }>;
 };
 
-export default async function CreateOpportunityPage({
-  params,
-}: PageProps) {
+export default async function CreateOpportunityPage({ params, searchParams }: PageProps) {
   const { locale } = await params;
+  const query = await searchParams;
   const safeLocale = locale === "en" ? "en" : "ar";
   const isRtl = safeLocale === "ar";
 
-  const { profile, publisher } =
-    await requirePublisher(safeLocale);
+  const { profile, publisher } = await requirePublisher(safeLocale);
 
-  const approvalStatus =
-    profile.approval_status ?? "not_submitted";
-
-  const isApproved =
-    approvalStatus === "approved";
-
-  const isSuspended =
-    publisher.status === "suspended";
+  const approvalStatus = profile.approval_status ?? "not_submitted";
+  const isApproved = approvalStatus === "approved";
+  const isSuspended = publisher.status === "suspended";
 
   if (!isApproved || isSuspended) {
-    redirect(
-      `/${safeLocale}/publisher-dashboard`,
+    redirect(`/${safeLocale}/publisher-dashboard`);
+  }
+
+  const subtype = String(publisher.publisher_type_other ?? "");
+  const isFastTrackPublisher =
+    publisher.publisher_type === "individual" && subtype.startsWith("fast:");
+  const explicitlyRequestedProject = query.mode === "project";
+
+  if (isFastTrackPublisher && !explicitlyRequestedProject) {
+    return (
+      <FastQuickRequestForm
+        locale={safeLocale}
+        isRtl={isRtl}
+        fallbackCity={publisher.city}
+      />
     );
   }
 
@@ -60,10 +66,7 @@ export default async function CreateOpportunityPage({
         </div>
       </div>
 
-      <CreateOpportunityForm
-        locale={safeLocale}
-        isRtl={isRtl}
-      />
+      <CreateOpportunityForm locale={safeLocale} isRtl={isRtl} />
     </div>
   );
 }
