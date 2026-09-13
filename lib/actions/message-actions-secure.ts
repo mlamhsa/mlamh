@@ -101,7 +101,7 @@ async function getAuthenticatedParticipant(conversationId: number) {
     if (
       !publisherError &&
       publisher?.id === conversation.publisher_id &&
-      !isRestrictedStatus(publisher.status, RESTRICTED_PUBLISHER_STATUSES)
+      !isRestrictedStatus(publisher?.status, RESTRICTED_PUBLISHER_STATUSES)
     ) {
       dashboard = "publisher";
     }
@@ -118,7 +118,7 @@ async function getAuthenticatedParticipant(conversationId: number) {
     if (
       !talentError &&
       talent?.id === conversation.talent_id &&
-      !isRestrictedStatus(talent.status)
+      !isRestrictedStatus(talent?.status)
     ) {
       dashboard = "talent";
     }
