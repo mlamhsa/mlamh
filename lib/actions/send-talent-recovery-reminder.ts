@@ -6,6 +6,7 @@ import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { createEvent, EVENT_TARGETS, EVENT_TYPES } from "@/lib/events";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getTalentProfileReadiness } from "@/lib/talent/profile-review-readiness";
+import { formatRecoveryItems } from "@/lib/talent/recovery-communication";
 import { sendTalentProfileRecoveryReminder } from "@/lib/talent/send-profile-recovery-reminder";
 import { calculateProfileCompletion } from "@/lib/utils/profile-completion";
 
@@ -19,21 +20,22 @@ type ActionResult = {
   message: string;
 };
 
-function localeFrom(formData: FormData): "ar" | "en" {
-  return formData.get("locale") === "en" ? "en" : "ar";
+function adminLocaleFrom(formData: FormData): "ar" | "en" {
+  return formData.get("admin_locale") === "en" ? "en" : "ar";
 }
 
 export async function sendTalentRecoveryReminderAction(
   formData: FormData,
 ): Promise<ActionResult> {
   const admin = await requireAdminAccess();
-  const locale = localeFrom(formData);
+  const adminLocale = adminLocaleFrom(formData);
   const talentId = Number(formData.get("talent_id"));
 
   if (!Number.isInteger(talentId) || talentId <= 0) {
     return {
       success: false,
-      message: locale === "ar" ? "معرّف الموهبة غير صالح." : "Invalid talent id.",
+      message:
+        adminLocale === "ar" ? "معرّف الموهبة غير صالح." : "Invalid talent id.",
     };
   }
 
@@ -49,7 +51,7 @@ export async function sendTalentRecoveryReminderAction(
     return {
       success: false,
       message:
-        locale === "ar"
+        adminLocale === "ar"
           ? "تعذر تحميل ملف الموهبة أو أنه غير مرتبط بحساب."
           : "Unable to load the talent profile or linked account.",
     };
@@ -66,7 +68,10 @@ export async function sendTalentRecoveryReminderAction(
     console.error("[sendTalentRecoveryReminderAction.profile]", profileError);
     return {
       success: false,
-      message: locale === "ar" ? "تعذر قراءة حالة المراجعة." : "Unable to read review status.",
+      message:
+        adminLocale === "ar"
+          ? "تعذر قراءة حالة المراجعة."
+          : "Unable to read review status.",
     };
   }
 
@@ -75,7 +80,7 @@ export async function sendTalentRecoveryReminderAction(
     return {
       success: false,
       message:
-        locale === "ar"
+        adminLocale === "ar"
           ? "هذه الحالة لا تحتاج تذكير استكمال يدوي."
           : "This profile state does not require a manual recovery reminder.",
     };
@@ -109,16 +114,17 @@ export async function sendTalentRecoveryReminderAction(
     changeReason = latestReview?.reason ?? null;
   }
 
-  const missingItems = readiness.missingRequirements.map((item) =>
-    locale === "ar" ? item.ar : item.en,
-  );
+  const missingItems = readiness.missingRequirements.map((item) => ({
+    ar: item.ar,
+    en: item.en,
+  }));
 
   const result = await sendTalentProfileRecoveryReminder({
     userId: talent.user_id,
-    locale,
     kind,
     missingItems,
     changeReason,
+    operatorLocale: adminLocale,
   });
 
   if (!result.success) {
@@ -131,25 +137,42 @@ export async function sendTalentRecoveryReminderAction(
     targetId: String(talent.id),
     actorId: admin.id,
     metadata: {
-      locale,
+      locale: result.communicationLocale,
+      admin_locale: adminLocale,
       email: result.email,
       provider: result.provider,
       reminder_channel: "email",
       reminder_source: "admin_manual",
       recovery_kind: kind,
       profile_completion: completion,
-      missing_requirements: missingItems,
+      missing_requirements: formatRecoveryItems(
+        missingItems,
+        result.communicationLocale,
+      ),
       change_reason: changeReason,
     },
   });
 
   revalidatePath(`/admin/talents/${talentId}`);
 
+  const recipientLanguage =
+    result.communicationLocale === "ar"
+      ? adminLocale === "ar"
+        ? "العربية"
+        : "Arabic"
+      : result.communicationLocale === "en"
+        ? adminLocale === "ar"
+          ? "الإنجليزية"
+          : "English"
+        : adminLocale === "ar"
+          ? "العربية والإنجليزية"
+          : "Arabic and English";
+
   return {
     success: true,
     message:
-      locale === "ar"
-        ? `تم إرسال التذكير إلى ${result.email}.`
-        : `Reminder sent to ${result.email}.`,
+      adminLocale === "ar"
+        ? `تم إرسال التذكير إلى ${result.email} بلغة التواصل: ${recipientLanguage}.`
+        : `Reminder sent to ${result.email} using the recipient communication language: ${recipientLanguage}.`,
   };
 }
