@@ -1,3 +1,5 @@
+import { findNationality } from "@/lib/data/nationalities";
+
 export type TalentLocale = "ar" | "en";
 
 type TranslationMap = Record<
@@ -283,6 +285,13 @@ export function translateTalentValue(
 
   if (!originalValue) {
     return "";
+  }
+
+  if (group === "nationality") {
+    const nationality = findNationality(originalValue);
+    if (nationality) {
+      return locale === "ar" ? nationality.ar : nationality.en;
+    }
   }
 
   const translations = TRANSLATION_GROUPS[group];
