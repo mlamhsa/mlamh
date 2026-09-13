@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 
+import QuickOpportunityCopyAdapter from "@/components/opportunities/QuickOpportunityCopyAdapter";
 import { getPublishedOpportunityByIdentifier } from "@/lib/supabase/opportunities";
 
 type OpportunityLayoutProps = {
@@ -11,7 +12,7 @@ export default async function OpportunityLayout({
   children,
   params,
 }: OpportunityLayoutProps) {
-  const { slug: rawSlug } = await params;
+  const { locale, slug: rawSlug } = await params;
   const slug = decodeURIComponent(rawSlug);
   const opportunity = await getPublishedOpportunityByIdentifier(slug);
 
@@ -19,5 +20,12 @@ export default async function OpportunityLayout({
     notFound();
   }
 
-  return children;
+  const isQuick = opportunity.posting_mode === "quick";
+
+  return (
+    <>
+      <QuickOpportunityCopyAdapter enabled={isQuick} locale={locale} />
+      {children}
+    </>
+  );
 }
