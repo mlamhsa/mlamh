@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 
+import { createEvent, EVENT_TARGETS, EVENT_TYPES } from "@/lib/events";
 import { trackEvent } from "@/lib/events/track-event";
 import {
   MARKETING_ATTRIBUTION_COOKIE,
@@ -206,7 +207,7 @@ export async function applyToOpportunityAction(
 
   const { data: opportunity, error: opportunityError } = await adminClient
     .from("opportunities")
-    .select("id, slug, status, published, created_at, application_days, opportunity_type, posting_mode, publisher_id")
+    .select("id, title, slug, status, published, created_at, application_days, opportunity_type, posting_mode, publisher_id")
     .eq("id", opportunityId)
     .maybeSingle();
 
@@ -362,9 +363,11 @@ export async function applyToOpportunityAction(
     };
   }
 
+  let quickConversationId: number | null = null;
+
   if (opportunity.posting_mode === "quick" && opportunity.publisher_id) {
     try {
-      await ensureOpportunityConversation(adminClient, {
+      quickConversationId = await ensureOpportunityConversation(adminClient, {
         applicationId: insertedApplication.id,
         opportunityId: opportunity.id,
         publisherId: opportunity.publisher_id,
@@ -380,6 +383,26 @@ export async function applyToOpportunityAction(
             : "Your interest was saved, but the conversation could not be opened yet. Please try again.",
       };
     }
+
+    await createEvent({
+      type: EVENT_TYPES.quick_request_interest,
+      target: EVENT_TARGETS.PUBLISHER,
+      targetId: opportunity.publisher_id,
+      actorId: user.id,
+      metadata: {
+        locale,
+        title: opportunity.title ?? "",
+        opportunityId: opportunity.id,
+        opportunitySlug: opportunity.slug,
+        applicationId: insertedApplication.id,
+        talentId: talent.id,
+        talent_name:
+          locale === "ar"
+            ? talent.name_ar || talent.name_en || ""
+            : talent.name_en || talent.name_ar || "",
+        conversationId: quickConversationId,
+      },
+    });
   }
 
   await trackEvent({
@@ -391,6 +414,7 @@ export async function applyToOpportunityAction(
       opportunity_id: opportunity.id,
       talent_id: talent.id,
       posting_mode: opportunity.posting_mode,
+      conversation_id: quickConversationId,
       logged_in: true,
     },
   });
@@ -410,6 +434,7 @@ export async function applyToOpportunityAction(
   revalidatePath(`/${locale}/talent-dashboard/applications`);
   revalidatePath(`/${locale}/talent-dashboard/messages`);
   revalidatePath(`/${locale}/publisher-dashboard/messages`);
+  revalidatePath(`/${locale}/publisher-dashboard/notifications`);
   revalidatePath(`/${locale}/talent-dashboard`);
   revalidatePath(`/admin/opportunities/${opportunity.id}`);
   revalidatePath("/admin/opportunity-applications");
