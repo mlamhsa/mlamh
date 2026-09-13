@@ -4,7 +4,6 @@ import Link from "next/link";
 import { use, useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { getOwnTalentProfileAction } from "@/lib/actions/update-own-talent-profile";
-import { updateOwnTalentBirthDateAction } from "@/lib/actions/update-own-talent-birth-date";
 import { updateOwnTalentProfessionalDetailsAction } from "@/lib/actions/update-own-talent-professional-details";
 import { TALENT_CATEGORIES } from "@/lib/data/talent-categories";
 import {
@@ -270,16 +269,12 @@ export default function TalentCoreDetailsPage({ params }: { params: Promise<{ lo
     setSuccess(false);
 
     try {
-      // Give the browser a frame to paint the saving state before the server action starts.
       await new Promise<void>((resolve) => window.setTimeout(resolve, 30));
 
       const payload = new FormData();
       payload.set("locale", locale);
       appendProfessionalPayload(payload);
 
-      // This page saves professional details only. Do not route through the core
-      // profile action, because that can refresh the active route and wipe the
-      // visible saving/success state on mobile.
       const result = await updateOwnTalentProfessionalDetailsAction(payload);
 
       if (!result.success) {
@@ -288,24 +283,10 @@ export default function TalentCoreDetailsPage({ params }: { params: Promise<{ lo
         return;
       }
 
-      if (birthDate) {
-        const birthDatePayload = new FormData();
-        birthDatePayload.set("locale", locale);
-        birthDatePayload.set("date_of_birth", birthDate);
-        const birthDateResult = await updateOwnTalentBirthDateAction(birthDatePayload);
-        if (!birthDateResult.success) {
-          setMessage(birthDateResult.message);
-          setSuccess(false);
-          return;
-        }
-      }
-
       const successMessage = isArabic
         ? "تم حفظ بياناتك المهنية بنجاح ✓"
         : "Your professional details were saved successfully ✓";
 
-      // Keep the current local values in place after save. A second server read here
-      // was causing the page to re-render/reset before the feedback was visible.
       setMessage(successMessage);
       setSuccess(true);
       window.setTimeout(() => {
@@ -377,54 +358,64 @@ export default function TalentCoreDetailsPage({ params }: { params: Promise<{ lo
         {!coreEditable ? (
           <div className="mb-6 rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.05] p-4 text-sm leading-7 text-emerald-100">
             {isArabic
-              ? "اعتماد ملفك محفوظ. البيانات الأساسية محمية، بينما يمكنك تعديل البيانات المهنية الاختيارية وتاريخ الميلاد دون إعادة إرسال الملف للمراجعة."
-              : "Your approval stays intact. Core identity fields are protected, while optional professional details and date of birth remain editable without resubmitting."}
+              ? "اعتماد ملفك محفوظ. هذه الصفحة مخصصة للبيانات المهنية الاختيارية فقط، بينما تبقى البيانات الأساسية محمية."
+              : "Your approval stays intact. This page is only for optional professional details, while core identity fields remain protected."}
           </div>
         ) : null}
 
         <form onSubmit={save} className="space-y-5">
           <section className="rounded-[2rem] border border-white/10 bg-white/[0.025] p-5 sm:p-7">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <p className="text-[11px] uppercase tracking-[0.22em] text-gold">{isArabic ? "البيانات الأساسية" : "CORE DETAILS"}</p>
-                <p className="mt-2 text-sm text-white/45">{coreEditable ? (isArabic ? "يمكن تعديلها قبل الاعتماد أو عند طلب تحديث." : "Editable before approval or when changes are requested.") : (isArabic ? "محفوظة لحماية هوية الملف المعتمد." : "Protected to preserve the approved profile identity.")}</p>
+                <p className="mt-2 text-sm leading-7 text-white/45">
+                  {coreEditable
+                    ? (isArabic ? "هذه البيانات تُعرض هنا للمرجع فقط. تعديلها يتم من صفحة متطلبات الاعتماد حتى لا تختلط مع حفظ البيانات المهنية." : "These details are shown here for reference only. Edit them from Review Requirements so they are not mixed with professional-detail saves.")
+                    : (isArabic ? "هذه البيانات محمية أثناء المراجعة أو بعد الاعتماد." : "These details are protected while under review or after approval.")}
+                </p>
               </div>
-              {!coreEditable ? <span className="rounded-full border border-white/10 px-3 py-1 text-[10px] text-white/45">{isArabic ? "محمي" : "Protected"}</span> : null}
+              {coreEditable ? (
+                <Link href={`/${locale}/talent-dashboard/profile/advanced#identity`} className="inline-flex min-h-10 items-center justify-center rounded-full border border-gold/25 px-4 text-xs text-gold hover:bg-gold/[0.05]">
+                  {isArabic ? "تعديل البيانات الأساسية" : "Edit core details"}
+                </Link>
+              ) : (
+                <span className="rounded-full border border-white/10 px-3 py-1 text-[10px] text-white/45">{isArabic ? "محمي" : "Protected"}</span>
+              )}
             </div>
             <div className="mt-5 grid gap-5 sm:grid-cols-2">
-              <Field label={isArabic ? "الاسم الكامل" : "Full name"}><input value={name} onChange={(e) => setName(e.target.value)} disabled={!coreEditable} required className="input" /></Field>
-              <Field label={isArabic ? "رقم الجوال" : "Phone number"}><input value={phone} onChange={(e) => setPhone(e.target.value)} disabled={!coreEditable} required dir="ltr" className="input text-left" /></Field>
+              <Field label={isArabic ? "الاسم الكامل" : "Full name"}><input value={name} disabled className="input" /></Field>
+              <Field label={isArabic ? "رقم الجوال" : "Phone number"}><input value={phone} disabled dir="ltr" className="input text-left" /></Field>
               <Field label={isArabic ? "نوع الموهبة" : "Talent type"}>
-                <select value={role} onChange={(e) => setRole(e.target.value)} disabled={!coreEditable} required className="input">
-                  <option value="">{isArabic ? "اختر" : "Select"}</option>
+                <select value={role} disabled className="input">
+                  <option value="">{isArabic ? "غير محدد" : "Not set"}</option>
                   {TALENT_CATEGORIES.map((item) => <option key={item.slug} value={item.slug}>{isArabic ? item.ar : item.en}</option>)}
                 </select>
               </Field>
               <Field label={isArabic ? "الجنس" : "Gender"}>
-                <select value={gender} onChange={(e) => setGender(e.target.value)} disabled={!coreEditable} required className="input">
-                  <option value="">{isArabic ? "اختر" : "Select"}</option>
+                <select value={gender} disabled className="input">
+                  <option value="">{isArabic ? "غير محدد" : "Not set"}</option>
                   {GENDER_OPTIONS.map((item) => <option key={item.value} value={item.value}>{isArabic ? item.ar : item.en}</option>)}
                 </select>
               </Field>
               <Field label={isArabic ? "الجنسية" : "Nationality"}>
-                <select value={nationality} onChange={(e) => setNationality(e.target.value)} disabled={!coreEditable} required className="input">
-                  <option value="">{isArabic ? "اختر" : "Select"}</option>
+                <select value={nationality} disabled className="input">
+                  <option value="">{isArabic ? "غير محدد" : "Not set"}</option>
                   {NATIONALITY_OPTIONS.map((item) => <option key={item.value} value={item.value}>{isArabic ? item.ar : item.en}</option>)}
                 </select>
               </Field>
               <Field label={isArabic ? "بلد الإقامة" : "Country of residence"}>
-                <select value="SA" disabled className="input">
-                  <option value="SA">{isArabic ? "السعودية" : "Saudi Arabia"}</option>
+                <select value={countryCode} disabled className="input">
+                  {(TALENT_SIGNUP_COUNTRIES.some((item) => item.code === countryCode) ? TALENT_SIGNUP_COUNTRIES : [{ code: countryCode || "SA", ar: countryCode || "السعودية", en: countryCode || "Saudi Arabia", cities: [] }]).map((item) => <option key={item.code} value={item.code}>{isArabic ? item.ar : item.en}</option>)}
                 </select>
               </Field>
               <Field label={isArabic ? "المدينة" : "City"}>
-                <select value={citySlug} onChange={(e) => setCitySlug(e.target.value)} disabled={!coreEditable} required className="input">
-                  <option value="">{isArabic ? "اختر" : "Select"}</option>
+                <select value={citySlug} disabled className="input">
+                  <option value="">{isArabic ? "غير محدد" : "Not set"}</option>
                   {(country?.cities ?? []).map((item) => <option key={item.value} value={item.value}>{isArabic ? item.ar : item.en}</option>)}
                 </select>
               </Field>
-              <Field label={isArabic ? "تاريخ الميلاد" : "Date of birth"} hint={isArabic ? "بالتقويم الميلادي — يُحفظ مع حفظ التعديلات" : "Gregorian calendar — saved with the form"}>
-                <input type="date" value={birthDate} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setBirthDate(e.target.value)} dir="ltr" className="input" />
+              <Field label={isArabic ? "تاريخ الميلاد" : "Date of birth"} hint={isArabic ? "من البيانات الأساسية — تعديله من صفحة متطلبات الاعتماد عند السماح بذلك" : "A core field — edit it from Review Requirements when allowed"}>
+                <input type="date" value={birthDate} disabled dir="ltr" className="input" />
               </Field>
             </div>
           </section>
@@ -486,10 +477,6 @@ export default function TalentCoreDetailsPage({ params }: { params: Promise<{ lo
               <div className="mt-7"><MultiChoiceField label={isArabic ? "أنواع المودل" : "Modeling types"} values={modelingTypes} onChange={setModelingTypes} options={withLegacyValues(modelingTypes, MODEL_TYPE_CHOICES)} isArabic={isArabic} searchable /></div>
               <Link href={`/${locale}/talent-dashboard/gallery`} className="mt-7 inline-flex min-h-11 items-center justify-center rounded-2xl border border-gold/25 px-5 text-sm text-gold hover:bg-gold/[0.05]">{isArabic ? "فتح معرض الأعمال وإضافة الفيديو والروابط" : "Open Portfolio to add video and links"}</Link>
             </section>
-          ) : null}
-
-          {!showActorFields && !showModelFields ? (
-            <section className="rounded-[2rem] border border-white/10 bg-white/[0.02] p-5 sm:p-6"><p className="text-sm leading-7 text-white/50">{isArabic ? "يمكنك إضافة الصور والفيديو والروابط المهنية من معرض الأعمال، ومعلومات التوفر أعلاه تساعد في المطابقة." : "Portfolio media and the availability signals above can strengthen matching."}</p><Link href={`/${locale}/talent-dashboard/gallery`} className="mt-4 inline-flex text-sm text-gold">{isArabic ? "فتح معرض الأعمال" : "Open Portfolio"}</Link></section>
           ) : null}
 
           <div className="flex flex-col gap-3 sm:flex-row">
