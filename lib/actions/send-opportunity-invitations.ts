@@ -261,16 +261,23 @@ export async function sendOpportunityInvitationsAction(
     };
   }
 
+  const conversationByOpportunity = new Map<number, number>();
+
   try {
-    await Promise.all(
-      validOpportunities.map((opportunity) =>
-        ensureOpportunityConversation(adminClient, {
+    const conversationRows = await Promise.all(
+      validOpportunities.map(async (opportunity) => ({
+        opportunityId: Number(opportunity.id),
+        conversationId: await ensureOpportunityConversation(adminClient, {
           opportunityId: opportunity.id,
           publisherId: publisher.id,
           talentId,
         }),
-      ),
+      })),
     );
+
+    for (const item of conversationRows) {
+      conversationByOpportunity.set(item.opportunityId, item.conversationId);
+    }
   } catch (error) {
     console.error(
       "[sendOpportunityInvitationsAction:conversation]",
@@ -332,6 +339,8 @@ export async function sendOpportunityInvitationsAction(
           title: opportunity.title,
           publisherId: publisher.id,
           company_name: publisher.company_name,
+          conversationId:
+            conversationByOpportunity.get(Number(opportunity.id)) ?? null,
           locale,
         },
       });

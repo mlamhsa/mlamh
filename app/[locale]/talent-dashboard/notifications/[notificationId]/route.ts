@@ -169,6 +169,22 @@ export async function GET(request: Request, { params }: RouteProps) {
 
   if (event?.event_type !== "opportunity_invitation") return NextResponse.redirect(fallbackUrl);
 
+  const conversationId = positiveInteger(event.metadata, "conversationId");
+  if (conversationId) {
+    const { data: conversation } = await admin
+      .from("conversations")
+      .select("id")
+      .eq("id", conversationId)
+      .eq("talent_id", talent.id)
+      .maybeSingle();
+
+    if (conversation) {
+      return NextResponse.redirect(
+        new URL(`/${locale}/talent-dashboard/messages/${conversation.id}`, origin),
+      );
+    }
+  }
+
   const invitationId = positiveInteger(event.metadata, "invitationId");
   if (!invitationId) return NextResponse.redirect(fallbackUrl);
 
@@ -185,15 +201,6 @@ export async function GET(request: Request, { params }: RouteProps) {
   }
 
   const typedInvitation = invitation as InvitationRecord;
-  if (typedInvitation.status === "sent") {
-    const { error: updateError } = await admin.from("opportunity_invitations")
-      .update({ status: "viewed", read_at: new Date().toISOString() })
-      .eq("id", typedInvitation.id)
-      .eq("talent_id", talent.id)
-      .eq("status", "sent");
-    if (updateError) console.error("[notification-route:invitation-update]", updateError);
-  }
-
   const opportunity = relatedOpportunity(typedInvitation.opportunities);
   if (!opportunityIsAvailable(opportunity) || !opportunity?.slug) return NextResponse.redirect(fallbackUrl);
 

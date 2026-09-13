@@ -51,6 +51,13 @@ const BOOKING_EVENTS = new Set([
   "booking_completed",
 ]);
 
+const REQUEST_CHAT_EVENTS = new Set([
+  "message_created",
+  "quick_request_interest",
+  "opportunity_invitation_accepted",
+  "opportunity_invitation_declined",
+]);
+
 export async function GET(request: Request, { params }: RouteProps) {
   const { locale: localeParam, notificationId } = await params;
   const locale = isValidLocale(localeParam) ? localeParam : "ar";
@@ -116,7 +123,7 @@ export async function GET(request: Request, { params }: RouteProps) {
 
   const conversationId = getPositiveInteger(event.metadata, "conversationId");
 
-  if (event.event_type === "message_created") {
+  if (REQUEST_CHAT_EVENTS.has(event.event_type)) {
     if (!conversationId) return NextResponse.redirect(fallback);
 
     const { data: conversation } = await admin
