@@ -1,0 +1,199 @@
+name: QA Talent Fixes
+
+on:
+  push:
+    paths:
+      - ".github/workflows/qa-talent-fixes.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch-talent-qa:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply exact Talent QA fixes
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str):
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"Expected exactly one match in {path}, found {count}: {old[:120]!r}")
+              p.write_text(text.replace(old, new, 1))
+
+          profile = "app/[locale]/talent-dashboard/profile/page.tsx"
+          replace_once(
+              profile,
+              'import { getTalentCategoryLabel } from "@/lib/data/talent-categories";\n',
+              'import { getTalentCategoryLabel } from "@/lib/data/talent-categories";\nimport { NATIONALITY_OPTIONS, TALENT_SIGNUP_COUNTRIES } from "@/lib/data/talent-signup";\n'
+          )
+          old_maps = '''const COUNTRY_LABELS: Record<string, { ar: string; en: string }> = {
+  SA: { ar: "السعودية", en: "Saudi Arabia" },
+  AE: { ar: "الإمارات", en: "United Arab Emirates" },
+  QA: { ar: "قطر", en: "Qatar" },
+};
+
+const NATIONALITY_LABELS: Record<string, { ar: string; en: string }> = {
+  saudi: { ar: "سعودي", en: "Saudi" }, emirati: { ar: "إماراتي", en: "Emirati" },
+  kuwaiti: { ar: "كويتي", en: "Kuwaiti" }, bahraini: { ar: "بحريني", en: "Bahraini" },
+  qatari: { ar: "قطري", en: "Qatari" }, omani: { ar: "عُماني", en: "Omani" },
+  yemeni: { ar: "يمني", en: "Yemeni" }, jordanian: { ar: "أردني", en: "Jordanian" },
+  palestinian: { ar: "فلسطيني", en: "Palestinian" }, lebanese: { ar: "لبناني", en: "Lebanese" },
+  syrian: { ar: "سوري", en: "Syrian" }, iraqi: { ar: "عراقي", en: "Iraqi" },
+  egyptian: { ar: "مصري", en: "Egyptian" }, sudanese: { ar: "سوداني", en: "Sudanese" },
+  moroccan: { ar: "مغربي", en: "Moroccan" }, algerian: { ar: "جزائري", en: "Algerian" },
+  tunisian: { ar: "تونسي", en: "Tunisian" }, libyan: { ar: "ليبي", en: "Libyan" },
+};
+
+'''
+          replace_once(profile, old_maps, '')
+          replace_once(
+              profile,
+              '  const country = COUNTRY_LABELS[countryCode]?.[locale] || countryCode || (isArabic ? "غير محدد" : "Not set");\n  const nationalityKey = clean(talent?.nationality_slug) || clean(talent?.nationality);\n  const nationality = NATIONALITY_LABELS[nationalityKey]?.[locale] || nationalityKey || (isArabic ? "غير محدد" : "Not set");\n',
+              '  const countryOption = TALENT_SIGNUP_COUNTRIES.find((item) => item.code === countryCode);\n  const country = countryOption?.[locale] || countryCode || (isArabic ? "غير محدد" : "Not set");\n  const nationalityKey = clean(talent?.nationality_slug) || clean(talent?.nationality);\n  const nationalityOption = NATIONALITY_OPTIONS.find((item) => item.value === nationalityKey);\n  const nationality = nationalityOption?.[locale] || nationalityKey || (isArabic ? "غير محدد" : "Not set");\n'
+          )
+
+          main_image = "lib/actions/update-own-talent-main-image.ts"
+          replace_once(
+              main_image,
+              'import { createServerSupabaseClient } from "@/lib/supabase/server";\n',
+              'import { createServerSupabaseClient } from "@/lib/supabase/server";\nimport { getEffectiveTalentApprovalStatus } from "@/lib/talent/approval-status";\n'
+          )
+          replace_once(
+              main_image,
+              '''  const supabase = createAdminClient();
+  const { data: talent, error: talentError } = await supabase
+    .from("talents")
+    .select("id,slug,image_url")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (talentError) {
+    throw new Error(`[updateOwnTalentMainImageAction:talent] ${talentError.message}`);
+  }
+  if (!talent) redirect(`/${locale}/talent-dashboard/profile`);
+''',
+              '''  const supabase = createAdminClient();
+  const [talentResult, profileResult] = await Promise.all([
+    supabase
+      .from("talents")
+      .select("id,slug,image_url")
+      .eq("user_id", user.id)
+      .maybeSingle(),
+    supabase
+      .from("profiles")
+      .select("account_type,approval_status,profile_completed_at,onboarding_step")
+      .eq("user_id", user.id)
+      .maybeSingle(),
+  ]);
+
+  const talent = talentResult.data;
+  const profile = profileResult.data;
+  if (talentResult.error) {
+    throw new Error(`[updateOwnTalentMainImageAction:talent] ${talentResult.error.message}`);
+  }
+  if (profileResult.error) {
+    throw new Error(`[updateOwnTalentMainImageAction:profile] ${profileResult.error.message}`);
+  }
+  if (!talent || !profile || profile.account_type !== "talent") {
+    redirect(`/${locale}/talent-dashboard/profile`);
+  }
+
+  const approvalStatus = getEffectiveTalentApprovalStatus(profile);
+  if (approvalStatus === "pending" || approvalStatus === "submitted") {
+    throw new Error(
+      locale === "ar"
+        ? "لا يمكن تغيير الصورة الشخصية أثناء مراجعة الملف."
+        : "The profile photo cannot be changed while the profile is under review.",
+    );
+  }
+'''
+          )
+
+          gallery_image = "lib/actions/set-own-talent-profile-image.ts"
+          replace_once(
+              gallery_image,
+              'import { createServerSupabaseClient } from "@/lib/supabase/server";\n',
+              'import { createServerSupabaseClient } from "@/lib/supabase/server";\nimport { getEffectiveTalentApprovalStatus } from "@/lib/talent/approval-status";\n'
+          )
+          replace_once(
+              gallery_image,
+              '''  const adminClient = createAdminClient();
+  const { data: talent, error: talentError } = await adminClient
+    .from("talents")
+    .select("id, slug, image_url, gallery_images")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (talentError || !talent) {
+    return {
+      success: false,
+      message:
+        locale === "ar"
+          ? "تعذر العثور على ملف الموهبة."
+          : "Talent profile could not be found.",
+    };
+  }
+''',
+              '''  const adminClient = createAdminClient();
+  const [talentResult, profileResult] = await Promise.all([
+    adminClient
+      .from("talents")
+      .select("id, slug, image_url, gallery_images")
+      .eq("user_id", user.id)
+      .maybeSingle(),
+    adminClient
+      .from("profiles")
+      .select("account_type,approval_status,profile_completed_at,onboarding_step")
+      .eq("user_id", user.id)
+      .maybeSingle(),
+  ]);
+
+  const talent = talentResult.data;
+  const profile = profileResult.data;
+  if (talentResult.error || profileResult.error || !talent || !profile || profile.account_type !== "talent") {
+    return {
+      success: false,
+      message:
+        locale === "ar"
+          ? "تعذر العثور على ملف الموهبة."
+          : "Talent profile could not be found.",
+    };
+  }
+
+  const approvalStatus = getEffectiveTalentApprovalStatus(profile);
+  if (approvalStatus === "pending" || approvalStatus === "submitted") {
+    return {
+      success: false,
+      message:
+        locale === "ar"
+          ? "لا يمكن تغيير الصورة الشخصية أثناء مراجعة الملف."
+          : "The profile photo cannot be changed while the profile is under review.",
+    };
+  }
+'''
+          )
+          PY
+
+      - name: Commit Talent QA fixes
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "No changes to commit"
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/'[locale]'/talent-dashboard/profile/page.tsx lib/actions/update-own-talent-main-image.ts lib/actions/set-own-talent-profile-image.ts
+          git commit -m "fix(qa): harden Talent profile image review state"
+          git push origin HEAD:main
