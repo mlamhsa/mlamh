@@ -25,6 +25,7 @@ type OpportunityRecord = {
   city_ar: string | null;
   city_en: string | null;
   opportunity_type: string | null;
+  posting_mode: string | null;
   status: string | null;
   created_at: string | null;
 };
@@ -61,6 +62,20 @@ function statusLabel(status: ApplicationStatus, isArabic: boolean) {
   };
 
   return isArabic ? labels[status].ar : labels[status].en;
+}
+
+function displayStatusLabel(
+  status: ApplicationStatus,
+  isArabic: boolean,
+  isQuickRequest: boolean,
+) {
+  if (!isQuickRequest) return statusLabel(status, isArabic);
+
+  if (status === "pending") return isArabic ? "مهتم" : "Interested";
+  if (status === "accepted") return isArabic ? "تم اختيارك" : "Selected";
+  if (status === "rejected") return isArabic ? "تم الاعتذار" : "Not selected";
+
+  return statusLabel(status, isArabic);
 }
 
 function statusClass(status: ApplicationStatus) {
@@ -291,6 +306,7 @@ export default async function TalentRequestsPage({
         city_ar,
         city_en,
         opportunity_type,
+        posting_mode,
         status,
         created_at
       )
@@ -306,48 +322,44 @@ export default async function TalentRequestsPage({
   }
 
   const allApplications = (applications ?? []) as ApplicationRecord[];
-  const acceptedApplicationIds = allApplications
-  .filter(
-    (application) =>
-      normalizeStatus(application.status) === "accepted",
-  )
-  .map((application) => application.id);
+  const applicationIds = allApplications.map((application) => application.id);
+  const conversationByApplicationId = new Map<string, string>();
 
-const conversationByApplicationId = new Map<string, string>();
+  if (applicationIds.length > 0) {
+    const { data: conversations, error: conversationsError } =
+      await adminClient
+        .from("conversations")
+        .select("id, application_id")
+        .in("application_id", applicationIds);
 
-if (acceptedApplicationIds.length > 0) {
-  const { data: conversations, error: conversationsError } =
-    await adminClient
-      .from("conversations")
-      .select("id, application_id")
-      .in("application_id", acceptedApplicationIds);
-
-  if (conversationsError) {
-    console.error(
-      "[TalentRequestsPage conversations]",
-      conversationsError,
-    );
-  } else {
-    for (const conversation of conversations ?? []) {
-      if (
-        conversation.application_id !== null &&
-        conversation.application_id !== undefined
-      ) {
-        conversationByApplicationId.set(
-          String(conversation.application_id),
-          String(conversation.id),
-        );
+    if (conversationsError) {
+      console.error(
+        "[TalentRequestsPage conversations]",
+        conversationsError,
+      );
+    } else {
+      for (const conversation of conversations ?? []) {
+        if (
+          conversation.application_id !== null &&
+          conversation.application_id !== undefined
+        ) {
+          conversationByApplicationId.set(
+            String(conversation.application_id),
+            String(conversation.id),
+          );
+        }
       }
     }
   }
-}
+
   const filteredApplications =
-  status &&
-  ["pending","reviewing","shortlisted","accepted","rejected"].includes(status)
-    ? allApplications.filter(
-        app => normalizeStatus(app.status) === status
-      )
-    : allApplications;
+    status &&
+    ["pending", "reviewing", "shortlisted", "accepted", "rejected"].includes(status)
+      ? allApplications.filter(
+          app => normalizeStatus(app.status) === status
+        )
+      : allApplications;
+
   const counts = allApplications.reduce(
     (result, application) => {
       const status = normalizeStatus(application.status);
@@ -378,7 +390,7 @@ if (acceptedApplicationIds.length > 0) {
     },
     {
       key: "pending",
-      label: isArabic ? "جديد" : "Pending",
+      label: isArabic ? "جديد / مهتم" : "Pending / Interested",
       value: counts.pending,
       icon: "pending" as const,
       className: "border-white/10 bg-white/[0.025]",
@@ -402,7 +414,7 @@ if (acceptedApplicationIds.length > 0) {
     },
     {
       key: "accepted",
-      label: isArabic ? "مقبول" : "Accepted",
+      label: isArabic ? "مقبول / مختار" : "Accepted / Selected",
       value: counts.accepted,
       icon: "accepted" as const,
       className: "border-white/10 bg-white/[0.025]",
@@ -410,7 +422,7 @@ if (acceptedApplicationIds.length > 0) {
     },
     {
       key: "rejected",
-      label: isArabic ? "مرفوض" : "Rejected",
+      label: isArabic ? "مرفوض / معتذر" : "Rejected / Not selected",
       value: counts.rejected,
       icon: "rejected" as const,
       className: "border-white/10 bg-white/[0.025]",
@@ -452,8 +464,8 @@ if (acceptedApplicationIds.length > 0) {
 
               <p className="mt-4 max-w-2xl text-sm leading-7 text-white/50 sm:text-base">
                 {isArabic
-                  ? "تابع حالة الفرص التي تقدمت عليها، واعرف انتقال كل طلب من المراجعة إلى القبول أو الرفض."
-                  : "Track the opportunities you applied to and follow every application from review to acceptance or rejection."}
+                  ? "تابع اهتماماتك بالطلبات السريعة وتقديماتك على فرص الكاستينغ، وافتح المحادثة عندما تكون متاحة."
+                  : "Track Quick Request interests and casting applications, and open the conversation whenever it is available."}
               </p>
             </div>
 
@@ -496,7 +508,7 @@ if (acceptedApplicationIds.length > 0) {
               </p>
 
               <h2 className="mt-2 text-2xl font-light sm:text-3xl">
-                {isArabic ? "الفرص التي تقدمت عليها" : "Your Submitted Applications"}
+                {isArabic ? "الطلبات والفرص التي تفاعلت معها" : "Your Requests and Opportunities"}
               </h2>
             </div>
 
@@ -512,16 +524,23 @@ if (acceptedApplicationIds.length > 0) {
               {filteredApplications.map((application) => {
                 const opportunity = getOpportunity(application);
                 const normalizedStatus = normalizeStatus(application.status);
+                const isQuickRequest = opportunity?.posting_mode === "quick";
                 const opportunityHref = opportunity?.slug
                   ? `/${locale}/opportunities/${opportunity.slug}`
                   : `/${locale}/opportunities`;
-                  
-                  const conversationId = conversationByApplicationId.get(
-                    String(application.id),
-                  );
-                  
-                  const canMessagePublisher =
-                    normalizedStatus === "accepted" && Boolean(conversationId);
+
+                const conversationId = conversationByApplicationId.get(
+                  String(application.id),
+                );
+
+                const canMessagePublisher = Boolean(conversationId) &&
+                  (isQuickRequest || normalizedStatus === "accepted");
+                const currentStatusLabel = displayStatusLabel(
+                  normalizedStatus,
+                  isArabic,
+                  isQuickRequest,
+                );
+
                 return (
                   <article
                     key={application.id}
@@ -531,10 +550,14 @@ if (acceptedApplicationIds.length > 0) {
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-[10px] uppercase tracking-[0.16em] text-white/45">
-                            {getOpportunityTypeLabel(
-                              opportunity?.opportunity_type,
-                              isArabic
-                            )}
+                            {isQuickRequest
+                              ? isArabic
+                                ? "طلب سريع"
+                                : "Quick Request"
+                              : getOpportunityTypeLabel(
+                                  opportunity?.opportunity_type,
+                                  isArabic
+                                )}
                           </span>
 
                           <span
@@ -547,7 +570,7 @@ if (acceptedApplicationIds.length > 0) {
                                 normalizedStatus
                               )}`}
                             />
-                            {statusLabel(normalizedStatus, isArabic)}
+                            {currentStatusLabel}
                           </span>
                         </div>
 
@@ -564,7 +587,7 @@ if (acceptedApplicationIds.length > 0) {
 
                       <InfoItem
                         label={isArabic ? "الحالة" : "Status"}
-                        value={statusLabel(normalizedStatus, isArabic)}
+                        value={currentStatusLabel}
                       />
 
                       <InfoItem
@@ -572,25 +595,31 @@ if (acceptedApplicationIds.length > 0) {
                         value={formatDate(application.created_at, locale)}
                       />
 
-<div className="flex flex-col gap-2 sm:flex-row lg:flex-col">
-  <Link
-    href={opportunityHref}
-    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-white/10 px-4 text-xs text-white/60 transition hover:border-gold/40 hover:text-gold"
-  >
-    {isArabic ? "عرض الفرصة" : "View Opportunity"}
-    <DashboardIcon name="arrow" className="h-4 w-4" />
-  </Link>
+                      <div className="flex flex-col gap-2 sm:flex-row lg:flex-col">
+                        <Link
+                          href={opportunityHref}
+                          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-white/10 px-4 text-xs text-white/60 transition hover:border-gold/40 hover:text-gold"
+                        >
+                          {isArabic ? "عرض الفرصة" : "View Opportunity"}
+                          <DashboardIcon name="arrow" className="h-4 w-4" />
+                        </Link>
 
-  {canMessagePublisher && conversationId ? (
-    <Link
-      href={`/${locale}/talent-dashboard/messages/${conversationId}`}
-      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-gold/40 bg-gold/[0.08] px-4 text-xs text-gold transition hover:bg-gold hover:text-black"
-    >
-      {isArabic ? "مراسلة الناشر" : "Message Publisher"}
-      <DashboardIcon name="arrow" className="h-4 w-4" />
-    </Link>
-  ) : null}
-</div>
+                        {canMessagePublisher && conversationId ? (
+                          <Link
+                            href={`/${locale}/talent-dashboard/messages/${conversationId}`}
+                            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-gold/40 bg-gold/[0.08] px-4 text-xs text-gold transition hover:bg-gold hover:text-black"
+                          >
+                            {isQuickRequest
+                              ? isArabic
+                                ? "فتح المحادثة"
+                                : "Open Conversation"
+                              : isArabic
+                                ? "مراسلة الناشر"
+                                : "Message Publisher"}
+                            <DashboardIcon name="arrow" className="h-4 w-4" />
+                          </Link>
+                        ) : null}
+                      </div>
                     </div>
                   </article>
                 );
