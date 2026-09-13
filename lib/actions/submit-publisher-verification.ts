@@ -9,6 +9,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 type SupportedLocale = "ar" | "en";
 type VerificationMethod = "company_email" | "official_document" | "business_card";
 
+const VERIFICATION_BUCKET = "publisher-verification";
 const ALLOWED_METHODS = new Set<VerificationMethod>([
   "company_email",
   "official_document",
@@ -42,6 +43,10 @@ function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
+function buildProtectedProofUrl(objectPath: string) {
+  return `/api/admin/publisher-verification-proof?object=${encodeURIComponent(objectPath)}`;
+}
+
 async function uploadProof(
   adminClient: ReturnType<typeof createAdminClient>,
   publisherId: number | string,
@@ -65,7 +70,7 @@ async function uploadProof(
 
   const path = `publishers/${publisherId}/verification-${Date.now()}.${extension}`;
   const { error } = await adminClient.storage
-    .from("publisher-assets")
+    .from(VERIFICATION_BUCKET)
     .upload(path, Buffer.from(await file.arrayBuffer()), {
       contentType: file.type,
       upsert: false,
@@ -73,8 +78,10 @@ async function uploadProof(
 
   if (error) throw new Error(error.message);
 
-  const { data } = adminClient.storage.from("publisher-assets").getPublicUrl(path);
-  return data.publicUrl;
+  return {
+    objectPath: path,
+    protectedUrl: buildProtectedProofUrl(path),
+  };
 }
 
 export async function submitPublisherVerificationAction(formData: FormData): Promise<void> {
@@ -137,6 +144,7 @@ export async function submitPublisherVerificationAction(formData: FormData): Pro
 
   const adminClient = createAdminClient();
   let verificationDocumentUrl: string | null = null;
+  let uploadedObjectPath: string | null = null;
 
   if (method === "official_document" || method === "business_card") {
     if (!(proof instanceof File) || proof.size === 0) {
@@ -146,7 +154,10 @@ export async function submitPublisherVerificationAction(formData: FormData): Pro
           : "You must attach proof before submitting the verification request.",
       );
     }
-    verificationDocumentUrl = await uploadProof(adminClient, publisher.id, proof);
+
+    const uploaded = await uploadProof(adminClient, publisher.id, proof);
+    uploadedObjectPath = uploaded.objectPath;
+    verificationDocumentUrl = uploaded.protectedUrl;
   }
 
   const { data: updatedPublisher, error: updateError } = await adminClient
@@ -168,6 +179,10 @@ export async function submitPublisherVerificationAction(formData: FormData): Pro
     .maybeSingle();
 
   if (updateError || !updatedPublisher) {
+    if (uploadedObjectPath) {
+      await adminClient.storage.from(VERIFICATION_BUCKET).remove([uploadedObjectPath]);
+    }
+
     throw new Error(
       locale === "ar"
         ? "تعذر إرسال طلب التوثيق. حاول مرة أخرى."
