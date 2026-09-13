@@ -1,4 +1,4 @@
-name: QA Refresh Lockfile
+name: QA Current Launch Validation
 
 on:
   push:
@@ -6,13 +6,12 @@ on:
       - fix/launch-validation-lockfile
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  refresh:
-    if: github.actor != 'github-actions[bot]'
+  validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
@@ -21,15 +20,10 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - name: Refresh package lock
-        run: npm install --package-lock-only --ignore-scripts
-      - name: Verify clean install
-        run: npm ci --ignore-scripts
-      - name: Commit lockfile
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package-lock.json
-          git diff --cached --check
-          git commit -m "fix(ci): synchronize package lock"
-          git push origin HEAD:fix/launch-validation-lockfile
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run test:talent
+      - run: npm run test:security
+      - run: npm run test:marketing
+      - run: npm run test:intelligence
+      - run: npm run build
