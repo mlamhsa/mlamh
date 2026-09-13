@@ -30,6 +30,8 @@ const RESTRICTED_ACCOUNT_STATUSES = new Set([
   "disabled",
 ]);
 
+const MVP_TALENT_ROLES = new Set(["actor", "model"]);
+
 async function recordAttributedApplication({
   userId,
   applicationId,
@@ -146,10 +148,6 @@ export async function applyToOpportunityAction(
     };
   }
 
-  // Approval is the canonical authorization gate. Once an admin has approved
-  // a Talent profile, newly introduced completion fields must not revoke that
-  // decision or block legacy users from applying. Missing professional/core
-  // data is surfaced as a completion prompt in the Talent dashboard instead.
   if (profile.approval_status !== "approved") {
     return {
       status: "unauthorized",
@@ -168,6 +166,7 @@ export async function applyToOpportunityAction(
       name_en,
       image_url,
       primary_role,
+      category_slug,
       city_slug,
       gender,
       nationality,
@@ -206,7 +205,7 @@ export async function applyToOpportunityAction(
 
   const { data: opportunity, error: opportunityError } = await adminClient
     .from("opportunities")
-    .select("id, slug, status, published, created_at, application_days")
+    .select("id, slug, status, published, created_at, application_days, opportunity_type")
     .eq("id", opportunityId)
     .maybeSingle();
 
@@ -233,6 +232,30 @@ export async function applyToOpportunityAction(
         locale === "ar"
           ? "هذه الفرصة غير متاحة للتقديم حاليًا."
           : "This opportunity is not currently open for applications.",
+    };
+  }
+
+  const talentRole = String(talent.primary_role ?? talent.category_slug ?? "")
+    .trim()
+    .toLowerCase();
+  const opportunityRole = String(opportunity.opportunity_type ?? "")
+    .trim()
+    .toLowerCase();
+
+  if (
+    MVP_TALENT_ROLES.has(opportunityRole) &&
+    talentRole !== opportunityRole
+  ) {
+    return {
+      status: "unauthorized",
+      message:
+        locale === "ar"
+          ? opportunityRole === "actor"
+            ? "هذه الفرصة مخصصة للممثلين والممثلات."
+            : "هذه الفرصة مخصصة للمودلز."
+          : opportunityRole === "actor"
+            ? "This opportunity is for actors."
+            : "This opportunity is for models.",
     };
   }
 
