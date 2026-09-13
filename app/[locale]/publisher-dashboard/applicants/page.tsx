@@ -31,6 +31,7 @@ type ApplicantTalent = {
 type ApplicantOpportunity = {
   id: string | number;
   title: string | null;
+  posting_mode: string | null;
 };
 
 type PublisherApplication = {
@@ -150,18 +151,18 @@ function ApplicationStatusForm({
 }) {
   return (
     <form
-    action={async () => {
-      "use server";
-    
-      await updateApplicationStatusAction(
-        applicationId,
-        status,
-      );
-    
-      revalidatePath(
-        `/${locale}/publisher-dashboard/applicants`,
-      );
-    }}
+      action={async () => {
+        "use server";
+
+        await updateApplicationStatusAction(
+          applicationId,
+          status,
+        );
+
+        revalidatePath(
+          `/${locale}/publisher-dashboard/applicants`,
+        );
+      }}
       className="flex-1"
     >
       <button
@@ -209,7 +210,7 @@ export default async function PublisherApplicantsPage({
   const { data: opportunities, error: opportunitiesError } =
     await adminClient
       .from("opportunities")
-      .select("id, title")
+      .select("id, title, posting_mode")
       .eq("publisher_id", publisher.id)
       .order("created_at", { ascending: false });
 
@@ -237,7 +238,8 @@ export default async function PublisherApplicantsPage({
             talent_id,
             opportunities (
               id,
-              title
+              title,
+              posting_mode
             ),
             talents (
               id,
@@ -264,37 +266,34 @@ export default async function PublisherApplicantsPage({
   const allApplications =
     (applications ?? []) as PublisherApplication[];
 
-    const acceptedApplicationIds = allApplications
-  .filter(
-    (application) =>
-      normalizeDisplayStatus(application.status) === "accepted",
-  )
-  .map((application) => application.id);
-
-const { data: conversations, error: conversationsError } =
-  acceptedApplicationIds.length > 0
-    ? await adminClient
-        .from("conversations")
-        .select("id, application_id")
-        .in("application_id", acceptedApplicationIds)
-    : { data: [], error: null };
-
-if (conversationsError) {
-  console.error(
-    "Publisher applicants conversations error:",
-    conversationsError,
+  const applicationIds = allApplications.map(
+    (application) => application.id,
   );
-}
 
-const conversationIdByApplication = new Map<
-  string,
-  string | number
->(
-  (conversations ?? []).map((conversation) => [
-    String(conversation.application_id),
-    conversation.id,
-  ]),
-);
+  const { data: conversations, error: conversationsError } =
+    applicationIds.length > 0
+      ? await adminClient
+          .from("conversations")
+          .select("id, application_id")
+          .in("application_id", applicationIds)
+      : { data: [], error: null };
+
+  if (conversationsError) {
+    console.error(
+      "Publisher applicants conversations error:",
+      conversationsError,
+    );
+  }
+
+  const conversationIdByApplication = new Map<
+    string,
+    string | number
+  >(
+    (conversations ?? []).map((conversation) => [
+      String(conversation.application_id),
+      conversation.id,
+    ]),
+  );
 
   const counts = {
     total: allApplications.length,
@@ -384,8 +383,8 @@ const conversationIdByApplication = new Map<
 
             <p className="mt-3 max-w-2xl text-sm leading-7 text-white/50">
               {isRtl
-                ? "ابحث عن المتقدم المناسب، راجع ملفه، ثم اتخذ قرار القبول أو الرفض مباشرة."
-                : "Find the right applicant, review their profile, then accept or reject directly."}
+                ? "راجع الملفات، تواصل مع المهتمين بالطلبات السريعة، واتخذ القرار المناسب لكل فرصة."
+                : "Review profiles, message talent interested in quick requests, and make the right decision for each opportunity."}
             </p>
           </div>
 
@@ -435,7 +434,7 @@ const conversationIdByApplication = new Map<
             status: "accepted",
             page: 1,
           })}
-          label={isRtl ? "مقبول" : "Accepted"}
+          label={isRtl ? "مقبول / مختار" : "Accepted / Selected"}
           value={counts.accepted}
           active={statusFilter === "accepted"}
         />
@@ -448,7 +447,7 @@ const conversationIdByApplication = new Map<
             status: "rejected",
             page: 1,
           })}
-          label={isRtl ? "مرفوض" : "Rejected"}
+          label={isRtl ? "مرفوض / معتذر" : "Rejected / Declined"}
           value={counts.rejected}
           active={statusFilter === "rejected"}
         />
@@ -502,10 +501,10 @@ const conversationIdByApplication = new Map<
               {isRtl ? "جديد" : "New"}
             </option>
             <option value="accepted">
-              {isRtl ? "مقبول" : "Accepted"}
+              {isRtl ? "مقبول / مختار" : "Accepted / Selected"}
             </option>
             <option value="rejected">
-              {isRtl ? "مرفوض" : "Rejected"}
+              {isRtl ? "مرفوض / معتذر" : "Rejected / Declined"}
             </option>
           </select>
 
@@ -556,6 +555,8 @@ const conversationIdByApplication = new Map<
                 talent,
                 locale,
               );
+              const isQuickRequest =
+                opportunity?.posting_mode === "quick";
 
               const conversationId = conversationIdByApplication.get(
                 String(application.id),
@@ -584,9 +585,16 @@ const conversationIdByApplication = new Map<
                     </div>
 
                     <div className="min-w-0">
-                      <h3 className="truncate text-base font-medium text-white">
-                        {talentName}
-                      </h3>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="truncate text-base font-medium text-white">
+                          {talentName}
+                        </h3>
+                        {isQuickRequest && displayStatus === "pending" ? (
+                          <span className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-2.5 py-1 text-[11px] text-emerald-300">
+                            {isRtl ? "مهتم" : "Interested"}
+                          </span>
+                        ) : null}
+                      </div>
                       <p className="mt-1 truncate text-sm text-white/45">
                         {getTalentCity(talent, locale)}
                       </p>
@@ -601,14 +609,20 @@ const conversationIdByApplication = new Map<
 
                   <div className="min-w-0 rounded-xl border border-white/10 bg-black/20 px-4 py-3">
                     <p className="text-xs text-white/35">
-                      {isRtl ? "الفرصة" : "Opportunity"}
+                      {isRtl
+                        ? isQuickRequest
+                          ? "الطلب السريع"
+                          : "الفرصة"
+                        : isQuickRequest
+                          ? "Quick Request"
+                          : "Opportunity"}
                     </p>
                     <p className="mt-1 line-clamp-2 text-sm text-white/75">
                       {opportunity?.title ?? "-"}
                     </p>
                   </div>
 
-                  <div className="flex flex-col gap-2 sm:flex-row lg:min-w-[21rem]">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap lg:min-w-[21rem] lg:justify-end">
                     {talent?.slug || talent?.id ? (
                       <Link
                         href={`/${locale}/talent/${
@@ -620,50 +634,77 @@ const conversationIdByApplication = new Map<
                       </Link>
                     ) : null}
 
-{displayStatus === "pending" ? (
-  <>
-    <ApplicationStatusForm
-  applicationId={application.id}
-  status="accepted"
-  label={isRtl ? "قبول" : "Accept"}
-  className="border-emerald-400/35 text-emerald-300 hover:bg-emerald-400 hover:text-black"
-  locale={locale}
-/>
+                    {isQuickRequest && conversationId ? (
+                      <Link
+                        href={`/${locale}/publisher-dashboard/messages/${conversationId}`}
+                        className="flex min-h-11 flex-1 items-center justify-center rounded-xl border border-gold/40 bg-gold/10 px-4 text-xs text-gold transition hover:bg-gold hover:text-black"
+                      >
+                        {isRtl ? "فتح المحادثة" : "Open Chat"}
+                      </Link>
+                    ) : null}
 
-<ApplicationStatusForm
-  applicationId={application.id}
-  status="rejected"
-  label={isRtl ? "رفض" : "Reject"}
-  className="border-red-400/35 text-red-300 hover:bg-red-400 hover:text-black"
-  locale={locale}
-/>
-  </>
-) : displayStatus === "accepted" ? (
-  <>
-    <StatusBadge
-      status="accepted"
-      isRtl={isRtl}
-    />
+                    {displayStatus === "pending" ? (
+                      <>
+                        <ApplicationStatusForm
+                          applicationId={application.id}
+                          status="accepted"
+                          label={
+                            isRtl
+                              ? isQuickRequest
+                                ? "اختيار الموهبة"
+                                : "قبول"
+                              : isQuickRequest
+                                ? "Select Talent"
+                                : "Accept"
+                          }
+                          className="border-emerald-400/35 text-emerald-300 hover:bg-emerald-400 hover:text-black"
+                          locale={locale}
+                        />
 
-    {conversationId ? (
-  <Link
-    href={`/${locale}/publisher-dashboard/messages/${conversationId}`}
-    className="flex min-h-11 flex-1 items-center justify-center rounded-xl border border-gold/40 bg-gold/10 px-4 text-xs text-gold transition hover:bg-gold hover:text-black"
-  >
-    {isRtl ? "تواصل" : "Message"}
-  </Link>
-) : (
-  <span className="flex min-h-11 flex-1 items-center justify-center rounded-xl border border-white/10 px-4 text-xs text-white/35">
-    {isRtl ? "المحادثة غير جاهزة" : "Chat unavailable"}
-  </span>
-)}
-  </>
-) : (
-  <StatusBadge
-    status="rejected"
-    isRtl={isRtl}
-  />
-)}
+                        <ApplicationStatusForm
+                          applicationId={application.id}
+                          status="rejected"
+                          label={
+                            isRtl
+                              ? isQuickRequest
+                                ? "اعتذار"
+                                : "رفض"
+                              : isQuickRequest
+                                ? "Decline"
+                                : "Reject"
+                          }
+                          className="border-red-400/35 text-red-300 hover:bg-red-400 hover:text-black"
+                          locale={locale}
+                        />
+                      </>
+                    ) : displayStatus === "accepted" ? (
+                      <>
+                        <StatusBadge
+                          status="accepted"
+                          isRtl={isRtl}
+                          isQuickRequest={isQuickRequest}
+                        />
+
+                        {conversationId ? (
+                          <Link
+                            href={`/${locale}/publisher-dashboard/messages/${conversationId}`}
+                            className="flex min-h-11 flex-1 items-center justify-center rounded-xl border border-gold/40 bg-gold/10 px-4 text-xs text-gold transition hover:bg-gold hover:text-black"
+                          >
+                            {isRtl ? "تواصل" : "Message"}
+                          </Link>
+                        ) : (
+                          <span className="flex min-h-11 flex-1 items-center justify-center rounded-xl border border-white/10 px-4 text-xs text-white/35">
+                            {isRtl ? "المحادثة غير جاهزة" : "Chat unavailable"}
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      <StatusBadge
+                        status="rejected"
+                        isRtl={isRtl}
+                        isQuickRequest={isQuickRequest}
+                      />
+                    )}
                   </div>
                 </article>
               );
@@ -763,9 +804,11 @@ function StatLink({
 function StatusBadge({
   status,
   isRtl,
+  isQuickRequest = false,
 }: {
   status: "accepted" | "rejected";
   isRtl: boolean;
+  isQuickRequest?: boolean;
 }) {
   const accepted = status === "accepted";
 
@@ -779,11 +822,19 @@ function StatusBadge({
     >
       {accepted
         ? isRtl
-          ? "تم القبول"
-          : "Accepted"
+          ? isQuickRequest
+            ? "تم اختيار الموهبة"
+            : "تم القبول"
+          : isQuickRequest
+            ? "Talent Selected"
+            : "Accepted"
         : isRtl
-          ? "تم الرفض"
-          : "Rejected"}
+          ? isQuickRequest
+            ? "تم الاعتذار"
+            : "تم الرفض"
+          : isQuickRequest
+            ? "Declined"
+            : "Rejected"}
     </div>
   );
 }
