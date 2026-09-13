@@ -67,6 +67,10 @@ function getImageFile(formData: FormData, key: string, maxSize: number) {
   return item;
 }
 
+function normalizeIdentityValue(input: string | null | undefined) {
+  return String(input ?? "").trim();
+}
+
 async function uploadPublisherImage({
   adminClient,
   publisherId,
@@ -122,7 +126,7 @@ async function savePublisherProfile(formData: FormData) {
 
   const { data: profile, error: profileError } = await adminClient
     .from("profiles")
-    .select("id, account_type")
+    .select("id, account_type, approval_status")
     .eq("user_id", user.id)
     .maybeSingle();
 
@@ -132,7 +136,9 @@ async function savePublisherProfile(formData: FormData) {
 
   const { data: publisher, error: publisherError } = await adminClient
     .from("publishers")
-    .select("id")
+    .select(
+      "id, company_name, publisher_type, profile_image_url, verified, verification_status",
+    )
     .eq("profile_id", profile.id)
     .maybeSingle();
 
@@ -152,6 +158,24 @@ async function savePublisherProfile(formData: FormData) {
     MAX_PROFILE_IMAGE_SIZE,
   );
 
+  const previousPublisherType = normalizeIdentityValue(publisher.publisher_type);
+  const previousCompanyName = normalizeIdentityValue(publisher.company_name);
+  const isOrganizationIdentity =
+    previousPublisherType !== "individual" || publisherType !== "individual";
+  const identityChanged =
+    previousPublisherType !== publisherType ||
+    previousCompanyName !== normalizeIdentityValue(companyName) ||
+    Boolean(profileImage);
+  const requiresReapproval =
+    profile.approval_status === "approved" &&
+    isOrganizationIdentity &&
+    identityChanged;
+  const shouldResetVerification =
+    isOrganizationIdentity &&
+    identityChanged &&
+    (Boolean(publisher.verified) ||
+      String(publisher.verification_status ?? "unverified") !== "unverified");
+
   let profileImageUrl: string | null = null;
 
   if (profileImage) {
@@ -162,14 +186,22 @@ async function savePublisherProfile(formData: FormData) {
     });
   }
 
+  const profileUpdateData: Record<string, string | null> = {
+    display_name: isIndividual
+      ? contactName || companyName || null
+      : companyName || null,
+    phone: phone || null,
+  };
+
+  if (requiresReapproval) {
+    // Identity-sensitive changes to an approved organization must be reviewed
+    // again before the account can create or edit opportunities.
+    profileUpdateData.approval_status = "pending";
+  }
+
   const { error: profileUpdateError } = await adminClient
     .from("profiles")
-    .update({
-      display_name: isIndividual
-        ? contactName || companyName || null
-        : companyName || null,
-      phone: phone || null,
-    })
+    .update(profileUpdateData)
     .eq("id", profile.id)
     .eq("user_id", user.id);
 
@@ -177,7 +209,7 @@ async function savePublisherProfile(formData: FormData) {
     throw new Error(profileUpdateError.message);
   }
 
-  const publisherUpdateData: Record<string, string | number | null> = {
+  const publisherUpdateData: Record<string, string | number | boolean | null> = {
     company_name: companyName || null,
     contact_name: contactName || null,
     publisher_type: publisherType,
@@ -194,6 +226,18 @@ async function savePublisherProfile(formData: FormData) {
 
   if (profileImageUrl) {
     publisherUpdateData.profile_image_url = profileImageUrl;
+  }
+
+  if (shouldResetVerification) {
+    // Verification is tied to the verified identity. Keep historical evidence
+    // private in storage, but revoke the badge/state until a fresh verification.
+    publisherUpdateData.verified = false;
+    publisherUpdateData.verification_status = "unverified";
+    publisherUpdateData.verification_method = null;
+    publisherUpdateData.verification_email = null;
+    publisherUpdateData.verification_document_url = null;
+    publisherUpdateData.verification_submitted_at = null;
+    publisherUpdateData.verification_reviewed_at = null;
   }
 
   const { data: updatedPublisher, error: publisherUpdateError } =
@@ -216,15 +260,20 @@ async function savePublisherProfile(formData: FormData) {
   revalidatePath(`/${locale}/publisher-dashboard`);
   revalidatePath(`/${locale}/publisher-dashboard/profile`);
   revalidatePath(`/${locale}/publisher-dashboard/settings`);
+  revalidatePath("/admin/publishers");
 
-  return { locale };
+  return { locale, requiresReapproval };
 }
 
 export async function updatePublisherProfileAction(
   formData: FormData,
 ): Promise<void> {
-  const { locale } = await savePublisherProfile(formData);
-  redirect(`/${locale}/publisher-dashboard/profile?saved=1`);
+  const { locale, requiresReapproval } = await savePublisherProfile(formData);
+  redirect(
+    requiresReapproval
+      ? `/${locale}/publisher-dashboard/profile?submitted=1`
+      : `/${locale}/publisher-dashboard/profile?saved=1`,
+  );
 }
 
 export async function submitPublisherProfileForReviewAction(
