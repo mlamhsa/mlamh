@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createEvent } from "@/lib/events/create-event";
 import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getTalentProfileReviewReadiness } from "@/lib/talent/profile-review-readiness";
 
 type ReviewDecision = "approved" | "changes_requested" | "rejected";
 
@@ -61,7 +62,7 @@ async function updateTalentReviewStatus({
 
   const { data: talent, error: talentError } = await adminClient
     .from("talents")
-    .select("id, user_id, status, published, image_url, profile_visibility")
+    .select("id,user_id,status,published,image_url,profile_visibility,name_ar,name_en,primary_role,category_slug,base_country_code,city_slug,gender,nationality_slug,nationality,date_of_birth")
     .eq("id", id)
     .maybeSingle();
 
@@ -89,15 +90,6 @@ async function updateTalentReviewStatus({
     };
   }
 
-  if (decision === "approved" && !String(talent.image_url ?? "").trim()) {
-    return {
-      success: false,
-      message: locale === "ar"
-        ? "لا يمكن اعتماد ملف الموهبة قبل رفع صورة شخصية. اطلب من الموهبة إضافة صورة ثم أعد المراجعة."
-        : "The talent profile cannot be approved until a profile photo is uploaded. Ask the talent to add a photo, then review the profile again.",
-    };
-  }
-
   if (decision === "changes_requested" && !reason) {
     return {
       success: false,
@@ -114,7 +106,7 @@ async function updateTalentReviewStatus({
 
   const { data: profile, error: profileError } = await adminClient
     .from("profiles")
-    .select("id, account_type, approval_status")
+    .select("id,account_type,approval_status,phone,data_accuracy_contact_consent")
     .eq("user_id", talent.user_id)
     .maybeSingle();
 
@@ -137,14 +129,34 @@ async function updateTalentReviewStatus({
     };
   }
 
+  if (decision === "approved") {
+    const readiness = getTalentProfileReviewReadiness({
+      ...talent,
+      phone: profile.phone,
+      data_accuracy_contact_consent: profile.data_accuracy_contact_consent === true,
+    });
+
+    if (!readiness.canSubmitForReview) {
+      const missingFields = readiness.missingRequirements
+        .map((requirement) => (locale === "ar" ? requirement.ar : requirement.en))
+        .join("، ");
+
+      return {
+        success: false,
+        message:
+          locale === "ar"
+            ? `لا يمكن اعتماد الملف قبل اكتمال المتطلبات الأساسية: ${missingFields}`
+            : `The profile cannot be approved until all core requirements are complete: ${missingFields}`,
+      };
+    }
+  }
+
   const previousStatus = profile.approval_status ?? "not_submitted";
   const talentStatus = decision === "changes_requested" ? "pending" : decision;
   const visibility = String(talent.profile_visibility ?? "public").trim().toLowerCase();
   const isPublicProfile = visibility === "public";
   const published = decision === "approved" && isPublicProfile;
 
-  // Idempotent replay: the updated profiles.approval_status is canonical.
-  // Keep operational talent fields aligned, but do not create another review event/email.
   if (previousStatus === decision) {
     const { error: syncError } = await adminClient
       .from("talents")
@@ -250,7 +262,6 @@ async function updateTalentReviewStatus({
     };
   }
 
-  // Verify the persisted updated-system state immediately before emitting notifications/email.
   const { data: persistedProfile, error: verifyError } = await adminClient
     .from("profiles")
     .select("approval_status")
