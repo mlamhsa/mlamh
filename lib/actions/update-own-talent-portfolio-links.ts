@@ -21,9 +21,12 @@ function optionalHttpsUrl(value: string) {
   if (!value) return null;
   if (value.length > MAX_URL_LENGTH) return null;
 
+  const candidate = /^https?:\/\//i.test(value) ? value : `https://${value}`;
+
   try {
-    const url = new URL(value);
+    const url = new URL(candidate);
     if (url.protocol !== "https:" || !url.hostname) return null;
+    if (url.hostname === "localhost" || url.hostname === "127.0.0.1") return null;
     url.username = "";
     url.password = "";
     return url.toString();
@@ -32,15 +35,35 @@ function optionalHttpsUrl(value: string) {
   }
 }
 
-function optionalPlatformUrl(value: string, allowedHosts: string[]) {
+function optionalPlatformUrl(
+  value: string,
+  platform: "instagram" | "tiktok" | "snapchat",
+) {
+  if (!value) return null;
+  if (value.length > MAX_URL_LENGTH) return null;
+
+  const handle = value
+    .replace(/^@/, "")
+    .replace(/^\/+|\/+$/g, "")
+    .trim();
+
+  if (/^[A-Za-z0-9._-]+$/.test(handle) && !handle.includes("..")) {
+    if (platform === "instagram") {
+      return `https://www.instagram.com/${encodeURIComponent(handle)}/`;
+    }
+    if (platform === "tiktok") {
+      return `https://www.tiktok.com/@${encodeURIComponent(handle)}`;
+    }
+    return `https://www.snapchat.com/add/${encodeURIComponent(handle)}`;
+  }
+
   const normalized = optionalHttpsUrl(value);
   if (!normalized) return null;
 
   const url = new URL(normalized);
   const hostname = url.hostname.toLowerCase().replace(/^www\./, "");
-  const allowed = allowedHosts.some(
-    (host) => hostname === host || hostname.endsWith(`.${host}`),
-  );
+  const allowedHost = `${platform}.com`;
+  const allowed = hostname === allowedHost || hostname.endsWith(`.${allowedHost}`);
 
   return allowed ? url.toString() : null;
 }
@@ -76,9 +99,9 @@ export async function updateOwnTalentPortfolioLinksAction(
   const payload = {
     showreel_url: optionalHttpsUrl(raw.showreel_url),
     video_intro: optionalHttpsUrl(raw.video_intro),
-    instagram: optionalPlatformUrl(raw.instagram, ["instagram.com"]),
-    tiktok: optionalPlatformUrl(raw.tiktok, ["tiktok.com"]),
-    snapchat: optionalPlatformUrl(raw.snapchat, ["snapchat.com"]),
+    instagram: optionalPlatformUrl(raw.instagram, "instagram"),
+    tiktok: optionalPlatformUrl(raw.tiktok, "tiktok"),
+    snapchat: optionalPlatformUrl(raw.snapchat, "snapchat"),
     portfolio_url: optionalHttpsUrl(raw.portfolio_url),
   };
 
@@ -92,11 +115,11 @@ export async function updateOwnTalentPortfolioLinksAction(
       success: false,
       message: socialKey
         ? isArabic
-          ? "أحد روابط السوشيال غير صحيح. استخدم رابط الحساب الرسمي على المنصة نفسها ويبدأ بـ https://"
-          : "One social link is invalid. Use the official profile URL on that platform starting with https://"
+          ? "أحد حسابات السوشيال غير صحيح. أدخل اسم المستخدم أو رابط الحساب الرسمي على المنصة نفسها."
+          : "One social account is invalid. Enter the username or the official profile URL on that platform."
         : isArabic
-          ? "أحد الروابط غير صحيح. استخدم رابطًا كاملاً وآمنًا يبدأ بـ https://"
-          : "One of the links is invalid. Use a full secure URL starting with https://",
+          ? "أحد الروابط غير صحيح. أدخل رابطًا آمنًا يبدأ بـ https:// أو اسم نطاق صحيح."
+          : "One of the links is invalid. Enter a secure https:// URL or a valid domain name.",
     };
   }
 
