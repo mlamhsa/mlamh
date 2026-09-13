@@ -30,6 +30,7 @@ export default function TalentDashboardShell({
   const pathname = usePathname();
   const dashboardHref = `/${locale}/talent-dashboard`;
   const isArabic = locale === "ar";
+  const isConversationRoute = pathname.startsWith(`${dashboardHref}/messages/`);
 
   const sidebar = (
     <TalentSidebar
@@ -68,6 +69,19 @@ export default function TalentDashboardShell({
       icon: WalletCards,
     },
   ];
+
+  if (isConversationRoute) {
+    return (
+      <div
+        dir={isArabic ? "rtl" : "ltr"}
+        className="min-h-screen bg-black text-white"
+      >
+        <div className="w-full [&>main]:!bg-transparent [&>main>div]:!max-w-none [&_aside]:!hidden">
+          {children}
+        </div>
+      </div>
+    );
+  }
 
   if (pathname === dashboardHref) {
     return (

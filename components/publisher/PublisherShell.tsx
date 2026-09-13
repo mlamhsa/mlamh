@@ -49,6 +49,7 @@ const EMPTY_COUNTS: DashboardCounts = {
 export default function PublisherShell({ locale, isRtl, children }: Props) {
   const pathname = usePathname();
   const dashboardHref = `/${locale}/publisher-dashboard`;
+  const isConversationRoute = pathname.startsWith(`${dashboardHref}/messages/`);
 
   const [counts, setCounts] = useState<DashboardCounts>(EMPTY_COUNTS);
   const [publisherId, setPublisherId] = useState<string | number | null>(null);
@@ -118,6 +119,7 @@ export default function PublisherShell({ locale, isRtl, children }: Props) {
 
   useEffect(() => {
     function scheduleRefresh() {
+      if (document.visibilityState !== "visible") return;
       if (realtimeRefreshTimer.current) clearTimeout(realtimeRefreshTimer.current);
       realtimeRefreshTimer.current = setTimeout(() => void refreshCounts(), 160);
     }
@@ -141,7 +143,9 @@ export default function PublisherShell({ locale, isRtl, children }: Props) {
     function handleVisibilityChange() {
       if (document.visibilityState === "visible" && navigator.onLine) void refreshCounts();
     }
-    function handleOnline() { void refreshCounts(); }
+    function handleOnline() {
+      if (document.visibilityState === "visible") void refreshCounts();
+    }
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("online", handleOnline);
@@ -217,6 +221,16 @@ export default function PublisherShell({ locale, isRtl, children }: Props) {
       </div>
     </div>
   );
+
+  if (isConversationRoute) {
+    return (
+      <main dir={isRtl ? "rtl" : "ltr"} className="min-h-screen bg-black text-white">
+        <section className="w-full [&>main]:!bg-transparent [&>main>div]:!max-w-none [&_aside]:!hidden">
+          {children}
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main dir={isRtl ? "rtl" : "ltr"} className="min-h-screen bg-black text-white">

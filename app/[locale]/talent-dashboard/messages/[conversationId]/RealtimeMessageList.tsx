@@ -253,6 +253,25 @@ export default function RealtimeMessageList({
   }, [initialMessages]);
 
   useEffect(() => {
+    const markReadWhenVisible = () => {
+      if (
+        document.visibilityState === "visible" &&
+        document.hasFocus()
+      ) {
+        void markConversationReadAction(conversationId);
+      }
+    };
+
+    document.addEventListener("visibilitychange", markReadWhenVisible);
+    window.addEventListener("focus", markReadWhenVisible);
+
+    return () => {
+      document.removeEventListener("visibilitychange", markReadWhenVisible);
+      window.removeEventListener("focus", markReadWhenVisible);
+    };
+  }, [conversationId]);
+
+  useEffect(() => {
     const typingChannel = supabase
       .channel(
         `conversation-typing-${conversationId}`,
@@ -401,7 +420,11 @@ export default function RealtimeMessageList({
             },
           );
 
-          if (!isOwnMessage) {
+          if (
+            !isOwnMessage &&
+            document.visibilityState === "visible" &&
+            document.hasFocus()
+          ) {
             void markConversationReadAction(
               conversationId,
             );

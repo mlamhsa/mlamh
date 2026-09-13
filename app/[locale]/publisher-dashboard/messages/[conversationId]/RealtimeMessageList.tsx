@@ -288,6 +288,25 @@ export default function RealtimeMessageList({
   }
 
   useEffect(() => {
+    const markReadWhenVisible = () => {
+      if (
+        document.visibilityState === "visible" &&
+        document.hasFocus()
+      ) {
+        void markConversationReadAction(conversationId);
+      }
+    };
+
+    document.addEventListener("visibilitychange", markReadWhenVisible);
+    window.addEventListener("focus", markReadWhenVisible);
+
+    return () => {
+      document.removeEventListener("visibilitychange", markReadWhenVisible);
+      window.removeEventListener("focus", markReadWhenVisible);
+    };
+  }, [conversationId]);
+
+  useEffect(() => {
     const typingChannel = supabase
       .channel(
         `conversation-typing-${conversationId}`,
@@ -376,27 +395,27 @@ export default function RealtimeMessageList({
               MessageRecord,
               "attachments"
             >;
-        
+
           void (async () => {
             const attachments =
               await loadMessageAttachments(realtimeRow.id);
-        
+
             const incomingMessage: MessageRecord = {
               ...realtimeRow,
               attachments,
             };
-        
+
             const isOwnMessage =
               incomingMessage.sender_user_id ===
               currentUserId;
-        
+
             const shouldAutoScroll =
               isOwnMessage ||
               isNearBottomRef.current;
-        
+
             shouldAutoScrollRef.current =
               shouldAutoScroll;
-        
+
             if (
               !isOwnMessage &&
               !shouldAutoScroll
@@ -406,7 +425,7 @@ export default function RealtimeMessageList({
                   currentCount + 1,
               );
             }
-        
+
             setMessages((currentMessages) => {
               const existingMessage =
                 currentMessages.find(
@@ -414,7 +433,7 @@ export default function RealtimeMessageList({
                     String(message.id) ===
                     String(incomingMessage.id),
                 );
-        
+
               if (existingMessage) {
                 return currentMessages.map(
                   (message) =>
@@ -432,16 +451,17 @@ export default function RealtimeMessageList({
                       : message,
                 );
               }
-        
+
               return sortMessages([
                 ...currentMessages,
                 incomingMessage,
               ]);
             });
-        
+
             if (
-              incomingMessage.sender_user_id !==
-              currentUserId
+              !isOwnMessage &&
+              document.visibilityState === "visible" &&
+              document.hasFocus()
             ) {
               void markConversationReadAction(
                 conversationId,
