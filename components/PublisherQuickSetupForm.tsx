@@ -120,9 +120,25 @@ const businessTypes = [
 
 type PublisherMode = "individual" | "business" | "organization";
 
-export function PublisherQuickSetupForm({ locale }: { locale: Locale }) {
+type PublisherQuickSetupFormProps = {
+  locale: Locale;
+  initialName?: string;
+  initialPhone?: string;
+};
+
+export function PublisherQuickSetupForm({
+  locale,
+  initialName = "",
+  initialPhone = "",
+}: PublisherQuickSetupFormProps) {
   const isRtl = locale === "ar";
   const [publisherMode, setPublisherMode] = useState<PublisherMode | null>(null);
+  const [publisherRoleChoice, setPublisherRoleChoice] = useState("");
+  const [publisherRoleOther, setPublisherRoleOther] = useState("");
+  const [useCaseChoice, setUseCaseChoice] = useState("");
+  const [useCaseOther, setUseCaseOther] = useState("");
+  const [businessTypeChoice, setBusinessTypeChoice] = useState("");
+  const [businessTypeOther, setBusinessTypeOther] = useState("");
   const [state, formAction, isPending] = useActionState(
     createPublisherDraftAction,
     initialCreatePublisherDraftState,
@@ -166,6 +182,10 @@ export function PublisherQuickSetupForm({ locale }: { locale: Locale }) {
     );
   }
 
+  const publisherRoleValue = publisherRoleChoice === "other" ? publisherRoleOther.trim() : publisherRoleChoice;
+  const useCaseValue = useCaseChoice === "other" ? useCaseOther.trim() : useCaseChoice;
+  const businessTypeValue = businessTypeChoice === "other" ? businessTypeOther.trim() : businessTypeChoice;
+
   return (
     <form
       action={(formData) => startTransition(() => formAction(formData))}
@@ -173,6 +193,9 @@ export function PublisherQuickSetupForm({ locale }: { locale: Locale }) {
     >
       <input type="hidden" name="locale" value={locale} />
       <input type="hidden" name="publisher_mode" value={publisherMode ?? ""} />
+      <input type="hidden" name="publisher_role" value={publisherRoleValue} />
+      <input type="hidden" name="use_case" value={useCaseValue} />
+      <input type="hidden" name="business_type" value={businessTypeValue} />
 
       <div>
         <p className="text-[10px] uppercase tracking-[0.3em] text-gold">
@@ -215,8 +238,8 @@ export function PublisherQuickSetupForm({ locale }: { locale: Locale }) {
       {publisherMode === "individual" || publisherMode === "business" ? (
         <section className="rounded-[1.75rem] border border-white/10 bg-white/[0.025] p-5 sm:p-6">
           <div className="grid gap-5 md:grid-cols-2">
-            <Field label={isRtl ? "الاسم الكامل" : "Full name"} name="contact_name" required dir={isRtl ? "rtl" : "ltr"} />
-            <Field label={isRtl ? "رقم الجوال" : "Mobile number"} name="phone" type="tel" required dir="ltr" placeholder="05XXXXXXXX" />
+            <Field label={isRtl ? "الاسم الكامل" : "Full name"} name="contact_name" required dir={isRtl ? "rtl" : "ltr"} defaultValue={initialName} />
+            <Field label={isRtl ? "رقم الجوال" : "Mobile number"} name="phone" type="tel" required dir="ltr" placeholder="+9665XXXXXXXX" defaultValue={initialPhone} />
             <div>
               <FieldLabel text={isRtl ? "المدينة" : "City"} required />
               <select name="city" required className="h-12 w-full rounded-xl border border-white/10 bg-black px-4 text-sm text-white outline-none focus:border-gold/45">
@@ -229,14 +252,56 @@ export function PublisherQuickSetupForm({ locale }: { locale: Locale }) {
 
             {publisherMode === "individual" ? (
               <>
-                <SelectField label={isRtl ? "صفتك" : "Your role"} name="publisher_role" options={individualRoles} isRtl={isRtl} />
-                <SelectField label={isRtl ? "ما الذي تستخدم ملامح من أجله؟" : "What will you use MLAMH for?"} name="use_case" options={useCases} isRtl={isRtl} />
+                <SelectField
+                  label={isRtl ? "صفتك" : "Your role"}
+                  options={individualRoles}
+                  isRtl={isRtl}
+                  value={publisherRoleChoice}
+                  onChange={setPublisherRoleChoice}
+                />
+                {publisherRoleChoice === "other" ? (
+                  <OtherTextField
+                    label={isRtl ? "اكتب صفتك" : "Describe your role"}
+                    value={publisherRoleOther}
+                    onChange={setPublisherRoleOther}
+                    isRtl={isRtl}
+                  />
+                ) : null}
+                <SelectField
+                  label={isRtl ? "ما الذي تستخدم ملامح من أجله؟" : "What will you use MLAMH for?"}
+                  options={useCases}
+                  isRtl={isRtl}
+                  value={useCaseChoice}
+                  onChange={setUseCaseChoice}
+                />
+                {useCaseChoice === "other" ? (
+                  <OtherTextField
+                    label={isRtl ? "اكتب استخدامك" : "Describe how you will use MLAMH"}
+                    value={useCaseOther}
+                    onChange={setUseCaseOther}
+                    isRtl={isRtl}
+                  />
+                ) : null}
                 <Field label={isRtl ? "اسم المشروع أو النشاط (إن وجد)" : "Project or business name (optional)"} name="company_name" dir={isRtl ? "rtl" : "ltr"} />
               </>
             ) : (
               <>
                 <Field label={isRtl ? "اسم النشاط" : "Business name"} name="company_name" required dir={isRtl ? "rtl" : "ltr"} />
-                <SelectField label={isRtl ? "نوع النشاط" : "Business type"} name="business_type" options={businessTypes} isRtl={isRtl} />
+                <SelectField
+                  label={isRtl ? "نوع النشاط" : "Business type"}
+                  options={businessTypes}
+                  isRtl={isRtl}
+                  value={businessTypeChoice}
+                  onChange={setBusinessTypeChoice}
+                />
+                {businessTypeChoice === "other" ? (
+                  <OtherTextField
+                    label={isRtl ? "اكتب نوع النشاط" : "Describe your business type"}
+                    value={businessTypeOther}
+                    onChange={setBusinessTypeOther}
+                    isRtl={isRtl}
+                  />
+                ) : null}
               </>
             )}
 
@@ -309,23 +374,42 @@ function FieldLabel({ text, required = false }: { text: string; required?: boole
   return <label className="mb-2.5 block text-sm font-medium text-white/65">{text}{required ? <span className="ms-1 text-gold">*</span> : null}</label>;
 }
 
-function Field({ label, name, type = "text", required = false, dir, placeholder }: { label: string; name: string; type?: string; required?: boolean; dir?: "rtl" | "ltr"; placeholder?: string }) {
+function Field({ label, name, type = "text", required = false, dir, placeholder, defaultValue }: { label: string; name: string; type?: string; required?: boolean; dir?: "rtl" | "ltr"; placeholder?: string; defaultValue?: string }) {
   return (
     <div>
       <FieldLabel text={label} required={required} />
-      <input name={name} type={type} required={required} dir={dir} placeholder={placeholder} className="h-12 w-full rounded-xl border border-white/10 bg-black px-4 text-sm text-white outline-none placeholder:text-white/25 focus:border-gold/45" />
+      <input name={name} type={type} required={required} dir={dir} placeholder={placeholder} defaultValue={defaultValue} className="h-12 w-full rounded-xl border border-white/10 bg-black px-4 text-sm text-white outline-none placeholder:text-white/25 focus:border-gold/45" />
     </div>
   );
 }
 
-function SelectField({ label, name, options, isRtl }: { label: string; name: string; options: readonly (readonly [string, string, string])[]; isRtl: boolean }) {
+function SelectField({ label, options, isRtl, value, onChange }: { label: string; options: readonly (readonly [string, string, string])[]; isRtl: boolean; value: string; onChange: (value: string) => void }) {
   return (
     <div>
       <FieldLabel text={label} required />
-      <select name={name} required className="h-12 w-full rounded-xl border border-white/10 bg-black px-4 text-sm text-white outline-none focus:border-gold/45">
+      <select value={value} onChange={(event) => onChange(event.target.value)} required className="h-12 w-full rounded-xl border border-white/10 bg-black px-4 text-sm text-white outline-none focus:border-gold/45">
         <option value="">{isRtl ? "اختر" : "Select"}</option>
-        {options.map(([value, ar, en]) => <option key={value} value={value}>{isRtl ? ar : en}</option>)}
+        {options.map(([optionValue, ar, en]) => <option key={optionValue} value={optionValue}>{isRtl ? ar : en}</option>)}
       </select>
+    </div>
+  );
+}
+
+function OtherTextField({ label, value, onChange, isRtl }: { label: string; value: string; onChange: (value: string) => void; isRtl: boolean }) {
+  return (
+    <div>
+      <FieldLabel text={label} required />
+      <input
+        type="text"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        required
+        minLength={2}
+        maxLength={120}
+        dir={isRtl ? "rtl" : "ltr"}
+        placeholder={isRtl ? "اكتب التفاصيل" : "Enter details"}
+        className="h-12 w-full rounded-xl border border-white/10 bg-black px-4 text-sm text-white outline-none placeholder:text-white/25 focus:border-gold/45"
+      />
     </div>
   );
 }

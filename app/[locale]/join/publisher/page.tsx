@@ -16,6 +16,7 @@ type ProfileRow = {
   id: number;
   account_type: string | null;
   display_name: string | null;
+  phone: string | null;
   onboarding_status: string | null;
   onboarding_step: string | null;
 };
@@ -50,31 +51,31 @@ export default async function JoinPublisherPage({
   } = await authClient
     .from("profiles")
     .select(
-      "id, account_type, display_name, onboarding_status, onboarding_step"
+      "id, account_type, display_name, phone, onboarding_status, onboarding_step"
     )
     .eq("user_id", user.id)
     .maybeSingle<ProfileRow>();
-    let hasPublisherRecord = false;
+  let hasPublisherRecord = false;
 
-    if (profile?.account_type === "publisher") {
-      const {
-        data: publisherRecord,
-        error: publisherRecordError,
-      } = await authClient
-        .from("publishers")
-        .select("id")
-        .eq("profile_id", profile.id)
-        .maybeSingle();
-    
-      if (publisherRecordError) {
-        console.error(
-          "[JoinPublisherPage publisherLookup]",
-          publisherRecordError
-        );
-      }
-    
-      hasPublisherRecord = Boolean(publisherRecord);
+  if (profile?.account_type === "publisher") {
+    const {
+      data: publisherRecord,
+      error: publisherRecordError,
+    } = await authClient
+      .from("publishers")
+      .select("id")
+      .eq("profile_id", profile.id)
+      .maybeSingle();
+
+    if (publisherRecordError) {
+      console.error(
+        "[JoinPublisherPage publisherLookup]",
+        publisherRecordError
+      );
     }
+
+    hasPublisherRecord = Boolean(publisherRecord);
+  }
 
   if (profileError) {
     console.error(
@@ -105,9 +106,9 @@ export default async function JoinPublisherPage({
 
   return (
     <main
-  dir={isRtl ? "rtl" : "ltr"}
-  className="relative z-[2] bg-background pb-[calc(4.75rem+env(safe-area-inset-bottom))] lg:pb-0"
->
+      dir={isRtl ? "rtl" : "ltr"}
+      className="relative z-[2] bg-background pb-[calc(4.75rem+env(safe-area-inset-bottom))] lg:pb-0"
+    >
       <Navbar locale={locale} />
 
       <div className="relative overflow-hidden pb-20 pt-28 md:pb-28 md:pt-32">
@@ -132,9 +133,9 @@ export default async function JoinPublisherPage({
               <span className="gold-line max-w-[80px] flex-1" />
 
               <p className="arabic-safe text-[10px] uppercase tracking-[0.4em] text-gold">
-              {isRtl
-  ? "إعداد ملف الجهة"
-  : "Organization Setup"}
+                {isRtl
+                  ? "إعداد ملف الجهة"
+                  : "Organization Setup"}
               </p>
             </div>
 
@@ -156,13 +157,15 @@ export default async function JoinPublisherPage({
               }}
             >
               {isRtl
-  ? "حدد نوع الجهة التي تمثلها لإكمال إعداد حسابك على ملامح."
-  : "Select the type of organization you represent to complete your MLAMH setup."}
+                ? "حدد الصفة الأقرب لك لإكمال إعداد حساب الناشر على ملامح."
+                : "Choose the publisher path that best fits you to complete your MLAMH setup."}
             </p>
           </header>
 
           <PublisherQuickSetupForm
             locale={locale}
+            initialName={profile?.display_name ?? ""}
+            initialPhone={profile?.phone ?? ""}
           />
         </div>
 
