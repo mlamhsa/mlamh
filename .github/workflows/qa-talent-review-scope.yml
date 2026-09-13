@@ -1,0 +1,67 @@
+name: QA Talent Review Scope
+
+on:
+  push:
+    paths:
+      - '.github/workflows/qa-talent-review-scope.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enforce active scope at submit and approval
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          def patch(path, replacements):
+              p=Path(path); s=p.read_text()
+              for old,new in replacements:
+                  n=s.count(old)
+                  if n != 1: raise SystemExit(f'{path}: expected 1 match, got {n}: {old[:100]!r}')
+                  s=s.replace(old,new,1)
+              p.write_text(s)
+
+          patch('lib/actions/submit-talent-profile-review.ts', [
+            ('import { isValidLocale, type Locale } from "@/lib/i18n";\n', 'import { isValidLocale, type Locale } from "@/lib/i18n";\nimport { TALENT_CATEGORIES } from "@/lib/data/talent-categories";\nimport { isActiveTalentCountryCode } from "@/lib/data/talent-active-market";\n'),
+            ('  const completion = TalentProfileService.calculateCompletion(talent);\n', '''  const activeRole = String(talent.primary_role ?? talent.category_slug ?? "").trim().toLowerCase();
+  const roleIsActive = TALENT_CATEGORIES.some((category) => category.slug === activeRole);
+  if (!roleIsActive || !isActiveTalentCountryCode(talent.base_country_code)) {
+    return {
+      success: false,
+      message: isArabic
+        ? "الإطلاق الحالي لملامح متاح للممثلين والمودلز المقيمين في السعودية فقط."
+        : "MLAMH is currently open to actors and models based in Saudi Arabia only.",
+    };
+  }
+
+  const completion = TalentProfileService.calculateCompletion(talent);
+''')
+          ])
+
+          patch('lib/actions/review-talent.ts', [
+            ('import { requireAdminAccess } from "@/lib/auth/require-admin";\n', 'import { requireAdminAccess } from "@/lib/auth/require-admin";\nimport { TALENT_CATEGORIES } from "@/lib/data/talent-categories";\nimport { isActiveTalentCountryCode } from "@/lib/data/talent-active-market";\n'),
+            ('  if (decision === "approved") {\n    const readiness = getTalentProfileReviewReadiness({', '''  if (decision === "approved") {
+    const activeRole = String(talent.primary_role ?? talent.category_slug ?? "").trim().toLowerCase();
+    const roleIsActive = TALENT_CATEGORIES.some((category) => category.slug === activeRole);
+    if (!roleIsActive || !isActiveTalentCountryCode(talent.base_country_code)) {
+      return {
+        success: false,
+        message: locale === "ar"
+          ? "لا يمكن اعتماد الملف: الإطلاق الحالي متاح للممثلين والمودلز المقيمين في السعودية فقط."
+          : "The profile cannot be approved: the current launch is limited to actors and models based in Saudi Arabia.",
+      };
+    }
+
+    const readiness = getTalentProfileReviewReadiness({''')
+          ])
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add lib/actions/submit-talent-profile-review.ts lib/actions/review-talent.ts
+          git commit -m 'fix(qa): enforce active Talent scope at review gates'
+          git push origin HEAD:main
