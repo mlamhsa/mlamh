@@ -33,19 +33,33 @@ Implemented:
 - No talent, application, message, conversation, or opportunity records were modified.
 
 ## Phase 2 — Quick Request Creation
+Status: CLOSED / merged to `main` via PR #321 after successful Vercel validation.
+
+Implemented:
+- Kept existing `posting_mode=quick`; no parallel request system or schema changes.
+- Fast-track publishers now enter a WhatsApp-style “What do you need?” flow directly.
+- Professional organizations retain the existing Quick Request vs Project / Casting chooser.
+- Added an isolated deterministic quick-request parser for talent type, city, gender, date, duration, compensation, budget, and count.
+- At most one essential follow-up is asked when talent type cannot be inferred.
+- Added structured editable preview before submission.
+- Submits through the existing `/api/create-opportunity` endpoint and current `createOpportunityAction`.
+- Current opportunity review behavior remains unchanged; no payment is introduced yet.
+- Fast-track publishers can still switch to the existing detailed Project / Casting flow.
+- Legacy individual publishers without the new fast subtype remain on the existing flow.
+- No talent, application, message, conversation, or existing opportunity records were modified.
+
+## Phase 3 — Public Opportunities
 Status: NEXT
 
 Scope:
-- Keep existing `posting_mode=quick`; do not create a parallel request system.
-- Fast-track publishers go directly to a simple “What do you need?” flow.
-- Professional organizations may still choose Quick Request or Project / Casting.
-- Convert plain-language request text into structured existing opportunity fields.
-- Ask at most one essential follow-up question when required.
-- Show a structured preview before submission.
-- Keep current opportunity review behavior until payments are activated later.
+- Keep public opportunity browsing open to visitors.
+- Visually distinguish Quick Requests from Project / Casting opportunities.
+- Update homepage opportunities section to present both content types clearly.
+- Make public opportunity pages acquisition-aware: unauthenticated visitors should be guided to sign up as talent and return to the same opportunity intent.
+- Preserve the current opportunity/application foundation and SEO behavior.
+- Do not implement Interest/Invitation mechanics yet; those remain Phase 6/7.
 
 ## Remaining phases
-3. Public Opportunities
 4. Talent Dashboard
 5. Matching
 6. Interest + Invitations
