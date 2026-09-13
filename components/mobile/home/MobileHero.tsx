@@ -143,7 +143,7 @@ export function MobileHero({
                 src="/images/home/hero-model.webp"
                 alt={isArabic ? "موهبة مودل" : "Model talent"}
                 fill
-                  sizes="35vw"
+                sizes="35vw"
                 className="scale-[1.01] object-cover object-top transition duration-700 group-active:scale-[1.025]"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
@@ -160,7 +160,7 @@ export function MobileHero({
                 src="/images/home/55.jpg"
                 alt={isArabic ? "موهبة من المنطقة" : "Regional talent"}
                 fill
-                  sizes="35vw"
+                sizes="35vw"
                 className="scale-[1.01] object-cover object-top transition duration-700 group-active:scale-[1.025]"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
