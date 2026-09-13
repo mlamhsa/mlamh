@@ -41,6 +41,12 @@ const verifiedPublisher = {
   publisherStatus: "active",
 };
 
+const approvedUnverifiedPublisher = {
+  ...verifiedPublisher,
+  publisherVerified: false,
+  publisherVerificationStatus: "unverified",
+};
+
 test("public projection removes private media and external talent links", () => {
   const projected = hideTalentPrivateContent(talent);
 
@@ -80,7 +86,7 @@ test("verified approved active publisher can view protected content only on an a
 test("unverified, pending, or inactive publisher cannot view private talent content", () => {
   assert.equal(
     canViewTalentPrivateContent(
-      { ...verifiedPublisher, publisherVerified: false },
+      approvedUnverifiedPublisher,
       talent.user_id,
     ),
     false,
@@ -134,21 +140,41 @@ test("talent owner and admin can view private talent content and private profile
   );
 });
 
-test("only verified approved active publisher can request talent from profile", () => {
-  assert.equal(canRequestTalentFromProfile(verifiedPublisher), true);
+test("approved active publisher may request talent without gaining private-content access", () => {
+  assert.equal(canRequestTalentFromProfile(approvedUnverifiedPublisher), true);
+  assert.equal(
+    canViewTalentPrivateContent(approvedUnverifiedPublisher, talent.user_id),
+    false,
+  );
 
+  assert.equal(canRequestTalentFromProfile(verifiedPublisher), true);
+  assert.equal(
+    canViewTalentPrivateContent(verifiedPublisher, talent.user_id),
+    true,
+  );
+});
+
+test("pending or inactive publisher cannot request talent", () => {
   assert.equal(
     canRequestTalentFromProfile({
-      ...verifiedPublisher,
-      publisherVerified: false,
+      ...approvedUnverifiedPublisher,
+      approvalStatus: "pending",
     }),
     false,
   );
 
   assert.equal(
     canRequestTalentFromProfile({
-      ...verifiedPublisher,
-      approvalStatus: "pending",
+      ...approvedUnverifiedPublisher,
+      profileStatus: "suspended",
+    }),
+    false,
+  );
+
+  assert.equal(
+    canRequestTalentFromProfile({
+      ...approvedUnverifiedPublisher,
+      publisherStatus: "blocked",
     }),
     false,
   );
