@@ -34,12 +34,15 @@ function normalizedGender(value: string | null | undefined) {
 }
 
 function opportunityBrief(item: DashboardOpportunity): TalentBrief {
+  const hasCity = Boolean(item.city_slug || item.city_en || item.city_ar);
+  const cityFlexible = item.role_requirements?.city_flexible === true;
+
   return {
     talent_type: item.opportunity_type,
     country_code: item.country_code ?? "SA",
     city: item.city_slug || item.city_en || item.city_ar || null,
-    city_required: Boolean(item.city_slug || item.city_en || item.city_ar),
-    city_flexible: false,
+    city_required: hasCity ? !cityFlexible : false,
+    city_flexible: cityFlexible,
     required_gender: normalizedGender(item.required_gender),
     requirements: item.role_requirements ?? null,
   };
@@ -51,6 +54,12 @@ function formatCompensation(item: DashboardOpportunity, isRtl: boolean) {
   const amount = Number(item.budget);
   if (!Number.isFinite(amount) || amount <= 0) return isRtl ? "غير محدد" : "Not specified";
   return `${new Intl.NumberFormat("en-US").format(amount)} ${isRtl ? "ريال" : "SAR"}`;
+}
+
+function cityMatchRank(value: "local" | "travel" | "none") {
+  if (value === "local") return 0;
+  if (value === "travel") return 1;
+  return 2;
 }
 
 export default async function TalentDashboardRecommendations({
@@ -73,14 +82,20 @@ export default async function TalentDashboardRecommendations({
   const opportunities = (await getPublishedOpportunities()) as DashboardOpportunity[];
   const allMatches = opportunities
     .filter(isOpen)
-    .filter((item) => {
+    .flatMap((item) => {
       try {
-        return evaluateTalentForBrief(candidate, opportunityBrief(item)).sendable;
+        const evaluation = evaluateTalentForBrief(candidate, opportunityBrief(item));
+        return evaluation.sendable ? [{ item, evaluation }] : [];
       } catch (error) {
         console.warn("[TalentDashboardRecommendations.evaluate]", item.id, error);
-        return false;
+        return [];
       }
-    });
+    })
+    .sort(
+      (first, second) =>
+        cityMatchRank(first.evaluation.cityMatch) -
+        cityMatchRank(second.evaluation.cityMatch),
+    );
 
   const visibleMatches = allMatches.slice(0, 3);
 
@@ -118,9 +133,11 @@ export default async function TalentDashboardRecommendations({
 
         {visibleMatches.length > 0 ? (
           <div className="mt-6 grid gap-3 lg:grid-cols-3">
-            {visibleMatches.map((item) => {
+            {visibleMatches.map(({ item, evaluation }) => {
               const quick = item.posting_mode === "quick";
               const city = isRtl ? item.city_ar || item.city_en || "—" : item.city_en || item.city_ar || "—";
+              const requiresTravel = evaluation.cityMatch === "travel";
+
               return (
                 <Link
                   key={item.id}
@@ -134,6 +151,12 @@ export default async function TalentDashboardRecommendations({
                         ? isRtl ? "طلب الآن" : "Quick Request"
                         : isRtl ? "كاستينغ" : "Casting"}
                     </span>
+
+                    {requiresTravel ? (
+                      <span className="rounded-full border border-sky-300/20 bg-sky-300/[0.06] px-2.5 py-1 text-[10px] text-sky-200">
+                        {isRtl ? `✈️ يتطلب السفر إلى ${city}` : `✈️ Travel to ${city}`}
+                      </span>
+                    ) : null}
                   </div>
 
                   <h3 className="mt-4 line-clamp-2 text-lg font-medium leading-7 text-white transition group-hover:text-gold">{item.title}</h3>
