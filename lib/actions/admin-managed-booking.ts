@@ -121,9 +121,11 @@ export async function startManagedTalentConfirmationAction(formData: FormData) {
     } else {
       conversation = createdConversation;
     }
-  } else if (conversation.conversation_type !== "mlamh_talent") {
+  }
+  if (conversation.conversation_type !== "mlamh_talent") {
     throw new Error("Application already belongs to a publisher conversation.");
-  } else if (conversation.admin_user_id !== adminUser.id) {
+  }
+  if (conversation.admin_user_id !== adminUser.id) {
     const { error: assignmentError } = await admin.from("conversations").update({ admin_user_id: adminUser.id, status: "active", updated_at: now }).eq("id", conversation.id);
     if (assignmentError) throw new Error(assignmentError.message);
   }
