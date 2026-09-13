@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { BriefcaseBusiness, Clock3, MapPin, Sparkles, Wallet, Zap } from "lucide-react";
 
+import { applyToOpportunityAction } from "@/lib/actions/apply-to-opportunity";
 import type { Locale } from "@/lib/i18n";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getPublishedOpportunities } from "@/lib/supabase/opportunities";
 import type { Opportunity } from "@/lib/types/opportunity";
 
@@ -61,8 +64,6 @@ export default async function PublicOpportunityModeDirectory({
   const isRtl = locale === "ar";
   const all = (await getPublishedOpportunities()) as PublicOpportunity[];
 
-  // Legacy opportunities may predate posting_mode. Treat every non-quick record
-  // as casting/project so existing public inventory never disappears.
   const items = all.filter((item) =>
     mode === "quick" ? item.posting_mode === "quick" : item.posting_mode !== "quick",
   );
@@ -70,6 +71,48 @@ export default async function PublicOpportunityModeDirectory({
   const openItems = items.filter(isOpen);
   const closedItems = items.filter((item) => !isOpen(item));
   const ordered = [...openItems, ...closedItems];
+
+  let approvedTalentId: number | null = null;
+  const interestedOpportunityIds = new Set<number>();
+
+  if (mode === "quick") {
+    const auth = await createServerSupabaseClient();
+    const { data: { user } } = await auth.auth.getUser();
+
+    if (user) {
+      const admin = createAdminClient();
+      const [{ data: profile }, { data: talent }] = await Promise.all([
+        admin
+          .from("profiles")
+          .select("account_type,approval_status")
+          .eq("user_id", user.id)
+          .maybeSingle(),
+        admin
+          .from("talents")
+          .select("id")
+          .eq("user_id", user.id)
+          .maybeSingle(),
+      ]);
+
+      if (profile?.account_type === "talent" && profile.approval_status === "approved" && talent?.id) {
+        approvedTalentId = Number(talent.id);
+        const opportunityIds = openItems.map((item) => Number(item.id)).filter((id) => Number.isInteger(id));
+
+        if (opportunityIds.length > 0) {
+          const { data: applications } = await admin
+            .from("opportunity_applications")
+            .select("opportunity_id")
+            .eq("talent_id", talent.id)
+            .in("opportunity_id", opportunityIds);
+
+          for (const application of applications ?? []) {
+            const id = Number(application.opportunity_id);
+            if (Number.isInteger(id)) interestedOpportunityIds.add(id);
+          }
+        }
+      }
+    }
+  }
 
   const copy =
     mode === "quick"
@@ -123,8 +166,12 @@ export default async function PublicOpportunityModeDirectory({
             </div>
             <p className="mt-2 text-sm leading-6 text-white/45">
               {isRtl
-                ? "أنشئ ملف موهبة في ملامح، ثم قدّم على الفرص المناسبة من داخل المنصة."
-                : "Create your talent profile on MLAMH, then apply to relevant opportunities directly on the platform."}
+                ? mode === "quick"
+                  ? "إذا كان ملفك معتمدًا اضغط «مهتم» ليصل اهتمامك للناشر. التواصل يبقى داخل ملامح."
+                  : "أنشئ ملف موهبة في ملامح، ثم قدّم على الفرص المناسبة من داخل المنصة."
+                : mode === "quick"
+                  ? "If your profile is approved, tap Interested to signal the publisher. Contact stays inside MLAMH."
+                  : "Create your talent profile on MLAMH, then apply to relevant opportunities directly on the platform."}
             </p>
           </div>
           <Link
@@ -147,6 +194,8 @@ export default async function PublicOpportunityModeDirectory({
           <section className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {ordered.map((item) => {
               const open = isOpen(item);
+              const opportunityId = Number(item.id);
+              const alreadyInterested = interestedOpportunityIds.has(opportunityId);
               const city = isRtl ? item.city_ar || item.city_en || "—" : item.city_en || item.city_ar || "—";
               const href = `/${locale}/opportunities/${encodeURIComponent(item.slug || String(item.id))}`;
               const typeLabel = item.opportunity_type === "model"
@@ -154,19 +203,16 @@ export default async function PublicOpportunityModeDirectory({
                 : isRtl ? "ممثل / ممثلة" : "Actor";
 
               return (
-                <Link
+                <article
                   key={item.id}
-                  href={href}
-                  className={`group flex min-h-[310px] flex-col rounded-[1.75rem] border bg-white/[0.025] p-5 transition sm:p-6 ${
+                  className={`group flex min-h-[330px] flex-col rounded-[1.75rem] border bg-white/[0.025] p-5 transition sm:p-6 ${
                     open
                       ? "border-white/10 hover:-translate-y-1 hover:border-gold/35"
                       : "border-white/[0.06] opacity-55"
                   }`}
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="rounded-full border border-gold/25 bg-gold/[0.07] px-3 py-1 text-[10px] text-gold">
-                      {typeLabel}
-                    </span>
+                    <span className="rounded-full border border-gold/25 bg-gold/[0.07] px-3 py-1 text-[10px] text-gold">{typeLabel}</span>
                     <span className={`rounded-full border px-3 py-1 text-[10px] ${open ? "border-emerald-300/20 bg-emerald-300/[0.06] text-emerald-200" : "border-red-300/20 bg-red-300/[0.05] text-red-200"}`}>
                       {open ? (isRtl ? "متاح" : "Open") : (isRtl ? "انتهى" : "Closed")}
                     </span>
@@ -177,13 +223,11 @@ export default async function PublicOpportunityModeDirectory({
                     {formatRelativeDate(item.created_at, isRtl)}
                   </div>
 
-                  <h2 className="mt-4 line-clamp-2 text-xl font-light leading-8 text-white transition group-hover:text-gold sm:text-2xl">
-                    {item.title}
-                  </h2>
+                  <Link href={href} className="mt-4 block">
+                    <h2 className="line-clamp-2 text-xl font-light leading-8 text-white transition group-hover:text-gold sm:text-2xl">{item.title}</h2>
+                  </Link>
 
-                  {item.company_name ? (
-                    <p className="mt-2 truncate text-sm text-white/40">{item.company_name}</p>
-                  ) : null}
+                  {item.company_name ? <p className="mt-2 truncate text-sm text-white/40">{item.company_name}</p> : null}
 
                   <div className="mt-5 grid grid-cols-2 gap-2 text-xs">
                     <div className="rounded-xl border border-white/[0.07] bg-black/20 p-3">
@@ -196,12 +240,28 @@ export default async function PublicOpportunityModeDirectory({
                     </div>
                   </div>
 
-                  <div className="mt-auto border-t border-white/[0.07] pt-4 text-sm text-gold">
-                    {isRtl
-                      ? mode === "quick" ? "عرض الطلب" : "عرض تفاصيل الفرصة"
-                      : mode === "quick" ? "View request" : "View opportunity"}
+                  <div className="mt-auto flex items-center gap-2 border-t border-white/[0.07] pt-4">
+                    <Link href={href} className="inline-flex min-h-10 flex-1 items-center justify-center rounded-xl border border-white/10 px-3 text-xs text-white/55 transition hover:border-gold/30 hover:text-gold">
+                      {isRtl ? "التفاصيل" : "Details"}
+                    </Link>
+
+                    {mode === "quick" && open && approvedTalentId ? (
+                      alreadyInterested ? (
+                        <span className="inline-flex min-h-10 flex-1 items-center justify-center rounded-xl border border-emerald-300/20 bg-emerald-300/[0.06] px-3 text-xs text-emerald-200">
+                          {isRtl ? "تم إرسال اهتمامك ✓" : "Interest sent ✓"}
+                        </span>
+                      ) : (
+                        <form className="flex-1" action={async (formData) => { "use server"; await applyToOpportunityAction(null, formData); }}>
+                          <input type="hidden" name="locale" value={locale} />
+                          <input type="hidden" name="opportunity_id" value={opportunityId} />
+                          <button type="submit" className="inline-flex min-h-10 w-full items-center justify-center rounded-xl bg-gold px-3 text-xs font-semibold text-black transition hover:bg-gold-soft">
+                            {isRtl ? "مهتم" : "Interested"}
+                          </button>
+                        </form>
+                      )
+                    ) : null}
                   </div>
-                </Link>
+                </article>
               );
             })}
           </section>
