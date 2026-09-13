@@ -48,20 +48,33 @@ Implemented:
 - Automatic return-to-the-same-opportunity after auth remains deferred to avoid changing the approved auth/callback foundation prematurely.
 
 ## Phase 4 — Talent Dashboard
+Status: CLOSED / merged to `main` via PR #323 after successful Vercel validation.
+
+Implemented:
+- Added `مناسب لك اليوم / Matched for you today` for approved talent.
+- Reused the existing `evaluateTalentForBrief` matching engine; no duplicate matching system.
+- Shows Quick Requests and Casting opportunities with clear labels.
+- Added smart empty state for Quick Requests, Casting, and profile improvement.
+- Surfaces unread-message attention only when relevant.
+- Moved additional profile/account tools below the core dashboard content.
+- Kept non-approved talent states focused on completion/review readiness.
+- No talent/account/application/message/conversation records were modified.
+- Matching behavior itself was intentionally left unchanged for Phase 5.
+
+## Phase 5 — Matching
 Status: NEXT
 
 Scope:
-- For approved talent, make `مناسب لك اليوم` the primary dashboard section.
-- Keep other approval states focused on completion/review readiness.
-- Show attention items only when relevant (new messages / invitations later when Phase 6 exists).
-- Keep compact metrics for profile strength, applications, and messages.
-- Move profile-development tools lower in the dashboard.
-- Preserve current talent records and approval/application behavior.
-- Do not implement Matching changes yet; Phase 4 may only consume the safest existing relevance signals available today.
-- Do not implement Interest/Invitation mechanics yet.
+- Extend the existing Qualification/Supply engine; do not create a second matching engine.
+- Preserve exact-city matching as the strongest local match.
+- Support out-of-city matches only when the talent explicitly allows travel/outside-city work and the request allows flexibility.
+- A publisher local-only hard requirement must override talent travel willingness.
+- Distinguish local matches from travel-required matches so UI can show `✈️ يتطلب السفر إلى ...`.
+- Keep launch market scope Saudi Arabia and Actor/Model unchanged.
+- Add regression tests for city-local, city-flexible, travel-enabled, and local-only cases.
+- No migration/backfill or mutation of existing production data.
 
 ## Remaining phases
-5. Matching
 6. Interest + Invitations
 7. Talent Directory Invitations
 8. Chat Integration
