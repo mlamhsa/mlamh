@@ -31,6 +31,7 @@ test("qualified talent matching hard requirements is sendable", () => {
     availability_status: "available_now",
   });
   assert.equal(result.status, "sendable_for_brief");
+  assert.equal(result.cityMatch, "local");
   assert.deepEqual(result.reasons, []);
 });
 
@@ -45,28 +46,66 @@ test("missing required gender is not guessed", () => {
 
 test("brief city is a hard requirement by default", () => {
   const mismatch = evaluateTalentForBrief(
-    { ...qualified, city_slug: "riyadh" },
+    { ...qualified, city_slug: "riyadh", ready_to_travel: true },
     { city: "jeddah" },
   );
   assert.ok(mismatch.reasons.includes("city_mismatch"));
+  assert.equal(mismatch.cityMatch, "none");
 
   const missing = evaluateTalentForBrief(
     { ...qualified, city_slug: null, city_ar: null, city_en: null },
     { city: "jeddah" },
   );
   assert.ok(missing.reasons.includes("missing_required_city"));
+  assert.equal(missing.cityMatch, "none");
 
-  assert.equal(evaluateTalentForBrief(qualified, { city: "jeddah" }).sendable, true);
+  const local = evaluateTalentForBrief(qualified, { city: "jeddah" });
+  assert.equal(local.sendable, true);
+  assert.equal(local.cityMatch, "local");
 });
 
-test("explicit flexible city allows talents from other cities", () => {
-  assert.equal(
-    evaluateTalentForBrief(
-      { ...qualified, city_slug: "riyadh" },
-      { city: "jeddah", city_flexible: true },
-    ).sendable,
-    true,
+test("flexible city still requires talent opt-in for out-of-city work", () => {
+  const result = evaluateTalentForBrief(
+    { ...qualified, city_slug: "riyadh" },
+    { city: "jeddah", city_flexible: true },
   );
+  assert.equal(result.sendable, false);
+  assert.equal(result.cityMatch, "none");
+  assert.ok(result.reasons.includes("city_mismatch"));
+});
+
+test("travel-ready talent can match a flexible request in another city", () => {
+  const result = evaluateTalentForBrief(
+    { ...qualified, city_slug: "riyadh", ready_to_travel: true },
+    { city: "jeddah", city_flexible: true },
+  );
+  assert.equal(result.sendable, true);
+  assert.equal(result.cityMatch, "travel");
+  assert.deepEqual(result.reasons, []);
+});
+
+test("work-outside-city preference also enables a flexible travel match", () => {
+  const result = evaluateTalentForBrief(
+    { ...qualified, city_slug: "riyadh", work_outside_city: true },
+    { city: "jeddah", city_required: false },
+  );
+  assert.equal(result.sendable, true);
+  assert.equal(result.cityMatch, "travel");
+});
+
+test("publisher local-only requirement overrides talent travel willingness", () => {
+  const result = evaluateTalentForBrief(
+    {
+      ...qualified,
+      city_slug: "riyadh",
+      ready_to_travel: true,
+      work_outside_city: true,
+    },
+    { city: "jeddah", city_required: true, city_flexible: false },
+  );
+  assert.equal(result.sendable, false);
+  assert.equal(result.cityMatch, "none");
+  assert.ok(result.reasons.includes("city_mismatch"));
 });
 
 test("availability is a brief requirement, not qualification", () => {
@@ -137,11 +176,14 @@ test("legacy talent remains eligible for Saudi briefs only", () => {
     true,
   );
 
-  const uae = evaluateTalentForBrief(qualified, {
-    country_code: "AE",
-    city: "jeddah",
-    city_flexible: true,
-  });
+  const uae = evaluateTalentForBrief(
+    { ...qualified, ready_to_travel: true },
+    {
+      country_code: "AE",
+      city: "dubai",
+      city_flexible: true,
+    },
+  );
   assert.equal(uae.sendable, false);
   assert.ok(uae.reasons.includes("market_mismatch"));
 });
@@ -152,6 +194,7 @@ test("cross-border talent is sendable only when opportunity market is explicitly
     base_country_code: "EG" as const,
     work_market_codes: ["SA"] as const,
     city_slug: "cairo",
+    ready_to_travel: true,
   };
 
   const sa = evaluateTalentForBrief(egyptBased, {
@@ -160,6 +203,7 @@ test("cross-border talent is sendable only when opportunity market is explicitly
     city_flexible: true,
   });
   assert.equal(sa.sendable, true);
+  assert.equal(sa.cityMatch, "travel");
 
   const ae = evaluateTalentForBrief(egyptBased, {
     country_code: "AE",
