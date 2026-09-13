@@ -8,6 +8,7 @@ import {
   EVENT_TARGETS,
   EVENT_TYPES,
 } from "@/lib/events";
+import { ensureOpportunityConversation } from "@/lib/messages/ensure-opportunity-conversation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { canRequestTalentFromProfile } from "@/lib/talent/public-profile-access";
 
@@ -107,10 +108,6 @@ export async function sendOpportunityInvitationsAction(
 
   const adminClient = createAdminClient();
 
-  /*
-   * لا نثق بمعرّف الموهبة القادم من الواجهة. يجب أن يكون الملف نفسه
-   * معتمدًا ومنشورًا وعامًا، وليس مجرد صف موجود في قاعدة البيانات.
-   */
   const { data: talent, error: talentError } =
     await adminClient
       .from("talents")
@@ -183,12 +180,6 @@ export async function sendOpportunityInvitationsAction(
     };
   }
 
-  /*
-   * لا نثق بمعرّفات الفرص القادمة من الواجهة.
-   * نعيد جلبها ونتأكد أنها:
-   * 1. تخص الناشر الحالي.
-   * 2. منشورة ومتاحة.
-   */
   const { data: opportunities, error: opportunitiesError } =
     await adminClient
       .from("opportunities")
@@ -270,15 +261,44 @@ export async function sendOpportunityInvitationsAction(
     };
   }
 
+  try {
+    await Promise.all(
+      validOpportunities.map((opportunity) =>
+        ensureOpportunityConversation(adminClient, {
+          opportunityId: opportunity.id,
+          publisherId: publisher.id,
+          talentId,
+        }),
+      ),
+    );
+  } catch (error) {
+    console.error(
+      "[sendOpportunityInvitationsAction:conversation]",
+      error,
+    );
+
+    return {
+      success: false,
+      message:
+        locale === "ar"
+          ? "تم حفظ الدعوة، لكن تعذر فتح المحادثة الآن. حاول مرة أخرى."
+          : "The invitation was saved, but the conversation could not be opened yet. Please try again.",
+      sentCount: 0,
+    };
+  }
+
   const insertedRows = insertedInvitations ?? [];
 
   if (insertedRows.length === 0) {
+    revalidatePath(`/${locale}/publisher-dashboard/messages`);
+    revalidatePath(`/${locale}/talent-dashboard/messages`);
+
     return {
       success: true,
       message:
         locale === "ar"
-          ? "سبق إرسال الدعوة للموهبة إلى الفرص المختارة."
-          : "The talent has already been invited to the selected opportunities.",
+          ? "سبق إرسال الدعوة، والمحادثة متاحة من الرسائل."
+          : "The invitation was already sent and the conversation is available in Messages.",
       sentCount: 0,
     };
   }
@@ -333,16 +353,18 @@ export async function sendOpportunityInvitationsAction(
   revalidatePath(
     `/${locale}/talent-dashboard/notifications`,
   );
+  revalidatePath(`/${locale}/publisher-dashboard/messages`);
+  revalidatePath(`/${locale}/talent-dashboard/messages`);
   revalidatePath(`/${locale}/talent-dashboard`);
 
   return {
     success: true,
     message:
       locale === "ar"
-        ? `تم إرسال ${insertedRows.length} دعوة بنجاح.`
+        ? `تم إرسال ${insertedRows.length} دعوة ويمكن بدء المحادثة من الرسائل.`
         : `${insertedRows.length} invitation${
             insertedRows.length === 1 ? "" : "s"
-          } sent successfully.`,
+          } sent. The conversation is now available in Messages.`,
     sentCount: insertedRows.length,
   };
 }
