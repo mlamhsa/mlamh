@@ -48,8 +48,6 @@ export default function TalentDashboardShell({
     />
   );
 
-  // Keep the dashboard home focused: only show sections that are not already
-  // available in the desktop sidebar or mobile bottom navigation.
   const extraSections = [
     {
       href: `${dashboardHref}/profile/details`,
@@ -76,7 +74,9 @@ export default function TalentDashboardShell({
       <>
         {mobileNavigation}
         <div dir={isArabic ? "rtl" : "ltr"} className="pb-24 xl:pb-0">
-          <section className="mx-auto w-full max-w-7xl px-4 pt-24 sm:px-6 lg:px-8 lg:pt-28">
+          {children}
+
+          <section className="mx-auto w-full max-w-7xl px-4 pb-8 pt-2 sm:px-6 lg:px-8 lg:pb-10">
             <div className="mb-5">
               <p className="text-xs font-semibold text-gold/80">
                 {isArabic ? "وصول سريع" : "Quick access"}
@@ -86,8 +86,8 @@ export default function TalentDashboardShell({
               </h2>
               <p className="mt-1 text-sm text-white/45">
                 {isArabic
-                  ? "الأقسام غير الموجودة في القائمة الجانبية أو الشريط السفلي."
-                  : "Sections not already available in the sidebar or bottom navigation."}
+                  ? "أقسام إضافية لتطوير ملفك وإدارة حسابك."
+                  : "Additional sections to strengthen your profile and manage your account."}
               </p>
             </div>
 
@@ -115,8 +115,6 @@ export default function TalentDashboardShell({
               })}
             </div>
           </section>
-
-          {children}
         </div>
       </>
     );
