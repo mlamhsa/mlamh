@@ -64,9 +64,7 @@ function detectGender(text: string): QuickRequestDraft["required_gender"] {
 function detectCity(text: string, fallbackCity?: string | null) {
   const normalized = normalize(text);
   for (const city of CITY_ALIASES) {
-    if (city.aliases.some((alias) => normalized.includes(alias.toLowerCase()))) {
-      return city.value;
-    }
+    if (city.aliases.some((alias) => normalized.includes(alias.toLowerCase()))) return city.value;
   }
   return fallbackCity?.trim() || "";
 }
@@ -75,29 +73,21 @@ function detectBudget(text: string) {
   if (/(بدون مقابل|مجاني|غير مدفوع|unpaid|volunteer)/i.test(text)) {
     return { compensation_type: "unpaid" as const, budget: null };
   }
-
-  const patterns = [
+  for (const pattern of [
     /(?:الميزانية|الميزانيه|المقابل|الأجر|الاجر|budget|pay|fee)\s*[:：-]?\s*(\d[\d,]*)/i,
     /(\d[\d,]*)\s*(?:ريال|ر\.س|sar)/i,
-  ];
-
-  for (const pattern of patterns) {
+  ]) {
     const match = text.match(pattern);
     if (match?.[1]) {
-      return {
-        compensation_type: "fixed" as const,
-        budget: match[1].replace(/,/g, ""),
-      };
+      return { compensation_type: "fixed" as const, budget: match[1].replace(/,/g, "") };
     }
   }
-
   return { compensation_type: "negotiable" as const, budget: null };
 }
 
 function detectRequiredCount(text: string) {
   const match = text.match(/(\d{1,3})\s*(?:مودل|مودلز|ممثل|ممثلين|ممثلة|ممثلات|أشخاص|اشخاص|people|models?|actors?)/i);
-  if (!match?.[1]) return 1;
-  const count = Number(match[1]);
+  const count = Number(match?.[1] || 1);
   return Number.isInteger(count) && count >= 1 && count <= 1000 ? count : 1;
 }
 
@@ -113,20 +103,25 @@ function detectWorkDate(text: string, now = new Date()) {
   return null;
 }
 
-function detectWorkTime(text: string) {
-  const match = text.match(/(?:الساعة|الساعه|at)?\s*(\d{1,2})(?::(\d{2}))?\s*(ص|م|am|pm)?/i);
-  if (!match?.[1]) return null;
-
-  let hour = Number(match[1]);
-  const minute = Number(match[2] || 0);
-  const meridiem = (match[3] || "").toLowerCase();
-
+function normalizeClock(hourInput: string, minuteInput?: string, meridiemInput?: string) {
+  let hour = Number(hourInput);
+  const minute = Number(minuteInput || 0);
+  const meridiem = (meridiemInput || "").toLowerCase();
   if (minute > 59 || hour > 23) return null;
   if ((meridiem === "م" || meridiem === "pm") && hour < 12) hour += 12;
   if ((meridiem === "ص" || meridiem === "am") && hour === 12) hour = 0;
   if (hour > 23) return null;
-
   return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+function detectWorkTime(text: string) {
+  const explicit = text.match(/(?:الساعة|الساعه|at)\s*(\d{1,2})(?::(\d{2}))?\s*(ص|م|am|pm)?/i);
+  if (explicit?.[1]) return normalizeClock(explicit[1], explicit[2], explicit[3]);
+
+  const clock = text.match(/\b(\d{1,2}):(\d{2})\s*(ص|م|am|pm)?\b/i);
+  if (clock?.[1]) return normalizeClock(clock[1], clock[2], clock[3]);
+
+  return null;
 }
 
 function detectDuration(text: string) {
@@ -184,10 +179,5 @@ export function parseQuickRequestText({
     };
   }
 
-  return {
-    draft,
-    needs_follow_up: false,
-    follow_up_field: null,
-    follow_up_question: null,
-  };
+  return { draft, needs_follow_up: false, follow_up_field: null, follow_up_question: null };
 }
