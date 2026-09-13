@@ -22,6 +22,7 @@ export type AdminTalent = Talent & {
 
   account_phone: string | null;
   approval_status: string | null;
+  data_accuracy_contact_consent: boolean | null;
   onboarding_status: string | null;
   onboarding_step: string | null;
   profile_completed_at: string | null;
@@ -33,6 +34,7 @@ type AdminTalentViewRow = Talent & {
   admin_views?: number | string | null;
 
   account_phone?: string | null;
+  data_accuracy_contact_consent?: boolean | null;
 
   approval_status?: string | null;
   onboarding_status?: string | null;
@@ -41,6 +43,13 @@ type AdminTalentViewRow = Talent & {
   profile_completed_at?: string | null;
   account_created_at?: string | null;
   account_updated_at?: string | null;
+};
+
+type TalentProfileReadinessRow = {
+  user_id: string;
+  phone: string | null;
+  approval_status: string | null;
+  data_accuracy_contact_consent: boolean | null;
 };
 
 export type TopViewedTalent = {
@@ -71,6 +80,8 @@ function normalizeAdminTalent(row: AdminTalentViewRow): AdminTalent {
     views: normalizeViews(admin_views),
 
     account_phone: row.account_phone ?? null,
+    data_accuracy_contact_consent:
+      row.data_accuracy_contact_consent ?? null,
 
     approval_status: row.approval_status ?? null,
 
@@ -90,6 +101,8 @@ function isReadyNotSubmitted(talent: AdminTalent) {
   return getTalentProfileReadiness({
     ...talent,
     phone: talent.account_phone ?? talent.whatsapp ?? null,
+    data_accuracy_contact_consent:
+      talent.data_accuracy_contact_consent === true,
   }).isReady;
 }
 
@@ -98,6 +111,65 @@ function hasDataQualityIssues(talent: AdminTalent) {
 }
 
 export class TalentRepository extends BaseRepository {
+  private static async hydrateProfileReadiness(
+    talents: AdminTalent[],
+  ): Promise<AdminTalent[]> {
+    const userIds = [
+      ...new Set(
+        talents
+          .map((talent) => talent.user_id)
+          .filter(
+            (userId): userId is string =>
+              typeof userId === "string" && userId.length > 0,
+          ),
+      ),
+    ];
+
+    if (userIds.length === 0) {
+      return talents;
+    }
+
+    const { data, error } = await this.client()
+      .from("profiles")
+      .select(
+        "user_id,phone,approval_status,data_accuracy_contact_consent",
+      )
+      .eq("account_type", "talent")
+      .in("user_id", userIds);
+
+    if (error) {
+      throw new Error(
+        `[TalentRepository.hydrateProfileReadiness] ${error.message}`,
+      );
+    }
+
+    const profileByUserId = new Map(
+      ((data ?? []) as TalentProfileReadinessRow[]).map((profile) => [
+        profile.user_id,
+        profile,
+      ]),
+    );
+
+    return talents.map((talent) => {
+      if (!talent.user_id) {
+        return talent;
+      }
+
+      const profile = profileByUserId.get(talent.user_id);
+      if (!profile) {
+        return talent;
+      }
+
+      return {
+        ...talent,
+        account_phone: profile.phone ?? talent.account_phone,
+        approval_status: profile.approval_status ?? talent.approval_status,
+        data_accuracy_contact_consent:
+          profile.data_accuracy_contact_consent === true,
+      };
+    });
+  }
+
   static async getAdminTalents({
     page,
     pageSize,
@@ -188,8 +260,10 @@ export class TalentRepository extends BaseRepository {
         );
       }
 
-      const candidates = ((data ?? []) as AdminTalentViewRow[]).map((row) =>
-        normalizeAdminTalent(row),
+      const candidates = await this.hydrateProfileReadiness(
+        ((data ?? []) as AdminTalentViewRow[]).map((row) =>
+          normalizeAdminTalent(row),
+        ),
       );
 
       const matchingTalents = candidates.filter((talent) => {
@@ -222,7 +296,9 @@ export class TalentRepository extends BaseRepository {
     }
 
     const rows = (data ?? []) as AdminTalentViewRow[];
-    const talents = rows.map((row) => normalizeAdminTalent(row));
+    const talents = await this.hydrateProfileReadiness(
+      rows.map((row) => normalizeAdminTalent(row)),
+    );
     const total = count ?? 0;
 
     return {
@@ -269,11 +345,17 @@ export class TalentRepository extends BaseRepository {
       );
     }
 
+    const notSubmittedTalents = await this.hydrateProfileReadiness(
+      ((notSubmittedResult.data ?? []) as AdminTalentViewRow[]).map((row) =>
+        normalizeAdminTalent(row),
+      ),
+    );
+
     let incomplete = 0;
     let readyNotSubmitted = 0;
 
-    for (const row of (notSubmittedResult.data ?? []) as AdminTalentViewRow[]) {
-      if (isReadyNotSubmitted(normalizeAdminTalent(row))) {
+    for (const talent of notSubmittedTalents) {
+      if (isReadyNotSubmitted(talent)) {
         readyNotSubmitted += 1;
       } else {
         incomplete += 1;
@@ -380,7 +462,11 @@ export class TalentRepository extends BaseRepository {
       return null;
     }
 
-    return normalizeAdminTalent(data as AdminTalentViewRow);
+    const [talent] = await this.hydrateProfileReadiness([
+      normalizeAdminTalent(data as AdminTalentViewRow),
+    ]);
+
+    return talent ?? null;
   }
 
   static async getTopViewed(limit = 5): Promise<TopViewedTalent[]> {
