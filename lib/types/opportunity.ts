@@ -11,6 +11,7 @@ export type Opportunity = {
   description_en?: string | null;
 
   opportunity_type: string;
+  posting_mode?: "quick" | "project" | null;
 
   country_code?: CountryCode | null;
   currency?: string | null;
