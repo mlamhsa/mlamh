@@ -76,7 +76,7 @@ export default function TalentDashboardShell({
         dir={isArabic ? "rtl" : "ltr"}
         className="min-h-screen bg-black text-white"
       >
-        <div className="w-full [&>main]:!bg-transparent [&>main>div]:!max-w-none [&_aside]:!hidden">
+        <div className="w-full [&>main]:!bg-transparent [&>main>div]:!max-w-6xl">
           {children}
         </div>
       </div>
