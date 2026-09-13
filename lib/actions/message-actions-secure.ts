@@ -11,6 +11,16 @@ type DashboardType = "publisher" | "talent" | "admin";
 
 const MESSAGE_ATTACHMENTS_BUCKET = "message-attachments";
 const MAX_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024;
+const RESTRICTED_ACCOUNT_STATUSES = new Set([
+  "suspended",
+  "blocked",
+  "banned",
+  "disabled",
+]);
+const RESTRICTED_PUBLISHER_STATUSES = new Set([
+  ...RESTRICTED_ACCOUNT_STATUSES,
+  "rejected",
+]);
 const ALLOWED_ATTACHMENT_MIME_TYPES = new Set([
   "image/jpeg",
   "image/png",
@@ -33,6 +43,13 @@ function getAttachmentFromFormData(formData: FormData) {
     throw new Error("Unsupported attachment type.");
   }
   return value;
+}
+
+function isRestrictedStatus(
+  value: string | null | undefined,
+  restricted: Set<string> = RESTRICTED_ACCOUNT_STATUSES,
+) {
+  return restricted.has(String(value ?? "").trim().toLowerCase());
 }
 
 async function getAuthenticatedParticipant(conversationId: number) {
@@ -60,7 +77,7 @@ async function getAuthenticatedParticipant(conversationId: number) {
 
   const { data: profile, error: profileError } = await adminClient
     .from("profiles")
-    .select("id,account_type")
+    .select("id,account_type,status")
     .eq("user_id", user.id)
     .maybeSingle();
 
@@ -69,18 +86,23 @@ async function getAuthenticatedParticipant(conversationId: number) {
     throw new Error(profileError.message);
   }
   if (!profile) throw new Error("Profile not found.");
+  if (isRestrictedStatus(profile.status)) throw new Error("Access denied.");
 
   let dashboard: DashboardType | null = null;
 
   if (profile.account_type === "publisher") {
     const { data: publisher, error: publisherError } = await adminClient
       .from("publishers")
-      .select("id")
+      .select("id,status")
       .eq("profile_id", profile.id)
       .maybeSingle();
 
     if (publisherError) console.error("Publisher lookup error:", publisherError);
-    if (!publisherError && publisher?.id === conversation.publisher_id) {
+    if (
+      !publisherError &&
+      publisher?.id === conversation.publisher_id &&
+      !isRestrictedStatus(publisher.status, RESTRICTED_PUBLISHER_STATUSES)
+    ) {
       dashboard = "publisher";
     }
   }
@@ -88,12 +110,16 @@ async function getAuthenticatedParticipant(conversationId: number) {
   if (profile.account_type === "talent") {
     const { data: talent, error: talentError } = await adminClient
       .from("talents")
-      .select("id")
+      .select("id,status")
       .eq("user_id", user.id)
       .maybeSingle();
 
     if (talentError) console.error("Talent lookup error:", talentError);
-    if (!talentError && talent?.id === conversation.talent_id) {
+    if (
+      !talentError &&
+      talent?.id === conversation.talent_id &&
+      !isRestrictedStatus(talent.status)
+    ) {
       dashboard = "talent";
     }
   }
