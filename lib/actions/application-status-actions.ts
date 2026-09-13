@@ -287,7 +287,7 @@ export async function updateApplicationStatusAction(
 
   const { data: opportunity, error: opportunityError } = await adminClient
     .from("opportunities")
-    .select("id, title, publisher_id, opportunity_type")
+    .select("id, title, publisher_id, opportunity_type, posting_mode")
     .eq("id", application.opportunity_id)
     .maybeSingle();
 
@@ -354,7 +354,11 @@ export async function updateApplicationStatusAction(
     }));
   }
 
+  const isQuickRequest = opportunity.posting_mode === "quick";
+
   if (["accepted", "rejected"].includes(status)) {
+    const isQuickSelection = isQuickRequest && status === "accepted";
+
     await createCanonicalNotification({
       adminClient,
       eventType: "application_status_changed",
@@ -363,13 +367,20 @@ export async function updateApplicationStatusAction(
       actorId: user.id,
       recipientType: "talent",
       recipientId: application.talent_id,
-      title: status === "accepted" ? "تم قبول طلبك" : "تحديث على طلبك",
-      body: getNotificationMessage(status, opportunity.title),
+      title: isQuickSelection
+        ? "تم اختيارك لهذا الطلب"
+        : status === "accepted"
+          ? "تم قبول طلبك"
+          : "تحديث على طلبك",
+      body: isQuickSelection
+        ? `اختارك الناشر لطلب «${opportunity.title ?? "طلب سريع"}». يمكنك متابعة التفاصيل عبر المحادثة.`
+        : getNotificationMessage(status, opportunity.title),
       metadata: {
         applicationId: application.id,
         opportunityId: application.opportunity_id,
         conversationId,
         status,
+        postingMode: opportunity.posting_mode,
       },
     });
   }
@@ -383,12 +394,15 @@ export async function updateApplicationStatusAction(
       actorId: user.id,
       recipientType: "publisher",
       recipientId: publisher.id,
-      title: "تم قبول الموهبة — أكمل تفاصيل الحجز",
+      title: isQuickRequest
+        ? "تم اختيار الموهبة — أكمل التفاصيل"
+        : "تم قبول الموهبة — أكمل تفاصيل الحجز",
       body: "أرسل للموهبة تاريخ العمل والوقت والموقع والمقابل لتأكيد الحجز.",
       metadata: {
         applicationId: application.id,
         opportunityId: application.opportunity_id,
         conversationId,
+        postingMode: opportunity.posting_mode,
       },
     });
   }
