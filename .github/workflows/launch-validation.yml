@@ -8,6 +8,11 @@ on:
 permissions:
   contents: read
 
+env:
+  # Public client configuration only. No Supabase secret/service-role key is exposed.
+  NEXT_PUBLIC_SUPABASE_URL: https://ozieysztwlispglupuox.supabase.co
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: sb_publishable_8fHyfoV7YWfed4yRhu_BOw_BtzOId8g
+
 jobs:
   validate:
     runs-on: ubuntu-latest
