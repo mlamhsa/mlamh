@@ -1,0 +1,55 @@
+name: QA Patch Managed Booking Race
+
+on:
+  push:
+    branches:
+      - fix/managed-booking-idempotency
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/managed-booking-idempotency
+      - name: Validate recovered conversation
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('lib/actions/admin-managed-booking.ts')
+          text = path.read_text()
+          old = '''  } else if (conversation.conversation_type !== "mlamh_talent") {
+              throw new Error("Application already belongs to a publisher conversation.");
+            } else if (conversation.admin_user_id !== adminUser.id) {
+              const { error: assignmentError } = await admin.from("conversations").update({ admin_user_id: adminUser.id, status: "active", updated_at: now }).eq("id", conversation.id);
+              if (assignmentError) throw new Error(assignmentError.message);
+            }
+
+            const compensationType'''
+          new = '''  }
+            if (conversation.conversation_type !== "mlamh_talent") {
+              throw new Error("Application already belongs to a publisher conversation.");
+            }
+            if (conversation.admin_user_id !== adminUser.id) {
+              const { error: assignmentError } = await admin.from("conversations").update({ admin_user_id: adminUser.id, status: "active", updated_at: now }).eq("id", conversation.id);
+              if (assignmentError) throw new Error(assignmentError.message);
+            }
+
+            const compensationType'''
+          if text.count(old) != 1:
+              raise SystemExit(f'conversation validation anchor mismatch: {text.count(old)}')
+          path.write_text(text.replace(old, new))
+          PY
+      - name: Commit race guard
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/actions/admin-managed-booking.ts
+          git diff --cached --check
+          git commit -m "fix(booking): validate recovered conversation"
+          git push origin HEAD:fix/managed-booking-idempotency
