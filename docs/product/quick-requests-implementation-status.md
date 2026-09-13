@@ -76,22 +76,35 @@ Implemented:
 - No migration/backfill or production data mutation.
 
 ## Phase 6 — Interest + Invitations
+Status: CLOSED / merged to `main` via PR #326 after successful Vercel validation.
+
+Implemented:
+- Reused `opportunity_applications` as the talent-initiated interest signal for Quick Requests; no separate interests table.
+- Approved talents can tap `مهتم / Interested` from the public Quick Requests directory.
+- Existing application row displays as `تم إرسال اهتمامك ✓` for Quick Requests.
+- Casting opportunities retain the current application flow and semantics.
+- Replaced the old talent `/requests` redirect with an actual publisher-invitation inbox.
+- Reused `opportunity_invitations.status` for consent: `sent` → `accepted` or `declined`.
+- Invitation responses are ownership-checked against the signed-in talent.
+- Acceptance explicitly keeps contact inside MLAMH; phone/WhatsApp are not exposed.
+- Full chat opening remains deferred to Phase 8.
+- Optional interest note was not added because no confirmed safe existing field was established; no column/schema was invented.
+- No migration/backfill or parallel invitation/application system was introduced.
+
+## Phase 7 — Talent Directory Invitations
 Status: NEXT
 
 Scope:
-- Reuse existing opportunity/application/invitation foundations; do not create open unsolicited DMs.
-- Talent can express `مهتم / Interested` on a relevant opportunity with an optional short note.
-- Publisher can review interested talent profiles and decide whether to start contact.
-- Reuse `opportunity_invitations` for publisher-initiated contact wherever compatible.
-- Publisher invitations require talent acceptance before chat can open.
-- Talent-initiated interest is the consent signal that allows the publisher to proceed toward contact.
-- Do not expose phone/WhatsApp details.
-- Do not rebuild chat in this phase; full chat integration remains Phase 8.
-- Preserve current application flow and existing invitations.
-- No migration/backfill unless existing schema proves insufficient and is separately reviewed.
+- Reuse the existing public talent directory and `PublisherTalentInvitePanel` / `OpportunityInviteModal` foundation.
+- Make the publisher invitation action easy to discover from eligible public talent profiles/directory flows.
+- Keep all invitation eligibility/verification checks server-side in the existing action.
+- Prefer matching/relevance cues where available; do not create a second talent discovery engine.
+- Preserve talent privacy and profile visibility rules.
+- No open direct messages and no phone/WhatsApp exposure.
+- Do not change invitation consent semantics established in Phase 6.
+- No migration/backfill.
 
 ## Remaining phases
-7. Talent Directory Invitations
 8. Chat Integration
 9. Notifications + Statuses
 10. Trust / Anti-abuse
