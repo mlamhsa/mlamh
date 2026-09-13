@@ -32,6 +32,7 @@ export default function FastQuickRequestForm({ locale, isRtl, fallbackCity }: Pr
   const [requestText, setRequestText] = useState("");
   const [draft, setDraft] = useState<Draft | null>(null);
   const [followUp, setFollowUp] = useState<string | null>(null);
+  const [cityFlexible, setCityFlexible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -111,7 +112,9 @@ export default function FastQuickRequestForm({ locale, isRtl, fallbackCity }: Pr
           work_date: draft.work_date,
           work_time: draft.work_time,
           work_duration: draft.work_duration,
-          role_requirements: {},
+          role_requirements: {
+            city_flexible: cityFlexible,
+          },
         }),
       });
 
@@ -241,6 +244,29 @@ export default function FastQuickRequestForm({ locale, isRtl, fallbackCity }: Pr
                   <option value="male">{isRtl ? "ذكر" : "Male"}</option>
                 </select>
               </Field>
+
+              <div className="md:col-span-2">
+                <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-white/[0.08] bg-black/25 p-4 transition hover:border-gold/25">
+                  <input
+                    type="checkbox"
+                    checked={cityFlexible}
+                    onChange={(event) => setCityFlexible(event.currentTarget.checked)}
+                    className="mt-1 h-4 w-4 accent-[#c9a462]"
+                  />
+                  <span>
+                    <span className="block text-sm font-medium text-white/80">
+                      {isRtl
+                        ? "أقبل مواهب من مدن أخرى إذا كانت مستعدة للسفر"
+                        : "Allow talent from other cities when they are willing to travel"}
+                    </span>
+                    <span className="mt-1 block text-xs leading-5 text-white/40">
+                      {isRtl
+                        ? "إذا تركته مغلقًا، نعتبر المدينة شرطًا محليًا ولا تظهر لك مطابقة السفر."
+                        : "If left off, the city remains a local-only requirement and travel matches are excluded."}
+                    </span>
+                  </span>
+                </label>
+              </div>
 
               <Field label={isRtl ? "تاريخ العمل" : "Work date"}>
                 <input type="date" value={draft.work_date ?? ""} onChange={(e) => updateDraft("work_date", e.target.value || null)} className="input" />
