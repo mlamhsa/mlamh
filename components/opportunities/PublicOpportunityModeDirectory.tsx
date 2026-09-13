@@ -72,31 +72,39 @@ export default async function PublicOpportunityModeDirectory({
   const closedItems = items.filter((item) => !isOpen(item));
   const ordered = [...openItems, ...closedItems];
 
+  let accountType: string | null = null;
+  let talentApprovalStatus: string | null = null;
   let approvedTalentId: number | null = null;
   const interestedOpportunityIds = new Set<number>();
 
-  if (mode === "quick") {
-    const auth = await createServerSupabaseClient();
-    const { data: { user } } = await auth.auth.getUser();
+  const auth = await createServerSupabaseClient();
+  const { data: { user } } = await auth.auth.getUser();
 
-    if (user) {
-      const admin = createAdminClient();
-      const [{ data: profile }, { data: talent }] = await Promise.all([
-        admin
-          .from("profiles")
-          .select("account_type,approval_status")
-          .eq("user_id", user.id)
-          .maybeSingle(),
-        admin
-          .from("talents")
-          .select("id")
-          .eq("user_id", user.id)
-          .maybeSingle(),
-      ]);
+  if (user) {
+    const admin = createAdminClient();
+    const [{ data: profile }, { data: talent }] = await Promise.all([
+      admin
+        .from("profiles")
+        .select("account_type,approval_status")
+        .eq("user_id", user.id)
+        .maybeSingle(),
+      admin
+        .from("talents")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle(),
+    ]);
 
-      if (profile?.account_type === "talent" && profile.approval_status === "approved" && talent?.id) {
-        approvedTalentId = Number(talent.id);
-        const opportunityIds = openItems.map((item) => Number(item.id)).filter((id) => Number.isInteger(id));
+    accountType = profile?.account_type ?? null;
+    talentApprovalStatus = profile?.account_type === "talent" ? profile.approval_status ?? null : null;
+
+    if (profile?.account_type === "talent" && profile.approval_status === "approved" && talent?.id) {
+      approvedTalentId = Number(talent.id);
+
+      if (mode === "quick") {
+        const opportunityIds = openItems
+          .map((item) => Number(item.id))
+          .filter((id) => Number.isInteger(id));
 
         if (opportunityIds.length > 0) {
           const { data: applications } = await admin
@@ -137,6 +145,48 @@ export default async function PublicOpportunityModeDirectory({
 
   const HeaderIcon = copy.Icon;
 
+  const audienceCta = !user
+    ? {
+        title: isRtl ? "شفت فرصة تناسبك؟" : "Found something that fits you?",
+        description: isRtl
+          ? "أنشئ ملف موهبة في ملامح، ثم قدّم على الفرص والطلبات المناسبة من داخل المنصة."
+          : "Create your talent profile on MLAMH, then apply to relevant opportunities and requests on the platform.",
+        href: `/${locale}/join?type=talent`,
+        label: isRtl ? "انضم كموهبة" : "Join as talent",
+      }
+    : accountType === "talent"
+      ? talentApprovalStatus === "approved"
+        ? {
+            title: isRtl ? "جاهز للفرص؟" : "Ready for opportunities?",
+            description: isRtl
+              ? mode === "quick"
+                ? "ملفك معتمد. اضغط «مهتم» على الطلب المناسب ليصل اهتمامك للناشر، والتواصل يبقى داخل ملامح."
+                : "ملفك معتمد. استعرض فرص الكاستينغ وقدّم مباشرة على الفرص المناسبة لك."
+              : mode === "quick"
+                ? "Your profile is approved. Tap Interested on a suitable request to signal the publisher. Contact stays inside MLAMH."
+                : "Your profile is approved. Browse casting opportunities and apply directly to the ones that fit you.",
+            href: `/${locale}/talent-dashboard`,
+            label: isRtl ? "فتح لوحة الموهبة" : "Open talent dashboard",
+          }
+        : {
+            title: isRtl ? "أكمل جاهزية ملفك" : "Complete your talent profile",
+            description: isRtl
+              ? "أكمل ملفك وأرسله للمراجعة حتى تتمكن من التقديم وإبداء الاهتمام بالفرص والطلبات."
+              : "Complete and submit your profile for review so you can apply and express interest in opportunities.",
+            href: `/${locale}/talent-dashboard/profile`,
+            label: isRtl ? "إكمال ملفي" : "Complete my profile",
+          }
+      : accountType === "publisher"
+        ? {
+            title: isRtl ? "تبحث عن مواهب لمشروعك؟" : "Looking for talent?",
+            description: isRtl
+              ? "أنشئ طلبًا سريعًا أو فرصة كاستينغ من لوحة الناشر، ثم ادعُ المواهب المناسبة من داخل ملامح."
+              : "Create a quick request or casting opportunity from your publisher dashboard, then invite suitable talent inside MLAMH.",
+            href: `/${locale}/publisher-dashboard/opportunities/new`,
+            label: isRtl ? "إنشاء فرصة" : "Create opportunity",
+          }
+        : null;
+
   return (
     <main dir={isRtl ? "rtl" : "ltr"} className="min-h-screen bg-background px-4 pb-28 pt-6 text-white sm:px-6 lg:pb-24 lg:pt-10">
       <div className="mx-auto max-w-7xl">
@@ -158,29 +208,23 @@ export default async function PublicOpportunityModeDirectory({
           </div>
         </header>
 
-        <section className="mt-5 rounded-[1.5rem] border border-gold/20 bg-gold/[0.035] p-5 sm:flex sm:items-center sm:justify-between sm:gap-6 sm:p-6">
-          <div>
-            <div className="flex items-center gap-2 text-gold">
-              <Sparkles size={16} />
-              <p className="text-sm font-medium">{isRtl ? "شفت فرصة تناسبك؟" : "Found something that fits you?"}</p>
+        {audienceCta ? (
+          <section className="mt-5 rounded-[1.5rem] border border-gold/20 bg-gold/[0.035] p-5 sm:flex sm:items-center sm:justify-between sm:gap-6 sm:p-6">
+            <div>
+              <div className="flex items-center gap-2 text-gold">
+                <Sparkles size={16} />
+                <p className="text-sm font-medium">{audienceCta.title}</p>
+              </div>
+              <p className="mt-2 text-sm leading-6 text-white/45">{audienceCta.description}</p>
             </div>
-            <p className="mt-2 text-sm leading-6 text-white/45">
-              {isRtl
-                ? mode === "quick"
-                  ? "إذا كان ملفك معتمدًا اضغط «مهتم» ليصل اهتمامك للناشر. التواصل يبقى داخل ملامح."
-                  : "أنشئ ملف موهبة في ملامح، ثم قدّم على الفرص المناسبة من داخل المنصة."
-                : mode === "quick"
-                  ? "If your profile is approved, tap Interested to signal the publisher. Contact stays inside MLAMH."
-                  : "Create your talent profile on MLAMH, then apply to relevant opportunities directly on the platform."}
-            </p>
-          </div>
-          <Link
-            href={`/${locale}/join?type=talent`}
-            className="mt-4 inline-flex min-h-11 w-full shrink-0 items-center justify-center rounded-full bg-gold px-6 text-sm font-semibold text-black transition hover:bg-gold-soft sm:mt-0 sm:w-auto"
-          >
-            {isRtl ? "انضم كموهبة" : "Join as talent"}
-          </Link>
-        </section>
+            <Link
+              href={audienceCta.href}
+              className="mt-4 inline-flex min-h-11 w-full shrink-0 items-center justify-center rounded-full bg-gold px-6 text-sm font-semibold text-black transition hover:bg-gold-soft sm:mt-0 sm:w-auto"
+            >
+              {audienceCta.label}
+            </Link>
+          </section>
+        ) : null}
 
         {ordered.length === 0 ? (
           <section className="mt-6 rounded-[2rem] border border-dashed border-white/10 bg-white/[0.02] px-6 py-16 text-center">
