@@ -77,20 +77,23 @@ async function talentHasProtectedContent(slug: string) {
 
 function LockedTalentContentNotice({
   locale,
-  isGuest,
+  accountType,
 }: {
   locale: Locale;
-  isGuest: boolean;
+  accountType: string | null;
 }) {
   const isRtl = locale === "ar";
+  const isGuest = accountType === null;
+  const isPublisher = accountType === "publisher";
+  const isTalent = accountType === "talent";
 
   return (
     <section
       className="mt-5 overflow-hidden rounded-[1.75rem] border border-gold/20 bg-[linear-gradient(145deg,rgba(201,169,98,0.09),rgba(255,255,255,0.02))] p-5 shadow-2xl shadow-black/20 sm:p-6"
       aria-label={
         isRtl
-          ? "المحتوى الخاص للناشرين المعتمدين"
-          : "Private content for approved publishers"
+          ? "المحتوى الخاص للناشرين المعتمدين والموثقين"
+          : "Private content for approved and verified publishers"
       }
     >
       <p
@@ -105,19 +108,25 @@ function LockedTalentContentNotice({
         <div className="max-w-3xl">
           <h2 className="text-2xl font-light text-white sm:text-3xl">
             {isRtl
-              ? "محتوى خاص للناشرين المعتمدين"
-              : "Private content for approved publishers"}
+              ? "محتوى خاص للناشرين المعتمدين والموثقين"
+              : "Private content for approved and verified publishers"}
           </h2>
           <p className="mt-3 text-sm leading-7 text-white/55 sm:text-base">
             {isRtl
-              ? "الفيديو التعريفي، عرض الأعمال وروابط الموهبة متاحة للناشرين المعتمدين فقط، حفاظًا على خصوصية الموهبة."
-              : "Video introductions, showreels and talent links are available only to approved publishers to protect talent privacy."}
+              ? "الفيديو التعريفي، عرض الأعمال وروابط الموهبة محمية ولا تظهر إلا للناشرين المؤهلين، حفاظًا على خصوصية الموهبة."
+              : "Video introductions, showreels and talent links are protected and visible only to eligible publishers."}
           </p>
-          {!isGuest ? (
+          {isPublisher ? (
             <p className="mt-2 text-xs leading-6 text-gold/75">
               {isRtl
-                ? "سيظهر هذا المحتوى تلقائيًا بعد اعتماد حساب الناشر."
-                : "This content will appear automatically once the publisher account is approved."}
+                ? "سيظهر هذا المحتوى تلقائيًا بعد اعتماد حساب الناشر وإكمال التحقق منه، ما دام الحساب نشطًا."
+                : "This content appears automatically once the publisher account is approved, verified, and active."}
+            </p>
+          ) : isTalent ? (
+            <p className="mt-2 text-xs leading-6 text-white/40">
+              {isRtl
+                ? "حسابات المواهب لا يمكنها فتح المحتوى الخاص بمواهب أخرى."
+                : "Talent accounts cannot open another talent's protected content."}
             </p>
           ) : null}
         </div>
@@ -160,7 +169,7 @@ export default async function TalentProfilePage(props: PageProps) {
     <LockedTalentContentNotice
       key="locked-talent-private-content"
       locale={locale}
-      isGuest={accountType === null}
+      accountType={accountType}
     />,
   );
 }
