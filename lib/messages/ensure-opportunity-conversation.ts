@@ -48,7 +48,7 @@ export async function ensureOpportunityConversation(
 
   const { data: byOpportunity, error: opportunityLookupError } = await adminClient
     .from("conversations")
-    .select("id")
+    .select("id, application_id")
     .eq("opportunity_id", opportunityId)
     .eq("publisher_id", publisherId)
     .eq("talent_id", talentId)
@@ -61,7 +61,26 @@ export async function ensureOpportunityConversation(
     );
   }
 
-  if (byOpportunity?.id) return Number(byOpportunity.id);
+  if (byOpportunity?.id) {
+    if (applicationId !== null && byOpportunity.application_id == null) {
+      const { error: linkError } = await adminClient
+        .from("conversations")
+        .update({
+          application_id: applicationId,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", byOpportunity.id)
+        .is("application_id", null);
+
+      if (linkError) {
+        throw new Error(
+          `Failed to link application to opportunity conversation: ${linkError.message}`,
+        );
+      }
+    }
+
+    return Number(byOpportunity.id);
+  }
 
   const now = new Date().toISOString();
   const { data: created, error: createError } = await adminClient
