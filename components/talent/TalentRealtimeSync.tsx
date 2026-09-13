@@ -16,6 +16,7 @@ export default function TalentRealtimeSync({ userId, talentId }: Props) {
 
   useEffect(() => {
     const scheduleRefresh = () => {
+      if (document.visibilityState !== "visible") return;
       if (refreshTimer.current) clearTimeout(refreshTimer.current);
       refreshTimer.current = setTimeout(() => router.refresh(), 180);
     };
@@ -66,8 +67,25 @@ export default function TalentRealtimeSync({ userId, talentId }: Props) {
       )
       .subscribe();
 
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible" && navigator.onLine) {
+        router.refresh();
+      }
+    }
+
+    function handleOnline() {
+      if (document.visibilityState === "visible") {
+        router.refresh();
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("online", handleOnline);
+
     return () => {
       if (refreshTimer.current) clearTimeout(refreshTimer.current);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("online", handleOnline);
       void supabase.removeChannel(channel);
     };
   }, [router, talentId, userId]);
