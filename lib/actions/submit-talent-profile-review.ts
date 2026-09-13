@@ -120,8 +120,6 @@ export async function submitTalentProfileReviewAction(
     };
   }
 
-  // Production policy: every talent profile is reviewed by an admin before approval.
-  // Profile strength may be used later for prioritization, but never grants approval automatically.
   const submittedAt = new Date().toISOString();
   const previousProfileState = {
     onboarding_status: profile.onboarding_status,
@@ -157,8 +155,8 @@ export async function submitTalentProfileReviewAction(
       status: "pending",
       // A profile must never be public while it is awaiting admin review.
       published: false,
-      // verified is a separate paid/verified identity concept, never automatic approval.
-      verified: false,
+      // Verification is a separate identity/commercial state and must not be
+      // cleared merely because a profile is submitted or resubmitted for review.
     })
     .eq("user_id", user.id);
 
