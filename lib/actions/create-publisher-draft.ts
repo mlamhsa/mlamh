@@ -81,6 +81,22 @@ function fastTrackDescription({
     : `${roleLabel} using MLAMH for ${useCaseLabel}.`;
 }
 
+function fastTrackSubtype({
+  mode,
+  role,
+  useCase,
+  businessType,
+}: {
+  mode: "individual" | "business";
+  role: string;
+  useCase: string;
+  businessType: string;
+}) {
+  return mode === "business"
+    ? `fast:business:${businessType}`
+    : `fast:individual:${role}:${useCase}`;
+}
+
 export async function createPublisherDraftAction(
   _prevState: CreatePublisherDraftState,
   formData: FormData,
@@ -212,7 +228,7 @@ export async function createPublisherDraftAction(
 
     const { data: existingPublisher, error: publisherLookupError } = await adminClient
       .from("publishers")
-      .select("id, publisher_type, company_name, contact_name, phone, city, description, instagram")
+      .select("id, publisher_type, publisher_type_other, company_name, contact_name, phone, city, description, instagram")
       .eq("profile_id", profile.id)
       .maybeSingle();
 
@@ -253,6 +269,14 @@ export async function createPublisherDraftAction(
           businessType,
         })
       : null;
+    const subtype = isFastTrack
+      ? fastTrackSubtype({
+          mode: publisherMode as "individual" | "business",
+          role: publisherRole,
+          useCase,
+          businessType,
+        })
+      : null;
 
     if (existingPublisher) {
       const updateData: Record<string, string | null> = {
@@ -263,6 +287,7 @@ export async function createPublisherDraftAction(
       };
 
       if (isDraftAccount && isFastTrack) {
+        updateData.publisher_type_other = subtype;
         updateData.company_name = companyName || null;
         updateData.phone = phone;
         updateData.city = city;
@@ -287,6 +312,7 @@ export async function createPublisherDraftAction(
       const { error: insertError } = await adminClient.from("publishers").insert({
         profile_id: profile.id,
         publisher_type: publisherType,
+        publisher_type_other: subtype,
         contact_name: finalContactName,
         company_name: isFastTrack ? companyName || null : null,
         phone: isFastTrack ? phone : null,
