@@ -2,6 +2,7 @@ import { cache } from "react";
 
 import { getCachedValue } from "@/lib/cache/public-talents";
 import { findNationality } from "@/lib/data/nationalities";
+import { TALENT_CATEGORIES } from "@/lib/data/talent-categories";
 import type { CountryCode } from "@/lib/markets/countries";
 import {
   canExposePublicMarket,
@@ -58,6 +59,12 @@ type PublicTalentCandidate = Talent & {
 
 const DEFAULT_PUBLIC_MARKET: CountryCode = "SA";
 const PUBLIC_DIRECTORY_BATCH_SIZE = 100;
+const ACTIVE_PUBLIC_TALENT_ROLES = new Set(TALENT_CATEGORIES.map((category) => category.slug));
+
+function isActivePublicTalentRole(talent: Pick<Talent, "primary_role" | "category_slug">) {
+  const role = String(talent.primary_role ?? talent.category_slug ?? "").trim().toLowerCase();
+  return ACTIVE_PUBLIC_TALENT_ROLES.has(role);
+}
 
 const CATEGORY_ALIASES: Record<string, string[]> = {
   actor: ["actor", "actors", "acting", "ممثل", "ممثلة", "ممثلون", "تمثيل"],
@@ -297,6 +304,7 @@ async function getVisiblePublishedCandidates(options: VisiblePublishedCandidateO
     for (const candidate of candidates) {
       if (
         !canExposePublicTalent(candidate, countryCode) ||
+        !isActivePublicTalentRole(candidate) ||
         !passesPublicTalentVisibilityPolicy(candidate) ||
         !matchesSearch(candidate, search) ||
         !matchesCategory(candidate, category) ||
@@ -317,7 +325,7 @@ async function qualifySingleTalentCandidate(
   countryCode: CountryCode = DEFAULT_PUBLIC_MARKET,
   requirePublicVisibility = true,
 ): Promise<PublicTalentCandidate | null> {
-  if (!talent || !canExposePublicTalent(talent, countryCode)) return null;
+  if (!talent || !canExposePublicTalent(talent, countryCode) || !isActivePublicTalentRole(talent)) return null;
   const [candidate] = await attachProfileApprovalContext([talent]);
   if (!candidate) return null;
   if (requirePublicVisibility) return passesPublicTalentVisibilityPolicy(candidate) ? candidate : null;
@@ -374,7 +382,7 @@ export async function getPublicTalents(options: GetPublicTalentsOptions = {}): P
     return { talents: [], total: 0, totalPages: 1, currentPage: safePage, pageSize: safePageSize };
   }
   const cacheKey = [
-    "public-talents-v10",
+    "public-talents-v11",
     countryCode,
     safePage,
     safePageSize,
@@ -428,7 +436,7 @@ export async function getPublishedTalentById(
   countryCode: CountryCode = DEFAULT_PUBLIC_MARKET,
 ): Promise<Talent | null> {
   if (!canExposePublicMarket(countryCode, "publicTalentDirectory")) return null;
-  return getCachedValue(`published-talent:v8:${countryCode}:id:${id}`, async () => {
+  return getCachedValue(`published-talent:v9:${countryCode}:id:${id}`, async () => {
     const supabase = createAdminClient();
     let query = supabase
       .from("talents")
@@ -502,7 +510,7 @@ export async function getPublishedTalentBySlugForViewer(
 
 export async function getPublishedTalents(countryCode: CountryCode = DEFAULT_PUBLIC_MARKET): Promise<Talent[]> {
   if (!canExposePublicMarket(countryCode, "publicTalentDirectory")) return [];
-  return getCachedValue(`published-talents:v9:${countryCode}:all`, async () => {
+  return getCachedValue(`published-talents:v10:${countryCode}:all`, async () => {
     const { talents } = await getVisiblePublishedCandidates({ collectAll: true, countryCode });
     return talents;
   });
