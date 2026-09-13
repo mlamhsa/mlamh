@@ -10,9 +10,9 @@ Last updated: 2026-09-13
 - Work phase-by-phase; close and verify each phase before starting the next.
 
 ## Phase 1 — Publisher Onboarding
-Status: In progress / implementation complete on feature branch, pending PR/CI validation.
+Status: CLOSED / merged to `main` via PR #319 after successful Vercel validation.
 
-Implemented on `feat/publisher-onboarding-quick-requests`:
+Implemented:
 - Added three user-facing publisher choices:
   - Individual / Project owner
   - Store / Business
@@ -32,8 +32,19 @@ Implemented on `feat/publisher-onboarding-quick-requests`:
 - Added compatibility guard: established publisher accounts or accounts with existing opportunities are not rewritten by onboarding.
 - No talent, application, message, conversation, or opportunity records were modified.
 
+## Phase 2 — Quick Request Creation
+Status: NEXT
+
+Scope:
+- Keep existing `posting_mode=quick`; do not create a parallel request system.
+- Fast-track publishers go directly to a simple “What do you need?” flow.
+- Professional organizations may still choose Quick Request or Project / Casting.
+- Convert plain-language request text into structured existing opportunity fields.
+- Ask at most one essential follow-up question when required.
+- Show a structured preview before submission.
+- Keep current opportunity review behavior until payments are activated later.
+
 ## Remaining phases
-2. Quick Request Creation
 3. Public Opportunities
 4. Talent Dashboard
 5. Matching
