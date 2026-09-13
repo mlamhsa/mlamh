@@ -24,6 +24,7 @@ export async function requirePublisher(locale: string) {
       id,
       account_type,
       phone,
+      status,
       approval_status,
       onboarding_status,
       onboarding_step
