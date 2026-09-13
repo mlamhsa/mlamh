@@ -84,10 +84,11 @@ export function buildTalentMetadata({
   const image =
     talent.image_url || `${SITE_URL}/og-image.png`;
 
+  const normalizedStatus = String(talent.status ?? "").trim().toLowerCase();
   const isIndexable = Boolean(
     talent.slug &&
       talent.published &&
-      talent.status === "approved",
+      ["approved", "active"].includes(normalizedStatus),
   );
 
   return {
