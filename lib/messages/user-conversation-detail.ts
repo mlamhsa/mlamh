@@ -47,6 +47,62 @@ export async function getUserConversationDetail(userId: string, conversationId: 
   return { conversation: { id: conversation.id, opportunityId: conversation.opportunity_id, opportunityTitle: opportunityResult.data?.title ?? null, partyName, status: conversation.status }, messages };
 }
 
+async function createMessageNotification({
+  context,
+  senderUserId,
+  messageId,
+}: {
+  context: Context;
+  senderUserId: string;
+  messageId: string | number;
+}) {
+  const { admin, conversation, role } = context;
+  const recipientType = role === "publisher" ? "talent" : "publisher";
+  const recipientId = role === "publisher"
+    ? String(conversation.talent_id)
+    : String(conversation.publisher_id);
+
+  if (!recipientId || recipientId === "null" || recipientId === "undefined") return;
+
+  const { data: event, error: eventError } = await admin
+    .from("events")
+    .insert({
+      event_type: "message_created",
+      target_type: "conversation",
+      target_id: String(conversation.id),
+      actor_id: senderUserId,
+      metadata: {
+        conversationId: conversation.id,
+        messageId,
+        senderDashboard: role,
+        hasAttachment: false,
+      },
+    })
+    .select("id")
+    .single();
+
+  if (eventError || !event) {
+    console.error("[sendUserMessage:event]", eventError);
+    return;
+  }
+
+  const { error: notificationError } = await admin.from("notifications").insert({
+    event_id: event.id,
+    recipient_type: recipientType,
+    recipient_id: recipientId,
+    title: "رسالة جديدة / New message",
+    body: role === "publisher"
+      ? "لديك رسالة جديدة من الجهة الناشرة. / You have a new message from the publisher."
+      : "لديك رسالة جديدة من الموهبة. / You have a new message from the talent.",
+    is_read: false,
+    created_at: new Date().toISOString(),
+  });
+
+  if (notificationError) {
+    console.error("[sendUserMessage:notification]", notificationError);
+  }
+}
+
 export async function sendUserMessage(userId: string, conversationId: number, rawBody: unknown): Promise<SendMessageResult> {
   const body = typeof rawBody === "string" ? rawBody.trim() : "";
   if (!Number.isInteger(conversationId) || conversationId <= 0) return { ok: false, code: "INVALID_CONVERSATION" };
@@ -58,6 +114,7 @@ export async function sendUserMessage(userId: string, conversationId: number, ra
   const { data, error } = await context.admin.from("messages").insert({ conversation_id: conversationId, sender_user_id: userId, body }).select("id,conversation_id,sender_user_id,body,read_at,created_at").single();
   if (error || !data) return { ok: false, code: "INSERT_FAILED" };
   await context.admin.from("conversations").update({ updated_at: new Date().toISOString() }).eq("id", conversationId);
+  await createMessageNotification({ context, senderUserId: userId, messageId: data.id });
   return { ok: true, message: { id: data.id, conversationId: data.conversation_id, senderUserId: data.sender_user_id, body: data.body, readAt: data.read_at ?? null, createdAt: data.created_at, isMine: true } };
 }
 
@@ -66,5 +123,36 @@ export async function markUserConversationRead(userId: string, conversationId: n
   if (!context) return { ok: false as const, code: "NOT_FOUND" as const };
   const { data, error } = await context.admin.from("messages").update({ read_at: new Date().toISOString() }).eq("conversation_id", conversationId).neq("sender_user_id", userId).is("read_at", null).select("id");
   if (error) return { ok: false as const, code: "UPDATE_FAILED" as const };
+
+  const recipientType = context.role;
+  const recipientId = context.role === "talent"
+    ? String(context.conversation.talent_id)
+    : String(context.conversation.publisher_id);
+
+  const { data: messageEvents, error: eventError } = await context.admin
+    .from("events")
+    .select("id")
+    .eq("event_type", "message_created")
+    .eq("target_type", "conversation")
+    .eq("target_id", String(conversationId));
+
+  if (eventError) {
+    console.error("[markUserConversationRead:event]", eventError);
+  } else {
+    const eventIds = (messageEvents ?? []).map((event) => event.id);
+    if (eventIds.length > 0) {
+      const { error: notificationError } = await context.admin
+        .from("notifications")
+        .update({ is_read: true })
+        .in("event_id", eventIds)
+        .eq("recipient_type", recipientType)
+        .eq("recipient_id", recipientId)
+        .eq("is_read", false);
+      if (notificationError) {
+        console.error("[markUserConversationRead:notification]", notificationError);
+      }
+    }
+  }
+
   return { ok: true as const, count: data?.length ?? 0 };
 }
