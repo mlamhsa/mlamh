@@ -29,84 +29,63 @@ function buildNotification(
     getMetadataString(metadata, "locale") === "en"
       ? "en"
       : "ar";
-
   const isArabic = locale === "ar";
-
-  const title =
-    getMetadataString(metadata, "title");
-
-  const companyName =
-    getMetadataString(
-      metadata,
-      "company_name",
-    );
-
-  const reason =
-    getMetadataString(
-      metadata,
-      "reason",
-    );
+  const title = getMetadataString(metadata, "title");
+  const companyName = getMetadataString(metadata, "company_name");
+  const talentName = getMetadataString(metadata, "talent_name");
+  const reason = getMetadataString(metadata, "reason");
 
   switch (type) {
-    /*
-     * Talent review
-     */
     case "talent_created":
-  return {
-    title: isArabic
-      ? "ملف موهبة جديد بانتظار المراجعة"
-      : "New talent profile waiting for review",
+      return {
+        title: isArabic
+          ? "ملف موهبة جديد بانتظار المراجعة"
+          : "New talent profile waiting for review",
+        body:
+          talentName ||
+          (isArabic
+            ? "تم إرسال ملف موهبة جديد للمراجعة."
+            : "A new talent profile has been submitted for review."),
+      };
 
-    body:
-      getMetadataString(
-        metadata,
-        "talent_name",
-      ) ||
-      (isArabic
-        ? "تم إرسال ملف موهبة جديد للمراجعة."
-        : "A new talent profile has been submitted for review."),
-  };
-  case "talent_approved":
-    return {
-      title: isArabic
-        ? "تم اعتماد ملفك"
-        : "Your talent profile is approved",
-      body: isArabic
-        ? "تم اعتماد ملفك في ملامح، ويمكنك الآن التقديم على الفرص."
-        : "Your MLAMH talent profile has been approved. You can now apply to opportunities.",
-    };
+    case "talent_approved":
+      return {
+        title: isArabic
+          ? "تم اعتماد ملفك"
+          : "Your talent profile is approved",
+        body: isArabic
+          ? "تم اعتماد ملفك في ملامح، ويمكنك الآن التقديم على الفرص."
+          : "Your MLAMH talent profile has been approved. You can now apply to opportunities.",
+      };
 
     case "talent_changes_requested":
-  return {
-    title: isArabic
-      ? "ملفك بحاجة إلى تعديل"
-      : "Your talent profile needs changes",
-    body: reason
-      ? isArabic
-        ? `التعديلات المطلوبة: ${reason}`
-        : `Required changes: ${reason}`
-      : isArabic
-        ? "يرجى مراجعة ملفك وإجراء التعديلات المطلوبة ثم إرساله للمراجعة مرة أخرى."
-        : "Please review your profile, make the requested changes, and submit it again.",
-  };
+      return {
+        title: isArabic
+          ? "ملفك بحاجة إلى تعديل"
+          : "Your talent profile needs changes",
+        body: reason
+          ? isArabic
+            ? `التعديلات المطلوبة: ${reason}`
+            : `Required changes: ${reason}`
+          : isArabic
+            ? "يرجى مراجعة ملفك وإجراء التعديلات المطلوبة ثم إرساله للمراجعة مرة أخرى."
+            : "Please review your profile, make the requested changes, and submit it again.",
+      };
 
-  case "talent_rejected":
-    return {
-      title: isArabic
-        ? "لم يتم اعتماد ملفك"
-        : "Your talent profile was not approved",
-      body: reason
-        ? isArabic
-          ? `سبب عدم الاعتماد: ${reason}`
-          : `Reason: ${reason}`
-        : isArabic
-          ? "لم يتم اعتماد ملفك في المراجعة الحالية."
-          : "Your talent profile was not approved in the current review.",
-    };
+    case "talent_rejected":
+      return {
+        title: isArabic
+          ? "لم يتم اعتماد ملفك"
+          : "Your talent profile was not approved",
+        body: reason
+          ? isArabic
+            ? `سبب عدم الاعتماد: ${reason}`
+            : `Reason: ${reason}`
+          : isArabic
+            ? "لم يتم اعتماد ملفك في المراجعة الحالية."
+            : "Your talent profile was not approved in the current review.",
+      };
 
-    /*
-     * Publisher review
-     */
     case "publisher_verified":
       return {
         title: isArabic
@@ -122,11 +101,11 @@ function buildNotification(
         title: isArabic
           ? "حساب الناشر بحاجة إلى تعديل"
           : "Publisher profile needs changes",
-        body: reason
-          ? reason
-          : isArabic
+        body:
+          reason ||
+          (isArabic
             ? "يرجى استكمال التعديلات المطلوبة ثم إعادة إرسال الحساب للمراجعة."
-            : "Please make the requested changes and submit your publisher profile again.",
+            : "Please make the requested changes and submit your publisher profile again."),
       };
 
     case "publisher_rejected":
@@ -134,16 +113,13 @@ function buildNotification(
         title: isArabic
           ? "تم رفض حساب الناشر"
           : "Publisher profile rejected",
-        body: reason
-          ? reason
-          : isArabic
+        body:
+          reason ||
+          (isArabic
             ? "لم يتم اعتماد حساب الناشر."
-            : "Your publisher account was not approved.",
+            : "Your publisher account was not approved."),
       };
 
-    /*
-     * Opportunities
-     */
     case "opportunity_pending_review":
       return {
         title: isArabic
@@ -160,119 +136,151 @@ function buildNotification(
         body: title,
       };
 
-      case "opportunity_rejected":
-        return {
-          title: isArabic
-            ? "تم رفض الفرصة"
-            : "Opportunity rejected",
-      
-          body: reason
-            ? isArabic
-              ? `${title ? `الفرصة: ${title}\n` : ""}سبب الرفض: ${reason}`
-              : `${title ? `Opportunity: ${title}\n` : ""}Reason: ${reason}`
-            : title ||
-              (isArabic
-                ? "تم رفض الفرصة."
-                : "The opportunity was rejected."),
-        };
-      
-      case "opportunity_needs_changes":
-        return {
-          title: isArabic
-            ? "الفرصة بحاجة إلى تعديلات"
-            : "Opportunity needs changes",
-      
-          body: reason
-            ? isArabic
-              ? `${title ? `الفرصة: ${title}\n` : ""}التعديلات المطلوبة: ${reason}`
-              : `${title ? `Opportunity: ${title}\n` : ""}Required changes: ${reason}`
-            : title ||
-              (isArabic
-                ? "يرجى مراجعة الفرصة وإجراء التعديلات المطلوبة."
-                : "Please review the opportunity and make the requested changes."),
-        };
+    case "opportunity_rejected":
+      return {
+        title: isArabic
+          ? "تم رفض الفرصة"
+          : "Opportunity rejected",
+        body: reason
+          ? isArabic
+            ? `${title ? `الفرصة: ${title}\n` : ""}سبب الرفض: ${reason}`
+            : `${title ? `Opportunity: ${title}\n` : ""}Reason: ${reason}`
+          : title ||
+            (isArabic
+              ? "تم رفض الفرصة."
+              : "The opportunity was rejected."),
+      };
+
+    case "opportunity_needs_changes":
+      return {
+        title: isArabic
+          ? "الفرصة بحاجة إلى تعديلات"
+          : "Opportunity needs changes",
+        body: reason
+          ? isArabic
+            ? `${title ? `الفرصة: ${title}\n` : ""}التعديلات المطلوبة: ${reason}`
+            : `${title ? `Opportunity: ${title}\n` : ""}Required changes: ${reason}`
+          : title ||
+            (isArabic
+              ? "يرجى مراجعة الفرصة وإجراء التعديلات المطلوبة."
+              : "Please review the opportunity and make the requested changes."),
+      };
 
     case "opportunity_invitation":
       return {
         title: isArabic
-          ? "دعوة للتقديم"
-          : "Invitation to apply",
-
+          ? "دعوة لطلب أو فرصة"
+          : "Invitation to an opportunity",
         body: isArabic
           ? companyName
-            ? `تدعوك ${companyName} للتقديم على فرصة "${title}".`
-            : `تمت دعوتك للتقديم على فرصة "${title}".`
+            ? `تدعوك ${companyName} للتواصل بخصوص «${title || "طلب"}».`
+            : `لديك دعوة جديدة بخصوص «${title || "طلب"}».`
           : companyName
-            ? `${companyName} invited you to apply for "${title}".`
-            : `You were invited to apply for "${title}".`,
+            ? `${companyName} invited you to connect about “${title || "an opportunity"}”.`
+            : `You have a new invitation for “${title || "an opportunity"}”.`,
       };
 
-    /*
- * Applications
- */
-case "application_created":
-  return {
-    title: isArabic
-      ? "تم استلام طلب تقديم جديد"
-      : "New application received",
+    case "quick_request_interest":
+      return {
+        title: isArabic
+          ? "موهبة مهتمة بطلبك"
+          : "Talent interested in your request",
+        body: title
+          ? isArabic
+            ? `${talentName || "موهبة"} أبدت اهتمامها بطلب «${title}». يمكنك بدء المحادثة الآن.`
+            : `${talentName || "A talent"} is interested in “${title}”. You can start the conversation now.`
+          : isArabic
+            ? `${talentName || "موهبة"} أبدت اهتمامها بطلبك. يمكنك بدء المحادثة الآن.`
+            : `${talentName || "A talent"} is interested in your request. You can start the conversation now.`,
+      };
 
-    body: title
-      ? isArabic
-        ? `تم استلام طلب تقديم جديد على فرصة "${title}".`
-        : `A new application was received for "${title}".`
-      : isArabic
-        ? "تم استلام طلب تقديم جديد."
-        : "A new application was received.",
-  };
+    case "opportunity_invitation_accepted":
+      return {
+        title: isArabic
+          ? "تم قبول دعوتك"
+          : "Your invitation was accepted",
+        body: title
+          ? isArabic
+            ? `${talentName || "الموهبة"} قبلت دعوتك بخصوص «${title}».`
+            : `${talentName || "The talent"} accepted your invitation for “${title}”.`
+          : isArabic
+            ? `${talentName || "الموهبة"} قبلت دعوتك.`
+            : `${talentName || "The talent"} accepted your invitation.`,
+      };
 
-case "application_shortlisted":
-  return {
-    title: isArabic
-      ? "تم ترشيح طلبك"
-      : "Application shortlisted",
+    case "opportunity_invitation_declined":
+      return {
+        title: isArabic
+          ? "اعتذرت الموهبة عن الدعوة"
+          : "Talent declined the invitation",
+        body: title
+          ? isArabic
+            ? `${talentName || "الموهبة"} اعتذرت عن دعوتك بخصوص «${title}».`
+            : `${talentName || "The talent"} declined your invitation for “${title}”.`
+          : isArabic
+            ? `${talentName || "الموهبة"} اعتذرت عن دعوتك.`
+            : `${talentName || "The talent"} declined your invitation.`,
+      };
 
-    body: title
-      ? isArabic
-        ? `تم ترشيح طلبك للمرحلة التالية في فرصة "${title}".`
-        : `Your application for "${title}" has been shortlisted.`
-      : isArabic
-        ? "تم ترشيح طلبك للمرحلة التالية."
-        : "Your application has been shortlisted.",
-  };
+    case "application_created":
+      return {
+        title: isArabic
+          ? "تم استلام طلب تقديم جديد"
+          : "New application received",
+        body: title
+          ? isArabic
+            ? `تم استلام طلب تقديم جديد على فرصة "${title}".`
+            : `A new application was received for "${title}".`
+          : isArabic
+            ? "تم استلام طلب تقديم جديد."
+            : "A new application was received.",
+      };
 
-case "application_accepted":
-  return {
-    title: isArabic
-      ? "تم قبول طلب التقديم"
-      : "Application accepted",
+    case "application_shortlisted":
+      return {
+        title: isArabic
+          ? "تم ترشيح طلبك"
+          : "Application shortlisted",
+        body: title
+          ? isArabic
+            ? `تم ترشيح طلبك للمرحلة التالية في فرصة "${title}".`
+            : `Your application for "${title}" has been shortlisted.`
+          : isArabic
+            ? "تم ترشيح طلبك للمرحلة التالية."
+            : "Your application has been shortlisted.",
+      };
 
-    body: title
-      ? isArabic
-        ? `تم قبول طلبك في فرصة "${title}".`
-        : `Your application for "${title}" has been accepted.`
-      : isArabic
-        ? "تم قبول طلب التقديم الخاص بك."
-        : "Your application has been accepted.",
-  };
+    case "application_accepted":
+      return {
+        title: isArabic
+          ? "تم قبول طلب التقديم"
+          : "Application accepted",
+        body: title
+          ? isArabic
+            ? `تم قبول طلبك في فرصة "${title}".`
+            : `Your application for "${title}" has been accepted.`
+          : isArabic
+            ? "تم قبول طلب التقديم الخاص بك."
+            : "Your application has been accepted.",
+      };
 
-case "application_rejected":
-  return {
-    title: isArabic
-      ? "تم رفض طلب التقديم"
-      : "Application rejected",
-
-    body: reason
-      ? isArabic
-        ? `${title ? `الفرصة: ${title}\n` : ""}سبب الرفض: ${reason}`
-        : `${title ? `Opportunity: ${title}\n` : ""}Reason: ${reason}`
-      : title
-        ? isArabic
-          ? `لم يتم قبول طلبك في فرصة "${title}".`
-          : `Your application for "${title}" was not accepted.`
-        : isArabic
-          ? "لم يتم قبول طلب التقديم الخاص بك."
-          : "Your application was not accepted.",
-  };
+    case "application_rejected":
+      return {
+        title: isArabic
+          ? "تم رفض طلب التقديم"
+          : "Application rejected",
+        body: reason
+          ? isArabic
+            ? `${title ? `الفرصة: ${title}\n` : ""}سبب الرفض: ${reason}`
+            : `${title ? `Opportunity: ${title}\n` : ""}Reason: ${reason}`
+          : title
+            ? isArabic
+              ? `لم يتم قبول طلبك في فرصة "${title}".`
+              : `Your application for "${title}" was not accepted.`
+            : isArabic
+              ? "لم يتم قبول طلب التقديم الخاص بك."
+              : "Your application was not accepted.",
+      };
 
     default:
       return null;
@@ -293,32 +301,23 @@ export class NotificationHandler {
     targetId: string | number;
     metadata: Record<string, unknown>;
   }) {
-    const notification =
-      buildNotification(
-        type,
-        metadata,
-      );
+    const notification = buildNotification(type, metadata);
 
     if (!notification) {
       return;
     }
 
-    const adminClient =
-      createAdminClient();
+    const adminClient = createAdminClient();
 
-    const { error } =
-      await adminClient
-        .from("notifications")
-        .insert({
-          event_id: eventId,
-          recipient_type: target,
-          recipient_id:
-            String(targetId),
-          title:
-            notification.title,
-          body:
-            notification.body,
-        });
+    const { error } = await adminClient
+      .from("notifications")
+      .insert({
+        event_id: eventId,
+        recipient_type: target,
+        recipient_id: String(targetId),
+        title: notification.title,
+        body: notification.body,
+      });
 
     if (error) {
       console.error(
