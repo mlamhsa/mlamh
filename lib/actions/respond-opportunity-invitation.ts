@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { requireTalent } from "@/lib/auth/require-talent";
+import { createEvent, EVENT_TARGETS, EVENT_TYPES } from "@/lib/events";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type InvitationResponseState = {
@@ -118,9 +119,64 @@ export async function respondOpportunityInvitationAction(
     }
   }
 
+  const [opportunityResult, talentResult, conversationResult] = await Promise.all([
+    admin
+      .from("opportunities")
+      .select("title,slug")
+      .eq("id", invitation.opportunity_id)
+      .maybeSingle(),
+    admin
+      .from("talents")
+      .select("name_ar,name_en")
+      .eq("id", talent.id)
+      .maybeSingle(),
+    admin
+      .from("conversations")
+      .select("id,status")
+      .eq("opportunity_id", invitation.opportunity_id)
+      .eq("publisher_id", invitation.publisher_id)
+      .eq("talent_id", talent.id)
+      .eq("conversation_type", "publisher_talent")
+      .maybeSingle(),
+  ]);
+
+  if (opportunityResult.error) {
+    console.error("[respondOpportunityInvitationAction.opportunity]", opportunityResult.error);
+  }
+  if (talentResult.error) {
+    console.error("[respondOpportunityInvitationAction.talentName]", talentResult.error);
+  }
+  if (conversationResult.error) {
+    console.error("[respondOpportunityInvitationAction.conversation]", conversationResult.error);
+  }
+
+  await createEvent({
+    type:
+      response === "accepted"
+        ? EVENT_TYPES.opportunity_invitation_accepted
+        : EVENT_TYPES.opportunity_invitation_declined,
+    target: EVENT_TARGETS.PUBLISHER,
+    targetId: invitation.publisher_id,
+    metadata: {
+      locale,
+      invitationId: invitation.id,
+      opportunityId: invitation.opportunity_id,
+      opportunitySlug: opportunityResult.data?.slug ?? null,
+      title: opportunityResult.data?.title ?? "",
+      talentId: talent.id,
+      talent_name:
+        locale === "ar"
+          ? talentResult.data?.name_ar || talentResult.data?.name_en || ""
+          : talentResult.data?.name_en || talentResult.data?.name_ar || "",
+      conversationId: conversationResult.data?.id ?? null,
+      conversationStatus: conversationResult.data?.status ?? null,
+    },
+  });
+
   revalidatePath(`/${locale}/talent-dashboard/requests`);
   revalidatePath(`/${locale}/talent-dashboard/messages`);
   revalidatePath(`/${locale}/publisher-dashboard/messages`);
+  revalidatePath(`/${locale}/publisher-dashboard/notifications`);
   revalidatePath(`/${locale}/talent-dashboard`);
 
   return {
