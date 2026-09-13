@@ -103,7 +103,6 @@ async function getAuthenticatedParticipant(conversationId: number) {
     conversation.conversation_type === "mlamh_talent" &&
     conversation.admin_user_id === user.id
   ) {
-    // Shared message actions must enforce the same AAL2 gate as the admin UI.
     await requireAdminAccess();
     dashboard = "admin";
   }
@@ -139,8 +138,6 @@ export async function sendMessageAction(formData: FormData) {
     throw new Error("This conversation is not active.");
   }
 
-  // Expensive decoding and file-signature checks happen only after authentication,
-  // participant authorization and conversation-state validation.
   const safeAttachment = attachment
     ? await validateAndSanitizeMessageAttachment(attachment)
     : null;
@@ -270,26 +267,50 @@ export async function sendMessageAction(formData: FormData) {
           ? "لديك رسالة جديدة من الموهبة."
           : "You have a new message from the talent.";
 
-  const { error: notificationError } = await adminClient
-    .from("notifications")
+  // notifications.event_id is a real foreign key to events.id. Never reuse a
+  // conversation id here: it can point at an unrelated event and corrupt the
+  // notification/read relationship.
+  const { data: messageEvent, error: messageEventError } = await adminClient
+    .from("events")
     .insert({
-      event_id: conversationId,
-      recipient_type: notificationRecipientType,
-      recipient_id: notificationRecipientId,
-      title:
-        locale === "ar"
-          ? hasAttachment
-            ? "مرفق جديد"
-            : "رسالة جديدة"
-          : hasAttachment
-            ? "New attachment"
-            : "New message",
-      body: notificationBody,
-      is_read: false,
-      created_at: createdAt,
-    });
-  if (notificationError) {
-    console.error("Create message notification error:", notificationError);
+      event_type: "message_received",
+      target_type: "conversation",
+      target_id: String(conversationId),
+      actor_id: user.id,
+      metadata: {
+        conversation_id: conversationId,
+        message_id: createdMessage.id,
+        sender_dashboard: dashboard,
+        has_attachment: hasAttachment,
+      },
+    })
+    .select("id")
+    .single();
+
+  if (messageEventError || !messageEvent) {
+    console.error("Create message event error:", messageEventError);
+  } else {
+    const { error: notificationError } = await adminClient
+      .from("notifications")
+      .insert({
+        event_id: messageEvent.id,
+        recipient_type: notificationRecipientType,
+        recipient_id: notificationRecipientId,
+        title:
+          locale === "ar"
+            ? hasAttachment
+              ? "مرفق جديد"
+              : "رسالة جديدة"
+            : hasAttachment
+              ? "New attachment"
+              : "New message",
+        body: notificationBody,
+        is_read: false,
+        created_at: createdAt,
+      });
+    if (notificationError) {
+      console.error("Create message notification error:", notificationError);
+    }
   }
 
   revalidatePath(getConversationPath(locale, dashboard, conversationId));
@@ -329,10 +350,25 @@ export async function markConversationReadAction(conversationId: number) {
         ? String(conversation.admin_user_id)
         : String(conversation.publisher_id);
 
+  const { data: messageEvents, error: eventLookupError } = await adminClient
+    .from("events")
+    .select("id")
+    .eq("event_type", "message_received")
+    .eq("target_type", "conversation")
+    .eq("target_id", String(conversationId));
+
+  if (eventLookupError) {
+    console.error("Message notification event lookup error:", eventLookupError);
+    return;
+  }
+
+  const eventIds = (messageEvents ?? []).map((event) => event.id);
+  if (eventIds.length === 0) return;
+
   const { error: notificationError } = await adminClient
     .from("notifications")
     .update({ is_read: true })
-    .eq("event_id", conversationId)
+    .in("event_id", eventIds)
     .eq("recipient_type", recipientType)
     .eq("recipient_id", recipientId)
     .eq("is_read", false);
