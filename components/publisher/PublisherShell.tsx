@@ -225,7 +225,7 @@ export default function PublisherShell({ locale, isRtl, children }: Props) {
   if (isConversationRoute) {
     return (
       <main dir={isRtl ? "rtl" : "ltr"} className="min-h-screen bg-black text-white">
-        <section className="w-full [&>main]:!bg-transparent [&>main>div]:!max-w-none [&_aside]:!hidden">
+        <section className="w-full [&>main]:!bg-transparent [&>main>div]:!max-w-6xl">
           {children}
         </section>
       </main>
