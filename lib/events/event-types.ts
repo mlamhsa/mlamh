@@ -32,6 +32,7 @@ export const EVENT_TYPES = {
    * Publisher review workflow
    */
   publisher_created: "publisher_created",
+  publisher_approved: "publisher_approved",
   publisher_verified: "publisher_verified",
   publisher_changes_requested: "publisher_changes_requested",
   publisher_rejected: "publisher_rejected",
