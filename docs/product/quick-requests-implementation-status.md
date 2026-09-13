@@ -117,16 +117,31 @@ Implemented:
 - Phone/WhatsApp remain hidden; no migration/backfill.
 
 ## Phase 9 — Notifications + Statuses
+Status: CLOSED / merged to `main` via PR #332 after successful Vercel validation.
+
+Implemented:
+- Reused the existing Events → NotificationHandler → Notifications pipeline; no second notification system.
+- Added in-app events for Quick Request talent interest and publisher invitation accepted/declined responses.
+- Quick Request interest notifies the owning publisher with talent/request context and the linked conversation ID.
+- Opportunity invitation notifications carry the request-linked conversation ID so talent can open the related chat directly.
+- Invitation accepted/declined responses notify the publisher and route to the related conversation when available.
+- Notification routing verifies conversation ownership before redirecting either party into chat.
+- Fixed invitation consent semantics: opening an opportunity-invitation notification no longer changes `opportunity_invitations.status` to `viewed`; notification read state is stored only in `notifications.is_read`, preserving `sent → accepted/declined`.
+- Managed Casting invitation behavior and existing Casting application notification semantics remain unchanged.
+- New Quick Request events remain in-app only; no new email delivery was enabled.
+- No migration/backfill or phone/WhatsApp exposure.
+
+## Phase 10 — Trust / Anti-abuse
 Status: NEXT
 
 Scope:
-- Reuse the existing Events + Notifications foundation.
-- Add clear, request-aware notifications for Quick Request interest, publisher invitations, invitation responses and newly available conversations.
-- Keep statuses understandable across publisher and talent dashboards without creating a parallel workflow state machine.
-- Preserve existing Casting application notifications and accepted/rejected semantics.
-- Avoid duplicate notifications when actions are retried or already exist.
+- Reuse existing authentication, publisher/talent eligibility checks, reporting, conversation close controls and private contact rules.
+- Verify that Quick Request interest/invitation cannot bypass account restrictions, profile approval, talent visibility or publisher eligibility.
+- Prevent repeated invite/contact abuse without creating a new moderation platform.
+- Keep contact inside MLAMH and prevent accidental phone/WhatsApp exposure in Quick Request surfaces.
+- Preserve existing report flows and admin review paths; strengthen only where a concrete gap exists.
+- OTP/payment/business verification remain deferred and must not be simulated with misleading badges.
 - No migration/backfill unless separately reviewed.
 
 ## Remaining phases
-10. Trust / Anti-abuse
 11. Final Desktop + Mobile E2E
