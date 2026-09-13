@@ -90,6 +90,7 @@ export async function sendOpportunityInvitationsAction(
     userId: user.id,
     accountType: profile.account_type,
     approvalStatus: profile.approval_status,
+    profileStatus: profile.status,
     publisherVerified: publisher.verified,
     publisherVerificationStatus: publisher.verification_status,
     publisherStatus: publisher.status,
@@ -100,8 +101,8 @@ export async function sendOpportunityInvitationsAction(
       success: false,
       message:
         locale === "ar"
-          ? "حساب الناشر غير مؤهل لإرسال الدعوات. يجب أن يكون الحساب معتمدًا وموثقًا ونشطًا."
-          : "Your publisher account must be approved, verified, and active before sending invitations.",
+          ? "حساب الناشر غير مؤهل لإرسال الدعوات. يجب أن يكون الحساب معتمدًا ونشطًا."
+          : "Your publisher account must be approved and active before sending invitations.",
       sentCount: 0,
     };
   }

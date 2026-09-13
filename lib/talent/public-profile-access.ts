@@ -13,15 +13,35 @@ export type TalentProfileViewer = {
   publisherStatus?: string | null;
 };
 
-function isActiveVerifiedPublisher(viewer: TalentProfileViewer) {
+function isActiveApprovedPublisher(viewer: TalentProfileViewer) {
   const profileApproved = viewer.approvalStatus === "approved";
-  const publisherVerified = viewer.publisherVerified === true || viewer.publisherVerificationStatus === "verified";
-  const profileActive = !INACTIVE_PROFILE_STATUSES.has(viewer.profileStatus?.trim().toLowerCase() ?? "");
-  const publisherActive = !INACTIVE_PUBLISHER_STATUSES.has(viewer.publisherStatus?.trim().toLowerCase() ?? "");
-  return viewer.accountType === "publisher" && profileApproved && publisherVerified && profileActive && publisherActive;
+  const profileActive = !INACTIVE_PROFILE_STATUSES.has(
+    viewer.profileStatus?.trim().toLowerCase() ?? "",
+  );
+  const publisherActive = !INACTIVE_PUBLISHER_STATUSES.has(
+    viewer.publisherStatus?.trim().toLowerCase() ?? "",
+  );
+
+  return (
+    viewer.accountType === "publisher" &&
+    profileApproved &&
+    profileActive &&
+    publisherActive
+  );
 }
 
-export function canViewTalentProfile(viewer: TalentProfileViewer, talent: Pick<Talent, "user_id" | "profile_visibility">) {
+function isActiveVerifiedPublisher(viewer: TalentProfileViewer) {
+  const publisherVerified =
+    viewer.publisherVerified === true ||
+    viewer.publisherVerificationStatus === "verified";
+
+  return isActiveApprovedPublisher(viewer) && publisherVerified;
+}
+
+export function canViewTalentProfile(
+  viewer: TalentProfileViewer,
+  talent: Pick<Talent, "user_id" | "profile_visibility">,
+) {
   if (viewer.userId && talent.user_id && viewer.userId === talent.user_id) return true;
   if (viewer.accountType === "admin") return true;
 
@@ -31,14 +51,20 @@ export function canViewTalentProfile(viewer: TalentProfileViewer, talent: Pick<T
   return false;
 }
 
-export function canViewTalentPrivateContent(viewer: TalentProfileViewer, talentUserId?: string | null) {
+export function canViewTalentPrivateContent(
+  viewer: TalentProfileViewer,
+  talentUserId?: string | null,
+) {
   if (!viewer.userId) return false;
   if (talentUserId && viewer.userId === talentUserId) return true;
   if (viewer.accountType === "admin") return true;
   return isActiveVerifiedPublisher(viewer);
 }
 
-export function canViewTalentPhotos(viewer: TalentProfileViewer, talent: Pick<Talent, "user_id" | "photo_visibility">) {
+export function canViewTalentPhotos(
+  viewer: TalentProfileViewer,
+  talent: Pick<Talent, "user_id" | "photo_visibility">,
+) {
   if (viewer.userId && talent.user_id && viewer.userId === talent.user_id) return true;
   if (viewer.accountType === "admin") return true;
   const visibility = talent.photo_visibility ?? "public";
@@ -48,7 +74,11 @@ export function canViewTalentPhotos(viewer: TalentProfileViewer, talent: Pick<Ta
 }
 
 export function canRequestTalentFromProfile(viewer: TalentProfileViewer) {
-  return isActiveVerifiedPublisher(viewer);
+  // Requesting a talent is not the same permission as viewing private talent
+  // content. An approved, active publisher may send an opportunity-linked
+  // invitation; protected media/contact details still require real publisher
+  // verification through canViewTalentPrivateContent/canViewTalentPhotos.
+  return isActiveApprovedPublisher(viewer);
 }
 
 export function hideTalentPrivateContent(talent: Talent): Talent {
