@@ -1,0 +1,14 @@
+title = "MLAMH Gitleaks configuration"
+
+[extend]
+useDefault = true
+
+# Supabase sb_publishable_* keys are explicitly public browser credentials.
+# Restrict the exception to the NEXT_PUBLIC browser variable line only; service
+# role keys, JWT secrets, tokens, passwords, and any other findings still fail.
+[[allowlists]]
+description = "Allow Supabase public browser publishable key"
+regexTarget = "line"
+regexes = [
+  '''^\s*NEXT_PUBLIC_SUPABASE_ANON_KEY:\s+sb_publishable_[A-Za-z0-9_-]+\s*$'''
+]
