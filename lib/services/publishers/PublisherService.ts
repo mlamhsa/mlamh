@@ -36,11 +36,7 @@ export class PublisherService extends BaseService {
   }
 
   static async getById(id: number) {
-    this.assert(
-      id > 0,
-      "Invalid publisher id",
-    );
-
+    this.assert(id > 0, "Invalid publisher id");
     return PublisherRepository.getById(id);
   }
 
@@ -54,35 +50,16 @@ export class PublisherService extends BaseService {
       adminNote = null,
     }: PublisherReviewOptions,
   ): Promise<PublisherReviewResult> {
-    this.assert(
-      id > 0,
-      "Invalid publisher id",
-    );
+    this.assert(id > 0, "Invalid publisher id");
+    this.assert(Boolean(reviewerUserId), "Reviewer user id is required");
 
-    this.assert(
-      Boolean(reviewerUserId),
-      "Reviewer user id is required",
-    );
+    const publisher = await PublisherRepository.getById(id);
+    if (!publisher) throw new Error("Publisher not found.");
 
-    const publisher =
-      await PublisherRepository.getById(id);
+    const cleanReason = reason?.trim() || null;
+    const cleanAdminNote = adminNote?.trim() || null;
 
-    if (!publisher) {
-      throw new Error(
-        "Publisher not found.",
-      );
-    }
-
-    const cleanReason =
-      reason?.trim() || null;
-
-    const cleanAdminNote =
-      adminNote?.trim() || null;
-
-    if (
-      decision === "changes_requested" &&
-      !cleanReason
-    ) {
+    if (decision === "changes_requested" && !cleanReason) {
       throw new Error(
         locale === "ar"
           ? "سبب طلب التعديل مطلوب."
@@ -90,143 +67,75 @@ export class PublisherService extends BaseService {
       );
     }
 
-    if (
-      decision === "rejected" &&
-      !cleanReason
-    ) {
+    if (decision === "rejected" && !cleanReason) {
       throw new Error(
-        locale === "ar"
-          ? "سبب الرفض مطلوب."
-          : "A rejection reason is required.",
+        locale === "ar" ? "سبب الرفض مطلوب." : "A rejection reason is required.",
       );
     }
 
-    const previousStatus:
-      PublisherApprovalStatus =
-        publisher.approval_status ??
-        "not_submitted";
-
-    const previousVerified =
-      publisher.verified;
+    const previousStatus: PublisherApprovalStatus =
+      publisher.approval_status ?? "not_submitted";
 
     /*
-     * المصدر الرئيسي للحالة:
-     * profiles.approval_status
+     * Account approval and organization verification are intentionally separate.
+     * profiles.approval_status controls whether the publisher account may operate.
+     * publishers.verified / verification_status are changed only by the dedicated
+     * publisher verification workflow.
      */
     await PublisherRepository.updateApprovalStatus(
       publisher.profile_id,
       decision,
     );
 
-    /*
-     * publishers.verified أصبح حالة تشغيلية فقط.
-     * لا يكون true إلا عند الاعتماد.
-     */
-    try {
-      await PublisherRepository.updateVerification(
-        id,
-        decision === "approved",
-      );
-    } catch (error) {
-      /*
-       * Rollback لحالة profile إذا فشل
-       * تحديث publishers.
-       */
+    const adminClient = createAdminClient();
+    const { error: historyError } = await adminClient
+      .from("profile_review_history")
+      .insert({
+        profile_id: publisher.profile_id,
+        account_type: "publisher",
+        talent_id: null,
+        reviewer_user_id: reviewerUserId,
+        decision,
+        reason: cleanReason,
+        admin_note: cleanAdminNote,
+        previous_status: previousStatus,
+        new_status: decision,
+      });
+
+    if (historyError) {
       await PublisherRepository.updateApprovalStatus(
         publisher.profile_id,
         previousStatus,
       );
-
-      throw error;
-    }
-
-    /*
-     * تسجيل القرار في سجل المراجعة الموحد.
-     */
-    const adminClient =
-      createAdminClient();
-
-    const {
-      error: historyError,
-    } = await adminClient
-      .from("profile_review_history")
-      .insert({
-        profile_id:
-          publisher.profile_id,
-
-        account_type:
-          "publisher",
-
-        talent_id:
-          null,
-
-        reviewer_user_id:
-          reviewerUserId,
-
-        decision,
-
-        reason:
-          cleanReason,
-
-        admin_note:
-          cleanAdminNote,
-
-        previous_status:
-          previousStatus,
-
-        new_status:
-          decision,
-      });
-
-    if (historyError) {
-      /*
-       * سجل المراجعة جزء أساسي من القرار،
-       * لذلك نعيد الحالة السابقة إذا فشل.
-       */
-      await Promise.all([
-        PublisherRepository.updateApprovalStatus(
-          publisher.profile_id,
-          previousStatus,
-        ),
-
-        PublisherRepository.updateVerification(
-          id,
-          previousVerified,
-        ),
-      ]);
 
       throw new Error(
         `[PublisherService.review.history] ${historyError.message}`,
       );
     }
 
-    /*
-     * Events تستخدم للإشعارات فقط،
-     * وليست المصدر الأساسي لسجل المراجعة.
-     */
     const eventType =
       decision === "approved"
-        ? EVENT_TYPES.publisher_verified
+        ? EVENT_TYPES.publisher_approved
         : decision === "changes_requested"
           ? EVENT_TYPES.publisher_changes_requested
           : EVENT_TYPES.publisher_rejected;
 
-    await createEvent({
-      type: eventType,
-      target:
-        EVENT_TARGETS.PUBLISHER,
-      targetId: id,
-      actorId:
-        reviewerUserId,
-      metadata: {
-        publisherId: id,
-        profileId:
-          publisher.profile_id,
-        locale,
-        reason:
-          cleanReason,
-      },
-    });
+    try {
+      await createEvent({
+        type: eventType,
+        target: EVENT_TARGETS.PUBLISHER,
+        targetId: id,
+        actorId: reviewerUserId,
+        metadata: {
+          publisherId: id,
+          profileId: publisher.profile_id,
+          locale,
+          reason: cleanReason,
+        },
+      });
+    } catch (eventError) {
+      console.error("[PublisherService.review.event]", eventError);
+    }
 
     return {
       success: true,
@@ -234,72 +143,31 @@ export class PublisherService extends BaseService {
     };
   }
 
-  static async approve(
-    id: number,
-    options: PublisherReviewOptions,
-  ) {
-    return this.review(
-      id,
-      "approved",
-      options,
-    );
+  static async approve(id: number, options: PublisherReviewOptions) {
+    return this.review(id, "approved", options);
   }
 
-  static async requestChanges(
-    id: number,
-    options: PublisherReviewOptions,
-  ) {
-    return this.review(
-      id,
-      "changes_requested",
-      options,
-    );
+  static async requestChanges(id: number, options: PublisherReviewOptions) {
+    return this.review(id, "changes_requested", options);
   }
 
-  static async reject(
-    id: number,
-    options: PublisherReviewOptions,
-  ) {
-    return this.review(
-      id,
-      "rejected",
-      options,
-    );
+  static async reject(id: number, options: PublisherReviewOptions) {
+    return this.review(id, "rejected", options);
   }
 
   /*
-   * أبقينا markPending مؤقتًا فقط
-   * للتوافق مع أي جزء قديم من المشروع.
-   *
-   * لا نستخدمه في واجهة المراجعة الجديدة.
+   * Legacy compatibility only. Returning an account to pending review must not
+   * alter its independent organization-verification state.
    */
-  static async markPending(
-    id: number,
-  ) {
-    this.assert(
-      id > 0,
-      "Invalid publisher id",
+  static async markPending(id: number) {
+    this.assert(id > 0, "Invalid publisher id");
+
+    const publisher = await PublisherRepository.getById(id);
+    if (!publisher) throw new Error("Publisher not found.");
+
+    await PublisherRepository.updateApprovalStatus(
+      publisher.profile_id,
+      "pending",
     );
-
-    const publisher =
-      await PublisherRepository.getById(id);
-
-    if (!publisher) {
-      throw new Error(
-        "Publisher not found.",
-      );
-    }
-
-    await Promise.all([
-      PublisherRepository.updateApprovalStatus(
-        publisher.profile_id,
-        "pending",
-      ),
-
-      PublisherRepository.updateVerification(
-        id,
-        false,
-      ),
-    ]);
   }
 }
