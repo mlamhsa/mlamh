@@ -112,12 +112,30 @@ export async function GET(request: Request, { params }: RouteProps) {
   }
 
   const event = getRelatedEvent(typed.events);
-  if (!event?.event_type || !BOOKING_EVENTS.has(event.event_type)) {
-    return NextResponse.redirect(fallback);
-  }
+  if (!event?.event_type) return NextResponse.redirect(fallback);
 
   const conversationId = getPositiveInteger(event.metadata, "conversationId");
-  if (!conversationId) return NextResponse.redirect(fallback);
+
+  if (event.event_type === "message_created") {
+    if (!conversationId) return NextResponse.redirect(fallback);
+
+    const { data: conversation } = await admin
+      .from("conversations")
+      .select("id")
+      .eq("id", conversationId)
+      .eq("publisher_id", publisher.id)
+      .maybeSingle();
+
+    if (!conversation) return NextResponse.redirect(fallback);
+
+    return NextResponse.redirect(
+      new URL(`/${locale}/publisher-dashboard/messages/${conversation.id}`, origin),
+    );
+  }
+
+  if (!BOOKING_EVENTS.has(event.event_type) || !conversationId) {
+    return NextResponse.redirect(fallback);
+  }
 
   const { data: conversation } = await admin
     .from("conversations")
