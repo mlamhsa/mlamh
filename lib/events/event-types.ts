@@ -5,6 +5,9 @@ export const EVENT_TYPES = {
   opportunity_rejected: "opportunity_rejected",
   opportunity_needs_changes: "opportunity_needs_changes",
   opportunity_invitation: "opportunity_invitation",
+  opportunity_invitation_accepted: "opportunity_invitation_accepted",
+  opportunity_invitation_declined: "opportunity_invitation_declined",
+  quick_request_interest: "quick_request_interest",
 
   application_created: "application_created",
   application_shortlisted: "application_shortlisted",
