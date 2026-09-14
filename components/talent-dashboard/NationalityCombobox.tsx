@@ -159,7 +159,7 @@ export function NationalityCombobox({
                 <span className="text-base font-semibold text-white">{isArabic ? "اختر الجنسية" : "Select nationality"}</span>
                 <button type="button" onClick={closePicker} className="min-h-9 rounded-full border border-white/10 px-4 text-xs text-white/65">{isArabic ? "إغلاق" : "Close"}</button>
               </div>
-              <input autoFocus type="search" inputMode="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={isArabic ? "ابحث عن الجنسية أو الدولة..." : "Search nationality or country..."} autoComplete="off" className="w-full rounded-xl border border-white/10 bg-black px-4 py-3.5 text-base text-white outline-none placeholder:text-white/25 focus:border-gold/45 sm:py-3 sm:text-sm" />
+              <input type="search" inputMode="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={isArabic ? "ابحث عن الجنسية أو الدولة..." : "Search nationality or country..."} autoComplete="off" className="w-full rounded-xl border border-white/10 bg-black px-4 py-3.5 text-base text-white outline-none placeholder:text-white/25 focus:border-gold/45 sm:py-3 sm:text-sm" />
               <p className="mt-2 px-1 text-[11px] text-white/30">{isArabic ? "ابحث بالعربية أو الإنجليزية، باسم الجنسية أو الدولة." : "Search in Arabic or English by nationality or country."}</p>
             </div>
             <div role="listbox" className="max-h-[58dvh] overflow-y-auto overscroll-contain p-2 sm:max-h-80">
