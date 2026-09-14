@@ -1,6 +1,7 @@
 import type { ScenePublicArticle } from "@/lib/types/scene";
 
 const SITE_URL = "https://mlamh.net";
+const GENERATED_COVER_VERSION = "2";
 
 const REUSED_SITE_ASSETS = [
   "/images/home/hero-model.webp",
@@ -26,6 +27,7 @@ function getGeneratedSceneCoverUrl(article: SceneCoverArticle) {
     title: article.title,
     audience: article.audience,
     type: article.contentType,
+    v: GENERATED_COVER_VERSION,
   });
   return `${SITE_URL}/api/scene/cover?${params.toString()}`;
 }
