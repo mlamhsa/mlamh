@@ -61,7 +61,7 @@ export function EmailOtpVerification({ locale, email, accountType }: Props) {
           "Content-Type": "application/json",
           Accept: "application/json",
         },
-        body: JSON.stringify({ displayName, phone, accountType }),
+        body: JSON.stringify({ displayName, phone, accountType, accessToken }),
       });
       const payload = await response.json().catch(() => null) as { ok?: boolean; code?: string } | null;
       if (!response.ok || !payload?.ok) return { ok: false as const, code: payload?.code ?? "ACCOUNT_DETAILS_FAILED" };
@@ -93,23 +93,13 @@ export function EmailOtpVerification({ locale, email, accountType }: Props) {
     await continueAfterVerification();
   }
 
-  async function persistAndFinishSession(
-    supabase: ReturnType<typeof createBrowserSupabaseClient>,
-    session: { access_token: string; refresh_token: string; user: { email?: string | null; user_metadata?: Record<string, unknown> } },
+  async function finishVerifiedSession(
+    session: { access_token: string; user: { email?: string | null; user_metadata?: Record<string, unknown> } },
   ) {
-    const { data: persisted, error: persistError } = await supabase.auth.setSession({
-      access_token: session.access_token,
-      refresh_token: session.refresh_token,
-    });
-
-    if (persistError || !persisted.session) {
-      setError(isRtl ? "تم تأكيد البريد، لكن تعذر تثبيت جلسة الحساب. حدّث الصفحة وحاول مرة أخرى." : "Your email is verified, but we could not persist your account session. Refresh and try again.");
-      return;
-    }
-
-    const { data: confirmed } = await supabase.auth.getSession();
-    const stableSession = confirmed.session ?? persisted.session;
-    await finishWithSession(stableSession.access_token, stableSession.user);
+    // verifyOtp already establishes the browser session. Do not call setSession
+    // again here: Mobile Safari can reject the immediate refresh-token replay.
+    // Finalization authenticates with the OTP-issued access token directly.
+    await finishWithSession(session.access_token, session.user);
   }
 
   async function verify() {
@@ -129,7 +119,7 @@ export function EmailOtpVerification({ locale, email, accountType }: Props) {
       const existingSession = sessionData.session;
       const existingUserEmail = existingSession?.user.email?.trim().toLowerCase();
       if (existingSession && existingUserEmail === email.trim().toLowerCase() && existingSession.user.email_confirmed_at) {
-        await persistAndFinishSession(supabase, existingSession);
+        await finishVerifiedSession(existingSession);
         return;
       }
 
@@ -139,7 +129,7 @@ export function EmailOtpVerification({ locale, email, accountType }: Props) {
         return;
       }
 
-      await persistAndFinishSession(supabase, data.session);
+      await finishVerifiedSession(data.session);
     } catch {
       setError(isRtl ? "تعذر تأكيد البريد الآن. تحقق من اتصالك وحاول مرة أخرى." : "We could not verify your email right now. Check your connection and try again.");
     } finally { setLoading(false); }
