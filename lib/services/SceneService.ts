@@ -7,6 +7,10 @@ export class SceneService {
     return SceneRepository.getPublicCategories();
   }
 
+  static getPublicCategoryBySlug(slug: string) {
+    return SceneRepository.getPublicCategoryBySlug(slug);
+  }
+
   static getCategoriesForAdmin() {
     return SceneRepository.getCategoriesForAdmin();
   }
@@ -24,10 +28,7 @@ export class SceneService {
     return SceneRepository.getPublicArticleBySlug(slug);
   }
 
-  static getArticlesForAdmin(options?: {
-    status?: SceneArticleStatus;
-    limit?: number;
-  }) {
+  static getArticlesForAdmin(options?: { status?: SceneArticleStatus; limit?: number }) {
     return SceneRepository.getArticlesForAdmin(options);
   }
 
@@ -39,23 +40,11 @@ export class SceneService {
     return SceneRepository.createArticle(data);
   }
 
-  static updateArticle({
-    id,
-    data,
-  }: {
-    id: number;
-    data: Record<string, unknown>;
-  }) {
+  static updateArticle({ id, data }: { id: number; data: Record<string, unknown> }) {
     return SceneRepository.updateArticle(id, data);
   }
 
-  static updateCategory({
-    id,
-    data,
-  }: {
-    id: number;
-    data: Record<string, unknown>;
-  }) {
+  static updateCategory({ id, data }: { id: number; data: Record<string, unknown> }) {
     return SceneRepository.updateCategory(id, data);
   }
 }
