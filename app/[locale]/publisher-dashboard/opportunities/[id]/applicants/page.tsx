@@ -130,15 +130,15 @@ export default async function ApplicantsPage({
 
   if (!Number.isInteger(opportunityId) || opportunityId <= 0) {
     return (
-        <div className="rounded-[2rem] border border-red-400/20 bg-red-400/[0.04] p-8 text-red-200">
-          {isRtl ? "رابط الفرصة غير صحيح." : "Invalid opportunity link."}
-        </div>
+      <div className="rounded-[2rem] border border-red-400/20 bg-red-400/[0.04] p-8 text-red-200">
+        {isRtl ? "رابط الفرصة غير صحيح." : "Invalid opportunity link."}
+      </div>
     );
   }
 
   const { data: opportunity, error: opportunityError } = await adminClient
     .from("opportunities")
-    .select("id, title")
+    .select("id, title, posting_mode")
     .eq("id", opportunityId)
     .eq("publisher_id", publisher.id)
     .maybeSingle();
@@ -154,26 +154,28 @@ export default async function ApplicantsPage({
 
   if (!opportunity) {
     return (
-        <div className="rounded-[2rem] border border-white/10 bg-white/[0.035] p-8">
-          <p className="text-xs uppercase tracking-[0.35em] text-gold">
-            {isRtl ? "غير موجود" : "Not Found"}
-          </p>
+      <div className="rounded-[2rem] border border-white/10 bg-white/[0.035] p-8">
+        <p className="text-xs uppercase tracking-[0.35em] text-gold">
+          {isRtl ? "غير موجود" : "Not Found"}
+        </p>
 
-          <h1 className="mt-3 text-4xl font-light text-white">
-            {isRtl
-              ? "الفرصة غير موجودة أو لا تملك صلاحية الوصول"
-              : "Opportunity not found or access denied"}
-          </h1>
+        <h1 className="mt-3 text-4xl font-light text-white">
+          {isRtl
+            ? "الفرصة غير موجودة أو لا تملك صلاحية الوصول"
+            : "Opportunity not found or access denied"}
+        </h1>
 
-          <Link
-            href={`/${locale}/publisher-dashboard/opportunities`}
-            className="mt-6 inline-flex rounded-full border border-gold/40 px-5 py-3 text-xs uppercase tracking-[0.18em] text-gold transition hover:bg-gold hover:text-black"
-          >
-            {isRtl ? "العودة إلى الفرص" : "Back to Opportunities"}
-          </Link>
-        </div>
+        <Link
+          href={`/${locale}/publisher-dashboard/opportunities`}
+          className="mt-6 inline-flex rounded-full border border-gold/40 px-5 py-3 text-xs uppercase tracking-[0.18em] text-gold transition hover:bg-gold hover:text-black"
+        >
+          {isRtl ? "العودة إلى الفرص" : "Back to Opportunities"}
+        </Link>
+      </div>
     );
   }
+
+  const isQuickRequest = opportunity.posting_mode === "quick";
 
   const { data: applicationsData, error: applicationsError } =
     await adminClient
@@ -196,7 +198,7 @@ export default async function ApplicantsPage({
   const applicationIds = applications.map(
     (application) => application.id,
   );
-  
+
   const { data: conversationsData, error: conversationsError } =
     applicationIds.length > 0
       ? await adminClient
@@ -207,7 +209,7 @@ export default async function ApplicantsPage({
           data: [],
           error: null,
         };
-  
+
   if (conversationsError) {
     console.error("Applicants conversations error:", {
       message: conversationsError.message,
@@ -216,7 +218,7 @@ export default async function ApplicantsPage({
       code: conversationsError.code,
     });
   }
-  
+
   const conversationsByApplicationId = new Map(
     (conversationsData ?? []).map((conversation) => [
       String(conversation.application_id),
@@ -238,19 +240,19 @@ export default async function ApplicantsPage({
   const { data: talentsData, error: talentsError } =
     talentIds.length > 0
       ? await adminClient
-      .from("talents")
-      .select(`
-        id,
-        slug,
-        name_en,
-        name_ar,
-        image_url,
-        category_en,
-        category_ar,
-        city_en,
-        city_ar,
-        skills
-      `)
+          .from("talents")
+          .select(`
+            id,
+            slug,
+            name_en,
+            name_ar,
+            image_url,
+            category_en,
+            category_ar,
+            city_en,
+            city_ar,
+            skills
+          `)
           .in("id", talentIds)
       : {
           data: [],
@@ -274,16 +276,14 @@ export default async function ApplicantsPage({
   );
 
   const enrichedApplications = applications.map((application) => ({
-  ...application,
-
-  talent:
-    application.talent_id === null
-      ? null
-      : talentsById.get(String(application.talent_id)) ?? null,
-
-  conversationId:
-    conversationsByApplicationId.get(String(application.id)) ?? null,
-}));
+    ...application,
+    talent:
+      application.talent_id === null
+        ? null
+        : talentsById.get(String(application.talent_id)) ?? null,
+    conversationId:
+      conversationsByApplicationId.get(String(application.id)) ?? null,
+  }));
 
   const pendingCount = enrichedApplications.filter(
     (application) =>
@@ -354,7 +354,13 @@ export default async function ApplicantsPage({
     ],
     [
       "accepted",
-      isRtl ? `المقبولون (${acceptedCount})` : `Accepted (${acceptedCount})`,
+      isQuickRequest
+        ? isRtl
+          ? `المختارون (${acceptedCount})`
+          : `Selected (${acceptedCount})`
+        : isRtl
+          ? `المقبولون (${acceptedCount})`
+          : `Accepted (${acceptedCount})`,
     ],
     [
       "rejected",
@@ -363,153 +369,165 @@ export default async function ApplicantsPage({
   ] as const;
 
   return (
-      <div className="space-y-8">
-        <header className="rounded-[2.25rem] border border-white/10 bg-gradient-to-br from-white/[0.07] via-white/[0.03] to-gold/[0.05] p-6 sm:p-8">
-          <Link
-            href={`/${locale}/publisher-dashboard/opportunities/${opportunity.id}`}
-            className="text-sm text-gold underline underline-offset-4"
-          >
-            {isRtl ? "← العودة إلى تفاصيل الفرصة" : "← Back to Opportunity"}
-          </Link>
+    <div className="space-y-8">
+      <header className="rounded-[2.25rem] border border-white/10 bg-gradient-to-br from-white/[0.07] via-white/[0.03] to-gold/[0.05] p-6 sm:p-8">
+        <Link
+          href={`/${locale}/publisher-dashboard/opportunities/${opportunity.id}`}
+          className="text-sm text-gold underline underline-offset-4"
+        >
+          {isRtl ? "← العودة إلى تفاصيل الفرصة" : "← Back to Opportunity"}
+        </Link>
 
-          <p className="mt-7 text-xs uppercase tracking-[0.35em] text-gold">
-            {isRtl ? "إدارة المتقدمين" : "Applicants Management"}
-          </p>
+        <p className="mt-7 text-xs uppercase tracking-[0.35em] text-gold">
+          {isRtl ? "إدارة المتقدمين" : "Applicants Management"}
+        </p>
 
-          <h1 className="mt-4 text-4xl font-light text-white md:text-5xl">
-            {opportunity.title}
-          </h1>
+        <h1 className="mt-4 text-4xl font-light text-white md:text-5xl">
+          {opportunity.title}
+        </h1>
 
-          <p className="mt-4 max-w-2xl text-sm leading-7 text-white/45">
-            {isRtl
+        <p className="mt-4 max-w-2xl text-sm leading-7 text-white/45">
+          {isQuickRequest
+            ? isRtl
+              ? "راجع المواهب المهتمة، واختر من تريد متابعة التفاصيل معها عبر المحادثة."
+              : "Review interested talent and choose who you want to continue with in chat."
+            : isRtl
               ? "راجع الطلبات، رشّح المواهب المناسبة، وحدّث حالة كل طلب."
               : "Review applications, shortlist suitable talent, and update each application status."}
-          </p>
-        </header>
+        </p>
+      </header>
 
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-          <StatCard
-            label={isRtl ? "الإجمالي" : "Total"}
-            value={enrichedApplications.length}
-          />
-          <StatCard
-            label={isRtl ? "قيد المراجعة" : "Pending"}
-            value={pendingCount}
-          />
-          <StatCard
-            label={isRtl ? "المرشحون" : "Shortlisted"}
-            value={shortlistedCount}
-          />
-          <StatCard
-            label={isRtl ? "المقبولون" : "Accepted"}
-            value={acceptedCount}
-            highlighted
-          />
-          <StatCard
-            label={isRtl ? "المرفوضون" : "Rejected"}
-            value={rejectedCount}
-          />
-        </section>
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <StatCard
+          label={isRtl ? "الإجمالي" : "Total"}
+          value={enrichedApplications.length}
+        />
+        <StatCard
+          label={isRtl ? "قيد المراجعة" : "Pending"}
+          value={pendingCount}
+        />
+        <StatCard
+          label={isRtl ? "المرشحون" : "Shortlisted"}
+          value={shortlistedCount}
+        />
+        <StatCard
+          label={
+            isQuickRequest
+              ? isRtl
+                ? "المختارون"
+                : "Selected"
+              : isRtl
+                ? "المقبولون"
+                : "Accepted"
+          }
+          value={acceptedCount}
+          highlighted
+        />
+        <StatCard
+          label={isRtl ? "المرفوضون" : "Rejected"}
+          value={rejectedCount}
+        />
+      </section>
 
-        <section className="rounded-[2rem] border border-white/10 bg-white/[0.025] p-5 md:p-6">
-          <div className="mb-6 space-y-5">
-            <div className="flex flex-col justify-between gap-4 xl:flex-row xl:items-center">
-              <div className="flex flex-wrap gap-3">
-                {tabs.map(([value, label]) => (
-                  <Link
-                    key={value}
-                    href={buildApplicantsHref({
-                      locale,
-                      opportunityId,
-                      status: value,
-                      query: searchQuery,
-                    })}
-                    className={`rounded-full border px-5 py-3 text-xs uppercase tracking-[0.18em] transition ${
-                      selectedStatus === value
-                        ? "border-gold bg-gold/10 text-gold"
-                        : "border-white/10 text-white/50 hover:border-gold/40 hover:text-gold"
-                    }`}
-                  >
-                    {label}
-                  </Link>
-                ))}
-              </div>
-
-              <p className="text-sm text-white/35">
-                {isRtl
-                  ? `${filteredApplications.length} طلب معروض`
-                  : `${filteredApplications.length} shown`}
-              </p>
-            </div>
-
-            <form
-              action={`/${locale}/publisher-dashboard/opportunities/${opportunityId}/applicants`}
-              method="get"
-              className="flex flex-col gap-3 sm:flex-row"
-            >
-              {selectedStatus !== "all" ? (
-                <input type="hidden" name="status" value={selectedStatus} />
-              ) : null}
-
-              <input
-                type="search"
-                name="q"
-                defaultValue={searchQuery}
-                placeholder={
-                  isRtl
-                    ? "ابحث بالاسم أو المدينة أو التخصص أو المهارة..."
-                    : "Search by name, city, category, or skill..."
-                }
-                className="min-h-12 flex-1 rounded-2xl border border-white/10 bg-black/25 px-4 text-sm text-white outline-none placeholder:text-white/25 focus:border-gold/50"
-              />
-
-              <button
-                type="submit"
-                className="min-h-12 rounded-2xl border border-gold/40 bg-gold/[0.06] px-6 text-xs uppercase tracking-[0.18em] text-gold transition hover:bg-gold hover:text-black"
-              >
-                {isRtl ? "بحث" : "Search"}
-              </button>
-
-              {searchQuery ? (
+      <section className="rounded-[2rem] border border-white/10 bg-white/[0.025] p-5 md:p-6">
+        <div className="mb-6 space-y-5">
+          <div className="flex flex-col justify-between gap-4 xl:flex-row xl:items-center">
+            <div className="flex flex-wrap gap-3">
+              {tabs.map(([value, label]) => (
                 <Link
+                  key={value}
                   href={buildApplicantsHref({
                     locale,
                     opportunityId,
-                    status: selectedStatus,
+                    status: value,
+                    query: searchQuery,
                   })}
-                  className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-white/10 px-5 text-xs uppercase tracking-[0.18em] text-white/50 transition hover:border-white/30 hover:text-white"
+                  className={`rounded-full border px-5 py-3 text-xs uppercase tracking-[0.18em] transition ${
+                    selectedStatus === value
+                      ? "border-gold bg-gold/10 text-gold"
+                      : "border-white/10 text-white/50 hover:border-gold/40 hover:text-gold"
+                  }`}
                 >
-                  {isRtl ? "مسح البحث" : "Clear"}
+                  {label}
                 </Link>
-              ) : null}
-            </form>
+              ))}
+            </div>
+
+            <p className="text-sm text-white/35">
+              {isRtl
+                ? `${filteredApplications.length} طلب معروض`
+                : `${filteredApplications.length} shown`}
+            </p>
           </div>
 
-          {filteredApplications.length > 0 ? (
-            <div className="overflow-hidden rounded-[1.5rem] border border-white/10">
-              <div className="hidden grid-cols-[1.55fr_0.8fr_0.8fr_1.35fr] border-b border-white/10 bg-white/[0.03] px-5 py-4 text-xs uppercase tracking-[0.2em] text-white/35 lg:grid">
-                <div>{isRtl ? "الموهبة" : "Talent"}</div>
-                <div>{isRtl ? "تاريخ التقديم" : "Applied"}</div>
-                <div>{isRtl ? "الحالة" : "Status"}</div>
-                <div>{isRtl ? "الإجراءات" : "Actions"}</div>
-              </div>
+          <form
+            action={`/${locale}/publisher-dashboard/opportunities/${opportunityId}/applicants`}
+            method="get"
+            className="flex flex-col gap-3 sm:flex-row"
+          >
+            {selectedStatus !== "all" ? (
+              <input type="hidden" name="status" value={selectedStatus} />
+            ) : null}
 
-              <div className="divide-y divide-white/10">
-                {filteredApplications.map((application) => {
-                  const talent = application.talent;
-                  const currentStatus = application.status ?? "pending";
-                  const talentName = getTalentName(talent, isRtl);
-                  const category = getTalentCategory(talent, isRtl);
-                  const city = getTalentCity(talent, isRtl);
+            <input
+              type="search"
+              name="q"
+              defaultValue={searchQuery}
+              placeholder={
+                isRtl
+                  ? "ابحث بالاسم أو المدينة أو التخصص أو المهارة..."
+                  : "Search by name, city, category, or skill..."
+              }
+              className="min-h-12 flex-1 rounded-2xl border border-white/10 bg-black/25 px-4 text-sm text-white outline-none placeholder:text-white/25 focus:border-gold/50"
+            />
 
-                  return (
-                    <article
-                      key={application.id}
-                      className="grid gap-5 bg-black/20 p-5 transition hover:bg-gold/[0.035] lg:grid-cols-[1.55fr_0.8fr_0.8fr_1.35fr] lg:items-center"
-                    >
-                      <div className="flex items-center gap-4">
-                        {talent?.image_url ? (
-                          <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full border border-white/10">
+            <button
+              type="submit"
+              className="min-h-12 rounded-2xl border border-gold/40 bg-gold/[0.06] px-6 text-xs uppercase tracking-[0.18em] text-gold transition hover:bg-gold hover:text-black"
+            >
+              {isRtl ? "بحث" : "Search"}
+            </button>
+
+            {searchQuery ? (
+              <Link
+                href={buildApplicantsHref({
+                  locale,
+                  opportunityId,
+                  status: selectedStatus,
+                })}
+                className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-white/10 px-5 text-xs uppercase tracking-[0.18em] text-white/50 transition hover:border-white/30 hover:text-white"
+              >
+                {isRtl ? "مسح البحث" : "Clear"}
+              </Link>
+            ) : null}
+          </form>
+        </div>
+
+        {filteredApplications.length > 0 ? (
+          <div className="overflow-hidden rounded-[1.5rem] border border-white/10">
+            <div className="hidden grid-cols-[1.55fr_0.8fr_0.8fr_1.35fr] border-b border-white/10 bg-white/[0.03] px-5 py-4 text-xs uppercase tracking-[0.2em] text-white/35 lg:grid">
+              <div>{isRtl ? "الموهبة" : "Talent"}</div>
+              <div>{isRtl ? "تاريخ التقديم" : "Applied"}</div>
+              <div>{isRtl ? "الحالة" : "Status"}</div>
+              <div>{isRtl ? "الإجراءات" : "Actions"}</div>
+            </div>
+
+            <div className="divide-y divide-white/10">
+              {filteredApplications.map((application) => {
+                const talent = application.talent;
+                const currentStatus = application.status ?? "pending";
+                const talentName = getTalentName(talent, isRtl);
+                const category = getTalentCategory(talent, isRtl);
+                const city = getTalentCity(talent, isRtl);
+
+                return (
+                  <article
+                    key={application.id}
+                    className="grid gap-5 bg-black/20 p-5 transition hover:bg-gold/[0.035] lg:grid-cols-[1.55fr_0.8fr_0.8fr_1.35fr] lg:items-center"
+                  >
+                    <div className="flex items-center gap-4">
+                      {talent?.image_url ? (
+                        <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full border border-white/10">
                           <Image
                             src={talent.image_url}
                             alt={talentName}
@@ -518,203 +536,223 @@ export default async function ApplicantsPage({
                             className="object-cover"
                           />
                         </div>
-                        ) : (
-                          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-xl text-gold">
-                            {talentName.slice(0, 1)}
-                          </div>
-                        )}
+                      ) : (
+                        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-xl text-gold">
+                          {talentName.slice(0, 1)}
+                        </div>
+                      )}
 
-                        <div className="min-w-0">
-                          <h2 className="truncate text-xl font-light text-white">
-                            {talentName}
-                          </h2>
+                      <div className="min-w-0">
+                        <h2 className="truncate text-xl font-light text-white">
+                          {talentName}
+                        </h2>
 
-                          <p className="mt-1 text-sm text-white/45">
-                            {category} • {city}
-                          </p>
+                        <p className="mt-1 text-sm text-white/45">
+                          {category} • {city}
+                        </p>
 
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            {talent ? (
-                              <TalentPreviewModal
-                                talent={talent}
-                                locale={locale}
-                                isRtl={isRtl}
-                              />
-                            ) : null}
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {talent ? (
+                            <TalentPreviewModal
+                              talent={talent}
+                              locale={locale}
+                              isRtl={isRtl}
+                            />
+                          ) : null}
 
-                            {talent?.slug ? (
-                              <Link
-                                href={`/${locale}/talent/${talent.slug}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex rounded-full border border-white/15 px-4 py-2 text-xs text-white/60 transition hover:border-white/40 hover:text-white"
-                              >
-                                {isRtl ? "فتح الملف الكامل" : "Open Full Profile"}
-                              </Link>
-                            ) : null}
+                          {talent?.slug ? (
+                            <Link
+                              href={`/${locale}/talent/${talent.slug}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex rounded-full border border-white/15 px-4 py-2 text-xs text-white/60 transition hover:border-white/40 hover:text-white"
+                            >
+                              {isRtl ? "فتح الملف الكامل" : "Open Full Profile"}
+                            </Link>
+                          ) : null}
 
-{currentStatus === "accepted" &&
-application.conversationId ? (
-  <Link
-    href={`/${locale}/publisher-dashboard/messages/${application.conversationId}`}
-    className="inline-flex rounded-full border border-emerald-400/40 bg-emerald-400/[0.06] px-4 py-2 text-xs text-emerald-300 transition hover:bg-emerald-400 hover:text-black"
-  >
-    {isRtl ? "فتح المحادثة" : "Open Conversation"}
-  </Link>
-) : null}
-                          </div>
+                          {currentStatus === "accepted" &&
+                          application.conversationId ? (
+                            <Link
+                              href={`/${locale}/publisher-dashboard/messages/${application.conversationId}`}
+                              className="inline-flex rounded-full border border-emerald-400/40 bg-emerald-400/[0.06] px-4 py-2 text-xs text-emerald-300 transition hover:bg-emerald-400 hover:text-black"
+                            >
+                              {isRtl ? "فتح المحادثة" : "Open Conversation"}
+                            </Link>
+                          ) : null}
                         </div>
                       </div>
+                    </div>
 
-                      <div>
-                        <p className="text-sm text-white/55">
-                          {formatDate(application.created_at, locale)}
-                        </p>
-                      </div>
+                    <div>
+                      <p className="text-sm text-white/55">
+                        {formatDate(application.created_at, locale)}
+                      </p>
+                    </div>
 
-                      <div>
-                        <span
-                          className={`inline-flex rounded-full border px-3 py-1 text-[11px] uppercase tracking-[0.18em] ${statusClass(
-                            currentStatus,
-                          )}`}
-                        >
-                          {statusLabel(currentStatus, isRtl)}
-                        </span>
-                      </div>
+                    <div>
+                      <span
+                        className={`inline-flex rounded-full border px-3 py-1 text-[11px] uppercase tracking-[0.18em] ${statusClass(
+                          currentStatus,
+                        )}`}
+                      >
+                        {statusLabel(currentStatus, isRtl, isQuickRequest)}
+                      </span>
+                    </div>
 
-                      <div className="flex flex-wrap gap-2">
-                        {currentStatus === "pending" ? (
-                          <>
-                            <StatusButton
-                              applicationId={application.id}
-                              opportunityId={opportunityId}
-                              locale={locale}
-                              status="reviewing"
-                              label={isRtl ? "بدء المراجعة" : "Start Review"}
-                              className="border-amber-400/40 text-amber-300 hover:bg-amber-400"
-                            />
+                    <div className="flex flex-wrap gap-2">
+                      {currentStatus === "pending" ? (
+                        <>
+                          <StatusButton
+                            applicationId={application.id}
+                            opportunityId={opportunityId}
+                            locale={locale}
+                            status="reviewing"
+                            label={isRtl ? "بدء المراجعة" : "Start Review"}
+                            className="border-amber-400/40 text-amber-300 hover:bg-amber-400"
+                          />
 
-                            <StatusButton
-                              applicationId={application.id}
-                              opportunityId={opportunityId}
-                              locale={locale}
-                              status="shortlisted"
-                              label={isRtl ? "ترشيح" : "Shortlist"}
-                              className="border-blue-400/40 text-blue-300 hover:bg-blue-400"
-                            />
+                          <StatusButton
+                            applicationId={application.id}
+                            opportunityId={opportunityId}
+                            locale={locale}
+                            status="shortlisted"
+                            label={isRtl ? "ترشيح" : "Shortlist"}
+                            className="border-blue-400/40 text-blue-300 hover:bg-blue-400"
+                          />
 
-                            <StatusButton
-                              applicationId={application.id}
-                              opportunityId={opportunityId}
-                              locale={locale}
-                              status="rejected"
-                              label={isRtl ? "رفض" : "Reject"}
-                              className="border-red-400/40 text-red-300 hover:bg-red-400"
-                            />
-                          </>
-                        ) : null}
+                          <StatusButton
+                            applicationId={application.id}
+                            opportunityId={opportunityId}
+                            locale={locale}
+                            status="rejected"
+                            label={isRtl ? "رفض" : "Reject"}
+                            className="border-red-400/40 text-red-300 hover:bg-red-400"
+                          />
+                        </>
+                      ) : null}
 
-                        {currentStatus === "reviewing" ? (
-                          <>
-                            <StatusButton
-                              applicationId={application.id}
-                              opportunityId={opportunityId}
-                              locale={locale}
-                              status="shortlisted"
-                              label={isRtl ? "ترشيح" : "Shortlist"}
-                              className="border-blue-400/40 text-blue-300 hover:bg-blue-400"
-                            />
+                      {currentStatus === "reviewing" ? (
+                        <>
+                          <StatusButton
+                            applicationId={application.id}
+                            opportunityId={opportunityId}
+                            locale={locale}
+                            status="shortlisted"
+                            label={isRtl ? "ترشيح" : "Shortlist"}
+                            className="border-blue-400/40 text-blue-300 hover:bg-blue-400"
+                          />
 
-                            <StatusButton
-                              applicationId={application.id}
-                              opportunityId={opportunityId}
-                              locale={locale}
-                              status="accepted"
-                              label={isRtl ? "قبول" : "Accept"}
-                              className="border-emerald-400/40 text-emerald-300 hover:bg-emerald-400"
-                            />
+                          <StatusButton
+                            applicationId={application.id}
+                            opportunityId={opportunityId}
+                            locale={locale}
+                            status="accepted"
+                            label={
+                              isQuickRequest
+                                ? isRtl
+                                  ? "اختيار مبدئي"
+                                  : "Select"
+                                : isRtl
+                                  ? "قبول"
+                                  : "Accept"
+                            }
+                            className="border-emerald-400/40 text-emerald-300 hover:bg-emerald-400"
+                          />
 
-                            <StatusButton
-                              applicationId={application.id}
-                              opportunityId={opportunityId}
-                              locale={locale}
-                              status="rejected"
-                              label={isRtl ? "رفض" : "Reject"}
-                              className="border-red-400/40 text-red-300 hover:bg-red-400"
-                            />
-                          </>
-                        ) : null}
+                          <StatusButton
+                            applicationId={application.id}
+                            opportunityId={opportunityId}
+                            locale={locale}
+                            status="rejected"
+                            label={isRtl ? "رفض" : "Reject"}
+                            className="border-red-400/40 text-red-300 hover:bg-red-400"
+                          />
+                        </>
+                      ) : null}
 
-                        {currentStatus === "shortlisted" ? (
-                          <>
-                            <StatusButton
-                              applicationId={application.id}
-                              opportunityId={opportunityId}
-                              locale={locale}
-                              status="accepted"
-                              label={isRtl ? "قبول" : "Accept"}
-                              className="border-emerald-400/40 text-emerald-300 hover:bg-emerald-400"
-                            />
+                      {currentStatus === "shortlisted" ? (
+                        <>
+                          <StatusButton
+                            applicationId={application.id}
+                            opportunityId={opportunityId}
+                            locale={locale}
+                            status="accepted"
+                            label={
+                              isQuickRequest
+                                ? isRtl
+                                  ? "اختيار مبدئي"
+                                  : "Select"
+                                : isRtl
+                                  ? "قبول"
+                                  : "Accept"
+                            }
+                            className="border-emerald-400/40 text-emerald-300 hover:bg-emerald-400"
+                          />
 
-                            <StatusButton
-                              applicationId={application.id}
-                              opportunityId={opportunityId}
-                              locale={locale}
-                              status="rejected"
-                              label={isRtl ? "رفض" : "Reject"}
-                              className="border-red-400/40 text-red-300 hover:bg-red-400"
-                            />
-                          </>
-                        ) : null}
+                          <StatusButton
+                            applicationId={application.id}
+                            opportunityId={opportunityId}
+                            locale={locale}
+                            status="rejected"
+                            label={isRtl ? "رفض" : "Reject"}
+                            className="border-red-400/40 text-red-300 hover:bg-red-400"
+                          />
+                        </>
+                      ) : null}
 
-                        {currentStatus === "accepted" ||
-                        currentStatus === "rejected" ? (
-                          <span className="inline-flex rounded-full border border-white/10 px-3 py-2 text-xs text-white/35">
-                            {isRtl
+                      {currentStatus === "accepted" ||
+                      currentStatus === "rejected" ? (
+                        <span className="inline-flex rounded-full border border-white/10 px-3 py-2 text-xs text-white/35">
+                          {currentStatus === "accepted" && isQuickRequest
+                            ? isRtl
+                              ? "تم الاختيار المبدئي — أكمل عبر المحادثة"
+                              : "Preliminary selection — continue in chat"
+                            : isRtl
                               ? "تم اتخاذ القرار النهائي"
                               : "Final decision recorded"}
-                          </span>
-                        ) : null}
-                      </div>
-                    </article>
-                  );
+                        </span>
+                      ) : null}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-[1.5rem] border border-dashed border-white/10 bg-black/20 p-10 text-center">
+            <p className="text-lg font-light text-white">
+              {searchQuery
+                ? isRtl
+                  ? "لا توجد طلبات تطابق البحث والفلاتر المحددة"
+                  : "No applications match the search and selected filters"
+                : isRtl
+                  ? "لا يوجد متقدمون حتى الآن"
+                  : "No applicants yet"}
+            </p>
+
+            <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-white/40">
+              {isRtl
+                ? "ستظهر طلبات المواهب هنا فور التقديم على الفرصة."
+                : "Talent applications will appear here as soon as candidates apply."}
+            </p>
+
+            {searchQuery ? (
+              <Link
+                href={buildApplicantsHref({
+                  locale,
+                  opportunityId,
+                  status: selectedStatus,
                 })}
-              </div>
-            </div>
-          ) : (
-            <div className="rounded-[1.5rem] border border-dashed border-white/10 bg-black/20 p-10 text-center">
-              <p className="text-lg font-light text-white">
-                {searchQuery
-                  ? isRtl
-                    ? "لا توجد طلبات تطابق البحث والفلاتر المحددة"
-                    : "No applications match the search and selected filters"
-                  : isRtl
-                    ? "لا يوجد متقدمون حتى الآن"
-                    : "No applicants yet"}
-              </p>
-
-              <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-white/40">
-                {isRtl
-                  ? "ستظهر طلبات المواهب هنا فور التقديم على الفرصة."
-                  : "Talent applications will appear here as soon as candidates apply."}
-              </p>
-
-              {searchQuery ? (
-                <Link
-                  href={buildApplicantsHref({
-                    locale,
-                    opportunityId,
-                    status: selectedStatus,
-                  })}
-                  className="mt-6 inline-flex rounded-full border border-white/15 px-5 py-3 text-xs uppercase tracking-[0.18em] text-white/60 transition hover:border-white/40 hover:text-white"
-                >
-                  {isRtl ? "مسح البحث" : "Clear Search"}
-                </Link>
-              ) : null}
-            </div>
-          )}
-        </section>
-      </div>
+                className="mt-6 inline-flex rounded-full border border-white/15 px-5 py-3 text-xs uppercase tracking-[0.18em] text-white/60 transition hover:border-white/40 hover:text-white"
+              >
+                {isRtl ? "مسح البحث" : "Clear Search"}
+              </Link>
+            ) : null}
+          </div>
+        )}
+      </section>
+    </div>
   );
 }
 
@@ -766,14 +804,24 @@ function StatusButton({
   );
 }
 
-function statusLabel(status?: string | null, isRtl = false) {
+function statusLabel(
+  status?: string | null,
+  isRtl = false,
+  isQuickRequest = false,
+) {
   switch (status) {
     case "reviewing":
       return isRtl ? "قيد المراجعة" : "Reviewing";
     case "shortlisted":
       return isRtl ? "مرشح" : "Shortlisted";
     case "accepted":
-      return isRtl ? "مقبول" : "Accepted";
+      return isQuickRequest
+        ? isRtl
+          ? "مختار مبدئيًا"
+          : "Selected"
+        : isRtl
+          ? "مقبول"
+          : "Accepted";
     case "rejected":
       return isRtl ? "مرفوض" : "Rejected";
     default:
