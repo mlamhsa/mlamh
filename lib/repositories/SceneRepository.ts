@@ -87,6 +87,14 @@ export class SceneRepository extends BaseRepository {
     return query;
   }
 
+  static getArticleForAdminById(id: number) {
+    return this.client()
+      .from("scene_articles")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+  }
+
   static createArticle(values: Record<string, unknown>) {
     return this.client()
       .from("scene_articles")

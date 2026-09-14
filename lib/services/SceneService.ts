@@ -31,6 +31,10 @@ export class SceneService {
     return SceneRepository.getArticlesForAdmin(options);
   }
 
+  static getArticleForAdminById(id: number) {
+    return SceneRepository.getArticleForAdminById(id);
+  }
+
   static createArticle(data: Record<string, unknown>) {
     return SceneRepository.createArticle(data);
   }
