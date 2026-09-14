@@ -2,40 +2,38 @@ import type { ScenePublicArticle } from "@/lib/types/scene";
 
 const SITE_URL = "https://mlamh.net";
 
-export function getSceneCoverUrl(article: Pick<ScenePublicArticle, "coverImageUrl" | "slug" | "audience" | "contentType">) {
-  if (article.coverImageUrl) return article.coverImageUrl;
+const REUSED_SITE_ASSETS = [
+  "/images/home/hero-model.webp",
+  "/images/home/hero-actor.webp",
+  "/images/home/55.jpg",
+  "/images/hero-talent.jpg",
+  "/images/home/production-set.webp",
+];
 
-  if ([
-    "how-to-start-modeling-saudi-arabia",
-    "casting-profile-photo-guide",
-    "talent-portfolio-gallery-guide",
-    "actor-vs-model-casting",
-  ].includes(article.slug)) {
-    return `${SITE_URL}/images/home/hero-model.webp`;
+type SceneCoverArticle = Pick<
+  ScenePublicArticle,
+  "coverImageUrl" | "slug" | "title" | "audience" | "contentType"
+>;
+
+function isReusedSiteAsset(url: string | null) {
+  if (!url) return false;
+  return REUSED_SITE_ASSETS.some((path) => url === path || url === `${SITE_URL}${path}`);
+}
+
+function getGeneratedSceneCoverUrl(article: SceneCoverArticle) {
+  const params = new URLSearchParams({
+    slug: article.slug,
+    title: article.title,
+    audience: article.audience,
+    type: article.contentType,
+  });
+  return `${SITE_URL}/api/scene/cover?${params.toString()}`;
+}
+
+export function getSceneCoverUrl(article: SceneCoverArticle) {
+  if (article.coverImageUrl && !isReusedSiteAsset(article.coverImageUrl)) {
+    return article.coverImageUrl;
   }
 
-  if ([
-    "how-to-start-acting-saudi-arabia",
-    "casting-auditions-saudi-arabia",
-    "what-is-showreel-actors",
-    "first-audition-preparation",
-    "casting-call-vs-audition",
-  ].includes(article.slug)) {
-    return `${SITE_URL}/images/home/hero-actor.webp`;
-  }
-
-  if ([
-    "what-is-self-tape",
-    "quick-requests-on-mlamh",
-    "mlamh-chat-after-preliminary-selection",
-  ].includes(article.slug)) {
-    return `${SITE_URL}/images/home/55.jpg`;
-  }
-
-  if (article.audience === "talent") return `${SITE_URL}/images/hero-talent.jpg`;
-  if (article.audience === "publisher" || article.contentType === "industry") {
-    return `${SITE_URL}/images/home/production-set.webp`;
-  }
-
-  return `${SITE_URL}/images/home/55.jpg`;
+  return getGeneratedSceneCoverUrl(article);
 }
