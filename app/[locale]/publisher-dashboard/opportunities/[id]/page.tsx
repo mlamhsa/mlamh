@@ -351,7 +351,11 @@ function opportunityStatusLabel(status: string | null, isRtl: boolean) {
   }
 }
 
-function applicationStatusLabel(status: string | null, isRtl: boolean) {
+function applicationStatusLabel(
+  status: string | null,
+  isRtl: boolean,
+  isQuickRequest = false,
+) {
   switch (status) {
     case "pending":
       return isRtl ? "جديد" : "Pending";
@@ -360,7 +364,13 @@ function applicationStatusLabel(status: string | null, isRtl: boolean) {
     case "shortlisted":
       return isRtl ? "مرشح" : "Shortlisted";
     case "accepted":
-      return isRtl ? "مقبول" : "Accepted";
+      return isQuickRequest
+        ? isRtl
+          ? "مختار مبدئيًا"
+          : "Selected"
+        : isRtl
+          ? "مقبول"
+          : "Accepted";
     case "rejected":
       return isRtl ? "مرفوض" : "Rejected";
     default:
@@ -440,6 +450,8 @@ export default async function OpportunityDetailsPage({
   if (!opportunity) {
     notFound();
   }
+
+  const isQuickRequest = opportunity.posting_mode === "quick";
 
   let reviewReason: string | null = null;
 let reviewRequestedAt: string | null = null;
@@ -999,7 +1011,15 @@ if (normalizeKey(opportunity.opportunity_type) === "model") {
             value={shortlistedCount}
           />
           <InfoCard
-            label={isRtl ? "المقبولون" : "Accepted"}
+            label={
+              isQuickRequest
+                ? isRtl
+                  ? "المختارون"
+                  : "Selected"
+                : isRtl
+                  ? "المقبولون"
+                  : "Accepted"
+            }
             value={acceptedCount}
           />
           <InfoCard
@@ -1187,6 +1207,7 @@ if (normalizeKey(opportunity.opportunity_type) === "model") {
                         {applicationStatusLabel(
                           application.status ?? "pending",
                           isRtl,
+                          isQuickRequest,
                         )}
                       </span>
                     </div>
