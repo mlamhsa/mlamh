@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { syncApprovedTalentReadiness } from "@/lib/talent/sync-approved-talent-readiness";
 
 export type TalentVisibility = "public" | "private";
 
@@ -88,14 +89,23 @@ export async function updateOwnTalentVisibilityAction(
     };
   }
 
-  const approved = profile.approval_status === "approved";
-  const nextPublished = approved && visibility === "public";
+  if (profile.approval_status === "pending" || profile.approval_status === "submitted") {
+    return {
+      success: false,
+      message:
+        locale === "ar"
+          ? "لا يمكن تغيير طريقة ظهور الملف أثناء المراجعة."
+          : "Profile visibility cannot be changed while the profile is under review.",
+    };
+  }
 
+  // Fail closed first. Readiness sync below republishes an approved public profile
+  // only when every current hard gate is complete.
   const { error: updateError } = await admin
     .from("talents")
     .update({
       profile_visibility: visibility,
-      published: nextPublished,
+      published: false,
     })
     .eq("id", talent.id)
     .eq("user_id", user.id);
@@ -107,6 +117,23 @@ export async function updateOwnTalentVisibilityAction(
       message: locale === "ar" ? "تعذر حفظ خيار الظهور." : "Unable to save visibility.",
     };
   }
+
+  let readiness;
+  try {
+    readiness = await syncApprovedTalentReadiness(user.id);
+  } catch (error) {
+    console.error("[updateOwnTalentVisibilityAction:readiness]", error);
+    return {
+      success: false,
+      message:
+        locale === "ar"
+          ? "تم حفظ خيار الظهور، لكن تعذر تحديث جاهزية الملف. حاول مرة أخرى."
+          : "Visibility was saved, but profile readiness could not be refreshed. Please try again.",
+    };
+  }
+
+  const approved = profile.approval_status === "approved";
+  const ready = readiness?.isReady === true;
 
   revalidatePath(`/${locale}/talent-dashboard`);
   revalidatePath(`/${locale}/talent-dashboard/profile`);
@@ -127,13 +154,21 @@ export async function updateOwnTalentVisibilityAction(
       locale === "ar"
         ? visibility === "public"
           ? approved
-            ? "تم حفظ الخيار. ملفك العام متاح للظهور في دليل المواهب."
+            ? ready
+              ? "تم حفظ الخيار. ملفك العام متاح للظهور في دليل المواهب."
+              : "تم حفظ الخيار. ملفك معتمد، وسيظهر في الدليل تلقائيًا بعد إكمال المتطلبات الأساسية."
             : "تم حفظ الخيار. سيظهر ملفك في الدليل العام بعد الاعتماد."
-          : "تم حفظ الخيار. ملفك خاص ولن يظهر في دليل المواهب العام، وسيبقى متاحًا للمطابقة الخاصة."
+          : ready
+            ? "تم حفظ الخيار. ملفك خاص ولن يظهر في الدليل العام، وسيبقى متاحًا للمطابقة الخاصة."
+            : "تم حفظ الخيار. ملفك خاص، وستعود المطابقة تلقائيًا بعد إكمال المتطلبات الأساسية."
         : visibility === "public"
           ? approved
-            ? "Saved. Your public profile can appear in the talent directory."
+            ? ready
+              ? "Saved. Your public profile can appear in the talent directory."
+              : "Saved. Your profile is approved and will appear automatically after you complete the core requirements."
             : "Saved. Your profile can appear publicly after approval."
-          : "Saved. Your profile is private and hidden from the public directory while remaining eligible for private matching.",
+          : ready
+            ? "Saved. Your profile is private and hidden from the public directory while remaining eligible for private matching."
+            : "Saved. Your profile is private; matching will resume automatically after you complete the core requirements.",
   };
 }
