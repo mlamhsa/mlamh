@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 
+import { SceneCMS } from "@/lib/cms/SceneCMS";
 import { TALENT_CATEGORIES } from "@/lib/data/talent-categories";
 import { locales } from "@/lib/i18n";
 import { canIndexMarket } from "@/lib/markets/seo";
@@ -27,12 +28,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     return [];
   }
 
-  // getPublishedTalents already enforces approved + published + public visibility,
-  // so private Talent profiles can never enter the sitemap.
-  const [talents, opportunities] = await Promise.all([
+  // Public helpers below already enforce their own publication/visibility rules.
+  // Scene is intentionally fetched in one locale because only ids/slugs are needed
+  // to construct equivalent ar/en routes.
+  const [talents, opportunities, sceneCategories, sceneArticles] = await Promise.all([
     getPublishedTalents(SEO_MARKET).catch(() => []),
     getPublishedOpportunities(SEO_MARKET).catch(() => []),
+    SceneCMS.getPublicCategories("ar").catch(() => []),
+    SceneCMS.getPublicArticles({ locale: "ar", limit: 100 }).catch(() => []),
   ]);
+
   const activeOpportunities = opportunities.filter((opportunity) =>
     isOpportunityOpenForSeo(opportunity),
   );
@@ -41,6 +46,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/${locale}`, changeFrequency: "daily", priority: 1 },
     { url: `${SITE_URL}/${locale}/talent`, changeFrequency: "daily", priority: 0.9 },
     { url: `${SITE_URL}/${locale}/opportunities`, changeFrequency: "daily", priority: 0.9 },
+    { url: `${SITE_URL}/${locale}/scene`, changeFrequency: "daily", priority: 0.88 },
     { url: `${SITE_URL}/${locale}/casting`, changeFrequency: "weekly", priority: 0.85 },
     { url: `${SITE_URL}/${locale}/guides`, changeFrequency: "weekly", priority: 0.8 },
     { url: `${SITE_URL}/${locale}/publishers`, changeFrequency: "weekly", priority: 0.8 },
@@ -57,6 +63,23 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       url: `${SITE_URL}/${locale}/guides/${slug}`,
       changeFrequency: "monthly" as const,
       priority: 0.75,
+    })),
+  );
+
+  const sceneCategoryRoutes: MetadataRoute.Sitemap = sceneCategories.flatMap((category) =>
+    locales.map((locale) => ({
+      url: `${SITE_URL}/${locale}/scene/category/${category.slug}`,
+      changeFrequency: "weekly" as const,
+      priority: 0.78,
+    })),
+  );
+
+  const sceneArticleRoutes: MetadataRoute.Sitemap = sceneArticles.flatMap((article) =>
+    locales.map((locale) => ({
+      url: `${SITE_URL}/${locale}/scene/${article.slug}`,
+      lastModified: article.publishedAt ? new Date(article.publishedAt) : undefined,
+      changeFrequency: "monthly" as const,
+      priority: article.isFeatured ? 0.82 : 0.74,
     })),
   );
 
@@ -122,6 +145,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   return [
     ...staticRoutes,
     ...guideRoutes,
+    ...sceneCategoryRoutes,
+    ...sceneArticleRoutes,
     ...talentRoutes,
     ...categoryRoutes,
     ...cityRoutes,
