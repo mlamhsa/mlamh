@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { SlidersHorizontal } from "lucide-react";
 
-import { NATIONALITIES } from "@/lib/data/nationalities";
+import { NationalityCombobox } from "@/components/talent-dashboard/NationalityCombobox";
 import { SAUDI_CITIES } from "@/lib/data/saudi-cities";
 import { TALENT_CATEGORIES } from "@/lib/data/talent-categories";
 import type { Locale } from "@/lib/i18n";
@@ -128,17 +128,15 @@ export function TalentFilters({
               </select>
             </label>
 
-            <label className="grid gap-2">
+            <div className="grid gap-2">
               <span className="text-xs text-white/45">{isRtl ? "الجنسية" : "Nationality"}</span>
-              <select name="nationality" defaultValue={nationality ?? ""} className={fieldClass}>
-                <option value="">{isRtl ? "كل الجنسيات" : "All nationalities"}</option>
-                {NATIONALITIES.map((option) => (
-                  <option key={option.code} value={option.code}>
-                    {isRtl ? option.ar : option.en}
-                  </option>
-                ))}
-              </select>
-            </label>
+              <NationalityCombobox
+                locale={locale}
+                defaultValue={nationality}
+                name="nationality"
+                showLabel={false}
+              />
+            </div>
 
             <div className="grid gap-2">
               <span className="text-xs text-white/45">{isRtl ? "العمر" : "Age"}</span>
