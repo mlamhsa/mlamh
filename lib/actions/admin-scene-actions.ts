@@ -24,9 +24,7 @@ const STATUSES = new Set<SceneArticleStatus>(["draft", "published", "archived"])
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 type ParsedArticleData = Record<string, unknown> & { slug: string };
-type ArticleParseResult =
-  | { error: string; data?: never }
-  | { error?: never; data: ParsedArticleData };
+type ArticleParseResult = { error: string } | { data: ParsedArticleData };
 
 function value(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
@@ -141,11 +139,12 @@ export async function createSceneArticleAction(formData: FormData) {
   const locale: "ar" | "en" = formData.get("locale") === "en" ? "en" : "ar";
   const parsed = buildArticleValues(formData);
 
-  if (parsed.error) {
+  if ("error" in parsed) {
     redirect(sceneAdminUrl(locale, { error: parsed.error }));
   }
 
-  const result = await SceneService.createArticle(parsed.data);
+  const articleData = parsed.data;
+  const result = await SceneService.createArticle(articleData);
 
   if (result.error || !result.data) {
     console.error("[createSceneArticleAction]", result.error);
@@ -153,7 +152,7 @@ export async function createSceneArticleAction(formData: FormData) {
     redirect(sceneAdminUrl(locale, { error: code }));
   }
 
-  revalidateScene(parsed.data.slug);
+  revalidateScene(articleData.slug);
   redirect(sceneEditUrl(Number(result.data.id), locale, { saved: "1" }));
 }
 
@@ -173,11 +172,12 @@ export async function updateSceneArticleAction(formData: FormData) {
   }
 
   const parsed = buildArticleValues(formData);
-  if (parsed.error) {
+  if ("error" in parsed) {
     redirect(sceneEditUrl(id, locale, { error: parsed.error }));
   }
 
-  const result = await SceneService.updateArticle({ id, data: parsed.data });
+  const articleData = parsed.data;
+  const result = await SceneService.updateArticle({ id, data: articleData });
   if (result.error) {
     console.error("[updateSceneArticleAction]", result.error);
     const code = result.error.code === "23505" ? "duplicate_slug" : "update_failed";
@@ -185,6 +185,6 @@ export async function updateSceneArticleAction(formData: FormData) {
   }
 
   revalidateScene(String(existing.data.slug));
-  revalidateScene(parsed.data.slug);
+  revalidateScene(articleData.slug);
   redirect(sceneEditUrl(id, locale, { saved: "1" }));
 }
