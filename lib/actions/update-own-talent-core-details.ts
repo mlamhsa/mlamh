@@ -13,6 +13,7 @@ import {
   getEffectiveTalentApprovalStatus,
   isLegacyUnsubmittedTalentPending,
 } from "@/lib/talent/approval-status";
+import { syncApprovedTalentReadiness } from "@/lib/talent/sync-approved-talent-readiness";
 
 export type UpdateTalentCoreDetailsResult = {
   success: boolean;
@@ -94,14 +95,13 @@ export async function updateOwnTalentCoreDetailsAction(
     return { success: false, message: isArabic ? "تعذر العثور على ملف الموهبة." : "Talent profile could not be found." };
   }
 
-  const editableStatuses = new Set(["not_submitted", "rejected", "changes_requested"]);
   const approvalStatus = getEffectiveTalentApprovalStatus(profile);
-  if (!editableStatuses.has(approvalStatus)) {
+  if (approvalStatus === "pending" || approvalStatus === "submitted") {
     return {
       success: false,
       message: isArabic
-        ? "ملفك قيد المراجعة أو معتمد. تغييرات البيانات الأساسية تحتاج مسار مراجعة منفصل."
-        : "Your profile is under review or approved. Core identity changes require a separate review flow.",
+        ? "ملفك قيد المراجعة حاليًا. يمكنك تعديل بياناتك بعد صدور قرار المراجعة."
+        : "Your profile is currently under review. You can edit your details after the review decision is issued.",
     };
   }
 
@@ -145,9 +145,9 @@ export async function updateOwnTalentCoreDetailsAction(
     };
   }
 
-  // Draft-safe behavior: core fields are hard gates for review submission, not
-  // hard gates for saving. Preserve anything the talent has already entered and
-  // allow the remaining required fields to be completed over multiple visits.
+  // Core fields are hard gates for operational readiness, not hard gates for
+  // saving. Approved talents keep their approval; readiness is recalculated after
+  // the edit and controls public discovery/applications independently.
   const talentPayload: Record<string, unknown> = {};
 
   if (name) {
@@ -179,6 +179,12 @@ export async function updateOwnTalentCoreDetailsAction(
   }
   if (formData.has("profile_visibility") && profileVisibility) {
     talentPayload.profile_visibility = profileVisibility;
+  }
+
+  // Fail closed while an approved profile is being edited. The readiness sync
+  // below republishes it immediately only when all hard gates remain complete.
+  if (approvalStatus === "approved") {
+    talentPayload.published = false;
   }
 
   // Shared optional matching signals. These existed in the legacy profile and are
@@ -262,7 +268,7 @@ export async function updateOwnTalentCoreDetailsAction(
   }
   if (formData.has("data_accuracy_contact_consent") && profile.data_accuracy_contact_consent !== true) {
     // Consent is a review hard gate and is treated as monotonic once granted.
-    // This draft editor may grant it, but must not silently downgrade true to false.
+    // This editor may grant it, but must not silently downgrade true to false.
     profilePayload.data_accuracy_contact_consent = booleanValue(formData, "data_accuracy_contact_consent");
   }
 
@@ -283,10 +289,24 @@ export async function updateOwnTalentCoreDetailsAction(
     }
   }
 
+  try {
+    await syncApprovedTalentReadiness(user.id);
+  } catch (error) {
+    console.error("[updateOwnTalentCoreDetailsAction readiness]", error);
+    return {
+      success: false,
+      message: isArabic
+        ? "تم حفظ بياناتك، لكن تعذر تحديث جاهزية الملف. حاول الحفظ مرة أخرى."
+        : "Your details were saved, but profile readiness could not be refreshed. Please save again.",
+    };
+  }
+
   revalidatePath(`/${locale}/talent-dashboard`);
   revalidatePath(`/${locale}/talent-dashboard/profile`);
   revalidatePath(`/${locale}/talent-dashboard/profile/details`);
   revalidatePath(`/${locale}/talent-dashboard/profile/advanced`);
+  revalidatePath(`/${locale}/talent`);
+  revalidatePath("/admin/talents");
 
   if (talent.slug) {
     revalidatePath(`/ar/talent/${encodeURIComponent(talent.slug)}`);
