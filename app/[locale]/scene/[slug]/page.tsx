@@ -12,6 +12,7 @@ import {
 import { notFound } from "next/navigation";
 
 import { SceneArticleCard } from "@/components/scene/SceneArticleCard";
+import { SceneReadingExperience } from "@/components/scene/SceneReadingExperience";
 import { SceneCMS } from "@/lib/cms/SceneCMS";
 import { getSceneCoverUrl } from "@/lib/scene/cover-fallback";
 import type { ScenePublicArticle } from "@/lib/types/scene";
@@ -71,7 +72,7 @@ function renderArticleContent(content: string) {
   return blocks.map((block, index) => {
     if (block.startsWith("### ")) {
       return (
-        <h3 key={index} className="mt-10 text-xl font-medium leading-9 text-white sm:text-2xl">
+        <h3 key={index} className="mt-10 scroll-mt-32 text-[1.2rem] font-semibold leading-[1.7] text-white sm:mt-12 sm:text-[1.4rem]">
           {renderInlineContent(block.slice(4))}
         </h3>
       );
@@ -84,7 +85,7 @@ function renderArticleContent(content: string) {
         <h2
           key={index}
           className={[
-            "mt-12 text-2xl font-medium leading-10 sm:text-3xl",
+            "mt-14 scroll-mt-32 border-t border-white/[0.07] pt-9 text-[1.55rem] font-semibold leading-[1.55] sm:mt-16 sm:pt-10 sm:text-[1.9rem]",
             isSourceHeading ? "text-gold" : "text-white",
           ].join(" ")}
         >
@@ -97,7 +98,7 @@ function renderArticleContent(content: string) {
 
     if (lines.length > 0 && lines.every((line) => line.startsWith("- "))) {
       return (
-        <ul key={index} className="my-7 space-y-3 ps-5 text-base leading-8 text-white/72 marker:text-gold sm:text-lg">
+        <ul key={index} className="my-7 space-y-3.5 ps-5 text-[1.02rem] leading-[2] text-white/72 marker:text-gold sm:my-8 sm:text-[1.08rem] sm:leading-[2.05]">
           {lines.map((line, lineIndex) => (
             <li key={lineIndex}>{renderInlineContent(line.slice(2))}</li>
           ))}
@@ -107,7 +108,7 @@ function renderArticleContent(content: string) {
 
     if (lines.length > 0 && lines.every((line) => /^\d+\.\s/.test(line))) {
       return (
-        <ol key={index} className="my-7 list-decimal space-y-3 ps-6 text-base leading-8 text-white/72 marker:text-gold sm:text-lg">
+        <ol key={index} className="my-7 list-decimal space-y-3.5 ps-6 text-[1.02rem] leading-[2] text-white/72 marker:text-gold sm:my-8 sm:text-[1.08rem] sm:leading-[2.05]">
           {lines.map((line, lineIndex) => (
             <li key={lineIndex}>{renderInlineContent(line.replace(/^\d+\.\s/, ""))}</li>
           ))}
@@ -116,7 +117,7 @@ function renderArticleContent(content: string) {
     }
 
     return (
-      <p key={index} className="my-6 whitespace-pre-line text-base leading-9 text-white/72 sm:text-lg sm:leading-10">
+      <p key={index} className="my-6 whitespace-pre-line text-[1.03rem] leading-[2.05] text-white/72 sm:my-7 sm:text-[1.1rem] sm:leading-[2.1]">
         {renderInlineContent(block)}
       </p>
     );
@@ -237,7 +238,7 @@ export default async function SceneArticlePage({ params }: PageProps) {
     <main dir={isArabic ? "rtl" : "ltr"} className="min-h-screen bg-black text-white">
       <ArticleJsonLd article={article} locale={locale} />
 
-      <article>
+      <article data-scene-article>
         <header className="border-b border-white/[0.07] bg-[radial-gradient(circle_at_18%_8%,rgba(212,175,55,0.14),transparent_30%)]">
           <div className="mx-auto max-w-5xl px-4 py-9 sm:px-6 md:py-14 lg:px-8">
             <Link href={category ? `/${locale}/scene/category/${category.slug}` : `/${locale}/scene`} className="inline-flex items-center gap-2 text-xs text-white/40 transition hover:text-gold">
@@ -245,18 +246,18 @@ export default async function SceneArticlePage({ params }: PageProps) {
               {category?.name || (isArabic ? "مشهد ملامح" : "MLAMH Scene")}
             </Link>
 
-            <div className="mt-9 flex flex-wrap items-center gap-3 text-[10px] uppercase tracking-[0.18em] text-gold/80">
+            <div className="mt-8 flex flex-wrap items-center gap-3 text-[10px] uppercase tracking-[0.18em] text-gold/80 sm:mt-9">
               <span>MLAMH SCENE</span>
               {category ? <span className="text-white/25">/</span> : null}
               {category ? <span className="normal-case tracking-normal text-white/45">{category.name}</span> : null}
             </div>
 
-            <h1 className="mt-5 text-4xl font-light leading-[1.35] sm:text-5xl md:text-6xl md:leading-[1.3]">
+            <h1 className="mt-5 max-w-[18ch] text-[2.35rem] font-light leading-[1.35] tracking-[-0.02em] sm:text-5xl md:text-[3.55rem] md:leading-[1.3]">
               {article.title}
             </h1>
 
             {article.excerpt ? (
-              <p className="mt-6 max-w-4xl text-base leading-8 text-white/52 sm:text-xl sm:leading-9">
+              <p className="mt-6 max-w-3xl text-[1rem] leading-8 text-white/52 sm:text-[1.15rem] sm:leading-9">
                 {article.excerpt}
               </p>
             ) : null}
@@ -277,18 +278,25 @@ export default async function SceneArticlePage({ params }: PageProps) {
           </div>
         </header>
 
-        <div className="mx-auto max-w-6xl px-4 pt-8 sm:px-6 md:pt-12 lg:px-8">
-          <div className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/[0.02] sm:rounded-[2.25rem]">
+        <div className="mx-auto max-w-6xl px-4 pt-7 sm:px-6 md:pt-10 lg:px-8">
+          <div className="overflow-hidden rounded-[1.5rem] border border-white/10 bg-white/[0.02] sm:rounded-[2rem]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={coverUrl} alt={coverAlt} className="aspect-[16/8.5] w-full object-cover" />
           </div>
         </div>
 
-        <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 md:py-14 lg:px-8">
-          <div>{renderArticleContent(article.content)}</div>
+        <div className="mx-auto max-w-[820px] px-5 py-10 sm:px-8 md:py-16 lg:px-10">
+          <SceneReadingExperience
+            locale={locale}
+            title={article.title}
+            content={article.content}
+            readTimeMinutes={article.readTimeMinutes}
+          />
+
+          <div className={isArabic ? "text-right" : "text-left"}>{renderArticleContent(article.content)}</div>
 
           {article.tags.length > 0 ? (
-            <div className="mt-12 flex flex-wrap items-center gap-2 border-t border-white/[0.07] pt-7">
+            <div className="mt-14 flex flex-wrap items-center gap-2 border-t border-white/[0.07] pt-7">
               <Tag className="h-4 w-4 text-gold/70" />
               {article.tags.map((tag) => (
                 <span key={tag} className="rounded-full border border-white/10 bg-white/[0.025] px-3 py-1.5 text-xs text-white/45">
