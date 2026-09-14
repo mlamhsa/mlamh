@@ -8,7 +8,7 @@ const items = [
   { key: "home", ar: "المشهد", en: "Scene", href: "", icon: Sparkles },
   { key: "talent", ar: "للمواهب", en: "Talent", href: "/category/talent", icon: UserRound },
   { key: "publishers", ar: "للناشرين", en: "Publishers", href: "/category/publishers", icon: Building2 },
-  { key: "industry", ar: "الصناعة", en: "Industry", href: "/category/industry", icon: Clapperboard },
+  { key: "industry", ar: "الكاستنج والإنتاج", en: "Casting & Production", href: "/category/industry", icon: Clapperboard },
   { key: "using-mlamh", ar: "استخدام ملامح", en: "Using MLAMH", href: "/category/using-mlamh", icon: Compass },
   { key: "reports", ar: "تقارير ورؤى", en: "Reports", href: "/category/reports", icon: BookOpenText },
 ] as const;
