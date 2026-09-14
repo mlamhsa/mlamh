@@ -5,6 +5,7 @@ export type AnalyticsEventType =
   | "profile_completed"
   | "profile_submitted"
   | "profile_approved"
+  | "talent_profile_updated"
   | "opportunity_viewed"
   | "application_started"
   | "application_submitted"
