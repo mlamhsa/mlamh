@@ -4,6 +4,7 @@ import Link from "next/link";
 import { use, useEffect, useMemo, useState } from "react";
 
 import { NationalityCombobox } from "@/components/talent-dashboard/NationalityCombobox";
+import { SaudiCityCombobox } from "@/components/talent-dashboard/SaudiCityCombobox";
 import { updateOwnTalentBirthDateAction } from "@/lib/actions/update-own-talent-birth-date";
 import { updateOwnTalentCoreDetailsAction } from "@/lib/actions/update-own-talent-core-details";
 import { getOwnTalentProfileAction } from "@/lib/actions/update-own-talent-profile";
@@ -14,6 +15,7 @@ import {
   PROFILE_VISIBILITY_OPTIONS,
 } from "@/lib/data/talent-signup";
 import { normalizeNationalitySlug } from "@/lib/data/nationality-normalization";
+import { normalizeSaudiCitySlug } from "@/lib/data/saudi-cities";
 import { isValidLocale, type Locale } from "@/lib/i18n";
 
 type TalentRecord = Record<string, unknown> & {
@@ -84,7 +86,7 @@ export default function TalentRequiredFieldsPage({
         ),
       );
       setCountryCode(clean(talent.base_country_code).toUpperCase());
-      setCitySlug(clean(talent.city_slug));
+      setCitySlug(normalizeSaudiCitySlug(clean(talent.city_slug)));
       setBirthDate(clean(talent.date_of_birth).slice(0, 10));
       setVisibility(clean(talent.profile_visibility).toLowerCase());
       setConsent(talent.data_accuracy_contact_consent === true);
@@ -262,14 +264,20 @@ export default function TalentRequiredFieldsPage({
                   </select>
                 </Field>
 
-                <Field label={isArabic ? "المدينة" : "City"}>
-                  <select id="city" value={citySlug} onChange={(e) => setCitySlug(e.target.value)} disabled={!country} className="input">
-                    <option value="">{isArabic ? "اختر" : "Select"}</option>
-                    {(country?.cities ?? []).map((item) => (
-                      <option key={item.value} value={item.value}>{isArabic ? item.ar : item.en}</option>
-                    ))}
-                  </select>
-                </Field>
+                <div className="block">
+                  <span className="mb-2 block text-sm text-white/70">
+                    {isArabic ? "المدينة" : "City"}
+                  </span>
+                  <SaudiCityCombobox
+                    id="city"
+                    locale={locale}
+                    value={citySlug}
+                    onChange={setCitySlug}
+                    name=""
+                    showLabel={false}
+                    disabled={!country}
+                  />
+                </div>
 
                 <Field label={isArabic ? "تاريخ الميلاد" : "Date of birth"} hint={isArabic ? "بالتقويم الميلادي" : "Gregorian calendar"}>
                   <input id="date_of_birth" type="date" value={birthDate} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setBirthDate(e.target.value)} dir="ltr" className="input" />

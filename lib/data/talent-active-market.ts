@@ -1,10 +1,31 @@
-import { TALENT_SIGNUP_COUNTRIES } from "@/lib/data/talent-signup";
+import { SAUDI_CITIES } from "@/lib/data/saudi-cities";
+import { TALENT_SIGNUP_COUNTRIES, type TalentSignupCountry } from "@/lib/data/talent-signup";
 
 export const ACTIVE_TALENT_COUNTRY_CODES = ["SA"] as const;
 
-export const ACTIVE_TALENT_SIGNUP_COUNTRIES = TALENT_SIGNUP_COUNTRIES.filter((country) =>
-  ACTIVE_TALENT_COUNTRY_CODES.includes(country.code as (typeof ACTIVE_TALENT_COUNTRY_CODES)[number]),
-);
+const saudiBase = TALENT_SIGNUP_COUNTRIES.find((country) => country.code === "SA");
+
+const SAUDI_ACTIVE_COUNTRY: TalentSignupCountry = {
+  code: "SA",
+  dialCode: saudiBase?.dialCode ?? "+966",
+  ar: saudiBase?.ar ?? "السعودية",
+  en: saudiBase?.en ?? "Saudi Arabia",
+  phoneExample: saudiBase?.phoneExample ?? "5XXXXXXXX",
+  cities: SAUDI_CITIES.map((city) => ({
+    value: city.slug,
+    ar: city.ar,
+    en: city.en,
+  })),
+};
+
+// Keep legacy consumers of TALENT_SIGNUP_COUNTRIES aligned with the active Saudi
+// market without duplicating city data. This also removes the old "other" city
+// from server-side validation wherever the shared signup registry is reused.
+if (saudiBase) {
+  saudiBase.cities = SAUDI_ACTIVE_COUNTRY.cities;
+}
+
+export const ACTIVE_TALENT_SIGNUP_COUNTRIES: TalentSignupCountry[] = [SAUDI_ACTIVE_COUNTRY];
 
 export function isActiveTalentCountryCode(value: string | null | undefined) {
   const code = String(value ?? "").trim().toUpperCase();
