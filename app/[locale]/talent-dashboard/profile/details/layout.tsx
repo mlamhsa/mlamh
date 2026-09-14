@@ -92,21 +92,21 @@ export default function TalentProfileDetailsLayout({ children }: { children: Rea
                   {isArabic ? "الاعتماد محفوظ" : "Approval stays active"}
                 </span>
                 <span className="rounded-full border border-gold/20 bg-gold/[0.045] px-3 py-1 text-[11px] text-gold">
-                  {isArabic ? "حفظ مباشر للبيانات المهنية" : "Professional details save directly"}
+                  {isArabic ? "تعديل مباشر للملف" : "Direct profile editing"}
                 </span>
               </div>
               <p className="mt-4 text-sm leading-7 text-white/60">
                 {isArabic
-                  ? "تعديل البيانات المهنية لا يغيّر حالة اعتماد ملفك. البيانات الأساسية مثل الاسم والجوال والجنسية لها مسار منفصل."
-                  : "Professional edits do not change your approval status. Core identity details such as name, phone and nationality use a separate flow."}
+                  ? "يمكنك تعديل بياناتك المهنية والأساسية مباشرة بدون إعادة الاعتماد. إذا أصبح أحد المتطلبات الأساسية ناقصًا، تتوقف الجاهزية مؤقتًا حتى تكمله."
+                  : "You can edit professional and core details directly without re-approval. If a core requirement becomes incomplete, readiness pauses until you complete it again."}
               </p>
             </div>
 
             <Link
-              href={`/${locale}/talent-dashboard/profile/change-request`}
+              href={`/${locale}/talent-dashboard/profile/advanced#identity`}
               className="inline-flex min-h-12 shrink-0 items-center justify-center rounded-2xl border border-gold/30 bg-gold/[0.055] px-5 text-sm font-medium text-gold transition hover:bg-gold hover:text-black"
             >
-              {isArabic ? "طلب تعديل البيانات الأساسية" : "Request core detail changes"}
+              {isArabic ? "تعديل البيانات الأساسية" : "Edit core details"}
             </Link>
           </div>
         </section>
