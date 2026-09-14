@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { TalentFeaturedEntryPoint } from "@/components/payments/TalentFeaturedEntryPoint";
+import { SceneDashboardEntryPoint } from "@/components/scene/SceneDashboardEntryPoint";
 import { TalentBirthDateEnhancer } from "@/components/talent-dashboard/TalentBirthDateEnhancer";
 import { TalentImageUploadPendingEnhancer } from "@/components/talent-dashboard/TalentImageUploadPendingEnhancer";
 import { TalentProfileCanonicalFieldsV1 } from "@/components/talent-dashboard/TalentProfileCanonicalFieldsV1";
@@ -106,6 +107,7 @@ export default async function TalentDashboardLayout({
         notificationCount={notificationCount}
         unreadMessagesCount={unreadMessagesCount}
       >
+        <SceneDashboardEntryPoint locale={safeLocale} audience="talent" />
         {children}
       </TalentDashboardShell>
     </>
