@@ -22,6 +22,9 @@ function normalizeSearch(value: string) {
     .replace(/[\u064B-\u065F\u0670]/g, "")
     .replace(/[أإآ]/g, "ا")
     .replace(/ى/g, "ي")
+    // Normalize the common Arabic spellings used for casting so users can
+    // find the same content with كاستنج / كاستينج / كاستينغ.
+    .replace(/كاست(?:ينغ|ينج|نج)/g, "كاستنج")
     .replace(/\s+/g, " ")
     .trim();
 }

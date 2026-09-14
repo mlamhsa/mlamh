@@ -56,6 +56,24 @@ function normalizeApprovalStatus(value: unknown): ApprovalStatus {
     : "not_submitted";
 }
 
+function isSceneAuthTimingError(error: unknown) {
+  if (!error || typeof error !== "object") return false;
+  const candidate = error as { code?: unknown; message?: unknown };
+  return (
+    candidate.code === "PGRST303" &&
+    typeof candidate.message === "string" &&
+    candidate.message.toLowerCase().includes("jwt issued at future")
+  );
+}
+
+function logSceneReadError(scope: string, error: unknown) {
+  // A browser can briefly carry a token that PostgREST considers too new because
+  // of clock skew. Scene personalization is optional, so fall back to the public
+  // experience without polluting production error logs for this recoverable case.
+  if (isSceneAuthTimingError(error)) return;
+  console.error(scope, error);
+}
+
 async function getSceneContext(): Promise<SceneContext> {
   const emptyContext: SceneContext = {
     audience: null,
@@ -67,7 +85,13 @@ async function getSceneContext(): Promise<SceneContext> {
     const supabase = await createServerSupabaseClient();
     const {
       data: { user },
+      error: userError,
     } = await supabase.auth.getUser();
+
+    if (userError) {
+      logSceneReadError("[SceneLayout.auth]", userError);
+      return emptyContext;
+    }
 
     if (!user) return emptyContext;
 
@@ -78,7 +102,7 @@ async function getSceneContext(): Promise<SceneContext> {
       .maybeSingle();
 
     if (profileError) {
-      console.error("[SceneLayout.profile]", profileError);
+      logSceneReadError("[SceneLayout.profile]", profileError);
       return emptyContext;
     }
 
@@ -107,7 +131,7 @@ async function getSceneContext(): Promise<SceneContext> {
         .maybeSingle();
 
       if (publisherError || !publisher) {
-        if (publisherError) console.error("[SceneLayout.publisher]", publisherError);
+        if (publisherError) logSceneReadError("[SceneLayout.publisher]", publisherError);
         return { audience, talentState: null, publisherState: fallbackState };
       }
 
@@ -128,7 +152,7 @@ async function getSceneContext(): Promise<SceneContext> {
         .eq("publisher_id", publisher.id);
 
       if (opportunitiesError) {
-        console.error("[SceneLayout.publisherOpportunities]", opportunitiesError);
+        logSceneReadError("[SceneLayout.publisherOpportunities]", opportunitiesError);
       }
 
       const opportunityRows = opportunities ?? [];
@@ -142,7 +166,7 @@ async function getSceneContext(): Promise<SceneContext> {
           .in("opportunity_id", opportunityIds);
 
         if (applicationsError) {
-          console.error("[SceneLayout.publisherApplications]", applicationsError);
+          logSceneReadError("[SceneLayout.publisherApplications]", applicationsError);
         } else {
           applicantsCount = (applications ?? []).filter(
             (application) =>
@@ -175,7 +199,7 @@ async function getSceneContext(): Promise<SceneContext> {
       .maybeSingle();
 
     if (talentError) {
-      console.error("[SceneLayout.talent]", talentError);
+      logSceneReadError("[SceneLayout.talent]", talentError);
       return {
         audience,
         publisherState: null,
@@ -205,7 +229,7 @@ async function getSceneContext(): Promise<SceneContext> {
       },
     };
   } catch (error) {
-    console.error("[SceneLayout.context]", error);
+    logSceneReadError("[SceneLayout.context]", error);
     return emptyContext;
   }
 }
