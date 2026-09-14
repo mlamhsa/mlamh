@@ -104,7 +104,8 @@ export default function TalentRequiredFieldsPage({
     () => ACTIVE_TALENT_SIGNUP_COUNTRIES.find((item) => item.code === countryCode),
     [countryCode],
   );
-  const coreEditable = ["not_submitted", "rejected", "changes_requested"].includes(approvalStatus);
+  const isApproved = approvalStatus === "approved";
+  const coreEditable = !["submitted", "pending"].includes(approvalStatus);
 
   function selectCountry(value: string) {
     setCountryCode(value);
@@ -151,7 +152,15 @@ export default function TalentRequiredFieldsPage({
     }
 
     setSuccess(true);
-    setMessage(isArabic ? "تم حفظ البيانات المطلوبة بنجاح." : "Required profile details saved successfully.");
+    setMessage(
+      isApproved
+        ? isArabic
+          ? "تم حفظ تغييرات ملفك مباشرة، والاعتماد محفوظ."
+          : "Your profile changes were saved directly and approval remains active."
+        : isArabic
+          ? "تم حفظ البيانات المطلوبة بنجاح."
+          : "Required profile details saved successfully.",
+    );
     await load();
     setSaving(false);
   }
@@ -187,15 +196,23 @@ export default function TalentRequiredFieldsPage({
         <div className="mb-7 flex items-start justify-between gap-4">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-gold">
-              {isArabic ? "متطلبات الاعتماد" : "REVIEW REQUIREMENTS"}
+              {isApproved
+                ? isArabic ? "إدارة الملف" : "PROFILE SETTINGS"
+                : isArabic ? "متطلبات الاعتماد" : "REVIEW REQUIREMENTS"}
             </p>
             <h1 className="mt-2 text-3xl font-light sm:text-4xl">
-              {isArabic ? "أكمل بياناتك الأساسية" : "Complete your core details"}
+              {isApproved
+                ? isArabic ? "عدّل بيانات ملفك" : "Edit your profile details"
+                : isArabic ? "أكمل بياناتك الأساسية" : "Complete your core details"}
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-7 text-white/50">
-              {isArabic
-                ? "احفظ ما أدخلته في أي وقت. لا يلزم إكمال جميع الحقول في جلسة واحدة، لكن يجب اكتمالها قبل إرسال الملف للمراجعة."
-                : "Save whatever you have entered at any time. You do not need to finish every field in one session, but all are required before review submission."}
+              {isApproved
+                ? isArabic
+                  ? "يمكنك تعديل بيانات ملفك مباشرة في أي وقت بدون إعادة الاعتماد. بعد الحفظ يعيد ملامح حساب جاهزية الملف تلقائيًا."
+                  : "You can edit your profile directly at any time without re-approval. MLAMH recalculates profile readiness automatically after saving."
+                : isArabic
+                  ? "احفظ ما أدخلته في أي وقت. لا يلزم إكمال جميع الحقول في جلسة واحدة، لكن يجب اكتمالها قبل إرسال الملف للمراجعة."
+                  : "Save whatever you have entered at any time. You do not need to finish every field in one session, but all are required before review submission."}
             </p>
           </div>
           <Link href={`/${locale}/talent-dashboard/profile`} className="shrink-0 rounded-full border border-white/10 px-4 py-2 text-sm text-white/60 hover:text-gold">
@@ -206,11 +223,19 @@ export default function TalentRequiredFieldsPage({
         {!coreEditable ? (
           <div className="rounded-[2rem] border border-amber-300/20 bg-amber-300/[0.06] p-6 text-sm leading-7 text-amber-100">
             {isArabic
-              ? "البيانات الأساسية محمية لأن ملفك قيد المراجعة أو معتمد حاليًا."
-              : "Core profile details are protected while your profile is under review or approved."}
+              ? "البيانات الأساسية محمية مؤقتًا لأن ملفك قيد المراجعة حاليًا. يمكنك تعديلها بعد صدور القرار."
+              : "Core profile details are temporarily protected while your profile is under review. You can edit them after the decision."}
           </div>
         ) : (
           <form onSubmit={save} className="space-y-5" noValidate>
+            {isApproved ? (
+              <div className="rounded-[1.5rem] border border-emerald-400/20 bg-emerald-400/[0.05] p-4 text-sm leading-7 text-emerald-100">
+                {isArabic
+                  ? "اعتماد ملفك محفوظ. إذا أصبح أحد المتطلبات الأساسية ناقصًا، يتوقف الظهور والتقديم والمطابقة مؤقتًا حتى تكمله مرة أخرى."
+                  : "Your approval stays active. If a core requirement becomes incomplete, discovery, applications and matching pause until you complete it again."}
+              </div>
+            ) : null}
+
             <section className="rounded-[2rem] border border-white/10 bg-white/[0.025] p-5 sm:p-7">
               <div className="grid gap-5 sm:grid-cols-2">
                 <Field label={isArabic ? "الاسم الكامل" : "Full name"}>
@@ -318,7 +343,7 @@ export default function TalentRequiredFieldsPage({
 
             <div className="flex flex-col gap-3 sm:flex-row">
               <button type="submit" disabled={saving} className="min-h-12 rounded-2xl bg-gold px-7 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:opacity-40">
-                {saving ? (isArabic ? "جارٍ الحفظ..." : "Saving...") : (isArabic ? "حفظ ما أدخلته" : "Save what you've entered")}
+                {saving ? (isArabic ? "جارٍ الحفظ..." : "Saving...") : (isArabic ? "حفظ التغييرات" : "Save changes")}
               </button>
               <Link href={`/${locale}/talent-dashboard/profile`} className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-white/10 px-7 text-sm text-white/60 hover:border-gold/30 hover:text-gold">
                 {isArabic ? "العودة للملف" : "Back to profile"}
