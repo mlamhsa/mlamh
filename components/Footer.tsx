@@ -27,6 +27,10 @@ export async function Footer({
       href: `/${locale}/opportunities`,
     },
     {
+      label: isRtl ? "مشهد ملامح" : "MLAMH Scene",
+      href: `/${locale}/scene`,
+    },
+    {
       label: isRtl ? "إدارة الكاستينغ" : "Managed Casting",
       href: `/${locale}/casting`,
     },
