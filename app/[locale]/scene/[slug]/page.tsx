@@ -198,13 +198,10 @@ function ArticleJsonLd({ article, locale }: { article: ScenePublicArticle; local
     inLanguage: locale,
     datePublished: article.publishedAt,
     author: {
-      "@type": "Organization",
-      name: article.authorName || "MLAMH",
+      "@id": `${SITE_URL}/#organization`,
     },
     publisher: {
-      "@type": "Organization",
-      name: "MLAMH",
-      url: SITE_URL,
+      "@id": `${SITE_URL}/#organization`,
     },
     mainEntityOfPage: `${SITE_URL}/${locale}/scene/${article.slug}`,
     image: getSceneCoverUrl(article),
