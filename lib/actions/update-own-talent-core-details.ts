@@ -13,6 +13,7 @@ import {
   getEffectiveTalentApprovalStatus,
   isLegacyUnsubmittedTalentPending,
 } from "@/lib/talent/approval-status";
+import { recordTalentProfileSelfEdit } from "@/lib/talent/record-profile-self-edit";
 import { syncApprovedTalentReadiness } from "@/lib/talent/sync-approved-talent-readiness";
 
 export type UpdateTalentCoreDetailsResult = {
@@ -289,8 +290,9 @@ export async function updateOwnTalentCoreDetailsAction(
     }
   }
 
+  let readiness: Awaited<ReturnType<typeof syncApprovedTalentReadiness>> = null;
   try {
-    await syncApprovedTalentReadiness(user.id);
+    readiness = await syncApprovedTalentReadiness(user.id);
   } catch (error) {
     console.error("[updateOwnTalentCoreDetailsAction readiness]", error);
     return {
@@ -300,6 +302,18 @@ export async function updateOwnTalentCoreDetailsAction(
         : "Your details were saved, but profile readiness could not be refreshed. Please save again.",
     };
   }
+
+  await recordTalentProfileSelfEdit({
+    talentId: talent.id,
+    userId: user.id,
+    section: "core_details",
+    fields: [
+      ...Object.keys(talentPayload).filter((key) => key !== "published"),
+      ...Object.keys(profilePayload).filter((key) => key !== "approval_status"),
+    ],
+    approvalStatus,
+    isReady: readiness?.isReady ?? null,
+  });
 
   revalidatePath(`/${locale}/talent-dashboard`);
   revalidatePath(`/${locale}/talent-dashboard/profile`);
