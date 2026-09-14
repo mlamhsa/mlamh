@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowUpLeft, ArrowUpRight, Clock3 } from "lucide-react";
 
+import { getSceneCoverUrl } from "@/lib/scene/cover-fallback";
 import type { ScenePublicArticle } from "@/lib/types/scene";
 
 type Props = {
@@ -22,29 +23,22 @@ export function SceneArticleCard({ article, locale, priority = false }: Props) {
   const isArabic = locale === "ar";
   const typeLabel = TYPE_LABELS[article.contentType][locale];
   const ArrowIcon = isArabic ? ArrowUpLeft : ArrowUpRight;
+  const coverUrl = getSceneCoverUrl(article);
 
   return (
     <Link
       href={`/${locale}/scene/${article.slug}`}
       className="group flex h-full flex-col overflow-hidden rounded-[1.6rem] border border-white/10 bg-white/[0.025] transition duration-300 hover:-translate-y-1 hover:border-gold/25 hover:bg-white/[0.04]"
     >
-      <div className="relative aspect-[16/10] overflow-hidden border-b border-white/[0.06] bg-[radial-gradient(circle_at_30%_20%,rgba(212,175,55,0.16),transparent_36%),linear-gradient(145deg,#161616,#090909)]">
-        {article.coverImageUrl ? (
-          // Scene cover sources are managed by admins. A regular img keeps the CMS source flexible
-          // until the media pipeline is introduced in a later phase.
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={article.coverImageUrl}
-            alt={article.coverImageAlt}
-            loading={priority ? "eager" : "lazy"}
-            className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.025]"
-          />
-        ) : (
-          <div className="absolute inset-0 flex items-end p-5">
-            <span className="text-[10px] uppercase tracking-[0.38em] text-gold/70">MLAMH SCENE</span>
-          </div>
-        )}
-        <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/70 to-transparent" />
+      <div className="relative aspect-[16/10] overflow-hidden border-b border-white/[0.06] bg-[#101010]">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={coverUrl}
+          alt={article.coverImageAlt || article.title}
+          loading={priority ? "eager" : "lazy"}
+          className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.025]"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/5 to-black/10" />
         <span className="absolute end-4 top-4 rounded-full border border-white/15 bg-black/60 px-3 py-1.5 text-[10px] text-white/75 backdrop-blur-md">
           {typeLabel}
         </span>
