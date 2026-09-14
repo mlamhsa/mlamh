@@ -72,7 +72,7 @@ function displayStatusLabel(
   if (!isQuickRequest) return statusLabel(status, isArabic);
 
   if (status === "pending") return isArabic ? "مهتم" : "Interested";
-  if (status === "accepted") return isArabic ? "تم اختيارك" : "Selected";
+  if (status === "accepted") return isArabic ? "اختيار مبدئي" : "Preliminary selection";
   if (status === "rejected") return isArabic ? "تم الاعتذار" : "Not selected";
 
   return statusLabel(status, isArabic);
@@ -414,7 +414,7 @@ export default async function TalentRequestsPage({
     },
     {
       key: "accepted",
-      label: isArabic ? "مقبول / مختار" : "Accepted / Selected",
+      label: isArabic ? "مقبول / اختيار مبدئي" : "Accepted / Preliminary",
       value: counts.accepted,
       icon: "accepted" as const,
       className: "border-white/10 bg-white/[0.025]",
