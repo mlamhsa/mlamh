@@ -14,6 +14,7 @@ import { trackMarketingEvent } from "@/lib/marketing/events/track";
 import { ensureOpportunityConversation } from "@/lib/messages/ensure-opportunity-conversation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getTalentProfileReadiness } from "@/lib/talent/profile-review-readiness";
 
 export type ApplyResult = {
   status:
@@ -115,7 +116,7 @@ export async function applyToOpportunityAction(
 
   const { data: profile, error: profileError } = await adminClient
     .from("profiles")
-    .select("account_type, status, approval_status, phone")
+    .select("account_type, status, approval_status, phone, data_accuracy_contact_consent")
     .eq("user_id", user.id)
     .maybeSingle();
 
@@ -169,11 +170,13 @@ export async function applyToOpportunityAction(
       image_url,
       primary_role,
       category_slug,
+      base_country_code,
       city_slug,
       gender,
       nationality,
       nationality_slug,
       date_of_birth,
+      profile_visibility,
       bio_ar,
       bio_en,
       height_cm,
@@ -202,6 +205,23 @@ export async function applyToOpportunityAction(
         locale === "ar"
           ? "يجب إنشاء ملف موهبة قبل التقديم."
           : "Please create your talent profile before applying.",
+    };
+  }
+
+  const readiness = getTalentProfileReadiness({
+    ...talent,
+    phone: profile.phone,
+    data_accuracy_contact_consent:
+      profile.data_accuracy_contact_consent === true,
+  });
+
+  if (!readiness.isReady) {
+    return {
+      status: "unauthorized",
+      message:
+        locale === "ar"
+          ? "ملفك معتمد لكنه غير جاهز للتقديم حاليًا. أكمل المتطلبات الأساسية في ملفك ثم حاول مرة أخرى."
+          : "Your profile is approved but not currently ready to apply. Complete the core profile requirements and try again.",
     };
   }
 
