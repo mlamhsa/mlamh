@@ -2,12 +2,19 @@ import { NextResponse } from "next/server";
 
 import { getRequestUser } from "@/lib/auth/request-user";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 import {
   ensureTalentAccountFromSignupData,
   talentSignupDataFromMetadata,
 } from "@/lib/talent/ensure-talent-account";
 
 type AccountType = "talent" | "publisher";
+
+type RequestUser = {
+  id: string;
+  email: string | null;
+  metadata: Record<string, unknown>;
+};
 
 function isAccountType(value: unknown): value is AccountType {
   return value === "talent" || value === "publisher";
@@ -24,9 +31,34 @@ function isValidPhone(value: string) {
   return /^\+[1-9]\d{7,14}$/.test(value);
 }
 
+async function resolveRequestUser(request: Request): Promise<RequestUser | null> {
+  const bearerAuth = await getRequestUser(request);
+  if (bearerAuth.ok) return bearerAuth.user;
+
+  // Mobile Safari can finish OTP verification before the next request's
+  // Authorization header is accepted. The SSR browser client also persists the
+  // verified session in cookies, so use that canonical session as a fallback.
+  const serverSupabase = await createServerSupabaseClient();
+  const {
+    data: { user },
+    error,
+  } = await serverSupabase.auth.getUser();
+
+  if (error || !user) return null;
+
+  return {
+    id: user.id,
+    email: user.email ?? null,
+    metadata:
+      user.user_metadata && typeof user.user_metadata === "object" && !Array.isArray(user.user_metadata)
+        ? (user.user_metadata as Record<string, unknown>)
+        : {},
+  };
+}
+
 export async function POST(request: Request) {
-  const auth = await getRequestUser(request);
-  if (!auth.ok) return NextResponse.json({ ok: false, code: "UNAUTHENTICATED" }, { status: 401 });
+  const user = await resolveRequestUser(request);
+  if (!user) return NextResponse.json({ ok: false, code: "UNAUTHENTICATED" }, { status: 401 });
 
   let payload: { displayName?: unknown; phone?: unknown; accountType?: unknown } = {};
   try {
@@ -45,20 +77,20 @@ export async function POST(request: Request) {
   const admin = createAdminClient();
 
   if (accountType === "talent") {
-    const signupData = talentSignupDataFromMetadata(auth.user.metadata ?? {}, { displayName, phone });
+    const signupData = talentSignupDataFromMetadata(user.metadata ?? {}, { displayName, phone });
     if (!signupData) {
       return NextResponse.json({ ok: false, code: "MISSING_TALENT_SIGNUP_DATA" }, { status: 400 });
     }
 
     try {
-      await ensureTalentAccountFromSignupData(auth.user.id, signupData);
+      await ensureTalentAccountFromSignupData(user.id, signupData);
     } catch (error) {
       console.error("[account/details.ensureTalentAccount]", error);
       return NextResponse.json({ ok: false, code: "TALENT_ACCOUNT_FINALIZE_FAILED" }, { status: 500 });
     }
 
-    const currentMetadata = auth.user.metadata ?? {};
-    const { error: authUpdateError } = await admin.auth.admin.updateUserById(auth.user.id, {
+    const currentMetadata = user.metadata ?? {};
+    const { error: authUpdateError } = await admin.auth.admin.updateUserById(user.id, {
       user_metadata: {
         ...currentMetadata,
         full_name: signupData.displayName,
@@ -78,7 +110,7 @@ export async function POST(request: Request) {
   const { data: existingProfile, error: lookupError } = await admin
     .from("profiles")
     .select("id,account_type")
-    .eq("user_id", auth.user.id)
+    .eq("user_id", user.id)
     .maybeSingle();
 
   if (lookupError) return NextResponse.json({ ok: false, code: "PROFILE_LOOKUP_FAILED" }, { status: 500 });
@@ -98,11 +130,11 @@ export async function POST(request: Request) {
         updated_at: new Date().toISOString(),
       })
       .eq("id", existingProfile.id)
-      .eq("user_id", auth.user.id);
+      .eq("user_id", user.id);
     if (updateError) return NextResponse.json({ ok: false, code: "PROFILE_UPDATE_FAILED" }, { status: 500 });
   } else {
     const { error: insertError } = await admin.from("profiles").insert({
-      user_id: auth.user.id,
+      user_id: user.id,
       account_type: accountType,
       display_name: displayName,
       phone,
@@ -114,8 +146,8 @@ export async function POST(request: Request) {
     if (insertError) return NextResponse.json({ ok: false, code: "PROFILE_CREATE_FAILED" }, { status: 500 });
   }
 
-  const currentMetadata = auth.user.metadata ?? {};
-  const { error: authUpdateError } = await admin.auth.admin.updateUserById(auth.user.id, {
+  const currentMetadata = user.metadata ?? {};
+  const { error: authUpdateError } = await admin.auth.admin.updateUserById(user.id, {
     user_metadata: {
       ...currentMetadata,
       full_name: displayName,
