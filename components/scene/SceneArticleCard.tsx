@@ -28,9 +28,10 @@ export function SceneArticleCard({ article, locale, priority = false }: Props) {
   return (
     <Link
       href={`/${locale}/scene/${article.slug}`}
-      className="group flex h-full flex-col overflow-hidden rounded-[1.6rem] border border-white/10 bg-white/[0.025] transition duration-300 hover:-translate-y-1 hover:border-gold/25 hover:bg-white/[0.04]"
+      aria-label={article.title}
+      className="group flex h-full flex-col overflow-hidden rounded-[1.35rem] border border-white/10 bg-white/[0.025] transition duration-300 hover:-translate-y-1 hover:border-gold/25 hover:bg-white/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/45 focus-visible:ring-offset-2 focus-visible:ring-offset-black sm:rounded-[1.6rem]"
     >
-      <div className="relative aspect-[16/10] overflow-hidden border-b border-white/[0.06] bg-[#101010]">
+      <div className="relative aspect-[16/9] overflow-hidden border-b border-white/[0.06] bg-[#101010] sm:aspect-[16/10]">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={coverUrl}
@@ -39,12 +40,12 @@ export function SceneArticleCard({ article, locale, priority = false }: Props) {
           className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.025]"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/5 to-black/10" />
-        <span className="absolute end-4 top-4 rounded-full border border-white/15 bg-black/60 px-3 py-1.5 text-[10px] text-white/75 backdrop-blur-md">
+        <span className="absolute end-3 top-3 rounded-full border border-white/15 bg-black/60 px-2.5 py-1 text-[10px] text-white/75 backdrop-blur-md sm:end-4 sm:top-4 sm:px-3 sm:py-1.5">
           {typeLabel}
         </span>
       </div>
 
-      <div className="flex flex-1 flex-col p-5 sm:p-6">
+      <div className="flex flex-1 flex-col p-4 sm:p-6">
         <div className="flex items-center gap-3 text-[10px] text-white/35">
           {article.readTimeMinutes ? (
             <span className="inline-flex items-center gap-1.5">
@@ -55,14 +56,14 @@ export function SceneArticleCard({ article, locale, priority = false }: Props) {
           {article.authorName ? <span>{article.authorName}</span> : null}
         </div>
 
-        <h3 className="mt-3 text-xl font-medium leading-[1.55] text-white/95 sm:text-2xl">
+        <h3 className="mt-3 text-lg font-medium leading-[1.55] text-white/95 sm:text-2xl">
           {article.title}
         </h3>
         {article.excerpt ? (
-          <p className="mt-3 line-clamp-3 text-sm leading-7 text-white/45">{article.excerpt}</p>
+          <p className="mt-2 line-clamp-2 text-sm leading-7 text-white/45 sm:mt-3 sm:line-clamp-3">{article.excerpt}</p>
         ) : null}
 
-        <div className="mt-auto flex items-center justify-between pt-6 text-xs text-gold">
+        <div className="mt-auto flex items-center justify-between pt-5 text-xs text-gold sm:pt-6">
           <span>{isArabic ? "اقرأ الموضوع" : "Read article"}</span>
           <ArrowIcon className="h-4 w-4 transition group-hover:-translate-y-0.5" />
         </div>
