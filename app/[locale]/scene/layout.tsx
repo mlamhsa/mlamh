@@ -56,21 +56,29 @@ function normalizeApprovalStatus(value: unknown): ApprovalStatus {
     : "not_submitted";
 }
 
-function isSceneAuthTimingError(error: unknown) {
+function isSceneExpectedAuthError(error: unknown) {
   if (!error || typeof error !== "object") return false;
-  const candidate = error as { code?: unknown; message?: unknown };
-  return (
+  const candidate = error as {
+    code?: unknown;
+    message?: unknown;
+    name?: unknown;
+  };
+
+  const isMissingSession = candidate.name === "AuthSessionMissingError";
+  const isJwtTimingSkew =
     candidate.code === "PGRST303" &&
     typeof candidate.message === "string" &&
-    candidate.message.toLowerCase().includes("jwt issued at future")
-  );
+    candidate.message.toLowerCase().includes("jwt issued at future");
+
+  return isMissingSession || isJwtTimingSkew;
 }
 
 function logSceneReadError(scope: string, error: unknown) {
-  // A browser can briefly carry a token that PostgREST considers too new because
-  // of clock skew. Scene personalization is optional, so fall back to the public
-  // experience without polluting production error logs for this recoverable case.
-  if (isSceneAuthTimingError(error)) return;
+  // Scene personalization is optional. A guest with no auth session is expected,
+  // and a browser can briefly carry a token that PostgREST considers too new
+  // because of clock skew. In either case, fall back to the public experience
+  // without polluting production error logs. Genuine read failures stay visible.
+  if (isSceneExpectedAuthError(error)) return;
   console.error(scope, error);
 }
 
