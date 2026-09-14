@@ -10,6 +10,7 @@ import { getOwnTalentProfileAction } from "@/lib/actions/update-own-talent-profi
 import { updateOwnTalentBirthDateAction } from "@/lib/actions/update-own-talent-birth-date";
 import { updateOwnTalentMainImageAction } from "@/lib/actions/update-own-talent-main-image";
 import { getTalentCategoryLabel } from "@/lib/data/talent-categories";
+import { resolveNationality } from "@/lib/data/nationality-normalization";
 import { isValidLocale, type Locale } from "@/lib/i18n";
 import { getTalentProfileReadiness } from "@/lib/talent/profile-review-readiness";
 import { calculateProfileCompletion } from "@/lib/utils/profile-completion";
@@ -46,18 +47,6 @@ const COUNTRY_LABELS: Record<string, { ar: string; en: string }> = {
   SA: { ar: "السعودية", en: "Saudi Arabia" },
   AE: { ar: "الإمارات", en: "United Arab Emirates" },
   QA: { ar: "قطر", en: "Qatar" },
-};
-
-const NATIONALITY_LABELS: Record<string, { ar: string; en: string }> = {
-  saudi: { ar: "سعودي", en: "Saudi" }, emirati: { ar: "إماراتي", en: "Emirati" },
-  kuwaiti: { ar: "كويتي", en: "Kuwaiti" }, bahraini: { ar: "بحريني", en: "Bahraini" },
-  qatari: { ar: "قطري", en: "Qatari" }, omani: { ar: "عُماني", en: "Omani" },
-  yemeni: { ar: "يمني", en: "Yemeni" }, jordanian: { ar: "أردني", en: "Jordanian" },
-  palestinian: { ar: "فلسطيني", en: "Palestinian" }, lebanese: { ar: "لبناني", en: "Lebanese" },
-  syrian: { ar: "سوري", en: "Syrian" }, iraqi: { ar: "عراقي", en: "Iraqi" },
-  egyptian: { ar: "مصري", en: "Egyptian" }, sudanese: { ar: "سوداني", en: "Sudanese" },
-  moroccan: { ar: "مغربي", en: "Moroccan" }, algerian: { ar: "جزائري", en: "Algerian" },
-  tunisian: { ar: "تونسي", en: "Tunisian" }, libyan: { ar: "ليبي", en: "Libyan" },
 };
 
 function clean(value: unknown) {
@@ -114,7 +103,10 @@ export default function TalentProfileGuidedPage({ params }: { params: Promise<{ 
   const countryCode = clean(talent?.base_country_code).toUpperCase();
   const country = COUNTRY_LABELS[countryCode]?.[locale] || countryCode || (isArabic ? "غير محدد" : "Not set");
   const nationalityKey = clean(talent?.nationality_slug) || clean(talent?.nationality);
-  const nationality = NATIONALITY_LABELS[nationalityKey]?.[locale] || nationalityKey || (isArabic ? "غير محدد" : "Not set");
+  const nationalityDefinition = resolveNationality(nationalityKey);
+  const nationality = nationalityDefinition
+    ? (isArabic ? nationalityDefinition.ar : nationalityDefinition.en)
+    : nationalityKey || (isArabic ? "غير محدد" : "Not set");
   const firstMissing = readiness.missingRequirements[0];
   const missingCount = readiness.missingRequirements.length;
   const isBirthDateMissing = readiness.missingRequirements.some((requirement) => requirement.key === "date_of_birth");
