@@ -67,9 +67,27 @@ async function resolveNotificationRecipient(
   }
 
   if (profile.account_type === "talent") {
+    const { data: talent, error: talentError } = await supabase
+      .from("talents")
+      .select("id")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (talentError) {
+      console.error(
+        "Resolve notification talent error:",
+        talentError,
+      );
+      return null;
+    }
+
+    if (!talent) {
+      return null;
+    }
+
     return {
       recipientType: "talent",
-      recipientId: userId,
+      recipientId: String(talent.id),
     };
   }
 
@@ -189,7 +207,7 @@ export function useNotifications(userId: string) {
         recipient.recipientId,
         userId,
       ].join("-");
-      
+
       /*
        * إذا كانت هناك قناة قديمة بنفس الاسم (خصوصاً أثناء
        * React StrictMode في التطوير) نحذفها أولاً.
@@ -197,7 +215,7 @@ export function useNotifications(userId: string) {
       const existing = supabase
         .getChannels()
         .find((c) => c.topic === `realtime:${channelName}`);
-      
+
       if (existing) {
         await supabase.removeChannel(existing);
       }
@@ -207,61 +225,61 @@ export function useNotifications(userId: string) {
        * لا تتم إضافة callbacks جديدة للقناة بعد الاشتراك.
        */
       channel = supabase
-  .channel(channelName)
-  .on(
-    "postgres_changes",
-    {
-      event: "*",
-      schema: "public",
-      table: "notifications",
-      filter: `recipient_id=eq.${recipient.recipientId}`,
-    },
-    (payload) => {
-      const changedRecord =
-        payload.eventType === "DELETE"
-          ? payload.old
-          : payload.new;
+        .channel(channelName)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "notifications",
+            filter: `recipient_id=eq.${recipient.recipientId}`,
+          },
+          (payload) => {
+            const changedRecord =
+              payload.eventType === "DELETE"
+                ? payload.old
+                : payload.new;
 
-      if (
-        changedRecord?.recipient_type &&
-        changedRecord.recipient_type !== recipient.recipientType
-      ) {
-        return;
-      }
+            if (
+              changedRecord?.recipient_type &&
+              changedRecord.recipient_type !== recipient.recipientType
+            ) {
+              return;
+            }
 
-      void refreshNotifications(recipient);
-    },
-  )
-  .subscribe((status, error) => {
-    if (status === "SUBSCRIBED") {
-      console.info(
-        `Notifications channel subscribed: ${channelName}`,
-      );
-      return;
-    }
+            void refreshNotifications(recipient);
+          },
+        )
+        .subscribe((status, error) => {
+          if (status === "SUBSCRIBED") {
+            console.info(
+              `Notifications channel subscribed: ${channelName}`,
+            );
+            return;
+          }
 
-    if (status === "CHANNEL_ERROR") {
-      console.error(
-        `Notifications channel error: ${channelName}`,
-        error,
-      );
-      return;
-    }
+          if (status === "CHANNEL_ERROR") {
+            console.error(
+              `Notifications channel error: ${channelName}`,
+              error,
+            );
+            return;
+          }
 
-    if (status === "TIMED_OUT") {
-      console.error(
-        `Notifications channel timed out: ${channelName}`,
-        error,
-      );
-      return;
-    }
+          if (status === "TIMED_OUT") {
+            console.error(
+              `Notifications channel timed out: ${channelName}`,
+              error,
+            );
+            return;
+          }
 
-    if (status === "CLOSED") {
-      console.info(
-        `Notifications channel closed: ${channelName}`,
-      );
-    }
-  });
+          if (status === "CLOSED") {
+            console.info(
+              `Notifications channel closed: ${channelName}`,
+            );
+          }
+        });
 
       /*
        * يبقى التحديث الدوري كخطة احتياطية إذا انقطع Realtime.
