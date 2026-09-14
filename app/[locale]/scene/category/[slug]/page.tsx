@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 
 import { SceneArticleCard } from "@/components/scene/SceneArticleCard";
 import { SceneCMS } from "@/lib/cms/SceneCMS";
+import type { ScenePublicArticle, ScenePublicCategory } from "@/lib/types/scene";
 
 export const revalidate = 300;
 
@@ -19,6 +20,80 @@ async function loadCategory(locale: "ar" | "en", slug: string) {
   if (!category) return null;
   const articles = await SceneCMS.getPublicArticles({ locale, categoryId: category.id, limit: 60 });
   return { category, articles };
+}
+
+function SceneCategoryJsonLd({
+  locale,
+  category,
+  articles,
+}: {
+  locale: "ar" | "en";
+  category: ScenePublicCategory;
+  articles: ScenePublicArticle[];
+}) {
+  const categoryUrl = `${SITE_URL}/${locale}/scene/category/${category.slug}`;
+  const sceneName = locale === "ar" ? "مشهد ملامح" : "MLAMH Scene";
+
+  const schema = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "CollectionPage",
+        "@id": `${categoryUrl}#collection`,
+        url: categoryUrl,
+        name: `${category.name} | ${sceneName}`,
+        description: category.description,
+        inLanguage: locale,
+        isPartOf: {
+          "@type": "WebSite",
+          name: "MLAMH",
+          url: SITE_URL,
+        },
+        mainEntity: {
+          "@id": `${categoryUrl}#itemlist`,
+        },
+      },
+      {
+        "@type": "BreadcrumbList",
+        "@id": `${categoryUrl}#breadcrumb`,
+        itemListElement: [
+          {
+            "@type": "ListItem",
+            position: 1,
+            name: "MLAMH",
+            item: `${SITE_URL}/${locale}`,
+          },
+          {
+            "@type": "ListItem",
+            position: 2,
+            name: sceneName,
+            item: `${SITE_URL}/${locale}/scene`,
+          },
+          {
+            "@type": "ListItem",
+            position: 3,
+            name: category.name,
+            item: categoryUrl,
+          },
+        ],
+      },
+      {
+        "@type": "ItemList",
+        "@id": `${categoryUrl}#itemlist`,
+        name: category.name,
+        numberOfItems: articles.length,
+        itemListElement: articles.map((article, index) => ({
+          "@type": "ListItem",
+          position: index + 1,
+          url: `${SITE_URL}/${locale}/scene/${article.slug}`,
+          name: article.title,
+        })),
+      },
+    ],
+  };
+
+  const json = JSON.stringify(schema).replace(/</g, "\\u003c");
+  return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: json }} />;
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -70,6 +145,8 @@ export default async function SceneCategoryPage({ params }: PageProps) {
 
   return (
     <main dir={isArabic ? "rtl" : "ltr"} className="min-h-screen bg-black text-white">
+      <SceneCategoryJsonLd locale={locale} category={category} articles={articles} />
+
       <section className="border-b border-white/[0.07] bg-[radial-gradient(circle_at_15%_10%,rgba(212,175,55,0.13),transparent_30%)]">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 md:py-14 lg:px-8">
           <Link href={`/${locale}/scene`} className="inline-flex items-center gap-2 text-xs text-white/40 transition hover:text-gold">
