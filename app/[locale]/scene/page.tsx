@@ -7,6 +7,7 @@ import {
   Building2,
   Clapperboard,
   Compass,
+  Search,
   Sparkles,
   UserRound,
 } from "lucide-react";
@@ -128,6 +129,23 @@ export default async function SceneHomePage({ params }: PageProps) {
                   ? "أدلة عملية، شروحات ملامح، قصص، مقابلات وتقارير — في مساحة واحدة داخل المنصة."
                   : "Practical guides, MLAMH help, stories, interviews and reports — all inside the platform."}
               </p>
+
+              <form action={`/${locale}/scene/search`} method="get" className="mt-7 flex max-w-2xl gap-2 rounded-2xl border border-white/10 bg-white/[0.035] p-2 backdrop-blur-sm">
+                <div className="relative min-w-0 flex-1">
+                  <Search className="absolute start-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
+                  <input
+                    type="search"
+                    name="q"
+                    maxLength={80}
+                    autoComplete="off"
+                    placeholder={isArabic ? "ابحث في مشهد ملامح..." : "Search MLAMH Scene..."}
+                    className="h-12 w-full rounded-xl bg-black/35 ps-11 pe-4 text-sm text-white outline-none placeholder:text-white/25 focus:ring-1 focus:ring-gold/30"
+                  />
+                </div>
+                <button type="submit" className="h-12 rounded-xl bg-gold px-5 text-sm font-medium text-black transition hover:bg-gold-soft">
+                  {isArabic ? "بحث" : "Search"}
+                </button>
+              </form>
             </div>
 
             <div className="grid grid-cols-2 gap-2 sm:gap-3">
@@ -179,14 +197,22 @@ export default async function SceneHomePage({ params }: PageProps) {
               const Icon = CATEGORY_ICONS[category.slug] ?? BookOpenText;
               const count = articles.filter((article) => article.categoryId === category.id).length;
               return (
-                <div key={category.id} className="group rounded-[1.5rem] border border-white/10 bg-black/25 p-5 transition hover:border-gold/20 hover:bg-white/[0.03] sm:p-6">
+                <Link
+                  key={category.id}
+                  href={`/${locale}/scene/category/${category.slug}`}
+                  className="group rounded-[1.5rem] border border-white/10 bg-black/25 p-5 transition hover:-translate-y-0.5 hover:border-gold/20 hover:bg-white/[0.03] sm:p-6"
+                >
                   <div className="flex items-start justify-between gap-4">
                     <span className="grid h-10 w-10 place-items-center rounded-xl border border-gold/15 bg-gold/[0.05] text-gold"><Icon className="h-5 w-5" /></span>
                     <span className="text-[10px] text-white/25">{count > 0 ? `${count}` : isArabic ? "قريبًا" : "Soon"}</span>
                   </div>
                   <h3 className="mt-5 text-xl font-medium">{category.name}</h3>
                   <p className="mt-2 text-sm leading-7 text-white/40">{category.description || categoryFallback(category.slug, isArabic)}</p>
-                </div>
+                  <span className="mt-5 inline-flex items-center gap-2 text-xs text-gold/75 transition group-hover:text-gold">
+                    {isArabic ? "استكشف القسم" : "Explore category"}
+                    <ArrowIcon className="h-3.5 w-3.5" />
+                  </span>
+                </Link>
               );
             })}
           </div>
