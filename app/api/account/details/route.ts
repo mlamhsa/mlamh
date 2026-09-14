@@ -16,6 +16,13 @@ type RequestUser = {
   metadata: Record<string, unknown>;
 };
 
+type AccountDetailsPayload = {
+  displayName?: unknown;
+  phone?: unknown;
+  accountType?: unknown;
+  accessToken?: unknown;
+};
+
 function isAccountType(value: unknown): value is AccountType {
   return value === "talent" || value === "publisher";
 }
@@ -31,41 +38,63 @@ function isValidPhone(value: string) {
   return /^\+[1-9]\d{7,14}$/.test(value);
 }
 
-async function resolveRequestUser(request: Request): Promise<RequestUser | null> {
+function normalizeUserMetadata(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return value as Record<string, unknown>;
+}
+
+async function resolveRequestUser(request: Request, fallbackAccessToken?: string): Promise<RequestUser | null> {
   const bearerAuth = await getRequestUser(request);
   if (bearerAuth.ok) return bearerAuth.user;
 
-  // Mobile Safari can finish OTP verification before the next request's
-  // Authorization header is accepted. The SSR browser client also persists the
-  // verified session in cookies, so use that canonical session as a fallback.
+  // Browser sessions are normally available through Supabase SSR cookies.
   const serverSupabase = await createServerSupabaseClient();
   const {
-    data: { user },
-    error,
+    data: { user: cookieUser },
+    error: cookieError,
   } = await serverSupabase.auth.getUser();
 
-  if (error || !user) return null;
+  if (!cookieError && cookieUser) {
+    return {
+      id: cookieUser.id,
+      email: cookieUser.email ?? null,
+      metadata: normalizeUserMetadata(cookieUser.user_metadata),
+    };
+  }
 
-  return {
-    id: user.id,
-    email: user.email ?? null,
-    metadata:
-      user.user_metadata && typeof user.user_metadata === "object" && !Array.isArray(user.user_metadata)
-        ? (user.user_metadata as Record<string, unknown>)
-        : {},
-  };
+  // Mobile Safari can verify an OTP before its auth cookie is observable by the
+  // next same-origin request. In that narrow window, verify the exact OTP-issued
+  // access token directly with Supabase Admin. The token is never logged or stored.
+  if (fallbackAccessToken) {
+    const admin = createAdminClient();
+    const {
+      data: { user: tokenUser },
+      error: tokenError,
+    } = await admin.auth.getUser(fallbackAccessToken);
+
+    if (!tokenError && tokenUser) {
+      return {
+        id: tokenUser.id,
+        email: tokenUser.email ?? null,
+        metadata: normalizeUserMetadata(tokenUser.user_metadata),
+      };
+    }
+  }
+
+  return null;
 }
 
 export async function POST(request: Request) {
-  const user = await resolveRequestUser(request);
-  if (!user) return NextResponse.json({ ok: false, code: "UNAUTHENTICATED" }, { status: 401 });
-
-  let payload: { displayName?: unknown; phone?: unknown; accountType?: unknown } = {};
+  let payload: AccountDetailsPayload = {};
   try {
     payload = await request.json();
   } catch {
     return NextResponse.json({ ok: false, code: "INVALID_BODY" }, { status: 400 });
   }
+
+  const fallbackAccessToken = typeof payload.accessToken === "string" ? payload.accessToken.trim() : "";
+  const user = await resolveRequestUser(request, fallbackAccessToken || undefined);
+  if (!user) return NextResponse.json({ ok: false, code: "UNAUTHENTICATED" }, { status: 401 });
 
   const displayName = typeof payload.displayName === "string" ? payload.displayName.trim().replace(/\s+/g, " ") : "";
   const phone = normalizePhone(payload.phone);
