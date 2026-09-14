@@ -1,39 +1,214 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, Building2, Sparkles, UserRound } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Building2,
+  CircleCheckBig,
+  Clock3,
+  Sparkles,
+  TriangleAlert,
+  UserRound,
+} from "lucide-react";
 
 import { SceneWorldNav } from "@/components/scene/SceneWorldNav";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getTalentProfileReviewReadiness } from "@/lib/talent/profile-review-readiness";
 
 type SceneAudience = "talent" | "publisher" | null;
+type TalentApprovalStatus =
+  | "not_submitted"
+  | "submitted"
+  | "pending"
+  | "approved"
+  | "changes_requested"
+  | "rejected";
 
-async function getSceneAudience(): Promise<SceneAudience> {
+type TalentSceneState = {
+  approvalStatus: TalentApprovalStatus;
+  isReady: boolean;
+  missingLabelsAr: string[];
+  missingLabelsEn: string[];
+};
+
+type SceneContext = {
+  audience: SceneAudience;
+  talentState: TalentSceneState | null;
+};
+
+function normalizeApprovalStatus(value: unknown): TalentApprovalStatus {
+  return value === "submitted" ||
+    value === "pending" ||
+    value === "approved" ||
+    value === "changes_requested" ||
+    value === "rejected"
+    ? value
+    : "not_submitted";
+}
+
+async function getSceneContext(): Promise<SceneContext> {
   try {
     const supabase = await createServerSupabaseClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (!user) return null;
+    if (!user) return { audience: null, talentState: null };
 
-    const { data, error } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("account_type")
+      .select("account_type, approval_status, phone, data_accuracy_contact_consent")
       .eq("user_id", user.id)
       .maybeSingle();
 
-    if (error) {
-      console.error("[SceneLayout.profile]", error);
-      return null;
+    if (profileError) {
+      console.error("[SceneLayout.profile]", profileError);
+      return { audience: null, talentState: null };
     }
 
-    return data?.account_type === "talent" || data?.account_type === "publisher"
-      ? data.account_type
-      : null;
+    const audience: SceneAudience =
+      profile?.account_type === "talent" || profile?.account_type === "publisher"
+        ? profile.account_type
+        : null;
+
+    if (audience !== "talent") return { audience, talentState: null };
+
+    const { data: talent, error: talentError } = await supabase
+      .from("talents")
+      .select(
+        "name_ar, name_en, image_url, primary_role, category_slug, category_en, category_ar, base_country_code, city_slug, gender, nationality, nationality_slug, date_of_birth, profile_visibility",
+      )
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (talentError) {
+      console.error("[SceneLayout.talent]", talentError);
+      return {
+        audience,
+        talentState: {
+          approvalStatus: normalizeApprovalStatus(profile?.approval_status),
+          isReady: false,
+          missingLabelsAr: [],
+          missingLabelsEn: [],
+        },
+      };
+    }
+
+    const readiness = getTalentProfileReviewReadiness({
+      ...(talent ?? {}),
+      phone: profile?.phone,
+      data_accuracy_contact_consent: profile?.data_accuracy_contact_consent,
+    });
+
+    return {
+      audience,
+      talentState: {
+        approvalStatus: normalizeApprovalStatus(profile?.approval_status),
+        isReady: readiness.isReady,
+        missingLabelsAr: readiness.missingRequirements.map((item) => item.ar),
+        missingLabelsEn: readiness.missingRequirements.map((item) => item.en),
+      },
+    };
   } catch (error) {
-    console.error("[SceneLayout.audience]", error);
-    return null;
+    console.error("[SceneLayout.context]", error);
+    return { audience: null, talentState: null };
   }
+}
+
+function buildTalentConfig({
+  locale,
+  talentState,
+}: {
+  locale: "ar" | "en";
+  talentState: TalentSceneState | null;
+}) {
+  const isArabic = locale === "ar";
+  const status = talentState?.approvalStatus ?? "not_submitted";
+  const profileHref = `/${locale}/talent-dashboard/profile`;
+  const talentCategoryHref = `/${locale}/scene/category/talent`;
+  const completionGuideHref = `/${locale}/scene/complete-talent-profile-and-submit-review`;
+
+  if (status === "approved") {
+    return {
+      icon: CircleCheckBig,
+      eyebrow: isArabic ? "مشهدك • معتمد" : "YOUR SCENE • APPROVED",
+      title: isArabic ? "ملفك معتمد — ركّز الآن على فرصك" : "Your profile is approved — focus on opportunities",
+      description: isArabic
+        ? "طوّر حضورك واستعدادك للكاستينغ بمحتوى يناسب المرحلة التالية."
+        : "Strengthen your presence and casting readiness with content for your next stage.",
+      primaryLabel: isArabic ? "محتوى للمواهب المعتمدة" : "Content for approved talent",
+      primaryHref: talentCategoryHref,
+      secondaryLabel: isArabic ? "الاستعداد لتجربة الأداء" : "Audition preparation",
+      secondaryHref: `/${locale}/scene/first-audition-preparation`,
+    };
+  }
+
+  if (status === "submitted" || status === "pending") {
+    return {
+      icon: Clock3,
+      eyebrow: isArabic ? "مشهدك • قيد المراجعة" : "YOUR SCENE • UNDER REVIEW",
+      title: isArabic ? "ملفك قيد المراجعة" : "Your profile is under review",
+      description: isArabic
+        ? "لا تحتاج لإعادة الإرسال. استغل وقت المراجعة في تحسين معرض أعمالك والاستعداد للفرص."
+        : "No need to resubmit. Use review time to strengthen your portfolio and prepare for opportunities.",
+      primaryLabel: isArabic ? "طوّر معرض أعمالك" : "Improve your portfolio",
+      primaryHref: `/${locale}/scene/talent-portfolio-gallery-guide`,
+      secondaryLabel: isArabic ? "استكشف محتوى المواهب" : "Explore talent content",
+      secondaryHref: talentCategoryHref,
+    };
+  }
+
+  if (status === "changes_requested" || status === "rejected") {
+    return {
+      icon: TriangleAlert,
+      eyebrow: isArabic ? "مشهدك • يحتاج تحديثًا" : "YOUR SCENE • UPDATE NEEDED",
+      title: isArabic ? "راجع ملفك قبل الخطوة التالية" : "Review your profile before the next step",
+      description: isArabic
+        ? "ابدأ من ملفك لمعالجة الملاحظات، ثم استخدم دليل ملامح للتأكد من اكتمال الأساسيات."
+        : "Start from your profile to address feedback, then use the MLAMH guide to confirm the essentials.",
+      primaryLabel: isArabic ? "فتح الملف" : "Open profile",
+      primaryHref: profileHref,
+      secondaryLabel: isArabic ? "دليل إكمال الملف" : "Profile completion guide",
+      secondaryHref: completionGuideHref,
+    };
+  }
+
+  if (talentState?.isReady) {
+    return {
+      icon: CircleCheckBig,
+      eyebrow: isArabic ? "مشهدك • جاهز للإرسال" : "YOUR SCENE • READY TO SUBMIT",
+      title: isArabic ? "أساسيات ملفك مكتملة" : "Your profile essentials are complete",
+      description: isArabic
+        ? "ملفك يحقق متطلبات الإرسال الأساسية. انتقل إلى ملفك لإرساله للمراجعة عندما تكون جاهزًا."
+        : "Your profile meets the core submission requirements. Open your profile and submit it for review when ready.",
+      primaryLabel: isArabic ? "الانتقال إلى الملف" : "Go to profile",
+      primaryHref: profileHref,
+      secondaryLabel: isArabic ? "راجع دليل الإرسال" : "Review submission guide",
+      secondaryHref: completionGuideHref,
+    };
+  }
+
+  const missing = isArabic ? talentState?.missingLabelsAr ?? [] : talentState?.missingLabelsEn ?? [];
+  const visibleMissing = missing.slice(0, 3).join(isArabic ? "، " : ", ");
+  const remaining = Math.max(missing.length - 3, 0);
+  const missingText = visibleMissing
+    ? isArabic
+      ? `ابدأ بإكمال: ${visibleMissing}${remaining ? `، و${remaining} أخرى` : ""}.`
+      : `Start with: ${visibleMissing}${remaining ? `, plus ${remaining} more` : ""}.`
+    : isArabic
+      ? "أكمل البيانات الأساسية في ملفك قبل إرساله للمراجعة."
+      : "Complete the core profile details before submitting for review.";
+
+  return {
+    icon: UserRound,
+    eyebrow: isArabic ? "مشهدك • أكمل ملفك" : "YOUR SCENE • COMPLETE YOUR PROFILE",
+    title: isArabic ? "خطوتك التالية: جهّز ملفك للمراجعة" : "Next step: get your profile review-ready",
+    description: missingText,
+    primaryLabel: isArabic ? "أكمل ملفك" : "Complete profile",
+    primaryHref: profileHref,
+    secondaryLabel: isArabic ? "دليل إكمال الملف" : "Profile completion guide",
+    secondaryHref: completionGuideHref,
+  };
 }
 
 export default async function SceneLayout({
@@ -46,23 +221,12 @@ export default async function SceneLayout({
   const { locale: rawLocale } = await params;
   const locale: "ar" | "en" = rawLocale === "en" ? "en" : "ar";
   const isArabic = locale === "ar";
-  const audience = await getSceneAudience();
+  const { audience, talentState } = await getSceneContext();
   const ArrowIcon = isArabic ? ArrowLeft : ArrowRight;
 
   const audienceConfig =
     audience === "talent"
-      ? {
-          icon: UserRound,
-          eyebrow: isArabic ? "مشهدك" : "YOUR SCENE",
-          title: isArabic ? "محتوى مختار للموهبة" : "Selected for talent",
-          description: isArabic
-            ? "ابدأ بما يساعدك على بناء ملف أقوى والاستعداد للكاستينغ."
-            : "Start with guidance for a stronger profile and better casting readiness.",
-          primaryLabel: isArabic ? "استكشف محتوى المواهب" : "Explore talent content",
-          primaryHref: `/${locale}/scene/category/talent`,
-          secondaryLabel: isArabic ? "دليل إكمال الملف" : "Profile completion guide",
-          secondaryHref: `/${locale}/scene/complete-talent-profile-and-submit-review`,
-        }
+      ? buildTalentConfig({ locale, talentState })
       : audience === "publisher"
         ? {
             icon: Building2,
