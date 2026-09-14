@@ -223,6 +223,11 @@ export default function TalentProfileDetailsLayout({ children }: { children: Rea
           background: #111;
           color: #fff;
         }
+        .talent-profile-editor .mt-7.space-y-6 > div:nth-child(3) .max-h-48 {
+          max-height: none !important;
+          overflow-y: visible !important;
+          padding-inline-end: 0 !important;
+        }
         @media (max-width: 639px) {
           .talent-profile-editor select.input {
             min-height: 3.25rem;
