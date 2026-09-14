@@ -93,15 +93,17 @@ async function loadArticle(locale: "ar" | "en", slug: string) {
 
   const categories = await SceneCMS.getPublicCategories(locale);
   const category = categories.find((item) => item.id === article.categoryId) ?? null;
-  const related = (
-    await SceneCMS.getPublicArticles({
-      locale,
-      categoryId: article.categoryId,
-      limit: 7,
-    })
-  )
-    .filter((item) => item.id !== article.id)
-    .slice(0, 3);
+  const related = article.categoryId
+    ? (
+        await SceneCMS.getPublicArticles({
+          locale,
+          categoryId: article.categoryId,
+          limit: 7,
+        })
+      )
+        .filter((item) => item.id !== article.id)
+        .slice(0, 3)
+    : [];
 
   return { article, category, related };
 }
