@@ -3,12 +3,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getEffectiveTalentApprovalStatus } from "@/lib/talent/approval-status";
-
-const EDITABLE_APPROVAL_STATUSES = new Set([
-  "not_submitted",
-  "rejected",
-  "changes_requested",
-]);
+import { syncApprovedTalentReadiness } from "@/lib/talent/sync-approved-talent-readiness";
 
 export async function POST(request: Request) {
   const formData = await request.formData();
@@ -92,12 +87,11 @@ export async function POST(request: Request) {
 
   const approvalStatus = getEffectiveTalentApprovalStatus(profile);
   const currentDate = String(talent.date_of_birth ?? "").slice(0, 10);
+  const underReview = approvalStatus === "pending" || approvalStatus === "submitted";
 
-  if (!EDITABLE_APPROVAL_STATUSES.has(approvalStatus)) {
-    // The professional-details form can submit the already-saved birth date along
-    // with optional fields. Treat an unchanged value as a safe no-op so approved
-    // or in-review users can still save optional professional details without
-    // reopening a protected core identity field.
+  if (underReview) {
+    // Forms may send the already-saved value while another section is saved.
+    // Keep that as a no-op, but do not mutate a profile during active review.
     if (currentDate === rawDate) {
       return NextResponse.json({
         success: true,
@@ -110,8 +104,8 @@ export async function POST(request: Request) {
         success: false,
         message:
           locale === "ar"
-            ? "تاريخ الميلاد من البيانات الأساسية، ولا يمكن تغييره أثناء المراجعة أو بعد الاعتماد من هذا المسار."
-            : "Date of birth is a core profile field and cannot be changed here while under review or after approval.",
+            ? "لا يمكن تغيير تاريخ الميلاد أثناء مراجعة الملف. يمكنك تعديله بعد صدور قرار المراجعة."
+            : "Date of birth cannot be changed while the profile is under review. You can edit it after the review decision.",
       },
       { status: 409 },
     );
@@ -131,6 +125,22 @@ export async function POST(request: Request) {
       {
         success: false,
         message: locale === "ar" ? "تعذر حفظ تاريخ الميلاد الآن." : "We could not save your date of birth right now.",
+      },
+      { status: 500 },
+    );
+  }
+
+  try {
+    await syncApprovedTalentReadiness(user.id);
+  } catch (readinessError) {
+    console.error("[birth-date POST readiness]", readinessError);
+    return NextResponse.json(
+      {
+        success: false,
+        message:
+          locale === "ar"
+            ? "تم حفظ تاريخ الميلاد، لكن تعذر تحديث جاهزية الملف. حاول مرة أخرى."
+            : "Date of birth was saved, but profile readiness could not be refreshed. Please try again.",
       },
       { status: 500 },
     );
