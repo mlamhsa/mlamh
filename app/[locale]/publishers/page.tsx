@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { getCurrentAccountType } from "@/lib/auth/get-current-account-type";
+
 const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://mlamh.net").replace(/\/$/, "");
 
 export async function generateMetadata({ params }: { params: Promise<{ locale?: string }> }): Promise<Metadata> {
@@ -50,6 +52,9 @@ export default async function PublishersPage({ params }: { params: Promise<{ loc
   const locale = rawLocale === "en" ? "en" : "ar";
   const isRtl = locale === "ar";
   const pageUrl = `${SITE_URL}/${locale}/publishers`;
+  const accountType = await getCurrentAccountType();
+  const isPublisher = accountType === "publisher";
+  const hasKnownAccount = accountType !== null;
 
   const breadcrumbJsonLd = {
     "@context": "https://schema.org",
@@ -63,10 +68,14 @@ export default async function PublishersPage({ params }: { params: Promise<{ loc
   const steps = [
     {
       n: "01",
-      ar: "أنشئ حساب الناشر",
-      en: "Create your publisher account",
-      arText: "اختر فرد / صاحب مشروع، متجر / نشاط تجاري، أو شركة / جهة، وأكمل البيانات الأساسية المناسبة لمسارك.",
-      enText: "Choose Individual / Project Owner, Store / Business, or Company / Organization and complete the essentials for your path.",
+      ar: isPublisher ? "حساب الناشر" : "أنشئ حساب الناشر",
+      en: isPublisher ? "Your publisher account" : "Create your publisher account",
+      arText: isPublisher
+        ? "حسابك موجود بالفعل. انتقل إلى لوحة الناشر لإدارة ملفك وطلباتك وفرصك."
+        : "اختر فرد / صاحب مشروع، متجر / نشاط تجاري، أو شركة / جهة، وأكمل البيانات الأساسية المناسبة لمسارك.",
+      enText: isPublisher
+        ? "Your account already exists. Open the publisher dashboard to manage your profile, requests, and opportunities."
+        : "Choose Individual / Project Owner, Store / Business, or Company / Organization and complete the essentials for your path.",
     },
     {
       n: "02",
@@ -109,12 +118,29 @@ export default async function PublishersPage({ params }: { params: Promise<{ loc
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-              <Link href={`/${locale}/publisher-register`} className="inline-flex min-h-14 items-center justify-center rounded-full bg-gold px-8 text-sm font-medium text-black transition hover:bg-gold-soft">
-                {isRtl ? "ابدأ كناشر" : "Start as a Publisher"}
-              </Link>
-              <Link href={`/${locale}/login`} className="inline-flex min-h-14 items-center justify-center rounded-full border border-gold/35 px-8 text-sm text-gold transition hover:bg-gold/10">
-                {isRtl ? "تسجيل الدخول" : "Sign In"}
-              </Link>
+              {isPublisher ? (
+                <>
+                  <Link href={`/${locale}/publisher-dashboard`} className="inline-flex min-h-14 items-center justify-center rounded-full bg-gold px-8 text-sm font-medium text-black transition hover:bg-gold-soft">
+                    {isRtl ? "لوحة الناشر" : "Publisher Dashboard"}
+                  </Link>
+                  <Link href={`/${locale}/publisher-dashboard/opportunities/new`} className="inline-flex min-h-14 items-center justify-center rounded-full border border-gold/35 px-8 text-sm text-gold transition hover:bg-gold/10">
+                    {isRtl ? "إنشاء طلب أو فرصة" : "Create a Request or Opportunity"}
+                  </Link>
+                </>
+              ) : hasKnownAccount ? (
+                <Link href={`/${locale}/dashboard-router`} className="inline-flex min-h-14 items-center justify-center rounded-full bg-gold px-8 text-sm font-medium text-black transition hover:bg-gold-soft">
+                  {isRtl ? "الانتقال إلى حسابي" : "Go to My Account"}
+                </Link>
+              ) : (
+                <>
+                  <Link href={`/${locale}/publisher-register`} className="inline-flex min-h-14 items-center justify-center rounded-full bg-gold px-8 text-sm font-medium text-black transition hover:bg-gold-soft">
+                    {isRtl ? "ابدأ كناشر" : "Start as a Publisher"}
+                  </Link>
+                  <Link href={`/${locale}/login`} className="inline-flex min-h-14 items-center justify-center rounded-full border border-gold/35 px-8 text-sm text-gold transition hover:bg-gold/10">
+                    {isRtl ? "تسجيل الدخول" : "Sign In"}
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </section>
@@ -180,11 +206,36 @@ export default async function PublishersPage({ params }: { params: Promise<{ loc
         <section className="mt-8 rounded-[2rem] border border-gold/20 bg-gold/[0.04] px-6 py-10 text-center sm:px-10 sm:py-12">
           <h2 className="text-3xl font-light sm:text-4xl">{isRtl ? "فرصتك القادمة تبدأ بطلب واضح." : "Your next booking starts with a clear opportunity."}</h2>
           <p className="mx-auto mt-4 max-w-2xl text-sm leading-7 text-white/50">
-            {isRtl ? "أنشئ حساب الناشر، اختر المسار المناسب لك، وانشر أول فرصة عندما يصبح حسابك جاهزًا." : "Create your publisher account, choose the right path, and post your first opportunity when your account is ready."}
+            {isPublisher
+              ? isRtl
+                ? "أنت مسجل كناشر. انتقل إلى لوحة الناشر لإدارة حسابك أو ابدأ طلبًا أو فرصة جديدة."
+                : "You are signed in as a publisher. Open your dashboard to manage your account or start a new request or opportunity."
+              : hasKnownAccount
+                ? isRtl
+                  ? "أنت مسجل الدخول حاليًا. انتقل إلى حسابك للمتابعة."
+                  : "You are currently signed in. Go to your account to continue."
+                : isRtl
+                  ? "أنشئ حساب الناشر، اختر المسار المناسب لك، وانشر أول فرصة عندما يصبح حسابك جاهزًا."
+                  : "Create your publisher account, choose the right path, and post your first opportunity when your account is ready."}
           </p>
-          <Link href={`/${locale}/publisher-register`} className="mt-7 inline-flex min-h-14 items-center justify-center rounded-full bg-gold px-9 text-sm font-medium text-black transition hover:bg-gold-soft">
-            {isRtl ? "إنشاء حساب ناشر" : "Create Publisher Account"}
-          </Link>
+          {isPublisher ? (
+            <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
+              <Link href={`/${locale}/publisher-dashboard`} className="inline-flex min-h-14 items-center justify-center rounded-full bg-gold px-9 text-sm font-medium text-black transition hover:bg-gold-soft">
+                {isRtl ? "لوحة الناشر" : "Publisher Dashboard"}
+              </Link>
+              <Link href={`/${locale}/publisher-dashboard/opportunities/new`} className="inline-flex min-h-14 items-center justify-center rounded-full border border-gold/35 px-9 text-sm text-gold transition hover:bg-gold/10">
+                {isRtl ? "إنشاء طلب أو فرصة" : "Create a Request or Opportunity"}
+              </Link>
+            </div>
+          ) : hasKnownAccount ? (
+            <Link href={`/${locale}/dashboard-router`} className="mt-7 inline-flex min-h-14 items-center justify-center rounded-full bg-gold px-9 text-sm font-medium text-black transition hover:bg-gold-soft">
+              {isRtl ? "الانتقال إلى حسابي" : "Go to My Account"}
+            </Link>
+          ) : (
+            <Link href={`/${locale}/publisher-register`} className="mt-7 inline-flex min-h-14 items-center justify-center rounded-full bg-gold px-9 text-sm font-medium text-black transition hover:bg-gold-soft">
+              {isRtl ? "إنشاء حساب ناشر" : "Create Publisher Account"}
+            </Link>
+          )}
         </section>
       </div>
     </main>
