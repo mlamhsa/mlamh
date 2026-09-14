@@ -34,9 +34,36 @@ function formatDate(value: string, locale: "ar" | "en") {
   ).format(date);
 }
 
+function renderInlineContent(text: string) {
+  const parts: Array<string | React.ReactElement> = [];
+  const linkPattern = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = linkPattern.exec(text)) !== null) {
+    if (match.index > lastIndex) parts.push(text.slice(lastIndex, match.index));
+    parts.push(
+      <a
+        key={`${match.index}-${match[2]}`}
+        href={match[2]}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="font-medium text-gold underline decoration-gold/35 underline-offset-4 transition hover:text-gold-soft hover:decoration-gold"
+      >
+        {match[1]}
+      </a>,
+    );
+    lastIndex = linkPattern.lastIndex;
+  }
+
+  if (lastIndex < text.length) parts.push(text.slice(lastIndex));
+  return parts.length > 0 ? parts : text;
+}
+
 function renderArticleContent(content: string) {
   const blocks = content
     .replaceAll("\r\n", "\n")
+    .replaceAll("\\n", "\n")
     .split(/\n{2,}/)
     .map((block) => block.trim())
     .filter(Boolean);
@@ -45,15 +72,23 @@ function renderArticleContent(content: string) {
     if (block.startsWith("### ")) {
       return (
         <h3 key={index} className="mt-10 text-xl font-medium leading-9 text-white sm:text-2xl">
-          {block.slice(4)}
+          {renderInlineContent(block.slice(4))}
         </h3>
       );
     }
 
     if (block.startsWith("## ")) {
+      const heading = block.slice(3);
+      const isSourceHeading = /^(المصدر|المصادر|public source|public sources)/i.test(heading);
       return (
-        <h2 key={index} className="mt-12 text-2xl font-medium leading-10 text-white sm:text-3xl">
-          {block.slice(3)}
+        <h2
+          key={index}
+          className={[
+            "mt-12 text-2xl font-medium leading-10 sm:text-3xl",
+            isSourceHeading ? "text-gold" : "text-white",
+          ].join(" ")}
+        >
+          {renderInlineContent(heading)}
         </h2>
       );
     }
@@ -64,7 +99,7 @@ function renderArticleContent(content: string) {
       return (
         <ul key={index} className="my-7 space-y-3 ps-5 text-base leading-8 text-white/72 marker:text-gold sm:text-lg">
           {lines.map((line, lineIndex) => (
-            <li key={lineIndex}>{line.slice(2)}</li>
+            <li key={lineIndex}>{renderInlineContent(line.slice(2))}</li>
           ))}
         </ul>
       );
@@ -74,7 +109,7 @@ function renderArticleContent(content: string) {
       return (
         <ol key={index} className="my-7 list-decimal space-y-3 ps-6 text-base leading-8 text-white/72 marker:text-gold sm:text-lg">
           {lines.map((line, lineIndex) => (
-            <li key={lineIndex}>{line.replace(/^\d+\.\s/, "")}</li>
+            <li key={lineIndex}>{renderInlineContent(line.replace(/^\d+\.\s/, ""))}</li>
           ))}
         </ol>
       );
@@ -82,7 +117,7 @@ function renderArticleContent(content: string) {
 
     return (
       <p key={index} className="my-6 whitespace-pre-line text-base leading-9 text-white/72 sm:text-lg sm:leading-10">
-        {block}
+        {renderInlineContent(block)}
       </p>
     );
   });
