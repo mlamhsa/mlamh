@@ -68,25 +68,35 @@ export default async function PublisherOpportunitiesPage({
     ? Number(filters.id)
     : null;
 
-  const { publisher } = await requirePublisher(locale);
+  const { profile, publisher } = await requirePublisher(locale);
   const adminClient = createAdminClient();
 
-  const isOrganization =
-  publisher.publisher_type !== "individual";
+  const approvalStatus = String(
+    profile.approval_status ?? "not_submitted",
+  )
+    .trim()
+    .toLowerCase();
+  const isPendingApproval =
+    approvalStatus === "pending" || approvalStatus === "submitted";
+  const isSuspended = publisher.status === "suspended";
+  const isIndividual = publisher.publisher_type === "individual";
+  const canCreateOpportunity = approvalStatus === "approved" && !isSuspended;
 
-const isVerifiedOrganization =
-  !isOrganization ||
-  (
-    publisher.verified === true &&
-    publisher.verification_status === "verified"
-  );
+  const createLabel = isIndividual
+    ? isRtl
+      ? "إنشاء طلب"
+      : "Create Request"
+    : isRtl
+      ? "إنشاء فرصة"
+      : "Create Opportunity";
 
-const isSuspended =
-  publisher.status === "suspended";
-
-const canCreateOpportunity =
-  !isSuspended &&
-  isVerifiedOrganization;
+  const profileActionLabel = isPendingApproval
+    ? isRtl
+      ? "عرض ملف الناشر"
+      : "View Publisher Profile"
+    : isRtl
+      ? "إكمال ملف الناشر"
+      : "Complete Publisher Profile";
 
   const { data: opportunities, error: opportunitiesError } = await adminClient
     .from("opportunities")
@@ -230,22 +240,20 @@ const canCreateOpportunity =
           </div>
 
           {canCreateOpportunity ? (
-  <Link
-    href={`/${locale}/publisher-dashboard/opportunities/new`}
-    className="arabic-safe inline-flex rounded-full border border-gold bg-gold/10 px-6 py-4 text-xs uppercase tracking-[0.22em] text-gold transition hover:bg-gold hover:text-black"
-  >
-    {isRtl ? "إنشاء فرصة" : "Create Opportunity"}
-  </Link>
-) : !isSuspended ? (
-  <Link
-    href={`/${locale}/publisher-dashboard/verification`}
-    className="arabic-safe inline-flex rounded-full border border-gold bg-gold/10 px-6 py-4 text-xs uppercase tracking-[0.22em] text-gold transition hover:bg-gold hover:text-black"
-  >
-    {isRtl
-      ? "توثيق الجهة"
-      : "Verify Organization"}
-  </Link>
-) : null}
+            <Link
+              href={`/${locale}/publisher-dashboard/opportunities/new`}
+              className="arabic-safe inline-flex rounded-full border border-gold bg-gold/10 px-6 py-4 text-xs uppercase tracking-[0.22em] text-gold transition hover:bg-gold hover:text-black"
+            >
+              {createLabel}
+            </Link>
+          ) : !isSuspended ? (
+            <Link
+              href={`/${locale}/publisher-dashboard/profile`}
+              className="arabic-safe inline-flex rounded-full border border-gold bg-gold/10 px-6 py-4 text-xs uppercase tracking-[0.22em] text-gold transition hover:bg-gold hover:text-black"
+            >
+              {profileActionLabel}
+            </Link>
+          ) : null}
         </div>
 
         <section className="grid gap-4 md:grid-cols-4">
@@ -447,22 +455,20 @@ const canCreateOpportunity =
               </p>
 
               {canCreateOpportunity ? (
-  <Link
-    href={`/${locale}/publisher-dashboard/opportunities/new`}
-    className="mt-6 inline-flex rounded-full border border-gold bg-gold/10 px-6 py-3 text-xs uppercase tracking-[0.2em] text-gold transition hover:bg-gold hover:text-black"
-  >
-    {isRtl ? "إنشاء فرصة" : "Create Opportunity"}
-  </Link>
-) : !isSuspended ? (
-  <Link
-    href={`/${locale}/publisher-dashboard/verification`}
-    className="mt-6 inline-flex rounded-full border border-gold bg-gold/10 px-6 py-3 text-xs uppercase tracking-[0.2em] text-gold transition hover:bg-gold hover:text-black"
-  >
-    {isRtl
-      ? "توثيق الجهة"
-      : "Verify Organization"}
-  </Link>
-) : null}
+                <Link
+                  href={`/${locale}/publisher-dashboard/opportunities/new`}
+                  className="mt-6 inline-flex rounded-full border border-gold bg-gold/10 px-6 py-3 text-xs uppercase tracking-[0.2em] text-gold transition hover:bg-gold hover:text-black"
+                >
+                  {createLabel}
+                </Link>
+              ) : !isSuspended ? (
+                <Link
+                  href={`/${locale}/publisher-dashboard/profile`}
+                  className="mt-6 inline-flex rounded-full border border-gold bg-gold/10 px-6 py-3 text-xs uppercase tracking-[0.2em] text-gold transition hover:bg-gold hover:text-black"
+                >
+                  {profileActionLabel}
+                </Link>
+              ) : null}
             </div>
           )}
         </section>
