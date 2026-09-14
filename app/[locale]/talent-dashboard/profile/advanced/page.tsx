@@ -39,6 +39,21 @@ function clean(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+const BIRTH_MONTHS = [
+  { value: "01", ar: "يناير", en: "January" },
+  { value: "02", ar: "فبراير", en: "February" },
+  { value: "03", ar: "مارس", en: "March" },
+  { value: "04", ar: "أبريل", en: "April" },
+  { value: "05", ar: "مايو", en: "May" },
+  { value: "06", ar: "يونيو", en: "June" },
+  { value: "07", ar: "يوليو", en: "July" },
+  { value: "08", ar: "أغسطس", en: "August" },
+  { value: "09", ar: "سبتمبر", en: "September" },
+  { value: "10", ar: "أكتوبر", en: "October" },
+  { value: "11", ar: "نوفمبر", en: "November" },
+  { value: "12", ar: "ديسمبر", en: "December" },
+] as const;
+
 export default function TalentRequiredFieldsPage({
   params,
 }: {
@@ -62,7 +77,9 @@ export default function TalentRequiredFieldsPage({
   const [nationality, setNationality] = useState("");
   const [countryCode, setCountryCode] = useState("");
   const [citySlug, setCitySlug] = useState("");
-  const [birthDate, setBirthDate] = useState("");
+  const [birthDay, setBirthDay] = useState("");
+  const [birthMonth, setBirthMonth] = useState("");
+  const [birthYear, setBirthYear] = useState("");
   const [visibility, setVisibility] = useState("");
   const [consent, setConsent] = useState(false);
 
@@ -87,7 +104,11 @@ export default function TalentRequiredFieldsPage({
       );
       setCountryCode(clean(talent.base_country_code).toUpperCase());
       setCitySlug(normalizeSaudiCitySlug(clean(talent.city_slug)));
-      setBirthDate(clean(talent.date_of_birth).slice(0, 10));
+      const storedBirthDate = clean(talent.date_of_birth).slice(0, 10);
+      const [storedYear = "", storedMonth = "", storedDay = ""] = storedBirthDate.split("-");
+      setBirthYear(storedYear);
+      setBirthMonth(storedMonth);
+      setBirthDay(storedDay);
       setVisibility(clean(talent.profile_visibility).toLowerCase());
       setConsent(talent.data_accuracy_contact_consent === true);
     } catch (error) {
@@ -107,6 +128,23 @@ export default function TalentRequiredFieldsPage({
     [countryCode],
   );
   const coreEditable = ["not_submitted", "rejected", "changes_requested"].includes(approvalStatus);
+  const currentYear = new Date().getFullYear();
+  const birthYears = useMemo(
+    () => Array.from({ length: currentYear - 1900 + 1 }, (_, index) => String(currentYear - index)),
+    [currentYear],
+  );
+  const birthDays = useMemo(() => {
+    const year = Number(birthYear) || 2000;
+    const month = Number(birthMonth) || 1;
+    const count = new Date(year, month, 0).getDate();
+    return Array.from({ length: count }, (_, index) => String(index + 1).padStart(2, "0"));
+  }, [birthMonth, birthYear]);
+
+  useEffect(() => {
+    if (birthDay && !birthDays.includes(birthDay)) {
+      setBirthDay(birthDays.at(-1) ?? "");
+    }
+  }, [birthDay, birthDays]);
 
   function selectCountry(value: string) {
     setCountryCode(value);
@@ -120,6 +158,14 @@ export default function TalentRequiredFieldsPage({
     setSaving(true);
     setMessage("");
     setSuccess(false);
+
+    const hasAnyBirthPart = Boolean(birthDay || birthMonth || birthYear);
+    const hasCompleteBirthDate = Boolean(birthDay && birthMonth && birthYear);
+    if (hasAnyBirthPart && !hasCompleteBirthDate) {
+      setMessage(isArabic ? "اختر اليوم والشهر والسنة لإكمال تاريخ الميلاد." : "Select day, month and year to complete the date of birth.");
+      setSaving(false);
+      return;
+    }
 
     const payload = new FormData();
     payload.set("locale", locale);
@@ -140,10 +186,10 @@ export default function TalentRequiredFieldsPage({
       return;
     }
 
-    if (birthDate) {
+    if (hasCompleteBirthDate) {
       const birthDatePayload = new FormData();
       birthDatePayload.set("locale", locale);
-      birthDatePayload.set("date_of_birth", birthDate);
+      birthDatePayload.set("date_of_birth", `${birthYear}-${birthMonth}-${birthDay}`);
       const birthDateResult = await updateOwnTalentBirthDateAction(birthDatePayload);
       if (!birthDateResult.success) {
         setMessage(birthDateResult.message);
@@ -279,9 +325,38 @@ export default function TalentRequiredFieldsPage({
                   />
                 </div>
 
-                <Field label={isArabic ? "تاريخ الميلاد" : "Date of birth"} hint={isArabic ? "بالتقويم الميلادي" : "Gregorian calendar"}>
-                  <input id="date_of_birth" type="date" value={birthDate} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setBirthDate(e.target.value)} dir="ltr" className="input" />
-                </Field>
+                <div className="block sm:col-span-2">
+                  <div className="mb-2 flex items-center justify-between gap-3 text-sm text-white/70">
+                    <span>{isArabic ? "تاريخ الميلاد" : "Date of birth"}</span>
+                    <span className="text-xs text-white/35">{isArabic ? "بالتقويم الميلادي" : "Gregorian calendar"}</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2.5" dir={isArabic ? "rtl" : "ltr"}>
+                    <label className="block">
+                      <span className="mb-1.5 block text-[11px] text-white/35">{isArabic ? "اليوم" : "Day"}</span>
+                      <select value={birthDay} onChange={(e) => setBirthDay(e.target.value)} className="input date-part">
+                        <option value="">—</option>
+                        {birthDays.map((day) => <option key={day} value={day}>{Number(day)}</option>)}
+                      </select>
+                    </label>
+                    <label className="block">
+                      <span className="mb-1.5 block text-[11px] text-white/35">{isArabic ? "الشهر" : "Month"}</span>
+                      <select value={birthMonth} onChange={(e) => setBirthMonth(e.target.value)} className="input date-part">
+                        <option value="">—</option>
+                        {BIRTH_MONTHS.map((month) => <option key={month.value} value={month.value}>{isArabic ? month.ar : month.en}</option>)}
+                      </select>
+                    </label>
+                    <label className="block">
+                      <span className="mb-1.5 block text-[11px] text-white/35">{isArabic ? "السنة" : "Year"}</span>
+                      <select value={birthYear} onChange={(e) => setBirthYear(e.target.value)} className="input date-part" dir="ltr">
+                        <option value="">—</option>
+                        {birthYears.map((year) => <option key={year} value={year}>{year}</option>)}
+                      </select>
+                    </label>
+                  </div>
+                  <p className="mt-2 text-[11px] leading-5 text-white/30">
+                    {isArabic ? `متاح حتى سنة ${currentYear} لدعم مواهب الأطفال.` : `Available through ${currentYear} to support child talent profiles.`}
+                  </p>
+                </div>
               </div>
             </section>
 
@@ -340,6 +415,7 @@ export default function TalentRequiredFieldsPage({
         .input { width:100%; min-height:3.5rem; border-radius:1rem; border:1px solid rgba(255,255,255,.1); background:rgba(0,0,0,.28); padding:.75rem 1rem; color:white; outline:none; }
         .input:focus { border-color:rgba(197,160,89,.55); }
         .input:disabled { opacity:.5; cursor:not-allowed; }
+        .date-part { appearance:none; -webkit-appearance:none; text-align:center; text-align-last:center; padding-inline:.5rem; }
       `}</style>
     </main>
   );
