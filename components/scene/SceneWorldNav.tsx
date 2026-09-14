@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpenText, Building2, Clapperboard, Compass, Search, Sparkles, UserRound } from "lucide-react";
+import { BookOpenText, Building2, Clapperboard, Compass, MessageCircle, Search, Sparkles, UserRound } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 const items = [
@@ -10,7 +10,8 @@ const items = [
   { key: "publishers", ar: "للناشرين", en: "Publishers", href: "/category/publishers", icon: Building2 },
   { key: "industry", ar: "الكاستنج والإنتاج", en: "Casting & Production", href: "/category/industry", icon: Clapperboard },
   { key: "using-mlamh", ar: "استخدام ملامح", en: "Using MLAMH", href: "/category/using-mlamh", icon: Compass },
-  { key: "reports", ar: "تقارير ورؤى", en: "Reports", href: "/category/reports", icon: BookOpenText },
+  { key: "stories", ar: "قصص ومقابلات", en: "Stories & Interviews", href: "/category/stories", icon: MessageCircle },
+  { key: "reports", ar: "تقارير ورؤى", en: "Reports & Insights", href: "/category/reports", icon: BookOpenText },
 ] as const;
 
 export function SceneWorldNav({ locale }: { locale: "ar" | "en" }) {
