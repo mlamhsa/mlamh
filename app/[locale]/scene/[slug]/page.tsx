@@ -13,6 +13,7 @@ import { notFound } from "next/navigation";
 
 import { SceneArticleCard } from "@/components/scene/SceneArticleCard";
 import { SceneCMS } from "@/lib/cms/SceneCMS";
+import { getSceneCoverUrl } from "@/lib/scene/cover-fallback";
 import type { ScenePublicArticle } from "@/lib/types/scene";
 
 export const revalidate = 300;
@@ -117,9 +118,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     if (!article) return {};
 
     const url = `${SITE_URL}/${locale}/scene/${article.slug}`;
-    const images = article.coverImageUrl
-      ? [{ url: article.coverImageUrl, alt: article.coverImageAlt }]
-      : undefined;
+    const coverUrl = getSceneCoverUrl(article);
+    const coverAlt = article.coverImageAlt || article.title;
+    const images = [{ url: coverUrl, alt: coverAlt }];
 
     return {
       title: article.seoTitle,
@@ -142,10 +143,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         images,
       },
       twitter: {
-        card: article.coverImageUrl ? "summary_large_image" : "summary",
+        card: "summary_large_image",
         title: article.seoTitle,
         description: article.seoDescription || article.excerpt,
-        images: article.coverImageUrl ? [article.coverImageUrl] : undefined,
+        images: [coverUrl],
       },
     };
   } catch {
@@ -171,7 +172,7 @@ function ArticleJsonLd({ article, locale }: { article: ScenePublicArticle; local
       url: SITE_URL,
     },
     mainEntityOfPage: `${SITE_URL}/${locale}/scene/${article.slug}`,
-    image: article.coverImageUrl || undefined,
+    image: getSceneCoverUrl(article),
   };
 
   const json = JSON.stringify(schema).replace(/</g, "\\u003c");
@@ -197,6 +198,8 @@ export default async function SceneArticlePage({ params }: PageProps) {
   const { article, category, related } = loaded;
   const BackIcon = isArabic ? ArrowRight : ArrowLeft;
   const CtaIcon = isArabic ? ArrowUpLeft : ArrowUpRight;
+  const coverUrl = getSceneCoverUrl(article);
+  const coverAlt = article.coverImageAlt || article.title;
 
   return (
     <main dir={isArabic ? "rtl" : "ltr"} className="min-h-screen bg-black text-white">
@@ -242,14 +245,12 @@ export default async function SceneArticlePage({ params }: PageProps) {
           </div>
         </header>
 
-        {article.coverImageUrl ? (
-          <div className="mx-auto max-w-6xl px-4 pt-8 sm:px-6 md:pt-12 lg:px-8">
-            <div className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/[0.02] sm:rounded-[2.25rem]">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={article.coverImageUrl} alt={article.coverImageAlt} className="aspect-[16/8.5] w-full object-cover" />
-            </div>
+        <div className="mx-auto max-w-6xl px-4 pt-8 sm:px-6 md:pt-12 lg:px-8">
+          <div className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/[0.02] sm:rounded-[2.25rem]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={coverUrl} alt={coverAlt} className="aspect-[16/8.5] w-full object-cover" />
           </div>
-        ) : null}
+        </div>
 
         <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 md:py-14 lg:px-8">
           <div>{renderArticleContent(article.content)}</div>
