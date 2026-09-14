@@ -5,6 +5,7 @@ export type TalentQualificationReason =
   | "inactive_profile"
   | "invalid_talent_status"
   | "not_published"
+  | "incomplete_profile"
   | "missing_image"
   | "missing_name"
   | "missing_role"
@@ -135,6 +136,7 @@ const REASON_LABELS: Record<TalentQualificationReason, { ar: string; en: string 
   inactive_profile: { ar: "أكمل البيانات المطلوبة", en: "Complete required details" },
   invalid_talent_status: { ar: "أكمل البيانات المطلوبة", en: "Complete required details" },
   not_published: { ar: "أكمل البيانات المطلوبة", en: "Complete required details" },
+  incomplete_profile: { ar: "أكمل المتطلبات الأساسية", en: "Complete core requirements" },
 };
 
 export function getTalentQualificationReasons(
