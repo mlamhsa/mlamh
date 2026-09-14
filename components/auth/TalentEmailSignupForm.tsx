@@ -257,11 +257,14 @@ export function TalentEmailSignupForm({ locale }: Props) {
 
       <div className="grid gap-5 sm:grid-cols-2">
         <Field label={isRtl ? "كلمة المرور" : "Password"} requiredMark={requiredMark}>
-          <div className="relative">
-            <input required minLength={8} type={showPassword ? "text" : "password"} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.currentTarget.value)} className={`${FIELD_CLASS} ${isRtl ? "pl-14" : "pr-14"}`} />
-            <button type="button" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? (isRtl ? "إخفاء كلمة المرور" : "Hide password") : (isRtl ? "إظهار كلمة المرور" : "Show password")} aria-pressed={showPassword} className={`absolute top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full text-white/45 transition hover:bg-white/5 hover:text-gold ${isRtl ? "left-2" : "right-2"}`}>
-              {showPassword ? <EyeOff size={20} aria-hidden="true" /> : <Eye size={20} aria-hidden="true" />}
-            </button>
+          <div>
+            <div className="relative">
+              <input required minLength={8} type={showPassword ? "text" : "password"} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.currentTarget.value)} className={`${FIELD_CLASS} ${isRtl ? "pl-14" : "pr-14"}`} />
+              <button type="button" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? (isRtl ? "إخفاء كلمة المرور" : "Hide password") : (isRtl ? "إظهار كلمة المرور" : "Show password")} aria-pressed={showPassword} className={`absolute top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full text-white/45 transition hover:bg-white/5 hover:text-gold ${isRtl ? "left-2" : "right-2"}`}>
+                {showPassword ? <EyeOff size={20} aria-hidden="true" /> : <Eye size={20} aria-hidden="true" />}
+              </button>
+            </div>
+            <p className="mt-2 text-xs text-white/40">{isRtl ? "8 أحرف على الأقل." : "At least 8 characters."}</p>
           </div>
         </Field>
         <Field label={isRtl ? "تأكيد كلمة المرور" : "Confirm password"} requiredMark={requiredMark}>
