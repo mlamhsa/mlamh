@@ -108,6 +108,15 @@ function resolveAvatarUrl(user: AuthUserSnapshot) {
   );
 }
 
+function resolveMetadataAccountType(user: AuthUserSnapshot) {
+  return normalizeAccountType(
+    getMetadataString(user.user_metadata, [
+      "account_type",
+      "accountType",
+    ]),
+  );
+}
+
 function getReadableError(error: unknown) {
   if (error instanceof Error) {
     return {
@@ -191,11 +200,15 @@ export function useCurrentUser(): CurrentUserState {
 
       const userName = resolveDisplayName(user);
       const avatarUrl = resolveAvatarUrl(user);
+      const metadataAccountType = resolveMetadataAccountType(user);
 
+      // Immediately expose the account type carried by the authenticated user.
+      // This prevents the mobile navigation from briefly falling back to the
+      // guest "Join" CTA while the canonical profile lookup is completing.
       commitState(version, {
         userId: user.id,
         isLoggedIn: true,
-        accountType: null,
+        accountType: metadataAccountType,
         userName,
         avatarUrl,
         loading: true,
@@ -220,40 +233,40 @@ export function useCurrentUser(): CurrentUserState {
             "Unable to resolve current user profile:",
             getReadableError(error),
           );
-        
+
           commitState(version, {
             userId: user.id,
             isLoggedIn: true,
-            accountType: null,
+            accountType: metadataAccountType,
             userName,
             avatarUrl,
             loading: false,
           });
-        
+
           return;
         }
-        
+
         if (!profile) {
           console.warn(
             "Current user profile was not found:",
             user.id,
           );
-        
+
           commitState(version, {
             userId: user.id,
             isLoggedIn: true,
-            accountType: null,
+            accountType: metadataAccountType,
             userName,
             avatarUrl,
             loading: false,
           });
-        
+
           return;
         }
-        
-        const accountType = normalizeAccountType(
-          profile.account_type,
-        );
+
+        const accountType =
+          normalizeAccountType(profile.account_type) ||
+          metadataAccountType;
 
         let resolvedAvatarUrl = avatarUrl;
         let resolvedUserName = userName;
@@ -275,18 +288,15 @@ export function useCurrentUser(): CurrentUserState {
               "Unable to load publisher profile:",
               getReadableError(publisherError),
             );
-          } else {
-          
-            if (publisher) {
-              resolvedAvatarUrl =
-                publisher.profile_image_url?.trim() ||
-                resolvedAvatarUrl;
-          
-              resolvedUserName =
-                publisher.company_name?.trim() ||
-                publisher.contact_name?.trim() ||
-                resolvedUserName;
-            }
+          } else if (publisher) {
+            resolvedAvatarUrl =
+              publisher.profile_image_url?.trim() ||
+              resolvedAvatarUrl;
+
+            resolvedUserName =
+              publisher.company_name?.trim() ||
+              publisher.contact_name?.trim() ||
+              resolvedUserName;
           }
         }
 
@@ -338,7 +348,7 @@ export function useCurrentUser(): CurrentUserState {
         commitState(version, {
           userId: user.id,
           isLoggedIn: true,
-          accountType: null,
+          accountType: metadataAccountType,
           userName,
           avatarUrl,
           loading: false,
@@ -390,7 +400,7 @@ export function useCurrentUser(): CurrentUserState {
           if (!isActive) {
             return;
           }
-    
+
           void resolveUser(
             data.user ?? null,
           );
@@ -419,16 +429,16 @@ export function useCurrentUser(): CurrentUserState {
     );
 
     return () => {
-  isActive = false;
-  requestVersion += 1;
+      isActive = false;
+      requestVersion += 1;
 
-  window.removeEventListener(
-    "mlamh:account-updated",
-    refreshCurrentUser,
-  );
+      window.removeEventListener(
+        "mlamh:account-updated",
+        refreshCurrentUser,
+      );
 
-  subscription.unsubscribe();
-};
+      subscription.unsubscribe();
+    };
   }, []);
 
   return state;
