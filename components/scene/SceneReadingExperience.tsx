@@ -147,54 +147,56 @@ export function SceneReadingExperience({ locale, title, content, readTimeMinutes
     <>
       <style jsx global>{`
         [data-scene-article] > header h1 {
-          font-size: 2rem !important;
-          line-height: 1.38 !important;
+          font-size: 1.85rem !important;
+          line-height: 1.4 !important;
         }
 
         [data-scene-article] h2.font-semibold {
-          font-size: 1.25rem !important;
-          line-height: 1.65 !important;
+          font-size: 1.08rem !important;
+          line-height: 1.7 !important;
+          font-weight: 500 !important;
         }
 
         [data-scene-article] h3.font-semibold {
-          font-size: 1.05rem !important;
-          line-height: 1.7 !important;
+          font-size: 0.98rem !important;
+          line-height: 1.72 !important;
+          font-weight: 500 !important;
         }
 
         [data-scene-article] p.whitespace-pre-line {
-          font-size: 0.97rem !important;
-          line-height: 1.95 !important;
+          font-size: 0.92rem !important;
+          line-height: 1.88 !important;
         }
 
         [data-scene-article] ul,
         [data-scene-article] ol {
-          font-size: 0.97rem !important;
-          line-height: 1.9 !important;
+          font-size: 0.92rem !important;
+          line-height: 1.85 !important;
         }
 
         @media (min-width: 640px) {
           [data-scene-article] > header h1 {
-            font-size: 2.6rem !important;
+            font-size: 2.35rem !important;
           }
 
           [data-scene-article] h2.font-semibold {
-            font-size: 1.45rem !important;
+            font-size: 1.22rem !important;
           }
 
           [data-scene-article] h3.font-semibold {
-            font-size: 1.15rem !important;
+            font-size: 1.05rem !important;
           }
 
           [data-scene-article] p.whitespace-pre-line,
           [data-scene-article] ul,
           [data-scene-article] ol {
-            font-size: 1rem !important;
+            font-size: 0.95rem !important;
           }
         }
 
         @media (min-width: 768px) {
           [data-scene-article] > header h1 {
-            font-size: 3rem !important;
+            font-size: 2.65rem !important;
           }
         }
       `}</style>
