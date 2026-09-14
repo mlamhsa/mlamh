@@ -5,7 +5,8 @@ import { revalidatePath } from "next/cache";
 import { updateOwnTalentProfessionalDetailsAction } from "@/lib/actions/update-own-talent-professional-details";
 import { TALENT_CATEGORIES } from "@/lib/data/talent-categories";
 import { getActiveTalentCountry, isActiveTalentCountryCode } from "@/lib/data/talent-active-market";
-import { GENDER_OPTIONS, NATIONALITY_OPTIONS, TALENT_SIGNUP_COUNTRIES } from "@/lib/data/talent-signup";
+import { GENDER_OPTIONS, TALENT_SIGNUP_COUNTRIES } from "@/lib/data/talent-signup";
+import { resolveNationality } from "@/lib/data/nationality-normalization";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import {
@@ -119,9 +120,7 @@ export async function updateOwnTalentCoreDetailsAction(
   const genderOption = gender
     ? GENDER_OPTIONS.find((item) => item.value === gender)
     : null;
-  const nationalityOption = nationality
-    ? NATIONALITY_OPTIONS.find((item) => item.value === nationality)
-    : null;
+  const nationalityOption = nationality ? resolveNationality(nationality) : null;
   const existingCountryCode = String(talent.base_country_code ?? "").trim().toUpperCase();
   const countryChanged = Boolean(countryCode) && countryCode !== existingCountryCode;
   const country = countryCode
@@ -162,9 +161,9 @@ export async function updateOwnTalentCoreDetailsAction(
     talentPayload.primary_role = category.slug;
   }
   if (gender) talentPayload.gender = gender;
-  if (nationality) {
-    talentPayload.nationality_slug = nationality;
-    talentPayload.nationality = nationality;
+  if (nationalityOption) {
+    talentPayload.nationality_slug = nationalityOption.slug;
+    talentPayload.nationality = nationalityOption.en;
   }
   if (country) talentPayload.base_country_code = country.code;
   if (city) {
