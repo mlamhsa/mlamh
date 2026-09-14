@@ -96,9 +96,6 @@ export function EmailOtpVerification({ locale, email, accountType }: Props) {
   async function finishVerifiedSession(
     session: { access_token: string; user: { email?: string | null; user_metadata?: Record<string, unknown> } },
   ) {
-    // verifyOtp already establishes the browser session. Do not call setSession
-    // again here: Mobile Safari can reject the immediate refresh-token replay.
-    // Finalization authenticates with the OTP-issued access token directly.
     await finishWithSession(session.access_token, session.user);
   }
 
@@ -115,14 +112,24 @@ export function EmailOtpVerification({ locale, email, accountType }: Props) {
     setLoading(true); setError(""); setMessage("");
     try {
       const supabase = createBrowserSupabaseClient();
+      const normalizedEmail = email.trim().toLowerCase();
       const { data: sessionData } = await supabase.auth.getSession();
       const existingSession = sessionData.session;
-      const existingUserEmail = existingSession?.user.email?.trim().toLowerCase();
-      if (existingSession && existingUserEmail === email.trim().toLowerCase() && existingSession.user.email_confirmed_at) {
-        await finishVerifiedSession(existingSession);
-        return;
+
+      if (existingSession) {
+        const { data: existingUserData, error: existingUserError } = await supabase.auth.getUser(existingSession.access_token);
+        const existingUser = existingUserData.user;
+        const existingUserEmail = existingUser?.email?.trim().toLowerCase();
+
+        if (!existingUserError && existingUser && existingUserEmail === normalizedEmail && existingUser.email_confirmed_at) {
+          await finishVerifiedSession({ access_token: existingSession.access_token, user: existingUser });
+          return;
+        }
       }
 
+      // A cached Safari session may exist locally even though its token has
+      // already been rejected server-side. In that case, always verify the new
+      // OTP instead of repeatedly reusing the stale session.
       const { data, error: verifyError } = await supabase.auth.verifyOtp({ email, token, type: "email" });
       if (verifyError || !data.session || !data.user) {
         setError(isRtl ? "الرمز غير صحيح أو انتهت صلاحيته. تحقق منه أو اطلب رمزًا جديدًا." : "That code is incorrect or expired. Check it or request a new code.");
