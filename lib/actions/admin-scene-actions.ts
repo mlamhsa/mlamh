@@ -23,6 +23,11 @@ const AUDIENCES = new Set<SceneAudience>(["all", "talent", "publisher"]);
 const STATUSES = new Set<SceneArticleStatus>(["draft", "published", "archived"]);
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
+type ParsedArticleData = Record<string, unknown> & { slug: string };
+type ArticleParseResult =
+  | { error: string; data?: never }
+  | { error?: never; data: ParsedArticleData };
+
 function value(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
 }
@@ -57,7 +62,7 @@ function parsePublishedAt(raw: string, status: SceneArticleStatus) {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
-function buildArticleValues(formData: FormData) {
+function buildArticleValues(formData: FormData): ArticleParseResult {
   const slug = value(formData, "slug").toLowerCase();
   const titleAr = value(formData, "title_ar");
   const contentAr = value(formData, "content_ar");
@@ -69,17 +74,17 @@ function buildArticleValues(formData: FormData) {
   const readTime = readTimeRaw ? Number(readTimeRaw) : null;
   const publishedAt = parsePublishedAt(value(formData, "published_at"), status);
 
-  if (!SLUG_PATTERN.test(slug)) return { error: "invalid_slug" as const };
-  if (!titleAr || titleAr.length > 180) return { error: "invalid_title" as const };
-  if (!contentAr || contentAr.length < 20) return { error: "invalid_content" as const };
-  if (!Number.isInteger(categoryId) || categoryId <= 0) return { error: "invalid_category" as const };
-  if (!CONTENT_TYPES.has(contentType)) return { error: "invalid_type" as const };
-  if (!AUDIENCES.has(audience)) return { error: "invalid_audience" as const };
-  if (!STATUSES.has(status)) return { error: "invalid_status" as const };
+  if (!SLUG_PATTERN.test(slug)) return { error: "invalid_slug" };
+  if (!titleAr || titleAr.length > 180) return { error: "invalid_title" };
+  if (!contentAr || contentAr.length < 20) return { error: "invalid_content" };
+  if (!Number.isInteger(categoryId) || categoryId <= 0) return { error: "invalid_category" };
+  if (!CONTENT_TYPES.has(contentType)) return { error: "invalid_type" };
+  if (!AUDIENCES.has(audience)) return { error: "invalid_audience" };
+  if (!STATUSES.has(status)) return { error: "invalid_status" };
   if (readTime !== null && (!Number.isInteger(readTime) || readTime <= 0 || readTime > 180)) {
-    return { error: "invalid_read_time" as const };
+    return { error: "invalid_read_time" };
   }
-  if (status === "published" && !publishedAt) return { error: "invalid_publish_date" as const };
+  if (status === "published" && !publishedAt) return { error: "invalid_publish_date" };
 
   const tags = value(formData, "tags")
     .split(",")
@@ -136,7 +141,7 @@ export async function createSceneArticleAction(formData: FormData) {
   const locale: "ar" | "en" = formData.get("locale") === "en" ? "en" : "ar";
   const parsed = buildArticleValues(formData);
 
-  if ("error" in parsed) {
+  if (parsed.error) {
     redirect(sceneAdminUrl(locale, { error: parsed.error }));
   }
 
@@ -168,7 +173,7 @@ export async function updateSceneArticleAction(formData: FormData) {
   }
 
   const parsed = buildArticleValues(formData);
-  if ("error" in parsed) {
+  if (parsed.error) {
     redirect(sceneEditUrl(id, locale, { error: parsed.error }));
   }
 
