@@ -47,7 +47,7 @@ export function SceneReadingExperience({ locale, title, content, readTimeMinutes
       const viewport = window.innerHeight;
       const scrolled = window.scrollY - articleTop + viewport * 0.18;
       const max = Math.max(articleHeight - viewport * 0.35, 1);
-      setProgress(Math.min(100, Math.max(0, (scrolled / max) * 100)));
+      setProgress(Math.min(100, Math.max(0, (scrolled / max) * 100));
     };
 
     onScroll();
@@ -145,6 +145,60 @@ export function SceneReadingExperience({ locale, title, content, readTimeMinutes
 
   return (
     <>
+      <style jsx global>{`
+        [data-scene-article] > header h1 {
+          font-size: 2rem !important;
+          line-height: 1.38 !important;
+        }
+
+        [data-scene-article] h2.font-semibold {
+          font-size: 1.25rem !important;
+          line-height: 1.65 !important;
+        }
+
+        [data-scene-article] h3.font-semibold {
+          font-size: 1.05rem !important;
+          line-height: 1.7 !important;
+        }
+
+        [data-scene-article] p.whitespace-pre-line {
+          font-size: 0.97rem !important;
+          line-height: 1.95 !important;
+        }
+
+        [data-scene-article] ul,
+        [data-scene-article] ol {
+          font-size: 0.97rem !important;
+          line-height: 1.9 !important;
+        }
+
+        @media (min-width: 640px) {
+          [data-scene-article] > header h1 {
+            font-size: 2.6rem !important;
+          }
+
+          [data-scene-article] h2.font-semibold {
+            font-size: 1.45rem !important;
+          }
+
+          [data-scene-article] h3.font-semibold {
+            font-size: 1.15rem !important;
+          }
+
+          [data-scene-article] p.whitespace-pre-line,
+          [data-scene-article] ul,
+          [data-scene-article] ol {
+            font-size: 1rem !important;
+          }
+        }
+
+        @media (min-width: 768px) {
+          [data-scene-article] > header h1 {
+            font-size: 3rem !important;
+          }
+        }
+      `}</style>
+
       <div className="fixed inset-x-0 top-0 z-[70] h-[2px] bg-transparent">
         <div className="h-full bg-gold transition-[width] duration-150" style={{ width: `${progress}%` }} />
       </div>
