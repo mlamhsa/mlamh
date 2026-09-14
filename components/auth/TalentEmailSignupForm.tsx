@@ -5,9 +5,12 @@ import { Eye, EyeOff } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { NationalityCombobox } from "@/components/talent-dashboard/NationalityCombobox";
+import { SaudiCityCombobox } from "@/components/talent-dashboard/SaudiCityCombobox";
 import { checkAuthEmailExistsAction } from "@/lib/actions/check-auth-email";
 import { TALENT_CATEGORIES } from "@/lib/data/talent-categories";
-import { GENDER_OPTIONS, NATIONALITY_OPTIONS, TALENT_SIGNUP_COUNTRIES } from "@/lib/data/talent-signup";
+import { GENDER_OPTIONS, TALENT_SIGNUP_COUNTRIES } from "@/lib/data/talent-signup";
+import { getSaudiCityBySlug } from "@/lib/data/saudi-cities";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 
 type Props = { locale: "ar" | "en" };
@@ -76,7 +79,7 @@ export function TalentEmailSignupForm({ locale }: Props) {
     const cleanName = fullName.trim().replace(/\s+/g, " ");
     const cleanEmail = email.trim().toLowerCase();
     const category = TALENT_CATEGORIES.find((item) => item.slug === talentType);
-    const selectedCity = activeMarket.cities.find((item) => item.value === city);
+    const selectedCity = getSaudiCityBySlug(city);
 
     if (cleanName.length < 2 || cleanName.length > 100) return setErrorMessage(isRtl ? "أدخل اسمًا صحيحًا." : "Enter a valid name.");
     if (!/^\S+@\S+\.\S+$/.test(cleanEmail)) return setErrorMessage(isRtl ? "أدخل بريدًا إلكترونيًا صحيحًا." : "Enter a valid email address.");
@@ -121,7 +124,7 @@ export function TalentEmailSignupForm({ locale }: Props) {
             nationality_slug: nationality,
             gender,
             residence_country_code: activeMarket.code,
-            city_slug: selectedCity.value,
+            city_slug: selectedCity.slug,
             city_ar: selectedCity.ar,
             city_en: selectedCity.en,
             profile_visibility: "public",
@@ -213,12 +216,30 @@ export function TalentEmailSignupForm({ locale }: Props) {
       </Field>
 
       <div className="grid gap-5 sm:grid-cols-2">
-        <Field label={isRtl ? "الجنسية" : "Nationality"} requiredMark={requiredMark}><select required value={nationality} onChange={(e) => setNationality(e.currentTarget.value)} className={inputClass}><option value="">{isRtl ? "اختر الجنسية" : "Select nationality"}</option>{NATIONALITY_OPTIONS.map((item) => <option key={item.value} value={item.value} className="bg-black">{isRtl ? item.ar : item.en}</option>)}</select></Field>
+        <PickerField label={isRtl ? "الجنسية" : "Nationality"} requiredMark={requiredMark}>
+          <NationalityCombobox
+            id="signup-nationality"
+            locale={locale}
+            value={nationality}
+            onChange={setNationality}
+            name=""
+            showLabel={false}
+          />
+        </PickerField>
         <Field label={isRtl ? "الجنس" : "Gender"} requiredMark={requiredMark}><select required value={gender} onChange={(e) => setGender(e.currentTarget.value)} className={inputClass}><option value="">{isRtl ? "اختر" : "Select"}</option>{GENDER_OPTIONS.map((item) => <option key={item.value} value={item.value} className="bg-black">{isRtl ? item.ar : item.en}</option>)}</select></Field>
       </div>
 
       <div className="grid gap-5 sm:grid-cols-2">
-        <Field label={isRtl ? "المدينة" : "City"} requiredMark={requiredMark}><select required value={city} onChange={(e) => setCity(e.currentTarget.value)} className={inputClass}><option value="">{isRtl ? "اختر المدينة" : "Select city"}</option>{activeMarket.cities.map((item) => <option key={item.value} value={item.value} className="bg-black">{isRtl ? item.ar : item.en}</option>)}</select></Field>
+        <PickerField label={isRtl ? "المدينة" : "City"} requiredMark={requiredMark}>
+          <SaudiCityCombobox
+            id="signup-city"
+            locale={locale}
+            value={city}
+            onChange={setCity}
+            name=""
+            showLabel={false}
+          />
+        </PickerField>
         <Field label={isRtl ? "نوع الموهبة" : "Talent type"} requiredMark={requiredMark}><select required value={talentType} onChange={(e) => setTalentType(e.currentTarget.value)} className={inputClass}><option value="">{isRtl ? "اختر نوع الموهبة" : "Select talent type"}</option>{TALENT_CATEGORIES.map((item) => <option key={item.slug} value={item.slug} className="bg-black">{isRtl ? item.ar : item.en}</option>)}</select></Field>
       </div>
 
@@ -254,4 +275,8 @@ export function TalentEmailSignupForm({ locale }: Props) {
 
 function Field({ label, requiredMark, children }: { label: string; requiredMark: React.ReactNode; children: React.ReactNode }) {
   return <label className="block"><span className="mb-2 block text-sm text-white/70">{label}{requiredMark}</span>{children}</label>;
+}
+
+function PickerField({ label, requiredMark, children }: { label: string; requiredMark: React.ReactNode; children: React.ReactNode }) {
+  return <div className="block"><span className="mb-2 block text-sm text-white/70">{label}{requiredMark}</span>{children}</div>;
 }
