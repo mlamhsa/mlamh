@@ -1,6 +1,7 @@
 import {
   BarChart3,
   Bell,
+  BookOpenText,
   BrainCircuit,
   BriefcaseBusiness,
   Building2,
@@ -106,6 +107,12 @@ export const adminNavigation: AdminNavigationGroup[] = [
         labelEn: "Marketing Hub",
         href: "/admin/marketing",
         icon: Megaphone,
+      },
+      {
+        labelAr: "مشهد ملامح",
+        labelEn: "MLAMH Scene",
+        href: "/admin/scene",
+        icon: BookOpenText,
       },
     ],
   },
