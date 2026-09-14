@@ -18,6 +18,13 @@ const SAUDI_ACTIVE_COUNTRY: TalentSignupCountry = {
   })),
 };
 
+// Keep legacy consumers of TALENT_SIGNUP_COUNTRIES aligned with the active Saudi
+// market without duplicating city data. This also removes the old "other" city
+// from server-side validation wherever the shared signup registry is reused.
+if (saudiBase) {
+  saudiBase.cities = SAUDI_ACTIVE_COUNTRY.cities;
+}
+
 export const ACTIVE_TALENT_SIGNUP_COUNTRIES: TalentSignupCountry[] = [SAUDI_ACTIVE_COUNTRY];
 
 export function isActiveTalentCountryCode(value: string | null | undefined) {
