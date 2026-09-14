@@ -9,6 +9,7 @@ import {
   Sparkles,
   TriangleAlert,
   UserRound,
+  UsersRound,
 } from "lucide-react";
 
 import { SceneWorldNav } from "@/components/scene/SceneWorldNav";
@@ -16,7 +17,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getTalentProfileReviewReadiness } from "@/lib/talent/profile-review-readiness";
 
 type SceneAudience = "talent" | "publisher" | null;
-type TalentApprovalStatus =
+type ApprovalStatus =
   | "not_submitted"
   | "submitted"
   | "pending"
@@ -25,18 +26,27 @@ type TalentApprovalStatus =
   | "rejected";
 
 type TalentSceneState = {
-  approvalStatus: TalentApprovalStatus;
+  approvalStatus: ApprovalStatus;
   isReady: boolean;
   missingLabelsAr: string[];
   missingLabelsEn: string[];
 };
 
+type PublisherSceneState = {
+  approvalStatus: ApprovalStatus;
+  isProfileComplete: boolean;
+  isSuspended: boolean;
+  opportunityCount: number;
+  applicantsCount: number;
+};
+
 type SceneContext = {
   audience: SceneAudience;
   talentState: TalentSceneState | null;
+  publisherState: PublisherSceneState | null;
 };
 
-function normalizeApprovalStatus(value: unknown): TalentApprovalStatus {
+function normalizeApprovalStatus(value: unknown): ApprovalStatus {
   return value === "submitted" ||
     value === "pending" ||
     value === "approved" ||
@@ -47,23 +57,29 @@ function normalizeApprovalStatus(value: unknown): TalentApprovalStatus {
 }
 
 async function getSceneContext(): Promise<SceneContext> {
+  const emptyContext: SceneContext = {
+    audience: null,
+    talentState: null,
+    publisherState: null,
+  };
+
   try {
     const supabase = await createServerSupabaseClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (!user) return { audience: null, talentState: null };
+    if (!user) return emptyContext;
 
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("account_type, approval_status, phone, data_accuracy_contact_consent")
+      .select("id, account_type, approval_status, phone, data_accuracy_contact_consent")
       .eq("user_id", user.id)
       .maybeSingle();
 
     if (profileError) {
       console.error("[SceneLayout.profile]", profileError);
-      return { audience: null, talentState: null };
+      return emptyContext;
     }
 
     const audience: SceneAudience =
@@ -71,7 +87,84 @@ async function getSceneContext(): Promise<SceneContext> {
         ? profile.account_type
         : null;
 
-    if (audience !== "talent") return { audience, talentState: null };
+    if (audience === "publisher") {
+      const fallbackState: PublisherSceneState = {
+        approvalStatus: normalizeApprovalStatus(profile?.approval_status),
+        isProfileComplete: false,
+        isSuspended: false,
+        opportunityCount: 0,
+        applicantsCount: 0,
+      };
+
+      if (!profile?.id) {
+        return { audience, talentState: null, publisherState: fallbackState };
+      }
+
+      const { data: publisher, error: publisherError } = await supabase
+        .from("publishers")
+        .select("id, publisher_type, company_name, contact_name, city, profile_image_url, status")
+        .eq("profile_id", profile.id)
+        .maybeSingle();
+
+      if (publisherError || !publisher) {
+        if (publisherError) console.error("[SceneLayout.publisher]", publisherError);
+        return { audience, talentState: null, publisherState: fallbackState };
+      }
+
+      const isOrganization = publisher.publisher_type !== "individual";
+      const isProfileComplete = isOrganization
+        ? Boolean(publisher.company_name?.trim()) &&
+          Boolean(publisher.contact_name?.trim()) &&
+          Boolean(publisher.publisher_type?.trim()) &&
+          Boolean(publisher.city?.trim()) &&
+          Boolean(publisher.profile_image_url?.trim())
+        : Boolean(publisher.contact_name?.trim()) &&
+          Boolean(publisher.publisher_type?.trim()) &&
+          Boolean(publisher.city?.trim());
+
+      const { data: opportunities, error: opportunitiesError } = await supabase
+        .from("opportunities")
+        .select("id, status")
+        .eq("publisher_id", publisher.id);
+
+      if (opportunitiesError) {
+        console.error("[SceneLayout.publisherOpportunities]", opportunitiesError);
+      }
+
+      const opportunityRows = opportunities ?? [];
+      const opportunityIds = opportunityRows.map((item) => item.id);
+      let applicantsCount = 0;
+
+      if (opportunityIds.length > 0) {
+        const { data: applications, error: applicationsError } = await supabase
+          .from("opportunity_applications")
+          .select("id, status")
+          .in("opportunity_id", opportunityIds);
+
+        if (applicationsError) {
+          console.error("[SceneLayout.publisherApplications]", applicationsError);
+        } else {
+          applicantsCount = (applications ?? []).filter(
+            (application) =>
+              application.status !== "accepted" && application.status !== "rejected",
+          ).length;
+        }
+      }
+
+      return {
+        audience,
+        talentState: null,
+        publisherState: {
+          approvalStatus: normalizeApprovalStatus(profile?.approval_status),
+          isProfileComplete,
+          isSuspended: publisher.status === "suspended",
+          opportunityCount: opportunityRows.length,
+          applicantsCount,
+        },
+      };
+    }
+
+    if (audience !== "talent") return { ...emptyContext, audience };
 
     const { data: talent, error: talentError } = await supabase
       .from("talents")
@@ -85,6 +178,7 @@ async function getSceneContext(): Promise<SceneContext> {
       console.error("[SceneLayout.talent]", talentError);
       return {
         audience,
+        publisherState: null,
         talentState: {
           approvalStatus: normalizeApprovalStatus(profile?.approval_status),
           isReady: false,
@@ -102,6 +196,7 @@ async function getSceneContext(): Promise<SceneContext> {
 
     return {
       audience,
+      publisherState: null,
       talentState: {
         approvalStatus: normalizeApprovalStatus(profile?.approval_status),
         isReady: readiness.isReady,
@@ -111,7 +206,7 @@ async function getSceneContext(): Promise<SceneContext> {
     };
   } catch (error) {
     console.error("[SceneLayout.context]", error);
-    return { audience: null, talentState: null };
+    return emptyContext;
   }
 }
 
@@ -211,6 +306,151 @@ function buildTalentConfig({
   };
 }
 
+function buildPublisherConfig({
+  locale,
+  publisherState,
+}: {
+  locale: "ar" | "en";
+  publisherState: PublisherSceneState | null;
+}) {
+  const isArabic = locale === "ar";
+  const state = publisherState ?? {
+    approvalStatus: "not_submitted" as ApprovalStatus,
+    isProfileComplete: false,
+    isSuspended: false,
+    opportunityCount: 0,
+    applicantsCount: 0,
+  };
+  const profileHref = `/${locale}/publisher-dashboard/profile`;
+  const dashboardHref = `/${locale}/publisher-dashboard`;
+  const categoryHref = `/${locale}/scene/category/publishers`;
+  const gettingStartedHref = `/${locale}/scene/publisher-getting-started-mlamh`;
+
+  if (state.isSuspended) {
+    return {
+      icon: TriangleAlert,
+      eyebrow: isArabic ? "مشهدك • الحساب موقوف" : "YOUR SCENE • ACCOUNT SUSPENDED",
+      title: isArabic ? "راجع حالة حساب الناشر" : "Review your publisher account status",
+      description: isArabic
+        ? "لن نغيّر أي شيء من مشهد. افتح لوحة الناشر لمراجعة حالة الحساب والتواصل مع الإدارة عند الحاجة."
+        : "Scene will not change anything. Open your publisher dashboard to review the account status and contact support if needed.",
+      primaryLabel: isArabic ? "فتح لوحة الناشر" : "Open publisher dashboard",
+      primaryHref: dashboardHref,
+      secondaryLabel: isArabic ? "محتوى الناشرين" : "Publisher content",
+      secondaryHref: categoryHref,
+    };
+  }
+
+  if (state.approvalStatus === "submitted" || state.approvalStatus === "pending") {
+    return {
+      icon: Clock3,
+      eyebrow: isArabic ? "مشهدك • قيد المراجعة" : "YOUR SCENE • UNDER REVIEW",
+      title: isArabic ? "حسابك قيد المراجعة" : "Your publisher account is under review",
+      description: isArabic
+        ? "لا تحتاج لإعادة الإرسال. يمكنك تجهيز أول Brief وفهم آلية اختيار المواهب أثناء انتظار المراجعة."
+        : "No need to resubmit. Use the review time to prepare your first brief and learn the talent-selection flow.",
+      primaryLabel: isArabic ? "كيف تكتب Brief واضحًا" : "How to write a clear brief",
+      primaryHref: `/${locale}/scene/how-to-write-casting-brief-mlamh`,
+      secondaryLabel: isArabic ? "دليل البداية كناشر" : "Publisher getting-started guide",
+      secondaryHref: gettingStartedHref,
+    };
+  }
+
+  if (state.approvalStatus === "changes_requested" || state.approvalStatus === "rejected") {
+    return {
+      icon: TriangleAlert,
+      eyebrow: isArabic ? "مشهدك • يحتاج تحديثًا" : "YOUR SCENE • UPDATE NEEDED",
+      title: isArabic ? "راجع ملف الناشر قبل الخطوة التالية" : "Review your publisher profile before the next step",
+      description: isArabic
+        ? "ابدأ من ملف الناشر لمعالجة الملاحظات المطلوبة، ثم أعد الإرسال من المسار المعتمد."
+        : "Start from your publisher profile, address the requested changes, then resubmit through the approved flow.",
+      primaryLabel: isArabic ? "فتح ملف الناشر" : "Open publisher profile",
+      primaryHref: profileHref,
+      secondaryLabel: isArabic ? "دليل البداية" : "Getting-started guide",
+      secondaryHref: gettingStartedHref,
+    };
+  }
+
+  if (state.approvalStatus !== "approved") {
+    if (state.isProfileComplete) {
+      return {
+        icon: CircleCheckBig,
+        eyebrow: isArabic ? "مشهدك • جاهز للإرسال" : "YOUR SCENE • READY TO SUBMIT",
+        title: isArabic ? "بيانات الناشر الأساسية مكتملة" : "Your publisher essentials are complete",
+        description: isArabic
+          ? "راجع ملف الناشر وأرسله للمراجعة من المسار الحالي، بدون أي تغيير على رحلة الاعتماد."
+          : "Review your publisher profile and submit it through the current approval flow without changing that workflow.",
+        primaryLabel: isArabic ? "مراجعة ملف الناشر" : "Review publisher profile",
+        primaryHref: profileHref,
+        secondaryLabel: isArabic ? "دليل البداية كناشر" : "Publisher getting-started guide",
+        secondaryHref: gettingStartedHref,
+      };
+    }
+
+    return {
+      icon: Building2,
+      eyebrow: isArabic ? "مشهدك • أكمل حسابك" : "YOUR SCENE • COMPLETE YOUR ACCOUNT",
+      title: isArabic ? "خطوتك التالية: أكمل ملف الناشر" : "Next step: complete your publisher profile",
+      description: isArabic
+        ? "أكمل البيانات الأساسية أولًا، ثم استخدم دليل البداية لفهم ما يحدث حتى أول طلب مواهب."
+        : "Complete the essential details first, then use the getting-started guide to understand the path to your first talent request.",
+      primaryLabel: isArabic ? "إكمال ملف الناشر" : "Complete publisher profile",
+      primaryHref: profileHref,
+      secondaryLabel: isArabic ? "دليل البداية" : "Getting-started guide",
+      secondaryHref: gettingStartedHref,
+    };
+  }
+
+  if (state.applicantsCount > 0) {
+    return {
+      icon: UsersRound,
+      eyebrow: isArabic ? "مشهدك • لديك متقدمون" : "YOUR SCENE • APPLICANTS WAITING",
+      title: isArabic
+        ? state.applicantsCount === 1
+          ? "لديك متقدم يحتاج مراجعتك"
+          : `لديك ${state.applicantsCount} متقدمين يحتاجون مراجعتك`
+        : state.applicantsCount === 1
+          ? "You have 1 applicant to review"
+          : `You have ${state.applicantsCount} applicants to review`,
+      description: isArabic
+        ? "ابدأ بالمتقدمين الحاليين، واستفد من دليل المراجعة لبناء قرار أسرع وأكثر اتساقًا."
+        : "Start with your current applicants and use the review guide for faster, more consistent decisions.",
+      primaryLabel: isArabic ? "فتح المتقدمين" : "Open applicants",
+      primaryHref: `/${locale}/publisher-dashboard/applicants`,
+      secondaryLabel: isArabic ? "دليل مراجعة المتقدمين" : "Applicant review guide",
+      secondaryHref: `/${locale}/scene/how-to-review-talent-applications`,
+    };
+  }
+
+  if (state.opportunityCount === 0) {
+    return {
+      icon: CircleCheckBig,
+      eyebrow: isArabic ? "مشهدك • الحساب معتمد" : "YOUR SCENE • APPROVED",
+      title: isArabic ? "حسابك جاهز — أنشئ أول فرصة" : "Your account is ready — create your first opportunity",
+      description: isArabic
+        ? "ابدأ بفرصة واضحة، وحدد المطلوب بدقة حتى تصل إلى المواهب الأقرب لمشروعك."
+        : "Start with a clear opportunity and precise requirements so the right talent can find your project.",
+      primaryLabel: isArabic ? "إنشاء أول فرصة" : "Create first opportunity",
+      primaryHref: `/${locale}/publisher-dashboard/opportunities/new`,
+      secondaryLabel: isArabic ? "كيف تكتب Brief واضحًا" : "How to write a clear brief",
+      secondaryHref: `/${locale}/scene/how-to-write-casting-brief-mlamh`,
+    };
+  }
+
+  return {
+    icon: Building2,
+    eyebrow: isArabic ? "مشهدك • فرصك نشطة" : "YOUR SCENE • YOUR OPPORTUNITIES",
+    title: isArabic ? "لديك فرص بالفعل — حسّن جودة الطلب والاختيار" : "You already have opportunities — improve brief and selection quality",
+    description: isArabic
+      ? "استخدم مشهد لتحسين المتطلبات وبناء Shortlist أوضح قبل القرار النهائي."
+      : "Use Scene to sharpen requirements and build a clearer shortlist before final selection.",
+    primaryLabel: isArabic ? "إدارة الفرص" : "Manage opportunities",
+    primaryHref: `/${locale}/publisher-dashboard/opportunities`,
+    secondaryLabel: isArabic ? "دليل بناء Shortlist" : "Shortlist guide",
+    secondaryHref: `/${locale}/scene/publisher-shortlist-guide`,
+  };
+}
+
 export default async function SceneLayout({
   children,
   params,
@@ -221,25 +461,14 @@ export default async function SceneLayout({
   const { locale: rawLocale } = await params;
   const locale: "ar" | "en" = rawLocale === "en" ? "en" : "ar";
   const isArabic = locale === "ar";
-  const { audience, talentState } = await getSceneContext();
+  const { audience, talentState, publisherState } = await getSceneContext();
   const ArrowIcon = isArabic ? ArrowLeft : ArrowRight;
 
   const audienceConfig =
     audience === "talent"
       ? buildTalentConfig({ locale, talentState })
       : audience === "publisher"
-        ? {
-            icon: Building2,
-            eyebrow: isArabic ? "مشهدك" : "YOUR SCENE",
-            title: isArabic ? "محتوى مختار للناشر" : "Selected for publishers",
-            description: isArabic
-              ? "ابدأ بما يساعدك على كتابة طلب أوضح واختيار الموهبة الأنسب."
-              : "Start with guidance for clearer briefs and better talent selection.",
-            primaryLabel: isArabic ? "استكشف محتوى الناشرين" : "Explore publisher content",
-            primaryHref: `/${locale}/scene/category/publishers`,
-            secondaryLabel: isArabic ? "دليل البداية كناشر" : "Publisher getting-started guide",
-            secondaryHref: `/${locale}/scene/publisher-getting-started-mlamh`,
-          }
+        ? buildPublisherConfig({ locale, publisherState })
         : null;
 
   return (
