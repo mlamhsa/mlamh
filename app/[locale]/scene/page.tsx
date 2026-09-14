@@ -103,6 +103,32 @@ export default async function SceneHomePage({ params }: PageProps) {
   const lead = featured[0] ?? articles[0] ?? null;
   const latest = articles.filter((article) => article.id !== lead?.id).slice(0, 6);
   const ArrowIcon = isArabic ? ArrowLeft : ArrowRight;
+  const entryCards = [
+    {
+      icon: UserRound,
+      label: isArabic ? "أنا موهبة" : "I'm talent",
+      text: isArabic ? "ملف، صور، كاستنج" : "Profile, media, casting",
+      href: `/${locale}/scene/category/talent`,
+    },
+    {
+      icon: Building2,
+      label: isArabic ? "أنا ناشر" : "I'm a publisher",
+      text: isArabic ? "طلبات، اختيار، إدارة" : "Briefs, selection, workflow",
+      href: `/${locale}/scene/category/publishers`,
+    },
+    {
+      icon: Clapperboard,
+      label: isArabic ? "الكاستنج والإنتاج" : "Casting & production",
+      text: isArabic ? "كواليس، أدوار، ومصطلحات" : "Process, roles & terminology",
+      href: `/${locale}/scene/category/industry`,
+    },
+    {
+      icon: Compass,
+      label: isArabic ? "استخدام ملامح" : "Using MLAMH",
+      text: isArabic ? "شروحات واضحة" : "Clear how-to guides",
+      href: `/${locale}/scene/category/using-mlamh`,
+    },
+  ];
 
   return (
     <main dir={isArabic ? "rtl" : "ltr"} className="min-h-screen bg-black text-white">
@@ -149,17 +175,19 @@ export default async function SceneHomePage({ params }: PageProps) {
             </div>
 
             <div className="grid grid-cols-2 gap-2 sm:gap-3">
-              {[
-                { icon: UserRound, label: isArabic ? "أنا موهبة" : "I'm talent", text: isArabic ? "ملف، صور، كاستنج" : "Profile, media, casting" },
-                { icon: Building2, label: isArabic ? "أنا ناشر" : "I'm a publisher", text: isArabic ? "طلبات، اختيار، إدارة" : "Briefs, selection, workflow" },
-                { icon: Clapperboard, label: isArabic ? "الصناعة" : "Industry", text: isArabic ? "كاستنج وإنتاج" : "Casting & production" },
-                { icon: Compass, label: isArabic ? "استخدام ملامح" : "Using MLAMH", text: isArabic ? "شروحات واضحة" : "Clear how-to guides" },
-              ].map((item) => (
-                <div key={item.label} className="rounded-2xl border border-white/10 bg-white/[0.035] p-4 backdrop-blur-sm sm:p-5">
-                  <item.icon className="h-5 w-5 text-gold" />
+              {entryCards.map((item) => (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  className="group rounded-2xl border border-white/10 bg-white/[0.035] p-4 backdrop-blur-sm transition hover:-translate-y-0.5 hover:border-gold/25 hover:bg-white/[0.055] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/40 sm:p-5"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <item.icon className="h-5 w-5 text-gold" />
+                    <ArrowIcon className="h-3.5 w-3.5 text-white/20 transition group-hover:text-gold" />
+                  </div>
                   <p className="mt-4 text-sm font-medium">{item.label}</p>
                   <p className="mt-1 text-[11px] text-white/35">{item.text}</p>
-                </div>
+                </Link>
               ))}
             </div>
           </div>
@@ -167,15 +195,17 @@ export default async function SceneHomePage({ params }: PageProps) {
       </section>
 
       {lead ? (
-        <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 md:py-14 lg:px-8">
-          <div className="mb-5 flex items-end justify-between gap-4">
+        <section className="scroll-mt-36 mx-auto max-w-7xl px-4 pb-10 pt-12 sm:px-6 md:pb-14 md:pt-16 lg:px-8 lg:pt-18">
+          <div className="mb-6 flex items-end justify-between gap-4 md:mb-7">
             <div>
               <p className="text-[10px] uppercase tracking-[0.3em] text-gold">{isArabic ? "من المشهد" : "FROM THE SCENE"}</p>
               <h2 className="mt-2 text-2xl font-light sm:text-3xl">{isArabic ? "مختارات ملامح" : "MLAMH selections"}</h2>
             </div>
           </div>
-          <div className="grid gap-4 lg:grid-cols-[1.25fr_.75fr]">
-            <SceneArticleCard article={lead} locale={locale} priority />
+          <div className="grid gap-4 lg:grid-cols-3 lg:items-start">
+            <div className="lg:col-span-2">
+              <SceneArticleCard article={lead} locale={locale} priority />
+            </div>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
               {latest.slice(0, 2).map((article) => (
                 <SceneArticleCard key={article.id} article={article} locale={locale} />
@@ -241,13 +271,9 @@ export default async function SceneHomePage({ params }: PageProps) {
           <h2 className="mt-5 text-2xl font-light sm:text-3xl">{isArabic ? "المشهد يُبنى الآن" : "The Scene is being built"}</h2>
           <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-white/40">
             {isArabic
-              ? "نعمل على أول مجموعة من الأدلة والشروحات والقصص. ستظهر هنا تباعًا بدون التأثير على خدمات ملامح الحالية."
-              : "The first set of guides, explainers and stories is being prepared and will appear here progressively."}
+              ? "نعمل على أول مجموعة من الأدلة والشروحات والقصص. ستظهر هنا تباعًا بدون التأثير على خدمات ملامح الأساسية."
+              : "The first guides, explainers and stories are being prepared. They will appear here progressively without affecting core MLAMH services."}
           </p>
-          <Link href={`/${locale}`} className="mt-6 inline-flex items-center gap-2 rounded-xl border border-white/10 px-4 py-3 text-xs text-white/60 transition hover:border-gold/30 hover:text-gold">
-            {isArabic ? "العودة إلى ملامح" : "Back to MLAMH"}
-            <ArrowIcon className="h-4 w-4" />
-          </Link>
         </section>
       ) : null}
     </main>
