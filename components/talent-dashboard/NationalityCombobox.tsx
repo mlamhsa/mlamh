@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { NATIONALITIES } from "@/lib/data/nationalities";
 import {
@@ -37,10 +38,12 @@ export function NationalityCombobox({
   className = "",
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const sheetRef = useRef<HTMLDivElement | null>(null);
   const scrollYRef = useRef(0);
   const isArabic = locale === "ar";
   const isControlled = value !== undefined;
 
+  const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [internalSlug, setInternalSlug] = useState(() => normalizeNationalitySlug(defaultValue));
@@ -59,6 +62,8 @@ export function NationalityCombobox({
     });
   }, [isArabic, query]);
 
+  useEffect(() => setMounted(true), []);
+
   useEffect(() => {
     function closePicker() {
       setOpen(false);
@@ -66,7 +71,14 @@ export function NationalityCombobox({
     }
 
     function handlePointerDown(event: PointerEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) closePicker();
+      const target = event.target as Node;
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(target) &&
+        !sheetRef.current?.contains(target)
+      ) {
+        closePicker();
+      }
     }
 
     function handleKeyDown(event: KeyboardEvent) {
@@ -125,6 +137,70 @@ export function NationalityCombobox({
     closePicker();
   }
 
+  const searchBlock = (
+    <div className="border-b border-white/10 p-4 sm:p-3">
+      <div className="mb-3 flex items-center justify-between gap-3 px-1 sm:hidden">
+        <span className="text-base font-semibold text-white">{isArabic ? "اختر الجنسية" : "Select nationality"}</span>
+        <button type="button" onClick={closePicker} className="min-h-9 rounded-full border border-white/10 px-4 text-xs text-white/65">{isArabic ? "إغلاق" : "Close"}</button>
+      </div>
+      <input
+        type="search"
+        inputMode="search"
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+        placeholder={isArabic ? "ابحث عن الجنسية أو الدولة..." : "Search nationality or country..."}
+        autoComplete="off"
+        className="w-full rounded-xl border border-white/10 bg-black px-4 py-3.5 text-base text-white outline-none placeholder:text-white/25 focus:border-gold/45 sm:py-3 sm:text-sm"
+      />
+      <p className="mt-2 px-1 text-[11px] text-white/30">{isArabic ? "ابحث بالعربية أو الإنجليزية، باسم الجنسية أو الدولة." : "Search in Arabic or English by nationality or country."}</p>
+    </div>
+  );
+
+  const optionsList = (
+    <div role="listbox" className="max-h-[55dvh] overflow-y-auto overscroll-contain p-2 sm:max-h-80">
+      {filteredNationalities.length > 0 ? filteredNationalities.map((nationality) => {
+        const selected = nationality.slug === selectedSlug;
+        return (
+          <button
+            key={nationality.code}
+            type="button"
+            role="option"
+            aria-selected={selected}
+            onClick={() => selectNationality(nationality.slug)}
+            className={`flex min-h-12 w-full items-center justify-between gap-3 rounded-xl px-4 py-3 text-start text-sm transition ${selected ? "bg-gold/10 text-gold" : "text-white/80 hover:bg-white/[0.06] hover:text-white"}`}
+          >
+            <span>{isArabic ? nationality.ar : nationality.en}</span>
+            <span className="text-xs text-white/35">{isArabic ? nationality.countryAr : nationality.countryEn}</span>
+          </button>
+        );
+      }) : <div className="px-4 py-8 text-center text-sm text-white/35">{isArabic ? "لا توجد نتيجة مطابقة." : "No matching nationality."}</div>}
+    </div>
+  );
+
+  const mobileSheet = open && !disabled && mounted
+    ? createPortal(
+        <>
+          <button
+            type="button"
+            aria-label={isArabic ? "إغلاق اختيار الجنسية" : "Close nationality picker"}
+            onClick={closePicker}
+            className="fixed inset-0 z-[140] bg-black/70 backdrop-blur-[2px] sm:hidden"
+          />
+          <div
+            ref={sheetRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label={isArabic ? "اختيار الجنسية" : "Select nationality"}
+            className="fixed inset-x-0 bottom-0 z-[150] max-h-[78dvh] overflow-hidden rounded-t-[1.75rem] border border-b-0 border-gold/20 bg-[#080808] pb-[calc(env(safe-area-inset-bottom)+5.5rem)] shadow-2xl sm:hidden"
+          >
+            {searchBlock}
+            {optionsList}
+          </div>
+        </>,
+        document.body,
+      )
+    : null;
+
   return (
     <div ref={containerRef} className={`relative ${className}`}>
       {name ? <input type="hidden" name={name} value={selectedSlug} /> : null}
@@ -151,31 +227,13 @@ export function NationalityCombobox({
       </button>
 
       {open && !disabled ? (
-        <>
-          <button type="button" aria-label={isArabic ? "إغلاق اختيار الجنسية" : "Close nationality picker"} onClick={closePicker} className="fixed inset-0 z-[70] bg-black/70 backdrop-blur-[2px] sm:hidden" />
-          <div role="dialog" aria-modal="true" aria-label={isArabic ? "اختيار الجنسية" : "Select nationality"} className="fixed inset-x-0 bottom-0 z-[80] max-h-[82dvh] overflow-hidden rounded-t-[1.75rem] border border-b-0 border-gold/20 bg-[#080808] pb-[env(safe-area-inset-bottom)] shadow-2xl sm:absolute sm:inset-x-0 sm:bottom-auto sm:mt-2 sm:max-h-none sm:rounded-2xl sm:border sm:pb-0">
-            <div className="border-b border-white/10 p-4 sm:p-3">
-              <div className="mb-3 flex items-center justify-between gap-3 px-1 sm:hidden">
-                <span className="text-base font-semibold text-white">{isArabic ? "اختر الجنسية" : "Select nationality"}</span>
-                <button type="button" onClick={closePicker} className="min-h-9 rounded-full border border-white/10 px-4 text-xs text-white/65">{isArabic ? "إغلاق" : "Close"}</button>
-              </div>
-              <input type="search" inputMode="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={isArabic ? "ابحث عن الجنسية أو الدولة..." : "Search nationality or country..."} autoComplete="off" className="w-full rounded-xl border border-white/10 bg-black px-4 py-3.5 text-base text-white outline-none placeholder:text-white/25 focus:border-gold/45 sm:py-3 sm:text-sm" />
-              <p className="mt-2 px-1 text-[11px] text-white/30">{isArabic ? "ابحث بالعربية أو الإنجليزية، باسم الجنسية أو الدولة." : "Search in Arabic or English by nationality or country."}</p>
-            </div>
-            <div role="listbox" className="max-h-[58dvh] overflow-y-auto overscroll-contain p-2 sm:max-h-80">
-              {filteredNationalities.length > 0 ? filteredNationalities.map((nationality) => {
-                const selected = nationality.slug === selectedSlug;
-                return (
-                  <button key={nationality.code} type="button" role="option" aria-selected={selected} onClick={() => selectNationality(nationality.slug)} className={`flex min-h-12 w-full items-center justify-between gap-3 rounded-xl px-4 py-3 text-start text-sm transition ${selected ? "bg-gold/10 text-gold" : "text-white/80 hover:bg-white/[0.06] hover:text-white"}`}>
-                    <span>{isArabic ? nationality.ar : nationality.en}</span>
-                    <span className="text-xs text-white/35">{isArabic ? nationality.countryAr : nationality.countryEn}</span>
-                  </button>
-                );
-              }) : <div className="px-4 py-8 text-center text-sm text-white/35">{isArabic ? "لا توجد نتيجة مطابقة." : "No matching nationality."}</div>}
-            </div>
-          </div>
-        </>
+        <div className="absolute inset-x-0 z-[80] mt-2 hidden overflow-hidden rounded-2xl border border-gold/20 bg-[#080808] shadow-2xl sm:block">
+          {searchBlock}
+          {optionsList}
+        </div>
       ) : null}
+
+      {mobileSheet}
     </div>
   );
 }
