@@ -373,7 +373,7 @@ export async function updateApplicationStatusAction(
           ? "تم قبول طلبك"
           : "تحديث على طلبك",
       body: isQuickSelection
-        ? `اختارك الناشر لطلب «${opportunity.title ?? "طلب سريع"}». يمكنك متابعة التفاصيل عبر المحادثة.`
+        ? `اختارك الناشر مبدئيًا لطلب «${opportunity.title ?? "طلب سريع"}». افتح المحادثة لمتابعة الأعمال أو المعلومات المطلوبة قبل تأكيد التعاون.`
         : getNotificationMessage(status, opportunity.title),
       metadata: {
         applicationId: application.id,
@@ -386,25 +386,43 @@ export async function updateApplicationStatusAction(
   }
 
   if (status === "accepted" && conversationId) {
-    await createCanonicalNotification({
-      adminClient,
-      eventType: "booking_ready",
-      targetType: "conversation",
-      targetId: String(conversationId),
-      actorId: user.id,
-      recipientType: "publisher",
-      recipientId: publisher.id,
-      title: isQuickRequest
-        ? "تم اختيار الموهبة — أكمل التفاصيل"
-        : "تم قبول الموهبة — أكمل تفاصيل الحجز",
-      body: "أرسل للموهبة تاريخ العمل والوقت والموقع والمقابل لتأكيد الحجز.",
-      metadata: {
-        applicationId: application.id,
-        opportunityId: application.opportunity_id,
-        conversationId,
-        postingMode: opportunity.posting_mode,
-      },
-    });
+    if (isQuickRequest) {
+      await createCanonicalNotification({
+        adminClient,
+        eventType: "quick_request_selection_started",
+        targetType: "conversation",
+        targetId: String(conversationId),
+        actorId: user.id,
+        recipientType: "publisher",
+        recipientId: publisher.id,
+        title: "تم الاختيار المبدئي — أكمل عبر المحادثة",
+        body: "ابدأ المحادثة واطلب الأعمال أو المعلومات اللازمة قبل تأكيد اختيار الموهبة نهائيًا.",
+        metadata: {
+          applicationId: application.id,
+          opportunityId: application.opportunity_id,
+          conversationId,
+          postingMode: opportunity.posting_mode,
+        },
+      });
+    } else {
+      await createCanonicalNotification({
+        adminClient,
+        eventType: "booking_ready",
+        targetType: "conversation",
+        targetId: String(conversationId),
+        actorId: user.id,
+        recipientType: "publisher",
+        recipientId: publisher.id,
+        title: "تم قبول الموهبة — أكمل تفاصيل الحجز",
+        body: "أرسل للموهبة تاريخ العمل والوقت والموقع والمقابل لتأكيد الحجز.",
+        metadata: {
+          applicationId: application.id,
+          opportunityId: application.opportunity_id,
+          conversationId,
+          postingMode: opportunity.posting_mode,
+        },
+      });
+    }
   }
 
   await updateEngagement(adminClient, application.talent_id, status);
