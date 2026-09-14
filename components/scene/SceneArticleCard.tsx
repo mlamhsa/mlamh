@@ -13,7 +13,7 @@ type Props = {
 const TYPE_LABELS = {
   guide: { ar: "دليل", en: "Guide" },
   help: { ar: "شرح", en: "Help" },
-  industry: { ar: "الصناعة", en: "Industry" },
+  industry: { ar: "كاستنج وإنتاج", en: "Casting & Production" },
   story: { ar: "قصة", en: "Story" },
   report: { ar: "تقرير", en: "Report" },
   qa: { ar: "سؤال وجواب", en: "Q&A" },
