@@ -3,6 +3,7 @@ import {
   type TalentQualificationEvaluation,
   type TalentQualificationInput,
 } from "./qualification.ts";
+import { getTalentProfileReadiness } from "./profile-review-readiness.ts";
 import { evaluateTalentMarketEligibility } from "../markets/eligibility.ts";
 import { isCountryCode, type CountryCode } from "../markets/countries.ts";
 
@@ -26,6 +27,8 @@ export type BriefTalent = TalentQualificationInput & {
   user_id?: string | null;
   base_country_code?: CountryCode | null;
   work_market_codes?: CountryCode[] | null;
+  phone?: string | null;
+  data_accuracy_contact_consent?: boolean | null;
   gender?: string | null;
   availability_status?: string | null;
   nationality?: string | null;
@@ -171,11 +174,23 @@ function talentAllowsOutOfCityWork(talent: BriefTalent) {
   return talent.ready_to_travel === true || talent.work_outside_city === true;
 }
 
-function evaluateForPrivateSupply(talent: BriefTalent) {
-  // Brief/managed-casting supply is not the public directory. A talent may explicitly
-  // choose a private profile and still be approved, qualified and sendable to a relevant
-  // private Brief without ever setting published=true.
-  return evaluateTalentQualification(talent, { requirePublished: false });
+function evaluateForPrivateSupply(talent: BriefTalent): TalentQualificationEvaluation {
+  // Brief/managed-casting supply is not the public directory. A talent may choose
+  // a private profile and still be matchable, but current core readiness remains a
+  // hard operational gate even after the account itself has been approved.
+  const qualification = evaluateTalentQualification(talent, { requirePublished: false });
+  const readiness = getTalentProfileReadiness(talent);
+
+  if (readiness.isReady) return qualification;
+
+  return {
+    ...qualification,
+    qualified: false,
+    state: "not_ready",
+    reasons: Array.from(
+      new Set([...qualification.reasons, "incomplete_profile" as const]),
+    ),
+  };
 }
 
 export function evaluateTalentForBrief(
@@ -317,7 +332,7 @@ async function getTalentCandidatePool(): Promise<BriefTalent[]> {
   const supabase = createAdminClient();
 
   // Do not filter on published here: private profiles are intentionally unpublished.
-  // Approval/status/image/role/city are evaluated below before a talent becomes qualified.
+  // Approval/status/image/role/city/readiness are evaluated below before a talent becomes qualified.
   const { data: talentRows, error } = await supabase
     .from("talents")
     .select("*")
@@ -332,11 +347,19 @@ async function getTalentCandidatePool(): Promise<BriefTalent[]> {
     .map((talent) => Number(talent.id))
     .filter((value) => Number.isInteger(value) && value > 0);
 
-  const profileByUserId = new Map<string, { approval_status?: string | null; status?: string | null }>();
+  const profileByUserId = new Map<
+    string,
+    {
+      approval_status?: string | null;
+      status?: string | null;
+      phone?: string | null;
+      data_accuracy_contact_consent?: boolean | null;
+    }
+  >();
   if (userIds.length > 0) {
     const { data: profiles, error: profileError } = await supabase
       .from("profiles")
-      .select("user_id, approval_status, status")
+      .select("user_id, approval_status, status, phone, data_accuracy_contact_consent")
       .in("user_id", userIds);
     if (profileError) throw new Error(`[getQualifiedTalents:profiles] ${profileError.message}`);
     for (const profile of profiles ?? []) profileByUserId.set(profile.user_id, profile);
@@ -368,6 +391,9 @@ async function getTalentCandidatePool(): Promise<BriefTalent[]> {
       work_market_codes: Number.isInteger(talentId) ? workMarketsByTalentId.get(talentId) ?? [] : [],
       profile_approval_status: profile?.approval_status,
       profile_status: profile?.status,
+      phone: profile?.phone,
+      data_accuracy_contact_consent:
+        profile?.data_accuracy_contact_consent === true,
     } satisfies BriefTalent;
   });
 }
