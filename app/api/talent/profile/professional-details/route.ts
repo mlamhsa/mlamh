@@ -49,20 +49,50 @@ export async function POST(request: Request) {
   }
 
   const admin = createAdminClient();
-  const { data: talent, error: talentError } = await admin
-    .from("talents")
-    .select("id, slug, primary_role, category_slug")
-    .eq("user_id", user.id)
-    .maybeSingle();
+  const [{ data: talent, error: talentError }, { data: profile, error: profileError }] =
+    await Promise.all([
+      admin
+        .from("talents")
+        .select("id, slug, primary_role, category_slug")
+        .eq("user_id", user.id)
+        .maybeSingle(),
+      admin
+        .from("profiles")
+        .select("account_type, approval_status")
+        .eq("user_id", user.id)
+        .maybeSingle(),
+    ]);
 
-  if (talentError || !talent) {
-    console.error("[professional-details POST talent]", talentError?.message || "Talent not found");
+  if (
+    talentError ||
+    profileError ||
+    !talent ||
+    !profile ||
+    profile.account_type !== "talent"
+  ) {
+    console.error(
+      "[professional-details POST talent]",
+      talentError?.message || profileError?.message || "Talent not found",
+    );
     return NextResponse.json(
       {
         success: false,
         message: isArabic ? "تعذر العثور على ملف الموهبة." : "Talent profile could not be found.",
       },
       { status: 404 },
+    );
+  }
+
+  if (profile.approval_status === "pending" || profile.approval_status === "submitted") {
+    return NextResponse.json(
+      {
+        success: false,
+        message:
+          isArabic
+            ? "لا يمكن تعديل البيانات المهنية أثناء مراجعة الملف. يمكنك التعديل بعد صدور القرار."
+            : "Professional details cannot be edited while the profile is under review. You can edit them after the review decision.",
+      },
+      { status: 409 },
     );
   }
 
