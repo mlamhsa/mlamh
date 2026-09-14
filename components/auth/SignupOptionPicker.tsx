@@ -14,7 +14,7 @@ type Props = {
   locale: "ar" | "en";
   value: string;
   onChange: (value: string) => void;
-  options: Option[];
+  options: readonly Option[];
   placeholderAr: string;
   placeholderEn: string;
   titleAr: string;
