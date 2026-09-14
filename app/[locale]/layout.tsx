@@ -1,5 +1,6 @@
 import { Navbar } from "@/components/Navbar";
 import { MobileAppShell } from "@/components/mobile/MobileAppShell";
+import { getNavigationUser } from "@/lib/auth/navigation-user";
 
 type Locale = "ar" | "en";
 
@@ -14,6 +15,7 @@ export default async function LocaleLayout({
 
   const locale: Locale = rawLocale === "en" ? "en" : "ar";
   const isRtl = locale === "ar";
+  const initialUser = await getNavigationUser();
 
   return (
     <div
@@ -26,7 +28,7 @@ export default async function LocaleLayout({
       </div>
 
       {/* نسخة التطبيق على الجوال فقط */}
-      <MobileAppShell locale={locale} />
+      <MobileAppShell locale={locale} initialUser={initialUser} />
 
       <main className="min-h-screen pb-24 pt-16 lg:pb-0 lg:pt-0">
         {children}
