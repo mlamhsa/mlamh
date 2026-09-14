@@ -1,10 +1,7 @@
 import { TALENT_CATEGORIES } from "@/lib/data/talent-categories";
-import {
-  GENDER_OPTIONS,
-  NATIONALITY_OPTIONS,
-  PROFILE_VISIBILITY_OPTIONS,
-  TALENT_SIGNUP_COUNTRIES,
-} from "@/lib/data/talent-signup";
+import { GENDER_OPTIONS, PROFILE_VISIBILITY_OPTIONS, TALENT_SIGNUP_COUNTRIES } from "@/lib/data/talent-signup";
+import { resolveNationality } from "@/lib/data/nationality-normalization";
+import { getSaudiCityBySlug } from "@/lib/data/saudi-cities";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createStableTalentSlug } from "@/lib/talent/talent-slug";
 
@@ -26,6 +23,17 @@ export type TalentSignupData = {
   consentAt: string | null;
 };
 
+function resolveSignupCity(countryCode: string, citySlug: string) {
+  if (countryCode === "SA") {
+    const city = getSaudiCityBySlug(citySlug);
+    if (!city) return null;
+    return { value: city.slug, ar: city.ar, en: city.en };
+  }
+
+  const country = TALENT_SIGNUP_COUNTRIES.find((item) => item.code === countryCode);
+  return country?.cities.find((item) => item.value === citySlug) ?? null;
+}
+
 export function talentSignupDataFromMetadata(
   metadata: Record<string, unknown>,
   fallback: { displayName?: string | null; phone?: string | null } = {},
@@ -43,10 +51,10 @@ export function talentSignupDataFromMetadata(
   const consentAt = stringValue(metadata, "data_accuracy_contact_consent_at") || null;
 
   const category = TALENT_CATEGORIES.find((item) => item.slug === talentType);
-  const nationalityOption = NATIONALITY_OPTIONS.find((item) => item.value === nationality);
+  const nationalityOption = resolveNationality(nationality);
   const genderOption = GENDER_OPTIONS.find((item) => item.value === gender);
   const country = TALENT_SIGNUP_COUNTRIES.find((item) => item.code === residenceCountryCode);
-  const city = country?.cities.find((item) => item.value === citySlug);
+  const city = resolveSignupCity(residenceCountryCode, citySlug);
   const visibility = PROFILE_VISIBILITY_OPTIONS.find((item) => item.value === profileVisibility);
 
   if (
@@ -67,7 +75,7 @@ export function talentSignupDataFromMetadata(
     displayName,
     phone,
     talentType: category.slug,
-    nationality: nationalityOption.value,
+    nationality: nationalityOption.slug,
     gender: genderOption.value,
     residenceCountryCode: country.code,
     citySlug: city.value,
@@ -84,7 +92,9 @@ export async function ensureTalentAccountFromSignupData(
   const admin = createAdminClient();
   const category = TALENT_CATEGORIES.find((item) => item.slug === data.talentType)!;
   const country = TALENT_SIGNUP_COUNTRIES.find((item) => item.code === data.residenceCountryCode)!;
-  const city = country.cities.find((item) => item.value === data.citySlug)!;
+  const city = resolveSignupCity(country.code, data.citySlug);
+  const nationality = resolveNationality(data.nationality);
+  if (!city || !nationality) throw new Error("INVALID_CANONICAL_SIGNUP_DATA");
   const now = new Date().toISOString();
 
   const { data: existingTalent, error: talentLookupError } = await admin
@@ -123,9 +133,6 @@ export async function ensureTalentAccountFromSignupData(
     updated_at: now,
   };
 
-  // Create the talent row first, then persist the lifecycle profile. If the profile
-  // write fails, remove only the draft row created by this call so we never leave
-  // account_type=talent pointing at a missing talent record.
   const { data: createdTalent, error: insertError } = await admin
     .from("talents")
     .insert({
@@ -140,8 +147,8 @@ export async function ensureTalentAccountFromSignupData(
       city_slug: city.value,
       city_en: city.en,
       city_ar: city.ar,
-      nationality_slug: data.nationality,
-      nationality: data.nationality,
+      nationality_slug: nationality.slug,
+      nationality: nationality.en,
       gender: data.gender,
       profile_visibility: data.profileVisibility,
       image_url: null,
