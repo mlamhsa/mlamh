@@ -47,7 +47,7 @@ export function SceneReadingExperience({ locale, title, content, readTimeMinutes
       const viewport = window.innerHeight;
       const scrolled = window.scrollY - articleTop + viewport * 0.18;
       const max = Math.max(articleHeight - viewport * 0.35, 1);
-      setProgress(Math.min(100, Math.max(0, (scrolled / max) * 100));
+      setProgress(Math.min(100, Math.max(0, (scrolled / max) * 100)));
     };
 
     onScroll();
