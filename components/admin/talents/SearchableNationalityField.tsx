@@ -1,7 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { NATIONALITIES, findNationality, getNationalityBySlug } from "@/lib/data/nationalities";
+
+import { NATIONALITIES } from "@/lib/data/nationalities";
+import {
+  matchesNationalitySearch,
+  resolveNationality,
+} from "@/lib/data/nationality-normalization";
 
 type Props = {
   language: "ar" | "en";
@@ -11,22 +16,26 @@ type Props = {
 
 export function SearchableNationalityField({ language, defaultNationality, defaultSlug }: Props) {
   const isArabic = language === "ar";
-  const initial = getNationalityBySlug(defaultSlug) ?? findNationality(defaultNationality);
+  const initial = resolveNationality(defaultSlug) ?? resolveNationality(defaultNationality);
   const [query, setQuery] = useState(initial ? (isArabic ? initial.ar : initial.en) : defaultNationality ?? "");
   const [selectedSlug, setSelectedSlug] = useState(initial?.slug ?? "");
 
   const results = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
-    const source = normalized
-      ? NATIONALITIES.filter((item) =>
-          [item.ar, item.en, item.countryAr, item.countryEn, item.code]
-            .some((value) => value.toLowerCase().includes(normalized)),
-        )
+    const source = query.trim()
+      ? NATIONALITIES.filter((item) => matchesNationalitySearch(item, query))
       : NATIONALITIES;
-    return source.slice(0, 30);
-  }, [query]);
 
-  const selected = getNationalityBySlug(selectedSlug);
+    return [...source]
+      .sort((a, b) =>
+        (isArabic ? a.ar : a.en).localeCompare(
+          isArabic ? b.ar : b.en,
+          isArabic ? "ar" : "en",
+        ),
+      )
+      .slice(0, 40);
+  }, [isArabic, query]);
+
+  const selected = resolveNationality(selectedSlug);
 
   return (
     <div className="relative">
@@ -41,7 +50,7 @@ export function SearchableNationalityField({ language, defaultNationality, defau
             setQuery(event.target.value);
             setSelectedSlug("");
           }}
-          placeholder={isArabic ? "ابحث: سعودي، مغربي، مصري..." : "Search: Saudi, Moroccan, Egyptian..."}
+          placeholder={isArabic ? "ابحث: سعودي، المغرب، Egyptian..." : "Search: Saudi, Morocco, مصري..."}
           autoComplete="off"
           className="mt-2 w-full rounded-xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white outline-none transition placeholder:text-white/20 focus:border-gold/40 focus:ring-1 focus:ring-gold/20"
         />
@@ -72,7 +81,7 @@ export function SearchableNationalityField({ language, defaultNationality, defau
 
       <input type="hidden" name="nationality_slug" value={selectedSlug} />
       <input type="hidden" name="nationality_code" value={selected?.code ?? ""} />
-      <input type="hidden" name="nationality" value={selected ? (isArabic ? selected.ar : selected.en) : ""} />
+      <input type="hidden" name="nationality" value={selected?.en ?? ""} />
 
       <p className="mt-1.5 text-[11px] leading-5 text-white/25">
         {isArabic
