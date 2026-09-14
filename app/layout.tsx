@@ -4,11 +4,11 @@ import {
   Noto_Sans_Arabic,
 } from "next/font/google";
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { Suspense } from "react";
 import GlobalInteractionFeedback from "@/components/GlobalInteractionFeedback";
 import MarketingAttributionTracker from "@/components/MarketingAttributionTracker";
 import { FeedbackProvider } from "@/components/ui/FeedbackProvider";
-import { defaultLocale } from "@/lib/i18n";
 import "./globals.css";
 
 const SITE_URL = "https://mlamh.net";
@@ -97,15 +97,18 @@ const organizationStructuredData = {
     "منصة سعودية تربط المواهب بفرص التمثيل والمودل وتساعد الشركات والوكالات وأصحاب المشاريع على اكتشاف المواهب المناسبة.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const requestHeaders = await headers();
+  const locale = requestHeaders.get("x-mlamh-locale") === "en" ? "en" : "ar";
+
   return (
     <html
-      lang={defaultLocale}
-      dir="rtl"
+      lang={locale}
+      dir={locale === "ar" ? "rtl" : "ltr"}
       data-scroll-behavior="smooth"
       suppressHydrationWarning
       className={`${cormorant.variable} ${dmSans.variable} ${notoArabic.variable} h-full`}
