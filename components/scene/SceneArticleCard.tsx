@@ -24,6 +24,7 @@ export function SceneArticleCard({ article, locale, priority = false }: Props) {
   const typeLabel = TYPE_LABELS[article.contentType][locale];
   const ArrowIcon = isArabic ? ArrowUpLeft : ArrowUpRight;
   const coverUrl = getSceneCoverUrl(article);
+  const isGeneratedCover = coverUrl.includes("/api/scene/cover?");
 
   return (
     <Link
@@ -37,9 +38,21 @@ export function SceneArticleCard({ article, locale, priority = false }: Props) {
           src={coverUrl}
           alt={article.coverImageAlt || article.title}
           loading={priority ? "eager" : "lazy"}
-          className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.025]"
+          className={[
+            "h-full w-full object-cover transition duration-500",
+            isGeneratedCover
+              ? "scale-[1.10] brightness-[1.16] contrast-[1.08] saturate-[1.08] group-hover:scale-[1.14]"
+              : "group-hover:scale-[1.025]",
+          ].join(" ")}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/5 to-black/10" />
+        <div
+          className={[
+            "absolute inset-0 bg-gradient-to-t",
+            isGeneratedCover
+              ? "from-black/35 via-transparent to-transparent"
+              : "from-black/75 via-black/5 to-black/10",
+          ].join(" ")}
+        />
         <span className="absolute end-3 top-3 rounded-full border border-white/15 bg-black/60 px-2.5 py-1 text-[10px] text-white/75 backdrop-blur-md sm:end-4 sm:top-4 sm:px-3 sm:py-1.5">
           {typeLabel}
         </span>
