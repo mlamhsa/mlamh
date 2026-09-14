@@ -4,9 +4,38 @@ import {
   type NextRequest,
 } from "next/server";
 
+const CANONICAL_HOST = "mlamh.net";
+const LEGACY_PUBLIC_HOSTS = new Set([
+  "mlamh.live",
+  "www.mlamh.live",
+  "mlamh.vercel.app",
+]);
+
+function getRequestHost(request: NextRequest) {
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const host = forwardedHost ?? request.headers.get("host") ?? "";
+
+  return host
+    .split(",")[0]
+    .trim()
+    .toLowerCase()
+    .replace(/:\d+$/, "");
+}
+
 export async function proxy(
   request: NextRequest,
 ) {
+  const requestHost = getRequestHost(request);
+
+  if (LEGACY_PUBLIC_HOSTS.has(requestHost)) {
+    const canonicalUrl = request.nextUrl.clone();
+    canonicalUrl.protocol = "https:";
+    canonicalUrl.hostname = CANONICAL_HOST;
+    canonicalUrl.port = "";
+
+    return NextResponse.redirect(canonicalUrl, 308);
+  }
+
   const requestHeaders = new Headers(request.headers);
   const firstPathSegment = request.nextUrl.pathname.split("/")[1];
 
