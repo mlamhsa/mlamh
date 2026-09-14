@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { use, useEffect, useMemo, useState } from "react";
 
+import { NationalityCombobox } from "@/components/talent-dashboard/NationalityCombobox";
 import { updateOwnTalentBirthDateAction } from "@/lib/actions/update-own-talent-birth-date";
 import { updateOwnTalentCoreDetailsAction } from "@/lib/actions/update-own-talent-core-details";
 import { getOwnTalentProfileAction } from "@/lib/actions/update-own-talent-profile";
@@ -10,9 +11,9 @@ import { TALENT_CATEGORIES } from "@/lib/data/talent-categories";
 import { ACTIVE_TALENT_SIGNUP_COUNTRIES } from "@/lib/data/talent-active-market";
 import {
   GENDER_OPTIONS,
-  NATIONALITY_OPTIONS,
   PROFILE_VISIBILITY_OPTIONS,
 } from "@/lib/data/talent-signup";
+import { normalizeNationalitySlug } from "@/lib/data/nationality-normalization";
 import { isValidLocale, type Locale } from "@/lib/i18n";
 
 type TalentRecord = Record<string, unknown> & {
@@ -77,7 +78,11 @@ export default function TalentRequiredFieldsPage({
       setPhone(clean(talent.phone));
       setRole(clean(talent.primary_role) || clean(talent.category_slug));
       setGender(clean(talent.gender));
-      setNationality(clean(talent.nationality_slug) || clean(talent.nationality));
+      setNationality(
+        normalizeNationalitySlug(
+          clean(talent.nationality_slug) || clean(talent.nationality),
+        ),
+      );
       setCountryCode(clean(talent.base_country_code).toUpperCase());
       setCitySlug(clean(talent.city_slug));
       setBirthDate(clean(talent.date_of_birth).slice(0, 10));
@@ -234,14 +239,19 @@ export default function TalentRequiredFieldsPage({
                   </select>
                 </Field>
 
-                <Field label={isArabic ? "الجنسية" : "Nationality"}>
-                  <select id="nationality" value={nationality} onChange={(e) => setNationality(e.target.value)} className="input">
-                    <option value="">{isArabic ? "اختر" : "Select"}</option>
-                    {NATIONALITY_OPTIONS.map((item) => (
-                      <option key={item.value} value={item.value}>{isArabic ? item.ar : item.en}</option>
-                    ))}
-                  </select>
-                </Field>
+                <div className="block">
+                  <span className="mb-2 block text-sm text-white/70">
+                    {isArabic ? "الجنسية" : "Nationality"}
+                  </span>
+                  <NationalityCombobox
+                    id="nationality"
+                    locale={locale}
+                    value={nationality}
+                    onChange={setNationality}
+                    name=""
+                    showLabel={false}
+                  />
+                </div>
 
                 <Field label={isArabic ? "بلد الإقامة" : "Country of residence"}>
                   <select id="country" value={countryCode} onChange={(e) => selectCountry(e.target.value)} className="input">
