@@ -186,6 +186,54 @@ export default function TalentProfileDetailsLayout({ children }: { children: Rea
           padding-top: 0 !important;
           padding-bottom: 3rem !important;
         }
+        .talent-profile-editor select.input {
+          width: 100%;
+          min-height: 3.5rem;
+          appearance: none;
+          -webkit-appearance: none;
+          border: 1px solid rgba(255, 255, 255, 0.11);
+          border-radius: 1rem;
+          background-color: rgba(0, 0, 0, 0.32);
+          color: #fff;
+          padding: 0.75rem 1rem;
+          padding-inline-end: 2.75rem;
+          font-size: 0.95rem;
+          line-height: 1.4;
+          outline: none;
+          box-shadow: inset 0 1px 0 rgba(255,255,255,.025);
+          transition: border-color .2s ease, background-color .2s ease, box-shadow .2s ease;
+          background-image: linear-gradient(45deg, transparent 50%, rgba(197,160,89,.9) 50%), linear-gradient(135deg, rgba(197,160,89,.9) 50%, transparent 50%);
+          background-position: calc(1.25rem) 50%, calc(1.55rem) 50%;
+          background-size: 6px 6px, 6px 6px;
+          background-repeat: no-repeat;
+        }
+        [dir="ltr"] .talent-profile-editor select.input {
+          background-position: calc(100% - 1.55rem) 50%, calc(100% - 1.25rem) 50%;
+        }
+        .talent-profile-editor select.input:focus {
+          border-color: rgba(197,160,89,.62);
+          background-color: rgba(0, 0, 0, 0.42);
+          box-shadow: 0 0 0 3px rgba(197,160,89,.08);
+        }
+        .talent-profile-editor select.input:disabled {
+          opacity: .52;
+          cursor: not-allowed;
+        }
+        .talent-profile-editor select.input option {
+          background: #111;
+          color: #fff;
+        }
+        @media (max-width: 639px) {
+          .talent-profile-editor select.input {
+            min-height: 3.25rem;
+            border-radius: .9rem;
+            font-size: 1rem;
+            padding-block: .7rem;
+          }
+          .talent-profile-editor form section {
+            padding-inline: 1rem !important;
+          }
+        }
       `}</style>
     </>
   );
