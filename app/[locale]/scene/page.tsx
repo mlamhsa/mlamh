@@ -102,6 +102,14 @@ export default async function SceneHomePage({ params }: PageProps) {
   const featured = articles.filter((article) => article.isFeatured);
   const lead = featured[0] ?? articles[0] ?? null;
   const latest = articles.filter((article) => article.id !== lead?.id).slice(0, 6);
+  const reportCategory = categories.find((category) => category.slug === "reports");
+  const storyCategory = categories.find((category) => category.slug === "stories");
+  const reportArticles = reportCategory
+    ? articles.filter((article) => article.categoryId === reportCategory.id).slice(0, 3)
+    : [];
+  const storyArticles = storyCategory
+    ? articles.filter((article) => article.categoryId === storyCategory.id).slice(0, 3)
+    : [];
   const ArrowIcon = isArabic ? ArrowLeft : ArrowRight;
   const entryCards = [
     {
@@ -248,6 +256,62 @@ export default async function SceneHomePage({ params }: PageProps) {
           </div>
         </div>
       </section>
+
+      {reportArticles.length > 0 ? (
+        <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 md:py-14 lg:px-8">
+          <div className="flex items-end justify-between gap-4">
+            <div className="max-w-3xl">
+              <p className="text-[10px] uppercase tracking-[0.3em] text-gold">{isArabic ? "أرقام السوق" : "MARKET SIGNALS"}</p>
+              <h2 className="mt-2 text-2xl font-light sm:text-3xl">{isArabic ? "تقارير ورؤى تستحق القراءة" : "Reports & insights worth reading"}</h2>
+              <p className="mt-3 text-sm leading-7 text-white/40">
+                {isArabic
+                  ? "قراءات مبنية على مصادر عامة ورسمية تساعدك على فهم حركة الإنتاج والكاستنج والمواهب في السعودية."
+                  : "Public-source readings that help explain production, casting and talent-market movement in Saudi Arabia."}
+              </p>
+            </div>
+            <Link href={`/${locale}/scene/category/reports`} className="hidden shrink-0 text-xs text-gold/75 transition hover:text-gold sm:inline-flex">
+              {isArabic ? "كل التقارير" : "All reports"}
+            </Link>
+          </div>
+          <div className="mt-7 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {reportArticles.map((article, index) => (
+              <SceneArticleCard key={article.id} article={article} locale={locale} priority={index === 0} />
+            ))}
+          </div>
+          <Link href={`/${locale}/scene/category/reports`} className="mt-5 inline-flex text-xs text-gold/75 transition hover:text-gold sm:hidden">
+            {isArabic ? "عرض كل التقارير" : "View all reports"}
+          </Link>
+        </section>
+      ) : null}
+
+      {storyArticles.length > 0 ? (
+        <section className="border-y border-white/[0.07] bg-white/[0.015]">
+          <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 md:py-14 lg:px-8">
+            <div className="flex items-end justify-between gap-4">
+              <div className="max-w-3xl">
+                <p className="text-[10px] uppercase tracking-[0.3em] text-gold">{isArabic ? "من داخل المشهد" : "INSIDE THE SCENE"}</p>
+                <h2 className="mt-2 text-2xl font-light sm:text-3xl">{isArabic ? "قصص ومقابلات" : "Stories & interviews"}</h2>
+                <p className="mt-3 text-sm leading-7 text-white/40">
+                  {isArabic
+                    ? "قصص موثقة وتجارب من الصناعة الإبداعية، ومع الوقت مقابلات أصلية من داخل مجتمع ملامح."
+                    : "Documented stories and creative-industry experiences, with original MLAMH interviews as the community grows."}
+                </p>
+              </div>
+              <Link href={`/${locale}/scene/category/stories`} className="hidden shrink-0 text-xs text-gold/75 transition hover:text-gold sm:inline-flex">
+                {isArabic ? "كل القصص" : "All stories"}
+              </Link>
+            </div>
+            <div className="mt-7 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {storyArticles.map((article) => (
+                <SceneArticleCard key={article.id} article={article} locale={locale} />
+              ))}
+            </div>
+            <Link href={`/${locale}/scene/category/stories`} className="mt-5 inline-flex text-xs text-gold/75 transition hover:text-gold sm:hidden">
+              {isArabic ? "عرض كل القصص" : "View all stories"}
+            </Link>
+          </div>
+        </section>
+      ) : null}
 
       {latest.length > 2 ? (
         <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 md:py-14 lg:px-8">
