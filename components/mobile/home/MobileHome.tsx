@@ -1,4 +1,5 @@
 import { HowItWorks } from "@/components/HowItWorks";
+import { SceneHomeEntry } from "@/components/home/SceneHomeEntry";
 import { ValueProps } from "@/components/ValueProps";
 import { MobileCastingBriefCTA } from "@/components/mobile/home/MobileCastingBriefCTA";
 import { MobileFinalCTA } from "@/components/mobile/home/MobileFinalCTA";
@@ -51,6 +52,8 @@ export function MobileHome({
       <MobileOpportunitiesSection locale={locale} />
 
       <MobileOrganizationsSection locale={locale} />
+
+      <SceneHomeEntry locale={locale} />
 
       <MobileFinalCTA locale={locale} />
 

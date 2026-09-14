@@ -112,7 +112,6 @@ export default async function HomePage({ params }: HomePageProps) {
           hero={hero}
           valueProps={valueProps}
         />
-        <SceneHomeEntry locale={locale} />
       </div>
 
       <div className="hidden lg:block">
