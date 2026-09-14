@@ -257,7 +257,7 @@ export default async function TalentDashboardPage({ params }: PageProps) {
       label: isRtl ? "طلباتي" : "Applications",
       value: String(totalApplications),
       meta: counts.accepted > 0
-        ? isRtl ? `${counts.accepted} مقبول` : `${counts.accepted} accepted`
+        ? isRtl ? `اختيار/قبول: ${counts.accepted}` : `Selected/accepted: ${counts.accepted}`
         : isRtl ? "جميع الطلبات" : "All applications",
       href: `/${locale}/talent-dashboard/applications`,
       emphasis: false,
@@ -328,8 +328,8 @@ export default async function TalentDashboardPage({ params }: PageProps) {
   const applicationSummary =
     counts.accepted > 0
       ? isRtl
-        ? `لديك ${counts.accepted} طلب مقبول. افتح طلباتك لمراجعة الخطوة التالية.`
-        : `You have ${counts.accepted} accepted application${counts.accepted === 1 ? "" : "s"}. Open your applications for the next step.`
+        ? `لديك ${counts.accepted} طلب وصل إلى مرحلة الاختيار أو القبول. افتح طلباتك لمعرفة الحالة والخطوة التالية.`
+        : `You have ${counts.accepted} application${counts.accepted === 1 ? "" : "s"} at the selection or acceptance stage. Open your applications for the exact status and next step.`
       : counts.shortlisted > 0
         ? isRtl
           ? `لديك ${counts.shortlisted} طلب في القائمة المختصرة.`
@@ -474,7 +474,7 @@ export default async function TalentDashboardPage({ params }: PageProps) {
                   </div>
                   <div className={`rounded-2xl border p-3 text-center sm:p-4 ${counts.accepted > 0 ? "border-emerald-400/20 bg-emerald-400/[0.04]" : "border-white/8 bg-black/20"}`}>
                     <strong className={counts.accepted > 0 ? "text-2xl font-light text-emerald-300" : "text-2xl font-light"}>{counts.accepted}</strong>
-                    <p className="mt-1 text-[11px] text-white/40">{isRtl ? "مقبول" : "Accepted"}</p>
+                    <p className="mt-1 text-[11px] text-white/40">{isRtl ? "اختيار / قبول" : "Selected / Accepted"}</p>
                   </div>
                 </div>
               </section>
