@@ -312,8 +312,8 @@ export default async function PublisherMessagesPage({
 
               <p className="mt-3 max-w-2xl text-sm leading-7 text-white/45">
                 {isArabic
-                  ? "تابع المحادثات مع المواهب المقبولة في فرصك."
-                  : "Track conversations with talents accepted for your opportunities."}
+                  ? "تابع محادثاتك مع المواهب المهتمة والمختارة لطلباتك وفرصك."
+                  : "Track conversations with talents interested in or selected for your requests and opportunities."}
               </p>
             </div>
 
@@ -529,8 +529,8 @@ export default async function PublisherMessagesPage({
 
                 <p className="mt-3 text-sm leading-7 text-white/40">
                   {isArabic
-                    ? "ستظهر المحادثات هنا تلقائيًا بعد قبول أحد المتقدمين."
-                    : "Conversations will appear here automatically after an applicant is accepted."}
+                    ? "ستظهر المحادثات هنا تلقائيًا عندما يبدأ التواصل مع موهبة حول طلب أو فرصة."
+                    : "Conversations will appear here automatically when communication starts around a request or opportunity."}
                 </p>
 
                 <Link
