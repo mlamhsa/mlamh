@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import QuickRequestWorkflowDock from "@/components/messages/QuickRequestWorkflowDock";
+import QuickRequestWorkflowRealtime from "@/components/messages/QuickRequestWorkflowRealtime";
 
 type LayoutProps = {
   children: ReactNode;
@@ -20,6 +21,7 @@ export default async function TalentConversationLayout({
   return (
     <>
       {children}
+      <QuickRequestWorkflowRealtime conversationId={conversationId} />
       <QuickRequestWorkflowDock
         conversationId={conversationId}
         locale={locale}
