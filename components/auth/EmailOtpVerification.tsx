@@ -36,6 +36,9 @@ export function EmailOtpVerification({ locale, email, accountType }: Props) {
   }
 
   async function continueAfterVerification() {
+    window.dispatchEvent(new Event("mlamh:account-updated"));
+    router.refresh();
+
     if (accountType === "publisher") {
       router.replace(`/${locale}/join/publisher`);
       return;
