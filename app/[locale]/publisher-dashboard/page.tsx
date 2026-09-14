@@ -162,9 +162,14 @@ export default async function PublisherDashboardPage({
           label: isRtl ? "الحساب معتمد" : "Account Approved",
           color:
             "border-emerald-500/20 bg-emerald-500/10 text-emerald-300",
-          description: isRtl
-            ? "يمكنك إنشاء الفرص وإرسالها للمراجعة واستقبال المتقدمين بعد نشرها."
-            : "You can create opportunities, submit them for review, and receive applicants once published.",
+          description:
+            publisher.publisher_type === "individual"
+              ? isRtl
+                ? "يمكنك إنشاء الطلبات وإرسالها للمراجعة واستقبال المهتمين بعد نشرها."
+                : "You can create requests, submit them for review, and receive interested talent once published."
+              : isRtl
+                ? "يمكنك إنشاء الفرص وإرسالها للمراجعة واستقبال المتقدمين بعد نشرها."
+                : "You can create opportunities, submit them for review, and receive applicants once published.",
         }
       : isChangesRequested
         ? {
@@ -250,7 +255,13 @@ export default async function PublisherDashboardPage({
                   size="lg"
                 >
                   <Plus size={16} />
-                  {isRtl ? "إنشاء فرصة" : "Create Opportunity"}
+                  {publisher.publisher_type === "individual"
+                    ? isRtl
+                      ? "إنشاء طلب"
+                      : "Create Request"
+                    : isRtl
+                      ? "إنشاء فرصة"
+                      : "Create Opportunity"}
                 </Button>
               ) : !isSuspended ? (
                 <Button
