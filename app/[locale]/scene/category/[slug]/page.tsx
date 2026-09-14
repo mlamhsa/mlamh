@@ -11,6 +11,33 @@ export const revalidate = 300;
 
 const SITE_URL = "https://mlamh.net";
 
+const CATEGORY_SEO_TITLES: Record<string, { ar: string; en: string }> = {
+  talent: {
+    ar: "التمثيل والمودلز والكاستنج للمواهب في السعودية | ملامح",
+    en: "Acting, Modeling & Casting Guides for Talent in Saudi Arabia | MLAMH",
+  },
+  publishers: {
+    ar: "دليل الكاستنج واختيار الممثلين والمودلز للناشرين | ملامح",
+    en: "Casting & Talent Selection Guides for Publishers | MLAMH",
+  },
+  industry: {
+    ar: "الكاستنج والإنتاج والتصوير في السعودية | ملامح",
+    en: "Casting, Production & Filming in Saudi Arabia | MLAMH",
+  },
+  reports: {
+    ar: "تقارير وأرقام السينما والكاستنج في السعودية | ملامح",
+    en: "Saudi Film, Casting & Production Reports | MLAMH",
+  },
+  stories: {
+    ar: "قصص ومقابلات من الكاستنج والإنتاج | ملامح",
+    en: "Casting & Production Stories and Interviews | MLAMH",
+  },
+  "using-mlamh": {
+    ar: "دليل استخدام منصة ملامح للمواهب والناشرين | ملامح",
+    en: "How to Use MLAMH for Talent and Publishers | MLAMH",
+  },
+};
+
 type PageProps = {
   params: Promise<{ locale: string; slug: string }>;
 };
@@ -104,7 +131,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     const category = await SceneCMS.getPublicCategoryBySlug({ locale, slug });
     if (!category) return {};
 
-    const title = `${category.name} | ${locale === "ar" ? "مشهد ملامح" : "MLAMH Scene"}`;
+    const fallbackTitle = `${category.name} | ${locale === "ar" ? "مشهد ملامح" : "MLAMH Scene"}`;
+    const title = CATEGORY_SEO_TITLES[category.slug]?.[locale] ?? fallbackTitle;
     const description = category.description || (locale === "ar" ? "محتوى من مشهد ملامح." : "Content from MLAMH Scene.");
     const url = `${SITE_URL}/${locale}/scene/category/${category.slug}`;
 
