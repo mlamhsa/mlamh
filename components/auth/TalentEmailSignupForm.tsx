@@ -5,6 +5,7 @@ import { Eye, EyeOff } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { SignupOptionPicker } from "@/components/auth/SignupOptionPicker";
 import { NationalityCombobox } from "@/components/talent-dashboard/NationalityCombobox";
 import { SaudiCityCombobox } from "@/components/talent-dashboard/SaudiCityCombobox";
 import { checkAuthEmailExistsAction } from "@/lib/actions/check-auth-email";
@@ -23,6 +24,7 @@ type ExistingAccountState = {
 };
 
 const ACTIVE_MARKET_CODE = "SA";
+const FIELD_CLASS = "min-h-14 w-full rounded-2xl border border-white/10 bg-black/30 px-4 text-base text-white outline-none transition placeholder:text-white/25 focus:border-gold/50 sm:text-sm";
 
 function normalizeLocalPhone(value: string) {
   return value.replace(/[^\d]/g, "").replace(/^0+/, "").slice(0, 15);
@@ -66,8 +68,8 @@ export function TalentEmailSignupForm({ locale }: Props) {
     [],
   );
   const normalizedPhone = phone ? `${activeMarket.dialCode}${phone}` : "";
-  const inputClass = "min-h-14 w-full rounded-2xl border border-white/10 bg-black/30 px-4 text-base text-white outline-none transition placeholder:text-white/25 focus:border-gold/50 sm:text-sm";
   const requiredMark = <span className="text-gold" aria-hidden="true"> *</span>;
+  const talentOptions = TALENT_CATEGORIES.map((item) => ({ value: item.slug, ar: item.ar, en: item.en }));
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -204,49 +206,59 @@ export function TalentEmailSignupForm({ locale }: Props) {
       {errorMessage ? <div role="alert" className="rounded-2xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm text-red-300">{errorMessage}</div> : null}
 
       <div className="grid gap-5 sm:grid-cols-2">
-        <Field label={isRtl ? "الاسم الكامل" : "Full name"} requiredMark={requiredMark}><input required value={fullName} onChange={(e) => setFullName(e.currentTarget.value)} autoComplete="name" className={inputClass} /></Field>
-        <Field label={isRtl ? "البريد الإلكتروني" : "Email"} requiredMark={requiredMark}><input required type="email" value={email} onChange={(e) => { setEmail(e.currentTarget.value); setExistingAccount(null); }} autoComplete="email" dir="ltr" className={`${inputClass} text-left`} /></Field>
+        <Field label={isRtl ? "الاسم الكامل" : "Full name"} requiredMark={requiredMark}><input required value={fullName} onChange={(e) => setFullName(e.currentTarget.value)} autoComplete="name" className={FIELD_CLASS} /></Field>
+        <Field label={isRtl ? "البريد الإلكتروني" : "Email"} requiredMark={requiredMark}><input required type="email" value={email} onChange={(e) => { setEmail(e.currentTarget.value); setExistingAccount(null); }} autoComplete="email" dir="ltr" className={`${FIELD_CLASS} text-left`} /></Field>
       </div>
 
       <Field label={isRtl ? "رقم الجوال" : "Mobile number"} requiredMark={requiredMark}>
         <div className="grid grid-cols-[7rem_minmax(0,1fr)] gap-2" dir="ltr">
           <div className="flex min-h-14 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.025] px-3 text-sm text-white/70">{activeMarket.dialCode}</div>
-          <input required type="tel" inputMode="numeric" value={phone} onChange={(e) => setPhone(normalizeLocalPhone(e.currentTarget.value))} placeholder={activeMarket.phoneExample} autoComplete="tel-national" className={`${inputClass} text-left`} />
+          <input required type="tel" inputMode="numeric" value={phone} onChange={(e) => setPhone(normalizeLocalPhone(e.currentTarget.value))} placeholder={activeMarket.phoneExample} autoComplete="tel-national" className={`${FIELD_CLASS} text-left`} />
         </div>
       </Field>
 
       <div className="grid gap-5 sm:grid-cols-2">
         <PickerField label={isRtl ? "الجنسية" : "Nationality"} requiredMark={requiredMark}>
-          <NationalityCombobox
-            id="signup-nationality"
+          <NationalityCombobox id="signup-nationality" locale={locale} value={nationality} onChange={setNationality} name="" showLabel={false} />
+        </PickerField>
+        <PickerField label={isRtl ? "الجنس" : "Gender"} requiredMark={requiredMark}>
+          <SignupOptionPicker
+            id="signup-gender"
             locale={locale}
-            value={nationality}
-            onChange={setNationality}
-            name=""
-            showLabel={false}
+            value={gender}
+            onChange={setGender}
+            options={GENDER_OPTIONS}
+            placeholderAr="اختر الجنس"
+            placeholderEn="Select gender"
+            titleAr="اختر الجنس"
+            titleEn="Select gender"
           />
         </PickerField>
-        <Field label={isRtl ? "الجنس" : "Gender"} requiredMark={requiredMark}><select required value={gender} onChange={(e) => setGender(e.currentTarget.value)} className={inputClass}><option value="">{isRtl ? "اختر" : "Select"}</option>{GENDER_OPTIONS.map((item) => <option key={item.value} value={item.value} className="bg-black">{isRtl ? item.ar : item.en}</option>)}</select></Field>
       </div>
 
       <div className="grid gap-5 sm:grid-cols-2">
         <PickerField label={isRtl ? "المدينة" : "City"} requiredMark={requiredMark}>
-          <SaudiCityCombobox
-            id="signup-city"
+          <SaudiCityCombobox id="signup-city" locale={locale} value={city} onChange={setCity} name="" showLabel={false} />
+        </PickerField>
+        <PickerField label={isRtl ? "نوع الموهبة" : "Talent type"} requiredMark={requiredMark}>
+          <SignupOptionPicker
+            id="signup-talent-type"
             locale={locale}
-            value={city}
-            onChange={setCity}
-            name=""
-            showLabel={false}
+            value={talentType}
+            onChange={setTalentType}
+            options={talentOptions}
+            placeholderAr="اختر نوع الموهبة"
+            placeholderEn="Select talent type"
+            titleAr="اختر نوع الموهبة"
+            titleEn="Select talent type"
           />
         </PickerField>
-        <Field label={isRtl ? "نوع الموهبة" : "Talent type"} requiredMark={requiredMark}><select required value={talentType} onChange={(e) => setTalentType(e.currentTarget.value)} className={inputClass}><option value="">{isRtl ? "اختر نوع الموهبة" : "Select talent type"}</option>{TALENT_CATEGORIES.map((item) => <option key={item.slug} value={item.slug} className="bg-black">{isRtl ? item.ar : item.en}</option>)}</select></Field>
       </div>
 
       <div className="grid gap-5 sm:grid-cols-2">
         <Field label={isRtl ? "كلمة المرور" : "Password"} requiredMark={requiredMark}>
           <div className="relative">
-            <input required minLength={8} type={showPassword ? "text" : "password"} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.currentTarget.value)} className={`${inputClass} ${isRtl ? "pl-14" : "pr-14"}`} />
+            <input required minLength={8} type={showPassword ? "text" : "password"} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.currentTarget.value)} className={`${FIELD_CLASS} ${isRtl ? "pl-14" : "pr-14"}`} />
             <button type="button" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? (isRtl ? "إخفاء كلمة المرور" : "Hide password") : (isRtl ? "إظهار كلمة المرور" : "Show password")} aria-pressed={showPassword} className={`absolute top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full text-white/45 transition hover:bg-white/5 hover:text-gold ${isRtl ? "left-2" : "right-2"}`}>
               {showPassword ? <EyeOff size={20} aria-hidden="true" /> : <Eye size={20} aria-hidden="true" />}
             </button>
@@ -254,7 +266,7 @@ export function TalentEmailSignupForm({ locale }: Props) {
         </Field>
         <Field label={isRtl ? "تأكيد كلمة المرور" : "Confirm password"} requiredMark={requiredMark}>
           <div className="relative">
-            <input required minLength={8} type={showPasswordConfirmation ? "text" : "password"} autoComplete="new-password" value={passwordConfirmation} onChange={(e) => setPasswordConfirmation(e.currentTarget.value)} className={`${inputClass} ${isRtl ? "pl-14" : "pr-14"}`} />
+            <input required minLength={8} type={showPasswordConfirmation ? "text" : "password"} autoComplete="new-password" value={passwordConfirmation} onChange={(e) => setPasswordConfirmation(e.currentTarget.value)} className={`${FIELD_CLASS} ${isRtl ? "pl-14" : "pr-14"}`} />
             <button type="button" onClick={() => setShowPasswordConfirmation((value) => !value)} aria-label={showPasswordConfirmation ? (isRtl ? "إخفاء تأكيد كلمة المرور" : "Hide password confirmation") : (isRtl ? "إظهار تأكيد كلمة المرور" : "Show password confirmation")} aria-pressed={showPasswordConfirmation} className={`absolute top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full text-white/45 transition hover:bg-white/5 hover:text-gold ${isRtl ? "left-2" : "right-2"}`}>
               {showPasswordConfirmation ? <EyeOff size={20} aria-hidden="true" /> : <Eye size={20} aria-hidden="true" />}
             </button>
