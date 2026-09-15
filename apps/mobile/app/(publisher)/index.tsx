@@ -74,8 +74,8 @@ export default function PublisherHomeScreen() {
         </Text>
         <Text style={[styles.subtitle, { textAlign: align }]}>
           {isArabic
-            ? "ابدأ من قرار واضح: اكتشف المواهب، تابع المحادثات، أو راجع الفرص. صلاحية الإنشاء تأتي من الخادم ولا تُفترض داخل التطبيق."
-            : "Start with a clear decision: discover talent, follow conversations, or review opportunities. Creation permission always comes from the server."}
+            ? "ابدأ من قرار واضح: أنشئ طلبًا، اكتشف المواهب، أو تابع المحادثات. صلاحيات الإنشاء تأتي من الخادم ولا تُفترض داخل التطبيق."
+            : "Start with a clear decision: create a request, discover talent, or follow conversations. Creation permission always comes from the server."}
         </Text>
 
         <View style={[styles.statusCard, isArabic ? styles.rowRtl : styles.rowLtr]}>
@@ -99,7 +99,27 @@ export default function PublisherHomeScreen() {
           <Capability enabled={canCreateCasting} icon={BriefcaseBusiness} label={isArabic ? "كاستينغ" : "Casting"} />
         </View>
 
-        {!canCreate ? (
+        {canCreate ? (
+          <View style={styles.createSection}>
+            <Text style={[styles.sectionTitle, { textAlign: align }]}>{isArabic ? "إنشاء جديد" : "Create new"}</Text>
+            <View style={styles.createGrid}>
+              <CreateCard
+                enabled={canCreateQuick}
+                icon={Zap}
+                title={isArabic ? "طلب الآن" : "Quick Request"}
+                body={isArabic ? "احتياج سريع ومباشر للممثلين أو المودلز." : "A fast, direct Actor or Model need."}
+                onPress={() => router.push("/create-opportunity?mode=quick" as never)}
+              />
+              <CreateCard
+                enabled={canCreateCasting}
+                icon={BriefcaseBusiness}
+                title={isArabic ? "كاستينغ" : "Casting"}
+                body={isArabic ? "فرصة أوسع بمراحل اختيار وتفاصيل عمل." : "A structured opportunity with a fuller selection flow."}
+                onPress={() => router.push("/create-opportunity?mode=casting" as never)}
+              />
+            </View>
+          </View>
+        ) : (
           <View style={styles.notice}>
             <Text style={[styles.noticeText, { textAlign: align }]}>
               {isArabic
@@ -107,7 +127,7 @@ export default function PublisherHomeScreen() {
                 : "Creation is not currently available for this account. You can still discover talent and follow messages while the account status is being resolved."}
             </Text>
           </View>
-        ) : null}
+        )}
 
         <View style={styles.actions}>
           {ACTIONS.map((item) => {
@@ -146,6 +166,16 @@ function Capability({ enabled, icon: Icon, label }: { enabled: boolean; icon: ty
   );
 }
 
+function CreateCard({ enabled, icon: Icon, title, body, onPress }: { enabled: boolean; icon: typeof Zap; title: string; body: string; onPress: () => void }) {
+  return (
+    <Pressable disabled={!enabled} onPress={onPress} style={({ pressed }) => [styles.createCard, enabled && styles.createCardEnabled, !enabled && styles.disabled, pressed && styles.pressed]}>
+      <Icon size={20} color={enabled ? colors.gold : colors.textMuted} />
+      <Text style={[styles.createTitle, enabled && styles.createTitleEnabled]}>{title}</Text>
+      <Text style={styles.createBody}>{body}</Text>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
   content: { paddingHorizontal: spacing.lg, paddingTop: spacing.xl, paddingBottom: 56 },
@@ -165,6 +195,14 @@ const styles = StyleSheet.create({
   capabilityText: { color: colors.textMuted, fontSize: 11, fontWeight: "600" },
   capabilityTextEnabled: { color: colors.textPrimary },
   capabilityState: { color: colors.gold, fontSize: 12, fontWeight: "800" },
+  createSection: { marginTop: spacing.xl },
+  sectionTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: "800", marginBottom: spacing.md },
+  createGrid: { flexDirection: "row", gap: spacing.md },
+  createCard: { flex: 1, minHeight: 136, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.lg },
+  createCardEnabled: { borderColor: "rgba(201,169,98,0.22)" },
+  createTitle: { color: colors.textMuted, fontSize: 14, fontWeight: "700", marginTop: spacing.sm },
+  createTitleEnabled: { color: colors.textPrimary },
+  createBody: { color: colors.textMuted, fontSize: 10, lineHeight: 16, marginTop: 5 },
   notice: { marginTop: spacing.md, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, backgroundColor: colors.surface, padding: spacing.md },
   noticeText: { color: colors.textMuted, fontSize: 11, lineHeight: 19 },
   actions: { gap: spacing.md, marginTop: spacing.xl },
@@ -175,4 +213,5 @@ const styles = StyleSheet.create({
   actionTitle: { color: colors.textPrimary, fontSize: 16, fontWeight: "700" },
   actionText: { color: colors.textMuted, fontSize: 11, lineHeight: 18, marginTop: 5 },
   pressed: { opacity: 0.84, transform: [{ scale: 0.994 }] },
+  disabled: { opacity: 0.4 },
 });
