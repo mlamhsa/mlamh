@@ -5,7 +5,7 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { MobileApiError } from "@/src/api/client";
-import { getConversationDetail, sendConversationMessage, shareQuickContact, submitQuickTalentDecision } from "@/src/domains/messages/api";
+import { getConversationDetail, markConversationRead, sendConversationMessage, shareQuickContact, submitQuickTalentDecision } from "@/src/domains/messages/api";
 import type { ConversationDetailResponse, QuickRequestProductState } from "@/src/domains/messages/types";
 import { useLocale } from "@/src/i18n/LocaleProvider";
 import { colors, radius, spacing } from "@/src/theme/tokens";
@@ -48,7 +48,13 @@ export function ConversationScreen() {
     }
     setError(null);
     try {
-      setData(await getConversationDetail(conversationId));
+      const detail = await getConversationDetail(conversationId);
+      setData(detail);
+      try {
+        await markConversationRead(conversationId);
+      } catch (markError) {
+        console.warn("[ConversationScreen mark-read]", markError);
+      }
     } catch {
       setError(isArabic ? "تعذر تحميل المحادثة." : "Unable to load conversation.");
     } finally {
