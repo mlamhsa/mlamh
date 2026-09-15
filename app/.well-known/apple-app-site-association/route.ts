@@ -53,7 +53,9 @@ const LINK_PATHS = [
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const configuredTeamId = process.env.MLAMH_APPLE_TEAM_ID?.trim();
+  const configuredTeamId = (
+    process.env.MLAMH_APPLE_TEAM_ID?.trim() || process.env.APPLE_TEAM_ID?.trim()
+  );
   const teamId = configuredTeamId && /^[A-Z0-9]{10}$/.test(configuredTeamId)
     ? configuredTeamId
     : VERIFIED_APPLE_TEAM_ID;
