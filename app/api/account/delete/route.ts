@@ -4,7 +4,7 @@ import { deleteMlamhAccount } from "@/lib/accounts/delete-account";
 import { getRequestUser } from "@/lib/auth/request-user";
 
 function statusForDeleteFailure(code: string) {
-  if (code === "APPLE_REAUTH_REQUIRED") return 409;
+  if (code === "APPLE_REAUTH_REQUIRED" || code === "APPLE_IDENTITY_MISMATCH") return 409;
   if (code === "APPLE_REVOCATION_CONFIG_MISSING") return 503;
   if (code === "APPLE_TOKEN_EXCHANGE_FAILED" || code === "APPLE_REVOCATION_FAILED") return 502;
   return 500;
