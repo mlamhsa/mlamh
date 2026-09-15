@@ -84,11 +84,9 @@ export function getMobileHrefFromUrl(rawUrl: string): Href | null {
     return `/messages/${segments[1]}` as Href;
   }
 
-  if (segments[0] === "login") return "/login" as Href;
-
-  // Keep unsupported web-only routes on the website instead of pushing a native
-  // route that does not exist yet. Auth callback URLs are consumed before this
-  // mapper in AppBootstrap.
+  // Unsupported web-only routes stay on the website instead of pushing a
+  // native route that does not exist. Auth callback URLs are consumed before
+  // this mapper in AppBootstrap.
   return null;
 }
 
