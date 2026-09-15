@@ -158,6 +158,16 @@ export function OpportunityResponseCTA({ item, locale }: Props) {
       };
     }
 
+    if (session.status === "unavailable") {
+      return {
+        label: isArabic ? "تعذر التحقق من حسابك" : "Unable to verify your account",
+        note: isArabic
+          ? "تحقق من اتصالك بالإنترنت وأعد المحاولة من الصفحة الرئيسية."
+          : "Check your internet connection and retry from the home screen.",
+        enabled: false,
+      };
+    }
+
     if (session.status === "guest" || session.status === "account_missing") {
       return {
         label: isArabic ? "سجّل للمتابعة" : "Sign in to continue",
