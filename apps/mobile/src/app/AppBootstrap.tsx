@@ -2,7 +2,7 @@ import * as Linking from "expo-linking";
 import { router } from "expo-router";
 import { useEffect, type PropsWithChildren } from "react";
 
-import { getDeviceLocale } from "@/src/i18n/locale";
+import { useLocale } from "@/src/i18n/LocaleProvider";
 import { getMobileHrefFromUrl } from "@/src/navigation/deep-links";
 import {
   installPushDeepLinkObserver,
@@ -20,8 +20,9 @@ async function routeIncomingUrl(rawUrl: string) {
 }
 
 export function AppBootstrap({ children }: PropsWithChildren) {
+  const { locale } = useLocale();
+
   useEffect(() => {
-    const locale = getDeviceLocale();
     const stopAuthLifecycle = startAuthSessionLifecycle();
     const stopPushLifecycle = startPushSessionLifecycle(locale);
     const stopPushObserver = installPushDeepLinkObserver((url) => {
@@ -44,7 +45,7 @@ export function AppBootstrap({ children }: PropsWithChildren) {
       stopPushLifecycle();
       stopAuthLifecycle();
     };
-  }, []);
+  }, [locale]);
 
   return children;
 }
