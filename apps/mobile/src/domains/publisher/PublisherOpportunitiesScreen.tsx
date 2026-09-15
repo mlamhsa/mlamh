@@ -160,12 +160,18 @@ function OpportunityCard({ item, isArabic, align }: { item: PublisherOpportunity
           <Users size={14} color={colors.textMuted} />
           <Text style={styles.applicantText}>{item.applicantCount} {isArabic ? "متقدم" : "applicants"}</Text>
         </View>
-        {isLive ? (
-          <Pressable onPress={() => router.push(`/opportunities/${item.id}` as never)} style={styles.liveButton}>
-            <Eye size={14} color="#090909" />
-            <Text style={styles.liveText}>{isArabic ? "عرض المنشور" : "View live"}</Text>
+        <View style={[styles.cardActions, isArabic ? styles.rowRtl : styles.rowLtr]}>
+          {isLive ? (
+            <Pressable onPress={() => router.push(`/opportunities/${item.id}` as never)} style={styles.liveButton}>
+              <Eye size={14} color="#090909" />
+              <Text style={styles.liveText}>{isArabic ? "المنشور" : "Live"}</Text>
+            </Pressable>
+          ) : null}
+          <Pressable onPress={() => router.push(`/publisher-opportunities/${item.id}` as never)} style={styles.manageButton}>
+            <Users size={14} color={colors.gold} />
+            <Text style={styles.manageText}>{isArabic ? "إدارة" : "Manage"}</Text>
           </Pressable>
-        ) : null}
+        </View>
       </View>
     </View>
   );
@@ -212,6 +218,9 @@ const styles = StyleSheet.create({
   cardBottom: { justifyContent: "space-between", marginTop: spacing.md, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border },
   applicants: { gap: 6 },
   applicantText: { color: colors.textMuted, fontSize: 10 },
+  cardActions: { gap: 7 },
   liveButton: { minHeight: 36, flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 999, backgroundColor: colors.gold, paddingHorizontal: spacing.md },
   liveText: { color: "#090909", fontSize: 10, fontWeight: "800" },
+  manageButton: { minHeight: 36, flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 999, borderWidth: 1, borderColor: "rgba(201,169,98,0.35)", paddingHorizontal: spacing.md },
+  manageText: { color: colors.gold, fontSize: 10, fontWeight: "800" },
 });
