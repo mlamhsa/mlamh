@@ -86,22 +86,10 @@ export function MobileBottomNavigation({
   }
 
   const talentProfileActive =
-    accountType === "talent" &&
-    (matches("/dashboard-router") || matches("/talent-dashboard/profile"));
-
-  const publisherAccountActive =
-    accountType === "publisher" && matches("/publisher-dashboard");
-
-  const talentAccountActive =
-    accountType === "talent" &&
-    !talentProfileActive &&
-    matches("/talent-dashboard");
+    accountType === "talent" && matches("/talent-dashboard/profile");
 
   const guestLoginActive = !isLoggedIn && matches("/login");
-
-  const accountActive =
-    !talentProfileActive &&
-    (publisherAccountActive || talentAccountActive || guestLoginActive);
+  const accountActive = isLoggedIn ? matches("/account") : guestLoginActive;
 
   const home: NavigationItem = {
     key: "home",
@@ -134,7 +122,7 @@ export function MobileBottomNavigation({
     key: "account",
     labelAr: isLoggedIn ? "حسابي" : "دخول",
     labelEn: isLoggedIn ? "Account" : "Login",
-    href: isLoggedIn ? localizedPath("/dashboard-router") : localizedPath("/login"),
+    href: isLoggedIn ? localizedPath("/account") : localizedPath("/login"),
     icon: isLoggedIn ? User : LogIn,
     active: accountActive,
   };
@@ -184,7 +172,7 @@ export function MobileBottomNavigation({
           key: "profile",
           labelAr: "ملفي",
           labelEn: "My Profile",
-          href: localizedPath("/dashboard-router"),
+          href: localizedPath("/talent-dashboard/profile"),
           icon: UserRound,
           active: talentProfileActive,
           primary: true,
@@ -226,16 +214,27 @@ export function MobileBottomNavigation({
           const disabled = item.key === "loading";
 
           if (item.primary) {
+            const isProfile = item.key === "profile";
+            const circleClass = disabled
+              ? "border-black bg-gold/50 text-black"
+              : isProfile
+                ? item.active
+                  ? "border-black bg-gold text-black"
+                  : "border-gold/30 bg-black text-gold"
+                : item.active
+                  ? "border-black bg-white text-black"
+                  : "border-black bg-gold text-black";
+
             const content = (
               <>
                 <span
-                  className={`absolute -top-6 flex h-14 w-14 items-center justify-center rounded-full border-4 border-black text-black shadow-xl transition ${
-                    disabled ? "bg-gold/50" : item.active ? "bg-white" : "bg-gold"
-                  }`}
+                  className={`absolute -top-6 flex h-14 w-14 items-center justify-center rounded-full border-4 shadow-xl transition ${circleClass}`}
                 >
-                  <Icon size={26} strokeWidth={1.9} />
+                  <Icon size={26} strokeWidth={item.active ? 2.1 : 1.8} />
                 </span>
-                <span className="mt-8">{label}</span>
+                <span className={`mt-8 ${item.active || !isProfile ? "text-gold" : "text-white/50"}`}>
+                  {label}
+                </span>
               </>
             );
 
@@ -257,7 +256,7 @@ export function MobileBottomNavigation({
                 href={item.href}
                 aria-label={label}
                 aria-current={item.active ? "page" : undefined}
-                className="relative flex h-full flex-col items-center justify-center text-[10px] font-medium text-gold transition active:scale-95"
+                className="relative flex h-full flex-col items-center justify-center text-[10px] font-medium transition active:scale-95"
               >
                 {content}
               </Link>
