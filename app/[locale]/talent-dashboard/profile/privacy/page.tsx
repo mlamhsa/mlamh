@@ -38,7 +38,7 @@ export default function TalentProfilePrivacyPage({ params }: { params: Promise<{
         const talent = (await getOwnTalentProfileAction(locale)) as TalentRecord | null;
         if (!talent) throw new Error();
         if (cancelled) return;
-        setVisibility(clean(talent.profile_visibility).toLowerCase() || "public");
+        setVisibility(clean(talent.profile_visibility).toLowerCase());
         setApprovalStatus(clean(talent.approval_status).toLowerCase());
       } catch {
         if (!cancelled) {
@@ -136,6 +136,12 @@ export default function TalentProfilePrivacyPage({ params }: { params: Promise<{
               })}
             </div>
           )}
+
+          {!loading && !visibility ? (
+            <p className="mt-4 text-xs leading-6 text-amber-100/80">
+              {isArabic ? "لم يتم تحديد إعداد ظهور لهذا الملف بعد. اختر عام أو خاص ثم احفظ الإعداد." : "No visibility setting has been selected for this profile yet. Choose Public or Private, then save."}
+            </p>
+          ) : null}
 
           {message ? (
             <div className={`mt-5 rounded-2xl border p-4 text-sm ${success ? "border-emerald-400/20 bg-emerald-400/[0.06] text-emerald-100" : "border-red-400/20 bg-red-400/[0.05] text-red-100"}`}>
