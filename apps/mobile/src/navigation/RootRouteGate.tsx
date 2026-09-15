@@ -1,10 +1,10 @@
 import { Redirect, type Href } from "expo-router";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useLocale } from "@/src/i18n/LocaleProvider";
 import { useSessionContext } from "@/src/app/SessionContext";
-import { colors, spacing, typography } from "@/src/theme/tokens";
+import { colors, radius, spacing, typography } from "@/src/theme/tokens";
 
 const ROUTES = {
   public: "/(public)",
@@ -16,6 +16,7 @@ const ROUTES = {
 export function RootRouteGate() {
   const session = useSessionContext();
   const { locale, hydrated } = useLocale();
+  const isArabic = locale === "ar";
 
   if (!hydrated || session.status === "loading") {
     return (
@@ -24,8 +25,33 @@ export function RootRouteGate() {
           <Text style={styles.brand}>MLAMH</Text>
           <ActivityIndicator color={colors.gold} />
           <Text style={styles.loadingText}>
-            {locale === "ar" ? "جارٍ تجهيز ملامح…" : "Preparing MLAMH…"}
+            {isArabic ? "جارٍ تجهيز ملامح…" : "Preparing MLAMH…"}
           </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (session.status === "unavailable") {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.errorState}>
+          <Text style={styles.brand}>MLAMH</Text>
+          <Text style={styles.errorTitle}>
+            {isArabic ? "تعذر الاتصال بملامح" : "Unable to reach MLAMH"}
+          </Text>
+          <Text style={styles.errorText}>
+            {isArabic
+              ? "تحقق من اتصالك بالإنترنت ثم حاول مرة أخرى. لن نغيّر نوع حسابك بسبب مشكلة اتصال مؤقتة."
+              : "Check your internet connection and try again. A temporary connection issue will not change your account type."}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => void session.refresh()}
+            style={({ pressed }) => [styles.retryButton, pressed && styles.retryPressed]}
+          >
+            <Text style={styles.retryText}>{isArabic ? "إعادة المحاولة" : "Try again"}</Text>
+          </Pressable>
         </View>
       </SafeAreaView>
     );
@@ -57,6 +83,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: spacing.md,
   },
+  errorState: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.md,
+    paddingHorizontal: spacing.xl,
+  },
   brand: {
     color: colors.gold,
     fontSize: typography.eyebrow,
@@ -65,5 +98,37 @@ const styles = StyleSheet.create({
   loadingText: {
     color: colors.textMuted,
     fontSize: typography.caption,
+  },
+  errorTitle: {
+    color: colors.textPrimary,
+    fontSize: 22,
+    fontWeight: "800",
+    textAlign: "center",
+    marginTop: spacing.sm,
+  },
+  errorText: {
+    color: colors.textMuted,
+    fontSize: typography.body,
+    lineHeight: 22,
+    textAlign: "center",
+    maxWidth: 360,
+  },
+  retryButton: {
+    minWidth: 180,
+    minHeight: 50,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.lg,
+    backgroundColor: colors.gold,
+    paddingHorizontal: spacing.xl,
+    marginTop: spacing.sm,
+  },
+  retryPressed: {
+    opacity: 0.84,
+  },
+  retryText: {
+    color: colors.background,
+    fontSize: 14,
+    fontWeight: "800",
   },
 });
