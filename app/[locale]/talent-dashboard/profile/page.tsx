@@ -113,6 +113,14 @@ export default function TalentProfileGuidedPage({ params }: { params: Promise<{ 
   const isBirthDateMissing = readiness.missingRequirements.some((requirement) => requirement.key === "date_of_birth");
   const hasProfileImage = Boolean(clean(talent?.image_url));
   const publicSlug = clean(talent?.slug);
+  const profileVisibility = clean(talent?.profile_visibility).toLowerCase();
+  const isPublicVisibility = profileVisibility === "public";
+  const isPrivateVisibility = profileVisibility === "private";
+  const visibilityLabel = isPublicVisibility
+    ? (isArabic ? "عام" : "Public")
+    : isPrivateVisibility
+      ? (isArabic ? "خاص" : "Private")
+      : (isArabic ? "راجع الإعداد" : "Review setting");
   const approvalStatus = clean(talent?.approval_status).toLowerCase() || "not_submitted";
   const isUnderReview = approvalStatus === "submitted" || approvalStatus === "pending";
   const isApproved = approvalStatus === "approved";
@@ -240,7 +248,7 @@ export default function TalentProfileGuidedPage({ params }: { params: Promise<{ 
       href: `/${locale}/talent-dashboard/profile/privacy`,
       title: isArabic ? "الخصوصية وظهور الملف" : "Privacy & profile visibility",
       description: isArabic ? "تحكم في ظهور ملفك العام بشكل مستقل عن حالة الاعتماد." : "Control public profile visibility independently from approval status.",
-      status: clean(talent.profile_visibility) || (isArabic ? "راجع الإعداد" : "Review setting"),
+      status: visibilityLabel,
     },
   ];
 
@@ -261,7 +269,11 @@ export default function TalentProfileGuidedPage({ params }: { params: Promise<{ 
               </div>
               <h2 className="mt-6 text-2xl font-light sm:text-3xl">
                 {isApproved
-                  ? (isArabic ? "ملفك معتمد ونشط" : "Your profile is approved and active")
+                  ? isPrivateVisibility
+                    ? (isArabic ? "ملفك معتمد وخاص" : "Your profile is approved and private")
+                    : isPublicVisibility
+                      ? (isArabic ? "ملفك معتمد ونشط" : "Your profile is approved and active")
+                      : (isArabic ? "ملفك معتمد" : "Your profile is approved")
                   : isUnderReview
                     ? (isArabic ? "ملفك قيد المراجعة" : "Your profile is under review")
                     : isChangesRequested
@@ -284,7 +296,7 @@ export default function TalentProfileGuidedPage({ params }: { params: Promise<{ 
                     label={isChangesRequested || isRejected ? (isArabic ? "إعادة إرسال الملف للمراجعة" : "Resubmit profile for review") : undefined}
                   />
                 ) : null}
-                {isApproved && publicSlug ? (
+                {isApproved && isPublicVisibility && publicSlug ? (
                   <Link href={`/${locale}/talent/${publicSlug}`} className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/10 px-6 text-sm font-semibold text-white/70 hover:border-gold/30 hover:text-gold">
                     {isArabic ? "عرض الملف العام" : "View public profile"}
                   </Link>
