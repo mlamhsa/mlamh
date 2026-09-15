@@ -18,7 +18,7 @@ function base64Url(value: string | Buffer) {
 }
 
 function getAppleRevocationConfig() {
-  const teamId = process.env.APPLE_TEAM_ID?.trim();
+  const teamId = process.env.APPLE_TEAM_ID?.trim() || process.env.MLAMH_APPLE_TEAM_ID?.trim();
   const keyId = process.env.APPLE_KEY_ID?.trim();
   const privateKey = process.env.APPLE_PRIVATE_KEY?.replace(/\\n/g, "\n").trim();
   const clientId = process.env.APPLE_NATIVE_CLIENT_ID?.trim() || "net.mlamh.app";
