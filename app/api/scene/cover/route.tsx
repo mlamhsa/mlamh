@@ -4,12 +4,14 @@ import type { NextRequest } from "next/server";
 export const runtime = "edge";
 
 const SIZE = { width: 1600, height: 1000 };
+const GOLD = "rgba(216,181,91,.76)";
+const GOLD_SOFT = "rgba(216,181,91,.16)";
+const LINE = "rgba(255,255,255,.20)";
+const LINE_SOFT = "rgba(255,255,255,.10)";
 
 function hash(input: string) {
   let value = 0;
-  for (let index = 0; index < input.length; index += 1) {
-    value = (value * 31 + input.charCodeAt(index)) >>> 0;
-  }
+  for (let index = 0; index < input.length; index += 1) value = (value * 31 + input.charCodeAt(index)) >>> 0;
   return value;
 }
 
@@ -17,105 +19,135 @@ function motifFor(input: string, audience: string, type: string) {
   const value = input.toLowerCase();
   if (/self.?tape|سيلف.?تيب/.test(value)) return "self-tape";
   if (/showreel|شوريل|فيديو.?تعريف/.test(value)) return "showreel";
+  if (/report|insight|data|market|trend|تقرير|بيانات|سوق|اتجاه|رؤية/.test(value)) return "insight";
+  if (/story|interview|journey|قصة|مقابلة|رحلة/.test(value)) return "story";
   if (/audition|acting|actor|تمثيل|ممثل|اختبار.?أداء|تجربة.?أداء/.test(value)) return "audition";
   if (/photo|image|portfolio|model|صورة|صور|مودل|معرض/.test(value)) return "portrait";
   if (/chat|message|quick|محادث|رسائل|سريع/.test(value)) return "conversation";
-  if (/brief|publisher|shortlist|review|ناشر|طلب|متقدم|اختيار/.test(value)) return "workflow";
-  if (/casting.?call|كاستينغ|كاستنج|production|إنتاج|صناعة/.test(value) || type === "industry") return "production";
+  if (/brief|publisher|shortlist|review|opportunity|ناشر|طلب|متقدم|اختيار|فرصة/.test(value)) return "workflow";
+  if (/casting.?call|كاستينغ|كاستنج|production|إنتاج|صناعة|تصوير/.test(value) || type === "industry") return "production";
   if (audience === "publisher") return "workflow";
   if (audience === "talent") return "portrait";
   return "editorial";
 }
 
+function Person({ x, mirror = false, seated = false, gold = false }: { x: number; mirror?: boolean; seated?: boolean; gold?: boolean }) {
+  const stroke = gold ? GOLD : LINE;
+  return (
+    <g transform={`translate(${x} 0)${mirror ? " scale(-1 1) translate(-170 0)" : ""}`} fill="none" stroke={stroke} strokeWidth="3">
+      <ellipse cx="85" cy="105" rx="42" ry="48" />
+      <path d="M54 83 Q85 55 117 79" stroke={GOLD} strokeWidth="5" />
+      <path d="M73 153 L73 180 M98 153 L98 180" />
+      <path d="M36 198 Q85 168 134 198 L145 305 L25 305 Z" fill={gold ? "rgba(216,181,91,.035)" : "rgba(255,255,255,.012)"} />
+      <path d="M38 216 L2 264 M132 216 L168 264" />
+      {seated ? <path d="M28 305 L84 338 L152 337 M84 338 L117 397" /> : <path d="M54 305 L48 398 M112 305 L120 398" />}
+    </g>
+  );
+}
+
+function Portrait() {
+  return (
+    <g fill="none">
+      <circle cx="350" cy="225" r="150" fill={GOLD_SOFT} />
+      <circle cx="350" cy="225" r="205" stroke={LINE_SOFT} strokeWidth="2" />
+      <path d="M292 125 Q354 76 411 125 Q438 156 423 219 Q411 266 371 286 L371 325" stroke={GOLD} strokeWidth="4" />
+      <path d="M295 126 Q275 192 294 252 Q311 285 335 291 L335 325" stroke={LINE} strokeWidth="3" />
+      <path d="M335 325 Q350 353 371 325 Q448 339 489 407 M335 325 Q256 339 215 407" stroke={LINE} strokeWidth="3" />
+      <path d="M303 139 Q355 96 410 135" stroke={GOLD} strokeWidth="6" />
+      <path d="M388 184 Q406 189 416 198 M389 229 Q405 235 416 229" stroke={LINE} strokeWidth="2" />
+    </g>
+  );
+}
+
 function Motif({ kind, seed }: { kind: string; seed: number }) {
-  const shift = (seed % 25) - 12;
+  const nudge = (seed % 17) - 8;
+
+  if (kind === "portrait" || kind === "editorial") {
+    return <svg width="700" height="520" viewBox="0 0 700 520"><Portrait /></svg>;
+  }
 
   if (kind === "self-tape") {
     return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 560, height: 520, position: "relative" }}>
-        <div style={{ width: 220, height: 390, border: "3px solid rgba(216,181,91,.58)", borderRadius: 34, display: "flex", alignItems: "center", justifyContent: "center", transform: `rotate(${shift / 6}deg)` }}>
-          <div style={{ width: 150, height: 230, border: "2px solid rgba(255,255,255,.2)", borderRadius: 22 }} />
-        </div>
-        <div style={{ position: "absolute", left: 52, width: 96, height: 96, border: "2px solid rgba(255,255,255,.15)", borderRadius: 999 }} />
-        <div style={{ position: "absolute", right: 58, width: 118, height: 2, background: "rgba(216,181,91,.35)", transform: "rotate(-38deg)" }} />
-      </div>
+      <svg width="760" height="520" viewBox="0 0 760 520">
+        <circle cx="390" cy="245" r="180" fill={GOLD_SOFT} />
+        <Person x={170 + nudge} gold />
+        <rect x="500" y="126" width="118" height="205" rx="24" fill="rgba(7,7,7,.8)" stroke={GOLD} strokeWidth="3" />
+        <circle cx="559" cy="205" r="34" fill="none" stroke={LINE} strokeWidth="3" />
+        <path d="M559 331 L559 444 M505 444 L613 444" stroke={LINE} strokeWidth="3" />
+      </svg>
     );
   }
 
   if (kind === "audition") {
     return (
-      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "center", width: 600, height: 520, position: "relative" }}>
-        <div style={{ position: "absolute", top: 18, width: 280, height: 280, borderRadius: 999, background: "radial-gradient(circle, rgba(216,181,91,.22), rgba(216,181,91,0) 70%)" }} />
-        <div style={{ width: 96, height: 210, border: "2px solid rgba(255,255,255,.24)", borderRadius: "48px 48px 20px 20px", marginBottom: 70 }} />
-        <div style={{ position: "absolute", bottom: 48, width: 410, height: 2, background: "rgba(216,181,91,.38)" }} />
-        <div style={{ position: "absolute", top: 74, left: 96, width: 150, height: 2, background: "rgba(255,255,255,.12)", transform: "rotate(34deg)" }} />
-        <div style={{ position: "absolute", top: 74, right: 96, width: 150, height: 2, background: "rgba(255,255,255,.12)", transform: "rotate(-34deg)" }} />
-      </div>
+      <svg width="760" height="520" viewBox="0 0 760 520">
+        <circle cx="380" cy="210" r="175" fill={GOLD_SOFT} />
+        <Person x={295 + nudge} gold />
+        <path d="M115 125 L279 222 M645 125 L481 222" stroke={LINE_SOFT} strokeWidth="3" />
+        <path d="M125 426 L635 426" stroke={GOLD} strokeOpacity=".45" strokeWidth="3" />
+      </svg>
     );
   }
 
   if (kind === "showreel") {
     return (
-      <div style={{ display: "flex", gap: 18, alignItems: "center", justifyContent: "center", width: 600, height: 500, transform: `rotate(${shift / 8}deg)` }}>
-        {[0, 1, 2].map((i) => (
-          <div key={i} style={{ width: 150, height: 230, border: i === 1 ? "3px solid rgba(216,181,91,.5)" : "2px solid rgba(255,255,255,.15)", borderRadius: 24, background: i === 1 ? "rgba(216,181,91,.06)" : "rgba(255,255,255,.02)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <div style={{ width: 0, height: 0, borderTop: "26px solid transparent", borderBottom: "26px solid transparent", borderLeft: i === 1 ? "40px solid rgba(216,181,91,.55)" : "40px solid rgba(255,255,255,.16)" }} />
-          </div>
+      <svg width="780" height="520" viewBox="0 0 780 520">
+        {[95, 300, 505].map((x, i) => (
+          <g key={x}>
+            <rect x={x} y={i === 1 ? 100 : 128} width="180" height="250" rx="26" fill={i === 1 ? "rgba(216,181,91,.04)" : "rgba(255,255,255,.01)"} stroke={i === 1 ? GOLD : LINE} strokeWidth={i === 1 ? 3 : 2} />
+            <circle cx={x + 90} cy={i === 1 ? 178 : 206} r="38" fill="none" stroke={i === 1 ? GOLD : LINE} strokeWidth="3" />
+            <path d={`M${x + 42} ${i === 1 ? 315 : 343} Q${x + 90} ${i === 1 ? 258 : 286} ${x + 138} ${i === 1 ? 315 : 343}`} fill="none" stroke={i === 1 ? GOLD : LINE} strokeWidth="3" />
+          </g>
         ))}
-      </div>
+      </svg>
     );
   }
 
-  if (kind === "portrait") {
+  if (kind === "conversation" || kind === "story") {
     return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 560, height: 520, position: "relative" }}>
-        <div style={{ width: 270, height: 360, border: "2px solid rgba(216,181,91,.38)", borderRadius: 150, transform: `translateX(${shift}px)` }} />
-        <div style={{ position: "absolute", width: 400, height: 400, border: "2px solid rgba(255,255,255,.11)", borderRadius: 999 }} />
-        <div style={{ position: "absolute", bottom: 58, width: 190, height: 2, background: "rgba(216,181,91,.42)" }} />
-      </div>
+      <svg width="800" height="520" viewBox="0 0 800 520">
+        <Person x={82} seated gold={kind === "story"} />
+        <Person x={548} seated mirror gold={kind !== "story"} />
+        <ellipse cx="400" cy="392" rx="78" ry="25" fill="none" stroke={LINE} strokeWidth="3" />
+        <path d="M322 392 L322 450 M478 392 L478 450" stroke={LINE_SOFT} strokeWidth="3" />
+        <circle cx="400" cy="344" r="34" fill={GOLD_SOFT} stroke={GOLD} strokeWidth="2" />
+      </svg>
     );
   }
 
   if (kind === "workflow") {
     return (
-      <div style={{ display: "flex", gap: 26, alignItems: "center", justifyContent: "center", width: 560, height: 500 }}>
-        {[0, 1, 2].map((i) => (
-          <div key={i} style={{ width: 145, height: 250 + i * 30, border: "2px solid rgba(255,255,255,.16)", borderRadius: 26, transform: `translateY(${(i - 1) * 24}px) rotate(${(i - 1) * 2}deg)`, background: i === 1 ? "rgba(216,181,91,.10)" : "rgba(255,255,255,.025)", display: "flex", flexDirection: "column", padding: 24, gap: 18 }}>
-            <div style={{ width: "58%", height: 9, borderRadius: 99, background: "rgba(216,181,91,.55)" }} />
-            <div style={{ width: "100%", height: 7, borderRadius: 99, background: "rgba(255,255,255,.16)" }} />
-            <div style={{ width: "78%", height: 7, borderRadius: 99, background: "rgba(255,255,255,.10)" }} />
-          </div>
+      <svg width="800" height="520" viewBox="0 0 800 520">
+        {[90, 310, 530].map((x, i) => (
+          <g key={x}>
+            <rect x={x} y={i === 1 ? 92 : 124} width="180" height="270" rx="28" fill={i === 1 ? "rgba(216,181,91,.04)" : "rgba(255,255,255,.01)"} stroke={i === 1 ? GOLD : LINE} strokeWidth={i === 1 ? 3 : 2} />
+            <circle cx={x + 90} cy={i === 1 ? 174 : 206} r="39" fill="none" stroke={i === 1 ? GOLD : LINE} strokeWidth="3" />
+            <path d={`M${x + 42} ${i === 1 ? 300 : 332} Q${x + 90} ${i === 1 ? 244 : 276} ${x + 138} ${i === 1 ? 300 : 332}`} fill="none" stroke={i === 1 ? GOLD : LINE} strokeWidth="3" />
+            <line x1={x + 52} y1={i === 1 ? 334 : 366} x2={x + 128} y2={i === 1 ? 334 : 366} stroke={i === 1 ? GOLD : LINE_SOFT} strokeWidth="7" strokeLinecap="round" />
+          </g>
         ))}
-      </div>
-    );
-  }
-
-  if (kind === "conversation") {
-    return (
-      <div style={{ display: "flex", flexDirection: "column", width: 560, gap: 30, transform: `translateX(${shift}px)` }}>
-        <div style={{ width: 390, height: 120, alignSelf: "flex-end", border: "2px solid rgba(216,181,91,.34)", borderRadius: "34px 34px 8px 34px", background: "rgba(216,181,91,.07)" }} />
-        <div style={{ width: 450, height: 138, border: "2px solid rgba(255,255,255,.14)", borderRadius: "34px 34px 34px 8px", background: "rgba(255,255,255,.025)" }} />
-      </div>
+      </svg>
     );
   }
 
   if (kind === "production") {
     return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 560, height: 500, position: "relative" }}>
-        <div style={{ width: 320, height: 220, border: "3px solid rgba(255,255,255,.16)", borderRadius: 30, transform: `rotate(${-6 + shift / 8}deg)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ width: 180, height: 80, borderTop: "20px solid rgba(216,181,91,.45)", borderBottom: "20px solid rgba(216,181,91,.18)" }} />
-        </div>
-        <div style={{ position: "absolute", width: 470, height: 2, background: "rgba(216,181,91,.22)", transform: "rotate(34deg)" }} />
-      </div>
+      <svg width="800" height="520" viewBox="0 0 800 520">
+        <Person x={475} mirror gold />
+        <rect x="130" y="168" width="205" height="146" rx="24" fill="rgba(255,255,255,.01)" stroke={LINE} strokeWidth="3" />
+        <circle cx="230" cy="241" r="42" fill="none" stroke={GOLD} strokeWidth="4" />
+        <path d="M335 202 L422 164 L422 315 L335 278 Z" fill={GOLD_SOFT} stroke={GOLD} strokeWidth="2" />
+        <path d="M230 315 L230 432 M166 432 L294 432" stroke={LINE} strokeWidth="3" />
+      </svg>
     );
   }
 
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 540, height: 540, position: "relative" }}>
-      <div style={{ width: 310, height: 390, border: "2px solid rgba(216,181,91,.36)", borderRadius: 160 }} />
-      <div style={{ position: "absolute", width: 410, height: 410, border: "2px solid rgba(255,255,255,.11)", borderRadius: 999 }} />
-      <div style={{ position: "absolute", width: 170, height: 170, background: "rgba(216,181,91,.10)", borderRadius: 999 }} />
-    </div>
+    <svg width="800" height="520" viewBox="0 0 800 520">
+      <Person x={92} gold />
+      <rect x="430" y="120" width="290" height="280" rx="30" fill="rgba(255,255,255,.01)" stroke={LINE} strokeWidth="2" />
+      {[95, 155, 220].map((height, i) => <rect key={height} x={475 + i * 70} y={350 - height} width="42" height={height} rx="10" fill={i === 2 ? GOLD_SOFT : "none"} stroke={i === 2 ? GOLD : LINE} strokeWidth="3" />)}
+    </svg>
   );
 }
 
@@ -127,25 +159,21 @@ export async function GET(request: NextRequest) {
   const type = searchParams.get("type") || "guide";
   const seed = hash(`${slug}:${title}:${audience}:${type}`);
   const motif = motifFor(`${slug} ${title}`, audience, type);
-  const x = 12 + (seed % 54);
-  const y = 8 + ((seed >>> 8) % 52);
-  const rotate = -18 + ((seed >>> 16) % 36);
+  const offsetX = (seed % 31) - 15;
+  const offsetY = ((seed >>> 8) % 21) - 10;
 
   return new ImageResponse(
-    (
-      <div style={{ width: "100%", height: "100%", display: "flex", position: "relative", overflow: "hidden", background: "#070707", color: "white" }}>
-        <div style={{ position: "absolute", inset: 0, background: `radial-gradient(circle at ${x}% ${y}%, rgba(216,181,91,.22), transparent 34%), radial-gradient(circle at ${100 - x}% ${100 - y}%, rgba(255,255,255,.065), transparent 30%)` }} />
-        <div style={{ position: "absolute", width: 760, height: 760, border: "2px solid rgba(216,181,91,.08)", borderRadius: 999, right: -170, top: -240, transform: `rotate(${rotate}deg)` }} />
-        <div style={{ position: "absolute", left: 74, top: 68, display: "flex", alignItems: "center", gap: 18 }}>
-          <div style={{ width: 48, height: 2, background: "rgba(216,181,91,.65)" }} />
-          <div style={{ fontSize: 18, letterSpacing: 8, color: "rgba(216,181,91,.65)" }}>MLAMH SCENE</div>
-        </div>
-        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", transform: `translate(${(seed % 31) - 15}px, ${((seed >>> 4) % 25) - 12}px)` }}>
-          <Motif kind={motif} seed={seed} />
-        </div>
-        <div style={{ position: "absolute", left: 74, bottom: 58, width: 320, height: 1, background: "rgba(255,255,255,.10)" }} />
+    <div style={{ width: "100%", height: "100%", display: "flex", position: "relative", overflow: "hidden", background: "#070707", color: "white" }}>
+      <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 52% 52%, rgba(216,181,91,.055), transparent 38%)" }} />
+      <div style={{ position: "absolute", width: 780, height: 780, border: "2px solid rgba(216,181,91,.08)", borderRadius: 999, right: -185, top: -275 }} />
+      <div style={{ position: "absolute", left: 72, top: 70, display: "flex", alignItems: "center", gap: 18 }}>
+        <div style={{ width: 48, height: 2, background: "rgba(216,181,91,.72)" }} />
+        <div style={{ fontSize: 18, letterSpacing: 8, color: "rgba(216,181,91,.72)" }}>MLAMH SCENE</div>
       </div>
-    ),
+      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", transform: `translate(${offsetX}px, ${offsetY + 38}px)` }}>
+        <Motif kind={motif} seed={seed} />
+      </div>
+    </div>,
     SIZE,
   );
 }
