@@ -10,9 +10,9 @@ import { updateOwnTalentCoreDetailsAction } from "@/lib/actions/update-own-talen
 import { getOwnTalentProfileAction } from "@/lib/actions/update-own-talent-profile";
 import { TALENT_CATEGORIES } from "@/lib/data/talent-categories";
 import { ACTIVE_TALENT_SIGNUP_COUNTRIES } from "@/lib/data/talent-active-market";
-import { GENDER_OPTIONS } from "@/lib/data/talent-signup";
+import { GENDER_OPTIONS, NATIONALITY_OPTIONS } from "@/lib/data/talent-signup";
 import { normalizeNationalitySlug } from "@/lib/data/nationality-normalization";
-import { normalizeSaudiCitySlug } from "@/lib/data/saudi-cities";
+import { normalizeSaudiCitySlug, SAUDI_CITIES } from "@/lib/data/saudi-cities";
 import { isValidLocale, type Locale } from "@/lib/i18n";
 
 type TalentRecord = Record<string, unknown> & {
@@ -121,6 +121,22 @@ export default function TalentRequiredFieldsPage({
     () => ACTIVE_TALENT_SIGNUP_COUNTRIES.find((item) => item.code === countryCode),
     [countryCode],
   );
+  const roleOption = useMemo(
+    () => TALENT_CATEGORIES.find((item) => item.slug === role),
+    [role],
+  );
+  const genderOption = useMemo(
+    () => GENDER_OPTIONS.find((item) => item.value === gender),
+    [gender],
+  );
+  const nationalityOption = useMemo(
+    () => NATIONALITY_OPTIONS.find((item) => item.value === nationality),
+    [nationality],
+  );
+  const cityOption = useMemo(
+    () => SAUDI_CITIES.find((item) => item.slug === citySlug),
+    [citySlug],
+  );
   const coreEditable = ["not_submitted", "rejected", "changes_requested"].includes(approvalStatus);
   const currentYear = new Date().getFullYear();
   const birthYears = useMemo(
@@ -222,6 +238,10 @@ export default function TalentRequiredFieldsPage({
     );
   }
 
+  const protectedBirthDate = birthDay && birthMonth && birthYear
+    ? `${birthDay}/${birthMonth}/${birthYear}`
+    : "—";
+
   return (
     <main className="min-h-screen bg-background px-4 pb-28 pt-40 text-white sm:px-6 lg:pt-36" dir={isArabic ? "rtl" : "ltr"}>
       <div className="mx-auto max-w-3xl">
@@ -245,10 +265,34 @@ export default function TalentRequiredFieldsPage({
         </div>
 
         {!coreEditable ? (
-          <div className="rounded-[2rem] border border-amber-300/20 bg-amber-300/[0.06] p-6 text-sm leading-7 text-amber-100">
-            {isArabic
-              ? "البيانات الأساسية محمية لأن ملفك قيد المراجعة أو معتمد حاليًا. يمكنك إدارة الخصوصية والبيانات المهنية من أقسامها المستقلة داخل «ملفي»."
-              : "Basic information is protected while your profile is under review or approved. Privacy and professional details remain available from their dedicated sections in My Profile."}
+          <div className="space-y-4">
+            <div className="rounded-[2rem] border border-amber-300/20 bg-amber-300/[0.06] p-6 text-sm leading-7 text-amber-100">
+              {isArabic
+                ? "البيانات الأساسية محمية لأن ملفك قيد المراجعة أو معتمد حاليًا. يمكنك الاطلاع عليها هنا، بينما تُدار الخصوصية والبيانات المهنية من أقسامها المستقلة داخل «ملفي»."
+                : "Basic information is protected while your profile is under review or approved. You can review it here, while privacy and professional details remain available from their dedicated sections in My Profile."}
+            </div>
+
+            <section className="rounded-[2rem] border border-white/10 bg-white/[0.025] p-5 sm:p-7">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <ReadOnlyField label={isArabic ? "الاسم الكامل" : "Full name"} value={name || "—"} />
+                <ReadOnlyField label={isArabic ? "رقم الجوال" : "Phone number"} value={phone || "—"} dir="ltr" />
+                <ReadOnlyField label={isArabic ? "نوع الموهبة" : "Talent type"} value={roleOption ? (isArabic ? roleOption.ar : roleOption.en) : role || "—"} />
+                <ReadOnlyField label={isArabic ? "الجنس" : "Gender"} value={genderOption ? (isArabic ? genderOption.ar : genderOption.en) : gender || "—"} />
+                <ReadOnlyField label={isArabic ? "الجنسية" : "Nationality"} value={nationalityOption ? (isArabic ? nationalityOption.ar : nationalityOption.en) : nationality || "—"} />
+                <ReadOnlyField label={isArabic ? "بلد الإقامة" : "Country of residence"} value={country ? (isArabic ? country.ar : country.en) : countryCode || "—"} />
+                <ReadOnlyField label={isArabic ? "المدينة" : "City"} value={cityOption ? (isArabic ? cityOption.ar : cityOption.en) : citySlug || "—"} />
+                <ReadOnlyField label={isArabic ? "تاريخ الميلاد" : "Date of birth"} value={protectedBirthDate} dir="ltr" />
+              </div>
+            </section>
+
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Link href={`/${locale}/talent-dashboard/profile/details`} className="inline-flex min-h-12 items-center justify-center rounded-2xl bg-gold px-7 text-sm font-semibold text-black">
+                {isArabic ? "إدارة البيانات المهنية" : "Manage professional details"}
+              </Link>
+              <Link href={`/${locale}/talent-dashboard/profile/privacy`} className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-white/10 px-7 text-sm text-white/60 hover:border-gold/30 hover:text-gold">
+                {isArabic ? "إدارة الخصوصية" : "Manage privacy"}
+              </Link>
+            </div>
           </div>
         ) : (
           <form onSubmit={save} className="space-y-5" noValidate>
@@ -401,5 +445,14 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
       </span>
       {children}
     </label>
+  );
+}
+
+function ReadOnlyField({ label, value, dir }: { label: string; value: string; dir?: "ltr" | "rtl" }) {
+  return (
+    <div className="rounded-2xl border border-white/8 bg-black/20 p-4">
+      <p className="text-xs text-white/35">{label}</p>
+      <p className="mt-2 text-sm text-white/80" dir={dir}>{value}</p>
+    </div>
   );
 }
