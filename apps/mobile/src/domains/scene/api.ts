@@ -11,7 +11,10 @@ export function getSceneCategory(slug: string, locale: AppLocale) {
 }
 
 export function getSceneArticle(slug: string, locale: AppLocale) {
-  return mobileApiRequest<SceneArticle>(`/api/scene/article/${encodeURIComponent(slug)}?locale=${locale}`, { authenticated: false });
+  return mobileApiRequest<{ locale: AppLocale; article: SceneArticle }>(
+    `/api/scene/article/${encodeURIComponent(slug)}?locale=${locale}`,
+    { authenticated: false },
+  );
 }
 
 export function searchScene(query: string, locale: AppLocale) {
