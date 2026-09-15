@@ -109,6 +109,13 @@ export function MobileBottomNavigation({
     });
   }
 
+  const talentProfileActive =
+    accountType === "talent" &&
+    (
+      pathname.includes("/dashboard-router") ||
+      pathname.includes("/talent-dashboard/profile")
+    );
+
   const navigationItems: NavigationItem[] = (() => {
     const home: NavigationItem = {
       key: "home",
@@ -148,10 +155,13 @@ export function MobileBottomNavigation({
         : localizedPath("/login"),
       icon: isLoggedIn ? User : LogIn,
       active:
-        pathname.includes("/dashboard-router") ||
-        pathname.includes("/talent-dashboard") ||
-        pathname.includes("/publisher-dashboard") ||
-        pathname.includes("/login"),
+        !talentProfileActive &&
+        (
+          pathname.includes("/dashboard-router") ||
+          pathname.includes("/talent-dashboard") ||
+          pathname.includes("/publisher-dashboard") ||
+          pathname.includes("/login")
+        ),
     };
 
     if (authLoading) {
@@ -200,11 +210,7 @@ export function MobileBottomNavigation({
           labelEn: "My Profile",
           href: localizedPath("/dashboard-router"),
           icon: UserRound,
-          active:
-            pathname.includes("/dashboard-router") ||
-            pathname.includes(
-              "/talent-dashboard/profile",
-            ),
+          active: talentProfileActive,
           primary: true,
         },
         opportunities,
