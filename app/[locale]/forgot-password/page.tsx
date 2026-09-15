@@ -1,32 +1,77 @@
 "use client";
 
-import { use, useState } from "react";
 import Link from "next/link";
 import { Mail, Sparkles } from "lucide-react";
+import { use, useEffect, useState } from "react";
 
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 
+type SearchParams = {
+  email?: string;
+  error?: string;
+};
+
+function recoveryErrorMessage(code: string | undefined, isArabic: boolean) {
+  if (!code) return "";
+
+  if (code === "invalid_link" || code === "expired_link") {
+    return isArabic
+      ? "رابط إعادة تعيين كلمة المرور غير صالح أو انتهت صلاحيته. اطلب رابطًا جديدًا."
+      : "This password reset link is invalid or has expired. Request a new link.";
+  }
+
+  if (code === "recovery_user") {
+    return isArabic
+      ? "تعذر التحقق من جلسة الاستعادة. اطلب رابط إعادة تعيين جديدًا وحاول مرة أخرى."
+      : "We could not verify the recovery session. Request a new reset link and try again.";
+  }
+
+  return isArabic
+    ? "تعذر إكمال طلب الاستعادة. حاول مرة أخرى."
+    : "We could not complete the recovery request. Please try again.";
+}
+
 export default function ForgotPasswordPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams?: Promise<SearchParams>;
 }) {
   const { locale } = use(params);
+  const query = searchParams ? use(searchParams) : {};
   const isArabic = locale === "ar";
-  const [email, setEmail] = useState("");
+  const queryEmail = query.email?.trim().toLowerCase() ?? "";
+
+  const [email, setEmail] = useState(queryEmail);
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState(() =>
+    recoveryErrorMessage(query.error, isArabic),
+  );
+
+  useEffect(() => {
+    if (queryEmail) return;
+
+    const savedEmail = window.localStorage.getItem("mlamh_login_email")?.trim().toLowerCase() ?? "";
+    if (savedEmail) setEmail(savedEmail);
+  }, [queryEmail]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
     setErrorMessage("");
 
+    const cleanEmail = email.trim().toLowerCase();
+
     try {
+      if (cleanEmail) {
+        window.localStorage.setItem("mlamh_login_email", cleanEmail);
+      }
+
       const supabase = createBrowserSupabaseClient();
-      const redirectTo = `${window.location.origin}/auth/callback?locale=${locale}&mode=recovery`;
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      const redirectTo = `${window.location.origin}/auth/recovery?locale=${locale}`;
+      const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
         redirectTo,
       });
 
@@ -84,16 +129,21 @@ export default function ForgotPasswordPage({
             <p className="mt-3 text-sm font-medium text-white/80">
               {isArabic ? "تحقق من بريدك الإلكتروني" : "Check your email"}
             </p>
-            <p className="mt-2 text-xs leading-6 text-white/45">
+            <p className="mt-2 text-xs leading-6 text-white/50">
               {isArabic
-                ? "إذا كان البريد مرتبطًا بحساب ملامح، ستصلك رسالة تحتوي على رابط إعادة تعيين كلمة المرور."
-                : "If this email is linked to a MLAMH account, you'll receive a password reset link."}
+                ? "إذا كان البريد مرتبطًا بحساب ملامح، ستصلك رسالة تحتوي على رابط آمن لإعادة تعيين كلمة المرور. قد يستغرق وصولها بضع دقائق."
+                : "If this email is linked to a MLAMH account, you'll receive a secure password reset link. Delivery may take a few minutes."}
+            </p>
+            <p className="mt-3 text-xs leading-6 text-white/40">
+              {isArabic
+                ? "لم تجد الرسالة؟ تحقق من البريد غير المرغوب فيه Spam / Junk، وكذلك تبويبات Promotions أو Other حسب مزوّد بريدك."
+                : "Can't find it? Check Spam / Junk and tabs such as Promotions or Other, depending on your email provider."}
             </p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             {errorMessage ? (
-              <div className="rounded-2xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-center text-sm text-red-300">
+              <div className="rounded-2xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-center text-sm leading-6 text-red-300">
                 {errorMessage}
               </div>
             ) : null}
@@ -110,6 +160,8 @@ export default function ForgotPasswordPage({
                 inputMode="email"
                 autoComplete="email"
                 autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
                 dir="ltr"
                 required
                 disabled={loading}
