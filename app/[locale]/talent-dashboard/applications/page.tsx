@@ -1,22 +1,24 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import {
+  ArrowUpRight,
+  CheckCircle2,
+  Clock3,
+  Inbox,
+  ListChecks,
+  XCircle,
+} from "lucide-react";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 type PageProps = {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{
-    status?: string;
-  }>;
+  searchParams: Promise<{ status?: string }>;
 };
 
-type ApplicationStatus =
-  | "pending"
-  | "reviewing"
-  | "shortlisted"
-  | "accepted"
-  | "rejected";
+type DisplayStatus = "pending" | "reviewing" | "accepted" | "rejected";
+type FilterStatus = "all" | DisplayStatus;
 
 type OpportunityRecord = {
   id: number | string;
@@ -26,8 +28,6 @@ type OpportunityRecord = {
   city_en: string | null;
   opportunity_type: string | null;
   posting_mode: string | null;
-  status: string | null;
-  created_at: string | null;
 };
 
 type ApplicationRecord = {
@@ -35,78 +35,25 @@ type ApplicationRecord = {
   status: string | null;
   created_at: string | null;
   opportunity_id: number | string | null;
-  talent_id: number | string | null;
   opportunities: OpportunityRecord | OpportunityRecord[] | null;
 };
 
-function normalizeStatus(status?: string | null): ApplicationStatus {
-  if (
-    status === "reviewing" ||
-    status === "shortlisted" ||
-    status === "accepted" ||
-    status === "rejected"
-  ) {
-    return status;
-  }
-
+function normalizeDisplayStatus(status?: string | null): DisplayStatus {
+  if (status === "accepted") return "accepted";
+  if (status === "rejected") return "rejected";
+  if (status === "reviewing" || status === "shortlisted") return "reviewing";
   return "pending";
 }
 
-function statusLabel(status: ApplicationStatus, isArabic: boolean) {
-  const labels: Record<ApplicationStatus, { ar: string; en: string }> = {
-    pending: { ar: "جديد", en: "Pending" },
-    reviewing: { ar: "قيد المراجعة", en: "Reviewing" },
-    shortlisted: { ar: "القائمة المختصرة", en: "Shortlisted" },
-    accepted: { ar: "مقبول", en: "Accepted" },
-    rejected: { ar: "مرفوض", en: "Rejected" },
-  };
-
-  return isArabic ? labels[status].ar : labels[status].en;
+function getOpportunity(application: ApplicationRecord): OpportunityRecord | null {
+  return Array.isArray(application.opportunities)
+    ? application.opportunities[0] ?? null
+    : application.opportunities ?? null;
 }
 
-function displayStatusLabel(
-  status: ApplicationStatus,
-  isArabic: boolean,
-  isQuickRequest: boolean,
-) {
-  if (!isQuickRequest) return statusLabel(status, isArabic);
-
-  if (status === "pending") return isArabic ? "مهتم" : "Interested";
-  if (status === "accepted") return isArabic ? "اختيار مبدئي" : "Preliminary selection";
-  if (status === "rejected") return isArabic ? "تم الاعتذار" : "Not selected";
-
-  return statusLabel(status, isArabic);
-}
-
-function statusClass(status: ApplicationStatus) {
-  const classes: Record<ApplicationStatus, string> = {
-    pending: "border-amber-300/25 bg-amber-300/[0.08] text-amber-200",
-    reviewing: "border-sky-300/25 bg-sky-300/[0.08] text-sky-200",
-    shortlisted: "border-violet-300/25 bg-violet-300/[0.08] text-violet-200",
-    accepted: "border-emerald-300/25 bg-emerald-300/[0.08] text-emerald-200",
-    rejected: "border-red-300/25 bg-red-300/[0.08] text-red-200",
-  };
-
-  return classes[status];
-}
-
-function statusDotClass(status: ApplicationStatus) {
-  const classes: Record<ApplicationStatus, string> = {
-    pending: "bg-amber-300",
-    reviewing: "bg-sky-300",
-    shortlisted: "bg-violet-300",
-    accepted: "bg-emerald-300",
-    rejected: "bg-red-300",
-  };
-
-  return classes[status];
-}
-
-function formatDate(value?: string | null, locale = "en") {
+function formatDate(value: string | null | undefined, locale: string) {
   if (!value) return "—";
-
   const date = new Date(value);
-
   if (Number.isNaN(date.getTime())) return "—";
 
   return new Intl.DateTimeFormat(locale === "ar" ? "ar-SA" : "en-US", {
@@ -116,189 +63,92 @@ function formatDate(value?: string | null, locale = "en") {
   }).format(date);
 }
 
-function getOpportunityCity(
-  opportunity: OpportunityRecord | null,
-  locale: string
-) {
-  if (!opportunity) return "—";
+function opportunityTypeLabel(value: string | null | undefined, isArabic: boolean) {
+  const key = String(value ?? "").trim().toLowerCase().replaceAll("-", "_");
+  const labels: Record<string, { ar: string; en: string }> = {
+    actor: { ar: "ممثل / ممثلة", en: "Actor" },
+    model: { ar: "مودل", en: "Model" },
+  };
 
+  if (!key) return isArabic ? "فرصة" : "Opportunity";
+  return labels[key]?.[isArabic ? "ar" : "en"] ?? key.replaceAll("_", " ");
+}
+
+function cityLabel(opportunity: OpportunityRecord | null, locale: string) {
+  if (!opportunity) return "—";
   return locale === "ar"
     ? opportunity.city_ar || opportunity.city_en || "—"
     : opportunity.city_en || opportunity.city_ar || "—";
 }
 
-function getOpportunityTypeLabel(
-  type: string | null | undefined,
-  isArabic: boolean
+function displayStatusLabel(
+  status: DisplayStatus,
+  isQuickRequest: boolean,
+  isArabic: boolean,
 ) {
-  if (!type) return isArabic ? "فرصة" : "Opportunity";
-
-  const labels: Record<string, { ar: string; en: string }> = {
-    commercial: { ar: "إعلان", en: "Commercial" },
-    film: { ar: "فيلم", en: "Film" },
-    series: { ar: "مسلسل", en: "Series" },
-    theater: { ar: "مسرح", en: "Theater" },
-    event: { ar: "فعالية", en: "Event" },
-    modeling: { ar: "عرض أزياء", en: "Modeling" },
-    voice_over: { ar: "تعليق صوتي", en: "Voice Over" },
-    photography: { ar: "تصوير", en: "Photography" },
-    content_creation: { ar: "صناعة محتوى", en: "Content Creation" },
-  };
-
-  if (labels[type]) {
-    return isArabic ? labels[type].ar : labels[type].en;
+  if (isQuickRequest) {
+    if (status === "pending") return isArabic ? "مهتم" : "Interested";
+    if (status === "reviewing") return isArabic ? "قيد المراجعة" : "In review";
+    if (status === "accepted") return isArabic ? "اختيار مبدئي" : "Preliminary selection";
+    return isArabic ? "تم الاعتذار" : "Not selected";
   }
 
-  return type.replaceAll("_", " ");
+  if (status === "pending") return isArabic ? "تم الاستلام" : "Received";
+  if (status === "reviewing") return isArabic ? "قيد المراجعة" : "In review";
+  if (status === "accepted") return isArabic ? "مقبول" : "Accepted";
+  return isArabic ? "مرفوض" : "Rejected";
 }
 
-function getOpportunity(
-  application: ApplicationRecord
-): OpportunityRecord | null {
-  if (Array.isArray(application.opportunities)) {
-    return application.opportunities[0] ?? null;
-  }
-
-  return application.opportunities ?? null;
+function statusClasses(status: DisplayStatus) {
+  if (status === "accepted") return "border-emerald-300/25 bg-emerald-300/[0.08] text-emerald-200";
+  if (status === "rejected") return "border-red-300/25 bg-red-300/[0.08] text-red-200";
+  if (status === "reviewing") return "border-sky-300/25 bg-sky-300/[0.08] text-sky-200";
+  return "border-amber-300/25 bg-amber-300/[0.08] text-amber-200";
 }
 
-function DashboardIcon({
-  name,
-  className = "h-5 w-5",
-}: {
-  name: "all" | "pending" | "reviewing" | "accepted" | "rejected" | "arrow";
-  className?: string;
-}) {
-  if (name === "all") {
-    return (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className={className} aria-hidden="true">
-        <path d="M8 7h11M8 12h11M8 17h11" strokeLinecap="round" />
-        <path d="M4.5 7h.01M4.5 12h.01M4.5 17h.01" strokeLinecap="round" />
-      </svg>
-    );
-  }
-
-  if (name === "pending") {
-    return (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className={className} aria-hidden="true">
-        <circle cx="12" cy="12" r="8.5" />
-        <path d="M12 7.8v4.7l3 1.8" strokeLinecap="round" />
-      </svg>
-    );
-  }
-
-  if (name === "reviewing") {
-    return (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className={className} aria-hidden="true">
-        <circle cx="10.5" cy="10.5" r="5.5" />
-        <path d="m15 15 4 4" strokeLinecap="round" />
-        <path d="M8.2 10.5h4.6M10.5 8.2v4.6" strokeLinecap="round" />
-      </svg>
-    );
-  }
-
-  if (name === "accepted") {
-    return (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className={className} aria-hidden="true">
-        <circle cx="12" cy="12" r="8.5" />
-        <path d="m8.2 12 2.5 2.5 5.3-5.3" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    );
-  }
-
-  if (name === "rejected") {
-    return (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className={className} aria-hidden="true">
-        <circle cx="12" cy="12" r="8.5" />
-        <path d="m9 9 6 6M15 9l-6 6" strokeLinecap="round" />
-      </svg>
-    );
-  }
-
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className={className} aria-hidden="true">
-      <path d="M5 12h14M14 7l5 5-5 5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
+function buildFilterHref(locale: string, status: FilterStatus) {
+  return status === "all"
+    ? `/${locale}/talent-dashboard/applications`
+    : `/${locale}/talent-dashboard/applications?status=${status}`;
 }
 
-export default async function TalentRequestsPage({
-  params,
-  searchParams,
-}: PageProps) {
+export default async function TalentApplicationsPage({ params, searchParams }: PageProps) {
   const { locale } = await params;
-  const { status } = await searchParams;
+  const { status: rawStatus } = await searchParams;
   const isArabic = locale === "ar";
+  const statusFilter: FilterStatus =
+    rawStatus === "pending" ||
+    rawStatus === "reviewing" ||
+    rawStatus === "accepted" ||
+    rawStatus === "rejected"
+      ? rawStatus
+      : "all";
 
   const authClient = await createServerSupabaseClient();
-
   const {
     data: { user },
     error: userError,
   } = await authClient.auth.getUser();
 
-  if (userError || !user) {
-    redirect(`/${locale}/login`);
-  }
+  if (userError || !user) redirect(`/${locale}/login`);
 
   const adminClient = createAdminClient();
-
   const { data: talent, error: talentError } = await adminClient
     .from("talents")
-    .select("id, slug, name_ar, name_en")
+    .select("id")
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (talentError) {
-    throw new Error(`[TalentRequestsPage talent] ${talentError.message}`);
-  }
+  if (talentError) throw new Error(`[TalentApplicationsPage talent] ${talentError.message}`);
+  if (!talent) redirect(`/${locale}/join/talent`);
 
-  if (!talent) {
-    return (
-      <main
-        dir={isArabic ? "rtl" : "ltr"}
-        className="flex min-h-screen items-center justify-center bg-background px-5 py-24 text-white"
-      >
-        <section className="w-full max-w-xl rounded-[2rem] border border-white/10 bg-white/[0.025] p-7 text-center shadow-2xl shadow-black/30 sm:p-10">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-gold/25 bg-gold/[0.07] text-gold">
-            <DashboardIcon name="all" className="h-6 w-6" />
-          </div>
-
-          <p className="mt-6 text-[10px] uppercase tracking-[0.35em] text-gold">
-            {isArabic ? "مساحة الموهبة" : "Talent Workspace"}
-          </p>
-
-          <h1 className="mt-3 text-3xl font-light sm:text-4xl">
-            {isArabic ? "لم يتم العثور على ملف موهبة" : "Talent profile not found"}
-          </h1>
-
-          <p className="mx-auto mt-4 max-w-md text-sm leading-7 text-white/45">
-            {isArabic
-              ? "أكمل إنشاء ملف الموهبة أولًا، وبعدها ستتمكن من متابعة جميع طلباتك من هذه الصفحة."
-              : "Complete your talent profile first, then you will be able to track every application from this page."}
-          </p>
-
-          <Link
-            href={`/${locale}/join/talent`}
-            className="mt-7 inline-flex items-center justify-center gap-2 rounded-full border border-gold/40 bg-gold px-6 py-3 text-sm text-black transition hover:bg-gold-soft"
-          >
-            {isArabic ? "إكمال ملف الموهبة" : "Complete Talent Profile"}
-            <DashboardIcon name="arrow" className="h-4 w-4" />
-          </Link>
-        </section>
-      </main>
-    );
-  }
-
-  const { data: applications, error: applicationsError } = await adminClient
+  const { data: applicationsData, error: applicationsError } = await adminClient
     .from("opportunity_applications")
-    .select(
-      `
+    .select(`
       id,
       status,
       created_at,
       opportunity_id,
-      talent_id,
       opportunities (
         id,
         title,
@@ -306,317 +156,216 @@ export default async function TalentRequestsPage({
         city_ar,
         city_en,
         opportunity_type,
-        posting_mode,
-        status,
-        created_at
+        posting_mode
       )
-    `
-    )
+    `)
     .eq("talent_id", talent.id)
     .order("created_at", { ascending: false });
 
   if (applicationsError) {
-    throw new Error(
-      `[TalentRequestsPage applications] ${applicationsError.message}`
-    );
+    throw new Error(`[TalentApplicationsPage applications] ${applicationsError.message}`);
   }
 
-  const allApplications = (applications ?? []) as ApplicationRecord[];
-  const applicationIds = allApplications.map((application) => application.id);
-  const conversationByApplicationId = new Map<string, string>();
+  const applications = (applicationsData ?? []) as ApplicationRecord[];
+  const applicationIds = applications.map((application) => application.id);
+  const conversationByApplication = new Map<string, string>();
 
   if (applicationIds.length > 0) {
-    const { data: conversations, error: conversationsError } =
-      await adminClient
-        .from("conversations")
-        .select("id, application_id")
-        .in("application_id", applicationIds);
+    const { data: conversations, error: conversationsError } = await adminClient
+      .from("conversations")
+      .select("id, application_id")
+      .in("application_id", applicationIds);
 
     if (conversationsError) {
-      console.error(
-        "[TalentRequestsPage conversations]",
-        conversationsError,
-      );
+      console.error("[TalentApplicationsPage conversations]", conversationsError);
     } else {
       for (const conversation of conversations ?? []) {
-        if (
-          conversation.application_id !== null &&
-          conversation.application_id !== undefined
-        ) {
-          conversationByApplicationId.set(
-            String(conversation.application_id),
-            String(conversation.id),
-          );
+        if (conversation.application_id !== null && conversation.application_id !== undefined) {
+          conversationByApplication.set(String(conversation.application_id), String(conversation.id));
         }
       }
     }
   }
 
-  const filteredApplications =
-    status &&
-    ["pending", "reviewing", "shortlisted", "accepted", "rejected"].includes(status)
-      ? allApplications.filter(
-          app => normalizeStatus(app.status) === status
-        )
-      : allApplications;
-
-  const counts = allApplications.reduce(
+  const counts = applications.reduce(
     (result, application) => {
-      const status = normalizeStatus(application.status);
-
+      const normalized = normalizeDisplayStatus(application.status);
       result.total += 1;
-      result[status] += 1;
-
+      result[normalized] += 1;
       return result;
     },
-    {
-      total: 0,
-      pending: 0,
-      reviewing: 0,
-      shortlisted: 0,
-      accepted: 0,
-      rejected: 0,
-    }
+    { total: 0, pending: 0, reviewing: 0, accepted: 0, rejected: 0 },
   );
 
-  const statCards = [
+  const visibleApplications =
+    statusFilter === "all"
+      ? applications
+      : applications.filter(
+          (application) => normalizeDisplayStatus(application.status) === statusFilter,
+        );
+
+  const filterCards = [
     {
-      key: "total",
-      label: isArabic ? "كل الطلبات" : "All Applications",
+      key: "all" as const,
+      label: isArabic ? "كل الطلبات" : "All",
       value: counts.total,
-      icon: "all" as const,
-      className: "border-gold/25 bg-gold/[0.06]",
-      iconClassName: "border-gold/30 bg-gold/[0.08] text-gold",
+      icon: ListChecks,
     },
     {
-      key: "pending",
-      label: isArabic ? "جديد / مهتم" : "Pending / Interested",
+      key: "pending" as const,
+      label: isArabic ? "جديد / مهتم" : "New / Interested",
       value: counts.pending,
-      icon: "pending" as const,
-      className: "border-white/10 bg-white/[0.025]",
-      iconClassName: "border-amber-300/20 bg-amber-300/[0.06] text-amber-200",
+      icon: Inbox,
     },
     {
-      key: "reviewing",
-      label: isArabic ? "قيد المراجعة" : "Reviewing",
+      key: "reviewing" as const,
+      label: isArabic ? "قيد المراجعة" : "In review",
       value: counts.reviewing,
-      icon: "reviewing" as const,
-      className: "border-white/10 bg-white/[0.025]",
-      iconClassName: "border-sky-300/20 bg-sky-300/[0.06] text-sky-200",
+      icon: Clock3,
     },
     {
-      key: "shortlisted",
-      label: isArabic ? "القائمة المختصرة" : "Shortlisted",
-      value: counts.shortlisted,
-      icon: "reviewing" as const,
-      className: "border-white/10 bg-white/[0.025]",
-      iconClassName: "border-violet-300/20 bg-violet-300/[0.06] text-violet-200",
-    },
-    {
-      key: "accepted",
-      label: isArabic ? "مقبول / اختيار مبدئي" : "Accepted / Preliminary",
+      key: "accepted" as const,
+      label: isArabic ? "اختيار / قبول" : "Selected / Accepted",
       value: counts.accepted,
-      icon: "accepted" as const,
-      className: "border-white/10 bg-white/[0.025]",
-      iconClassName: "border-emerald-300/20 bg-emerald-300/[0.06] text-emerald-200",
+      icon: CheckCircle2,
     },
     {
-      key: "rejected",
-      label: isArabic ? "مرفوض / معتذر" : "Rejected / Not selected",
+      key: "rejected" as const,
+      label: isArabic ? "اعتذار / رفض" : "Not selected / Rejected",
       value: counts.rejected,
-      icon: "rejected" as const,
-      className: "border-white/10 bg-white/[0.025]",
-      iconClassName: "border-red-300/20 bg-red-300/[0.06] text-red-200",
+      icon: XCircle,
     },
   ];
 
   return (
-    <main
-      dir={isArabic ? "rtl" : "ltr"}
-      className="min-h-screen bg-background px-4 pb-24 pt-36 text-white sm:px-6 sm:pt-40 lg:pt-32"
-    >
-      <div className="mx-auto max-w-6xl">
-        <header className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-[radial-gradient(circle_at_top_right,rgba(201,169,98,0.12),transparent_38%),linear-gradient(135deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))] p-6 sm:p-8 lg:p-10">
-          <div
-            className="pointer-events-none absolute inset-x-10 bottom-0 h-px bg-gradient-to-r from-transparent via-gold/40 to-transparent"
-            aria-hidden="true"
-          />
+    <main dir={isArabic ? "rtl" : "ltr"} className="min-h-screen bg-background px-4 pb-24 pt-36 text-white sm:px-6 sm:pt-40 lg:pt-32">
+      <div className="mx-auto max-w-6xl space-y-6">
+        <header className="rounded-[2rem] border border-white/10 bg-[radial-gradient(circle_at_top_right,rgba(201,169,98,0.12),transparent_38%),linear-gradient(135deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))] p-6 sm:p-8 lg:p-10">
+          <Link
+            href={`/${locale}/talent-dashboard`}
+            className="text-xs text-white/45 transition hover:text-gold"
+          >
+            {isArabic ? "العودة إلى لوحة الموهبة" : "Back to dashboard"}
+          </Link>
 
-          <div className="relative flex flex-col gap-7 lg:flex-row lg:items-end lg:justify-between">
+          <div className="mt-7 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <Link
-                href={`/${locale}/talent-dashboard`}
-                className="inline-flex items-center gap-2 text-xs text-white/45 transition hover:text-gold"
-              >
-                <span className={isArabic ? "rotate-180" : ""}>
-                  <DashboardIcon name="arrow" className="h-4 w-4" />
-                </span>
-                {isArabic ? "العودة إلى لوحة التحكم" : "Back to Dashboard"}
-              </Link>
-
-              <p className="mt-8 text-[10px] uppercase tracking-[0.36em] text-gold">
-                {isArabic ? "لوحة الموهبة" : "Talent Workspace"}
+              <p className="text-[10px] uppercase tracking-[0.32em] text-gold">
+                {isArabic ? "نشاطي" : "MY ACTIVITY"}
               </p>
-
-              <h1 className="mt-3 text-4xl font-light leading-tight sm:text-5xl lg:text-6xl">
+              <h1 className="mt-3 text-4xl font-light sm:text-5xl">
                 {isArabic ? "طلباتي" : "My Applications"}
               </h1>
-
-              <p className="mt-4 max-w-2xl text-sm leading-7 text-white/50 sm:text-base">
+              <p className="mt-3 max-w-2xl text-sm leading-7 text-white/50">
                 {isArabic
-                  ? "تابع اهتماماتك بالطلبات السريعة وتقديماتك على فرص الكاستينغ، وافتح المحادثة عندما تكون متاحة."
-                  : "Track Quick Request interests and casting applications, and open the conversation whenever it is available."}
+                  ? "تابع اهتمامك بالطلبات السريعة وتقديماتك على فرص الكاستينغ. نعرض لك الحالة بصياغة تناسب نوع الفرصة."
+                  : "Track Quick Request interests and Casting applications with status wording that matches each workflow."}
               </p>
             </div>
 
             <Link
               href={`/${locale}/opportunities`}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-gold/40 bg-gold px-6 py-3.5 text-sm text-black transition hover:bg-gold-soft sm:w-auto"
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-gold px-6 text-sm font-semibold text-black transition hover:bg-gold-soft"
             >
-              {isArabic ? "استعراض الفرص" : "Browse Opportunities"}
-              <DashboardIcon name="arrow" className="h-4 w-4" />
+              {isArabic ? "استعراض الفرص" : "Browse opportunities"}
+              <ArrowUpRight size={16} className={isArabic ? "-scale-x-100" : undefined} />
             </Link>
           </div>
         </header>
 
-        <section className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          {statCards.map((card) => (
-            <article
-              key={card.key}
-              className={`min-w-0 rounded-[1.5rem] border p-4 transition hover:-translate-y-0.5 hover:border-gold/25 sm:p-5 ${card.className}`}
-            >
-              <div
-                className={`flex h-10 w-10 items-center justify-center rounded-xl border ${card.iconClassName}`}
+        <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+          {filterCards.map((card) => {
+            const Icon = card.icon;
+            const active = statusFilter === card.key;
+            return (
+              <Link
+                key={card.key}
+                href={buildFilterHref(locale, card.key)}
+                aria-current={active ? "page" : undefined}
+                className={`rounded-[1.5rem] border p-4 transition sm:p-5 ${
+                  active
+                    ? "border-gold/35 bg-gold/[0.07]"
+                    : "border-white/10 bg-white/[0.025] hover:border-gold/25"
+                }`}
               >
-                <DashboardIcon name={card.icon} />
-              </div>
-
-              <p className="mt-5 truncate text-[10px] uppercase tracking-[0.18em] text-white/40">
-                {card.label}
-              </p>
-
-              <p className="mt-2 text-3xl font-light sm:text-4xl">{card.value}</p>
-            </article>
-          ))}
+                <Icon size={19} className={active ? "text-gold" : "text-white/35"} />
+                <p className="mt-4 text-xs text-white/45">{card.label}</p>
+                <strong className="mt-2 block text-3xl font-light text-white">{card.value}</strong>
+              </Link>
+            );
+          })}
         </section>
 
-        <section className="mt-6 rounded-[2rem] border border-white/10 bg-white/[0.02] p-4 sm:p-6">
-          <div className="mb-5 flex flex-col gap-2 border-b border-white/10 pb-5 sm:flex-row sm:items-end sm:justify-between">
+        <section className="rounded-[2rem] border border-white/10 bg-white/[0.02] p-4 sm:p-6">
+          <div className="mb-5 flex items-end justify-between gap-4 border-b border-white/10 pb-5">
             <div>
               <p className="text-[10px] uppercase tracking-[0.3em] text-gold">
-                {isArabic ? "سجل الطلبات" : "Application History"}
+                {isArabic ? "سجل الطلبات" : "APPLICATION HISTORY"}
               </p>
-
               <h2 className="mt-2 text-2xl font-light sm:text-3xl">
-                {isArabic ? "الطلبات والفرص التي تفاعلت معها" : "Your Requests and Opportunities"}
+                {isArabic ? "الفرص التي تفاعلت معها" : "Your opportunity activity"}
               </h2>
             </div>
-
-            <p className="text-xs text-white/35">
+            <span className="shrink-0 text-xs text-white/35">
               {isArabic
-                ? `${filteredApplications.length} طلب`
-                : `${counts.total} application${counts.total === 1 ? "" : "s"}`}
-            </p>
+                ? `${visibleApplications.length} طلب`
+                : `${visibleApplications.length} application${visibleApplications.length === 1 ? "" : "s"}`}
+            </span>
           </div>
 
-          {filteredApplications.length > 0 ? (
+          {visibleApplications.length > 0 ? (
             <div className="space-y-3">
-              {filteredApplications.map((application) => {
+              {visibleApplications.map((application) => {
                 const opportunity = getOpportunity(application);
-                const normalizedStatus = normalizeStatus(application.status);
-                const isQuickRequest = opportunity?.posting_mode === "quick";
+                const normalizedStatus = normalizeDisplayStatus(application.status);
+                const quick = opportunity?.posting_mode === "quick";
+                const statusLabel = displayStatusLabel(normalizedStatus, quick, isArabic);
+                const conversationId = conversationByApplication.get(String(application.id));
+                const canOpenConversation = Boolean(conversationId) &&
+                  (quick || normalizedStatus === "accepted");
                 const opportunityHref = opportunity?.slug
                   ? `/${locale}/opportunities/${opportunity.slug}`
                   : `/${locale}/opportunities`;
 
-                const conversationId = conversationByApplicationId.get(
-                  String(application.id),
-                );
-
-                const canMessagePublisher = Boolean(conversationId) &&
-                  (isQuickRequest || normalizedStatus === "accepted");
-                const currentStatusLabel = displayStatusLabel(
-                  normalizedStatus,
-                  isArabic,
-                  isQuickRequest,
-                );
-
                 return (
                   <article
                     key={application.id}
-                    className="group rounded-[1.5rem] border border-white/10 bg-black/25 p-4 transition hover:border-gold/25 hover:bg-white/[0.03] sm:p-5"
+                    className="rounded-[1.5rem] border border-white/10 bg-black/25 p-4 transition hover:border-gold/25 sm:p-5"
                   >
-                    <div className="grid gap-5 lg:grid-cols-[minmax(0,1.5fr)_0.7fr_0.8fr_0.75fr_auto] lg:items-center">
+                    <div className="grid gap-5 lg:grid-cols-[minmax(0,1.5fr)_0.7fr_0.8fr_0.8fr_auto] lg:items-center">
                       <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-[10px] uppercase tracking-[0.16em] text-white/45">
-                            {isQuickRequest
-                              ? isArabic
-                                ? "طلب سريع"
-                                : "Quick Request"
-                              : getOpportunityTypeLabel(
-                                  opportunity?.opportunity_type,
-                                  isArabic
-                                )}
+                        <div className="flex flex-wrap gap-2">
+                          <span className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-[10px] text-white/45">
+                            {quick
+                              ? isArabic ? "طلب سريع" : "Quick Request"
+                              : opportunityTypeLabel(opportunity?.opportunity_type, isArabic)}
                           </span>
-
-                          <span
-                            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.14em] ${statusClass(
-                              normalizedStatus
-                            )}`}
-                          >
-                            <span
-                              className={`h-1.5 w-1.5 rounded-full ${statusDotClass(
-                                normalizedStatus
-                              )}`}
-                            />
-                            {currentStatusLabel}
+                          <span className={`rounded-full border px-3 py-1 text-[10px] ${statusClasses(normalizedStatus)}`}>
+                            {statusLabel}
                           </span>
                         </div>
-
                         <h3 className="mt-3 truncate text-xl font-light sm:text-2xl">
-                          {opportunity?.title ||
-                            (isArabic ? "فرصة بدون عنوان" : "Untitled Opportunity")}
+                          {opportunity?.title || (isArabic ? "فرصة بدون عنوان" : "Untitled opportunity")}
                         </h3>
                       </div>
 
-                      <InfoItem
-                        label={isArabic ? "المدينة" : "City"}
-                        value={getOpportunityCity(opportunity, locale)}
-                      />
-
-                      <InfoItem
-                        label={isArabic ? "الحالة" : "Status"}
-                        value={currentStatusLabel}
-                      />
-
-                      <InfoItem
-                        label={isArabic ? "تاريخ التقديم" : "Applied"}
-                        value={formatDate(application.created_at, locale)}
-                      />
+                      <InfoItem label={isArabic ? "المدينة" : "City"} value={cityLabel(opportunity, locale)} />
+                      <InfoItem label={isArabic ? "الحالة" : "Status"} value={statusLabel} />
+                      <InfoItem label={isArabic ? "تاريخ التقديم" : "Applied"} value={formatDate(application.created_at, locale)} />
 
                       <div className="flex flex-col gap-2 sm:flex-row lg:flex-col">
                         <Link
                           href={opportunityHref}
-                          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-white/10 px-4 text-xs text-white/60 transition hover:border-gold/40 hover:text-gold"
+                          className="inline-flex min-h-11 items-center justify-center rounded-full border border-white/10 px-4 text-xs text-white/60 transition hover:border-gold/40 hover:text-gold"
                         >
-                          {isArabic ? "عرض الفرصة" : "View Opportunity"}
-                          <DashboardIcon name="arrow" className="h-4 w-4" />
+                          {isArabic ? "عرض الفرصة" : "View opportunity"}
                         </Link>
-
-                        {canMessagePublisher && conversationId ? (
+                        {canOpenConversation && conversationId ? (
                           <Link
                             href={`/${locale}/talent-dashboard/messages/${conversationId}`}
-                            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-gold/40 bg-gold/[0.08] px-4 text-xs text-gold transition hover:bg-gold hover:text-black"
+                            className="inline-flex min-h-11 items-center justify-center rounded-full border border-gold/35 bg-gold/[0.07] px-4 text-xs text-gold transition hover:bg-gold hover:text-black"
                           >
-                            {isQuickRequest
-                              ? isArabic
-                                ? "فتح المحادثة"
-                                : "Open Conversation"
-                              : isArabic
-                                ? "مراسلة الناشر"
-                                : "Message Publisher"}
-                            <DashboardIcon name="arrow" className="h-4 w-4" />
+                            {isArabic ? "فتح المحادثة" : "Open conversation"}
                           </Link>
                         ) : null}
                       </div>
@@ -626,27 +375,23 @@ export default async function TalentRequestsPage({
               })}
             </div>
           ) : (
-            <div className="rounded-[1.75rem] border border-dashed border-white/10 bg-black/20 px-5 py-12 text-center sm:px-8 sm:py-16">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-gold/20 bg-gold/[0.05] text-gold">
-                <DashboardIcon name="all" className="h-6 w-6" />
-              </div>
-
+            <div className="rounded-[1.75rem] border border-dashed border-white/10 bg-black/20 px-5 py-14 text-center">
+              <Inbox className="mx-auto text-gold" size={28} />
               <h3 className="mt-5 text-2xl font-light">
-                {isArabic ? "لم تتقدم على أي فرصة بعد" : "No applications yet"}
+                {statusFilter === "all"
+                  ? isArabic ? "لم تتقدم على أي فرصة بعد" : "No applications yet"
+                  : isArabic ? "لا توجد طلبات بهذه الحالة" : "No applications with this status"}
               </h3>
-
               <p className="mx-auto mt-3 max-w-md text-sm leading-7 text-white/45">
                 {isArabic
-                  ? "ابدأ باستعراض الفرص المتاحة، واختر ما يناسب خبرتك واهتماماتك."
-                  : "Browse the available opportunities and apply to the ones that match your experience and interests."}
+                  ? "استعرض الفرص المناسبة لك وابدأ عندما تجد فرصة تناسب ملفك."
+                  : "Browse relevant opportunities and apply when you find a good fit."}
               </p>
-
               <Link
                 href={`/${locale}/opportunities`}
-                className="mt-6 inline-flex items-center justify-center gap-2 rounded-full border border-gold/40 bg-gold px-6 py-3 text-sm text-black transition hover:bg-gold-soft"
+                className="mt-6 inline-flex min-h-11 items-center justify-center rounded-full bg-gold px-6 text-sm font-semibold text-black"
               >
-                {isArabic ? "استعراض الفرص" : "Browse Opportunities"}
-                <DashboardIcon name="arrow" className="h-4 w-4" />
+                {isArabic ? "استعراض الفرص" : "Browse opportunities"}
               </Link>
             </div>
           )}
@@ -659,9 +404,7 @@ export default async function TalentRequestsPage({
 function InfoItem({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0 rounded-xl border border-white/[0.06] bg-black/20 px-3 py-3 lg:border-0 lg:bg-transparent lg:px-0">
-      <p className="text-[9px] uppercase tracking-[0.18em] text-white/30">
-        {label}
-      </p>
+      <p className="text-[9px] uppercase tracking-[0.18em] text-white/30">{label}</p>
       <p className="mt-1 truncate text-sm text-white/65">{value}</p>
     </div>
   );
