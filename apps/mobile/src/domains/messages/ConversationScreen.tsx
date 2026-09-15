@@ -1,11 +1,11 @@
 import { router, useLocalSearchParams } from "expo-router";
-import { ChevronLeft, ChevronRight, MessageCircle, Send, Zap } from "lucide-react-native";
+import { Check, ChevronLeft, ChevronRight, MessageCircle, Send, X, Zap } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { MobileApiError } from "@/src/api/client";
-import { getConversationDetail, sendConversationMessage } from "@/src/domains/messages/api";
+import { getConversationDetail, respondToQuickTalentDecision, sendConversationMessage } from "@/src/domains/messages/api";
 import type { ConversationDetailResponse, QuickRequestProductState } from "@/src/domains/messages/types";
 import { useLocale } from "@/src/i18n/LocaleProvider";
 import { colors, radius, spacing } from "@/src/theme/tokens";
@@ -35,6 +35,7 @@ export function ConversationScreen() {
   const [data, setData] = useState<ConversationDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [deciding, setDeciding] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
 
@@ -80,6 +81,28 @@ export function ConversationScreen() {
     }
   }, [conversationId, data, draft, isArabic, sending]);
 
+  const decide = useCallback(async (decision: "accept" | "decline") => {
+    if (deciding) return;
+    setDeciding(true);
+    setError(null);
+    try {
+      await respondToQuickTalentDecision(conversationId, decision, locale);
+      await load();
+    } catch (caught) {
+      const code = caught instanceof MobileApiError ? caught.code : "DECISION_FAILED";
+      setError(
+        code === "ALREADY_DECIDED"
+          ? (isArabic ? "سبق تسجيل قرارك لهذا الطلب." : "Your decision has already been recorded.")
+          : code === "PUBLISHER_CONFIRMATION_REQUIRED"
+            ? (isArabic ? "لم تؤكد الجهة الاختيار النهائي بعد." : "The publisher has not confirmed the selection yet.")
+            : (isArabic ? "تعذر تسجيل قرارك. حاول مرة أخرى." : "Unable to record your decision. Try again."),
+      );
+      if (code === "ALREADY_DECIDED") await load();
+    } finally {
+      setDeciding(false);
+    }
+  }, [conversationId, deciding, isArabic, load, locale]);
+
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
@@ -102,9 +125,21 @@ export function ConversationScreen() {
               <Text style={styles.workflowState}>{workflowLabel(data.conversation.workflow.state, isArabic)}</Text>
             </View>
             {data.conversation.workflow.actions.canTalentConfirm ? (
-              <Text style={[styles.workflowAction, { textAlign: align }]}>
-                {isArabic ? "الجهة أكدت اختيارك. يلزم تأكيدك أو اعتذارك لإكمال الطلب." : "The publisher confirmed your selection. Confirm or decline to complete the request."}
-              </Text>
+              <>
+                <Text style={[styles.workflowAction, { textAlign: align }]}>
+                  {isArabic ? "الجهة أكدت اختيارك. أكد قبولك أو اعتذر لإكمال الطلب." : "The publisher confirmed your selection. Confirm or decline to complete the request."}
+                </Text>
+                <View style={[styles.decisionRow, isArabic ? styles.rowRtl : styles.rowLtr]}>
+                  <Pressable disabled={deciding} onPress={() => void decide("accept")} style={[styles.confirmButton, deciding && styles.disabled]}>
+                    <Check size={15} color="#090909" />
+                    <Text style={styles.confirmText}>{isArabic ? "أؤكد قبولي" : "Confirm"}</Text>
+                  </Pressable>
+                  <Pressable disabled={deciding} onPress={() => void decide("decline")} style={[styles.declineButton, deciding && styles.disabled]}>
+                    <X size={15} color={colors.textSecondary} />
+                    <Text style={styles.declineText}>{isArabic ? "أعتذر" : "Decline"}</Text>
+                  </Pressable>
+                </View>
+              </>
             ) : null}
             {data.conversation.workflow.requestedMaterials.length ? (
               <Text style={[styles.workflowNote, { textAlign: align }]}>
@@ -163,6 +198,12 @@ const styles = StyleSheet.create({
   workflowState: { color: colors.textPrimary, fontSize: 11, fontWeight: "700", flex: 1 },
   workflowAction: { color: colors.gold, fontSize: 12, lineHeight: 20, fontWeight: "600", marginTop: spacing.sm },
   workflowNote: { color: colors.textMuted, fontSize: 11, lineHeight: 18, marginTop: spacing.sm },
+  decisionRow: { marginTop: spacing.md },
+  confirmButton: { minHeight: 42, flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: radius.lg, backgroundColor: colors.gold },
+  confirmText: { color: "#090909", fontSize: 12, fontWeight: "800" },
+  declineButton: { minHeight: 42, flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  declineText: { color: colors.textSecondary, fontSize: 12, fontWeight: "700" },
+  disabled: { opacity: 0.42 },
   messages: { flex: 1 },
   messagesContent: { paddingHorizontal: spacing.lg, paddingVertical: spacing.lg, gap: spacing.sm },
   centerText: { color: colors.textMuted, fontSize: 12, textAlign: "center", marginTop: spacing.xl },
