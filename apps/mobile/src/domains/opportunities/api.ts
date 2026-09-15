@@ -5,5 +5,6 @@ import type { MobileOpportunitiesResponse } from "@/src/domains/opportunities/ty
 export function getMobileOpportunities(locale: AppLocale, market = "SA") {
   return mobileApiRequest<MobileOpportunitiesResponse>(
     `/api/opportunities?locale=${locale}&market=${market}`,
+    { authenticated: false },
   );
 }
