@@ -9,6 +9,12 @@ export function getConversationDetail(conversationId: number) {
   return mobileApiRequest<ConversationDetailResponse>(`/api/conversations/${conversationId}`);
 }
 
+export function markConversationRead(conversationId: number) {
+  return mobileApiRequest<{ ok: true; count: number }>(`/api/conversations/${conversationId}`, {
+    method: "PATCH",
+  });
+}
+
 export function sendConversationMessage(conversationId: number, body: string) {
   return mobileApiRequest<SendMessageResult>(`/api/conversations/${conversationId}`, {
     method: "POST",
