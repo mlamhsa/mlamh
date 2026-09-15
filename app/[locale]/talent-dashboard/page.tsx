@@ -19,14 +19,8 @@ type WorkflowState =
   | "rejected";
 
 function normalizeApplicationStatus(status?: string | null) {
-  if (
-    status === "reviewing" ||
-    status === "shortlisted" ||
-    status === "accepted" ||
-    status === "rejected"
-  ) {
-    return status;
-  }
+  if (status === "reviewing" || status === "shortlisted") return "reviewing";
+  if (status === "accepted" || status === "rejected") return status;
   return "pending";
 }
 
@@ -109,7 +103,7 @@ export default async function TalentDashboardPage({ params }: PageProps) {
       acc[status] += 1;
       return acc;
     },
-    { pending: 0, reviewing: 0, shortlisted: 0, accepted: 0, rejected: 0 } as Record<string, number>,
+    { pending: 0, reviewing: 0, accepted: 0, rejected: 0 } as Record<string, number>,
   );
 
   const profileCompletion = calculateProfileCompletion(talent);
@@ -330,14 +324,14 @@ export default async function TalentDashboardPage({ params }: PageProps) {
       ? isRtl
         ? `لديك ${counts.accepted} طلب وصل إلى مرحلة الاختيار أو القبول. افتح طلباتك لمعرفة الحالة والخطوة التالية.`
         : `You have ${counts.accepted} application${counts.accepted === 1 ? "" : "s"} at the selection or acceptance stage. Open your applications for the exact status and next step.`
-      : counts.shortlisted > 0
+      : activeApplications > 0
         ? isRtl
-          ? `لديك ${counts.shortlisted} طلب في القائمة المختصرة.`
-          : `${counts.shortlisted} application${counts.shortlisted === 1 ? " is" : "s are"} shortlisted.`
-        : activeApplications > 0
+          ? `${activeApplications} من طلباتك ما زالت قيد المراجعة.`
+          : `${activeApplications} application${activeApplications === 1 ? " is" : "s are"} still in review.`
+        : counts.rejected > 0
           ? isRtl
-            ? `${activeApplications} من طلباتك ما زالت قيد المراجعة.`
-            : `${activeApplications} application${activeApplications === 1 ? " is" : "s are"} still in review.`
+            ? "راجع نتائج طلباتك السابقة والخطوات المتاحة من صفحة طلباتي."
+            : "Review previous application results and available next steps from Applications."
           : isRtl
             ? "راجع نتائج طلباتك السابقة من صفحة طلباتي."
             : "Review your previous application results from Applications.";
@@ -468,13 +462,13 @@ export default async function TalentDashboardPage({ params }: PageProps) {
                     <strong className="text-2xl font-light">{activeApplications}</strong>
                     <p className="mt-1 text-[11px] text-white/40">{isRtl ? "قيد المراجعة" : "In review"}</p>
                   </div>
-                  <div className={`rounded-2xl border p-3 text-center sm:p-4 ${counts.shortlisted > 0 ? "border-gold/20 bg-gold/[0.035]" : "border-white/8 bg-black/20"}`}>
-                    <strong className={counts.shortlisted > 0 ? "text-2xl font-light text-gold" : "text-2xl font-light"}>{counts.shortlisted}</strong>
-                    <p className="mt-1 text-[11px] text-white/40">{isRtl ? "قائمة مختصرة" : "Shortlisted"}</p>
-                  </div>
                   <div className={`rounded-2xl border p-3 text-center sm:p-4 ${counts.accepted > 0 ? "border-emerald-400/20 bg-emerald-400/[0.04]" : "border-white/8 bg-black/20"}`}>
                     <strong className={counts.accepted > 0 ? "text-2xl font-light text-emerald-300" : "text-2xl font-light"}>{counts.accepted}</strong>
                     <p className="mt-1 text-[11px] text-white/40">{isRtl ? "اختيار / قبول" : "Selected / Accepted"}</p>
+                  </div>
+                  <div className={`rounded-2xl border p-3 text-center sm:p-4 ${counts.rejected > 0 ? "border-red-400/20 bg-red-400/[0.035]" : "border-white/8 bg-black/20"}`}>
+                    <strong className={counts.rejected > 0 ? "text-2xl font-light text-red-300" : "text-2xl font-light"}>{counts.rejected}</strong>
+                    <p className="mt-1 text-[11px] text-white/40">{isRtl ? "مرفوض / تم الاعتذار" : "Rejected / Not selected"}</p>
                   </div>
                 </div>
               </section>
