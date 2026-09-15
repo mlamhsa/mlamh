@@ -1,10 +1,9 @@
 export type MobileAccountRole = "talent" | "publisher";
 
 export type PublisherCapabilities = {
+  canCreate: boolean;
   canCreateQuick: boolean;
   canCreateCasting: boolean;
-  canInvite: boolean;
-  canViewProtectedTalentContent: boolean;
 };
 
 export type MobileAccountContext = {
@@ -18,10 +17,10 @@ export type MobileAccountContext = {
   onboardingStep: string | null;
   entityId: number | null;
   countryCode: string | null;
-  publisherType?: string | null;
-  verificationStatus?: string | null;
-  verified?: boolean;
-  capabilities?: PublisherCapabilities;
+  publisherType: string | null;
+  verificationStatus: string | null;
+  verified: boolean;
+  capabilities: PublisherCapabilities;
 };
 
 export type MobileAccountResponse =
