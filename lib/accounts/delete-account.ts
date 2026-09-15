@@ -1,3 +1,4 @@
+import { revokeAppleAuthorizationCode } from "@/lib/accounts/apple-revocation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { TALENT_GALLERY_BUCKET } from "@/lib/talents/talent-media-signing";
 
@@ -13,8 +14,24 @@ async function removeTalentStorage(talentId: number) {
   return { ok: true as const };
 }
 
-export async function deleteMlamhAccount(userId: string) {
+type DeleteMlamhAccountOptions = {
+  appleAuthorizationCode?: string | null;
+};
+
+export async function deleteMlamhAccount(userId: string, options: DeleteMlamhAccountOptions = {}) {
   const supabase = createAdminClient();
+
+  const { data: authUser, error: authLookupError } = await supabase.auth.admin.getUserById(userId);
+  if (authLookupError || !authUser.user) return { ok: false as const, code: "AUTH_LOOKUP_FAILED" as const };
+
+  const usesApple = Boolean(authUser.user.identities?.some((identity) => identity.provider === "apple"));
+  if (usesApple) {
+    const authorizationCode = options.appleAuthorizationCode?.trim();
+    if (!authorizationCode) return { ok: false as const, code: "APPLE_REAUTH_REQUIRED" as const };
+
+    const revocation = await revokeAppleAuthorizationCode(authorizationCode);
+    if (!revocation.ok) return revocation;
+  }
 
   const [{ data: profile, error: profileError }, { data: talent, error: talentError }] = await Promise.all([
     supabase.from("profiles").select("id,account_type").eq("user_id", userId).maybeSingle(),
