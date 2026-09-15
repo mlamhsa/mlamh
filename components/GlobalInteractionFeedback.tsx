@@ -97,6 +97,14 @@ export default function GlobalInteractionFeedback() {
         </div>
       ) : null}
       <span className="sr-only" role="status" aria-live="polite">{label}</span>
+
+      <style jsx global>{`
+        @media (max-width: 767px) {
+          .mlamh-loading-pill {
+            bottom: calc(6.75rem + env(safe-area-inset-bottom)) !important;
+          }
+        }
+      `}</style>
     </>
   );
 }
