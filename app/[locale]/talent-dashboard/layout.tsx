@@ -4,10 +4,6 @@ import { TalentFeaturedEntryPoint } from "@/components/payments/TalentFeaturedEn
 import { SceneDashboardEntryPoint } from "@/components/scene/SceneDashboardEntryPoint";
 import { TalentBirthDateEnhancer } from "@/components/talent-dashboard/TalentBirthDateEnhancer";
 import { TalentImageUploadPendingEnhancer } from "@/components/talent-dashboard/TalentImageUploadPendingEnhancer";
-import { TalentProfileCanonicalFieldsV1 } from "@/components/talent-dashboard/TalentProfileCanonicalFieldsV1";
-import { TalentProfileEditorEnhancer } from "@/components/talent-dashboard/TalentProfileEditorEnhancer";
-import { TalentProfileSectionNavigationV1 } from "@/components/talent-dashboard/TalentProfileSectionNavigationV1";
-import { TalentProfileStrengthCardLink } from "@/components/talent-dashboard/TalentProfileStrengthCardLink";
 import { TalentSidebarDockEnhancer } from "@/components/talent-dashboard/TalentSidebarDockEnhancer";
 import TalentApprovedLegacyRequiredFieldsCard from "@/components/talent/TalentApprovedLegacyRequiredFieldsCard";
 import TalentConsentCompletionCard from "@/components/talent/TalentConsentCompletionCard";
@@ -90,11 +86,7 @@ export default async function TalentDashboardLayout({
     <>
       <TalentBirthDateEnhancer />
       <TalentImageUploadPendingEnhancer />
-      <TalentProfileStrengthCardLink locale={safeLocale} />
       <TalentSidebarDockEnhancer />
-      <TalentProfileEditorEnhancer />
-      <TalentProfileCanonicalFieldsV1 />
-      <TalentProfileSectionNavigationV1 />
       {user ? <TalentRealtimeSync userId={user.id} talentId={talentId} /> : null}
       {user ? (
         <TalentFeaturedEntryPoint locale={locale} userId={user.id} />
