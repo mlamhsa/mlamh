@@ -82,8 +82,6 @@ export default function TalentApprovedLegacyRequiredFieldsCard({ locale }: Props
 
   if (!snapshot || missingFields.length === 0 || pathname !== profilePath) return null;
 
-  const consentAlsoMissing = snapshot.data_accuracy_contact_consent !== true;
-
   async function save(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (saving) return;
@@ -118,13 +116,8 @@ export default function TalentApprovedLegacyRequiredFieldsCard({ locale }: Props
   }
 
   return (
-    <div
-      dir={isArabic ? "rtl" : "ltr"}
-      className={`w-full px-4 pb-4 sm:px-6 lg:px-8 ${consentAlsoMissing ? "pt-0" : "pt-28 lg:pt-32"} ${
-        isArabic ? "xl:pr-[22rem]" : "xl:pl-[22rem]"
-      }`}
-    >
-      <div className="mx-auto max-w-5xl rounded-[1.75rem] border border-emerald-400/20 bg-emerald-400/[0.045] p-5 sm:p-6">
+    <div dir={isArabic ? "rtl" : "ltr"} className="mb-4 w-full">
+      <div className="rounded-[1.75rem] border border-emerald-400/20 bg-emerald-400/[0.045] p-5 sm:p-6">
         <div className="flex items-start gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-emerald-400/20 bg-emerald-400/10 text-emerald-300">
             <ShieldCheck size={20} aria-hidden="true" />

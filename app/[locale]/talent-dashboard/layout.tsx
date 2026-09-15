@@ -87,14 +87,14 @@ export default async function TalentDashboardLayout({
           <TalentFeaturedEntryPoint locale={locale} userId={user.id} />
         </TalentDashboardHomeOnly>
       ) : null}
-      {user ? <TalentConsentCompletionCard locale={locale} /> : null}
-      {user ? <TalentApprovedLegacyRequiredFieldsCard locale={locale} /> : null}
       <TalentDashboardShell
         locale={locale}
         totalApplications={totalApplications}
         notificationCount={notificationCount}
         unreadMessagesCount={unreadMessagesCount}
       >
+        {user ? <TalentConsentCompletionCard locale={locale} /> : null}
+        {user ? <TalentApprovedLegacyRequiredFieldsCard locale={locale} /> : null}
         {children}
       </TalentDashboardShell>
     </>
