@@ -166,8 +166,8 @@ export default async function TalentDashboardPage({ params }: PageProps) {
               ? "One step left to submit your profile"
               : `${incompleteItems} steps left to submit your profile`,
           description: isRtl
-            ? "أكمل فقط المتطلبات الأساسية المتبقية. البيانات المهنية الإضافية اختيارية."
-            : "Complete only the remaining required items. Extra professional details are optional.",
+            ? "أكمل فقط متطلبات المراجعة المتبقية. البيانات المهنية الإضافية اختيارية."
+            : "Complete only the remaining review requirements. Extra professional details are optional.",
           action: isRtl ? "إكمال الملف" : "Complete profile",
           href: `/${locale}/talent-dashboard/profile`,
           submit: false,
@@ -192,7 +192,7 @@ export default async function TalentDashboardPage({ params }: PageProps) {
       description: isRtl
         ? "عدّل المطلوب فقط ثم أعد إرسال الملف للمراجعة."
         : "Update only what was requested, then submit your profile again.",
-      action: isRtl ? "تعديل الملف" : "Edit profile",
+      action: isRtl ? "فتح ملفي" : "Open My Profile",
       href: `/${locale}/talent-dashboard/profile`,
       submit: false,
       tone: "border-orange-400/20 bg-orange-400/[0.045]",
@@ -216,7 +216,7 @@ export default async function TalentDashboardPage({ params }: PageProps) {
       description: isRtl
         ? "راجع بياناتك وصورتك المهنية قبل إعادة إرسال الملف."
         : "Review your details and profile photo before submitting again.",
-      action: isRtl ? "مراجعة الملف" : "Review profile",
+      action: isRtl ? "فتح ملفي" : "Open My Profile",
       href: `/${locale}/talent-dashboard/profile`,
       submit: false,
       tone: "border-red-400/20 bg-red-400/[0.045]",
@@ -230,7 +230,7 @@ export default async function TalentDashboardPage({ params }: PageProps) {
           label: isRtl ? "قوة الملف" : "Profile strength",
           value: `${profileCompletion}%`,
           meta: isRtl ? "حسّن المطابقة" : "Improve matching",
-          href: `/${locale}/talent-dashboard/profile/details`,
+          href: `/${locale}/talent-dashboard/profile`,
           emphasis: true,
         }
       : workflowState === "pending"
@@ -242,10 +242,10 @@ export default async function TalentDashboardPage({ params }: PageProps) {
             emphasis: true,
           }
         : {
-            label: isRtl ? "جاهزية الاعتماد" : "Approval readiness",
+            label: isRtl ? "متطلبات المراجعة" : "Review requirements",
             value: `${readinessPercent}%`,
             meta: profileReadiness.isReady
-              ? isRtl ? "مكتمل" : "Complete"
+              ? isRtl ? "مكتملة" : "Complete"
               : isRtl ? `${incompleteItems} متبقي` : `${incompleteItems} remaining`,
             href: `/${locale}/talent-dashboard/profile`,
             emphasis: true,
@@ -286,10 +286,10 @@ export default async function TalentDashboardPage({ params }: PageProps) {
               primary: true,
             },
             {
-              eyebrow: isRtl ? "جهّز ملفك" : "Get ready",
-              title: isRtl ? "معرض الأعمال" : "Portfolio",
-              description: isRtl ? "أضف أفضل صورك وأعمالك حتى يكون ملفك أقوى بعد الاعتماد." : "Add your strongest work so your profile is ready after approval.",
-              href: `/${locale}/talent-dashboard/gallery`,
+              eyebrow: isRtl ? "ملفي" : "My Profile",
+              title: isRtl ? "جهّز أعمالك وروابطك" : "Prepare your work and links",
+              description: isRtl ? "من ملفي يمكنك إضافة صور الأعمال وShowreel والروابط المهنية بشكل اختياري." : "From My Profile you can optionally add work photos, a showreel and professional links.",
+              href: `/${locale}/talent-dashboard/profile`,
               primary: false,
             },
             {
@@ -303,16 +303,16 @@ export default async function TalentDashboardPage({ params }: PageProps) {
         : [
             {
               eyebrow: isRtl ? "الأولوية" : "Priority",
-              title: isRtl ? "أكمل ملفك" : "Complete your profile",
+              title: isRtl ? "أكمل متطلبات المراجعة" : "Complete review requirements",
               description: isRtl ? "ابدأ بالمتطلبات الأساسية المتبقية حتى يصبح الملف جاهزًا للمراجعة." : "Finish the remaining required details so your profile can be submitted for review.",
               href: `/${locale}/talent-dashboard/profile`,
               primary: true,
             },
             {
-              eyebrow: isRtl ? "بعدها" : "Then",
-              title: isRtl ? "جهّز معرض الأعمال" : "Build your portfolio",
-              description: isRtl ? "أضف أفضل الصور والأعمال التي تعرّف الناشرين عليك بسرعة." : "Add your strongest photos and work so publishers can evaluate you quickly.",
-              href: `/${locale}/talent-dashboard/gallery`,
+              eyebrow: isRtl ? "اختياري" : "Optional",
+              title: isRtl ? "قوِّ ملفك" : "Strengthen your profile",
+              description: isRtl ? "بعد المتطلبات الأساسية يمكنك إضافة الأعمال والمهارات وShowreel من ملفي." : "After the required details, add work, skills and a showreel from My Profile.",
+              href: `/${locale}/talent-dashboard/profile`,
               primary: false,
             },
             {
