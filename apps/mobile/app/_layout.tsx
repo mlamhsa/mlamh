@@ -13,7 +13,7 @@ export default function RootLayout() {
       <LocaleProvider>
         <SessionProvider>
           <AppBootstrap>
-            <StatusBar style="light" backgroundColor={colors.background} />
+            <StatusBar style="light" />
             <Stack
               screenOptions={{
                 headerShown: false,
