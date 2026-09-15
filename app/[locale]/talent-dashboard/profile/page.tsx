@@ -119,7 +119,7 @@ export default function TalentProfileGuidedPage({ params }: { params: Promise<{ 
   const isChangesRequested = approvalStatus === "changes_requested";
   const isRejected = approvalStatus === "rejected";
   const isDraft = approvalStatus === "not_submitted";
-  const canShowCompletionTasks = isDraft || isChangesRequested;
+  const canShowCompletionTasks = isDraft || isChangesRequested || isRejected;
   const canEditProfile = !isUnderReview;
 
   const headerTitle = isApproved
@@ -237,7 +237,7 @@ export default function TalentProfileGuidedPage({ params }: { params: Promise<{ 
       status: isArabic ? "إدارة" : "Manage",
     },
     {
-      href: `/${locale}/talent-dashboard/profile/advanced#privacy`,
+      href: `/${locale}/talent-dashboard/profile/privacy`,
       title: isArabic ? "الخصوصية وظهور الملف" : "Privacy & profile visibility",
       description: isArabic ? "تحكم في ظهور ملفك العام بشكل مستقل عن حالة الاعتماد." : "Control public profile visibility independently from approval status.",
       status: clean(talent.profile_visibility) || (isArabic ? "راجع الإعداد" : "Review setting"),
@@ -278,7 +278,11 @@ export default function TalentProfileGuidedPage({ params }: { params: Promise<{ 
                   <button onClick={() => goToRequirement(firstMissing.key)} className="rounded-full bg-gold px-6 py-3 text-sm font-semibold text-black">{isArabic ? "أكمل الخطوة التالية" : "Complete next step"}</button>
                 ) : null}
                 {canShowCompletionTasks && readiness.isReady ? (
-                  <TalentProfileReviewSubmitButton locale={locale} onSubmitted={loadProfile} />
+                  <TalentProfileReviewSubmitButton
+                    locale={locale}
+                    onSubmitted={loadProfile}
+                    label={isChangesRequested || isRejected ? (isArabic ? "إعادة إرسال الملف للمراجعة" : "Resubmit profile for review") : undefined}
+                  />
                 ) : null}
                 {isApproved && publicSlug ? (
                   <Link href={`/${locale}/talent/${publicSlug}`} className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/10 px-6 text-sm font-semibold text-white/70 hover:border-gold/30 hover:text-gold">
