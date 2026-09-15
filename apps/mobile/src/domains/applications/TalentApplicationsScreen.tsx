@@ -11,218 +11,37 @@ import { colors, radius, spacing } from "@/src/theme/tokens";
 
 function stateLabel(state: TalentApplicationDisplayState, isArabic: boolean) {
   const labels: Record<TalentApplicationDisplayState, [string, string]> = {
-    pending: ["تم التقديم", "Submitted"],
-    reviewing: ["قيد المراجعة", "Under review"],
-    shortlisted: ["القائمة المختصرة", "Shortlisted"],
-    accepted: ["تم القبول", "Accepted"],
-    rejected: ["لم يتم الاختيار", "Not selected"],
-    interested: ["تم إبداء الاهتمام", "Interest sent"],
-    conversation_open: ["المحادثة مفتوحة", "Conversation open"],
-    preliminary_selected: ["اختيار مبدئي", "Preliminary selection"],
-    materials_requested: ["مطلوب مواد إضافية", "Materials requested"],
-    awaiting_talent_confirmation: ["بانتظار تأكيدك", "Awaiting your confirmation"],
-    mutually_confirmed: ["تم تأكيد التعاون", "Collaboration confirmed"],
-    declined: ["تم الاعتذار", "Declined"],
+    pending: ["تم التقديم", "Submitted"], reviewing: ["قيد المراجعة", "Under review"], shortlisted: ["القائمة المختصرة", "Shortlisted"], accepted: ["تم القبول", "Accepted"], rejected: ["لم يتم الاختيار", "Not selected"],
+    interested: ["تم إبداء الاهتمام", "Interest sent"], conversation_open: ["المحادثة مفتوحة", "Conversation open"], preliminary_selected: ["اختيار مبدئي", "Preliminary selection"], materials_requested: ["مطلوب مواد إضافية", "Materials requested"], awaiting_talent_confirmation: ["بانتظار تأكيدك", "Awaiting your confirmation"], mutually_confirmed: ["تم تأكيد التعاون", "Collaboration confirmed"], declined: ["تم الاعتذار", "Declined"],
   };
-  const pair = labels[state];
-  return isArabic ? pair[0] : pair[1];
+  const pair = labels[state]; return isArabic ? pair[0] : pair[1];
 }
 
 export function TalentApplicationsScreen() {
-  const { locale } = useLocale();
-  const isArabic = locale === "ar";
-  const align = isArabic ? "right" : "left";
-  const [items, setItems] = useState<TalentApplicationItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<"all" | "quick" | "casting">("all");
-
-  const load = useCallback(async (refresh = false) => {
-    refresh ? setRefreshing(true) : setLoading(true);
-    setError(null);
-    try {
-      const response = await getTalentApplications(locale);
-      setItems(response.items);
-    } catch {
-      setError(isArabic ? "تعذر تحميل طلباتك." : "Unable to load your applications.");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [isArabic, locale]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  const visibleItems = useMemo(() => items.filter((item) => {
-    if (filter === "all") return true;
-    return item.opportunity?.postingMode === filter;
-  }), [filter, items]);
-
-  const quickCount = items.filter((item) => item.opportunity?.postingMode === "quick").length;
-  const castingCount = items.filter((item) => item.opportunity?.postingMode === "casting").length;
-  const actionCount = items.filter((item) => item.requiresAction).length;
-
-  return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={colors.gold} />}
-      >
-        <Text style={[styles.eyebrow, { textAlign: align }]}>{isArabic ? "طلباتك" : "YOUR ACTIVITY"}</Text>
-        <Text style={[styles.title, { textAlign: align }]}>{isArabic ? "تابع كل طلب بوضوح" : "Track every request clearly"}</Text>
-        <Text style={[styles.description, { textAlign: align }]}>
-          {isArabic
-            ? "طلبات الآن والكاستينغ تظهر هنا بدلالتها الصحيحة، بدون اعتبار الاختيار المبدئي قبولًا نهائيًا."
-            : "Quick Requests and Casting stay semantically separate; preliminary selection is never shown as final acceptance."}
-        </Text>
-
-        <View style={styles.statsRow}>
-          <Stat value={items.length} label={isArabic ? "الكل" : "All"} />
-          <Stat value={quickCount} label={isArabic ? "طلبات الآن" : "Quick"} />
-          <Stat value={castingCount} label={isArabic ? "كاستينغ" : "Casting"} />
-          <Stat value={actionCount} label={isArabic ? "تحتاج إجراء" : "Action"} highlight={actionCount > 0} />
-        </View>
-
-        <View style={styles.filters}>
-          {(["all", "quick", "casting"] as const).map((value) => (
-            <Pressable
-              key={value}
-              onPress={() => setFilter(value)}
-              style={[styles.filterChip, filter === value && styles.filterChipActive]}
-            >
-              <Text style={[styles.filterText, filter === value && styles.filterTextActive]}>
-                {value === "all"
-                  ? (isArabic ? "الكل" : "All")
-                  : value === "quick"
-                    ? (isArabic ? "طلبات الآن" : "Quick")
-                    : (isArabic ? "الكاستينغ" : "Casting")}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-
-        {loading ? (
-          <StateCard text={isArabic ? "جارٍ تحميل طلباتك..." : "Loading your activity..."} />
-        ) : error ? (
-          <View style={styles.stateCard}>
-            <Text style={styles.stateTitle}>{error}</Text>
-            <Pressable onPress={() => void load()} style={styles.retryButton}>
-              <RefreshCcw size={14} color="#090909" />
-              <Text style={styles.retryText}>{isArabic ? "إعادة المحاولة" : "Try again"}</Text>
-            </Pressable>
-          </View>
-        ) : visibleItems.length === 0 ? (
-          <StateCard text={isArabic ? "لا توجد طلبات في هذا القسم بعد." : "No activity in this section yet."} />
-        ) : (
-          <View style={styles.list}>
-            {visibleItems.map((item) => (
-              <ApplicationCard key={String(item.id)} item={item} isArabic={isArabic} />
-            ))}
-          </View>
-        )}
-      </ScrollView>
-    </SafeAreaView>
-  );
+  const { locale } = useLocale(); const isArabic = locale === "ar"; const align = isArabic ? "right" : "left";
+  const [items, setItems] = useState<TalentApplicationItem[]>([]); const [loading, setLoading] = useState(true); const [refreshing, setRefreshing] = useState(false); const [error, setError] = useState<string | null>(null); const [filter, setFilter] = useState<"all" | "quick" | "casting">("all");
+  const load = useCallback(async (refresh = false) => { refresh ? setRefreshing(true) : setLoading(true); setError(null); try { const response = await getTalentApplications(locale); setItems(response.items); } catch { setError(isArabic ? "تعذر تحميل طلباتك." : "Unable to load your applications."); } finally { setLoading(false); setRefreshing(false); } }, [isArabic, locale]);
+  useEffect(() => { void load(); }, [load]);
+  const visibleItems = useMemo(() => items.filter((item) => filter === "all" || item.opportunity?.postingMode === filter), [filter, items]);
+  const quickCount = items.filter((item) => item.opportunity?.postingMode === "quick").length; const castingCount = items.filter((item) => item.opportunity?.postingMode === "casting").length; const actionCount = items.filter((item) => item.requiresAction).length;
+  return <SafeAreaView style={styles.safeArea} edges={["top"]}><ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={colors.gold} />}>
+    <Text style={[styles.eyebrow,{textAlign:align}]}>{isArabic?"طلباتك":"YOUR ACTIVITY"}</Text><Text style={[styles.title,{textAlign:align}]}>{isArabic?"تابع كل طلب بوضوح":"Track every request clearly"}</Text><Text style={[styles.description,{textAlign:align}]}>{isArabic?"طلبات الآن والكاستينغ تظهر هنا بدلالتها الصحيحة، بدون اعتبار الاختيار المبدئي قبولًا نهائيًا.":"Quick Requests and Casting stay semantically separate; preliminary selection is never shown as final acceptance."}</Text>
+    <View style={styles.statsRow}><Stat value={items.length} label={isArabic?"الكل":"All"}/><Stat value={quickCount} label={isArabic?"طلبات الآن":"Quick"}/><Stat value={castingCount} label={isArabic?"كاستينغ":"Casting"}/><Stat value={actionCount} label={isArabic?"تحتاج إجراء":"Action"} highlight={actionCount>0}/></View>
+    <View style={styles.filters}>{(["all","quick","casting"] as const).map((value)=><Pressable key={value} onPress={()=>setFilter(value)} style={[styles.filterChip,filter===value&&styles.filterChipActive]}><Text style={[styles.filterText,filter===value&&styles.filterTextActive]}>{value==="all"?(isArabic?"الكل":"All"):value==="quick"?(isArabic?"طلبات الآن":"Quick"):(isArabic?"الكاستينغ":"Casting")}</Text></Pressable>)}</View>
+    {loading?<StateCard text={isArabic?"جارٍ تحميل طلباتك...":"Loading your activity..."}/>:error?<View style={styles.stateCard}><Text style={styles.stateTitle}>{error}</Text><Pressable onPress={()=>void load()} style={styles.retryButton}><RefreshCcw size={14} color="#090909"/><Text style={styles.retryText}>{isArabic?"إعادة المحاولة":"Try again"}</Text></Pressable></View>:visibleItems.length===0?<StateCard text={isArabic?"لا توجد طلبات في هذا القسم بعد.":"No activity in this section yet."}/>:<View style={styles.list}>{visibleItems.map((item)=><ApplicationCard key={String(item.id)} item={item} isArabic={isArabic}/>)}</View>}
+  </ScrollView></SafeAreaView>;
 }
 
 function ApplicationCard({ item, isArabic }: { item: TalentApplicationItem; isArabic: boolean }) {
-  const mode = item.opportunity?.postingMode ?? "casting";
-  const Icon = mode === "quick" ? Zap : BriefcaseBusiness;
-  const align = isArabic ? "right" : "left";
-  const opportunityHref = item.opportunity?.slug ? `/opportunities/${item.opportunity.slug}` : "/opportunities";
-
-  return (
-    <Pressable onPress={() => router.push(opportunityHref as never)} style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
-      <View style={[styles.cardTop, isArabic ? styles.rowRtl : styles.rowLtr]}>
-        <View style={[styles.modePill, mode === "quick" ? styles.quickMode : styles.castingMode]}>
-          <Icon size={12} color={mode === "quick" ? "#F6D487" : colors.gold} />
-          <Text style={[styles.modeText, mode === "quick" && styles.quickModeText]}>
-            {mode === "quick" ? (isArabic ? "طلب الآن" : "Quick Request") : (isArabic ? "كاستينغ" : "Casting")}
-          </Text>
-        </View>
-        {item.requiresAction ? <Text style={styles.actionBadge}>{isArabic ? "يتطلب إجراء" : "ACTION NEEDED"}</Text> : null}
-      </View>
-
-      <Text numberOfLines={2} style={[styles.cardTitle, { textAlign: align }]}>{item.opportunity?.title || (isArabic ? "فرصة" : "Opportunity")}</Text>
-      {item.opportunity?.city ? <Text style={[styles.city, { textAlign: align }]}>{item.opportunity.city}</Text> : null}
-
-      <View style={[styles.stateRow, isArabic ? styles.rowRtl : styles.rowLtr]}>
-        <View style={styles.stateDot} />
-        <Text style={styles.stateText}>{stateLabel(item.displayState, isArabic)}</Text>
-      </View>
-
-      {item.conversationId ? (
-        <View style={[styles.conversationRow, isArabic ? styles.rowRtl : styles.rowLtr]}>
-          <MessageCircle size={14} color={colors.gold} />
-          <Text style={styles.conversationText}>
-            {item.nextAction === "confirm_or_decline"
-              ? (isArabic ? "لديك قرار مطلوب داخل المحادثة" : "A decision is required in the conversation")
-              : (isArabic ? "محادثة مرتبطة بهذا الطلب" : "Conversation linked to this request")}
-          </Text>
-        </View>
-      ) : null}
+  const mode=item.opportunity?.postingMode??"casting"; const Icon=mode==="quick"?Zap:BriefcaseBusiness; const align=isArabic?"right":"left"; const opportunityHref=item.opportunity?.slug?`/opportunities/${item.opportunity.slug}`:"/opportunities";
+  return <View style={styles.card}>
+    <Pressable onPress={()=>router.push(opportunityHref as never)} style={({pressed})=>pressed&&styles.pressed}>
+      <View style={[styles.cardTop,isArabic?styles.rowRtl:styles.rowLtr]}><View style={[styles.modePill,mode==="quick"?styles.quickMode:styles.castingMode]}><Icon size={12} color={mode==="quick"?"#F6D487":colors.gold}/><Text style={[styles.modeText,mode==="quick"&&styles.quickModeText]}>{mode==="quick"?(isArabic?"طلب الآن":"Quick Request"):(isArabic?"كاستينغ":"Casting")}</Text></View>{item.requiresAction?<Text style={styles.actionBadge}>{isArabic?"يتطلب إجراء":"ACTION NEEDED"}</Text>:null}</View>
+      <Text numberOfLines={2} style={[styles.cardTitle,{textAlign:align}]}>{item.opportunity?.title||(isArabic?"فرصة":"Opportunity")}</Text>{item.opportunity?.city?<Text style={[styles.city,{textAlign:align}]}>{item.opportunity.city}</Text>:null}<View style={[styles.stateRow,isArabic?styles.rowRtl:styles.rowLtr]}><View style={styles.stateDot}/><Text style={styles.stateText}>{stateLabel(item.displayState,isArabic)}</Text></View>
     </Pressable>
-  );
+    {item.conversationId?<Pressable accessibilityRole="button" onPress={()=>router.push(`/messages/${item.conversationId}` as never)} style={({pressed})=>[styles.conversationRow,isArabic?styles.rowRtl:styles.rowLtr,pressed&&styles.pressed]}><MessageCircle size={14} color={colors.gold}/><Text style={styles.conversationText}>{item.nextAction==="confirm_or_decline"?(isArabic?"افتح المحادثة لاتخاذ القرار":"Open the conversation to decide"):(isArabic?"فتح المحادثة المرتبطة":"Open linked conversation")}</Text></Pressable>:null}
+  </View>;
 }
-
-function Stat({ value, label, highlight = false }: { value: number; label: string; highlight?: boolean }) {
-  return (
-    <View style={[styles.statCard, highlight && styles.statHighlight]}>
-      <Text style={[styles.statValue, highlight && styles.statValueHighlight]}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
-  );
-}
-
-function StateCard({ text }: { text: string }) {
-  return <View style={styles.stateCard}><Text style={styles.stateTextMuted}>{text}</Text></View>;
-}
-
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: colors.background },
-  scroll: { flex: 1, backgroundColor: colors.background },
-  content: { paddingHorizontal: spacing.lg, paddingTop: spacing.xl, paddingBottom: 56 },
-  rowRtl: { flexDirection: "row-reverse", alignItems: "center", gap: spacing.sm },
-  rowLtr: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  eyebrow: { color: colors.gold, fontSize: 11, fontWeight: "700" },
-  title: { color: colors.textPrimary, fontSize: 30, lineHeight: 37, fontWeight: "700", marginTop: spacing.sm },
-  description: { color: colors.textMuted, fontSize: 13, lineHeight: 23, marginTop: spacing.md },
-  statsRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xl },
-  statCard: { flex: 1, minHeight: 72, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, borderRadius: radius.lg, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
-  statHighlight: { borderColor: "rgba(201,169,98,0.30)", backgroundColor: "rgba(201,169,98,0.06)" },
-  statValue: { color: colors.textPrimary, fontSize: 18, fontWeight: "800" },
-  statValueHighlight: { color: colors.gold },
-  statLabel: { color: colors.textMuted, fontSize: 9, marginTop: 4, textAlign: "center" },
-  filters: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xl },
-  filterChip: { minHeight: 38, justifyContent: "center", borderWidth: 1, borderColor: colors.border, backgroundColor: "rgba(255,255,255,0.025)", borderRadius: radius.pill, paddingHorizontal: spacing.lg },
-  filterChipActive: { borderColor: "rgba(201,169,98,0.35)", backgroundColor: "rgba(201,169,98,0.08)" },
-  filterText: { color: colors.textMuted, fontSize: 11 },
-  filterTextActive: { color: colors.gold, fontWeight: "700" },
-  list: { gap: spacing.md, marginTop: spacing.xl },
-  card: { borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.lg },
-  pressed: { opacity: 0.84, transform: [{ scale: 0.995 }] },
-  cardTop: { justifyContent: "space-between" },
-  modePill: { flexDirection: "row", alignItems: "center", gap: 6, borderWidth: 1, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 5 },
-  quickMode: { borderColor: "rgba(246,212,135,0.28)", backgroundColor: "rgba(246,212,135,0.07)" },
-  castingMode: { borderColor: "rgba(201,169,98,0.24)", backgroundColor: "rgba(201,169,98,0.06)" },
-  modeText: { color: colors.gold, fontSize: 9, fontWeight: "700" },
-  quickModeText: { color: "#F6D487" },
-  actionBadge: { color: colors.gold, fontSize: 8, fontWeight: "800" },
-  cardTitle: { color: colors.textPrimary, fontSize: 17, lineHeight: 24, fontWeight: "700", marginTop: spacing.lg },
-  city: { color: colors.textMuted, fontSize: 11, marginTop: 6 },
-  stateRow: { alignSelf: "flex-start", marginTop: spacing.lg },
-  stateDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.gold },
-  stateText: { color: "rgba(255,255,255,0.74)", fontSize: 12, fontWeight: "600" },
-  conversationRow: { marginTop: spacing.md, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.06)", paddingTop: spacing.md },
-  conversationText: { color: colors.textMuted, fontSize: 11, flex: 1 },
-  stateCard: { marginTop: spacing.xl, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.xxl, alignItems: "center" },
-  stateTitle: { color: colors.textPrimary, fontSize: 14, fontWeight: "700", textAlign: "center" },
-  stateTextMuted: { color: colors.textMuted, fontSize: 12, lineHeight: 20, textAlign: "center" },
-  retryButton: { marginTop: spacing.lg, minHeight: 42, flexDirection: "row", alignItems: "center", gap: spacing.sm, borderRadius: radius.pill, backgroundColor: colors.gold, paddingHorizontal: spacing.xl },
-  retryText: { color: "#090909", fontSize: 12, fontWeight: "800" },
-});
+function Stat({value,label,highlight=false}:{value:number;label:string;highlight?:boolean}){return <View style={[styles.statCard,highlight&&styles.statHighlight]}><Text style={[styles.statValue,highlight&&styles.statValueHighlight]}>{value}</Text><Text style={styles.statLabel}>{label}</Text></View>}
+function StateCard({text}:{text:string}){return <View style={styles.stateCard}><Text style={styles.stateTextMuted}>{text}</Text></View>}
+const styles=StyleSheet.create({safeArea:{flex:1,backgroundColor:colors.background},scroll:{flex:1,backgroundColor:colors.background},content:{paddingHorizontal:spacing.lg,paddingTop:spacing.xl,paddingBottom:56},rowRtl:{flexDirection:"row-reverse",alignItems:"center",gap:spacing.sm},rowLtr:{flexDirection:"row",alignItems:"center",gap:spacing.sm},eyebrow:{color:colors.gold,fontSize:11,fontWeight:"700"},title:{color:colors.textPrimary,fontSize:30,lineHeight:37,fontWeight:"700",marginTop:spacing.sm},description:{color:colors.textMuted,fontSize:13,lineHeight:23,marginTop:spacing.md},statsRow:{flexDirection:"row",gap:spacing.sm,marginTop:spacing.xl},statCard:{flex:1,minHeight:72,borderWidth:1,borderColor:colors.border,backgroundColor:colors.surface,borderRadius:radius.lg,alignItems:"center",justifyContent:"center",paddingHorizontal:4},statHighlight:{borderColor:"rgba(201,169,98,0.30)",backgroundColor:"rgba(201,169,98,0.06)"},statValue:{color:colors.textPrimary,fontSize:18,fontWeight:"800"},statValueHighlight:{color:colors.gold},statLabel:{color:colors.textMuted,fontSize:9,marginTop:4,textAlign:"center"},filters:{flexDirection:"row",gap:spacing.sm,marginTop:spacing.xl},filterChip:{minHeight:38,justifyContent:"center",borderWidth:1,borderColor:colors.border,backgroundColor:"rgba(255,255,255,0.025)",borderRadius:radius.pill,paddingHorizontal:spacing.lg},filterChipActive:{borderColor:"rgba(201,169,98,0.35)",backgroundColor:"rgba(201,169,98,0.08)"},filterText:{color:colors.textMuted,fontSize:11},filterTextActive:{color:colors.gold,fontWeight:"700"},list:{gap:spacing.md,marginTop:spacing.xl},card:{borderWidth:1,borderColor:colors.border,backgroundColor:colors.surface,borderRadius:radius.xl,padding:spacing.lg},pressed:{opacity:.84},cardTop:{justifyContent:"space-between"},modePill:{flexDirection:"row",alignItems:"center",gap:6,borderWidth:1,borderRadius:radius.pill,paddingHorizontal:10,paddingVertical:5},quickMode:{borderColor:"rgba(246,212,135,0.28)",backgroundColor:"rgba(246,212,135,0.07)"},castingMode:{borderColor:"rgba(201,169,98,0.24)",backgroundColor:"rgba(201,169,98,0.06)"},modeText:{color:colors.gold,fontSize:9,fontWeight:"700"},quickModeText:{color:"#F6D487"},actionBadge:{color:colors.gold,fontSize:8,fontWeight:"800"},cardTitle:{color:colors.textPrimary,fontSize:17,lineHeight:24,fontWeight:"700",marginTop:spacing.lg},city:{color:colors.textMuted,fontSize:11,marginTop:6},stateRow:{alignSelf:"flex-start",marginTop:spacing.lg},stateDot:{width:7,height:7,borderRadius:4,backgroundColor:colors.gold},stateText:{color:"rgba(255,255,255,0.74)",fontSize:12,fontWeight:"600"},conversationRow:{marginTop:spacing.md,borderTopWidth:1,borderTopColor:"rgba(255,255,255,0.06)",paddingTop:spacing.md,minHeight:40},conversationText:{color:colors.gold,fontSize:11,flex:1,fontWeight:"600"},stateCard:{marginTop:spacing.xl,borderWidth:1,borderColor:colors.border,backgroundColor:colors.surface,borderRadius:radius.xl,padding:spacing.xxl,alignItems:"center"},stateTitle:{color:colors.textPrimary,fontSize:14,fontWeight:"700",textAlign:"center"},stateTextMuted:{color:colors.textMuted,fontSize:12,lineHeight:20,textAlign:"center"},retryButton:{marginTop:spacing.lg,minHeight:42,flexDirection:"row",alignItems:"center",gap:spacing.sm,borderRadius:radius.pill,backgroundColor:colors.gold,paddingHorizontal:spacing.xl},retryText:{color:"#090909",fontSize:12,fontWeight:"800"}});
