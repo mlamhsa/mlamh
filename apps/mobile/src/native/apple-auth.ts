@@ -7,6 +7,10 @@ export type NativeAppleAuthResult =
   | { ok: true; displayName: string | null }
   | { ok: false; canceled?: boolean; code: "UNSUPPORTED" | "UNAVAILABLE" | "TOKEN_MISSING" | "SIGN_IN_FAILED" };
 
+export type AppleDeletionReauthResult =
+  | { ok: true; authorizationCode: string }
+  | { ok: false; canceled?: boolean; code: "UNSUPPORTED" | "UNAVAILABLE" | "CODE_MISSING" | "SIGN_IN_FAILED" };
+
 function formatAppleName(
   fullName: AppleAuthentication.AppleAuthenticationFullName | null | undefined,
 ) {
@@ -16,6 +20,14 @@ function formatAppleName(
     .map((part) => part.trim())
     .join(" ");
   return value || null;
+}
+
+function isCanceledAppleRequest(error: unknown) {
+  const code =
+    typeof error === "object" && error && "code" in error
+      ? String((error as { code?: unknown }).code ?? "")
+      : "";
+  return code === "ERR_REQUEST_CANCELED";
 }
 
 export async function signInWithNativeApple(): Promise<NativeAppleAuthResult> {
@@ -55,22 +67,32 @@ export async function signInWithNativeApple(): Promise<NativeAppleAuthResult> {
 
     return { ok: true, displayName };
   } catch (error) {
-    const code =
-      typeof error === "object" && error && "code" in error
-        ? String((error as { code?: unknown }).code ?? "")
-        : "";
-    if (code === "ERR_REQUEST_CANCELED") {
+    if (isCanceledAppleRequest(error)) {
       return { ok: false, canceled: true, code: "SIGN_IN_FAILED" };
     }
     return { ok: false, code: "SIGN_IN_FAILED" };
   }
 }
 
-/**
- * Store release gate: Apple-linked account deletion must revoke the user's
- * Apple authorization server-side before deleting the MLAMH account.
- * Do not silently fall back to database-only deletion for Apple identities.
- */
+export async function requestAppleDeletionAuthorizationCode(): Promise<AppleDeletionReauthResult> {
+  if (Platform.OS !== "ios") return { ok: false, code: "UNSUPPORTED" };
+
+  const available = await AppleAuthentication.isAvailableAsync().catch(() => false);
+  if (!available) return { ok: false, code: "UNAVAILABLE" };
+
+  try {
+    const credential = await AppleAuthentication.signInAsync({ requestedScopes: [] });
+    const authorizationCode = credential.authorizationCode?.trim();
+    if (!authorizationCode) return { ok: false, code: "CODE_MISSING" };
+    return { ok: true, authorizationCode };
+  } catch (error) {
+    if (isCanceledAppleRequest(error)) {
+      return { ok: false, canceled: true, code: "SIGN_IN_FAILED" };
+    }
+    return { ok: false, code: "SIGN_IN_FAILED" };
+  }
+}
+
 export async function hasAppleIdentity() {
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user) return false;
