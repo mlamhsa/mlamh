@@ -1,5 +1,14 @@
 import { router } from "expo-router";
-import { ArrowLeft, ArrowRight, BriefcaseBusiness, MessageCircle, Search, ShieldCheck, Zap } from "lucide-react-native";
+import {
+  ArrowLeft,
+  ArrowRight,
+  BriefcaseBusiness,
+  MessageCircle,
+  Search,
+  ShieldCheck,
+  UserRound,
+  Zap,
+} from "lucide-react-native";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -44,6 +53,15 @@ const ACTIONS: HomeAction[] = [
     bodyEn: "Track your opportunities and applicant counts from review through publishing and closure.",
     href: "/publisher-opportunities",
     icon: BriefcaseBusiness,
+  },
+  {
+    key: "account",
+    titleAr: "الحساب والخصوصية",
+    titleEn: "Account & privacy",
+    bodyAr: "إدارة الجلسة وخيارات الحساب، بما فيها حذف الحساب نهائيًا من داخل التطبيق.",
+    bodyEn: "Manage your session and account controls, including permanent account deletion in the app.",
+    href: "/account",
+    icon: UserRound,
   },
 ];
 
