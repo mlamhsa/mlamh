@@ -107,6 +107,7 @@ export default function TalentProfileGuidedPage({ params }: { params: Promise<{ 
   const nationality = nationalityDefinition
     ? (isArabic ? nationalityDefinition.ar : nationalityDefinition.en)
     : nationalityKey || (isArabic ? "غير محدد" : "Not set");
+
   const firstMissing = readiness.missingRequirements[0];
   const missingCount = readiness.missingRequirements.length;
   const isBirthDateMissing = readiness.missingRequirements.some((requirement) => requirement.key === "date_of_birth");
@@ -122,24 +123,24 @@ export default function TalentProfileGuidedPage({ params }: { params: Promise<{ 
   const canEditProfile = !isUnderReview;
 
   const headerTitle = isApproved
-    ? (isArabic ? "ملفك المهني" : "Your professional profile")
+    ? (isArabic ? "ملفي" : "My profile")
     : isUnderReview
-      ? (isArabic ? "ملفك قيد المراجعة" : "Your profile is under review")
+      ? (isArabic ? "ملفي قيد المراجعة" : "My profile is under review")
       : isChangesRequested
-        ? (isArabic ? "حدّث ملفك المهني" : "Update your professional profile")
+        ? (isArabic ? "حدّث ملفك" : "Update your profile")
         : isRejected
           ? (isArabic ? "راجع حالة ملفك" : "Review your profile status")
-          : (isArabic ? "أكمل ملفك المهني" : "Complete your professional profile");
+          : (isArabic ? "ملفي" : "My profile");
 
   const headerDescription = isApproved
-    ? (isArabic ? "ملفك معتمد وفعال. يمكنك تحسين بياناتك المهنية ومعرض أعمالك في أي وقت." : "Your profile is approved and active. You can keep improving your professional details and portfolio at any time.")
+    ? (isArabic ? "كل ما يخص هويتك المهنية وأعمالك وروابطك في مكان واحد." : "Manage your professional identity, work and links from one place.")
     : isUnderReview
       ? (isArabic ? "تم إرسال ملفك للمراجعة. لا يلزم أي إجراء الآن، وستتحدث الحالة تلقائيًا عند صدور القرار." : "Your profile has been submitted. No action is needed now; the status will update when a decision is made.")
       : isChangesRequested
-        ? (isArabic ? "طلب فريق المراجعة تحديث بعض البيانات. أكمل المطلوب فقط ثم أعد الإرسال." : "The review team requested updates. Complete only what is required, then resubmit.")
+        ? (isArabic ? "أكمل التحديثات المطلوبة فقط ثم أعد إرسال الملف للمراجعة." : "Complete only the requested updates, then resubmit your profile.")
         : isRejected
           ? (isArabic ? "راجع حالة الملف وملاحظات المراجعة قبل إجراء أي تعديل جديد." : "Review the profile status and review notes before making new changes.")
-          : (isArabic ? "بيانات التسجيل محفوظة. أكمل فقط المتطلبات الأساسية ثم أرسل ملفك للمراجعة." : "Your signup details are saved. Complete only the core requirements, then submit for review.");
+          : (isArabic ? "أكمل متطلبات المراجعة، ويمكنك تحسين باقي الملف في أي وقت." : "Complete the review requirements, and strengthen the rest of your profile anytime.");
 
   function goToRequirement(key: string) {
     if (key === "profile_image") {
@@ -210,17 +211,50 @@ export default function TalentProfileGuidedPage({ params }: { params: Promise<{ 
     );
   }
 
+  const profileSections = [
+    {
+      href: `/${locale}/talent-dashboard/profile/advanced#identity`,
+      title: isArabic ? "البيانات الأساسية" : "Basic information",
+      description: isArabic ? "الاسم، نوع الموهبة، المدينة، الجنسية والبيانات الأساسية." : "Name, talent type, city, nationality and core details.",
+      status: readiness.isReady ? (isArabic ? "مكتمل" : "Complete") : (isArabic ? "راجع البيانات" : "Review details"),
+    },
+    {
+      href: `/${locale}/talent-dashboard/profile/details`,
+      title: isArabic ? "البيانات المهنية" : "Professional details",
+      description: isArabic ? "التوفر، التنقل، المهارات، الخبرة والمظهر والقياسات المناسبة لنوع موهبتك." : "Availability, travel, skills, experience and relevant appearance or measurements.",
+      status: isArabic ? "إدارة" : "Manage",
+    },
+    {
+      href: `/${locale}/talent-dashboard/gallery`,
+      title: isArabic ? "الصور والأعمال" : "Photos & work",
+      description: isArabic ? "صور الأعمال الإضافية التي تساعد الناشرين على تقييم ملفك." : "Additional work photos that help publishers evaluate your profile.",
+      status: isArabic ? "إدارة" : "Manage",
+    },
+    {
+      href: `/${locale}/talent-dashboard/gallery/links`,
+      title: isArabic ? "الفيديو والروابط المهنية" : "Video & professional links",
+      description: isArabic ? "Showreel وروابط الفيديو والبورتفوليو الخارجي وحساباتك المهنية. لا يوجد رفع فيديو مباشر حاليًا." : "Showreel, video links, external portfolio and professional social accounts. Direct video upload is not enabled yet.",
+      status: isArabic ? "إدارة" : "Manage",
+    },
+    {
+      href: `/${locale}/talent-dashboard/profile/advanced#privacy`,
+      title: isArabic ? "الخصوصية وظهور الملف" : "Privacy & profile visibility",
+      description: isArabic ? "تحكم في ظهور ملفك العام بشكل مستقل عن حالة الاعتماد." : "Control public profile visibility independently from approval status.",
+      status: clean(talent.profile_visibility) || (isArabic ? "راجع الإعداد" : "Review setting"),
+    },
+  ];
+
   return (
     <main className="min-h-screen w-full bg-background px-4 pb-28 pt-40 text-white sm:px-6 sm:pt-44 lg:pt-36" dir={isArabic ? "rtl" : "ltr"}>
       <div className="mx-auto w-full max-w-7xl">
         <header className="mb-7">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-gold">{isArabic ? "الملف المهني" : "PROFESSIONAL PROFILE"}</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-gold">{isArabic ? "ملفي" : "MY PROFILE"}</p>
           <h1 className="mt-3 text-3xl font-light leading-tight sm:text-5xl">{headerTitle}</h1>
           <p className="mt-3 max-w-2xl text-sm leading-7 text-white/50">{headerDescription}</p>
         </header>
 
         <section className="mb-6 overflow-hidden rounded-[2rem] border border-gold/25 bg-[radial-gradient(circle_at_top_right,rgba(197,160,89,0.18),transparent_46%),linear-gradient(135deg,rgba(255,255,255,0.045),rgba(255,255,255,0.015))]">
-          <div className="grid gap-6 p-6 sm:p-8 lg:grid-cols-[1fr_280px] lg:items-center">
+          <div className="grid gap-6 p-6 sm:p-8 lg:grid-cols-[1fr_300px] lg:items-center">
             <div>
               <div className="flex flex-wrap gap-2">
                 {[roleLabel, city, gender, country].map((value) => <span key={value} className="rounded-full border border-white/10 bg-black/25 px-3 py-1.5 text-xs text-white/65">{value}</span>)}
@@ -229,36 +263,51 @@ export default function TalentProfileGuidedPage({ params }: { params: Promise<{ 
                 {isApproved
                   ? (isArabic ? "ملفك معتمد ونشط" : "Your profile is approved and active")
                   : isUnderReview
-                    ? (isArabic ? "تم إرسال ملفك للمراجعة" : "Your profile has been submitted for review")
+                    ? (isArabic ? "ملفك قيد المراجعة" : "Your profile is under review")
                     : isChangesRequested
-                      ? (isArabic ? "هناك تحديثات مطلوبة قبل الاعتماد" : "Updates are required before approval")
+                      ? (isArabic ? "هناك تحديثات مطلوبة قبل إعادة الإرسال" : "Updates are required before resubmission")
                       : isRejected
-                        ? (isArabic ? "الملف يحتاج مراجعة قبل إعادة الإرسال" : "Review your profile before resubmitting")
+                        ? (isArabic ? "راجع ملاحظات الملف قبل إعادة الإرسال" : "Review the profile notes before resubmitting")
                         : readiness.isReady
-                          ? (isArabic ? "ملفك جاهز للمراجعة" : "Your profile is ready for review")
-                          : (isArabic ? `باقي ${missingCount === 1 ? "خطوة واحدة" : `${missingCount} خطوات`} لإرسال ملفك` : `${missingCount} steps left to submit your profile`)}
+                          ? (isArabic ? "متطلبات المراجعة مكتملة" : "Review requirements complete")
+                          : (isArabic ? `باقي ${missingCount === 1 ? "خطوة واحدة" : `${missingCount} خطوات`} قبل الإرسال للمراجعة` : `${missingCount} step${missingCount === 1 ? "" : "s"} left before review`)}
               </h2>
-              {!isApproved && !isUnderReview && firstMissing ? <button onClick={() => goToRequirement(firstMissing.key)} className="mt-5 rounded-full bg-gold px-6 py-3 text-sm font-semibold text-black">{isArabic ? "أكمل الخطوة التالية" : "Complete next step"}</button> : null}
+
+              <div className="mt-5 flex flex-wrap gap-3">
+                {!isApproved && !isUnderReview && firstMissing ? (
+                  <button onClick={() => goToRequirement(firstMissing.key)} className="rounded-full bg-gold px-6 py-3 text-sm font-semibold text-black">{isArabic ? "أكمل الخطوة التالية" : "Complete next step"}</button>
+                ) : null}
+                {canShowCompletionTasks && readiness.isReady ? (
+                  <TalentProfileReviewSubmitButton locale={locale} onSubmitted={loadProfile} />
+                ) : null}
+                {isApproved && publicSlug ? (
+                  <Link href={`/${locale}/talent/${publicSlug}`} className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/10 px-6 text-sm font-semibold text-white/70 hover:border-gold/30 hover:text-gold">
+                    {isArabic ? "عرض الملف العام" : "View public profile"}
+                  </Link>
+                ) : null}
+              </div>
             </div>
+
             <div className="rounded-[1.5rem] border border-white/10 bg-black/25 p-5">
               {isApproved ? (
                 <>
                   <p className="text-xs text-white/40">{isArabic ? "قوة الملف" : "Profile strength"}</p>
                   <div className="mt-2 flex items-end justify-between"><p className="text-4xl font-light">{strength}%</p><p className="text-xs text-emerald-200">{isArabic ? "معتمد" : "Approved"}</p></div>
                   <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-gold" style={{ width: `${strength}%` }} /></div>
-                  <p className="mt-3 text-xs leading-6 text-white/40">{isArabic ? "استمر بإضافة أعمالك ومعلوماتك المهنية لزيادة قوة ظهورك." : "Keep adding work and professional details to strengthen your profile."}</p>
+                  <p className="mt-3 text-xs leading-6 text-white/40">{isArabic ? "قوة الملف تعكس اكتمال العناصر الاختيارية ولا تغيّر حالة الاعتماد." : "Profile strength reflects optional enrichment and does not change approval status."}</p>
                 </>
               ) : isUnderReview ? (
                 <>
-                  <p className="text-xs text-white/40">{isArabic ? "حالة الملف" : "Profile status"}</p>
+                  <p className="text-xs text-white/40">{isArabic ? "حالة المراجعة" : "Review status"}</p>
                   <p className="mt-3 text-2xl font-light text-amber-100">{isArabic ? "قيد المراجعة" : "Under review"}</p>
-                  <p className="mt-3 text-xs leading-6 text-white/40">{isArabic ? "سنحدث الحالة فور اكتمال المراجعة." : "We will update this status as soon as review is complete."}</p>
+                  <p className="mt-3 text-xs leading-6 text-white/40">{isArabic ? "لا يلزم أي إجراء الآن." : "No action is needed right now."}</p>
                 </>
               ) : (
                 <>
-                  <p className="text-xs text-white/40">{isArabic ? "جاهزية الاعتماد" : "Approval readiness"}</p>
+                  <p className="text-xs text-white/40">{isArabic ? "متطلبات المراجعة" : "Review requirements"}</p>
                   <div className="mt-2 flex items-end justify-between"><p className="text-4xl font-light">{percentage}%</p><p className="text-xs text-white/45">{readiness.completedRequirements}/{readiness.totalRequirements}</p></div>
                   <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-gold" style={{ width: `${percentage}%` }} /></div>
+                  <p className="mt-3 text-xs leading-6 text-white/40">{isArabic ? "هذه المتطلبات فقط تتحكم في إمكانية إرسال الملف للمراجعة." : "Only these requirements control whether the profile can be submitted for review."}</p>
                 </>
               )}
             </div>
@@ -266,51 +315,20 @@ export default function TalentProfileGuidedPage({ params }: { params: Promise<{ 
         </section>
 
         <section ref={photoRef} id="profile-image" className={`mb-6 rounded-[2rem] border p-5 sm:p-7 ${hasProfileImage ? "border-emerald-400/20 bg-emerald-400/[0.025]" : "border-gold/30 bg-gold/[0.035]"}`}>
-          <div className="grid gap-6 md:grid-cols-[150px_1fr] md:items-center">
-            <div className="relative mx-auto h-36 w-36 overflow-hidden rounded-full border-2 border-gold/35 bg-black/30 md:mx-0">
-              {hasProfileImage ? <Image src={clean(talent.image_url)} alt={isArabic ? "الصورة الشخصية" : "Profile photo"} fill unoptimized sizes="144px" className="object-cover" /> : <div className="flex h-full w-full items-center justify-center text-5xl text-gold">{(clean(talent.name_ar) || clean(talent.name_en) || "M").charAt(0)}</div>}
+          <div className="grid gap-6 md:grid-cols-[120px_1fr] md:items-center">
+            <div className="relative mx-auto h-28 w-28 overflow-hidden rounded-full border-2 border-gold/35 bg-black/30 md:mx-0">
+              {hasProfileImage ? <Image src={clean(talent.image_url)} alt={isArabic ? "الصورة الشخصية" : "Profile photo"} fill unoptimized sizes="112px" className="object-cover" /> : <div className="flex h-full w-full items-center justify-center text-4xl text-gold">{(clean(talent.name_ar) || clean(talent.name_en) || "M").charAt(0)}</div>}
             </div>
             <div>
               <p className="text-[11px] uppercase tracking-[0.25em] text-gold">{isArabic ? "الصورة الشخصية" : "PROFILE PHOTO"}</p>
-              <h2 className="mt-2 text-2xl font-light">{hasProfileImage ? (isArabic ? "صورتك الشخصية مضافة" : "Your profile photo is set") : (isArabic ? "أضف صورة شخصية واحدة على الأقل" : "Add at least one profile photo")}</h2>
-              <p className="mt-2 text-sm leading-7 text-white/50">
-                {isApproved
-                  ? (isArabic ? "صورتك هي أول ما يراه الناشرون. استخدم صورة واضحة وحديثة تعكس حضورك المهني." : "Your photo is one of the first things publishers see. Use a clear, current image that represents you professionally.")
-                  : isUnderReview
-                    ? (isArabic ? "ملفك قيد المراجعة حاليًا. لا تحتاج لتغيير الصورة الآن." : "Your profile is currently under review. You do not need to change the photo now.")
-                    : (isArabic ? "الصورة الشخصية شرط أساسي لإرسال الملف للمراجعة. معرض الأعمال منفصل واختياري." : "A profile photo is required before review. Your work gallery is separate and optional.")}
-              </p>
+              <h2 className="mt-2 text-xl font-light">{hasProfileImage ? (isArabic ? "الصورة الشخصية مضافة" : "Profile photo added") : (isArabic ? "أضف صورة شخصية" : "Add a profile photo")}</h2>
+              <p className="mt-2 text-sm leading-7 text-white/50">{isArabic ? "الصورة الشخصية مختلفة عن صور الأعمال الإضافية." : "Your profile photo is separate from additional work photos."}</p>
               {canEditProfile ? (
-                <div className="mt-5">
-                  <label className={`relative flex min-h-14 w-full items-center justify-center overflow-hidden rounded-2xl bg-gold px-6 text-sm font-semibold text-black transition active:scale-[0.99] sm:w-auto ${uploadingPhoto ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}>
-                    <input
-                      type="file"
-                      name="profile_image"
-                      accept="image/jpeg,image/png,image/webp"
-                      disabled={uploadingPhoto}
-                      className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
-                      onClick={(event) => {
-                        event.currentTarget.value = "";
-                      }}
-                      onChange={(event) => {
-                        const file = event.currentTarget.files?.[0];
-                        if (!file || uploadingPhoto) return;
-                        void uploadProfilePhoto(file);
-                      }}
-                    />
-                    <span className="pointer-events-none">
-                      {uploadingPhoto
-                        ? (isArabic ? "جارٍ رفع الصورة..." : "Uploading photo...")
-                        : hasProfileImage
-                          ? (isArabic ? "اختيار صورة جديدة" : "Choose a new photo")
-                          : (isArabic ? "اختيار صورة من الاستديو" : "Choose photo from library")}
-                    </span>
+                <div className="mt-4">
+                  <label className={`relative inline-flex min-h-12 items-center justify-center overflow-hidden rounded-2xl bg-gold px-6 text-sm font-semibold text-black transition ${uploadingPhoto ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}>
+                    <input type="file" name="profile_image" accept="image/jpeg,image/png,image/webp" disabled={uploadingPhoto} className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0" onClick={(event) => { event.currentTarget.value = ""; }} onChange={(event) => { const file = event.currentTarget.files?.[0]; if (!file || uploadingPhoto) return; void uploadProfilePhoto(file); }} />
+                    <span className="pointer-events-none">{uploadingPhoto ? (isArabic ? "جارٍ الرفع..." : "Uploading...") : hasProfileImage ? (isArabic ? "تغيير الصورة" : "Change photo") : (isArabic ? "اختيار صورة" : "Choose photo")}</span>
                   </label>
-                  <p className={`mt-3 text-xs ${uploadingPhoto ? "text-gold" : "text-white/35"}`}>
-                    {uploadingPhoto
-                      ? (isArabic ? "جارٍ رفع الصورة، لا تغلق الصفحة." : "Uploading your photo. Please keep this page open.")
-                      : (isArabic ? "اختر صورة JPG أو PNG أو WEBP وسيبدأ الرفع مباشرة." : "Choose a JPG, PNG or WEBP image and upload will start automatically.")}
-                  </p>
                 </div>
               ) : null}
             </div>
@@ -318,27 +336,40 @@ export default function TalentProfileGuidedPage({ params }: { params: Promise<{ 
         </section>
 
         <section className="mb-6 rounded-[2rem] border border-white/10 bg-white/[0.025] p-5 sm:p-7">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div><p className="text-[11px] uppercase tracking-[0.25em] text-gold">{isArabic ? "بياناتك الحالية" : "YOUR DETAILS"}</p><h2 className="mt-2 text-2xl font-light">{isArabic ? "ملخص الملف" : "Profile summary"}</h2></div>
-            {canEditProfile ? (
-              <Link href={`/${locale}/talent-dashboard/profile/${isApproved ? "details" : "advanced#identity"}`} className="inline-flex min-h-11 items-center justify-center rounded-full border border-white/10 px-4 text-sm text-white/60 hover:border-gold/30 hover:text-gold">
-                {isArabic ? "تعديل الملف" : "Edit profile"}
-              </Link>
-            ) : null}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.25em] text-gold">{isArabic ? "إدارة ملفي" : "MANAGE MY PROFILE"}</p>
+              <h2 className="mt-2 text-2xl font-light">{isArabic ? "كل بياناتك من هنا" : "Everything about your profile, here"}</h2>
+              <p className="mt-2 max-w-2xl text-sm leading-7 text-white/45">{isArabic ? "لا تحتاج للبحث بين صفحات مختلفة. اختر القسم الذي تريد تحديثه." : "You do not need to hunt through separate pages. Choose the section you want to update."}</p>
+            </div>
+            <div className="text-xs text-white/35">{roleLabel} · {city} · {nationality}</div>
           </div>
-          <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {[[isArabic ? "نوع الموهبة" : "Talent type", roleLabel],[isArabic ? "المدينة" : "City", city],[isArabic ? "الجنس" : "Gender", gender],[isArabic ? "الجنسية" : "Nationality", nationality]].map(([label, value]) => <div key={label} className="rounded-2xl border border-white/10 bg-black/20 p-4"><p className="text-[11px] text-white/35">{label}</p><p className="mt-2 text-sm text-white/80">{value}</p></div>)}
+
+          <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {profileSections.map((section) => (
+              <Link key={section.href} href={section.href} className="group flex min-h-36 flex-col justify-between rounded-2xl border border-white/10 bg-black/20 p-5 transition hover:border-gold/35 hover:bg-gold/[0.035]">
+                <div>
+                  <div className="flex items-start justify-between gap-3">
+                    <h3 className="text-lg font-medium text-white/85 group-hover:text-gold">{section.title}</h3>
+                    <span className="rounded-full border border-white/10 px-2.5 py-1 text-[10px] text-white/45">{section.status}</span>
+                  </div>
+                  <p className="mt-3 text-xs leading-6 text-white/40">{section.description}</p>
+                </div>
+                <span className="mt-4 text-sm text-gold">{isArabic ? "فتح القسم ←" : "Open section →"}</span>
+              </Link>
+            ))}
           </div>
         </section>
 
         {canShowCompletionTasks && !readiness.isReady ? (
           <section className="mb-6 rounded-[2rem] border border-white/10 bg-white/[0.025] p-5 sm:p-7">
-            <p className="text-[11px] uppercase tracking-[0.25em] text-gold">{isArabic ? "المتبقي" : "WHAT'S LEFT"}</p>
-            <h2 className="mt-2 text-2xl font-light">{isArabic ? "أكمل المطلوب فقط" : "Complete only what's required"}</h2>
+            <p className="text-[11px] uppercase tracking-[0.25em] text-gold">{isArabic ? "متطلبات المراجعة" : "REVIEW REQUIREMENTS"}</p>
+            <h2 className="mt-2 text-2xl font-light">{isArabic ? "أكمل المطلوب فقط" : "Complete only what is required"}</h2>
+            <p className="mt-2 text-sm text-white/45">{isArabic ? "العناصر المهنية الإضافية لا تمنع إرسال الملف للمراجعة." : "Optional professional enrichment does not block review submission."}</p>
             <div className="mt-6 space-y-3">
               {readiness.missingRequirements.map((requirement, index) => (
                 <button key={requirement.key} onClick={() => goToRequirement(requirement.key)} className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-black/20 p-4 text-start hover:border-gold/35">
-                  <div className="flex items-center gap-4"><span className="flex h-9 w-9 items-center justify-center rounded-full border border-gold/25 bg-gold/[0.07] text-sm text-gold">{index + 1}</span><div><p className="text-sm text-white/85">{isArabic ? requirement.ar : requirement.en}</p><p className="mt-1 text-xs text-white/35">{requirement.key === "profile_image" ? (isArabic ? "صورة واضحة تمثلك مهنيًا" : "A clear professional photo") : requirement.key === "date_of_birth" ? (isArabic ? "بالتقويم الميلادي" : "Gregorian calendar") : (isArabic ? "مطلوب للاعتماد" : "Required for approval")}</p></div></div><span className="text-gold">{isArabic ? "←" : "→"}</span>
+                  <div className="flex items-center gap-4"><span className="flex h-9 w-9 items-center justify-center rounded-full border border-gold/25 bg-gold/[0.07] text-sm text-gold">{index + 1}</span><div><p className="text-sm text-white/85">{isArabic ? requirement.ar : requirement.en}</p><p className="mt-1 text-xs text-white/35">{isArabic ? "مطلوب لإرسال الملف للمراجعة" : "Required to submit for review"}</p></div></div><span className="text-gold">{isArabic ? "←" : "→"}</span>
                 </button>
               ))}
             </div>
@@ -347,7 +378,7 @@ export default function TalentProfileGuidedPage({ params }: { params: Promise<{ 
 
         {canShowCompletionTasks && isBirthDateMissing ? (
           <section className="mb-6 rounded-[2rem] border border-gold/20 bg-gold/[0.035] p-5 sm:p-7">
-            <p className="text-[11px] uppercase tracking-[0.25em] text-gold">{isArabic ? "الخطوة الحالية" : "CURRENT STEP"}</p>
+            <p className="text-[11px] uppercase tracking-[0.25em] text-gold">{isArabic ? "متطلب ناقص" : "MISSING REQUIREMENT"}</p>
             <h2 className="mt-2 text-2xl font-light">{isArabic ? "أضف تاريخ ميلادك" : "Add your date of birth"}</h2>
             <div className="mt-5 flex flex-col gap-3 sm:flex-row">
               <input ref={dateRef} type="date" value={birthDate} max={new Date().toISOString().slice(0, 10)} onChange={(event) => setBirthDate(event.target.value)} dir="ltr" className="min-h-14 flex-1 rounded-2xl border border-white/10 bg-black/30 px-4 text-white outline-none focus:border-gold/50" />
@@ -357,25 +388,19 @@ export default function TalentProfileGuidedPage({ params }: { params: Promise<{ 
           </section>
         ) : null}
 
-        <section className="grid gap-4 md:grid-cols-2">
-          <div className="rounded-[2rem] border border-white/10 bg-white/[0.02] p-5 sm:p-6">
-            <p className="text-[11px] uppercase tracking-[0.22em] text-white/35">{isArabic ? "قوة الملف" : "PROFILE STRENGTH"}</p>
-            <div className="mt-2 flex items-center justify-between"><h2 className="text-xl font-light">{isArabic ? "قوِّ ملفك" : "Strengthen your profile"}</h2><span className="text-2xl text-gold">{strength}%</span></div>
-            <p className="mt-3 text-sm leading-7 text-white/45">
-              {isApproved
-                ? (isArabic ? "أضف المهارات والخبرة والمقاسات والأعمال المناسبة لتزيد جودة ملفك ووضوحه للناشرين." : "Add relevant skills, experience, measurements and work to make your profile stronger for publishers.")
-                : (isArabic ? "النبذة والمهارات والخبرة والمقاسات اختيارية للاعتماد." : "Bio, skills, experience and measurements are optional for approval.")}
-            </p>
+        <section className="rounded-[2rem] border border-white/10 bg-white/[0.02] p-5 sm:p-7">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.22em] text-white/35">{isArabic ? "قوة الملف" : "PROFILE STRENGTH"}</p>
+              <h2 className="mt-2 text-xl font-light">{isArabic ? "تحسينات اختيارية" : "Optional improvements"}</h2>
+              <p className="mt-3 max-w-2xl text-sm leading-7 text-white/45">{isArabic ? "هذه العناصر تساعد الجهات على تقييمك وتحسّن جودة المطابقة، لكنها لا تمنع إرسال ملفك للمراجعة." : "These elements help publishers evaluate you and improve matching quality, but they do not block review submission."}</p>
+            </div>
+            <span className="text-3xl font-light text-gold">{strength}%</span>
           </div>
-          <div className="rounded-[2rem] border border-white/10 bg-white/[0.02] p-5 sm:p-6">
-            <p className="text-[11px] uppercase tracking-[0.22em] text-white/35">{isArabic ? "معرض الأعمال" : "PORTFOLIO"}</p>
-            <h2 className="mt-2 text-xl font-light">{isArabic ? "أعمالك وصورك الإضافية" : "Your work and extra photos"}</h2>
-            <p className="mt-3 text-sm leading-7 text-white/45">
-              {isApproved
-                ? (isArabic ? "اعرض أفضل أعمالك ليتمكن الناشرون من تقييمك بسرعة وبشكل احترافي." : "Show your best work so publishers can evaluate you quickly and professionally.")
-                : (isArabic ? "اختياري ولا يؤثر على إرسال الملف للمراجعة." : "Optional and does not block review submission.")}
-            </p>
-            <Link href={`/${locale}/talent-dashboard/gallery`} className="mt-5 inline-flex text-sm text-gold">{isArabic ? "فتح معرض الأعمال ←" : "Open portfolio →"}</Link>
+          <div className="mt-5 grid gap-3 md:grid-cols-3">
+            <Link href={`/${locale}/talent-dashboard/profile/details`} className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-white/70 hover:border-gold/35 hover:text-gold">{isArabic ? "أضف مهارات وخبرة ومعلومات مهنية ←" : "Add skills, experience and professional details →"}</Link>
+            <Link href={`/${locale}/talent-dashboard/gallery`} className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-white/70 hover:border-gold/35 hover:text-gold">{isArabic ? "أضف صور أعمال قوية ←" : "Add strong work photos →"}</Link>
+            <Link href={`/${locale}/talent-dashboard/gallery/links`} className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-white/70 hover:border-gold/35 hover:text-gold">{isArabic ? "أضف Showreel وروابطك المهنية ←" : "Add a showreel and professional links →"}</Link>
           </div>
         </section>
       </div>
