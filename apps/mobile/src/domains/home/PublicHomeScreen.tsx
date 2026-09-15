@@ -13,8 +13,12 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-nati
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { HomeHowItWorksSection } from "@/src/domains/home/HomeHowItWorksSection";
+import { HomeOpportunitiesSection } from "@/src/domains/home/HomeOpportunitiesSection";
+import { HomeTalentsSection } from "@/src/domains/home/HomeTalentsSection";
 import { HomeValuePropsSection } from "@/src/domains/home/HomeValuePropsSection";
 import { useHomeContent } from "@/src/domains/home/useHomeContent";
+import { useHomeOpportunities } from "@/src/domains/home/useHomeOpportunities";
+import { useHomeTalents } from "@/src/domains/home/useHomeTalents";
 import { useLocale } from "@/src/i18n/LocaleProvider";
 import { colors, radius, spacing } from "@/src/theme/tokens";
 
@@ -39,6 +43,8 @@ function nativeHref(href: string | null | undefined, fallback: string) {
 export function PublicHomeScreen() {
   const { locale } = useLocale();
   const { hero, valueProps } = useHomeContent(locale);
+  const { items: talents, loading: talentsLoading } = useHomeTalents(locale);
+  const { items: opportunities, loading: opportunitiesLoading } = useHomeOpportunities(locale);
   const isArabic = locale === "ar";
   const DirectionArrow = isArabic ? ArrowLeft : ArrowRight;
   const align = isArabic ? "right" : "left";
@@ -224,10 +230,12 @@ export function PublicHomeScreen() {
 
         <HomeValuePropsSection isArabic={isArabic} items={valueProps} />
         <HomeHowItWorksSection isArabic={isArabic} />
+        <HomeTalentsSection isArabic={isArabic} items={talents} loading={talentsLoading} />
+        <HomeOpportunitiesSection isArabic={isArabic} items={opportunities} loading={opportunitiesLoading} />
 
         <View style={styles.nextMarker}>
           <Text style={styles.nextMarkerText}>
-            {isArabic ? "التالي: المواهب، الفرص، الجهات، مشهد ملامح والدعوة الختامية." : "Next: talents, opportunities, organizations, MLAMH Scene and the final call to action."}
+            {isArabic ? "التالي: الجهات، مشهد ملامح والدعوة الختامية." : "Next: organizations, MLAMH Scene and the final call to action."}
           </Text>
         </View>
       </ScrollView>
