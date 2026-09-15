@@ -22,6 +22,7 @@ type CurrentUserState = {
 type ProfileAccountTypeRow = {
   id: string;
   account_type: string | null;
+  display_name: string | null;
 };
 
 type PublisherNavigationRow = {
@@ -202,9 +203,6 @@ export function useCurrentUser(): CurrentUserState {
       const avatarUrl = resolveAvatarUrl(user);
       const metadataAccountType = resolveMetadataAccountType(user);
 
-      // Immediately expose the account type carried by the authenticated user.
-      // This prevents the mobile navigation from briefly falling back to the
-      // guest "Join" CTA while the canonical profile lookup is completing.
       commitState(version, {
         userId: user.id,
         isLoggedIn: true,
@@ -220,7 +218,7 @@ export function useCurrentUser(): CurrentUserState {
           error,
         } = await supabase
           .from("profiles")
-          .select("id, account_type")
+          .select("id, account_type, display_name")
           .eq("user_id", user.id)
           .maybeSingle<ProfileAccountTypeRow>();
 
@@ -269,7 +267,7 @@ export function useCurrentUser(): CurrentUserState {
           metadataAccountType;
 
         let resolvedAvatarUrl = avatarUrl;
-        let resolvedUserName = userName;
+        let resolvedUserName = profile.display_name?.trim() || userName;
 
         if (accountType === "publisher") {
           const {
