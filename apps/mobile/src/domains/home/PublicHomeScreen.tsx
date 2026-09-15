@@ -271,6 +271,8 @@ export function PublicHomeScreen() {
   );
 }
 
+const absoluteFill = { position: "absolute" as const, top: 0, right: 0, bottom: 0, left: 0 };
+
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
   scroll: { flex: 1, backgroundColor: colors.background },
@@ -297,9 +299,9 @@ const styles = StyleSheet.create({
   heroLargeImage: { flex: 1.15, borderRadius: 28 },
   heroSmallColumn: { flex: 0.85, gap: spacing.md },
   heroSmallImage: { flex: 1, borderRadius: 22 },
-  imageFill: { ...StyleSheet.absoluteFillObject, width: "100%", height: "100%" },
-  imageShade: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.24)" },
-  imageShadeSoft: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.18)" },
+  imageFill: { ...absoluteFill, width: "100%", height: "100%" },
+  imageShade: { ...absoluteFill, backgroundColor: "rgba(0,0,0,0.24)" },
+  imageShadeSoft: { ...absoluteFill, backgroundColor: "rgba(0,0,0,0.18)" },
   imageCaption: { position: "absolute", left: spacing.lg, right: spacing.lg, bottom: spacing.lg },
   imageBadge: { alignSelf: "flex-start", color: "rgba(255,255,255,0.76)", fontSize: 10, borderWidth: 1, borderColor: "rgba(255,255,255,0.16)", backgroundColor: "rgba(0,0,0,0.5)", borderRadius: radius.pill, paddingHorizontal: spacing.md, paddingVertical: 5 },
   imageTitle: { color: colors.textPrimary, fontSize: 18, lineHeight: 24, fontWeight: "700", marginTop: spacing.sm },
