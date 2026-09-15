@@ -1,13 +1,40 @@
 import { ImageResponse } from "next/og";
 import type { NextRequest } from "next/server";
+import type { CSSProperties, ReactNode } from "react";
 
 export const runtime = "edge";
 
 const SIZE = { width: 1600, height: 1000 };
-const GOLD = "rgba(216,181,91,.76)";
-const GOLD_SOFT = "rgba(216,181,91,.16)";
-const LINE = "rgba(255,255,255,.20)";
-const LINE_SOFT = "rgba(255,255,255,.10)";
+const GOLD = "#d8b55b";
+const GOLD_LINE = "rgba(216,181,91,.78)";
+const GOLD_SOFT = "rgba(216,181,91,.18)";
+const WHITE_LINE = "rgba(255,255,255,.34)";
+const WHITE_SOFT = "rgba(255,255,255,.14)";
+const PANEL = "rgba(255,255,255,.035)";
+
+type SceneKind =
+  | "portrait"
+  | "audition"
+  | "wardrobe"
+  | "beginner"
+  | "self-tape"
+  | "showreel"
+  | "profile"
+  | "workflow"
+  | "decision"
+  | "conversation"
+  | "production"
+  | "location"
+  | "report"
+  | "story"
+  | "commerce"
+  | "beauty"
+  | "food"
+  | "national-day"
+  | "rights"
+  | "call-sheet"
+  | "roles"
+  | "agency";
 
 function hash(input: string) {
   let value = 0;
@@ -15,140 +42,233 @@ function hash(input: string) {
   return value;
 }
 
-function motifFor(input: string, audience: string, type: string) {
-  const value = input.toLowerCase();
-  if (/self.?tape|سيلف.?تيب/.test(value)) return "self-tape";
-  if (/showreel|شوريل|فيديو.?تعريف/.test(value)) return "showreel";
-  if (/report|insight|data|market|trend|تقرير|بيانات|سوق|اتجاه|رؤية/.test(value)) return "insight";
-  if (/story|interview|journey|قصة|مقابلة|رحلة/.test(value)) return "story";
-  if (/audition|acting|actor|تمثيل|ممثل|اختبار.?أداء|تجربة.?أداء/.test(value)) return "audition";
-  if (/photo|image|portfolio|model|صورة|صور|مودل|معرض/.test(value)) return "portrait";
-  if (/chat|message|quick|محادث|رسائل|سريع/.test(value)) return "conversation";
-  if (/brief|publisher|shortlist|review|opportunity|ناشر|طلب|متقدم|اختيار|فرصة/.test(value)) return "workflow";
-  if (/casting.?call|كاستينغ|كاستنج|production|إنتاج|صناعة|تصوير/.test(value) || type === "industry") return "production";
-  if (audience === "publisher") return "workflow";
+function sceneFor(slug: string, title: string, audience: string, type: string): SceneKind {
+  const value = `${slug} ${title}`.toLowerCase();
+
+  if (/what-to-wear-audition/.test(value)) return "wardrobe";
+  if (/casting-without-experience/.test(value)) return "beginner";
+  if (/self.?tape/.test(value)) return "self-tape";
+  if (/showreel/.test(value)) return "showreel";
+  if (/profile-readiness|profile-bio|complete-talent-profile|what-casting-team-looks-for|profile-photo|portfolio|model-portfolio|actor-portfolio|gallery/.test(value)) return "profile";
+  if (/audition|acting|actor-vs-model|first-audition|casting-call-vs-audition|why-not-selected/.test(value)) return "audition";
+  if (/shortlist|review-talent|select-right-talent|accept-reject|what-to-request|casting-requirements|brief/.test(value)) return "workflow";
+  if (/quick-requests|chat-after|message|conversation/.test(value)) return "conversation";
+  if (/location|travel|riyadh|city/.test(value)) return "location";
+  if (/ecommerce|e-commerce|campaign|choose-model|request-actors-models/.test(value)) return "commerce";
+  if (/beauty|salon|clinic/.test(value)) return "beauty";
+  if (/restaurant|cafe/.test(value)) return "food";
+  if (/national-day/.test(value)) return "national-day";
+  if (/buyout|usage-rights/.test(value)) return "rights";
+  if (/call-sheet/.test(value)) return "call-sheet";
+  if (/lead-supporting-extra|role-types/.test(value)) return "roles";
+  if (/agency-vs-casting-platform/.test(value)) return "agency";
+  if (/story|norah|red-sea-production-market/.test(value) || type === "story") return "story";
+  if (/report|box-office|film-incentives|creative-industries|market|confex|ecosystem/.test(value) || type === "report") return "report";
+  if (/production|filming|shoot|film-production|casting-process/.test(value) || type === "industry") return "production";
+  if (/model|photo|portrait/.test(value)) return "portrait";
+  if (audience === "publisher") return "decision";
   if (audience === "talent") return "portrait";
-  return "editorial";
+  return "production";
 }
 
-function Person({ x, mirror = false, seated = false, gold = false }: { x: number; mirror?: boolean; seated?: boolean; gold?: boolean }) {
-  const stroke = gold ? GOLD : LINE;
+function Figure({
+  x = 0,
+  y = 0,
+  scale = 1,
+  accent = false,
+  facing = "right",
+}: {
+  x?: number;
+  y?: number;
+  scale?: number;
+  accent?: boolean;
+  facing?: "left" | "right";
+}) {
+  const line = accent ? GOLD_LINE : WHITE_LINE;
+  const flip = facing === "left" ? -1 : 1;
   return (
-    <g transform={`translate(${x} 0)${mirror ? " scale(-1 1) translate(-170 0)" : ""}`} fill="none" stroke={stroke} strokeWidth="3">
-      <ellipse cx="85" cy="105" rx="42" ry="48" />
-      <path d="M54 83 Q85 55 117 79" stroke={GOLD} strokeWidth="5" />
-      <path d="M73 153 L73 180 M98 153 L98 180" />
-      <path d="M36 198 Q85 168 134 198 L145 305 L25 305 Z" fill={gold ? "rgba(216,181,91,.035)" : "rgba(255,255,255,.012)"} />
-      <path d="M38 216 L2 264 M132 216 L168 264" />
-      {seated ? <path d="M28 305 L84 338 L152 337 M84 338 L117 397" /> : <path d="M54 305 L48 398 M112 305 L120 398" />}
-    </g>
+    <div style={{ position: "absolute", left: x, top: y, width: 180, height: 350, display: "flex", transform: `scale(${scale * flip}, ${scale})`, transformOrigin: "center" }}>
+      <div style={{ position: "absolute", left: 59, top: 4, width: 64, height: 72, border: `5px solid ${line}`, borderRadius: 36, background: accent ? "rgba(216,181,91,.05)" : "rgba(255,255,255,.02)" }} />
+      <div style={{ position: "absolute", left: 48, top: 12, width: 82, height: 26, borderTop: `8px solid ${GOLD_LINE}`, borderRadius: "55%" }} />
+      <div style={{ position: "absolute", left: 50, top: 84, width: 82, height: 142, border: `5px solid ${line}`, borderRadius: "34px 34px 18px 18px", background: accent ? "rgba(216,181,91,.045)" : "rgba(255,255,255,.018)" }} />
+      <div style={{ position: "absolute", left: 9, top: 116, width: 58, height: 5, borderRadius: 8, background: line, transform: "rotate(-32deg)" }} />
+      <div style={{ position: "absolute", left: 116, top: 116, width: 58, height: 5, borderRadius: 8, background: line, transform: "rotate(32deg)" }} />
+      <div style={{ position: "absolute", left: 63, top: 224, width: 5, height: 112, borderRadius: 8, background: line, transform: "rotate(5deg)" }} />
+      <div style={{ position: "absolute", left: 113, top: 224, width: 5, height: 112, borderRadius: 8, background: line, transform: "rotate(-5deg)" }} />
+    </div>
   );
 }
 
-function Portrait() {
+function Card({ x, y, w = 190, h = 260, active = false, children }: { x: number; y: number; w?: number; h?: number; active?: boolean; children?: ReactNode }) {
   return (
-    <g fill="none">
-      <circle cx="350" cy="225" r="150" fill={GOLD_SOFT} />
-      <circle cx="350" cy="225" r="205" stroke={LINE_SOFT} strokeWidth="2" />
-      <path d="M292 125 Q354 76 411 125 Q438 156 423 219 Q411 266 371 286 L371 325" stroke={GOLD} strokeWidth="4" />
-      <path d="M295 126 Q275 192 294 252 Q311 285 335 291 L335 325" stroke={LINE} strokeWidth="3" />
-      <path d="M335 325 Q350 353 371 325 Q448 339 489 407 M335 325 Q256 339 215 407" stroke={LINE} strokeWidth="3" />
-      <path d="M303 139 Q355 96 410 135" stroke={GOLD} strokeWidth="6" />
-      <path d="M388 184 Q406 189 416 198 M389 229 Q405 235 416 229" stroke={LINE} strokeWidth="2" />
-    </g>
+    <div style={{ position: "absolute", left: x, top: y, width: w, height: h, display: "flex", border: `4px solid ${active ? GOLD_LINE : WHITE_SOFT}`, borderRadius: 32, background: active ? "rgba(216,181,91,.065)" : PANEL }}>
+      {children}
+    </div>
   );
 }
 
-function Motif({ kind, seed }: { kind: string; seed: number }) {
-  const nudge = (seed % 17) - 8;
+function MiniProfile({ active = false }: { active?: boolean }) {
+  return (
+    <div style={{ width: "100%", height: "100%", display: "flex", position: "relative" }}>
+      <div style={{ position: "absolute", left: "50%", top: 38, width: 70, height: 70, marginLeft: -35, borderRadius: 40, border: `4px solid ${active ? GOLD_LINE : WHITE_LINE}` }} />
+      <div style={{ position: "absolute", left: 38, right: 38, top: 130, height: 8, borderRadius: 10, background: active ? GOLD_LINE : WHITE_SOFT }} />
+      <div style={{ position: "absolute", left: 54, right: 54, top: 158, height: 8, borderRadius: 10, background: WHITE_SOFT }} />
+    </div>
+  );
+}
 
-  if (kind === "portrait" || kind === "editorial") {
-    return <svg width="700" height="520" viewBox="0 0 700 520"><Portrait /></svg>;
+function Scene({ kind, seed }: { kind: SceneKind; seed: number }) {
+  const shift = (seed % 31) - 15;
+  const wrap: CSSProperties = { position: "relative", width: 900, height: 590, display: "flex" };
+
+  if (kind === "portrait") {
+    return (
+      <div style={wrap}>
+        <div style={{ position: "absolute", left: 268, top: 72, width: 330, height: 330, borderRadius: 180, background: GOLD_SOFT, border: `3px solid ${GOLD_LINE}` }} />
+        <Figure x={342 + shift} y={110} scale={1.12} accent />
+        <Card x={90} y={245} w={165} h={215}><MiniProfile /></Card>
+        <Card x={640} y={218} w={165} h={215} active><MiniProfile active /></Card>
+      </div>
+    );
+  }
+
+  if (kind === "audition" || kind === "beginner") {
+    return (
+      <div style={wrap}>
+        <div style={{ position: "absolute", left: 278, top: 52, width: 330, height: 330, borderRadius: 180, background: GOLD_SOFT }} />
+        <div style={{ position: "absolute", left: 86, top: 120, width: 250, height: 4, background: WHITE_SOFT, transform: "rotate(30deg)" }} />
+        <div style={{ position: "absolute", right: 86, top: 120, width: 250, height: 4, background: WHITE_SOFT, transform: "rotate(-30deg)" }} />
+        <Figure x={350 + shift} y={132} scale={1.12} accent />
+        {kind === "beginner" ? <div style={{ position: "absolute", right: 115, top: 320, width: 170, height: 80, border: `4px solid ${GOLD_LINE}`, borderRadius: 22, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 34, color: GOLD }}>START</div> : null}
+      </div>
+    );
+  }
+
+  if (kind === "wardrobe") {
+    return (
+      <div style={wrap}>
+        <Figure x={350 + shift} y={120} scale={1.08} accent />
+        <div style={{ position: "absolute", left: 145, top: 160, width: 150, height: 4, background: WHITE_LINE }} />
+        <div style={{ position: "absolute", left: 218, top: 160, width: 4, height: 185, background: WHITE_LINE }} />
+        <div style={{ position: "absolute", left: 165, top: 210, width: 105, height: 120, border: `4px solid ${GOLD_LINE}`, borderRadius: "42px 42px 18px 18px", background: "rgba(216,181,91,.05)" }} />
+        <div style={{ position: "absolute", right: 135, top: 176, width: 180, height: 250, border: `4px solid ${WHITE_SOFT}`, borderRadius: 30, background: PANEL }} />
+        <div style={{ position: "absolute", right: 178, top: 217, width: 92, height: 92, borderRadius: 50, border: `4px solid ${WHITE_LINE}` }} />
+        <div style={{ position: "absolute", right: 167, top: 335, width: 114, height: 10, borderRadius: 8, background: GOLD_LINE }} />
+      </div>
+    );
   }
 
   if (kind === "self-tape") {
     return (
-      <svg width="760" height="520" viewBox="0 0 760 520">
-        <circle cx="390" cy="245" r="180" fill={GOLD_SOFT} />
-        <Person x={170 + nudge} gold />
-        <rect x="500" y="126" width="118" height="205" rx="24" fill="rgba(7,7,7,.8)" stroke={GOLD} strokeWidth="3" />
-        <circle cx="559" cy="205" r="34" fill="none" stroke={LINE} strokeWidth="3" />
-        <path d="M559 331 L559 444 M505 444 L613 444" stroke={LINE} strokeWidth="3" />
-      </svg>
-    );
-  }
-
-  if (kind === "audition") {
-    return (
-      <svg width="760" height="520" viewBox="0 0 760 520">
-        <circle cx="380" cy="210" r="175" fill={GOLD_SOFT} />
-        <Person x={295 + nudge} gold />
-        <path d="M115 125 L279 222 M645 125 L481 222" stroke={LINE_SOFT} strokeWidth="3" />
-        <path d="M125 426 L635 426" stroke={GOLD} strokeOpacity=".45" strokeWidth="3" />
-      </svg>
+      <div style={wrap}>
+        <Figure x={248 + shift} y={125} scale={1.08} accent />
+        <div style={{ position: "absolute", right: 145, top: 105, width: 190, height: 320, borderRadius: 38, border: `5px solid ${GOLD_LINE}`, background: "rgba(7,7,7,.8)", display: "flex" }}>
+          <div style={{ position: "absolute", left: 58, top: 68, width: 74, height: 74, borderRadius: 42, border: `4px solid ${WHITE_LINE}` }} />
+          <div style={{ position: "absolute", left: 40, right: 40, top: 175, height: 8, background: WHITE_SOFT, borderRadius: 8 }} />
+        </div>
+        <div style={{ position: "absolute", right: 239, top: 425, width: 4, height: 90, background: WHITE_LINE }} />
+        <div style={{ position: "absolute", right: 195, top: 508, width: 90, height: 4, background: WHITE_LINE }} />
+        <div style={{ position: "absolute", left: 120, top: 192, width: 120, height: 120, borderRadius: 70, border: `4px solid ${WHITE_SOFT}` }} />
+      </div>
     );
   }
 
   if (kind === "showreel") {
     return (
-      <svg width="780" height="520" viewBox="0 0 780 520">
-        {[95, 300, 505].map((x, i) => (
-          <g key={x}>
-            <rect x={x} y={i === 1 ? 100 : 128} width="180" height="250" rx="26" fill={i === 1 ? "rgba(216,181,91,.04)" : "rgba(255,255,255,.01)"} stroke={i === 1 ? GOLD : LINE} strokeWidth={i === 1 ? 3 : 2} />
-            <circle cx={x + 90} cy={i === 1 ? 178 : 206} r="38" fill="none" stroke={i === 1 ? GOLD : LINE} strokeWidth="3" />
-            <path d={`M${x + 42} ${i === 1 ? 315 : 343} Q${x + 90} ${i === 1 ? 258 : 286} ${x + 138} ${i === 1 ? 315 : 343}`} fill="none" stroke={i === 1 ? GOLD : LINE} strokeWidth="3" />
-          </g>
+      <div style={wrap}>
+        {[95, 330, 565].map((x, index) => (
+          <Card key={x} x={x} y={index === 1 ? 110 : 150} w={210} h={300} active={index === 1}>
+            <MiniProfile active={index === 1} />
+            <div style={{ position: "absolute", left: 82, top: 205, width: 0, height: 0, borderTop: "26px solid transparent", borderBottom: "26px solid transparent", borderLeft: `44px solid ${index === 1 ? GOLD : "rgba(255,255,255,.25)"}` }} />
+          </Card>
         ))}
-      </svg>
+      </div>
+    );
+  }
+
+  if (kind === "profile") {
+    return (
+      <div style={wrap}>
+        <Figure x={160 + shift} y={125} scale={1.03} accent />
+        <Card x={450} y={105} w={320} h={370} active>
+          <div style={{ position: "absolute", left: 38, top: 38, width: 86, height: 86, borderRadius: 46, border: `4px solid ${GOLD_LINE}` }} />
+          {[156, 206, 256].map((y, i) => <div key={y} style={{ position: "absolute", left: 42, right: 42 + i * 34, top: y, height: 10, borderRadius: 8, background: i === 2 ? WHITE_SOFT : GOLD_LINE }} />)}
+          <div style={{ position: "absolute", right: 34, top: 34, width: 64, height: 64, borderRadius: 34, border: `4px solid ${GOLD_LINE}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 34, color: GOLD }}>✓</div>
+        </Card>
+      </div>
+    );
+  }
+
+  if (kind === "workflow" || kind === "decision") {
+    return (
+      <div style={wrap}>
+        {[80, 335, 590].map((x, index) => <Card key={x} x={x} y={index === 1 ? 105 : 150} w={220} h={320} active={index === 1}><MiniProfile active={index === 1} /></Card>)}
+        <div style={{ position: "absolute", left: 386, top: 445, width: 118, height: 54, borderRadius: 28, background: GOLD_SOFT, border: `3px solid ${GOLD_LINE}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, color: GOLD }}>✓</div>
+      </div>
     );
   }
 
   if (kind === "conversation" || kind === "story") {
     return (
-      <svg width="800" height="520" viewBox="0 0 800 520">
-        <Person x={82} seated gold={kind === "story"} />
-        <Person x={548} seated mirror gold={kind !== "story"} />
-        <ellipse cx="400" cy="392" rx="78" ry="25" fill="none" stroke={LINE} strokeWidth="3" />
-        <path d="M322 392 L322 450 M478 392 L478 450" stroke={LINE_SOFT} strokeWidth="3" />
-        <circle cx="400" cy="344" r="34" fill={GOLD_SOFT} stroke={GOLD} strokeWidth="2" />
-      </svg>
+      <div style={wrap}>
+        <Figure x={112 + shift} y={150} scale={.95} accent={kind === "story"} />
+        <Figure x={610 - shift} y={150} scale={.95} accent={kind !== "story"} facing="left" />
+        <div style={{ position: "absolute", left: 300, top: 120, width: 260, height: 105, border: `4px solid ${GOLD_LINE}`, borderRadius: "30px 30px 8px 30px", background: "rgba(216,181,91,.05)" }} />
+        <div style={{ position: "absolute", left: 342, top: 258, width: 270, height: 112, border: `4px solid ${WHITE_SOFT}`, borderRadius: "30px 30px 30px 8px", background: PANEL }} />
+      </div>
     );
   }
 
-  if (kind === "workflow") {
+  if (kind === "location") {
     return (
-      <svg width="800" height="520" viewBox="0 0 800 520">
-        {[90, 310, 530].map((x, i) => (
-          <g key={x}>
-            <rect x={x} y={i === 1 ? 92 : 124} width="180" height="270" rx="28" fill={i === 1 ? "rgba(216,181,91,.04)" : "rgba(255,255,255,.01)"} stroke={i === 1 ? GOLD : LINE} strokeWidth={i === 1 ? 3 : 2} />
-            <circle cx={x + 90} cy={i === 1 ? 174 : 206} r="39" fill="none" stroke={i === 1 ? GOLD : LINE} strokeWidth="3" />
-            <path d={`M${x + 42} ${i === 1 ? 300 : 332} Q${x + 90} ${i === 1 ? 244 : 276} ${x + 138} ${i === 1 ? 300 : 332}`} fill="none" stroke={i === 1 ? GOLD : LINE} strokeWidth="3" />
-            <line x1={x + 52} y1={i === 1 ? 334 : 366} x2={x + 128} y2={i === 1 ? 334 : 366} stroke={i === 1 ? GOLD : LINE_SOFT} strokeWidth="7" strokeLinecap="round" />
-          </g>
-        ))}
-      </svg>
+      <div style={wrap}>
+        <Figure x={145 + shift} y={142} scale={1.0} accent />
+        <div style={{ position: "absolute", right: 150, top: 110, width: 330, height: 350, border: `4px solid ${WHITE_SOFT}`, borderRadius: 42, background: PANEL }} />
+        <div style={{ position: "absolute", right: 255, top: 170, width: 120, height: 120, borderRadius: 70, border: `5px solid ${GOLD_LINE}` }} />
+        <div style={{ position: "absolute", right: 297, top: 279, width: 36, height: 72, background: GOLD_SOFT, borderLeft: `4px solid ${GOLD_LINE}`, borderRight: `4px solid ${GOLD_LINE}` }} />
+        <div style={{ position: "absolute", right: 210, top: 384, width: 210, height: 5, background: WHITE_LINE, transform: "rotate(-13deg)" }} />
+      </div>
     );
   }
 
-  if (kind === "production") {
+  if (kind === "report") {
     return (
-      <svg width="800" height="520" viewBox="0 0 800 520">
-        <Person x={475} mirror gold />
-        <rect x="130" y="168" width="205" height="146" rx="24" fill="rgba(255,255,255,.01)" stroke={LINE} strokeWidth="3" />
-        <circle cx="230" cy="241" r="42" fill="none" stroke={GOLD} strokeWidth="4" />
-        <path d="M335 202 L422 164 L422 315 L335 278 Z" fill={GOLD_SOFT} stroke={GOLD} strokeWidth="2" />
-        <path d="M230 315 L230 432 M166 432 L294 432" stroke={LINE} strokeWidth="3" />
-      </svg>
+      <div style={wrap}>
+        <Figure x={100 + shift} y={150} scale={.98} accent />
+        <Card x={420} y={95} w={360} h={390} active>
+          {[120, 185, 255].map((h, i) => <div key={h} style={{ position: "absolute", left: 54 + i * 88, bottom: 55, width: 54, height: h, borderRadius: 15, border: `4px solid ${i === 2 ? GOLD_LINE : WHITE_LINE}`, background: i === 2 ? GOLD_SOFT : "rgba(255,255,255,.02)" }} />)}
+        </Card>
+      </div>
     );
   }
 
-  return (
-    <svg width="800" height="520" viewBox="0 0 800 520">
-      <Person x={92} gold />
-      <rect x="430" y="120" width="290" height="280" rx="30" fill="rgba(255,255,255,.01)" stroke={LINE} strokeWidth="2" />
-      {[95, 155, 220].map((height, i) => <rect key={height} x={475 + i * 70} y={350 - height} width="42" height={height} rx="10" fill={i === 2 ? GOLD_SOFT : "none"} stroke={i === 2 ? GOLD : LINE} strokeWidth="3" />)}
-    </svg>
-  );
+  if (kind === "production" || kind === "call-sheet" || kind === "rights" || kind === "roles" || kind === "agency") {
+    return (
+      <div style={wrap}>
+        <Figure x={540 + shift} y={145} scale={.98} accent />
+        <div style={{ position: "absolute", left: 100, top: 180, width: 280, height: 195, borderRadius: 32, border: `4px solid ${WHITE_LINE}`, background: PANEL }} />
+        <div style={{ position: "absolute", left: 177, top: 235, width: 115, height: 115, borderRadius: 70, border: `5px solid ${GOLD_LINE}` }} />
+        {kind === "call-sheet" ? <div style={{ position: "absolute", left: 125, top: 120, width: 220, height: 74, border: `4px solid ${GOLD_LINE}`, borderRadius: 20, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 34, color: GOLD }}>CALL</div> : null}
+        {kind === "rights" ? <div style={{ position: "absolute", left: 120, top: 405, width: 260, height: 5, background: GOLD_LINE }} /> : null}
+        {kind === "roles" ? <div style={{ position: "absolute", left: 112, top: 95, display: "flex", gap: 18 }}><div style={{ width: 55, height: 55, borderRadius: 30, border: `4px solid ${WHITE_LINE}` }} /><div style={{ width: 72, height: 72, borderRadius: 38, border: `4px solid ${GOLD_LINE}` }} /><div style={{ width: 48, height: 48, borderRadius: 28, border: `4px solid ${WHITE_LINE}` }} /></div> : null}
+      </div>
+    );
+  }
+
+  if (kind === "commerce" || kind === "beauty" || kind === "food" || kind === "national-day") {
+    return (
+      <div style={wrap}>
+        <Figure x={310 + shift} y={130} scale={1.08} accent />
+        <Card x={85} y={190} w={190} h={240}><MiniProfile /></Card>
+        <Card x={625} y={175} w={190} h={240} active><MiniProfile active /></Card>
+        {kind === "beauty" ? <div style={{ position: "absolute", left: 680, top: 105, width: 80, height: 80, borderRadius: 44, border: `4px solid ${GOLD_LINE}` }} /> : null}
+        {kind === "food" ? <div style={{ position: "absolute", left: 105, top: 110, width: 145, height: 70, borderRadius: "0 0 70px 70px", border: `4px solid ${GOLD_LINE}` }} /> : null}
+        {kind === "national-day" ? <div style={{ position: "absolute", left: 170, top: 110, width: 560, height: 5, background: GOLD_LINE }} /> : null}
+      </div>
+    );
+  }
+
+  return <div style={wrap}><Figure x={350} y={125} scale={1.05} accent /></div>;
 }
 
 export async function GET(request: NextRequest) {
@@ -158,21 +278,20 @@ export async function GET(request: NextRequest) {
   const audience = searchParams.get("audience") || "all";
   const type = searchParams.get("type") || "guide";
   const seed = hash(`${slug}:${title}:${audience}:${type}`);
-  const motif = motifFor(`${slug} ${title}`, audience, type);
-  const offsetX = (seed % 31) - 15;
-  const offsetY = ((seed >>> 8) % 21) - 10;
+  const scene = sceneFor(slug, title, audience, type);
+  const horizontal = (seed % 29) - 14;
 
   return new ImageResponse(
-    <div style={{ width: "100%", height: "100%", display: "flex", position: "relative", overflow: "hidden", background: "#070707", color: "white" }}>
-      <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 52% 52%, rgba(216,181,91,.055), transparent 38%)" }} />
-      <div style={{ position: "absolute", width: 780, height: 780, border: "2px solid rgba(216,181,91,.08)", borderRadius: 999, right: -185, top: -275 }} />
+    <div style={{ width: "100%", height: "100%", display: "flex", position: "relative", overflow: "hidden", background: "#060606", color: "white" }}>
+      <div style={{ position: "absolute", width: 800, height: 800, border: "3px solid rgba(216,181,91,.10)", borderRadius: 999, right: -190, top: -290 }} />
       <div style={{ position: "absolute", left: 72, top: 70, display: "flex", alignItems: "center", gap: 18 }}>
-        <div style={{ width: 48, height: 2, background: "rgba(216,181,91,.72)" }} />
-        <div style={{ fontSize: 18, letterSpacing: 8, color: "rgba(216,181,91,.72)" }}>MLAMH SCENE</div>
+        <div style={{ width: 48, height: 3, background: GOLD_LINE }} />
+        <div style={{ display: "flex", fontSize: 20, letterSpacing: 8, color: GOLD_LINE }}>MLAMH SCENE</div>
       </div>
-      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", transform: `translate(${offsetX}px, ${offsetY + 38}px)` }}>
-        <Motif kind={motif} seed={seed} />
+      <div style={{ position: "absolute", left: 330 + horizontal, top: 205, width: 940, height: 610, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <Scene kind={scene} seed={seed} />
       </div>
+      <div style={{ position: "absolute", left: 74, bottom: 58, width: 300, height: 2, background: "rgba(255,255,255,.10)" }} />
     </div>,
     SIZE,
   );
