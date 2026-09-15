@@ -96,11 +96,14 @@ function getApplicationOpportunity(application: ApplicationNotification) {
 
 function applicationDisplayStatus(application: ApplicationNotification) {
   const opportunity = getApplicationOpportunity(application);
-  if (opportunity?.posting_mode !== "quick") return application.status;
+  if (opportunity?.posting_mode !== "quick") {
+    return application.status === "shortlisted" ? "reviewing" : application.status;
+  }
 
   if (application.status === "accepted") return "quick_accepted";
   if (application.status === "rejected") return "quick_rejected";
   if (!application.status || application.status === "pending") return "quick_pending";
+  if (application.status === "shortlisted") return "reviewing";
   return application.status;
 }
 
@@ -117,8 +120,10 @@ function applicationMessage(application: ApplicationNotification, isArabic: bool
     }
     return isArabic ? `تم قبول طلبك في فرصة «${title}».` : `Your application for “${title}” was accepted.`;
   }
-  if (application.status === "shortlisted") {
-    return isArabic ? `تمت إضافة طلبك إلى القائمة المختصرة في فرصة «${title}».` : `Your application for “${title}” was shortlisted.`;
+  if (application.status === "shortlisted" || application.status === "reviewing") {
+    return isArabic
+      ? `طلبك على فرصة «${title}» قيد المراجعة.`
+      : `Your application for “${title}” is under review.`;
   }
   if (application.status === "rejected") {
     if (isQuickRequest) {
@@ -127,9 +132,6 @@ function applicationMessage(application: ApplicationNotification, isArabic: bool
         : `You were not selected for the Quick Request “${title}”.`;
     }
     return isArabic ? `تم رفض طلبك في فرصة «${title}».` : `Your application for “${title}” was rejected.`;
-  }
-  if (application.status === "reviewing") {
-    return isArabic ? `أصبح طلبك على فرصة «${title}» قيد المراجعة.` : `Your application for “${title}” is under review.`;
   }
   if (isQuickRequest) {
     return isArabic
@@ -148,9 +150,8 @@ function categoryLabel(category: Category, status: string | null, isArabic: bool
     if (status === "quick_rejected") return isArabic ? "تم الاعتذار" : "Not selected";
     if (status === "quick_pending") return isArabic ? "مهتم" : "Interested";
     if (status === "accepted") return isArabic ? "مقبول" : "Accepted";
-    if (status === "shortlisted") return isArabic ? "قائمة مختصرة" : "Shortlisted";
+    if (status === "reviewing" || status === "shortlisted") return isArabic ? "قيد المراجعة" : "In review";
     if (status === "rejected") return isArabic ? "مرفوض" : "Rejected";
-    if (status === "reviewing") return isArabic ? "قيد المراجعة" : "Reviewing";
     return isArabic ? "طلب" : "Application";
   }
   return isArabic ? "تنبيه" : "Update";
@@ -168,7 +169,7 @@ function CategoryIcon({ category, status }: { category: Category; status: string
   if (category === "booking") return <CalendarCheck2 size={19} />;
   if (category === "message") return <MessageCircle size={19} />;
   if (category === "invitation") return <BriefcaseBusiness size={19} />;
-  if (status === "accepted" || status === "shortlisted" || status === "quick_accepted") return <CheckCircle2 size={19} />;
+  if (status === "accepted" || status === "quick_accepted") return <CheckCircle2 size={19} />;
   if (status === "rejected" || status === "quick_rejected") return <XCircle size={19} />;
   return <Clock3 size={19} />;
 }
