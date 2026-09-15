@@ -10,6 +10,7 @@ import {
   MessageCircle,
   ShieldAlert,
   Sparkles,
+  UserRound,
 } from "lucide-react-native";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -64,6 +65,15 @@ const ACTIONS: Action[] = [
     bodyAr: "اكتشف محتوى يساعدك على فهم المجال والفرص وصناعة ملف أفضل.",
     bodyEn: "Discover content that helps you understand the industry, opportunities, and stronger profiles.",
     icon: BookOpen,
+  },
+  {
+    key: "account",
+    href: "/account",
+    titleAr: "الحساب والخصوصية",
+    titleEn: "Account & privacy",
+    bodyAr: "إدارة الجلسة وخيارات الحساب، بما فيها حذف الحساب نهائيًا من داخل التطبيق.",
+    bodyEn: "Manage your session and account controls, including permanent account deletion in the app.",
+    icon: UserRound,
   },
 ];
 
