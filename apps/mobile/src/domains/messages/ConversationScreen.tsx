@@ -5,7 +5,7 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { MobileApiError } from "@/src/api/client";
-import { getConversationDetail, respondToQuickTalentDecision, sendConversationMessage } from "@/src/domains/messages/api";
+import { getConversationDetail, sendConversationMessage, submitQuickTalentDecision } from "@/src/domains/messages/api";
 import type { ConversationDetailResponse, QuickRequestProductState } from "@/src/domains/messages/types";
 import { useLocale } from "@/src/i18n/LocaleProvider";
 import { colors, radius, spacing } from "@/src/theme/tokens";
@@ -86,7 +86,7 @@ export function ConversationScreen() {
     setDeciding(true);
     setError(null);
     try {
-      await respondToQuickTalentDecision(conversationId, decision, locale);
+      await submitQuickTalentDecision(conversationId, decision, locale);
       await load();
     } catch (caught) {
       const code = caught instanceof MobileApiError ? caught.code : "DECISION_FAILED";
