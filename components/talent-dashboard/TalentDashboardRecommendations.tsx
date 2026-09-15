@@ -173,8 +173,8 @@ export default async function TalentDashboardRecommendations({
           <div className="mt-6 rounded-[1.5rem] border border-dashed border-white/10 bg-black/20 p-5 sm:flex sm:items-center sm:justify-between sm:gap-5">
             <p className="text-sm leading-7 text-white/45">
               {isRtl
-                ? "يمكنك استعراض طلبات الآن وفرص الكاستينغ، أو تطوير ملفك لزيادة فرص المطابقة."
-                : "Browse Quick Requests and Casting Opportunities, or strengthen your profile to improve matching."}
+                ? "يمكنك استعراض طلبات الآن وفرص الكاستينغ، أو تحسين ملفك من «ملفي» لزيادة فرص المطابقة."
+                : "Browse Quick Requests and Casting Opportunities, or improve your profile from My Profile to increase matching quality."}
             </p>
             <div className="mt-4 flex flex-wrap gap-2 sm:mt-0">
               <Link href={`/${locale}/opportunities/quick`} className="rounded-full border border-white/10 px-4 py-2.5 text-xs text-white/60 transition hover:border-gold/30 hover:text-gold">
@@ -183,8 +183,8 @@ export default async function TalentDashboardRecommendations({
               <Link href={`/${locale}/opportunities/casting`} className="rounded-full border border-white/10 px-4 py-2.5 text-xs text-white/60 transition hover:border-gold/30 hover:text-gold">
                 {isRtl ? "فرص الكاستينغ" : "Casting Opportunities"}
               </Link>
-              <Link href={`/${locale}/talent-dashboard/profile/details`} className="rounded-full border border-white/10 px-4 py-2.5 text-xs text-white/60 transition hover:border-gold/30 hover:text-gold">
-                {isRtl ? "طوّر ملفك" : "Improve profile"}
+              <Link href={`/${locale}/talent-dashboard/profile`} className="rounded-full border border-white/10 px-4 py-2.5 text-xs text-white/60 transition hover:border-gold/30 hover:text-gold">
+                {isRtl ? "تحسين ملفي" : "Improve My Profile"}
               </Link>
             </div>
           </div>
