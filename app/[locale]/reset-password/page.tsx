@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { Eye, EyeOff, LockKeyhole, Sparkles } from "lucide-react";
 
@@ -17,12 +17,105 @@ export default function ResetPasswordPage({
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [sessionLoading, setSessionLoading] = useState(true);
+  const [sessionReady, setSessionReady] = useState(false);
   const [done, setDone] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function establishRecoverySession() {
+      try {
+        const supabase = createBrowserSupabaseClient();
+        const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+        const accessToken = hash.get("access_token");
+        const refreshToken = hash.get("refresh_token");
+        const errorCode = hash.get("error_code") || hash.get("error");
+
+        if (errorCode) {
+          if (!cancelled) {
+            setErrorMessage(
+              isArabic
+                ? "رابط إعادة تعيين كلمة المرور غير صالح أو انتهت صلاحيته. اطلب رابطًا جديدًا."
+                : "This password reset link is invalid or has expired. Request a new link.",
+            );
+          }
+          return;
+        }
+
+        if (accessToken && refreshToken) {
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+
+          if (error) {
+            console.error("[ResetPassword.setSession]", error);
+            if (!cancelled) {
+              setErrorMessage(
+                isArabic
+                  ? "تعذر التحقق من رابط الاستعادة. اطلب رابطًا جديدًا وحاول مرة أخرى."
+                  : "We could not verify the recovery link. Request a new link and try again.",
+              );
+            }
+            return;
+          }
+
+          window.history.replaceState(null, "", window.location.pathname);
+        }
+
+        const {
+          data: { session },
+          error: sessionError,
+        } = await supabase.auth.getSession();
+
+        if (sessionError || !session) {
+          console.error("[ResetPassword.getSession]", sessionError);
+          if (!cancelled) {
+            setErrorMessage(
+              isArabic
+                ? "جلسة الاستعادة غير متاحة أو انتهت صلاحيتها. اطلب رابطًا جديدًا."
+                : "The recovery session is unavailable or expired. Request a new link.",
+            );
+          }
+          return;
+        }
+
+        if (!cancelled) setSessionReady(true);
+      } catch (error) {
+        console.error("[ResetPassword.establishRecoverySession]", error);
+        if (!cancelled) {
+          setErrorMessage(
+            isArabic
+              ? "تعذر التحقق من رابط الاستعادة. حاول طلب رابط جديد."
+              : "We could not verify the recovery link. Request a new link and try again.",
+          );
+        }
+      } finally {
+        if (!cancelled) setSessionLoading(false);
+      }
+    }
+
+    void establishRecoverySession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isArabic]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setErrorMessage("");
+
+    if (!sessionReady) {
+      setErrorMessage(
+        isArabic
+          ? "جلسة الاستعادة غير متاحة. اطلب رابط إعادة تعيين جديدًا."
+          : "The recovery session is unavailable. Request a new reset link.",
+      );
+      return;
+    }
 
     if (password.length < 8) {
       setErrorMessage(
@@ -96,7 +189,11 @@ export default function ResetPasswordPage({
           </p>
         </div>
 
-        {done ? (
+        {sessionLoading ? (
+          <div className="rounded-2xl border border-gold/20 bg-gold/[0.06] p-5 text-center text-sm leading-7 text-white/60">
+            {isArabic ? "جارٍ التحقق من رابط الاستعادة..." : "Verifying your recovery link..."}
+          </div>
+        ) : done ? (
           <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.07] p-5 text-center">
             <LockKeyhole className="mx-auto h-6 w-6 text-emerald-300" />
             <p className="mt-3 text-sm font-medium text-white/80">
@@ -110,57 +207,68 @@ export default function ResetPasswordPage({
             </Link>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-3">
+          <>
             {errorMessage ? (
-              <div className="rounded-2xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-center text-sm text-red-300">
+              <div className="mb-4 rounded-2xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-center text-sm leading-6 text-red-300">
                 {errorMessage}
               </div>
             ) : null}
 
-            <PasswordInput
-              value={password}
-              onChange={setPassword}
-              show={showPassword}
-              label={isArabic ? "كلمة المرور الجديدة" : "New password"}
-              isArabic={isArabic}
-            />
-            <PasswordInput
-              value={confirmPassword}
-              onChange={setConfirmPassword}
-              show={showPassword}
-              label={isArabic ? "تأكيد كلمة المرور" : "Confirm password"}
-              isArabic={isArabic}
-            />
+            {sessionReady ? (
+              <form onSubmit={handleSubmit} className="space-y-3">
+                <PasswordInput
+                  value={password}
+                  onChange={setPassword}
+                  show={showPassword}
+                  label={isArabic ? "كلمة المرور الجديدة" : "New password"}
+                  isArabic={isArabic}
+                />
+                <PasswordInput
+                  value={confirmPassword}
+                  onChange={setConfirmPassword}
+                  show={showPassword}
+                  label={isArabic ? "تأكيد كلمة المرور" : "Confirm password"}
+                  isArabic={isArabic}
+                />
 
-            <button
-              type="button"
-              onClick={() => setShowPassword((value) => !value)}
-              className="flex items-center gap-2 text-xs text-white/45 transition hover:text-gold"
-            >
-              {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-              {showPassword
-                ? isArabic
-                  ? "إخفاء كلمة المرور"
-                  : "Hide password"
-                : isArabic
-                  ? "إظهار كلمة المرور"
-                  : "Show password"}
-            </button>
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((value) => !value)}
+                  className="flex items-center gap-2 text-xs text-white/45 transition hover:text-gold"
+                >
+                  {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                  {showPassword
+                    ? isArabic
+                      ? "إخفاء كلمة المرور"
+                      : "Hide password"
+                    : isArabic
+                      ? "إظهار كلمة المرور"
+                      : "Show password"}
+                </button>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="mt-2 w-full rounded-2xl bg-gold py-4 text-sm font-medium text-black transition hover:bg-[#e0bd73] disabled:opacity-60"
-            >
-              {loading
-                ? isArabic
-                  ? "جارٍ التحديث..."
-                  : "Updating..."
-                : isArabic
-                  ? "تحديث كلمة المرور"
-                  : "Update password"}
-            </button>
-          </form>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="mt-2 w-full rounded-2xl bg-gold py-4 text-sm font-medium text-black transition hover:bg-[#e0bd73] disabled:opacity-60"
+                >
+                  {loading
+                    ? isArabic
+                      ? "جارٍ التحديث..."
+                      : "Updating..."
+                    : isArabic
+                      ? "تحديث كلمة المرور"
+                      : "Update password"}
+                </button>
+              </form>
+            ) : (
+              <Link
+                href={`/${locale}/forgot-password`}
+                className="flex w-full items-center justify-center rounded-2xl bg-gold py-4 text-sm font-medium text-black"
+              >
+                {isArabic ? "طلب رابط جديد" : "Request a new link"}
+              </Link>
+            )}
+          </>
         )}
       </div>
     </main>
