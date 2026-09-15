@@ -1,11 +1,11 @@
 import { router, useLocalSearchParams } from "expo-router";
-import { Check, ChevronLeft, ChevronRight, MessageCircle, Send, X, Zap } from "lucide-react-native";
+import { Check, ChevronLeft, ChevronRight, MessageCircle, Phone, Send, X, Zap } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { MobileApiError } from "@/src/api/client";
-import { getConversationDetail, sendConversationMessage, submitQuickTalentDecision } from "@/src/domains/messages/api";
+import { getConversationDetail, sendConversationMessage, shareQuickContact, submitQuickTalentDecision } from "@/src/domains/messages/api";
 import type { ConversationDetailResponse, QuickRequestProductState } from "@/src/domains/messages/types";
 import { useLocale } from "@/src/i18n/LocaleProvider";
 import { colors, radius, spacing } from "@/src/theme/tokens";
@@ -36,6 +36,7 @@ export function ConversationScreen() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [deciding, setDeciding] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
 
@@ -103,6 +104,30 @@ export function ConversationScreen() {
     }
   }, [conversationId, deciding, isArabic, load, locale]);
 
+  const shareContact = useCallback(async () => {
+    if (sharing) return;
+    setSharing(true);
+    setError(null);
+    try {
+      await shareQuickContact(conversationId, locale);
+      await load();
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 0);
+    } catch (caught) {
+      const code = caught instanceof MobileApiError ? caught.code : "SHARE_FAILED";
+      setError(
+        code === "PHONE_MISSING"
+          ? (isArabic ? "لا يوجد رقم جوال محفوظ في حسابك. أضف رقمك أولًا ثم حاول مرة أخرى." : "No mobile number is saved on your account. Add one first, then try again.")
+          : code === "MUTUAL_CONFIRMATION_REQUIRED"
+            ? (isArabic ? "لا يمكن مشاركة رقم التواصل قبل تأكيد التعاون من الطرفين." : "Contact details cannot be shared before both sides confirm the collaboration.")
+            : code === "RATE_LIMITED"
+              ? (isArabic ? "تمت محاولات كثيرة خلال وقت قصير. حاول لاحقًا." : "Too many attempts in a short time. Try again later.")
+              : (isArabic ? "تعذرت مشاركة رقم التواصل. حاول مرة أخرى." : "Unable to share your contact number. Try again."),
+      );
+    } finally {
+      setSharing(false);
+    }
+  }, [conversationId, isArabic, load, locale, sharing]);
+
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
@@ -140,6 +165,24 @@ export function ConversationScreen() {
                   </Pressable>
                 </View>
               </>
+            ) : null}
+            {data.conversation.workflow.actions.canShareContact ? (
+              <View style={styles.contactShareBox}>
+                <Text style={[styles.contactShareText, { textAlign: align }]}>
+                  {isArabic
+                    ? "تم تأكيد التعاون من الطرفين. يمكنك الآن مشاركة رقم جوالك المحفوظ في حسابك، ولن تتم مشاركته إلا عند ضغطك على الزر."
+                    : "Both sides confirmed the collaboration. You can now explicitly share the mobile number saved on your account; it is never shared automatically."}
+                </Text>
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={sharing}
+                  onPress={() => void shareContact()}
+                  style={[styles.shareContactButton, sharing && styles.disabled]}
+                >
+                  <Phone size={15} color="#090909" />
+                  <Text style={styles.shareContactText}>{isArabic ? "مشاركة رقم التواصل" : "Share contact number"}</Text>
+                </Pressable>
+              </View>
             ) : null}
             {data.conversation.workflow.requestedMaterials.length ? (
               <Text style={[styles.workflowNote, { textAlign: align }]}>
@@ -203,6 +246,10 @@ const styles = StyleSheet.create({
   confirmText: { color: "#090909", fontSize: 12, fontWeight: "800" },
   declineButton: { minHeight: 42, flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
   declineText: { color: colors.textSecondary, fontSize: 12, fontWeight: "700" },
+  contactShareBox: { marginTop: spacing.md, borderTopWidth: 1, borderTopColor: "rgba(201,169,98,0.16)", paddingTop: spacing.md },
+  contactShareText: { color: colors.textMuted, fontSize: 11, lineHeight: 19 },
+  shareContactButton: { minHeight: 42, marginTop: spacing.sm, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, borderRadius: radius.lg, backgroundColor: colors.gold },
+  shareContactText: { color: "#090909", fontSize: 12, fontWeight: "800" },
   disabled: { opacity: 0.42 },
   messages: { flex: 1 },
   messagesContent: { paddingHorizontal: spacing.lg, paddingVertical: spacing.lg, gap: spacing.sm },
