@@ -32,3 +32,25 @@ export type MobileOpportunitiesResponse = {
   market: string;
   locale: "ar" | "en";
 };
+
+export type MobileOpportunityDetailResponse = {
+  item: MobilePublicOpportunity;
+  market: string;
+  locale: "ar" | "en";
+};
+
+export type MobileOpportunityResponseResult =
+  | {
+      ok: true;
+      code: "SUCCESS";
+      applicationId: number | string;
+      opportunityId: number;
+      opportunitySlug: string | null;
+      postingMode: "quick" | "casting";
+      conversationId: number | null;
+    }
+  | {
+      ok: false;
+      code: string;
+      details?: Record<string, unknown>;
+    };
