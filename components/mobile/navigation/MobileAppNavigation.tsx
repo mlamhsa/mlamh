@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import {
+  BookOpen,
   BriefcaseBusiness,
   Building2,
   CircleHelp,
@@ -181,6 +182,13 @@ export function MobileAppNavigation({
               labelEn: "Settings",
               href: "/talent-dashboard/settings",
               icon: Settings,
+            },
+            {
+              key: "talent-scene",
+              labelAr: "مشهد ملامح",
+              labelEn: "MLAMH Scene",
+              href: "/scene",
+              icon: BookOpen,
             },
           ];
 
