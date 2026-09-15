@@ -38,11 +38,11 @@ const ACTIONS: HomeAction[] = [
   },
   {
     key: "opportunities",
-    titleAr: "الفرص المنشورة",
-    titleEn: "Published opportunities",
-    bodyAr: "راجع سوق الفرص الحالي وافهم ما يظهر للمواهب قبل إنشاء طلبك التالي.",
-    bodyEn: "Review the live opportunity market before creating your next brief.",
-    href: "/opportunities",
+    titleAr: "فرصي",
+    titleEn: "My opportunities",
+    bodyAr: "تابع حالة فرصك وعدد المتقدمين عليها من المراجعة حتى النشر والإغلاق.",
+    bodyEn: "Track your opportunities and applicant counts from review through publishing and closure.",
+    href: "/publisher-opportunities",
     icon: BriefcaseBusiness,
   },
 ];
