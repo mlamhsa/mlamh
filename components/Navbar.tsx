@@ -582,6 +582,27 @@ export function Navbar({ locale }: { locale: Locale }) {
               <span className="h-1.5 w-1.5 rounded-full bg-gold" />
             ) : null}
           </Link>
+
+          {showTalentActivity ? (
+            <Link
+              href={`/${routeLocale}/scene`}
+              onClick={() => setProfileOpen(false)}
+              aria-current={pathname.includes("/scene") ? "page" : undefined}
+              className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm tracking-normal transition ${
+                pathname.includes("/scene")
+                  ? "border border-gold/20 bg-gold/10 text-gold"
+                  : "border border-transparent text-white/70 hover:bg-white/5 hover:text-gold"
+              }`}
+            >
+              <GalleryVerticalEnd size={16} />
+              <span className="flex-1">
+                {isAr ? "مشهد ملامح" : "MLAMH Scene"}
+              </span>
+              {pathname.includes("/scene") ? (
+                <span className="h-1.5 w-1.5 rounded-full bg-gold" />
+              ) : null}
+            </Link>
+          ) : null}
         </>
       ) : null}
     </div>
