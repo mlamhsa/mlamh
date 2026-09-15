@@ -65,6 +65,31 @@ export type PublisherOpportunityWorkspaceResponse = {
   };
 };
 
+export type PublisherApplicantDecisionResponse = {
+  ok: true;
+  applicationId: string | number;
+  opportunityId: string | number;
+  postingMode: string | null;
+  status: "accepted" | "rejected";
+  conversationId: number | null;
+  changed: boolean;
+};
+
 export function getPublisherOpportunityWorkspace(id: number) {
-  return mobileApiRequest<PublisherOpportunityWorkspaceResponse>(`/api/mobile/publisher/opportunities/${id}`);
+  return mobileApiRequest<PublisherOpportunityWorkspaceResponse>(
+    `/api/mobile/publisher/opportunities/${id}`,
+  );
+}
+
+export function decidePublisherApplicant(
+  applicationId: number,
+  status: "accepted" | "rejected",
+) {
+  return mobileApiRequest<PublisherApplicantDecisionResponse>(
+    `/api/mobile/publisher/applications/${applicationId}/status`,
+    {
+      method: "POST",
+      body: { status },
+    },
+  );
 }
