@@ -29,16 +29,16 @@ function deletionErrorMessage(error: unknown, isArabic: boolean) {
     case "APPLE_TOKEN_EXCHANGE_FAILED":
     case "APPLE_REVOCATION_FAILED":
       return isArabic
-        ? "تعذر إلغاء ربط Apple بأمان. لم يتم حذف الحساب؛ حاول مرة أخرى."
-        : "We could not safely revoke Apple access. Your account was not deleted; please try again.";
+        ? "تعذر إلغاء ربط Apple بأمان. لم يكتمل حذف الحساب؛ حاول مرة أخرى."
+        : "We could not safely revoke Apple access. Account deletion was not completed; please try again.";
     case "NETWORK_ERROR":
       return isArabic
         ? "تعذر الاتصال بملامح. تحقق من الإنترنت ثم حاول مرة أخرى."
         : "Unable to reach MLAMH. Check your connection and try again.";
     default:
       return isArabic
-        ? "تعذر حذف الحساب الآن. لم يتم إجراء حذف جزئي؛ حاول مرة أخرى."
-        : "We could not delete the account right now. Please try again.";
+        ? "تعذر إكمال حذف الحساب الآن. حاول مرة أخرى أو تواصل مع الدعم إذا استمرت المشكلة."
+        : "Account deletion could not be completed. Please try again or contact support if the issue continues.";
   }
 }
 
