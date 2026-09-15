@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { TalentFeaturedEntryPoint } from "@/components/payments/TalentFeaturedEntryPoint";
 import TalentApprovedLegacyRequiredFieldsCard from "@/components/talent/TalentApprovedLegacyRequiredFieldsCard";
 import TalentConsentCompletionCard from "@/components/talent/TalentConsentCompletionCard";
+import TalentDashboardHomeOnly from "@/components/talent/TalentDashboardHomeOnly";
 import TalentDashboardShell from "@/components/talent/TalentDashboardShell";
 import TalentRealtimeSync from "@/components/talent/TalentRealtimeSync";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -82,7 +83,9 @@ export default async function TalentDashboardLayout({
     <>
       {user ? <TalentRealtimeSync userId={user.id} talentId={talentId} /> : null}
       {user ? (
-        <TalentFeaturedEntryPoint locale={locale} userId={user.id} />
+        <TalentDashboardHomeOnly locale={safeLocale}>
+          <TalentFeaturedEntryPoint locale={locale} userId={user.id} />
+        </TalentDashboardHomeOnly>
       ) : null}
       {user ? <TalentConsentCompletionCard locale={locale} /> : null}
       {user ? <TalentApprovedLegacyRequiredFieldsCard locale={locale} /> : null}
