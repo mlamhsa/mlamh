@@ -1,5 +1,5 @@
-import { OpportunityDetailScreen } from "@/src/domains/opportunities/OpportunityDetailScreen";
+import { OpportunityDetailScreenV2 } from "@/src/domains/opportunities/OpportunityDetailScreenV2";
 
 export default function OpportunityDetailRoute() {
-  return <OpportunityDetailScreen />;
+  return <OpportunityDetailScreenV2 />;
 }
