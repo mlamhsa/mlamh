@@ -15,6 +15,7 @@ export type TalentApplicationItem = {
     city: string | null;
     countryCode: string | null;
     opportunityType: string | null;
+    postingMode: "quick" | "casting";
     status: string | null;
     createdAt: string | null;
   } | null;
@@ -41,6 +42,7 @@ type OpportunityRow = {
   city_en: string | null;
   country_code: string | null;
   opportunity_type: string | null;
+  posting_mode: string | null;
   status: string | null;
   created_at: string | null;
 };
@@ -56,6 +58,10 @@ function firstOpportunity(row: ApplicationRow) {
   return Array.isArray(row.opportunities)
     ? row.opportunities[0] ?? null
     : row.opportunities;
+}
+
+function getPostingMode(opportunity: OpportunityRow | null) {
+  return opportunity?.posting_mode === "quick" ? "quick" as const : "casting" as const;
 }
 
 export async function getTalentApplications(input: {
@@ -92,6 +98,7 @@ export async function getTalentApplications(input: {
         city_en,
         country_code,
         opportunity_type,
+        posting_mode,
         status,
         created_at
       )
@@ -105,16 +112,19 @@ export async function getTalentApplications(input: {
   }
 
   const rows = (data ?? []) as ApplicationRow[];
-  const acceptedIds = rows
-    .filter((row) => normalizeApplicationStatus(row.status) === "accepted")
+  const conversationEligibleIds = rows
+    .filter((row) => {
+      const opportunity = firstOpportunity(row);
+      return getPostingMode(opportunity) === "quick" || normalizeApplicationStatus(row.status) === "accepted";
+    })
     .map((row) => row.id);
 
   const conversationByApplicationId = new Map<string, string>();
-  if (acceptedIds.length > 0) {
+  if (conversationEligibleIds.length > 0) {
     const { data: conversations, error: conversationError } = await admin
       .from("conversations")
       .select("id, application_id")
-      .in("application_id", acceptedIds);
+      .in("application_id", conversationEligibleIds);
 
     if (conversationError) {
       console.error("[getTalentApplications conversations]", conversationError);
@@ -133,6 +143,7 @@ export async function getTalentApplications(input: {
   const items: TalentApplicationItem[] = rows.map((row) => {
     const opportunity = firstOpportunity(row);
     const status = normalizeApplicationStatus(row.status);
+    const postingMode = getPostingMode(opportunity);
     const isEnglish = input.locale === "en";
 
     return {
@@ -151,12 +162,13 @@ export async function getTalentApplications(input: {
               : opportunity.city_ar || opportunity.city_en,
             countryCode: opportunity.country_code?.trim().toUpperCase() || null,
             opportunityType: opportunity.opportunity_type,
+            postingMode,
             status: opportunity.status,
             createdAt: opportunity.created_at,
           }
         : null,
       conversationId:
-        status === "accepted"
+        postingMode === "quick" || status === "accepted"
           ? conversationByApplicationId.get(String(row.id)) ?? null
           : null,
     };
