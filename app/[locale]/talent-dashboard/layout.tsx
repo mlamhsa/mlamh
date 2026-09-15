@@ -5,7 +5,6 @@ import TalentApprovedLegacyRequiredFieldsCard from "@/components/talent/TalentAp
 import TalentConsentCompletionCard from "@/components/talent/TalentConsentCompletionCard";
 import TalentDashboardShell from "@/components/talent/TalentDashboardShell";
 import TalentRealtimeSync from "@/components/talent/TalentRealtimeSync";
-import TalentSceneEntryPoint from "@/components/talent/TalentSceneEntryPoint";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export default async function TalentDashboardLayout({
@@ -93,7 +92,6 @@ export default async function TalentDashboardLayout({
         notificationCount={notificationCount}
         unreadMessagesCount={unreadMessagesCount}
       >
-        <TalentSceneEntryPoint locale={safeLocale} />
         {children}
       </TalentDashboardShell>
     </>
