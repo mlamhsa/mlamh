@@ -346,13 +346,13 @@ export default function TalentCoreDetailsPage({ params }: { params: Promise<{ lo
       <div className="mx-auto max-w-3xl">
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
-            <p className="text-[11px] uppercase tracking-[0.25em] text-gold">{isArabic ? "الملف الشخصي" : "PROFILE"}</p>
-            <h1 className="mt-2 text-3xl font-light sm:text-4xl">{isArabic ? "تحسين بيانات الموهبة" : "Improve talent profile"}</h1>
+            <p className="text-[11px] uppercase tracking-[0.25em] text-gold">{isArabic ? "ملفي" : "MY PROFILE"}</p>
+            <h1 className="mt-2 text-3xl font-light sm:text-4xl">{isArabic ? "البيانات المهنية" : "Professional details"}</h1>
             <p className="mt-3 text-sm leading-7 text-white/50">
-              {isArabic ? "يمكنك تحديث بياناتك المهنية في أي وقت لزيادة فرص الظهور والمطابقة مع الفرص." : "You can update your professional details at any time to improve discovery and matching."}
+              {isArabic ? "حدّث بياناتك المهنية لتحسين الظهور والمطابقة مع الفرص. هذه العناصر اختيارية ولا تمنع إرسال ملفك للمراجعة." : "Update your professional details to improve discovery and matching. These fields are optional and do not block review submission."}
             </p>
           </div>
-          <Link href={`/${locale}/talent-dashboard/profile`} className="shrink-0 rounded-full border border-white/10 px-4 py-2 text-sm text-white/60 hover:text-gold">{isArabic ? "رجوع" : "Back"}</Link>
+          <Link href={`/${locale}/talent-dashboard/profile`} className="shrink-0 rounded-full border border-white/10 px-4 py-2 text-sm text-white/60 hover:text-gold">{isArabic ? "ملفي" : "Profile"}</Link>
         </div>
 
         {!coreEditable ? (
@@ -370,7 +370,7 @@ export default function TalentCoreDetailsPage({ params }: { params: Promise<{ lo
                 <p className="text-[11px] uppercase tracking-[0.22em] text-gold">{isArabic ? "البيانات الأساسية" : "CORE DETAILS"}</p>
                 <p className="mt-2 text-sm leading-7 text-white/45">
                   {coreEditable
-                    ? (isArabic ? "هذه البيانات تُعرض هنا للمرجع فقط. تعديلها يتم من صفحة متطلبات الاعتماد حتى لا تختلط مع حفظ البيانات المهنية." : "These details are shown here for reference only. Edit them from Review Requirements so they are not mixed with professional-detail saves.")
+                    ? (isArabic ? "هذه البيانات تُعرض هنا للمرجع فقط. تعديلها يتم من قسم البيانات الأساسية داخل «ملفي» حتى لا تختلط مع حفظ البيانات المهنية." : "These details are shown here for reference only. Edit them from Basic information in My Profile so they are not mixed with professional-detail saves.")
                     : (isArabic ? "هذه البيانات محمية أثناء المراجعة أو بعد الاعتماد." : "These details are protected while under review or after approval.")}
                 </p>
               </div>
@@ -414,7 +414,7 @@ export default function TalentCoreDetailsPage({ params }: { params: Promise<{ lo
                   {(country?.cities ?? []).map((item) => <option key={item.value} value={item.value}>{isArabic ? item.ar : item.en}</option>)}
                 </select>
               </Field>
-              <Field label={isArabic ? "تاريخ الميلاد" : "Date of birth"} hint={isArabic ? "من البيانات الأساسية — تعديله من صفحة متطلبات الاعتماد عند السماح بذلك" : "A core field — edit it from Review Requirements when allowed"}>
+              <Field label={isArabic ? "تاريخ الميلاد" : "Date of birth"} hint={isArabic ? "من البيانات الأساسية — تعديله من قسم البيانات الأساسية داخل «ملفي» عند السماح بذلك" : "A core field — edit it from Basic information in My Profile when allowed"}>
                 <input type="date" value={birthDate} disabled dir="ltr" className="input" />
               </Field>
             </div>
@@ -453,7 +453,10 @@ export default function TalentCoreDetailsPage({ params }: { params: Promise<{ lo
                 <MultiChoiceField label={isArabic ? "اللهجات" : "Dialects"} values={dialects} onChange={setDialects} options={withLegacyValues(dialects, TALENT_DIALECT_CHOICES)} isArabic={isArabic} searchable />
                 <MultiChoiceField label={isArabic ? "المهارات" : "Skills"} values={skills} onChange={setSkills} options={withLegacyValues(skills, ACTOR_SKILL_CHOICES)} isArabic={isArabic} searchable />
               </div>
-              <Link href={`/${locale}/talent-dashboard/gallery`} className="mt-7 inline-flex min-h-11 items-center justify-center rounded-2xl border border-gold/25 px-5 text-sm text-gold hover:bg-gold/[0.05]">{isArabic ? "فتح معرض الأعمال وإضافة الفيديو والروابط" : "Open Portfolio to add video and links"}</Link>
+              <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+                <Link href={`/${locale}/talent-dashboard/gallery`} className="inline-flex min-h-11 items-center justify-center rounded-2xl border border-gold/25 px-5 text-sm text-gold hover:bg-gold/[0.05]">{isArabic ? "إدارة الصور والأعمال" : "Manage photos & work"}</Link>
+                <Link href={`/${locale}/talent-dashboard/gallery/links`} className="inline-flex min-h-11 items-center justify-center rounded-2xl border border-white/10 px-5 text-sm text-white/65 hover:border-gold/30 hover:text-gold">{isArabic ? "إدارة الفيديو والروابط المهنية" : "Manage video & professional links"}</Link>
+              </div>
             </section>
           ) : null}
 
@@ -475,7 +478,10 @@ export default function TalentCoreDetailsPage({ params }: { params: Promise<{ lo
                 <Field label={isArabic ? "لون البشرة" : "Skin tone"}><SingleChoiceSelect value={skinColor} onChange={setSkinColor} options={SKIN_TONE_CHOICES} isArabic={isArabic} /></Field>
               </div>
               <div className="mt-7"><MultiChoiceField label={isArabic ? "أنواع المودل" : "Modeling types"} values={modelingTypes} onChange={setModelingTypes} options={withLegacyValues(modelingTypes, MODEL_TYPE_CHOICES)} isArabic={isArabic} searchable /></div>
-              <Link href={`/${locale}/talent-dashboard/gallery`} className="mt-7 inline-flex min-h-11 items-center justify-center rounded-2xl border border-gold/25 px-5 text-sm text-gold hover:bg-gold/[0.05]">{isArabic ? "فتح معرض الأعمال وإضافة الفيديو والروابط" : "Open Portfolio to add video and links"}</Link>
+              <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+                <Link href={`/${locale}/talent-dashboard/gallery`} className="inline-flex min-h-11 items-center justify-center rounded-2xl border border-gold/25 px-5 text-sm text-gold hover:bg-gold/[0.05]">{isArabic ? "إدارة الصور والأعمال" : "Manage photos & work"}</Link>
+                <Link href={`/${locale}/talent-dashboard/gallery/links`} className="inline-flex min-h-11 items-center justify-center rounded-2xl border border-white/10 px-5 text-sm text-white/65 hover:border-gold/30 hover:text-gold">{isArabic ? "إدارة الفيديو والروابط المهنية" : "Manage video & professional links"}</Link>
+              </div>
             </section>
           ) : null}
 
