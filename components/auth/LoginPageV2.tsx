@@ -142,6 +142,9 @@ export function LoginPageV2({ locale, initialEmail = "", errorCode, messageCode 
 
   const legacyVerifyMessage = messageCode === "verify_email";
   const accountExists = errorCode === "account_exists";
+  const forgotPasswordHref = email.trim()
+    ? `/${locale}/forgot-password?email=${encodeURIComponent(email.trim().toLowerCase())}`
+    : `/${locale}/forgot-password`;
 
   return (
     <main
@@ -256,7 +259,7 @@ export function LoginPageV2({ locale, initialEmail = "", errorCode, messageCode 
               />
               <span>{copy.remember}</span>
             </label>
-            <Link href={`/${locale}/forgot-password`} className="text-gold transition hover:text-gold-soft">
+            <Link href={forgotPasswordHref} className="text-gold transition hover:text-gold-soft">
               {copy.forgot}
             </Link>
           </div>
