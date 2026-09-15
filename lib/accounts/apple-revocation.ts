@@ -4,12 +4,17 @@ type AppleRevocationResult =
   | { ok: true }
   | {
       ok: false;
-      code: "APPLE_REVOCATION_CONFIG_MISSING" | "APPLE_TOKEN_EXCHANGE_FAILED" | "APPLE_REVOCATION_FAILED";
+      code:
+        | "APPLE_REVOCATION_CONFIG_MISSING"
+        | "APPLE_TOKEN_EXCHANGE_FAILED"
+        | "APPLE_IDENTITY_MISMATCH"
+        | "APPLE_REVOCATION_FAILED";
     };
 
 type AppleTokenResponse = {
   access_token?: string;
   refresh_token?: string;
+  id_token?: string;
   error?: string;
 };
 
@@ -47,7 +52,23 @@ function createAppleClientSecret(config: NonNullable<ReturnType<typeof getAppleR
   return `${signingInput}.${base64Url(signature)}`;
 }
 
-export async function revokeAppleAuthorizationCode(authorizationCode: string): Promise<AppleRevocationResult> {
+function getAppleSubject(idToken: string | undefined) {
+  if (!idToken) return null;
+  const [, payload] = idToken.split(".");
+  if (!payload) return null;
+
+  try {
+    const decoded = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as { sub?: unknown };
+    return typeof decoded.sub === "string" && decoded.sub.trim() ? decoded.sub.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function revokeAppleAuthorizationCode(
+  authorizationCode: string,
+  expectedAppleSubject: string,
+): Promise<AppleRevocationResult> {
   const config = getAppleRevocationConfig();
   if (!config) return { ok: false, code: "APPLE_REVOCATION_CONFIG_MISSING" };
 
@@ -67,6 +88,11 @@ export async function revokeAppleAuthorizationCode(authorizationCode: string): P
   if (!tokenResponse?.ok) return { ok: false, code: "APPLE_TOKEN_EXCHANGE_FAILED" };
 
   const tokenPayload = (await tokenResponse.json().catch(() => null)) as AppleTokenResponse | null;
+  const appleSubject = getAppleSubject(tokenPayload?.id_token);
+  if (!appleSubject || appleSubject !== expectedAppleSubject) {
+    return { ok: false, code: "APPLE_IDENTITY_MISMATCH" };
+  }
+
   const token = tokenPayload?.refresh_token?.trim() || tokenPayload?.access_token?.trim();
   if (!token) return { ok: false, code: "APPLE_TOKEN_EXCHANGE_FAILED" };
 
