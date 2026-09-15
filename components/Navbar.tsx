@@ -806,6 +806,32 @@ export function Navbar({ locale }: { locale: Locale }) {
         </Link>
 
         {showTalentActivity ? (
+          <Link
+            href={`/${routeLocale}/scene`}
+            onClick={closeMobileMenu}
+            aria-current={pathname.includes("/scene") ? "page" : undefined}
+            className={`flex min-h-12 items-center gap-4 rounded-xl border px-3 text-sm transition active:scale-[0.99] ${
+              pathname.includes("/scene")
+                ? "border-gold/20 bg-gold/10 text-gold"
+                : "border-transparent text-white/75 active:bg-white/[0.06] active:text-white"
+            }`}
+          >
+            <GalleryVerticalEnd
+              size={18}
+              className={`shrink-0 ${
+                pathname.includes("/scene") ? "text-gold" : "text-white/45"
+              }`}
+            />
+            <span className="flex-1">
+              {isAr ? "مشهد ملامح" : "MLAMH Scene"}
+            </span>
+            {pathname.includes("/scene") ? (
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-gold" />
+            ) : null}
+          </Link>
+        ) : null}
+
+        {showTalentActivity ? (
           <>
             <p className="px-3 pb-1 pt-4 text-[11px] font-semibold text-white/35">
               {isAr ? "نشاطي" : "MY ACTIVITY"}
