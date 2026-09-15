@@ -92,7 +92,7 @@ export default function TalentPortfolioLinksPage({ params }: { params: Promise<{
     return (
       <main className="min-h-screen bg-background px-4 pb-24 pt-40 text-white" dir={isArabic ? "rtl" : "ltr"}>
         <div className="mx-auto max-w-xl rounded-[2rem] border border-red-400/20 bg-red-400/[0.05] p-7 text-center">
-          <h1 className="text-2xl font-light">{isArabic ? "تعذر فتح روابط معرضك" : "Unable to open portfolio links"}</h1>
+          <h1 className="text-2xl font-light">{isArabic ? "تعذر فتح الفيديو والروابط" : "Unable to open video and links"}</h1>
           <p className="mt-3 text-sm text-white/55">{loadError}</p>
           <button onClick={() => void load()} className="mt-6 rounded-full bg-gold px-6 py-3 text-sm font-semibold text-black">{isArabic ? "إعادة المحاولة" : "Try again"}</button>
         </div>
@@ -105,32 +105,33 @@ export default function TalentPortfolioLinksPage({ params }: { params: Promise<{
       <div className="mx-auto max-w-3xl">
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
-            <p className="text-[11px] uppercase tracking-[0.25em] text-gold">{isArabic ? "معرض الأعمال" : "PORTFOLIO"}</p>
-            <h1 className="mt-2 text-3xl font-light sm:text-4xl">{isArabic ? "الفيديو وروابطك المهنية" : "Video & professional links"}</h1>
-            <p className="mt-3 text-sm leading-7 text-white/50">{isArabic ? "أضف Showreel وروابط الأعمال وحسابات السوشيال ميديا. جميعها اختيارية ولا تمنع اعتماد الملف." : "Add a showreel, work links and social profiles. All are optional and never block approval."}</p>
+            <p className="text-[11px] uppercase tracking-[0.25em] text-gold">{isArabic ? "ملفي" : "MY PROFILE"}</p>
+            <h1 className="mt-2 text-3xl font-light sm:text-4xl">{isArabic ? "الفيديو والروابط المهنية" : "Video & professional links"}</h1>
+            <p className="mt-3 text-sm leading-7 text-white/50">{isArabic ? "أضف روابط Showreel والفيديو والأعمال وحساباتك المهنية. هذه العناصر اختيارية ولا تمنع إرسال ملفك للمراجعة." : "Add showreel, video, work and professional social links. These are optional and never block review submission."}</p>
+            <p className="mt-2 text-xs leading-6 text-white/35">{isArabic ? "في المرحلة الحالية نستخدم روابط مشاهدة خارجية فقط؛ رفع الفيديو المباشر سيُضاف لاحقًا." : "For now, MLAMH uses external viewing links only. Direct video upload will be added later."}</p>
           </div>
-          <Link href={`/${locale}/talent-dashboard/gallery`} className="shrink-0 rounded-full border border-white/10 px-4 py-2 text-sm text-white/60 hover:text-gold">{isArabic ? "رجوع" : "Back"}</Link>
+          <Link href={`/${locale}/talent-dashboard/profile`} className="shrink-0 rounded-full border border-white/10 px-4 py-2 text-sm text-white/60 hover:text-gold">{isArabic ? "ملفي" : "Profile"}</Link>
         </div>
 
         <form onSubmit={save} className="space-y-5" noValidate>
           <section className="rounded-[2rem] border border-gold/20 bg-gold/[0.025] p-5 sm:p-7">
             <p className="text-[11px] uppercase tracking-[0.22em] text-gold">{isArabic ? "الفيديو والأعمال" : "VIDEO & WORK"}</p>
             <div className="mt-5 grid gap-5">
-              <Field label={isArabic ? "رابط Showreel" : "Showreel URL"} hint={isArabic ? "YouTube أو Vimeo أو أي رابط مشاهدة آمن" : "YouTube, Vimeo or another secure viewing link"}>
+              <Field label={isArabic ? "رابط Showreel" : "Showreel URL"} hint={isArabic ? "YouTube أو Vimeo أو أي رابط مشاهدة مناسب" : "YouTube, Vimeo or another suitable viewing link"}>
                 <input type="text" inputMode="url" value={showreelUrl} onChange={(e) => setShowreelUrl(e.target.value)} placeholder="https://..." dir="ltr" className="input text-left" />
               </Field>
-              <Field label={isArabic ? "فيديو تعريفي" : "Intro video"} hint={isArabic ? "رابط فيديو قصير يعرّف بك" : "A short video introducing yourself"}>
+              <Field label={isArabic ? "رابط فيديو تعريفي" : "Intro video URL"} hint={isArabic ? "رابط فيديو قصير يعرّف بك" : "A link to a short video introducing yourself"}>
                 <input type="text" inputMode="url" value={videoIntro} onChange={(e) => setVideoIntro(e.target.value)} placeholder="https://..." dir="ltr" className="input text-left" />
               </Field>
-              <Field label={isArabic ? "رابط بورتفوليو خارجي" : "External portfolio"} hint={isArabic ? "يمكن إدخال الرابط مع https:// أو بدونه" : "You can enter the link with or without https://"}>
+              <Field label={isArabic ? "رابط بورتفوليو خارجي" : "External portfolio"} hint={isArabic ? "موقعك أو صفحة أعمال خارجية" : "Your website or an external work page"}>
                 <input type="text" inputMode="url" value={portfolioUrl} onChange={(e) => setPortfolioUrl(e.target.value)} placeholder="https://..." dir="ltr" className="input text-left" />
               </Field>
             </div>
           </section>
 
           <section className="rounded-[2rem] border border-white/10 bg-white/[0.025] p-5 sm:p-7">
-            <p className="text-[11px] uppercase tracking-[0.22em] text-gold">{isArabic ? "السوشيال ميديا" : "SOCIAL MEDIA"}</p>
-            <p className="mt-2 text-sm leading-7 text-white/45">{isArabic ? "أدخل اسم المستخدم أو رابط الحساب الرسمي. سنحوّله تلقائيًا إلى رابط آمن على المنصة نفسها." : "Enter a username or the official profile URL. We normalize it to a secure link on the same platform."}</p>
+            <p className="text-[11px] uppercase tracking-[0.22em] text-gold">{isArabic ? "الروابط المهنية" : "PROFESSIONAL SOCIAL LINKS"}</p>
+            <p className="mt-2 text-sm leading-7 text-white/45">{isArabic ? "أدخل اسم المستخدم أو رابط حسابك المهني. هذه الروابط جزء من ملفك وليست معرض الصور." : "Enter your username or professional profile URL. These links are part of your profile, not your photo gallery."}</p>
             <div className="mt-5 grid gap-5 sm:grid-cols-2">
               <Field label="Instagram"><input type="text" inputMode="url" autoCapitalize="none" value={instagram} onChange={(e) => setInstagram(e.target.value)} placeholder="@username أو https://instagram.com/..." dir="ltr" className="input text-left" /></Field>
               <Field label="TikTok"><input type="text" inputMode="url" autoCapitalize="none" value={tiktok} onChange={(e) => setTiktok(e.target.value)} placeholder="@username أو https://tiktok.com/@..." dir="ltr" className="input text-left" /></Field>
@@ -142,7 +143,7 @@ export default function TalentPortfolioLinksPage({ params }: { params: Promise<{
 
           <div className="flex flex-col gap-3 sm:flex-row">
             <button type="submit" disabled={saving} className="min-h-12 rounded-2xl bg-gold px-7 text-sm font-semibold text-black disabled:opacity-50">{saving ? (isArabic ? "جارٍ الحفظ..." : "Saving...") : (isArabic ? "حفظ الروابط" : "Save links")}</button>
-            <Link href={`/${locale}/talent-dashboard/gallery`} className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-white/10 px-7 text-sm text-white/60 hover:text-gold">{isArabic ? "إلغاء" : "Cancel"}</Link>
+            <Link href={`/${locale}/talent-dashboard/profile`} className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-white/10 px-7 text-sm text-white/60 hover:text-gold">{isArabic ? "العودة إلى ملفي" : "Back to profile"}</Link>
           </div>
         </form>
       </div>
