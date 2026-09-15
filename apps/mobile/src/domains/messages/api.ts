@@ -22,3 +22,10 @@ export function submitQuickTalentDecision(conversationId: number, decision: "acc
     body: { decision, locale },
   });
 }
+
+export function shareQuickContact(conversationId: number, locale: "ar" | "en") {
+  return mobileApiRequest<{ ok: true; code: "SHARED" | "ALREADY_SHARED" }>(`/api/conversations/${conversationId}/quick/share-contact`, {
+    method: "POST",
+    body: { locale },
+  });
+}
