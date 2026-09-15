@@ -1,10 +1,11 @@
 import { router, useLocalSearchParams } from "expo-router";
-import { BriefcaseBusiness, ChevronLeft, ChevronRight, MessageCircle, UserRound, Users, Zap } from "lucide-react-native";
+import { BriefcaseBusiness, Check, ChevronLeft, ChevronRight, MessageCircle, UserRound, X, Zap } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
+  decidePublisherApplicant,
   getPublisherOpportunityWorkspace,
   type PublisherOpportunityApplicant,
   type PublisherOpportunityWorkspaceResponse,
@@ -13,6 +14,7 @@ import { useLocale } from "@/src/i18n/LocaleProvider";
 import { colors, radius, spacing } from "@/src/theme/tokens";
 
 type FilterKey = "all" | "pending" | "selected" | "rejected";
+type Decision = "accepted" | "rejected";
 
 function stateLabel(state: string, isArabic: boolean) {
   const labels: Record<string, [string, string]> = {
@@ -44,6 +46,8 @@ export function PublisherOpportunityWorkspaceScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
+  const [decisionBusyId, setDecisionBusyId] = useState<number | null>(null);
+  const [decisionError, setDecisionError] = useState<string | null>(null);
 
   const load = useCallback(async (refresh = false) => {
     if (!Number.isInteger(opportunityId) || opportunityId <= 0) {
@@ -76,6 +80,60 @@ export function PublisherOpportunityWorkspaceScreen() {
 
   const isQuick = data?.opportunity.postingMode === "quick";
   const ModeIcon = isQuick ? Zap : BriefcaseBusiness;
+
+  const runDecision = useCallback(async (applicationId: number, decision: Decision) => {
+    setDecisionBusyId(applicationId);
+    setDecisionError(null);
+    try {
+      const result = await decidePublisherApplicant(applicationId, decision);
+      await load(true);
+      if (decision === "accepted" && result.conversationId) {
+        router.push(`/messages/${result.conversationId}` as never);
+      }
+    } catch {
+      setDecisionError(
+        isArabic
+          ? "تعذر تحديث حالة المتقدم. حدّث الصفحة وحاول مرة أخرى."
+          : "Unable to update this applicant. Refresh and try again.",
+      );
+    } finally {
+      setDecisionBusyId(null);
+    }
+  }, [isArabic, load]);
+
+  const confirmDecision = useCallback((item: PublisherOpportunityApplicant, decision: Decision) => {
+    const quickSelection = isQuick && decision === "accepted";
+    Alert.alert(
+      quickSelection
+        ? (isArabic ? "اختيار مبدئي" : "Preliminary selection")
+        : decision === "accepted"
+          ? (isArabic ? "قبول المتقدم" : "Accept applicant")
+          : (isArabic ? "رفض المتقدم" : "Reject applicant"),
+      quickSelection
+        ? (isArabic
+            ? "سيتم فتح محادثة مع الموهبة. هذا اختيار مبدئي وليس تأكيدًا نهائيًا للتعاون."
+            : "A conversation will open with the talent. This is a preliminary selection, not final confirmation.")
+        : decision === "accepted"
+          ? (isArabic
+              ? "سيتم قبول المتقدم وفتح محادثة مرتبطة بهذه الفرصة."
+              : "The applicant will be accepted and a linked conversation will be opened.")
+          : (isArabic
+              ? "سيتم رفض هذا الطلب ولا يمكن التراجع عن الحالة من هذه الشاشة."
+              : "This application will be rejected and cannot be reversed from this screen."),
+      [
+        { text: isArabic ? "إلغاء" : "Cancel", style: "cancel" },
+        {
+          text: quickSelection
+            ? (isArabic ? "اختيار" : "Select")
+            : decision === "accepted"
+              ? (isArabic ? "قبول" : "Accept")
+              : (isArabic ? "رفض" : "Reject"),
+          style: decision === "rejected" ? "destructive" : "default",
+          onPress: () => { void runDecision(item.applicationId, decision); },
+        },
+      ],
+    );
+  }, [isArabic, isQuick, runDecision]);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
@@ -118,6 +176,8 @@ export function PublisherOpportunityWorkspaceScreen() {
               </View>
             </View>
 
+            {decisionError ? <Text style={[styles.decisionError, { textAlign: align }]}>{decisionError}</Text> : null}
+
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
               {([
                 ["all", isArabic ? "الكل" : "All", data.counts.total],
@@ -135,7 +195,18 @@ export function PublisherOpportunityWorkspaceScreen() {
               <View style={styles.stateCard}><Text style={[styles.stateText, { textAlign: align }]}>{isArabic ? "لا يوجد متقدمون ضمن هذا التصنيف." : "No applicants in this filter."}</Text></View>
             ) : (
               <View style={styles.list}>
-                {applicants.map((item) => <ApplicantCard key={item.applicationId} item={item} isArabic={isArabic} align={align} />)}
+                {applicants.map((item) => (
+                  <ApplicantCard
+                    key={item.applicationId}
+                    item={item}
+                    isArabic={isArabic}
+                    align={align}
+                    isQuick={Boolean(isQuick)}
+                    busy={decisionBusyId === item.applicationId}
+                    decisionsDisabled={decisionBusyId !== null}
+                    onDecision={(decision) => confirmDecision(item, decision)}
+                  />
+                ))}
               </View>
             )}
           </>
@@ -145,9 +216,27 @@ export function PublisherOpportunityWorkspaceScreen() {
   );
 }
 
-function ApplicantCard({ item, isArabic, align }: { item: PublisherOpportunityApplicant; isArabic: boolean; align: "right" | "left" }) {
+function ApplicantCard({
+  item,
+  isArabic,
+  align,
+  isQuick,
+  busy,
+  decisionsDisabled,
+  onDecision,
+}: {
+  item: PublisherOpportunityApplicant;
+  isArabic: boolean;
+  align: "right" | "left";
+  isQuick: boolean;
+  busy: boolean;
+  decisionsDisabled: boolean;
+  onDecision: (decision: Decision) => void;
+}) {
   const talentName = isArabic ? (item.talent?.nameAr ?? item.talent?.nameEn ?? "موهبة") : (item.talent?.nameEn ?? item.talent?.nameAr ?? "Talent");
   const city = isArabic ? (item.talent?.cityAr ?? item.talent?.cityEn ?? "—") : (item.talent?.cityEn ?? item.talent?.cityAr ?? "—");
+  const canDecide = item.rawStatus !== "accepted" && item.rawStatus !== "rejected";
+
   return (
     <View style={styles.card}>
       <View style={[styles.cardTop, { flexDirection: isArabic ? "row-reverse" : "row" }]}>
@@ -158,6 +247,35 @@ function ApplicantCard({ item, isArabic, align }: { item: PublisherOpportunityAp
         </View>
         <View style={styles.statusPill}><Text style={styles.statusText}>{stateLabel(item.displayState, isArabic)}</Text></View>
       </View>
+
+      {canDecide ? (
+        <View style={[styles.decisionRow, { flexDirection: isArabic ? "row-reverse" : "row" }]}>
+          <Pressable
+            disabled={decisionsDisabled}
+            accessibilityRole="button"
+            onPress={() => onDecision("accepted")}
+            style={[styles.selectButton, decisionsDisabled && styles.disabledButton]}
+          >
+            <Check size={14} color="#090909" />
+            <Text style={styles.primaryText}>
+              {busy
+                ? (isArabic ? "جارٍ التحديث..." : "Updating...")
+                : isQuick
+                  ? (isArabic ? "اختيار مبدئي" : "Select")
+                  : (isArabic ? "قبول" : "Accept")}
+            </Text>
+          </Pressable>
+          <Pressable
+            disabled={decisionsDisabled}
+            accessibilityRole="button"
+            onPress={() => onDecision("rejected")}
+            style={[styles.rejectButton, decisionsDisabled && styles.disabledButton]}
+          >
+            <X size={14} color={colors.textSecondary} />
+            <Text style={styles.rejectText}>{isArabic ? "رفض" : "Reject"}</Text>
+          </Pressable>
+        </View>
+      ) : null}
 
       <View style={[styles.actions, { flexDirection: isArabic ? "row-reverse" : "row" }]}>
         {item.talent?.slug ? (
@@ -204,6 +322,7 @@ const styles = StyleSheet.create({
   stat: { flex: 1, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, backgroundColor: colors.surface, padding: spacing.md, alignItems: "center" },
   statValue: { color: colors.textPrimary, fontSize: 18, fontWeight: "800" },
   statLabel: { color: colors.textMuted, fontSize: 9, marginTop: 4 },
+  decisionError: { color: "#f4a3a3", fontSize: 11, lineHeight: 18, marginTop: spacing.md },
   filters: { gap: spacing.sm, paddingVertical: spacing.lg },
   filterChip: { borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, borderRadius: 999, paddingHorizontal: spacing.md, paddingVertical: 9 },
   filterChipActive: { borderColor: "rgba(201,169,98,0.40)", backgroundColor: "rgba(201,169,98,0.10)" },
@@ -218,6 +337,11 @@ const styles = StyleSheet.create({
   cardTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: "800" },
   statusPill: { borderRadius: 999, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 9, paddingVertical: 6, maxWidth: 130 },
   statusText: { color: colors.textSecondary, fontSize: 9, fontWeight: "700", textAlign: "center" },
+  decisionRow: { gap: spacing.sm, marginTop: spacing.md },
+  selectButton: { flex: 1, minHeight: 40, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: 999, backgroundColor: colors.gold, paddingHorizontal: spacing.md },
+  rejectButton: { flex: 1, minHeight: 40, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: 999, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.md },
+  rejectText: { color: colors.textSecondary, fontSize: 10, fontWeight: "800" },
+  disabledButton: { opacity: 0.45 },
   actions: { gap: spacing.sm, marginTop: spacing.md, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border },
   secondaryButton: { minHeight: 38, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: 999, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.md },
   secondaryText: { color: colors.textSecondary, fontSize: 10, fontWeight: "800" },
