@@ -17,30 +17,37 @@ export async function getMobileAccountContext(userId: string) {
 
   let entityId: number | null = null;
   let countryCode: string | null = null;
+  let displayName = profile.display_name?.trim() || null;
+  let avatarUrl: string | null = null;
 
   if (profile.account_type === "talent") {
     const { data } = await supabase
       .from("talents")
-      .select("id,base_country_code")
+      .select("id,base_country_code,name_ar,name_en,image_url")
       .eq("user_id", userId)
       .maybeSingle();
     entityId = data?.id ? Number(data.id) : null;
     countryCode = data?.base_country_code?.toUpperCase() ?? null;
+    displayName = data?.name_ar?.trim() || data?.name_en?.trim() || displayName;
+    avatarUrl = data?.image_url?.trim() || null;
   } else {
     const { data } = await supabase
       .from("publishers")
-      .select("id,country_code")
+      .select("id,country_code,company_name,contact_name,profile_image_url")
       .eq("profile_id", profile.id)
       .maybeSingle();
     entityId = data?.id ? Number(data.id) : null;
     countryCode = data?.country_code?.toUpperCase() ?? null;
+    displayName = data?.company_name?.trim() || data?.contact_name?.trim() || displayName;
+    avatarUrl = data?.profile_image_url?.trim() || null;
   }
 
   return {
     ok: true as const,
     account: {
       type: profile.account_type as MobileAccountType,
-      displayName: profile.display_name ?? null,
+      displayName,
+      avatarUrl,
       phone: profile.phone ?? null,
       phoneVerified: Boolean(profile.phone_verified_at),
       approvalStatus: profile.approval_status ?? null,
