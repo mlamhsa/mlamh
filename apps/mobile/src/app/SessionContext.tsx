@@ -8,6 +8,7 @@ type SessionState =
   | { status: "loading"; account: null }
   | { status: "guest"; account: null }
   | { status: "account_missing"; account: null }
+  | { status: "unavailable"; account: null }
   | { status: "talent"; account: MobileAccountContext }
   | { status: "publisher"; account: MobileAccountContext };
 
@@ -39,7 +40,9 @@ export function SessionProvider({ children }: PropsWithChildren) {
       });
     } catch {
       setState((current) =>
-        current.status === "loading" ? { status: "account_missing", account: null } : current,
+        current.status === "loading" || current.status === "unavailable"
+          ? { status: "unavailable", account: null }
+          : current,
       );
     }
   }, []);
