@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import { Mail, Sparkles } from "lucide-react";
+import { createClient } from "@supabase/supabase-js";
 import { use, useEffect, useState } from "react";
-
-import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 
 type SearchParams = {
   email?: string;
@@ -69,9 +68,27 @@ export default function ForgotPasswordPage({
         window.localStorage.setItem("mlamh_login_email", cleanEmail);
       }
 
-      const supabase = createBrowserSupabaseClient();
-      const redirectTo = `${window.location.origin}/auth/recovery?locale=${locale}`;
-      const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
+      const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+      if (!url || !anonKey) {
+        throw new Error("Supabase public configuration is missing.");
+      }
+
+      // Recovery links are intentionally generated with the implicit flow so
+      // they work when opened from Mail/Outlook or another browser context on iOS.
+      // This avoids relying on a PKCE verifier stored in the browser that initiated
+      // the request, while leaving the rest of MLAMH auth on the existing SSR flow.
+      const recoveryClient = createClient(url, anonKey, {
+        auth: {
+          flowType: "implicit",
+          detectSessionInUrl: true,
+          persistSession: true,
+        },
+      });
+
+      const redirectTo = `${window.location.origin}/${locale}/reset-password`;
+      const { error } = await recoveryClient.auth.resetPasswordForEmail(cleanEmail, {
         redirectTo,
       });
 
