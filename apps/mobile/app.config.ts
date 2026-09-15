@@ -1,5 +1,51 @@
 import type { ExpoConfig } from "expo/config";
 
+const ANDROID_APP_LINK_PATHS = [
+  "/opportunities",
+  "/opportunities/",
+  "/ar/opportunities",
+  "/ar/opportunities/",
+  "/en/opportunities",
+  "/en/opportunities/",
+  "/talent",
+  "/talent/",
+  "/talents",
+  "/talents/",
+  "/ar/talent",
+  "/ar/talent/",
+  "/ar/talents",
+  "/ar/talents/",
+  "/en/talent",
+  "/en/talent/",
+  "/en/talents",
+  "/en/talents/",
+  "/messages/",
+  "/conversations/",
+  "/applications",
+  "/ar/applications",
+  "/en/applications",
+  "/casting",
+  "/casting/",
+  "/ar/casting",
+  "/ar/casting/",
+  "/en/casting",
+  "/en/casting/",
+  "/scene",
+  "/scene/",
+  "/ar/scene",
+  "/ar/scene/",
+  "/en/scene",
+  "/en/scene/",
+] as const;
+
+const androidAppLinkData = ["mlamh.net", "www.mlamh.net"].flatMap((host) =>
+  ANDROID_APP_LINK_PATHS.map((pathPrefix) => ({
+    scheme: "https" as const,
+    host,
+    pathPrefix,
+  })),
+);
+
 const config: ExpoConfig = {
   name: "MLAMH",
   slug: "mlamh",
@@ -64,10 +110,7 @@ const config: ExpoConfig = {
       {
         action: "VIEW",
         autoVerify: true,
-        data: [
-          { scheme: "https", host: "mlamh.net" },
-          { scheme: "https", host: "www.mlamh.net" },
-        ],
+        data: androidAppLinkData,
         category: ["BROWSABLE", "DEFAULT"],
       },
     ],
