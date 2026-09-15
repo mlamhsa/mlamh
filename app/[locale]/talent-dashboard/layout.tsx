@@ -1,12 +1,11 @@
 import { redirect } from "next/navigation";
 
 import { TalentFeaturedEntryPoint } from "@/components/payments/TalentFeaturedEntryPoint";
-import { SceneDashboardEntryPoint } from "@/components/scene/SceneDashboardEntryPoint";
-import { TalentSidebarDockEnhancer } from "@/components/talent-dashboard/TalentSidebarDockEnhancer";
 import TalentApprovedLegacyRequiredFieldsCard from "@/components/talent/TalentApprovedLegacyRequiredFieldsCard";
 import TalentConsentCompletionCard from "@/components/talent/TalentConsentCompletionCard";
 import TalentDashboardShell from "@/components/talent/TalentDashboardShell";
 import TalentRealtimeSync from "@/components/talent/TalentRealtimeSync";
+import TalentSceneEntryPoint from "@/components/talent/TalentSceneEntryPoint";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export default async function TalentDashboardLayout({
@@ -82,7 +81,6 @@ export default async function TalentDashboardLayout({
 
   return (
     <>
-      <TalentSidebarDockEnhancer />
       {user ? <TalentRealtimeSync userId={user.id} talentId={talentId} /> : null}
       {user ? (
         <TalentFeaturedEntryPoint locale={locale} userId={user.id} />
@@ -95,7 +93,7 @@ export default async function TalentDashboardLayout({
         notificationCount={notificationCount}
         unreadMessagesCount={unreadMessagesCount}
       >
-        <SceneDashboardEntryPoint locale={safeLocale} audience="talent" />
+        <TalentSceneEntryPoint locale={safeLocale} />
         {children}
       </TalentDashboardShell>
     </>
