@@ -2,8 +2,8 @@ import type { ReactNode } from "react";
 
 import { PublisherFeaturedEntryPoint } from "@/components/payments/PublisherFeaturedEntryPoint";
 import PublisherOpportunityRealtime from "@/components/publisher/PublisherOpportunityRealtime";
+import PublisherSceneEntryPoint from "@/components/publisher/PublisherSceneEntryPoint";
 import PublisherShell from "@/components/publisher/PublisherShell";
-import { SceneDashboardEntryPoint } from "@/components/scene/SceneDashboardEntryPoint";
 import { requirePublisher } from "@/lib/auth/require-publisher";
 
 export default async function PublisherDashboardLayout({
@@ -24,7 +24,7 @@ export default async function PublisherDashboardLayout({
     >
       <PublisherOpportunityRealtime publisherId={publisher.id} />
       <PublisherFeaturedEntryPoint locale={locale} />
-      <SceneDashboardEntryPoint locale={safeLocale} audience="publisher" />
+      <PublisherSceneEntryPoint locale={safeLocale} />
       {children}
     </PublisherShell>
   );
