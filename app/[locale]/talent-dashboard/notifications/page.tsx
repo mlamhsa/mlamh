@@ -23,8 +23,8 @@ type ApplicationNotification = {
   status: string | null;
   created_at: string | null;
   opportunities:
-    | { title: string | null; opportunity_type: string | null }
-    | { title: string | null; opportunity_type: string | null }[]
+    | { title: string | null; opportunity_type: string | null; posting_mode: string | null }
+    | { title: string | null; opportunity_type: string | null; posting_mode: string | null }[]
     | null;
 };
 
@@ -88,23 +88,53 @@ function formatDate(value: string | null, locale: string) {
   }).format(date);
 }
 
-function applicationMessage(application: ApplicationNotification, isArabic: boolean) {
-  const opportunity = Array.isArray(application.opportunities)
-    ? application.opportunities[0]
+function getApplicationOpportunity(application: ApplicationNotification) {
+  return Array.isArray(application.opportunities)
+    ? application.opportunities[0] ?? null
     : application.opportunities;
+}
+
+function applicationDisplayStatus(application: ApplicationNotification) {
+  const opportunity = getApplicationOpportunity(application);
+  if (opportunity?.posting_mode !== "quick") return application.status;
+
+  if (application.status === "accepted") return "quick_accepted";
+  if (application.status === "rejected") return "quick_rejected";
+  if (!application.status || application.status === "pending") return "quick_pending";
+  return application.status;
+}
+
+function applicationMessage(application: ApplicationNotification, isArabic: boolean) {
+  const opportunity = getApplicationOpportunity(application);
   const title = opportunity?.title || (isArabic ? "فرصة بدون عنوان" : "Untitled Opportunity");
+  const isQuickRequest = opportunity?.posting_mode === "quick";
 
   if (application.status === "accepted") {
+    if (isQuickRequest) {
+      return isArabic
+        ? `تم اختيارك مبدئيًا في الطلب السريع «${title}». تابع المحادثة لمعرفة الخطوة التالية.`
+        : `You were preliminarily selected for the Quick Request “${title}”. Open the conversation for the next step.`;
+    }
     return isArabic ? `تم قبول طلبك في فرصة «${title}».` : `Your application for “${title}” was accepted.`;
   }
   if (application.status === "shortlisted") {
     return isArabic ? `تمت إضافة طلبك إلى القائمة المختصرة في فرصة «${title}».` : `Your application for “${title}” was shortlisted.`;
   }
   if (application.status === "rejected") {
+    if (isQuickRequest) {
+      return isArabic
+        ? `تم الاعتذار عن اختيارك في الطلب السريع «${title}».`
+        : `You were not selected for the Quick Request “${title}”.`;
+    }
     return isArabic ? `تم رفض طلبك في فرصة «${title}».` : `Your application for “${title}” was rejected.`;
   }
   if (application.status === "reviewing") {
     return isArabic ? `أصبح طلبك على فرصة «${title}» قيد المراجعة.` : `Your application for “${title}” is under review.`;
+  }
+  if (isQuickRequest) {
+    return isArabic
+      ? `تم تسجيل اهتمامك بالطلب السريع «${title}».`
+      : `Your interest in the Quick Request “${title}” was received.`;
   }
   return isArabic ? `تم استلام طلبك على فرصة «${title}».` : `Your application for “${title}” was received.`;
 }
@@ -114,6 +144,9 @@ function categoryLabel(category: Category, status: string | null, isArabic: bool
   if (category === "message") return isArabic ? "رسالة" : "Message";
   if (category === "invitation") return isArabic ? "دعوة" : "Invitation";
   if (category === "application") {
+    if (status === "quick_accepted") return isArabic ? "اختيار مبدئي" : "Preliminary selection";
+    if (status === "quick_rejected") return isArabic ? "تم الاعتذار" : "Not selected";
+    if (status === "quick_pending") return isArabic ? "مهتم" : "Interested";
     if (status === "accepted") return isArabic ? "مقبول" : "Accepted";
     if (status === "shortlisted") return isArabic ? "قائمة مختصرة" : "Shortlisted";
     if (status === "rejected") return isArabic ? "مرفوض" : "Rejected";
@@ -135,8 +168,8 @@ function CategoryIcon({ category, status }: { category: Category; status: string
   if (category === "booking") return <CalendarCheck2 size={19} />;
   if (category === "message") return <MessageCircle size={19} />;
   if (category === "invitation") return <BriefcaseBusiness size={19} />;
-  if (status === "accepted" || status === "shortlisted") return <CheckCircle2 size={19} />;
-  if (status === "rejected") return <XCircle size={19} />;
+  if (status === "accepted" || status === "shortlisted" || status === "quick_accepted") return <CheckCircle2 size={19} />;
+  if (status === "rejected" || status === "quick_rejected") return <XCircle size={19} />;
   return <Clock3 size={19} />;
 }
 
@@ -166,7 +199,8 @@ export default async function TalentNotificationsPage({ params }: PageProps) {
         created_at,
         opportunities (
           title,
-          opportunity_type
+          opportunity_type,
+          posting_mode
         )
       `)
       .eq("talent_id", talent.id)
@@ -202,7 +236,7 @@ export default async function TalentNotificationsPage({ params }: PageProps) {
     createdAt: application.created_at,
     href: `/${locale}/talent-dashboard/applications`,
     category: "application",
-    status: application.status,
+    status: applicationDisplayStatus(application),
   }));
 
   const databaseNotifications: DisplayNotification[] = ((databaseResult.data ?? []) as DatabaseNotification[]).map((notification) => {
