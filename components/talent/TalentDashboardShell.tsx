@@ -3,11 +3,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
-import {
-  GalleryVerticalEnd,
-  Sparkles,
-  WalletCards,
-} from "lucide-react";
+import { WalletCards } from "lucide-react";
 
 import TalentMobileBottomNav from "@/components/talent/TalentMobileBottomNav";
 import TalentSidebar from "@/components/talent/TalentSidebar";
@@ -49,27 +45,6 @@ export default function TalentDashboardShell({
     />
   );
 
-  const extraSections = [
-    {
-      href: `${dashboardHref}/profile/details`,
-      label: isArabic ? "البيانات المهنية" : "Professional details",
-      description: isArabic ? "المهارات والخبرة والقياسات" : "Skills, experience and measurements",
-      icon: Sparkles,
-    },
-    {
-      href: `${dashboardHref}/gallery`,
-      label: isArabic ? "معرض الأعمال" : "Portfolio",
-      description: isArabic ? "الصور والفيديو وأعمالك" : "Photos, video and your work",
-      icon: GalleryVerticalEnd,
-    },
-    {
-      href: `${dashboardHref}/subscriptions`,
-      label: isArabic ? "الاشتراكات" : "Subscriptions",
-      description: isArabic ? "الباقة والاشتراك" : "Plan and subscription",
-      icon: WalletCards,
-    },
-  ];
-
   if (isConversationRoute) {
     return (
       <div
@@ -93,40 +68,33 @@ export default function TalentDashboardShell({
           <section className="mx-auto w-full max-w-7xl px-4 pb-8 pt-2 sm:px-6 lg:px-8 lg:pb-10">
             <div className="mb-5">
               <p className="text-xs font-semibold text-gold/80">
-                {isArabic ? "وصول سريع" : "Quick access"}
+                {isArabic ? "الحساب" : "Account"}
               </p>
               <h2 className="mt-1 text-lg font-semibold text-white sm:text-xl">
-                {isArabic ? "أدوات إضافية" : "Additional tools"}
+                {isArabic ? "أدوات الحساب" : "Account tools"}
               </h2>
               <p className="mt-1 text-sm text-white/45">
                 {isArabic
-                  ? "أقسام إضافية لتطوير ملفك وإدارة حسابك."
-                  : "Additional sections to strengthen your profile and manage your account."}
+                  ? "إدارة الباقة والاشتراك. بياناتك المهنية وأعمالك وروابطك تُدار من «ملفي»."
+                  : "Manage your plan and subscription. Professional details, work and links are managed from Profile."}
               </p>
             </div>
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              {extraSections.map((item) => {
-                const Icon = item.icon;
-
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className="flex min-h-28 items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-4 text-start text-white/80 transition hover:border-gold/35 hover:bg-gold/[0.055] hover:text-gold active:scale-[0.98]"
-                  >
-                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/[0.045] text-gold">
-                      <Icon size={22} aria-hidden="true" />
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block font-semibold">{item.label}</span>
-                      <span className="mt-1 block text-xs leading-5 text-white/40">
-                        {item.description}
-                      </span>
-                    </span>
-                  </Link>
-                );
-              })}
+            <div className="grid grid-cols-1 gap-3 sm:max-w-md">
+              <Link
+                href={`${dashboardHref}/subscriptions`}
+                className="flex min-h-28 items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-4 text-start text-white/80 transition hover:border-gold/35 hover:bg-gold/[0.055] hover:text-gold active:scale-[0.98]"
+              >
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/[0.045] text-gold">
+                  <WalletCards size={22} aria-hidden="true" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block font-semibold">{isArabic ? "الاشتراكات" : "Subscriptions"}</span>
+                  <span className="mt-1 block text-xs leading-5 text-white/40">
+                    {isArabic ? "الباقة والاشتراك" : "Plan and subscription"}
+                  </span>
+                </span>
+              </Link>
             </div>
           </section>
         </div>
