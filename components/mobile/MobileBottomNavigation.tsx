@@ -5,8 +5,10 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  Bell,
   BriefcaseBusiness,
   CirclePlus,
+  ClipboardList,
   Home,
   LogIn,
   User,
@@ -85,8 +87,20 @@ export function MobileBottomNavigation({
     });
   }
 
+  const talentDashboardRoot = localizedPath("/talent-dashboard");
   const talentProfileActive =
-    accountType === "talent" && matches("/talent-dashboard/profile");
+    accountType === "talent" &&
+    (pathname === talentDashboardRoot ||
+      pathname === `${talentDashboardRoot}/` ||
+      matches("/talent-dashboard/profile") ||
+      matches("/talent-dashboard/gallery") ||
+      matches("/talent-dashboard/claim"));
+
+  const talentRequestsActive =
+    accountType === "talent" && matches("/talent-dashboard/requests");
+
+  const talentNotificationsActive =
+    accountType === "talent" && matches("/talent-dashboard/notifications");
 
   const guestLoginActive = !isLoggedIn && matches("/login");
   const accountActive = isLoggedIn ? matches("/account") : guestLoginActive;
@@ -167,7 +181,7 @@ export function MobileBottomNavigation({
     if (accountType === "talent") {
       return [
         home,
-        talents,
+        opportunities,
         {
           key: "profile",
           labelAr: "ملفي",
@@ -177,8 +191,22 @@ export function MobileBottomNavigation({
           active: talentProfileActive,
           primary: true,
         },
-        opportunities,
-        account,
+        {
+          key: "requests",
+          labelAr: "طلباتي",
+          labelEn: "Applications",
+          href: localizedPath("/talent-dashboard/requests"),
+          icon: ClipboardList,
+          active: talentRequestsActive,
+        },
+        {
+          key: "notifications",
+          labelAr: "الإشعارات",
+          labelEn: "Notifications",
+          href: localizedPath("/talent-dashboard/notifications"),
+          icon: Bell,
+          active: talentNotificationsActive,
+        },
       ];
     }
 
