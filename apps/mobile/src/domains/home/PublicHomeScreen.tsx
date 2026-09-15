@@ -12,8 +12,11 @@ import {
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { HomeHowItWorksSection } from "@/src/domains/home/HomeHowItWorksSection";
+import { HomeValuePropsSection } from "@/src/domains/home/HomeValuePropsSection";
+import { useHomeContent } from "@/src/domains/home/useHomeContent";
 import { useLocale } from "@/src/i18n/LocaleProvider";
-import { colors, radius, spacing, typography } from "@/src/theme/tokens";
+import { colors, radius, spacing } from "@/src/theme/tokens";
 
 const IMAGE_BASE = "https://mlamh.net/images/home";
 
@@ -21,11 +24,35 @@ function go(href: string) {
   router.push(href as Href);
 }
 
+function nativeHref(href: string | null | undefined, fallback: string) {
+  if (!href) return fallback;
+  const clean = href.split("#")[0].split("?")[0].replace(/^https?:\/\/[^/]+/i, "");
+  const withoutLocale = clean.replace(/^\/(ar|en)(?=\/|$)/, "");
+  if (withoutLocale === "/talent" || withoutLocale.startsWith("/talent/")) return "/talents";
+  if (withoutLocale.startsWith("/opportunities")) return "/opportunities";
+  if (withoutLocale.startsWith("/publishers")) return "/publishers";
+  if (withoutLocale.startsWith("/casting")) return "/casting";
+  if (withoutLocale.startsWith("/join")) return "/account-type";
+  return fallback;
+}
+
 export function PublicHomeScreen() {
   const { locale } = useLocale();
+  const { hero, valueProps } = useHomeContent(locale);
   const isArabic = locale === "ar";
   const DirectionArrow = isArabic ? ArrowLeft : ArrowRight;
   const align = isArabic ? "right" : "left";
+
+  const heroEyebrow = hero?.eyebrow || (isArabic ? "منصة المواهب الإبداعية" : "Creative talent platform");
+  const heroTitle = hero?.titleLine1 || (isArabic ? "اكتشف فرصتك القادمة" : "Discover your next opportunity");
+  const heroTitle2 = hero?.titleLine2 || "";
+  const heroDescription = hero?.description || (isArabic
+    ? "اكتشف المواهب والفرص والجهات الإبداعية من مكان واحد."
+    : "Discover talents, opportunities, and creative organizations in one place.");
+  const primaryLabel = hero?.primaryCtaLabel || (isArabic ? "اكتشف المواهب" : "Discover talent");
+  const secondaryLabel = hero?.secondaryCtaLabel || (isArabic ? "تصفح الفرص" : "Browse opportunities");
+  const primaryHref = nativeHref(hero?.primaryCtaHref, "/talents");
+  const secondaryHref = nativeHref(hero?.secondaryCtaHref, "/opportunities");
 
   const quickItems = [
     {
@@ -70,19 +97,14 @@ export function PublicHomeScreen() {
         <View style={styles.heroCard}>
           <View style={[styles.eyebrowPill, isArabic ? styles.rowRtl : styles.rowLtr]}>
             <Sparkles size={14} color={colors.gold} />
-            <Text style={styles.eyebrowText}>
-              {isArabic ? "منصة المواهب الإبداعية" : "Creative talent platform"}
-            </Text>
+            <Text style={styles.eyebrowText}>{heroEyebrow}</Text>
           </View>
 
-          <Text style={[styles.heroTitle, { textAlign: align }]}>
-            {isArabic ? "اكتشف فرصتك القادمة" : "Discover your next opportunity"}
-          </Text>
-          <Text style={[styles.heroDescription, { textAlign: align }]}>
-            {isArabic
-              ? "اكتشف المواهب والفرص والجهات الإبداعية من مكان واحد."
-              : "Discover talents, opportunities, and creative organizations in one place."}
-          </Text>
+          <Text style={[styles.heroTitle, { textAlign: align }]}>{heroTitle}</Text>
+          {heroTitle2 ? (
+            <Text style={[styles.heroTitleGold, { textAlign: align }]}>{heroTitle2}</Text>
+          ) : null}
+          <Text style={[styles.heroDescription, { textAlign: align }]}>{heroDescription}</Text>
 
           <Pressable
             accessibilityRole="button"
@@ -103,35 +125,23 @@ export function PublicHomeScreen() {
           <View style={styles.heroActions}>
             <Pressable
               accessibilityRole="button"
-              onPress={() => go("/talents")}
+              onPress={() => go(primaryHref)}
               style={({ pressed }) => [styles.primaryAction, pressed && styles.pressed]}
             >
-              <Text style={styles.primaryActionText}>
-                {isArabic ? "اكتشف المواهب" : "Discover talent"}
-              </Text>
+              <Text style={styles.primaryActionText}>{primaryLabel}</Text>
             </Pressable>
             <Pressable
               accessibilityRole="button"
-              onPress={() => go("/opportunities")}
+              onPress={() => go(secondaryHref)}
               style={({ pressed }) => [styles.secondaryAction, pressed && styles.pressed]}
             >
-              <Text style={styles.secondaryActionText}>
-                {isArabic ? "تصفح الفرص" : "Browse opportunities"}
-              </Text>
+              <Text style={styles.secondaryActionText}>{secondaryLabel}</Text>
             </Pressable>
           </View>
 
           <View style={styles.heroGallery}>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => go("/talents")}
-              style={[styles.heroLargeImage, styles.imageCard]}
-            >
-              <Image
-                source={{ uri: `${IMAGE_BASE}/hero-actor.webp` }}
-                style={styles.imageFill}
-                resizeMode="cover"
-              />
+            <Pressable accessibilityRole="button" onPress={() => go("/talents")} style={[styles.heroLargeImage, styles.imageCard]}>
+              <Image source={{ uri: `${IMAGE_BASE}/hero-actor.webp` }} style={styles.imageFill} resizeMode="cover" />
               <View style={styles.imageShade} />
               <View style={styles.imageCaption}>
                 <Text style={styles.imageBadge}>{isArabic ? "ممثل" : "Actor"}</Text>
@@ -143,59 +153,31 @@ export function PublicHomeScreen() {
 
             <View style={styles.heroSmallColumn}>
               <Pressable onPress={() => go("/talents")} style={[styles.heroSmallImage, styles.imageCard]}>
-                <Image
-                  source={{ uri: `${IMAGE_BASE}/hero-model.webp` }}
-                  style={styles.imageFill}
-                  resizeMode="cover"
-                />
+                <Image source={{ uri: `${IMAGE_BASE}/hero-model.webp` }} style={styles.imageFill} resizeMode="cover" />
                 <View style={styles.imageShadeSoft} />
                 <Text style={styles.smallImageBadge}>{isArabic ? "مودل" : "Model"}</Text>
               </Pressable>
               <Pressable onPress={() => go("/talents")} style={[styles.heroSmallImage, styles.imageCard]}>
-                <Image
-                  source={{ uri: `${IMAGE_BASE}/55.jpg` }}
-                  style={styles.imageFill}
-                  resizeMode="cover"
-                />
+                <Image source={{ uri: `${IMAGE_BASE}/55.jpg` }} style={styles.imageFill} resizeMode="cover" />
                 <View style={styles.imageShadeSoft} />
-                <Text style={styles.smallImageGoldBadge}>
-                  {isArabic ? "مواهب من المنطقة" : "Regional talent"}
-                </Text>
+                <Text style={styles.smallImageGoldBadge}>{isArabic ? "مواهب من المنطقة" : "Regional talent"}</Text>
               </Pressable>
             </View>
           </View>
 
           <View style={[styles.heroFooter, isArabic ? styles.rowRtl : styles.rowLtr]}>
-            <Text style={styles.heroFooterText}>
-              {isArabic ? "مواهب • فرص • جهات" : "Talent • Opportunities • Organizations"}
-            </Text>
+            <Text style={styles.heroFooterText}>{isArabic ? "مواهب • فرص • جهات" : "Talent • Opportunities • Organizations"}</Text>
             <Text style={styles.heroFooterBrand}>MLAMH</Text>
           </View>
         </View>
 
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => go("/casting")}
-          style={({ pressed }) => [styles.castingCard, pressed && styles.pressed]}
-        >
+        <Pressable accessibilityRole="button" onPress={() => go("/casting")} style={({ pressed }) => [styles.castingCard, pressed && styles.pressed]}>
           <View style={isArabic ? styles.rowRtl : styles.rowLtr}>
-            <View style={styles.castingIcon}>
-              <ClipboardList size={22} color={colors.gold} />
-            </View>
+            <View style={styles.castingIcon}><ClipboardList size={22} color={colors.gold} /></View>
             <View style={styles.flexOne}>
-              <Text style={[styles.castingEyebrow, { textAlign: align }]}>
-                {isArabic ? "للشركات والوكالات وجهات الإنتاج" : "FOR COMPANIES, AGENCIES & PRODUCTIONS"}
-              </Text>
-              <Text style={[styles.castingTitle, { textAlign: align }]}>
-                {isArabic
-                  ? "عندك مشروع وتحتاج ممثلين أو مودلز؟ أرسل الـ Brief"
-                  : "Need actors or models for a project? Send the brief"}
-              </Text>
-              <Text style={[styles.castingText, { textAlign: align }]}>
-                {isArabic
-                  ? "أرسل احتياج الكاستينغ مباشرة إلى فريق ملامح."
-                  : "Send your casting requirements directly to the MLAMH team."}
-              </Text>
+              <Text style={[styles.castingEyebrow, { textAlign: align }]}>{isArabic ? "للشركات والوكالات وجهات الإنتاج" : "FOR COMPANIES, AGENCIES & PRODUCTIONS"}</Text>
+              <Text style={[styles.castingTitle, { textAlign: align }]}>{isArabic ? "عندك مشروع وتحتاج ممثلين أو مودلز؟ أرسل الـ Brief" : "Need actors or models for a project? Send the brief"}</Text>
+              <Text style={[styles.castingText, { textAlign: align }]}>{isArabic ? "أرسل احتياج الكاستينغ مباشرة إلى فريق ملامح." : "Send your casting requirements directly to the MLAMH team."}</Text>
             </View>
             <DirectionArrow size={17} color={colors.gold} />
           </View>
@@ -203,25 +185,15 @@ export function PublicHomeScreen() {
 
         <View style={styles.sectionHeader}>
           <View>
-            <Text style={[styles.sectionEyebrow, { textAlign: align }]}>
-              {isArabic ? "وصول سريع" : "QUICK ACCESS"}
-            </Text>
-            <Text style={[styles.sectionTitle, { textAlign: align }]}>
-              {isArabic ? "ابدأ من هنا" : "Start here"}
-            </Text>
+            <Text style={[styles.sectionEyebrow, { textAlign: align }]}>{isArabic ? "وصول سريع" : "QUICK ACCESS"}</Text>
+            <Text style={[styles.sectionTitle, { textAlign: align }]}>{isArabic ? "ابدأ من هنا" : "Start here"}</Text>
           </View>
           <Text style={styles.sectionBrand}>MLAMH</Text>
         </View>
 
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => go(quickItems[0].href)}
-          style={({ pressed }) => [styles.quickPrimary, pressed && styles.pressed]}
-        >
+        <Pressable accessibilityRole="button" onPress={() => go(quickItems[0].href)} style={({ pressed }) => [styles.quickPrimary, pressed && styles.pressed]}>
           <View style={isArabic ? styles.rowRtl : styles.rowLtr}>
-            <View style={styles.quickPrimaryIcon}>
-              <UsersRound size={25} color={colors.gold} />
-            </View>
+            <View style={styles.quickPrimaryIcon}><UsersRound size={25} color={colors.gold} /></View>
             <View style={styles.flexOne}>
               <Text style={[styles.quickEyebrow, { textAlign: align }]}>{quickItems[0].eyebrow}</Text>
               <Text style={[styles.quickTitle, { textAlign: align }]}>{quickItems[0].title}</Text>
@@ -235,35 +207,27 @@ export function PublicHomeScreen() {
           {quickItems.slice(1).map((item) => {
             const Icon = item.icon;
             return (
-              <Pressable
-                key={item.key}
-                accessibilityRole="button"
-                onPress={() => go(item.href)}
-                style={({ pressed }) => [styles.quickSmall, pressed && styles.pressed]}
-              >
+              <Pressable key={item.key} accessibilityRole="button" onPress={() => go(item.href)} style={({ pressed }) => [styles.quickSmall, pressed && styles.pressed]}>
                 <View style={[styles.quickSmallTop, isArabic ? styles.rowRtl : styles.rowLtr]}>
-                  <View style={styles.quickSmallIcon}>
-                    <Icon size={21} color={colors.goldSoft} />
-                  </View>
+                  <View style={styles.quickSmallIcon}><Icon size={21} color={colors.goldSoft} /></View>
                   <DirectionArrow size={16} color={colors.textMuted} />
                 </View>
                 <View style={styles.quickSmallBottom}>
                   <Text style={[styles.quickEyebrow, { textAlign: align }]}>{item.eyebrow}</Text>
                   <Text style={[styles.quickSmallTitle, { textAlign: align }]}>{item.title}</Text>
-                  <Text numberOfLines={2} style={[styles.quickSmallText, { textAlign: align }]}>
-                    {item.description}
-                  </Text>
+                  <Text numberOfLines={2} style={[styles.quickSmallText, { textAlign: align }]}>{item.description}</Text>
                 </View>
               </Pressable>
             );
           })}
         </View>
 
+        <HomeValuePropsSection isArabic={isArabic} items={valueProps} />
+        <HomeHowItWorksSection isArabic={isArabic} />
+
         <View style={styles.nextMarker}>
           <Text style={styles.nextMarkerText}>
-            {isArabic
-              ? "التالي في المطابقة: المزايا، كيف تعمل ملامح، المواهب، الفرص، الجهات وScene."
-              : "Next in parity: value props, how MLAMH works, talents, opportunities, organizations and Scene."}
+            {isArabic ? "التالي: المواهب، الفرص، الجهات، مشهد ملامح والدعوة الختامية." : "Next: talents, opportunities, organizations, MLAMH Scene and the final call to action."}
           </Text>
         </View>
       </ScrollView>
@@ -285,6 +249,7 @@ const styles = StyleSheet.create({
   eyebrowPill: { alignSelf: "flex-start", borderWidth: 1, borderColor: "rgba(201,169,98,0.28)", backgroundColor: "rgba(201,169,98,0.08)", borderRadius: radius.pill, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   eyebrowText: { color: colors.gold, fontSize: 12 },
   heroTitle: { color: colors.textPrimary, fontSize: 34, lineHeight: 40, fontWeight: "700", marginTop: spacing.md },
+  heroTitleGold: { color: colors.goldSoft, fontSize: 34, lineHeight: 40, fontWeight: "700", marginTop: 3 },
   heroDescription: { color: colors.textMuted, fontSize: 14, lineHeight: 25, marginTop: spacing.md },
   searchCard: { minHeight: 58, borderWidth: 1, borderColor: colors.border, backgroundColor: "rgba(0,0,0,0.28)", borderRadius: radius.lg, paddingHorizontal: spacing.lg, justifyContent: "center", marginTop: spacing.xl },
   searchText: { flex: 1, color: "rgba(255,255,255,0.45)", fontSize: 14 },
@@ -332,5 +297,5 @@ const styles = StyleSheet.create({
   quickSmallTitle: { color: colors.textPrimary, fontSize: 15, lineHeight: 22, fontWeight: "700", marginTop: 4 },
   quickSmallText: { color: "rgba(255,255,255,0.35)", fontSize: 11, lineHeight: 18, marginTop: 6 },
   nextMarker: { marginTop: 36, borderWidth: 1, borderStyle: "dashed", borderColor: "rgba(255,255,255,0.10)", borderRadius: radius.xl, padding: spacing.xl },
-  nextMarkerText: { color: colors.textMuted, fontSize: typography.caption, lineHeight: 20, textAlign: "center" },
+  nextMarkerText: { color: colors.textMuted, fontSize: 12, lineHeight: 20, textAlign: "center" },
 });
