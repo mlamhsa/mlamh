@@ -1,7 +1,7 @@
 import type { ScenePublicArticle } from "@/lib/types/scene";
 
 const SITE_URL = "https://mlamh.net";
-const GENERATED_COVER_VERSION = "3";
+const GENERATED_COVER_VERSION = "4";
 
 type SceneCoverArticle = Pick<
   ScenePublicArticle,
