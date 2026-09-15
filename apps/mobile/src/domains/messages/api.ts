@@ -1,6 +1,9 @@
 import { mobileApiRequest } from "@/src/api/client";
-import type { AppLocale } from "@/src/i18n/locale";
-import type { ConversationDetailResponse, SendMessageResult } from "@/src/domains/messages/types";
+import type { ConversationDetailResponse, ConversationsResponse, SendMessageResult } from "@/src/domains/messages/types";
+
+export function getConversations() {
+  return mobileApiRequest<ConversationsResponse>("/api/conversations");
+}
 
 export function getConversationDetail(conversationId: number) {
   return mobileApiRequest<ConversationDetailResponse>(`/api/conversations/${conversationId}`);
@@ -13,16 +16,9 @@ export function sendConversationMessage(conversationId: number, body: string) {
   });
 }
 
-export function respondToQuickTalentDecision(
-  conversationId: number,
-  decision: "accept" | "decline",
-  locale: AppLocale,
-) {
-  return mobileApiRequest<{ ok: true; decision: "accept" | "decline" }>(
-    `/api/conversations/${conversationId}/quick/talent-decision`,
-    {
-      method: "POST",
-      body: { decision, locale },
-    },
-  );
+export function submitQuickTalentDecision(conversationId: number, decision: "accept" | "decline", locale: "ar" | "en") {
+  return mobileApiRequest<{ ok: true; state: "mutually_confirmed" | "declined" }>(`/api/conversations/${conversationId}/quick/talent-decision`, {
+    method: "POST",
+    body: { decision, locale },
+  });
 }
