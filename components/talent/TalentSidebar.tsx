@@ -108,7 +108,7 @@ export default function TalentSidebar({
         },
         {
           href: `/${locale}/publishers`,
-          label: isAr ? "الشركات" : "Companies",
+          label: isAr ? "الجهات" : "Publishers",
           icon: <Building2 size={19} aria-hidden="true" />,
         },
       ],
