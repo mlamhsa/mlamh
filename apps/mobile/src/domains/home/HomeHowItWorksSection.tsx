@@ -1,6 +1,7 @@
 import { BriefcaseBusiness, CheckCircle2, ImagePlus, UserRound, type LucideIcon } from "lucide-react-native";
 import { StyleSheet, Text, View } from "react-native";
 
+import { HomePostJourneySections } from "@/src/domains/home/HomePostJourneySections";
 import { colors, radius, spacing } from "@/src/theme/tokens";
 
 type Step = {
@@ -64,20 +65,24 @@ export function HomeHowItWorksSection({ isArabic }: Props) {
   ];
 
   return (
-    <View style={styles.section}>
-      <Text style={styles.eyebrow}>{isArabic ? "كيف تعمل ملامح" : "HOW MLAMH WORKS"}</Text>
-      <Text style={styles.title}>
-        {isArabic ? "رحلة واضحة للطرفين." : "A clear path for both sides."}
-      </Text>
-      <Text style={styles.description}>
-        {isArabic
-          ? "سواء كنت موهبة تبحث عن فرصة، أو جهة تبحث عن الشخص المناسب، التجربة مصممة لتكون بسيطة واحترافية."
-          : "Whether you are a talent looking for opportunities or an organization searching for the right person, the experience is simple and professional."}
-      </Text>
+    <>
+      <View style={styles.section}>
+        <Text style={styles.eyebrow}>{isArabic ? "كيف تعمل ملامح" : "HOW MLAMH WORKS"}</Text>
+        <Text style={styles.title}>
+          {isArabic ? "رحلة واضحة للطرفين." : "A clear path for both sides."}
+        </Text>
+        <Text style={styles.description}>
+          {isArabic
+            ? "سواء كنت موهبة تبحث عن فرصة، أو جهة تبحث عن الشخص المناسب، التجربة مصممة لتكون بسيطة واحترافية."
+            : "Whether you are a talent looking for opportunities or an organization searching for the right person, the experience is simple and professional."}
+        </Text>
 
-      <JourneyCard title={isArabic ? "للمواهب" : "For Talents"} steps={talentSteps} align={align} />
-      <JourneyCard title={isArabic ? "للجهات" : "For Organizations"} steps={organizationSteps} align={align} />
-    </View>
+        <JourneyCard title={isArabic ? "للمواهب" : "For Talents"} steps={talentSteps} align={align} />
+        <JourneyCard title={isArabic ? "للجهات" : "For Organizations"} steps={organizationSteps} align={align} />
+      </View>
+
+      <HomePostJourneySections isArabic={isArabic} />
+    </>
   );
 }
 
