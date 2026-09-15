@@ -2,11 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import {
-  ArrowUpRight,
-  Sparkles,
-  UserRound,
-} from "lucide-react";
+import { ArrowUpRight, UserRound } from "lucide-react";
 
 import { getOwnTalentProfileAction } from "@/lib/actions/update-own-talent-profile";
 
@@ -22,22 +18,28 @@ export default function TalentHeader({
   approvalStatus,
 }: TalentHeaderProps) {
   const isRtl = locale === "ar";
+  const hasKnownStatus = Boolean(approvalStatus);
   const [resolvedStatus, setResolvedStatus] = useState(
-    String(approvalStatus ?? "not_submitted").trim().toLowerCase(),
+    String(approvalStatus ?? "").trim().toLowerCase(),
   );
 
   useEffect(() => {
-    if (approvalStatus) return;
+    if (approvalStatus) {
+      setResolvedStatus(String(approvalStatus).trim().toLowerCase());
+      return;
+    }
 
     let active = true;
     getOwnTalentProfileAction(locale === "en" ? "en" : "ar")
       .then((talent) => {
         if (!active || !talent) return;
-        const next = String(talent.approval_status ?? "not_submitted").trim().toLowerCase();
+        const next = String(talent.approval_status ?? "not_submitted")
+          .trim()
+          .toLowerCase();
         setResolvedStatus(next);
       })
       .catch(() => {
-        // Keep the safe default CTA if status lookup fails.
+        // Keep the neutral profile CTA if status lookup fails.
       });
 
     return () => {
@@ -46,13 +48,18 @@ export default function TalentHeader({
   }, [approvalStatus, locale]);
 
   const isApproved = resolvedStatus === "approved";
-  const profileHref = isApproved
-    ? `/${locale}/talent-dashboard/profile/details`
-    : `/${locale}/talent-dashboard/profile`;
-  const profileLabel = isApproved
-    ? isRtl ? "تحسين الملف" : "Improve Profile"
-    : isRtl ? "إكمال الملف" : "Complete Profile";
-  const ProfileIcon = isApproved ? Sparkles : UserRound;
+  const profileHref = `/${locale}/talent-dashboard/profile`;
+  const profileLabel = !hasKnownStatus && !resolvedStatus
+    ? isRtl
+      ? "ملفي"
+      : "My Profile"
+    : isApproved
+      ? isRtl
+        ? "إدارة ملفي"
+        : "Manage Profile"
+      : isRtl
+        ? "إكمال الملف"
+        : "Complete Profile";
 
   return (
     <header className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-gradient-to-br from-white/[0.08] via-white/[0.03] to-gold/[0.06] p-5 sm:p-6 md:rounded-[2.25rem] md:px-8 md:py-7">
@@ -74,7 +81,7 @@ export default function TalentHeader({
             href={profileHref}
             className="arabic-safe inline-flex min-h-12 items-center justify-center gap-3 rounded-full bg-gold px-5 py-3 text-[11px] font-medium uppercase tracking-[0.14em] text-black transition duration-300 hover:bg-[#e0bd73] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black sm:text-xs sm:tracking-[0.18em]"
           >
-            <ProfileIcon size={16} aria-hidden="true" />
+            <UserRound size={16} aria-hidden="true" />
             {profileLabel}
           </Link>
 
