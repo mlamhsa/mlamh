@@ -5,12 +5,21 @@ const config: ExpoConfig = {
   slug: "mlamh",
   scheme: "mlamh",
   version: "0.2.0",
+  icon: "./assets/icon.png",
   orientation: "portrait",
   userInterfaceStyle: "dark",
   plugins: [
     "expo-router",
     "expo-localization",
     "expo-apple-authentication",
+    [
+      "expo-splash-screen",
+      {
+        backgroundColor: "#000000",
+        image: "./assets/icon.png",
+        imageWidth: 220,
+      },
+    ],
     [
       "expo-image-picker",
       {
@@ -47,6 +56,10 @@ const config: ExpoConfig = {
   android: {
     package: "net.mlamh.app",
     versionCode: 15,
+    adaptiveIcon: {
+      foregroundImage: "./assets/icon.png",
+      backgroundColor: "#000000",
+    },
     intentFilters: [
       {
         action: "VIEW",
