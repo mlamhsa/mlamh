@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { WalletCards } from "lucide-react";
 
@@ -27,6 +27,20 @@ export default function TalentDashboardShell({
   const dashboardHref = `/${locale}/talent-dashboard`;
   const isArabic = locale === "ar";
   const isConversationRoute = pathname.startsWith(`${dashboardHref}/messages/`);
+
+  useEffect(() => {
+    const isProfileSection =
+      pathname.startsWith(`${dashboardHref}/profile`) ||
+      pathname.startsWith(`${dashboardHref}/gallery`);
+
+    if (!isProfileSection) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [dashboardHref, pathname]);
 
   const sidebar = (
     <TalentSidebar
