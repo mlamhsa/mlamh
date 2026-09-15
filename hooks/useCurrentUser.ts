@@ -43,6 +43,15 @@ type AuthUserSnapshot = {
   user_metadata?: Record<string, unknown> | null;
 };
 
+type ServerAccountResponse = {
+  ok?: boolean;
+  account?: {
+    type?: string | null;
+    displayName?: string | null;
+    avatarUrl?: string | null;
+  } | null;
+};
+
 const initialState: CurrentUserState = {
   userId: "",
   isLoggedIn: false,
@@ -162,6 +171,40 @@ function getReadableError(error: unknown) {
   };
 }
 
+async function getServerAccountIdentity(accessToken?: string | null) {
+  if (!accessToken) return null;
+
+  try {
+    const response = await fetch("/api/account/me", {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      cache: "no-store",
+    });
+
+    if (!response.ok) return null;
+
+    const payload = (await response.json()) as ServerAccountResponse;
+    if (!payload.ok || !payload.account) return null;
+
+    const accountType = normalizeAccountType(payload.account.type);
+    if (accountType !== "talent" && accountType !== "publisher") return null;
+
+    return {
+      accountType,
+      userName: payload.account.displayName?.trim() || "",
+      avatarUrl: payload.account.avatarUrl?.trim() || null,
+    };
+  } catch (error) {
+    console.warn(
+      "Unable to resolve server account identity:",
+      getReadableError(error),
+    );
+    return null;
+  }
+}
+
 export function useCurrentUser(): CurrentUserState {
   const [state, setState] =
     useState<CurrentUserState>(initialState);
@@ -183,6 +226,7 @@ export function useCurrentUser(): CurrentUserState {
 
     async function resolveUser(
       user?: AuthUserSnapshot | null,
+      accessToken?: string | null,
     ) {
       const version = ++requestVersion;
 
@@ -211,6 +255,21 @@ export function useCurrentUser(): CurrentUserState {
         avatarUrl,
         loading: true,
       });
+
+      const serverIdentity = await getServerAccountIdentity(accessToken);
+      if (!isActive || version !== requestVersion) return;
+
+      if (serverIdentity) {
+        commitState(version, {
+          userId: user.id,
+          isLoggedIn: true,
+          accountType: serverIdentity.accountType,
+          userName: serverIdentity.userName || userName,
+          avatarUrl: serverIdentity.avatarUrl || avatarUrl,
+          loading: false,
+        });
+        return;
+      }
 
       try {
         const {
@@ -376,7 +435,7 @@ export function useCurrentUser(): CurrentUserState {
           return;
         }
 
-        await resolveUser(session?.user ?? null);
+        await resolveUser(session?.user ?? null, session?.access_token ?? null);
       } catch (error) {
         if (!isActive) {
           return;
@@ -393,14 +452,15 @@ export function useCurrentUser(): CurrentUserState {
 
     function refreshCurrentUser() {
       void supabase.auth
-        .getUser()
+        .getSession()
         .then(({ data }) => {
           if (!isActive) {
             return;
           }
 
           void resolveUser(
-            data.user ?? null,
+            data.session?.user ?? null,
+            data.session?.access_token ?? null,
           );
         });
     }
@@ -416,7 +476,10 @@ export function useCurrentUser(): CurrentUserState {
             return;
           }
 
-          void resolveUser(session?.user ?? null);
+          void resolveUser(
+            session?.user ?? null,
+            session?.access_token ?? null,
+          );
         });
       },
     );
