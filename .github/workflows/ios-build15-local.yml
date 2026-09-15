@@ -31,6 +31,12 @@ jobs:
         with:
           node-version: 20
 
+      - name: Normalize app icon PNG
+        run: |
+          sips -s format png assets/icon.png --out assets/icon-normalized.png
+          mv assets/icon-normalized.png assets/icon.png
+          sips -g pixelWidth -g pixelHeight assets/icon.png
+
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
