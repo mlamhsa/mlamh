@@ -24,7 +24,8 @@ export default async function PublisherSettingsPage({ params }: PageProps) {
   const { locale } = await params;
   const isRtl = locale === "ar";
 
-  const { user } = await requirePublisher(locale);
+  const { user, publisher } = await requirePublisher(locale);
+  const isIndividual = publisher.publisher_type === "individual";
 
   return (
       <div className="space-y-8">
@@ -39,8 +40,12 @@ export default async function PublisherSettingsPage({ params }: PageProps) {
 
           <p className="mt-3 max-w-2xl text-sm leading-7 text-white/45">
             {isRtl
-              ? "إدارة حساب الناشر والروابط الأساسية. معلومات الشركة والصور موجودة في ملف الشركة."
-              : "Manage publisher account basics and quick links. Company information and images are managed from the company profile."}
+              ? isIndividual
+                ? "إدارة حساب الناشر والروابط الأساسية. بياناتك ومعلومات مشروعك موجودة في ملف الناشر."
+                : "إدارة حساب الناشر والروابط الأساسية. معلومات الجهة والصور موجودة في ملف الناشر."
+              : isIndividual
+                ? "Manage publisher account basics and quick links. Your details and project information are managed from the publisher profile."
+                : "Manage publisher account basics and quick links. Organization information and images are managed from the publisher profile."}
           </p>
         </div>
 
@@ -104,11 +109,23 @@ export default async function PublisherSettingsPage({ params }: PageProps) {
           <div className="mt-6 grid gap-4 md:grid-cols-3">
             <SettingsLink
               href={`/${locale}/publisher-dashboard/profile`}
-              title={isRtl ? "ملف الشركة" : "Company Profile"}
+              title={
+                isRtl
+                  ? isIndividual
+                    ? "ملف الناشر"
+                    : "ملف الجهة"
+                  : isIndividual
+                    ? "Publisher Profile"
+                    : "Organization Profile"
+              }
               description={
                 isRtl
-                  ? "تعديل معلومات الشركة وصور البروفايل والغلاف."
-                  : "Edit company information, profile image, and cover image."
+                  ? isIndividual
+                    ? "تعديل بياناتك الأساسية ومعلومات مشروعك وصورة الحساب."
+                    : "تعديل معلومات الجهة وصورة الحساب والبيانات التعريفية."
+                  : isIndividual
+                    ? "Edit your core details, project information, and account image."
+                    : "Edit organization information, account image, and profile details."
               }
             />
 
@@ -127,8 +144,8 @@ export default async function PublisherSettingsPage({ params }: PageProps) {
               title={isRtl ? "المتقدمون" : "Applicants"}
               description={
                 isRtl
-                  ? "مراجعة الطلبات والقبول والرفض والقائمة المختصرة."
-                  : "Review applications, accept, reject, and shortlist."
+                  ? "مراجعة الطلبات واتخاذ قرار القبول أو الرفض، وإدارة الاختيار المبدئي للطلبات السريعة."
+                  : "Review applications, accept or reject casting applicants, and manage preliminary selection for Quick Requests."
               }
             />
           </div>
