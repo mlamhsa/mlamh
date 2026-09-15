@@ -83,7 +83,7 @@ export default function TalentSidebar({
       items: [
         {
           href: `${dashboardHref}/profile`,
-          label: isAr ? "الملف الشخصي" : "Profile",
+          label: isAr ? "ملفي" : "My Profile",
           icon: <UserRound size={19} aria-hidden="true" />,
         },
         {
