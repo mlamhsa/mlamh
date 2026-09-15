@@ -24,12 +24,18 @@ export async function deleteMlamhAccount(userId: string, options: DeleteMlamhAcc
   const { data: authUser, error: authLookupError } = await supabase.auth.admin.getUserById(userId);
   if (authLookupError || !authUser.user) return { ok: false as const, code: "AUTH_LOOKUP_FAILED" as const };
 
-  const usesApple = Boolean(authUser.user.identities?.some((identity) => identity.provider === "apple"));
-  if (usesApple) {
+  const appleIdentity = authUser.user.identities?.find((identity) => identity.provider === "apple");
+  if (appleIdentity) {
     const authorizationCode = options.appleAuthorizationCode?.trim();
     if (!authorizationCode) return { ok: false as const, code: "APPLE_REAUTH_REQUIRED" as const };
 
-    const revocation = await revokeAppleAuthorizationCode(authorizationCode);
+    const subject = appleIdentity.identity_data?.sub;
+    const expectedAppleSubject = typeof subject === "string" ? subject.trim() : "";
+    if (!expectedAppleSubject) {
+      return { ok: false as const, code: "APPLE_IDENTITY_MISMATCH" as const };
+    }
+
+    const revocation = await revokeAppleAuthorizationCode(authorizationCode, expectedAppleSubject);
     if (!revocation.ok) return revocation;
   }
 
