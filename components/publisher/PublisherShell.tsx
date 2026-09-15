@@ -53,6 +53,7 @@ export default function PublisherShell({ locale, isRtl, children }: Props) {
 
   const [counts, setCounts] = useState<DashboardCounts>(EMPTY_COUNTS);
   const [publisherId, setPublisherId] = useState<string | number | null>(null);
+  const [publisherType, setPublisherType] = useState<string | null>(null);
   const [workspaceEligible, setWorkspaceEligible] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
@@ -80,6 +81,7 @@ export default function PublisherShell({ locale, isRtl, children }: Props) {
         if (response.status === 401 || response.status === 403 || response.status === 404) {
           setCounts(EMPTY_COUNTS);
           setPublisherId(null);
+          setPublisherType(null);
           setWorkspaceEligible(false);
         }
         return;
@@ -89,6 +91,7 @@ export default function PublisherShell({ locale, isRtl, children }: Props) {
       if (controller.signal.aborted) return;
 
       setPublisherId(data.publisherId ?? null);
+      setPublisherType(data.publisherType ?? null);
       setWorkspaceEligible(data.workspaceEligible === true);
       setCounts({
         applicants: typeof data.applicants === "number" ? Math.max(0, data.applicants) : 0,
@@ -172,7 +175,9 @@ export default function PublisherShell({ locale, isRtl, children }: Props) {
     { href: `${dashboardHref}/messages`, label: isRtl ? "الرسائل" : "Messages", icon: <MessageSquare size={18} />, badge: counts.messages },
     { href: `${dashboardHref}/notifications`, label: isRtl ? "الإشعارات" : "Notifications", icon: <Bell size={18} />, badge: counts.notifications },
     { href: `${dashboardHref}/profile`, label: isRtl ? "ملف الناشر" : "Publisher Profile", icon: <Building2 size={18} />, badge: 0 },
-    { href: `${dashboardHref}/verification`, label: isRtl ? "التوثيق" : "Verification", icon: <BadgeCheck size={18} />, badge: 0 },
+    ...(publisherType && publisherType !== "individual"
+      ? [{ href: `${dashboardHref}/verification`, label: isRtl ? "التوثيق" : "Verification", icon: <BadgeCheck size={18} />, badge: 0 }]
+      : []),
     { href: `${dashboardHref}/settings`, label: isRtl ? "الإعدادات" : "Settings", icon: <Settings size={18} />, badge: 0 },
   ];
 
@@ -181,6 +186,7 @@ export default function PublisherShell({ locale, isRtl, children }: Props) {
     activeRequestRef.current?.abort();
     setCounts(EMPTY_COUNTS);
     setPublisherId(null);
+    setPublisherType(null);
     setWorkspaceEligible(false);
 
     const { error } = await supabase.auth.signOut();
