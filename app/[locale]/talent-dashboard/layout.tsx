@@ -2,8 +2,6 @@ import { redirect } from "next/navigation";
 
 import { TalentFeaturedEntryPoint } from "@/components/payments/TalentFeaturedEntryPoint";
 import { SceneDashboardEntryPoint } from "@/components/scene/SceneDashboardEntryPoint";
-import { TalentBirthDateEnhancer } from "@/components/talent-dashboard/TalentBirthDateEnhancer";
-import { TalentImageUploadPendingEnhancer } from "@/components/talent-dashboard/TalentImageUploadPendingEnhancer";
 import { TalentSidebarDockEnhancer } from "@/components/talent-dashboard/TalentSidebarDockEnhancer";
 import TalentApprovedLegacyRequiredFieldsCard from "@/components/talent/TalentApprovedLegacyRequiredFieldsCard";
 import TalentConsentCompletionCard from "@/components/talent/TalentConsentCompletionCard";
@@ -84,8 +82,6 @@ export default async function TalentDashboardLayout({
 
   return (
     <>
-      <TalentBirthDateEnhancer />
-      <TalentImageUploadPendingEnhancer />
       <TalentSidebarDockEnhancer />
       {user ? <TalentRealtimeSync userId={user.id} talentId={talentId} /> : null}
       {user ? (
