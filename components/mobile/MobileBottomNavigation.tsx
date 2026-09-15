@@ -3,10 +3,7 @@
 import { useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import {
-  usePathname,
-  useRouter,
-} from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   BriefcaseBusiness,
   CirclePlus,
@@ -59,111 +56,90 @@ export function MobileBottomNavigation({
     pathname === `/${locale}/reset-password`;
 
   function localizedPath(path: string) {
-    return path === "/"
-      ? `/${locale}`
-      : `/${locale}${path}`;
+    return path === "/" ? `/${locale}` : `/${locale}${path}`;
   }
 
-  function isActive(path: string) {
+  function matches(path: string) {
     const localized = localizedPath(path);
 
     if (path === "/") {
-      return (
-        pathname === localized ||
-        pathname === `${localized}/`
-      );
+      return pathname === localized || pathname === `${localized}/`;
     }
 
-    return (
-      pathname === localized ||
-      pathname.startsWith(`${localized}/`)
-    );
+    return pathname === localized || pathname.startsWith(`${localized}/`);
   }
 
-  function handleHomeClick(
-    event: React.MouseEvent<HTMLAnchorElement>,
-  ) {
+  function handleHomeClick(event: React.MouseEvent<HTMLAnchorElement>) {
     event.preventDefault();
-
     const homePath = localizedPath("/");
-    const isHome =
-      pathname === homePath ||
-      pathname === `${homePath}/`;
+    const onHome = pathname === homePath || pathname === `${homePath}/`;
 
-    if (isHome) {
-      window.scrollTo({
-        top: 0,
-        behavior: "smooth",
-      });
-
+    if (onHome) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
 
     router.push(homePath);
-
     requestAnimationFrame(() => {
-      window.scrollTo({
-        top: 0,
-        behavior: "auto",
-      });
+      window.scrollTo({ top: 0, behavior: "auto" });
     });
   }
 
   const talentProfileActive =
     accountType === "talent" &&
-    (
-      pathname.includes("/dashboard-router") ||
-      pathname.includes("/talent-dashboard/profile")
-    );
+    (matches("/dashboard-router") || matches("/talent-dashboard/profile"));
+
+  const publisherAccountActive =
+    accountType === "publisher" && matches("/publisher-dashboard");
+
+  const talentAccountActive =
+    accountType === "talent" &&
+    !talentProfileActive &&
+    matches("/talent-dashboard");
+
+  const guestLoginActive = !isLoggedIn && matches("/login");
+
+  const accountActive =
+    !talentProfileActive &&
+    (publisherAccountActive || talentAccountActive || guestLoginActive);
+
+  const home: NavigationItem = {
+    key: "home",
+    labelAr: "الرئيسية",
+    labelEn: "Home",
+    href: localizedPath("/"),
+    icon: Home,
+    active: matches("/"),
+  };
+
+  const talents: NavigationItem = {
+    key: "talents",
+    labelAr: "المواهب",
+    labelEn: "Talents",
+    href: localizedPath("/talent"),
+    icon: UsersRound,
+    active: matches("/talent"),
+  };
+
+  const opportunities: NavigationItem = {
+    key: "opportunities",
+    labelAr: "الفرص",
+    labelEn: "Opportunities",
+    href: localizedPath("/opportunities"),
+    icon: BriefcaseBusiness,
+    active: matches("/opportunities") && !matches("/opportunities/new"),
+  };
+
+  const account: NavigationItem = {
+    key: "account",
+    labelAr: isLoggedIn ? "حسابي" : "دخول",
+    labelEn: isLoggedIn ? "Account" : "Login",
+    href: isLoggedIn ? localizedPath("/dashboard-router") : localizedPath("/login"),
+    icon: isLoggedIn ? User : LogIn,
+    active: accountActive,
+  };
 
   const navigationItems: NavigationItem[] = (() => {
-    const home: NavigationItem = {
-      key: "home",
-      labelAr: "الرئيسية",
-      labelEn: "Home",
-      href: localizedPath("/"),
-      icon: Home,
-      active: isActive("/"),
-    };
-
-    const talents: NavigationItem = {
-      key: "talents",
-      labelAr: "المواهب",
-      labelEn: "Talents",
-      href: localizedPath("/talent"),
-      icon: UsersRound,
-      active: isActive("/talent"),
-    };
-
-    const opportunities: NavigationItem = {
-      key: "opportunities",
-      labelAr: "الفرص",
-      labelEn: "Opportunities",
-      href: localizedPath("/opportunities"),
-      icon: BriefcaseBusiness,
-      active:
-        isActive("/opportunities") &&
-        !isActive("/opportunities/new"),
-    };
-
-    const account: NavigationItem = {
-      key: "account",
-      labelAr: isLoggedIn ? "حسابي" : "دخول",
-      labelEn: isLoggedIn ? "Account" : "Login",
-      href: isLoggedIn
-        ? localizedPath("/dashboard-router")
-        : localizedPath("/login"),
-      icon: isLoggedIn ? User : LogIn,
-      active:
-        !talentProfileActive &&
-        (
-          pathname.includes("/dashboard-router") ||
-          pathname.includes("/talent-dashboard") ||
-          pathname.includes("/publisher-dashboard") ||
-          pathname.includes("/login")
-        ),
-    };
-
     if (authLoading) {
       return [
         home,
@@ -192,7 +168,7 @@ export function MobileBottomNavigation({
           labelEn: "Publish",
           href: localizedPath("/opportunities/new"),
           icon: CirclePlus,
-          active: isActive("/opportunities/new"),
+          active: matches("/opportunities/new"),
           primary: true,
         },
         opportunities,
@@ -227,7 +203,7 @@ export function MobileBottomNavigation({
         labelEn: "Join",
         href: localizedPath("/join"),
         icon: CirclePlus,
-        active: isActive("/join"),
+        active: matches("/join"),
         primary: true,
       },
       opportunities,
@@ -235,90 +211,31 @@ export function MobileBottomNavigation({
     ];
   })();
 
-  if (!portalReady || isAuthUtilityRoute) {
-    return null;
-  }
+  if (!portalReady || isAuthUtilityRoute) return null;
 
   return createPortal(
     <nav
       dir={isArabic ? "rtl" : "ltr"}
-      aria-label={
-        isArabic
-          ? "التنقل الرئيسي للجوال"
-          : "Mobile primary navigation"
-      }
-      className="
-        fixed
-        inset-x-0
-        bottom-0
-        z-[9999]
-        isolate
-        block
-        border-t
-        border-white/10
-        bg-black/95
-        shadow-[0_-10px_35px_rgba(0,0,0,0.55)]
-        backdrop-blur-2xl
-        lg:hidden
-      "
+      aria-label={isArabic ? "التنقل الرئيسي للجوال" : "Mobile primary navigation"}
+      className="fixed inset-x-0 bottom-0 z-[9999] isolate block border-t border-white/10 bg-black/95 shadow-[0_-10px_35px_rgba(0,0,0,0.55)] backdrop-blur-2xl lg:hidden"
     >
-      <div
-        className="
-          mx-auto
-          grid
-          h-[4.75rem]
-          max-w-lg
-          grid-cols-5
-          items-center
-          px-1
-          pb-[max(env(safe-area-inset-bottom),0.35rem)]
-        "
-      >
+      <div className="mx-auto grid h-[4.75rem] max-w-lg grid-cols-5 items-center px-1 pb-[max(env(safe-area-inset-bottom),0.35rem)]">
         {navigationItems.map((item) => {
           const Icon = item.icon;
-          const label = isArabic
-            ? item.labelAr
-            : item.labelEn;
-
-          const disabled =
-            item.key === "loading";
+          const label = isArabic ? item.labelAr : item.labelEn;
+          const disabled = item.key === "loading";
 
           if (item.primary) {
             const content = (
               <>
                 <span
-                  className={`
-                    absolute
-                    -top-6
-                    flex
-                    h-14
-                    w-14
-                    items-center
-                    justify-center
-                    rounded-full
-                    border-4
-                    border-black
-                    text-black
-                    shadow-xl
-                    transition
-                    ${
-                      disabled
-                        ? "bg-gold/50"
-                        : item.active
-                          ? "bg-white"
-                          : "bg-gold"
-                    }
-                  `}
+                  className={`absolute -top-6 flex h-14 w-14 items-center justify-center rounded-full border-4 border-black text-black shadow-xl transition ${
+                    disabled ? "bg-gold/50" : item.active ? "bg-white" : "bg-gold"
+                  }`}
                 >
-                  <Icon
-                    size={26}
-                    strokeWidth={1.9}
-                  />
+                  <Icon size={26} strokeWidth={1.9} />
                 </span>
-
-                <span className="mt-8">
-                  {label}
-                </span>
+                <span className="mt-8">{label}</span>
               </>
             );
 
@@ -327,17 +244,7 @@ export function MobileBottomNavigation({
                 <div
                   key={item.key}
                   aria-hidden="true"
-                  className="
-                    relative
-                    flex
-                    h-full
-                    flex-col
-                    items-center
-                    justify-center
-                    text-[10px]
-                    font-medium
-                    text-gold/50
-                  "
+                  className="relative flex h-full flex-col items-center justify-center text-[10px] font-medium text-gold/50"
                 >
                   {content}
                 </div>
@@ -349,24 +256,8 @@ export function MobileBottomNavigation({
                 key={item.key}
                 href={item.href}
                 aria-label={label}
-                aria-current={
-                  item.active
-                    ? "page"
-                    : undefined
-                }
-                className="
-                  relative
-                  flex
-                  h-full
-                  flex-col
-                  items-center
-                  justify-center
-                  text-[10px]
-                  font-medium
-                  text-gold
-                  transition
-                  active:scale-95
-                "
+                aria-current={item.active ? "page" : undefined}
+                className="relative flex h-full flex-col items-center justify-center text-[10px] font-medium text-gold transition active:scale-95"
               >
                 {content}
               </Link>
@@ -377,65 +268,21 @@ export function MobileBottomNavigation({
             <Link
               key={item.key}
               href={item.href}
-              onClick={
-                item.key === "home"
-                  ? handleHomeClick
-                  : undefined
-              }
-              scroll={
-                item.key === "home"
-                  ? true
-                  : undefined
-              }
+              onClick={item.key === "home" ? handleHomeClick : undefined}
+              scroll={item.key === "home" ? true : undefined}
               aria-label={label}
-              aria-current={
-                item.active
-                  ? "page"
-                  : undefined
-              }
-              className={`
-                flex
-                h-full
-                min-w-0
-                flex-col
-                items-center
-                justify-center
-                gap-1
-                text-[10px]
-                transition
-                active:scale-95
-                ${
-                  item.active
-                    ? "text-gold"
-                    : "text-white/50"
-                }
-              `}
+              aria-current={item.active ? "page" : undefined}
+              className={`flex h-full min-w-0 flex-col items-center justify-center gap-1 text-[10px] transition active:scale-95 ${
+                item.active ? "text-gold" : "text-white/50"
+              }`}
             >
-              <Icon
-                size={22}
-                strokeWidth={
-                  item.active
-                    ? 2.2
-                    : 1.7
-                }
-              />
-
-              <span className="max-w-full truncate px-1">
-                {label}
-              </span>
-
+              <Icon size={22} strokeWidth={item.active ? 2.2 : 1.7} />
+              <span className="max-w-full truncate px-1">{label}</span>
               <span
                 aria-hidden="true"
-                className={`
-                  h-1
-                  w-1
-                  rounded-full
-                  ${
-                    item.active
-                      ? "bg-gold"
-                      : "bg-transparent"
-                  }
-                `}
+                className={`h-1 w-1 rounded-full ${
+                  item.active ? "bg-gold" : "bg-transparent"
+                }`}
               />
             </Link>
           );
