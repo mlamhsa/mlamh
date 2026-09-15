@@ -20,6 +20,7 @@ jobs:
         working-directory: apps/mobile
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      NPM_CONFIG_LEGACY_PEER_DEPS: "true"
 
     steps:
       - name: Checkout
