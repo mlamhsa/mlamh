@@ -10,10 +10,7 @@ import { updateOwnTalentCoreDetailsAction } from "@/lib/actions/update-own-talen
 import { getOwnTalentProfileAction } from "@/lib/actions/update-own-talent-profile";
 import { TALENT_CATEGORIES } from "@/lib/data/talent-categories";
 import { ACTIVE_TALENT_SIGNUP_COUNTRIES } from "@/lib/data/talent-active-market";
-import {
-  GENDER_OPTIONS,
-  PROFILE_VISIBILITY_OPTIONS,
-} from "@/lib/data/talent-signup";
+import { GENDER_OPTIONS } from "@/lib/data/talent-signup";
 import { normalizeNationalitySlug } from "@/lib/data/nationality-normalization";
 import { normalizeSaudiCitySlug } from "@/lib/data/saudi-cities";
 import { isValidLocale, type Locale } from "@/lib/i18n";
@@ -30,7 +27,6 @@ type TalentRecord = Record<string, unknown> & {
   base_country_code?: string | null;
   city_slug?: string | null;
   date_of_birth?: string | null;
-  profile_visibility?: string | null;
   data_accuracy_contact_consent?: boolean | null;
   approval_status?: string | null;
 };
@@ -80,7 +76,6 @@ export default function TalentRequiredFieldsPage({
   const [birthDay, setBirthDay] = useState("");
   const [birthMonth, setBirthMonth] = useState("");
   const [birthYear, setBirthYear] = useState("");
-  const [visibility, setVisibility] = useState("");
   const [consent, setConsent] = useState(false);
 
   async function load() {
@@ -109,7 +104,6 @@ export default function TalentRequiredFieldsPage({
       setBirthYear(storedYear);
       setBirthMonth(storedMonth);
       setBirthDay(storedDay);
-      setVisibility(clean(talent.profile_visibility).toLowerCase());
       setConsent(talent.data_accuracy_contact_consent === true);
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : isArabic ? "تعذر تحميل البيانات." : "Unable to load details.");
@@ -176,7 +170,6 @@ export default function TalentRequiredFieldsPage({
     payload.set("nationality_slug", nationality);
     payload.set("base_country_code", countryCode);
     payload.set("city_slug", citySlug);
-    payload.set("profile_visibility", visibility);
     payload.set("data_accuracy_contact_consent", String(consent));
 
     const coreResult = await updateOwnTalentCoreDetailsAction(payload);
@@ -199,7 +192,7 @@ export default function TalentRequiredFieldsPage({
     }
 
     setSuccess(true);
-    setMessage(isArabic ? "تم حفظ البيانات المطلوبة بنجاح." : "Required profile details saved successfully.");
+    setMessage(isArabic ? "تم حفظ البيانات الأساسية بنجاح." : "Basic information saved successfully.");
     await load();
     setSaving(false);
   }
@@ -219,7 +212,7 @@ export default function TalentRequiredFieldsPage({
     return (
       <main className="min-h-screen bg-background px-4 pb-24 pt-40 text-white" dir={isArabic ? "rtl" : "ltr"}>
         <div className="mx-auto max-w-xl rounded-[2rem] border border-red-400/20 bg-red-400/[0.05] p-7 text-center">
-          <h1 className="text-2xl font-light">{isArabic ? "تعذر فتح البيانات المطلوبة" : "Unable to open required details"}</h1>
+          <h1 className="text-2xl font-light">{isArabic ? "تعذر فتح البيانات الأساسية" : "Unable to open basic information"}</h1>
           <p className="mt-3 text-sm text-white/55">{loadError}</p>
           <button type="button" onClick={() => void load()} className="mt-6 rounded-full bg-gold px-6 py-3 text-sm font-semibold text-black">
             {isArabic ? "إعادة المحاولة" : "Try again"}
@@ -235,27 +228,27 @@ export default function TalentRequiredFieldsPage({
         <div className="mb-7 flex items-start justify-between gap-4">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-gold">
-              {isArabic ? "متطلبات الاعتماد" : "REVIEW REQUIREMENTS"}
+              {isArabic ? "البيانات الأساسية" : "BASIC INFORMATION"}
             </p>
             <h1 className="mt-2 text-3xl font-light sm:text-4xl">
-              {isArabic ? "أكمل بياناتك الأساسية" : "Complete your core details"}
+              {isArabic ? "إدارة بياناتك الأساسية" : "Manage your basic information"}
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-7 text-white/50">
               {isArabic
-                ? "احفظ ما أدخلته في أي وقت. لا يلزم إكمال جميع الحقول في جلسة واحدة، لكن يجب اكتمالها قبل إرسال الملف للمراجعة."
-                : "Save whatever you have entered at any time. You do not need to finish every field in one session, but all are required before review submission."}
+                ? "حدّث بياناتك الأساسية هنا. هذه الحقول تدخل ضمن متطلبات المراجعة، بينما إعداد ظهور الملف يُدار من قسم الخصوصية داخل «ملفي»."
+                : "Update your basic information here. These fields are part of review requirements, while profile visibility is managed from Privacy in My Profile."}
             </p>
           </div>
           <Link href={`/${locale}/talent-dashboard/profile`} className="shrink-0 rounded-full border border-white/10 px-4 py-2 text-sm text-white/60 hover:text-gold">
-            {isArabic ? "رجوع" : "Back"}
+            {isArabic ? "ملفي" : "Profile"}
           </Link>
         </div>
 
         {!coreEditable ? (
           <div className="rounded-[2rem] border border-amber-300/20 bg-amber-300/[0.06] p-6 text-sm leading-7 text-amber-100">
             {isArabic
-              ? "البيانات الأساسية محمية لأن ملفك قيد المراجعة أو معتمد حاليًا."
-              : "Core profile details are protected while your profile is under review or approved."}
+              ? "البيانات الأساسية محمية لأن ملفك قيد المراجعة أو معتمد حاليًا. يمكنك إدارة الخصوصية والبيانات المهنية من أقسامها المستقلة داخل «ملفي»."
+              : "Basic information is protected while your profile is under review or approved. Privacy and professional details remain available from their dedicated sections in My Profile."}
           </div>
         ) : (
           <form onSubmit={save} className="space-y-5" noValidate>
@@ -360,28 +353,6 @@ export default function TalentRequiredFieldsPage({
               </div>
             </section>
 
-            <section id="profile_visibility" className="rounded-[2rem] border border-white/10 bg-white/[0.025] p-5 sm:p-7">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gold">
-                {isArabic ? "طريقة ظهور الملف" : "PROFILE VISIBILITY"}
-              </p>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                {PROFILE_VISIBILITY_OPTIONS.map((option) => {
-                  const selected = visibility === option.value;
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => setVisibility(option.value)}
-                      className={`rounded-2xl border p-4 text-start transition ${selected ? "border-gold/60 bg-gold/[0.08]" : "border-white/10 bg-black/20 hover:border-white/20"}`}
-                    >
-                      <span className="block text-sm font-semibold text-white">{isArabic ? option.ar : option.en}</span>
-                      <span className="mt-2 block text-xs leading-6 text-white/45">{isArabic ? option.descriptionAr : option.descriptionEn}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
-
             <section id="data_accuracy_contact_consent" className="rounded-[2rem] border border-white/10 bg-white/[0.025] p-5 sm:p-7">
               <label className="flex cursor-pointer items-start gap-3">
                 <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-1 h-5 w-5 accent-gold" />
@@ -401,10 +372,10 @@ export default function TalentRequiredFieldsPage({
 
             <div className="flex flex-col gap-3 sm:flex-row">
               <button type="submit" disabled={saving} className="min-h-12 rounded-2xl bg-gold px-7 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:opacity-40">
-                {saving ? (isArabic ? "جارٍ الحفظ..." : "Saving...") : (isArabic ? "حفظ ما أدخلته" : "Save what you've entered")}
+                {saving ? (isArabic ? "جارٍ الحفظ..." : "Saving...") : (isArabic ? "حفظ البيانات الأساسية" : "Save basic information")}
               </button>
-              <Link href={`/${locale}/talent-dashboard/profile`} className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-white/10 px-7 text-sm text-white/60 hover:border-gold/30 hover:text-gold">
-                {isArabic ? "العودة للملف" : "Back to profile"}
+              <Link href={`/${locale}/talent-dashboard/profile/privacy`} className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-white/10 px-7 text-sm text-white/60 hover:border-gold/30 hover:text-gold">
+                {isArabic ? "إدارة الخصوصية" : "Manage privacy"}
               </Link>
             </div>
           </form>
