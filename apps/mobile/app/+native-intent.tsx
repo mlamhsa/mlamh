@@ -6,7 +6,11 @@ type RedirectSystemPathOptions = {
 export function redirectSystemPath({ path }: RedirectSystemPathOptions) {
   const normalized = path.trim();
 
-  if (/^mlamh:\/\/{0,3}$/.test(normalized)) {
+  if (
+    normalized === "" ||
+    /^\/{1,4}$/.test(normalized) ||
+    /^mlamh:\/{1,4}$/.test(normalized)
+  ) {
     return "/";
   }
 
