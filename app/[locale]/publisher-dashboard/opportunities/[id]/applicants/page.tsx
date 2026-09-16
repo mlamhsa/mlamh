@@ -288,12 +288,7 @@ export default async function ApplicantsPage({
   const pendingCount = enrichedApplications.filter(
     (application) =>
       !application.status ||
-      application.status === "pending" ||
-      application.status === "reviewing",
-  ).length;
-
-  const shortlistedCount = enrichedApplications.filter(
-    (application) => application.status === "shortlisted",
+      ["pending", "reviewing", "shortlisted"].includes(application.status),
   ).length;
 
   const acceptedCount = enrichedApplications.filter(
@@ -311,8 +306,7 @@ export default async function ApplicantsPage({
         ? enrichedApplications.filter(
             (application) =>
               !application.status ||
-              application.status === "pending" ||
-              application.status === "reviewing",
+              ["pending", "reviewing", "shortlisted"].includes(application.status),
           )
         : enrichedApplications.filter(
             (application) => application.status === selectedStatus,
@@ -347,17 +341,11 @@ export default async function ApplicantsPage({
       isRtl ? `قيد المراجعة (${pendingCount})` : `Pending (${pendingCount})`,
     ],
     [
-      "shortlisted",
-      isRtl
-        ? `المرشحون (${shortlistedCount})`
-        : `Shortlisted (${shortlistedCount})`,
-    ],
-    [
       "accepted",
       isQuickRequest
         ? isRtl
-          ? `المختارون (${acceptedCount})`
-          : `Selected (${acceptedCount})`
+          ? `اختيار مبدئي (${acceptedCount})`
+          : `Preliminary selection (${acceptedCount})`
         : isRtl
           ? `المقبولون (${acceptedCount})`
           : `Accepted (${acceptedCount})`,
@@ -392,12 +380,12 @@ export default async function ApplicantsPage({
               ? "راجع المواهب المهتمة، واختر من تريد متابعة التفاصيل معها عبر المحادثة."
               : "Review interested talent and choose who you want to continue with in chat."
             : isRtl
-              ? "راجع الطلبات، رشّح المواهب المناسبة، وحدّث حالة كل طلب."
-              : "Review applications, shortlist suitable talent, and update each application status."}
+              ? "راجع الطلبات واتخذ قرار القبول أو الاعتذار مباشرة."
+              : "Review applications and decide whether to accept or decline each one."}
         </p>
       </header>
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label={isRtl ? "الإجمالي" : "Total"}
           value={enrichedApplications.length}
@@ -407,15 +395,11 @@ export default async function ApplicantsPage({
           value={pendingCount}
         />
         <StatCard
-          label={isRtl ? "المرشحون" : "Shortlisted"}
-          value={shortlistedCount}
-        />
-        <StatCard
           label={
             isQuickRequest
               ? isRtl
-                ? "المختارون"
-                : "Selected"
+                ? "اختيار مبدئي"
+                : "Preliminary selection"
               : isRtl
                 ? "المقبولون"
                 : "Accepted"
@@ -601,77 +585,7 @@ export default async function ApplicantsPage({
                     </div>
 
                     <div className="flex flex-wrap gap-2">
-                      {currentStatus === "pending" ? (
-                        <>
-                          <StatusButton
-                            applicationId={application.id}
-                            opportunityId={opportunityId}
-                            locale={locale}
-                            status="reviewing"
-                            label={isRtl ? "بدء المراجعة" : "Start Review"}
-                            className="border-amber-400/40 text-amber-300 hover:bg-amber-400"
-                          />
-
-                          <StatusButton
-                            applicationId={application.id}
-                            opportunityId={opportunityId}
-                            locale={locale}
-                            status="shortlisted"
-                            label={isRtl ? "ترشيح" : "Shortlist"}
-                            className="border-blue-400/40 text-blue-300 hover:bg-blue-400"
-                          />
-
-                          <StatusButton
-                            applicationId={application.id}
-                            opportunityId={opportunityId}
-                            locale={locale}
-                            status="rejected"
-                            label={isRtl ? "رفض" : "Reject"}
-                            className="border-red-400/40 text-red-300 hover:bg-red-400"
-                          />
-                        </>
-                      ) : null}
-
-                      {currentStatus === "reviewing" ? (
-                        <>
-                          <StatusButton
-                            applicationId={application.id}
-                            opportunityId={opportunityId}
-                            locale={locale}
-                            status="shortlisted"
-                            label={isRtl ? "ترشيح" : "Shortlist"}
-                            className="border-blue-400/40 text-blue-300 hover:bg-blue-400"
-                          />
-
-                          <StatusButton
-                            applicationId={application.id}
-                            opportunityId={opportunityId}
-                            locale={locale}
-                            status="accepted"
-                            label={
-                              isQuickRequest
-                                ? isRtl
-                                  ? "اختيار مبدئي"
-                                  : "Select"
-                                : isRtl
-                                  ? "قبول"
-                                  : "Accept"
-                            }
-                            className="border-emerald-400/40 text-emerald-300 hover:bg-emerald-400"
-                          />
-
-                          <StatusButton
-                            applicationId={application.id}
-                            opportunityId={opportunityId}
-                            locale={locale}
-                            status="rejected"
-                            label={isRtl ? "رفض" : "Reject"}
-                            className="border-red-400/40 text-red-300 hover:bg-red-400"
-                          />
-                        </>
-                      ) : null}
-
-                      {currentStatus === "shortlisted" ? (
+                      {!["accepted", "rejected"].includes(currentStatus) ? (
                         <>
                           <StatusButton
                             applicationId={application.id}
@@ -682,20 +596,19 @@ export default async function ApplicantsPage({
                               isQuickRequest
                                 ? isRtl
                                   ? "اختيار مبدئي"
-                                  : "Select"
+                                  : "Preliminary selection"
                                 : isRtl
                                   ? "قبول"
                                   : "Accept"
                             }
                             className="border-emerald-400/40 text-emerald-300 hover:bg-emerald-400"
                           />
-
                           <StatusButton
                             applicationId={application.id}
                             opportunityId={opportunityId}
                             locale={locale}
                             status="rejected"
-                            label={isRtl ? "رفض" : "Reject"}
+                            label={isRtl ? "اعتذار" : "Not selected"}
                             className="border-red-400/40 text-red-300 hover:bg-red-400"
                           />
                         </>
@@ -811,14 +724,14 @@ function statusLabel(
 ) {
   switch (status) {
     case "reviewing":
-      return isRtl ? "قيد المراجعة" : "Reviewing";
     case "shortlisted":
+      return isRtl ? "بانتظار القرار" : "Pending decision";
       return isRtl ? "مرشح" : "Shortlisted";
     case "accepted":
       return isQuickRequest
         ? isRtl
-          ? "مختار مبدئيًا"
-          : "Selected"
+          ? "اختيار مبدئي"
+          : "Preliminary selection"
         : isRtl
           ? "مقبول"
           : "Accepted";

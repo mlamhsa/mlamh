@@ -14,10 +14,6 @@ type PreviewTalent = {
   category_en?: string | null;
   city_ar?: string | null;
   city_en?: string | null;
-  experience_years?: number | null;
-  profile_completion?: number | null;
-  profile_views?: number | null;
-  featured?: boolean | null;
   skills?: string[] | null;
 };
 
@@ -150,7 +146,7 @@ export default function TalentPreviewModal({
               </button>
             </div>
 
-            <div className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="mt-7 grid gap-3 sm:grid-cols-2">
               <PreviewItem
                 label={isRtl ? "التخصص" : "Category"}
                 value={displayValue(category)}
@@ -158,44 +154,6 @@ export default function TalentPreviewModal({
               <PreviewItem
                 label={isRtl ? "المدينة" : "City"}
                 value={displayValue(city)}
-              />
-              <PreviewItem
-                label={isRtl ? "سنوات الخبرة" : "Experience"}
-                value={
-                  talent.experience_years === null ||
-                  talent.experience_years === undefined
-                    ? "-"
-                    : isRtl
-                      ? `${talent.experience_years} سنوات`
-                      : `${talent.experience_years} years`
-                }
-              />
-              <PreviewItem
-                label={isRtl ? "اكتمال الملف" : "Profile Completion"}
-                value={
-                  talent.profile_completion === null ||
-                  talent.profile_completion === undefined
-                    ? "-"
-                    : `${talent.profile_completion}%`
-                }
-              />
-              <PreviewItem
-                label={isRtl ? "مشاهدات الملف" : "Profile Views"}
-                value={displayValue(talent.profile_views)}
-              />
-              <PreviewItem
-                label={isRtl ? "موهبة مميزة" : "Featured"}
-                value={
-                  talent.featured === true
-                    ? isRtl
-                      ? "نعم"
-                      : "Yes"
-                    : talent.featured === false
-                      ? isRtl
-                        ? "لا"
-                        : "No"
-                      : "-"
-                }
               />
             </div>
 
