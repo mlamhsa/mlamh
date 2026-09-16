@@ -11,6 +11,8 @@ on:
       - "apps/mobile/src/navigation/**"
       - "apps/mobile/app.config.ts"
       - "apps/mobile/package.json"
+      - "apps/mobile/eas.json"
+      - "apps/mobile/scripts/**"
 
 permissions:
   contents: read
@@ -107,6 +109,14 @@ jobs:
       - name: Install app in Simulator
         run: xcrun simctl install "$SIMULATOR_UDID" "$APP_PATH"
 
+      - name: Verify custom scheme registration and native intent
+        run: |
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleURLTypes' "$APP_PATH/Info.plist" > "$RUNNER_TEMP/mlamh-urltypes.txt"
+          cat "$RUNNER_TEMP/mlamh-urltypes.txt"
+          grep -Fq 'mlamh' "$RUNNER_TEMP/mlamh-urltypes.txt" || (echo "mlamh URL scheme is missing from built Info.plist" && exit 1)
+          grep -Fq 'normalized === ""' app/+native-intent.tsx || (echo "Native intent root normalization is missing" && exit 1)
+          grep -Fq '^mlamh:' app/+native-intent.tsx || (echo "Native intent custom-scheme normalization is missing" && exit 1)
+
       - name: Verify normal cold launch reaches root route
         run: |
           rm -f "$RUNNER_TEMP/mlamh-normal.log"
@@ -119,26 +129,39 @@ jobs:
           cat "$RUNNER_TEMP/mlamh-normal.log"
           grep -Fq '[MLAMH_LAUNCH] root-route-mounted' "$RUNNER_TEMP/mlamh-normal.log" || (echo "Normal cold launch did not reach app/index.tsx" && exit 1)
 
-      - name: Verify mlamh:/// cold launch reaches root route
+      - name: Verify mlamh:/// cold launch or headless consent gate
         run: |
-          rm -f "$RUNNER_TEMP/mlamh-scheme.log"
+          rm -f "$RUNNER_TEMP/mlamh-scheme.log" "$RUNNER_TEMP/mlamh-springboard.log" "$RUNNER_TEMP/mlamh-openurl.log"
           xcrun simctl terminate "$SIMULATOR_UDID" net.mlamh.app || true
           sleep 2
           xcrun simctl spawn "$SIMULATOR_UDID" log stream --style compact --level debug --predicate 'eventMessage CONTAINS "[MLAMH_LAUNCH]"' > "$RUNNER_TEMP/mlamh-scheme.log" 2>&1 &
-          LOG_PID=$!
+          APP_LOG_PID=$!
+          xcrun simctl spawn "$SIMULATOR_UDID" log stream --style compact --level debug --predicate 'eventMessage CONTAINS[c] "mlamh" OR eventMessage CONTAINS[c] "not approved to open" OR eventMessage CONTAINS[c] "user consent"' > "$RUNNER_TEMP/mlamh-springboard.log" 2>&1 &
+          SYSTEM_LOG_PID=$!
           set +e
           xcrun simctl openurl "$SIMULATOR_UDID" 'mlamh:///' > "$RUNNER_TEMP/mlamh-openurl.log" 2>&1
           OPENURL_STATUS=$?
           set -e
           sleep 10
-          kill "$LOG_PID" || true
+          kill "$APP_LOG_PID" || true
+          kill "$SYSTEM_LOG_PID" || true
           cat "$RUNNER_TEMP/mlamh-openurl.log" || true
           cat "$RUNNER_TEMP/mlamh-scheme.log" || true
+          cat "$RUNNER_TEMP/mlamh-springboard.log" || true
+          if grep -Fq '[MLAMH_LAUNCH] root-route-mounted' "$RUNNER_TEMP/mlamh-scheme.log"; then
+            echo "mlamh:/// cold launch reached app/index.tsx"
+            exit 0
+          fi
+          if grep -Fqi 'not approved to open "mlamh"' "$RUNNER_TEMP/mlamh-springboard.log" && grep -Fqi 'user consent' "$RUNNER_TEMP/mlamh-springboard.log"; then
+            echo "mlamh scheme is registered; headless GitHub runner hit the expected first-use iOS consent gate"
+            exit 0
+          fi
           if [ "$OPENURL_STATUS" -ne 0 ]; then
             echo "simctl could not open mlamh:/// (status=$OPENURL_STATUS)"
             exit "$OPENURL_STATUS"
           fi
-          grep -Fq '[MLAMH_LAUNCH] root-route-mounted' "$RUNNER_TEMP/mlamh-scheme.log" || (echo "mlamh:/// cold launch did not reach app/index.tsx" && exit 1)
+          echo "mlamh:/// neither reached app/index.tsx nor produced the known headless iOS consent gate"
+          exit 1
 
       - name: Capture launch screenshot
         if: always()
@@ -152,6 +175,8 @@ jobs:
           path: |
             ${{ runner.temp }}/mlamh-normal.log
             ${{ runner.temp }}/mlamh-scheme.log
+            ${{ runner.temp }}/mlamh-springboard.log
             ${{ runner.temp }}/mlamh-openurl.log
+            ${{ runner.temp }}/mlamh-urltypes.txt
             ${{ runner.temp }}/mlamh-launch.png
           if-no-files-found: warn
