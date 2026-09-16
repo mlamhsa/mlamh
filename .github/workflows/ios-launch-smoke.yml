@@ -119,6 +119,14 @@ jobs:
           cat "$RUNNER_TEMP/mlamh-normal.log"
           grep -Fq '[MLAMH_LAUNCH] root-route-mounted' "$RUNNER_TEMP/mlamh-normal.log" || (echo "Normal cold launch did not reach app/index.tsx" && exit 1)
 
+      - name: Preapprove mlamh URL scheme in Simulator
+        run: |
+          APPROVAL_PLIST="$HOME/Library/Developer/CoreSimulator/Devices/$SIMULATOR_UDID/data/Library/Preferences/com.apple.launchservices.schemeapproval.plist"
+          test -f "$APPROVAL_PLIST" || (echo "LaunchServices scheme approval plist not found: $APPROVAL_PLIST" && exit 1)
+          /usr/libexec/PlistBuddy -c "Delete com.apple.CoreSimulator.CoreSimulatorBridge-->mlamh" "$APPROVAL_PLIST" >/dev/null 2>&1 || true
+          /usr/libexec/PlistBuddy -c "Add com.apple.CoreSimulator.CoreSimulatorBridge-->mlamh string net.mlamh.app" "$APPROVAL_PLIST"
+          /usr/libexec/PlistBuddy -c "Print com.apple.CoreSimulator.CoreSimulatorBridge-->mlamh" "$APPROVAL_PLIST"
+
       - name: Verify mlamh:/// cold launch reaches root route
         run: |
           rm -f "$RUNNER_TEMP/mlamh-scheme.log"
