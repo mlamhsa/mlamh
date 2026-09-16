@@ -14,14 +14,9 @@ const saudiCities = SAUDI_CITIES.map((city) => ({
 }));
 
 const opportunityTypes = [
+  { value: "actor", ar: "ممثل", en: "Actor" },
   { value: "model", ar: "مودل", en: "Model" },
-  { value: "actor", ar: "ممثل / ممثلة", en: "Actor" },
-  { value: "photographer", ar: "مصور / مصورة", en: "Photographer" },
-  { value: "makeup_artist", ar: "خبير / خبيرة تجميل", en: "Makeup Artist" },
-  { value: "content_creator", ar: "صانع / صانعة محتوى", en: "Content Creator" },
-  { value: "voice_over", ar: "تعليق صوتي", en: "Voice Over" },
-  { value: "other", ar: "أخرى", en: "Other" },
-];
+] as const;
 
 const publisherEditableStatuses = [
   { value: "draft", ar: "مسودة", en: "Draft" },
@@ -123,12 +118,7 @@ export default function OpportunityEditForm({
       (item) => item.value === opportunity.opportunity_type,
     )
       ? (opportunity.opportunity_type ?? "")
-      : "other",
-  );
-  const [typeOther, setTypeOther] = useState(
-    opportunityTypes.some((item) => item.value === opportunity.opportunity_type)
-      ? ""
-      : opportunity.opportunity_type ?? "",
+      : "",
   );
 
   const isNeedsChanges = originalStatus === "needs_changes";
@@ -212,7 +202,6 @@ const [status, setStatus] = useState(defaultEditableStatus);
 
     const normalizedTitle = title.trim();
     const normalizedDescription = description.trim();
-    const normalizedTypeOther = typeOther.trim();
 
     if (normalizedTitle.length < 3) {
       setError(
@@ -243,16 +232,6 @@ const [status, setStatus] = useState(defaultEditableStatus);
     if (!gender) {
       setError(
         isRtl ? "يرجى اختيار الجنس المطلوب." : "Please select the required gender.",
-      );
-      setLoading(false);
-      return;
-    }
-
-    if (type === "other" && !normalizedTypeOther) {
-      setError(
-        isRtl
-          ? "يرجى كتابة نوع الفرصة المخصص."
-          : "Please enter the custom opportunity type.",
       );
       setLoading(false);
       return;
@@ -319,10 +298,7 @@ const [status, setStatus] = useState(defaultEditableStatus);
     }
 
     const cityPayload = getCityPayload(city);
-    const finalOpportunityType: string =
-  type === "other"
-    ? normalizedTypeOther
-    : type;
+    const finalOpportunityType = type;
     const normalizedBudget =
     compensationType === "fixed"
       ? budget.replace(/,/g, "")
@@ -562,15 +538,12 @@ router.refresh();
               <select
                 id="opportunity-type"
                 value={type}
-                onChange={(event) => {
-                  const nextType = event.target.value;
-                  setType(nextType);
-                  if (nextType !== "other") setTypeOther("");
-                }}
+                onChange={(event) => setType(event.target.value)}
                 required
                 disabled={loading}
                 className={selectClass}
               >
+                <option value="">{isRtl ? "اختر نوع الموهبة" : "Select talent type"}</option>
                 {opportunityTypes.map((item) => (
                   <option key={item.value} value={item.value}>
                     {isRtl ? item.ar : item.en}
@@ -579,24 +552,6 @@ router.refresh();
               </select>
             </div>
           </div>
-
-          {type === "other" ? (
-            <div>
-              <label htmlFor="custom-opportunity-type" className="arabic-safe mb-2 block text-xs uppercase tracking-[0.22em] text-white/40">
-                {isRtl ? "نوع الفرصة المخصص" : "Custom Opportunity Type"}
-              </label>
-              <input
-                id="custom-opportunity-type"
-                value={typeOther}
-                onChange={(event) => setTypeOther(event.target.value)}
-                required
-                disabled={loading}
-                maxLength={80}
-                placeholder={isRtl ? "حدد نوع الفرصة..." : "Specify the type..."}
-                className={inputClass}
-              />
-            </div>
-          ) : null}
 
 <div className="rounded-2xl border border-white/10 bg-black/20 p-4 sm:p-5">
   <div className="mb-4">
