@@ -9,6 +9,7 @@ export type PublicOpportunityRow = {
   description: string;
   description_en: string | null;
   opportunity_type: string;
+  posting_mode: string | null;
   country_code: CountryCode | null;
   currency: string | null;
   city_slug: string | null;
@@ -47,6 +48,7 @@ export function toPublicOpportunity(
     slug: row.slug,
     description: isEnglish ? row.description_en?.trim() || row.description : row.description,
     opportunityType: row.opportunity_type,
+    postingMode: row.posting_mode === "quick" ? "quick" : "casting",
     countryCode: row.country_code,
     currency: row.currency,
     citySlug: row.city_slug,

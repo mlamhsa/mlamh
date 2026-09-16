@@ -1,0 +1,60 @@
+name: iOS Build 17 Local TestFlight
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feat/mobile-native-v3-foundation
+    paths:
+      - ".github/workflows/ios-build15-local.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-submit:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: apps/mobile
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      NPM_CONFIG_LEGACY_PEER_DEPS: "true"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Install EAS CLI
+        run: npm install --global eas-cli
+
+      - name: Verify Expo authentication
+        run: |
+          test -n "$EXPO_TOKEN" || (echo "Missing EXPO_TOKEN repository secret" && exit 1)
+          eas whoami
+          eas project:info
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build iOS locally
+        run: eas build --platform ios --profile testflight --local --non-interactive --output ./build17.ipa
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mlamh-ios-build17
+          path: apps/mobile/build17.ipa
+          if-no-files-found: error
+
+      - name: Submit Build 17 to TestFlight
+        run: eas submit --platform ios --profile testflight --path ./build17.ipa --non-interactive

@@ -22,6 +22,8 @@ function getFailureStatus(result: Extract<ApplyOpportunityResult, { ok: false }>
     case "APPLICATION_WINDOW_CLOSED":
     case "ALREADY_APPLIED":
       return 409;
+    case "QUICK_CONVERSATION_FAILED":
+      return 503;
     default:
       return 500;
   }
@@ -76,9 +78,13 @@ export async function POST(
     );
   }
 
+  const url = new URL(request.url);
+  const locale = url.searchParams.get("locale") === "en" ? "en" : "ar";
+
   const result = await applyToOpportunity({
     userId: auth.user.id,
     opportunityId,
+    locale,
   });
 
   if (!result.ok) {
