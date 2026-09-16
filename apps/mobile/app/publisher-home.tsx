@@ -12,7 +12,7 @@ import {
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { useSessionContext } from "@/src/app/SessionContext";
+import { useSessionContext } from "@/src/runtime/SessionContext";
 import { useLocale } from "@/src/i18n/LocaleProvider";
 import { colors, radius, spacing, typography } from "@/src/theme/tokens";
 
