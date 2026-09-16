@@ -8,6 +8,7 @@ import {
 } from "@/lib/actions/opportunity-status-actions";
 import { requirePublisher } from "@/lib/auth/require-publisher";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { translateTalentValue } from "@/lib/utils/talent-translations";
 import {
   getOpportunityStatusClass,
   getOpportunityStatusLabel,
@@ -339,9 +340,10 @@ export default async function PublisherOpportunitiesPage({
 
                           {opportunity.opportunity_type ? (
                             <span className="arabic-safe text-[11px] uppercase tracking-[0.2em] text-white/25">
-                              {opportunity.opportunity_type.replaceAll(
-                                "_",
-                                " ",
+                              {translateTalentValue(
+                                isRtl ? "ar" : "en",
+                                "category",
+                                opportunity.opportunity_type,
                               )}
                             </span>
                           ) : null}
