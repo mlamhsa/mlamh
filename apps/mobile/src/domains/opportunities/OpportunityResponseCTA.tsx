@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { MobileApiError } from "@/src/api/client";
-import { useSessionContext } from "@/src/app/SessionContext";
+import { useSessionContext } from "@/src/runtime/SessionContext";
 import { respondToMobileOpportunity } from "@/src/domains/opportunities/api";
 import type { MobilePublicOpportunity } from "@/src/domains/opportunities/types";
 import type { AppLocale } from "@/src/i18n/locale";

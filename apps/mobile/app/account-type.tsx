@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { useSessionContext } from "@/src/app/SessionContext";
+import { useSessionContext } from "@/src/runtime/SessionContext";
 import { selectMobileAccountType } from "@/src/domains/account/api";
 import { useLocale } from "@/src/i18n/LocaleProvider";
 import { colors, radius, spacing, typography } from "@/src/theme/tokens";

@@ -5,7 +5,7 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { MobileApiError } from "@/src/api/client";
-import { useSessionContext } from "@/src/app/SessionContext";
+import { useSessionContext } from "@/src/runtime/SessionContext";
 import { createPublisherOpportunity, getPublisherProfileOptions } from "@/src/domains/publisher/api";
 import type {
   MobileProfileOption,
