@@ -1,4 +1,4 @@
-name: iOS Build 19 Local TestFlight
+name: iOS Build 20 Local TestFlight
 
 on:
   workflow_dispatch:
@@ -52,16 +52,21 @@ jobs:
           grep -q 'talent: "/talent-home"' src/navigation/RootRouteGate.tsx
           grep -q 'publisher: "/publisher-home"' src/navigation/RootRouteGate.tsx
 
+      - name: Verify native-intent root normalization
+        run: |
+          grep -q 'mlamh:' app/+native-intent.tsx
+          grep -q 'return "/";' app/+native-intent.tsx
+
       - name: Export iOS bundle route preflight
         run: npx expo export --platform ios --output-dir dist-route-check --clear
 
       - name: Build iOS locally
-        run: eas build --platform ios --profile testflight --local --non-interactive --output ./build19.ipa
+        run: eas build --platform ios --profile testflight --local --non-interactive --output ./build20.ipa
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
-          name: mlamh-ios-build19
-          path: apps/mobile/build19.ipa
+          name: mlamh-ios-build20
+          path: apps/mobile/build20.ipa
           if-no-files-found: error
-      - name: Submit Build 19 to TestFlight
-        run: eas submit --platform ios --profile testflight --path ./build19.ipa --non-interactive
+      - name: Submit Build 20 to TestFlight
+        run: eas submit --platform ios --profile testflight --path ./build20.ipa --non-interactive
