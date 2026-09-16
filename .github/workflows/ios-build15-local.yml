@@ -1,4 +1,4 @@
-name: iOS Build 16 Local TestFlight
+name: iOS Build 17 Local TestFlight
 
 on:
   workflow_dispatch:
@@ -47,14 +47,14 @@ jobs:
         run: npm run typecheck
 
       - name: Build iOS locally
-        run: eas build --platform ios --profile testflight --local --non-interactive --output ./build16.ipa
+        run: eas build --platform ios --profile testflight --local --non-interactive --output ./build17.ipa
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
-          name: mlamh-ios-build16
-          path: apps/mobile/build16.ipa
+          name: mlamh-ios-build17
+          path: apps/mobile/build17.ipa
           if-no-files-found: error
 
-      - name: Submit Build 16 to TestFlight
-        run: eas submit --platform ios --profile testflight --path ./build16.ipa --non-interactive
+      - name: Submit Build 17 to TestFlight
+        run: eas submit --platform ios --profile testflight --path ./build17.ipa --non-interactive
