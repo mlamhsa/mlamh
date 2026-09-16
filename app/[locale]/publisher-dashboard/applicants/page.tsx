@@ -434,7 +434,7 @@ export default async function PublisherApplicantsPage({
             status: "accepted",
             page: 1,
           })}
-          label={isRtl ? "مقبول / مختار" : "Accepted / Selected"}
+          label={isRtl ? "مقبول / اختيار مبدئي" : "Accepted / Preliminary selection"}
           value={counts.accepted}
           active={statusFilter === "accepted"}
         />
@@ -447,7 +447,7 @@ export default async function PublisherApplicantsPage({
             status: "rejected",
             page: 1,
           })}
-          label={isRtl ? "مرفوض / معتذر" : "Rejected / Declined"}
+          label={isRtl ? "مرفوض / تم الاعتذار" : "Rejected / Not selected"}
           value={counts.rejected}
           active={statusFilter === "rejected"}
         />
@@ -501,10 +501,10 @@ export default async function PublisherApplicantsPage({
               {isRtl ? "جديد" : "New"}
             </option>
             <option value="accepted">
-              {isRtl ? "مقبول / مختار" : "Accepted / Selected"}
+              {isRtl ? "مقبول / اختيار مبدئي" : "Accepted / Preliminary selection"}
             </option>
             <option value="rejected">
-              {isRtl ? "مرفوض / معتذر" : "Rejected / Declined"}
+              {isRtl ? "مرفوض / تم الاعتذار" : "Rejected / Not selected"}
             </option>
           </select>
 
@@ -651,10 +651,10 @@ export default async function PublisherApplicantsPage({
                           label={
                             isRtl
                               ? isQuickRequest
-                                ? "اختيار الموهبة"
+                                ? "اختيار مبدئي"
                                 : "قبول"
                               : isQuickRequest
-                                ? "Select Talent"
+                                ? "Preliminary selection"
                                 : "Accept"
                           }
                           className="border-emerald-400/35 text-emerald-300 hover:bg-emerald-400 hover:text-black"
@@ -670,7 +670,7 @@ export default async function PublisherApplicantsPage({
                                 ? "اعتذار"
                                 : "رفض"
                               : isQuickRequest
-                                ? "Decline"
+                                ? "Not selected"
                                 : "Reject"
                           }
                           className="border-red-400/35 text-red-300 hover:bg-red-400 hover:text-black"
@@ -823,17 +823,17 @@ function StatusBadge({
       {accepted
         ? isRtl
           ? isQuickRequest
-            ? "تم اختيار الموهبة"
+            ? "اختيار مبدئي"
             : "تم القبول"
           : isQuickRequest
-            ? "Talent Selected"
+            ? "Preliminary selection"
             : "Accepted"
         : isRtl
           ? isQuickRequest
             ? "تم الاعتذار"
             : "تم الرفض"
           : isQuickRequest
-            ? "Declined"
+            ? "Not selected"
             : "Rejected"}
     </div>
   );
