@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-nati
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useLocale } from "@/src/i18n/LocaleProvider";
-import { useSessionContext } from "@/src/app/SessionContext";
+import { useSessionContext } from "@/src/runtime/SessionContext";
 import { colors, radius, spacing, typography } from "@/src/theme/tokens";
 
 const ROUTES = {
