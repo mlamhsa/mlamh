@@ -138,6 +138,8 @@ export default function TalentRequiredFieldsPage({
     [citySlug],
   );
   const coreEditable = ["not_submitted", "rejected", "changes_requested"].includes(approvalStatus);
+  const isApproved = approvalStatus === "approved";
+  const isUnderReview = approvalStatus === "submitted" || approvalStatus === "pending";
   const currentYear = new Date().getFullYear();
   const birthYears = useMemo(
     () => Array.from({ length: currentYear - 1900 + 1 }, (_, index) => String(currentYear - index)),
@@ -267,9 +269,13 @@ export default function TalentRequiredFieldsPage({
         {!coreEditable ? (
           <div className="space-y-4">
             <div className="rounded-[2rem] border border-amber-300/20 bg-amber-300/[0.06] p-6 text-sm leading-7 text-amber-100">
-              {isArabic
-                ? "البيانات الأساسية محمية لأن ملفك قيد المراجعة أو معتمد حاليًا. يمكنك الاطلاع عليها هنا، بينما تُدار الخصوصية والبيانات المهنية من أقسامها المستقلة داخل «ملفي»."
-                : "Basic information is protected while your profile is under review or approved. You can review it here, while privacy and professional details remain available from their dedicated sections in My Profile."}
+              {isApproved
+                ? (isArabic
+                    ? "يمكنك تحديث ملفك في أي وقت. البيانات المهنية والخصوصية تُدار مباشرة، بينما تعديل الاسم أو رقم الجوال أو الجنسية يحتاج طلب مراجعة منفصل مع بقاء اعتماد ملفك فعالًا."
+                    : "You can keep your profile current at any time. Professional details and privacy can be updated directly, while changes to your name, phone number or nationality use a separate review request and your approval stays active.")
+                : (isArabic
+                    ? "البيانات الأساسية محمية لأن ملفك قيد المراجعة حاليًا. يمكنك الاطلاع عليها هنا، ولا تحتاج إلى إجراء أي تغيير حتى يصدر قرار المراجعة."
+                    : "Basic information is protected while your profile is under review. You can review it here, and no changes are needed until the review decision is issued.")}
             </div>
 
             <section className="rounded-[2rem] border border-white/10 bg-white/[0.025] p-5 sm:p-7">
@@ -285,14 +291,30 @@ export default function TalentRequiredFieldsPage({
               </div>
             </section>
 
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <Link href={`/${locale}/talent-dashboard/profile/details`} className="inline-flex min-h-12 items-center justify-center rounded-2xl bg-gold px-7 text-sm font-semibold text-black">
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              {isApproved ? (
+                <Link href={`/${locale}/talent-dashboard/profile/change-request`} className="inline-flex min-h-12 items-center justify-center rounded-2xl bg-gold px-7 text-sm font-semibold text-black">
+                  {isArabic ? "طلب تعديل الاسم أو الجوال أو الجنسية" : "Request a protected detail change"}
+                </Link>
+              ) : null}
+              <Link href={`/${locale}/talent-dashboard/profile/details`} className={`inline-flex min-h-12 items-center justify-center rounded-2xl px-7 text-sm ${isApproved ? "border border-white/10 text-white/60 hover:border-gold/30 hover:text-gold" : "bg-gold font-semibold text-black"}`}>
                 {isArabic ? "إدارة البيانات المهنية" : "Manage professional details"}
               </Link>
               <Link href={`/${locale}/talent-dashboard/profile/privacy`} className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-white/10 px-7 text-sm text-white/60 hover:border-gold/30 hover:text-gold">
                 {isArabic ? "إدارة الخصوصية" : "Manage privacy"}
               </Link>
             </div>
+            {isApproved ? (
+              <p className="text-xs leading-6 text-white/35">
+                {isArabic
+                  ? "تاريخ الميلاد وبقية البيانات الأساسية المحمية لا تتغير من هذا المسار حاليًا."
+                  : "Date of birth and other protected core fields are not changed through this request flow at this time."}
+              </p>
+            ) : isUnderReview ? (
+              <p className="text-xs leading-6 text-white/35">
+                {isArabic ? "يمكنك متابعة بياناتك المهنية والخصوصية دون التأثير على المراجعة الحالية." : "You can still manage professional details and privacy without affecting the current review."}
+              </p>
+            ) : null}
           </div>
         ) : (
           <form onSubmit={save} className="space-y-5" noValidate>
