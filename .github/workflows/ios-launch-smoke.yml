@@ -53,6 +53,11 @@ jobs:
           cd ios
           pod install
 
+      - name: Verify CocoaPods workspace
+        run: |
+          test -d ios/MLAMH.xcworkspace || (echo "CocoaPods workspace ios/MLAMH.xcworkspace was not generated" && exit 1)
+          test -f ios/Pods/Manifest.lock || (echo "Pods manifest missing" && exit 1)
+
       - name: Boot iOS Simulator
         run: |
           UDID=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin)["devices"]; devices=[x for runtime in d.values() for x in runtime if x.get("isAvailable") and "iPhone" in x.get("name","")]; print(devices[-1]["udid"] if devices else "")')
@@ -64,11 +69,10 @@ jobs:
 
       - name: Build Release app for Simulator
         run: |
-          WORKSPACE=$(find ios -maxdepth 2 -name '*.xcworkspace' | head -1)
-          test -n "$WORKSPACE" || (echo "No Xcode workspace generated" && exit 1)
-          SCHEME=$(xcodebuild -workspace "$WORKSPACE" -list -json | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["workspace"]["schemes"][0])')
-          test -n "$SCHEME" || (echo "No Xcode scheme found" && exit 1)
-          echo "Using workspace=$WORKSPACE scheme=$SCHEME"
+          WORKSPACE="ios/MLAMH.xcworkspace"
+          SCHEME="MLAMH"
+          xcodebuild -workspace "$WORKSPACE" -scheme "$SCHEME" -list
+          echo "Using CocoaPods workspace=$WORKSPACE scheme=$SCHEME"
           xcodebuild \
             -workspace "$WORKSPACE" \
             -scheme "$SCHEME" \
@@ -77,8 +81,9 @@ jobs:
             -destination "id=$SIMULATOR_UDID" \
             -derivedDataPath "$RUNNER_TEMP/mlamh-derived" \
             CODE_SIGNING_ALLOWED=NO \
+            ONLY_ACTIVE_ARCH=YES \
             build
-          APP_PATH=$(find "$RUNNER_TEMP/mlamh-derived/Build/Products" -path '*Release-iphonesimulator/*.app' | head -1)
+          APP_PATH=$(find "$RUNNER_TEMP/mlamh-derived/Build/Products" -path '*Release-iphonesimulator/*.app' -type d | head -1)
           test -n "$APP_PATH" || (echo "Simulator .app not produced" && exit 1)
           echo "APP_PATH=$APP_PATH" >> "$GITHUB_ENV"
 
