@@ -1,0 +1,35 @@
+name: Apply production hotfix patch
+
+on:
+  push:
+    branches:
+      - hotfix/prod-jwt-scene-font
+    paths:
+      - .github/hotfixes/prod-jwt-scene.patch
+
+permissions:
+  contents: write
+
+jobs:
+  apply-hotfix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout hotfix branch
+        uses: actions/checkout@v4
+        with:
+          ref: hotfix/prod-jwt-scene-font
+          fetch-depth: 0
+
+      - name: Apply reviewed patch
+        run: git apply --check .github/hotfixes/prod-jwt-scene.patch && git apply .github/hotfixes/prod-jwt-scene.patch
+
+      - name: Remove one-time hotfix helpers
+        run: rm -f .github/hotfixes/prod-jwt-scene.patch .github/workflows/apply-prod-hotfix.yml
+
+      - name: Commit hotfix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix(prod): remove JWT clock-skew path and dynamic glyph font"
+          git push origin HEAD:hotfix/prod-jwt-scene-font
