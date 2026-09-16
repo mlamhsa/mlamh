@@ -1,0 +1,112 @@
+diff --git a/app/[locale]/opportunities/[slug]/page.tsx b/app/[locale]/opportunities/[slug]/page.tsx
+index b65a564..595c693 100644
+--- a/app/[locale]/opportunities/[slug]/page.tsx
++++ b/app/[locale]/opportunities/[slug]/page.tsx
+@@ -712,15 +712,19 @@ const opportunity = (
+     data: { user },
+   } = await authClient.auth.getUser();
+ 
++  // The user identity is verified above with auth.getUser(). Use the server-only
++  // admin client for this read so a small JWT clock skew cannot make the page
++  // fail after authentication has already succeeded. The user_id filter keeps
++  // the lookup scoped to the verified user.
+   const { data: savedOpportunity, error: savedOpportunityError } =
+-  user
+-    ? await authClient
+-        .from("saved_opportunities")
+-        .select("id")
+-        .eq("user_id", user.id)
+-        .eq("opportunity_id", opportunity.id)
+-        .maybeSingle()
+-    : { data: null, error: null };
++    user
++      ? await adminClient
++          .from("saved_opportunities")
++          .select("id")
++          .eq("user_id", user.id)
++          .eq("opportunity_id", opportunity.id)
++          .maybeSingle()
++      : { data: null, error: null };
+ 
+ if (savedOpportunityError) {
+   throw new Error(
+@@ -1223,8 +1227,10 @@ const opportunityStructuredData = {
+         return;
+       }
+     
++      const admin = createAdminClient();
++
+       const { data: existingSaved, error: existingSavedError } =
+-        await supabase
++        await admin
+           .from("saved_opportunities")
+           .select("id")
+           .eq("user_id", currentUser.id)
+@@ -1238,10 +1244,11 @@ const opportunityStructuredData = {
+       }
+     
+       if (existingSaved) {
+-        const { error } = await supabase
++        const { error } = await admin
+           .from("saved_opportunities")
+           .delete()
+-          .eq("id", existingSaved.id);
++          .eq("id", existingSaved.id)
++          .eq("user_id", currentUser.id);
+     
+         if (error) {
+           throw new Error(
+@@ -1249,7 +1256,7 @@ const opportunityStructuredData = {
+           );
+         }
+       } else {
+-        const { error } = await supabase
++        const { error } = await admin
+           .from("saved_opportunities")
+           .insert({
+             user_id: currentUser.id,
+diff --git a/app/api/scene/cover/route.tsx b/app/api/scene/cover/route.tsx
+index fa68654..d9d49a5 100644
+--- a/app/api/scene/cover/route.tsx
++++ b/app/api/scene/cover/route.tsx
+@@ -117,6 +117,22 @@ function MiniProfile({ active = false }: { active?: boolean }) {
+   );
+ }
+ 
++function CheckMark({ size = 24 }: { size?: number }) {
++  return (
++    <div
++      aria-hidden="true"
++      style={{
++        width: size * 0.48,
++        height: size * 0.8,
++        borderRight: `4px solid ${GOLD}`,
++        borderBottom: `4px solid ${GOLD}`,
++        transform: "rotate(45deg) translate(-1px, -2px)",
++        transformOrigin: "center",
++      }}
++    />
++  );
++}
++
+ function Scene({ kind, seed }: { kind: SceneKind; seed: number }) {
+   const shift = (seed % 31) - 15;
+   const wrap: CSSProperties = { position: "relative", width: 900, height: 590, display: "flex" };
+@@ -193,7 +209,7 @@ function Scene({ kind, seed }: { kind: SceneKind; seed: number }) {
+         <Card x={450} y={105} w={320} h={370} active>
+           <div style={{ position: "absolute", left: 38, top: 38, width: 86, height: 86, borderRadius: 46, border: `4px solid ${GOLD_LINE}` }} />
+           {[156, 206, 256].map((y, i) => <div key={y} style={{ position: "absolute", left: 42, right: 42 + i * 34, top: y, height: 10, borderRadius: 8, background: i === 2 ? WHITE_SOFT : GOLD_LINE }} />)}
+-          <div style={{ position: "absolute", right: 34, top: 34, width: 64, height: 64, borderRadius: 34, border: `4px solid ${GOLD_LINE}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 34, color: GOLD }}>✓</div>
++          <div style={{ position: "absolute", right: 34, top: 34, width: 64, height: 64, borderRadius: 34, border: `4px solid ${GOLD_LINE}`, display: "flex", alignItems: "center", justifyContent: "center" }}><CheckMark size={28} /></div>
+         </Card>
+       </div>
+     );
+@@ -203,7 +219,7 @@ function Scene({ kind, seed }: { kind: SceneKind; seed: number }) {
+     return (
+       <div style={wrap}>
+         {[80, 335, 590].map((x, index) => <Card key={x} x={x} y={index === 1 ? 105 : 150} w={220} h={320} active={index === 1}><MiniProfile active={index === 1} /></Card>)}
+-        <div style={{ position: "absolute", left: 386, top: 445, width: 118, height: 54, borderRadius: 28, background: GOLD_SOFT, border: `3px solid ${GOLD_LINE}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, color: GOLD }}>✓</div>
++        <div style={{ position: "absolute", left: 386, top: 445, width: 118, height: 54, borderRadius: 28, background: GOLD_SOFT, border: `3px solid ${GOLD_LINE}`, display: "flex", alignItems: "center", justifyContent: "center" }}><CheckMark size={22} /></div>
+       </div>
+     );
+   }
