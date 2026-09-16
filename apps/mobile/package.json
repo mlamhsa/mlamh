@@ -9,7 +9,9 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
-    "doctor": "npx expo-doctor"
+    "doctor": "npx expo-doctor",
+    "validate:build-env": "node scripts/validate-build-env.mjs",
+    "eas-build-pre-install": "npm run validate:build-env"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.1",
