@@ -119,14 +119,6 @@ jobs:
           cat "$RUNNER_TEMP/mlamh-normal.log"
           grep -Fq '[MLAMH_LAUNCH] root-route-mounted' "$RUNNER_TEMP/mlamh-normal.log" || (echo "Normal cold launch did not reach app/index.tsx" && exit 1)
 
-      - name: Preapprove mlamh URL scheme in Simulator
-        run: |
-          APPROVAL_PLIST="$HOME/Library/Developer/CoreSimulator/Devices/$SIMULATOR_UDID/data/Library/Preferences/com.apple.launchservices.schemeapproval.plist"
-          test -f "$APPROVAL_PLIST" || (echo "LaunchServices scheme approval plist not found: $APPROVAL_PLIST" && exit 1)
-          /usr/libexec/PlistBuddy -c "Delete com.apple.CoreSimulator.CoreSimulatorBridge-->mlamh" "$APPROVAL_PLIST" >/dev/null 2>&1 || true
-          /usr/libexec/PlistBuddy -c "Add com.apple.CoreSimulator.CoreSimulatorBridge-->mlamh string net.mlamh.app" "$APPROVAL_PLIST"
-          /usr/libexec/PlistBuddy -c "Print com.apple.CoreSimulator.CoreSimulatorBridge-->mlamh" "$APPROVAL_PLIST"
-
       - name: Verify mlamh:/// cold launch reaches root route
         run: |
           rm -f "$RUNNER_TEMP/mlamh-scheme.log"
@@ -134,10 +126,18 @@ jobs:
           sleep 2
           xcrun simctl spawn "$SIMULATOR_UDID" log stream --style compact --level debug --predicate 'eventMessage CONTAINS "[MLAMH_LAUNCH]"' > "$RUNNER_TEMP/mlamh-scheme.log" 2>&1 &
           LOG_PID=$!
-          xcrun simctl openurl "$SIMULATOR_UDID" 'mlamh:///'
+          set +e
+          xcrun simctl openurl "$SIMULATOR_UDID" 'mlamh:///' > "$RUNNER_TEMP/mlamh-openurl.log" 2>&1
+          OPENURL_STATUS=$?
+          set -e
           sleep 10
           kill "$LOG_PID" || true
-          cat "$RUNNER_TEMP/mlamh-scheme.log"
+          cat "$RUNNER_TEMP/mlamh-openurl.log" || true
+          cat "$RUNNER_TEMP/mlamh-scheme.log" || true
+          if [ "$OPENURL_STATUS" -ne 0 ]; then
+            echo "simctl could not open mlamh:/// (status=$OPENURL_STATUS)"
+            exit "$OPENURL_STATUS"
+          fi
           grep -Fq '[MLAMH_LAUNCH] root-route-mounted' "$RUNNER_TEMP/mlamh-scheme.log" || (echo "mlamh:/// cold launch did not reach app/index.tsx" && exit 1)
 
       - name: Capture launch screenshot
@@ -152,5 +152,6 @@ jobs:
           path: |
             ${{ runner.temp }}/mlamh-normal.log
             ${{ runner.temp }}/mlamh-scheme.log
+            ${{ runner.temp }}/mlamh-openurl.log
             ${{ runner.temp }}/mlamh-launch.png
           if-no-files-found: warn
