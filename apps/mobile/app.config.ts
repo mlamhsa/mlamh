@@ -88,7 +88,7 @@ const config: ExpoConfig = {
   ios: {
     supportsTablet: false,
     bundleIdentifier: "net.mlamh.app",
-    buildNumber: "16",
+    buildNumber: "17",
     usesAppleSignIn: true,
     entitlements: {
       "com.apple.developer.applesignin": ["Default"],
