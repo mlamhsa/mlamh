@@ -317,7 +317,6 @@ function formatWorkTime(value: unknown, locale: string) {
       : locale === "ar"
         ? "صباحًا"
         : "AM";
-
   const hour12 = hour % 12 || 12;
   const formattedMinute = String(minute).padStart(2, "0");
 
@@ -358,21 +357,31 @@ function applicationStatusLabel(
 ) {
   switch (status) {
     case "pending":
-      return isRtl ? "جديد" : "Pending";
     case "reviewing":
-      return isRtl ? "قيد المراجعة" : "Reviewing";
     case "shortlisted":
-      return isRtl ? "مرشح" : "Shortlisted";
+      return isQuickRequest
+        ? isRtl
+          ? "مهتم"
+          : "Interested"
+        : isRtl
+          ? "قيد المراجعة"
+          : "Pending";
     case "accepted":
       return isQuickRequest
         ? isRtl
-          ? "مختار مبدئيًا"
-          : "Selected"
+          ? "اختيار مبدئي"
+          : "Preliminary selection"
         : isRtl
           ? "مقبول"
           : "Accepted";
     case "rejected":
-      return isRtl ? "مرفوض" : "Rejected";
+      return isQuickRequest
+        ? isRtl
+          ? "تم الاعتذار"
+          : "Not selected"
+        : isRtl
+          ? "مرفوض"
+          : "Rejected";
     default:
       return isRtl ? "جديد" : "Pending";
   }
@@ -393,7 +402,7 @@ function statusClass(status: string | null) {
     case "archived":
       return "border-red-400/30 bg-red-400/10 text-red-300";
     case "shortlisted":
-      return "border-gold/40 bg-gold/10 text-gold";
+      return "border-amber-400/30 bg-amber-400/10 text-amber-300";
     case "accepted":
       return "border-emerald-400/40 bg-emerald-400/10 text-emerald-300";
     case "rejected":
@@ -598,10 +607,11 @@ if (opportunity.status === "needs_changes") {
     .sort((a, b) => b.score - a.score);
 
   const totalApplications = applications.length;
-  const shortlistedCount = countApplicationsByStatus(
-    applications,
-    "shortlisted",
-  );
+  const pendingCount = applications.filter(
+    (application) =>
+      !application.status ||
+      ["pending", "reviewing", "shortlisted"].includes(application.status),
+  ).length;
   const acceptedCount = countApplicationsByStatus(applications, "accepted");
   const rejectedCount = countApplicationsByStatus(applications, "rejected");
 
@@ -1007,15 +1017,23 @@ if (normalizeKey(opportunity.opportunity_type) === "model") {
             value={totalApplications}
           />
           <InfoCard
-            label={isRtl ? "المرشحون" : "Shortlisted"}
-            value={shortlistedCount}
+            label={
+              isQuickRequest
+                ? isRtl
+                  ? "المهتمون"
+                  : "Interested"
+                : isRtl
+                  ? "قيد المراجعة"
+                  : "Pending"
+            }
+            value={pendingCount}
           />
           <InfoCard
             label={
               isQuickRequest
                 ? isRtl
-                  ? "المختارون"
-                  : "Selected"
+                  ? "اختيار مبدئي"
+                  : "Preliminary selection"
                 : isRtl
                   ? "المقبولون"
                   : "Accepted"
@@ -1023,7 +1041,15 @@ if (normalizeKey(opportunity.opportunity_type) === "model") {
             value={acceptedCount}
           />
           <InfoCard
-            label={isRtl ? "المرفوضون" : "Rejected"}
+            label={
+              isQuickRequest
+                ? isRtl
+                  ? "تم الاعتذار"
+                  : "Not selected"
+                : isRtl
+                  ? "المرفوضون"
+                  : "Rejected"
+            }
             value={rejectedCount}
           />
         </section>
