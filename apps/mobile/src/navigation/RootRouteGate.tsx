@@ -7,10 +7,10 @@ import { useSessionContext } from "@/src/app/SessionContext";
 import { colors, radius, spacing, typography } from "@/src/theme/tokens";
 
 const ROUTES = {
-  public: "/(public)",
+  public: "/public-home",
   accountType: "/account-type",
-  talent: "/(talent)",
-  publisher: "/(publisher)",
+  talent: "/talent-home",
+  publisher: "/publisher-home",
 } as const;
 
 export function RootRouteGate() {
