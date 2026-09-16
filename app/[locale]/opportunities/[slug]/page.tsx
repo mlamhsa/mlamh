@@ -712,15 +712,19 @@ const opportunity = (
     data: { user },
   } = await authClient.auth.getUser();
 
+  // The user identity is verified above with auth.getUser(). Use the server-only
+  // admin client for this read so a small JWT clock skew cannot make the page
+  // fail after authentication has already succeeded. The user_id filter keeps
+  // the lookup scoped to the verified user.
   const { data: savedOpportunity, error: savedOpportunityError } =
-  user
-    ? await authClient
-        .from("saved_opportunities")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("opportunity_id", opportunity.id)
-        .maybeSingle()
-    : { data: null, error: null };
+    user
+      ? await adminClient
+          .from("saved_opportunities")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("opportunity_id", opportunity.id)
+          .maybeSingle()
+      : { data: null, error: null };
 
 if (savedOpportunityError) {
   throw new Error(
@@ -1223,8 +1227,10 @@ const opportunityStructuredData = {
         return;
       }
     
+      const admin = createAdminClient();
+
       const { data: existingSaved, error: existingSavedError } =
-        await supabase
+        await admin
           .from("saved_opportunities")
           .select("id")
           .eq("user_id", currentUser.id)
@@ -1238,10 +1244,11 @@ const opportunityStructuredData = {
       }
     
       if (existingSaved) {
-        const { error } = await supabase
+        const { error } = await admin
           .from("saved_opportunities")
           .delete()
-          .eq("id", existingSaved.id);
+          .eq("id", existingSaved.id)
+          .eq("user_id", currentUser.id);
     
         if (error) {
           throw new Error(
@@ -1249,7 +1256,7 @@ const opportunityStructuredData = {
           );
         }
       } else {
-        const { error } = await supabase
+        const { error } = await admin
           .from("saved_opportunities")
           .insert({
             user_id: currentUser.id,
