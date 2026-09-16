@@ -338,7 +338,13 @@ export default async function ApplicantsPage({
     ],
     [
       "pending",
-      isRtl ? `قيد المراجعة (${pendingCount})` : `Pending (${pendingCount})`,
+      isQuickRequest
+        ? isRtl
+          ? `المهتمون (${pendingCount})`
+          : `Interested (${pendingCount})`
+        : isRtl
+          ? `قيد المراجعة (${pendingCount})`
+          : `Pending (${pendingCount})`,
     ],
     [
       "accepted",
@@ -352,7 +358,13 @@ export default async function ApplicantsPage({
     ],
     [
       "rejected",
-      isRtl ? `المرفوضون (${rejectedCount})` : `Rejected (${rejectedCount})`,
+      isQuickRequest
+        ? isRtl
+          ? `تم الاعتذار (${rejectedCount})`
+          : `Not selected (${rejectedCount})`
+        : isRtl
+          ? `المرفوضون (${rejectedCount})`
+          : `Rejected (${rejectedCount})`,
     ],
   ] as const;
 
@@ -391,7 +403,15 @@ export default async function ApplicantsPage({
           value={enrichedApplications.length}
         />
         <StatCard
-          label={isRtl ? "قيد المراجعة" : "Pending"}
+          label={
+            isQuickRequest
+              ? isRtl
+                ? "المهتمون"
+                : "Interested"
+              : isRtl
+                ? "قيد المراجعة"
+                : "Pending"
+          }
           value={pendingCount}
         />
         <StatCard
@@ -408,7 +428,15 @@ export default async function ApplicantsPage({
           highlighted
         />
         <StatCard
-          label={isRtl ? "المرفوضون" : "Rejected"}
+          label={
+            isQuickRequest
+              ? isRtl
+                ? "تم الاعتذار"
+                : "Not selected"
+              : isRtl
+                ? "المرفوضون"
+                : "Rejected"
+          }
           value={rejectedCount}
         />
       </section>
@@ -555,7 +583,9 @@ export default async function ApplicantsPage({
                             </Link>
                           ) : null}
 
-                          {currentStatus === "accepted" &&
+                          {(currentStatus === "accepted" ||
+                            (isQuickRequest &&
+                              !["accepted", "rejected"].includes(currentStatus))) &&
                           application.conversationId ? (
                             <Link
                               href={`/${locale}/publisher-dashboard/messages/${application.conversationId}`}
@@ -608,7 +638,15 @@ export default async function ApplicantsPage({
                             opportunityId={opportunityId}
                             locale={locale}
                             status="rejected"
-                            label={isRtl ? "اعتذار" : "Not selected"}
+                            label={
+                              isQuickRequest
+                                ? isRtl
+                                  ? "اعتذار"
+                                  : "Not selected"
+                                : isRtl
+                                  ? "رفض"
+                                  : "Reject"
+                            }
                             className="border-red-400/40 text-red-300 hover:bg-red-400"
                           />
                         </>
@@ -726,7 +764,6 @@ function statusLabel(
     case "reviewing":
     case "shortlisted":
       return isRtl ? "بانتظار القرار" : "Pending decision";
-      return isRtl ? "مرشح" : "Shortlisted";
     case "accepted":
       return isQuickRequest
         ? isRtl
@@ -736,7 +773,13 @@ function statusLabel(
           ? "مقبول"
           : "Accepted";
     case "rejected":
-      return isRtl ? "مرفوض" : "Rejected";
+      return isQuickRequest
+        ? isRtl
+          ? "تم الاعتذار"
+          : "Not selected"
+        : isRtl
+          ? "مرفوض"
+          : "Rejected";
     default:
       return isRtl ? "جديد" : "Pending";
   }
