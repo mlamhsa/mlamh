@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getSaudiCityBySlug } from "@/lib/data/saudi-cities";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import {
   createEvent,
@@ -40,8 +41,9 @@ type UpdateOpportunityPayload = {
   locale: string;
   title: string;
   description: string;
-  city_ar: string;
-  city_en: string;
+  city_slug: string;
+  city_ar?: string;
+  city_en?: string;
   required_gender?: string | null;
   opportunity_type: string;
   status: string;
@@ -54,15 +56,6 @@ application_days?: number | null;
 
 function cleanText(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
-}
-
-function createSlug(value: string) {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s_-]/gu, "")
-    .replace(/\s+/g, "_")
-    .replace(/_+/g, "_");
 }
 
 function isOpportunityStatus(
@@ -119,8 +112,13 @@ export async function updateOpportunityAction(
 
   const title = cleanText(payload.title);
   const description = cleanText(payload.description);
-  const cityAr = cleanText(payload.city_ar);
-  const cityEn = cleanText(payload.city_en);
+  const city = getSaudiCityBySlug(cleanText(payload.city_slug));
+  if (!city) {
+    throw new Error(locale === "ar" ? "يرجى اختيار مدينة صحيحة." : "Please select a valid city.");
+  }
+  const citySlug = city.slug;
+  const cityAr = city.ar;
+  const cityEn = city.en;
   const gender = cleanText(payload.required_gender);
   const opportunityType = cleanText(payload.opportunity_type);
   const requestedStatus = cleanText(payload.status) || "draft";
@@ -342,8 +340,6 @@ if (
     requiresNewReview
       ? "pending_review"
       : requestedStatus;
-
-  const citySlug = createSlug(cityEn || cityAr);
 
   const isPubliclyVisible =
     finalStatus === "published" || finalStatus === "open";

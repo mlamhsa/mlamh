@@ -1,3 +1,5 @@
+import { findSaudiCity } from "@/lib/data/saudi-cities";
+
 export function cleanText(value: unknown) {
     return typeof value === "string" ? value.trim() : "";
   }
@@ -31,41 +33,13 @@ export function cleanText(value: unknown) {
   }
   
   export function localizeOpportunityCity(value: string) {
-    const cities = [
-      { value: "riyadh", ar: "الرياض", en: "Riyadh" },
-      { value: "jeddah", ar: "جدة", en: "Jeddah" },
-      { value: "makkah", ar: "مكة", en: "Makkah" },
-      { value: "madinah", ar: "المدينة المنورة", en: "Madinah" },
-      { value: "dammam", ar: "الدمام", en: "Dammam" },
-      { value: "khobar", ar: "الخبر", en: "Khobar" },
-      { value: "dhahran", ar: "الظهران", en: "Dhahran" },
-      { value: "taif", ar: "الطائف", en: "Taif" },
-      { value: "abha", ar: "أبها", en: "Abha" },
-      { value: "khamis_mushait", ar: "خميس مشيط", en: "Khamis Mushait" },
-      { value: "tabuk", ar: "تبوك", en: "Tabuk" },
-      { value: "hail", ar: "حائل", en: "Hail" },
-      { value: "qassim", ar: "القصيم", en: "Qassim" },
-      { value: "buraidah", ar: "بريدة", en: "Buraidah" },
-      { value: "unayzah", ar: "عنيزة", en: "Unaizah" },
-      { value: "jazan", ar: "جازان", en: "Jazan" },
-      { value: "najran", ar: "نجران", en: "Najran" },
-      { value: "al_ahsa", ar: "الأحساء", en: "Al Ahsa" },
-      { value: "jubail", ar: "الجبيل", en: "Jubail" },
-      { value: "yanbu", ar: "ينبع", en: "Yanbu" },
-    ];
-  
     const clean = cleanText(value);
-  
-    const match = cities.find(
-      (city) =>
-        city.value === clean ||
-        city.ar === clean ||
-        city.en === clean
-    );
-  
+    const match = findSaudiCity(clean);
+
     return {
-      city_ar: match?.ar ?? clean,
-      city_en: match?.en ?? clean,
+      city_slug: match?.slug ?? "",
+      city_ar: match?.ar ?? "",
+      city_en: match?.en ?? "",
     };
   }
   

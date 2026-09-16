@@ -5,29 +5,13 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { updateOpportunityAction } from "@/lib/actions/update-opportunity";
+import { SAUDI_CITIES, findSaudiCity } from "@/lib/data/saudi-cities";
 
-const saudiCities = [
-  { value: "riyadh", ar: "الرياض", en: "Riyadh" },
-  { value: "jeddah", ar: "جدة", en: "Jeddah" },
-  { value: "makkah", ar: "مكة", en: "Makkah" },
-  { value: "madinah", ar: "المدينة المنورة", en: "Madinah" },
-  { value: "dammam", ar: "الدمام", en: "Dammam" },
-  { value: "khobar", ar: "الخبر", en: "Khobar" },
-  { value: "dhahran", ar: "الظهران", en: "Dhahran" },
-  { value: "taif", ar: "الطائف", en: "Taif" },
-  { value: "abha", ar: "أبها", en: "Abha" },
-  { value: "khamis_mushait", ar: "خميس مشيط", en: "Khamis Mushait" },
-  { value: "tabuk", ar: "تبوك", en: "Tabuk" },
-  { value: "hail", ar: "حائل", en: "Hail" },
-  { value: "qassim", ar: "القصيم", en: "Qassim" },
-  { value: "buraidah", ar: "بريدة", en: "Buraidah" },
-  { value: "unayzah", ar: "عنيزة", en: "Unaizah" },
-  { value: "jazan", ar: "جازان", en: "Jazan" },
-  { value: "najran", ar: "نجران", en: "Najran" },
-  { value: "al_ahsa", ar: "الأحساء", en: "Al Ahsa" },
-  { value: "jubail", ar: "الجبيل", en: "Jubail" },
-  { value: "yanbu", ar: "ينبع", en: "Yanbu" },
-];
+const saudiCities = SAUDI_CITIES.map((city) => ({
+  value: city.slug,
+  ar: city.ar,
+  en: city.en,
+}));
 
 const opportunityTypes = [
   { value: "model", ar: "مودل", en: "Model" },
@@ -62,6 +46,7 @@ type OpportunityFormData = {
   title: string | null;
   description: string | null;
   city: string | null;
+  city_slug?: string | null;
   city_ar: string | null;
   city_en: string | null;
   required_gender: string | null;
@@ -84,22 +69,19 @@ function normalizeBudget(value: unknown) {
 }
 
 function resolveCityValue(opportunity: OpportunityFormData) {
-  const cityAr = String(opportunity.city_ar ?? "").trim();
-  const cityEn = String(opportunity.city_en ?? "").trim();
-  const city = String(opportunity.city ?? "").trim();
+  const candidates = [
+    opportunity.city_slug,
+    opportunity.city,
+    opportunity.city_ar,
+    opportunity.city_en,
+  ];
 
-  const matched = saudiCities.find(
-    (item) =>
-      item.value === city ||
-      item.value === cityAr ||
-      item.value === cityEn ||
-      item.ar === cityAr ||
-      item.en === cityEn ||
-      item.ar === city ||
-      item.en === city,
-  );
+  for (const candidate of candidates) {
+    const matched = findSaudiCity(candidate);
+    if (matched) return matched.slug;
+  }
 
-  return matched?.value ?? (cityEn || cityAr || city);
+  return "";
 }
 
 function getCityPayload(cityValue: string) {
@@ -365,6 +347,7 @@ const [status, setStatus] = useState(defaultEditableStatus);
       locale,
       title: normalizedTitle,
       description: normalizedDescription,
+      city_slug: city,
       city_ar: cityPayload.city_ar,
       city_en: cityPayload.city_en,
       required_gender: gender,
