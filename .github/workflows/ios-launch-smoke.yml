@@ -45,6 +45,23 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Verify Expo Router app root
+        run: |
+          test ! -d src/app || (echo "Reserved Expo Router directory src/app must not contain runtime code" && exit 1)
+          test -f app/index.tsx
+          test -f app/_layout.tsx
+          test -f app/+not-found.tsx
+          test -f app/+native-intent.tsx
+
+      - name: Verify production route bundle
+        run: |
+          rm -rf "$RUNNER_TEMP/mlamh-route-export"
+          npx expo export --platform ios --output-dir "$RUNNER_TEMP/mlamh-route-export" --clear 2>&1 | tee "$RUNNER_TEMP/mlamh-route-export.log"
+          ! grep -Fq 'Using src/app as the root directory for Expo Router' "$RUNNER_TEMP/mlamh-route-export.log"
+          BUNDLE=$(find "$RUNNER_TEMP/mlamh-route-export/_expo/static/js/ios" -type f | head -1)
+          test -n "$BUNDLE" || (echo "iOS route bundle was not produced" && exit 1)
+          grep -a -Fq '[MLAMH_LAUNCH] root-route-mounted' "$BUNDLE" || (echo "app/index.tsx is missing from the production route bundle" && exit 1)
+
       - name: Generate native iOS project
         run: npx expo prebuild --platform ios --clean --no-install
 
