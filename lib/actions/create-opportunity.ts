@@ -371,7 +371,7 @@ export async function createOpportunityAction(
     cleanText(city),
   );
 
-  if (!localizedCity.city_ar || !localizedCity.city_en) {
+  if (!localizedCity.city_slug || !localizedCity.city_ar || !localizedCity.city_en) {
     throw new Error(
       getLocalizedMessage(safeLocale, {
         ar: "مدينة الفرصة مطلوبة.",
@@ -392,6 +392,7 @@ export async function createOpportunityAction(
     description: cleanDescription,
     slug: createSlug(cleanTitle),
     opportunity_type: localizedType.value,
+    city_slug: localizedCity.city_slug,
     city_ar: localizedCity.city_ar,
     city_en: localizedCity.city_en,
     required_gender: cleanGender || "any",

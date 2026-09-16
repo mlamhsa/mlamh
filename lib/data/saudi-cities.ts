@@ -155,6 +155,7 @@ const LEGACY_SLUG_ALIASES: Record<string, string> = {
   "khamis_mushait": "khamis-mushait",
   "al_ahsa": "al-ahsa",
   "al_muzahimiyah": "al-muzahimiyah",
+  "buraidah": "buraydah",
 };
 
 export function normalizeSaudiCitySlug(value?: string | null) {
@@ -180,6 +181,20 @@ export function getSaudiCityBySlug(slug?: string | null) {
   const normalized = normalizeSaudiCitySlug(slug);
   if (!normalized) return null;
   return SAUDI_CITIES.find((city) => city.slug === normalized) ?? null;
+}
+
+export function findSaudiCity(value?: string | null) {
+  const direct = getSaudiCityBySlug(value);
+  if (direct) return direct;
+
+  const normalized = normalizeSaudiCitySearchText(value);
+  if (!normalized) return null;
+
+  return SAUDI_CITIES.find((city) =>
+    [city.slug, city.ar, city.en].some(
+      (candidate) => normalizeSaudiCitySearchText(candidate) === normalized,
+    ),
+  ) ?? null;
 }
 
 export function matchesSaudiCitySearch(city: SaudiCity, query?: string | null) {

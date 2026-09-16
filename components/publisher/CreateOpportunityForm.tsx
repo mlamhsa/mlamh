@@ -4,28 +4,13 @@ import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-const saudiCities = [
-  { value: "riyadh", ar: "الرياض", en: "Riyadh" },
-  { value: "jeddah", ar: "جدة", en: "Jeddah" },
-  { value: "makkah", ar: "مكة", en: "Makkah" },
-  { value: "madinah", ar: "المدينة المنورة", en: "Madinah" },
-  { value: "dammam", ar: "الدمام", en: "Dammam" },
-  { value: "khobar", ar: "الخبر", en: "Khobar" },
-  { value: "dhahran", ar: "الظهران", en: "Dhahran" },
-  { value: "taif", ar: "الطائف", en: "Taif" },
-  { value: "abha", ar: "أبها", en: "Abha" },
-  { value: "khamis_mushait", ar: "خميس مشيط", en: "Khamis Mushait" },
-  { value: "tabuk", ar: "تبوك", en: "Tabuk" },
-  { value: "hail", ar: "حائل", en: "Hail" },
-  { value: "qassim", ar: "القصيم", en: "Qassim" },
-  { value: "buraidah", ar: "بريدة", en: "Buraidah" },
-  { value: "unayzah", ar: "عنيزة", en: "Unaizah" },
-  { value: "jazan", ar: "جازان", en: "Jazan" },
-  { value: "najran", ar: "نجران", en: "Najran" },
-  { value: "al_ahsa", ar: "الأحساء", en: "Al Ahsa" },
-  { value: "jubail", ar: "الجبيل", en: "Jubail" },
-  { value: "yanbu", ar: "ينبع", en: "Yanbu" },
-];
+import { SAUDI_CITIES } from "@/lib/data/saudi-cities";
+
+const saudiCities = SAUDI_CITIES.map((city) => ({
+  value: city.slug,
+  ar: city.ar,
+  en: city.en,
+}));
 
 const actorLanguageOptions = [
   { value: "arabic", ar: "العربية", en: "Arabic" },
@@ -183,11 +168,7 @@ export default function CreateOpportunityForm({
 
     const selectedCity = saudiCities.find((item) => item.value === city);
 
-    const finalCity = selectedCity
-      ? isRtl
-        ? selectedCity.ar
-        : selectedCity.en
-      : city;
+    const finalCity = selectedCity?.value ?? "";
 
     if (!finalCity) {
       setError(isRtl ? "يرجى اختيار المدينة." : "Please select the city.");
