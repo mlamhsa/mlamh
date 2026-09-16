@@ -360,10 +360,10 @@ export default async function PublisherConversationPage({
   return (
     <main
       dir={isArabic ? "rtl" : "ltr"}
-      className="min-h-screen bg-background px-3 pb-24 pt-28 text-white sm:px-6 sm:pt-32 lg:pb-8"
+      className="h-[100dvh] overflow-hidden bg-background px-3 pb-[calc(5.5rem+env(safe-area-inset-bottom))] pt-24 text-white sm:px-6 sm:pt-28 lg:pb-6"
     >
-      <div className="mx-auto max-w-7xl">
-        <section className="flex h-[calc(100dvh-8rem)] min-h-[620px] overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/[0.025] shadow-2xl shadow-black/30 lg:h-[calc(100dvh-9rem)]">
+      <div className="mx-auto h-full max-w-7xl">
+        <section className="flex h-full min-h-0 overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/[0.025] shadow-2xl shadow-black/30">
           <div className="flex min-w-0 flex-1 flex-col">
             <header className="shrink-0 border-b border-white/10 bg-black/35 px-4 py-3 backdrop-blur-xl sm:px-5">
               <div className="flex items-center gap-3">
