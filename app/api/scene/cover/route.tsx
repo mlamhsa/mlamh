@@ -117,6 +117,22 @@ function MiniProfile({ active = false }: { active?: boolean }) {
   );
 }
 
+function CheckMark({ size = 24 }: { size?: number }) {
+  return (
+    <div
+      aria-hidden="true"
+      style={{
+        width: size * 0.48,
+        height: size * 0.8,
+        borderRight: `4px solid ${GOLD}`,
+        borderBottom: `4px solid ${GOLD}`,
+        transform: "rotate(45deg) translate(-1px, -2px)",
+        transformOrigin: "center",
+      }}
+    />
+  );
+}
+
 function Scene({ kind, seed }: { kind: SceneKind; seed: number }) {
   const shift = (seed % 31) - 15;
   const wrap: CSSProperties = { position: "relative", width: 900, height: 590, display: "flex" };
@@ -193,7 +209,7 @@ function Scene({ kind, seed }: { kind: SceneKind; seed: number }) {
         <Card x={450} y={105} w={320} h={370} active>
           <div style={{ position: "absolute", left: 38, top: 38, width: 86, height: 86, borderRadius: 46, border: `4px solid ${GOLD_LINE}` }} />
           {[156, 206, 256].map((y, i) => <div key={y} style={{ position: "absolute", left: 42, right: 42 + i * 34, top: y, height: 10, borderRadius: 8, background: i === 2 ? WHITE_SOFT : GOLD_LINE }} />)}
-          <div style={{ position: "absolute", right: 34, top: 34, width: 64, height: 64, borderRadius: 34, border: `4px solid ${GOLD_LINE}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 34, color: GOLD }}>✓</div>
+          <div style={{ position: "absolute", right: 34, top: 34, width: 64, height: 64, borderRadius: 34, border: `4px solid ${GOLD_LINE}`, display: "flex", alignItems: "center", justifyContent: "center" }}><CheckMark size={28} /></div>
         </Card>
       </div>
     );
@@ -203,7 +219,7 @@ function Scene({ kind, seed }: { kind: SceneKind; seed: number }) {
     return (
       <div style={wrap}>
         {[80, 335, 590].map((x, index) => <Card key={x} x={x} y={index === 1 ? 105 : 150} w={220} h={320} active={index === 1}><MiniProfile active={index === 1} /></Card>)}
-        <div style={{ position: "absolute", left: 386, top: 445, width: 118, height: 54, borderRadius: 28, background: GOLD_SOFT, border: `3px solid ${GOLD_LINE}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, color: GOLD }}>✓</div>
+        <div style={{ position: "absolute", left: 386, top: 445, width: 118, height: 54, borderRadius: 28, background: GOLD_SOFT, border: `3px solid ${GOLD_LINE}`, display: "flex", alignItems: "center", justifyContent: "center" }}><CheckMark size={22} /></div>
       </div>
     );
   }
