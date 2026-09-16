@@ -2,8 +2,8 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { AppBootstrap } from "@/src/app/AppBootstrap";
-import { SessionProvider } from "@/src/app/SessionContext";
+import { AppBootstrap } from "@/src/runtime/AppBootstrap";
+import { SessionProvider } from "@/src/runtime/SessionContext";
 import { LocaleProvider } from "@/src/i18n/LocaleProvider";
 import { colors } from "@/src/theme/tokens";
 
