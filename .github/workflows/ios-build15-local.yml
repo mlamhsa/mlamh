@@ -1,4 +1,4 @@
-name: iOS Build 18 Local TestFlight
+name: iOS Build 19 Local TestFlight
 
 on:
   workflow_dispatch:
@@ -39,13 +39,29 @@ jobs:
           eas project:info
       - name: Typecheck
         run: npm run typecheck
+      - name: Verify route topology
+        run: |
+          test -f app/index.tsx
+          test -f app/public-home.tsx
+          test -f app/talent-home.tsx
+          test -f app/publisher-home.tsx
+          test ! -f 'app/(public)/index.tsx'
+          test ! -f 'app/(talent)/index.tsx'
+          test ! -f 'app/(publisher)/index.tsx'
+          grep -q 'public: "/public-home"' src/navigation/RootRouteGate.tsx
+          grep -q 'talent: "/talent-home"' src/navigation/RootRouteGate.tsx
+          grep -q 'publisher: "/publisher-home"' src/navigation/RootRouteGate.tsx
+
+      - name: Export iOS bundle route preflight
+        run: npx expo export --platform ios --output-dir dist-route-check --clear
+
       - name: Build iOS locally
-        run: eas build --platform ios --profile testflight --local --non-interactive --output ./build18.ipa
+        run: eas build --platform ios --profile testflight --local --non-interactive --output ./build19.ipa
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
-          name: mlamh-ios-build18
-          path: apps/mobile/build18.ipa
+          name: mlamh-ios-build19
+          path: apps/mobile/build19.ipa
           if-no-files-found: error
-      - name: Submit Build 18 to TestFlight
-        run: eas submit --platform ios --profile testflight --path ./build18.ipa --non-interactive
+      - name: Submit Build 19 to TestFlight
+        run: eas submit --platform ios --profile testflight --path ./build19.ipa --non-interactive
