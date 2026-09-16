@@ -22,6 +22,7 @@ const publisherStatuses = [
 const publiclyVisibleStatuses = ["open", "published"] as const;
 
 const allowedGenders = ["any", "male", "female"] as const;
+const allowedOpportunityTypes = ["actor", "model"] as const;
 
 const compensationTypes = [
   "fixed",
@@ -33,6 +34,7 @@ type PublisherStatus = (typeof publisherStatuses)[number];
 type PublicStatus = (typeof publiclyVisibleStatuses)[number];
 type OpportunityStatus = PublisherStatus | PublicStatus;
 type AllowedGender = (typeof allowedGenders)[number];
+type AllowedOpportunityType = (typeof allowedOpportunityTypes)[number];
 type CompensationType =
   (typeof compensationTypes)[number];
 
@@ -180,12 +182,16 @@ if (
     throw new Error("City is required.");
   }
 
-  if (!opportunityType) {
-    throw new Error("Opportunity type is required.");
-  }
-
-  if (opportunityType.length > 80) {
-    throw new Error("Opportunity type is too long.");
+  if (
+    !allowedOpportunityTypes.includes(
+      opportunityType as AllowedOpportunityType,
+    )
+  ) {
+    throw new Error(
+      locale === "ar"
+        ? "نوع الموهبة المطلوبة غير صالح. المتاح حاليًا: ممثل أو مودل."
+        : "Invalid talent type. Currently supported: Actor or Model.",
+    );
   }
 
   if (
