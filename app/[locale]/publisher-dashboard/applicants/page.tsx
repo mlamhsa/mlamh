@@ -634,7 +634,7 @@ export default async function PublisherApplicantsPage({
                       </Link>
                     ) : null}
 
-                    {isQuickRequest && conversationId ? (
+                    {isQuickRequest && displayStatus === "pending" && conversationId ? (
                       <Link
                         href={`/${locale}/publisher-dashboard/messages/${conversationId}`}
                         className="flex min-h-11 flex-1 items-center justify-center rounded-xl border border-gold/40 bg-gold/10 px-4 text-xs text-gold transition hover:bg-gold hover:text-black"
