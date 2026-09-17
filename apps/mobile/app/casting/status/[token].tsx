@@ -27,13 +27,13 @@ export default function CastingStatusBridgeScreen() {
     <View style={styles.screen}>
       <View style={styles.card}>
         <View style={styles.icon}><BriefcaseBusiness size={26} color={colors.gold} /></View>
-        <Text style={[styles.eyebrow, { textAlign: isArabic ? "right" : "left" }]}>MLAMH CASTING</Text>
+        <Text style={[styles.eyebrow, { textAlign: isArabic ? "right" : "left" }]}>كاستينغ ملامح</Text>
         <Text style={[styles.title, { textAlign: isArabic ? "right" : "left", writingDirection: isArabic ? "rtl" : "ltr" }]}>
           {isArabic ? "مساحة مشروع الكاستينغ" : "Casting project workspace"}
         </Text>
         <Text style={[styles.body, { textAlign: isArabic ? "right" : "left", writingDirection: isArabic ? "rtl" : "ltr" }]}>
           {validToken
-            ? (isArabic ? "تحتوي مساحة المشروع على الحالة، الـShortlist، الاختيارات، الحجوزات، المدفوعات والملفات المشتركة. تُفتح داخل نافذة آمنة من ملامح حتى تبقى جميع أدوات المشروع متاحة." : "Your project workspace contains status, shortlist decisions, bookings, payments, and shared files. It opens in a secure MLAMH browser so all project tools remain available.")
+            ? (isArabic ? "تحتوي مساحة المشروع على الحالة، والقائمة المختصرة، والاختيارات، والحجوزات، والمدفوعات، والملفات المشتركة. تُفتح داخل نافذة آمنة من ملامح حتى تبقى جميع أدوات المشروع متاحة." : "Your project workspace contains status, shortlist decisions, bookings, payments, and shared files. It opens in a secure MLAMH browser so all project tools remain available.")
             : (isArabic ? "رابط مساحة المشروع غير صالح أو ناقص." : "This project workspace link is invalid or incomplete.")}
         </Text>
         <View style={[styles.secureRow, isArabic && styles.rowReverse]}>

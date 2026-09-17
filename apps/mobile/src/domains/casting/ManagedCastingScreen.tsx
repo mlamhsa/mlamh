@@ -34,7 +34,7 @@ export function ManagedCastingScreen() {
     if (submitting) return;
     setError("");
     if (!clientName.trim() || !projectTitle.trim() || !brief.trim()) {
-      setError(isArabic ? "أكمل الاسم واسم المشروع والـBrief." : "Complete your name, project title, and casting brief.");
+      setError(isArabic ? "أكمل الاسم واسم المشروع وملخص المشروع." : "Complete your name, project title, and casting brief.");
       return;
     }
     if (!email.trim() && !phone.trim()) {
@@ -75,7 +75,7 @@ export function ManagedCastingScreen() {
   if (success) {
     return <View style={styles.screen}><View style={styles.successWrap}>
       <View style={styles.successIcon}><CheckCircle2 size={28} color={colors.gold} /></View>
-      <Text style={[styles.eyebrow, { textAlign: align }]}>{isArabic ? "تم استلام الـBrief" : "BRIEF RECEIVED"}</Text>
+      <Text style={[styles.eyebrow, { textAlign: align }]}>{isArabic ? "تم استلام ملخص المشروع" : "BRIEF RECEIVED"}</Text>
       <Text style={[styles.successTitle, { textAlign: align, writingDirection: direction }]}>{isArabic ? "بدأنا من هنا." : "We'll take it from here."}</Text>
       <Text style={[styles.successText, { textAlign: align, writingDirection: direction }]}>{isArabic ? "وصل طلبك إلى فريق MLAMH Casting. سنراجع الاحتياج قبل أي عرض أو نشر، ونتواصل معك على بيانات التواصل المرسلة." : "Your request is with the MLAMH Casting team. We will review it before any proposal or publication and contact you using the details provided."}</Text>
       {success.id ? <Text style={styles.requestId}>#{success.id}</Text> : null}
@@ -84,14 +84,14 @@ export function ManagedCastingScreen() {
   }
 
   const steps = isArabic
-    ? [["01","أرسل الـBrief"],["02","نبحث ونفرز"],["03","راجع الـShortlist"],["04","نؤكد ونحجز"]]
+    ? [["01","أرسل ملخص المشروع"],["02","نبحث ونفرز"],["03","راجع القائمة المختصرة"],["04","نؤكد ونحجز"]]
     : [["01","Send the brief"],["02","We source & screen"],["03","Review the shortlist"],["04","We confirm & book"]];
 
   return <View style={styles.screen}><ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
     <View style={styles.hero}>
-      <View style={[styles.badgeRow, isArabic && styles.rowReverse]}><BriefcaseBusiness size={15} color={colors.gold} /><Text style={styles.eyebrow}>MLAMH CASTING</Text></View>
-      <Text style={[styles.title, { textAlign: align, writingDirection: direction }]}>{isArabic ? "من الـBrief إلى موهبة مؤكدة وجاهزة للتنفيذ." : "From brief to confirmed talent, ready to work."}</Text>
-      <Text style={[styles.description, { textAlign: align, writingDirection: direction }]}>{isArabic ? "خدمة كاستينغ مُدارة للشركات وجهات الإنتاج والوكالات والعلامات. نتولى تنظيم الاحتياج والبحث والفرز والـShortlist ثم تأكيد المواهب والحجز بعد قرارك." : "Managed casting for companies, production teams, agencies, and brands. We structure the brief, source and screen talent, deliver the shortlist, then coordinate confirmation and booking."}</Text>
+      <View style={[styles.badgeRow, isArabic && styles.rowReverse]}><BriefcaseBusiness size={15} color={colors.gold} /><Text style={styles.eyebrow}>كاستينغ ملامح</Text></View>
+      <Text style={[styles.title, { textAlign: align, writingDirection: direction }]}>{isArabic ? "من ملخص المشروع إلى موهبة مؤكدة وجاهزة للتنفيذ." : "From brief to confirmed talent, ready to work."}</Text>
+      <Text style={[styles.description, { textAlign: align, writingDirection: direction }]}>{isArabic ? "خدمة كاستينغ مُدارة للشركات وجهات الإنتاج والوكالات والعلامات. نتولى تنظيم الاحتياج والبحث والفرز وإعداد القائمة المختصرة، ثم تأكيد المواهب والحجز بعد قرارك." : "Managed casting for companies, production teams, agencies, and brands. We structure the brief, source and screen talent, deliver the shortlist, then coordinate confirmation and booking."}</Text>
     </View>
 
     <View style={styles.steps}>{steps.map(([number,label]) => <View key={number} style={styles.step}><Text style={styles.stepNo}>{number}</Text><Text style={[styles.stepLabel,{textAlign:align,writingDirection:direction}]}>{label}</Text></View>)}</View>
@@ -109,10 +109,10 @@ export function ManagedCastingScreen() {
       <View style={[styles.twoCols,isArabic&&styles.rowReverse]}><MiniField label={isArabic?"العدد التقريبي":"Approx. count"} value={count} onChangeText={setCount}/><MiniField label={isArabic?"المدينة":"City"} value={city} onChangeText={setCity} isArabic={isArabic}/></View>
       <Field label={isArabic ? "تاريخ العمل (YYYY-MM-DD)" : "Work date (YYYY-MM-DD)"} value={workDate} onChangeText={setWorkDate} isArabic={false} />
       <Field label={isArabic ? "الميزانية أو نطاق الأجر" : "Budget or compensation range"} value={budget} onChangeText={setBudget} isArabic={isArabic} placeholder={isArabic ? "مثال: 5,000 ريال أو حسب الاتفاق" : "Example: SAR 5,000 or negotiable"} />
-      <View style={styles.field}><Text style={[styles.label,{textAlign:align}]}>{isArabic?"الـBrief *":"Casting brief *"}</Text><TextInput value={brief} onChangeText={setBrief} multiline maxLength={5000} textAlignVertical="top" placeholder={isArabic?"اشرح نوع المشروع، الأدوار أو المواصفات المطلوبة، الاستخدام، مكان التصوير، المدة وأي تفاصيل مهمة.":"Describe the project, profiles needed, usage, location, duration, and any important details."} placeholderTextColor={colors.textMuted} style={[styles.input,styles.textarea,{textAlign:align,writingDirection:direction}]} /></View>
-      <Text style={[styles.note,{textAlign:align,writingDirection:direction}]}>{isArabic?"إرسال الطلب لا يعني قبول المشروع أو وجود التزام مالي. نراجع الـBrief أولًا ثم نحدد النطاق والخدمة المناسبة قبل البدء.":"Submitting a request does not create a booking or payment obligation. We review the brief first and confirm scope before work begins."}</Text>
+      <View style={styles.field}><Text style={[styles.label,{textAlign:align}]}>{isArabic?"ملخص المشروع *":"Casting brief *"}</Text><TextInput value={brief} onChangeText={setBrief} multiline maxLength={5000} textAlignVertical="top" placeholder={isArabic?"اشرح نوع المشروع، الأدوار أو المواصفات المطلوبة، الاستخدام، مكان التصوير، المدة وأي تفاصيل مهمة.":"Describe the project, profiles needed, usage, location, duration, and any important details."} placeholderTextColor={colors.textMuted} style={[styles.input,styles.textarea,{textAlign:align,writingDirection:direction}]} /></View>
+      <Text style={[styles.note,{textAlign:align,writingDirection:direction}]}>{isArabic?"إرسال الطلب لا يعني قبول المشروع أو وجود التزام مالي. نراجع ملخص المشروع أولًا ثم نحدد النطاق والخدمة المناسبة قبل البدء.":"Submitting a request does not create a booking or payment obligation. We review the brief first and confirm scope before work begins."}</Text>
       {error ? <Text style={[styles.error,{textAlign:align,writingDirection:direction}]}>{error}</Text> : null}
-      <Pressable disabled={submitting} onPress={()=>void submit()} style={[styles.goldButton,submitting&&styles.disabled]}><Text style={styles.goldButtonText}>{submitting?(isArabic?"جارٍ الإرسال…":"Submitting…"):(isArabic?"إرسال الـBrief إلى MLAMH Casting":"Send brief to MLAMH Casting")}</Text></Pressable>
+      <Pressable disabled={submitting} onPress={()=>void submit()} style={[styles.goldButton,submitting&&styles.disabled]}><Text style={styles.goldButtonText}>{submitting?(isArabic?"جارٍ الإرسال…":"Submitting…"):(isArabic?"إرسال ملخص المشروع إلى كاستينغ ملامح":"Send brief to MLAMH Casting")}</Text></Pressable>
     </View>
   </ScrollView></View>;
 }
