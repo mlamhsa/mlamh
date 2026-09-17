@@ -104,15 +104,6 @@ export async function ensureTalentAccountFromSignupData(
     .maybeSingle();
   if (talentLookupError) throw new Error(`[ensureTalentAccount.talentLookup] ${talentLookupError.message}`);
 
-  if (existingTalent) {
-    return {
-      ok: true as const,
-      created: false as const,
-      preservedExistingTalent: true as const,
-      talentId: existingTalent.id,
-    };
-  }
-
   const { data: profile, error: profileLookupError } = await admin
     .from("profiles")
     .select("id,account_type,approval_status")
@@ -132,6 +123,32 @@ export async function ensureTalentAccountFromSignupData(
     data_accuracy_contact_consent_at: data.consentAt ?? now,
     updated_at: now,
   };
+
+  if (existingTalent) {
+    if (!profile) {
+      const { data: repairedProfile, error: profileInsertError } = await admin
+        .from("profiles")
+        .insert({
+          user_id: userId,
+          ...profilePayload,
+          approval_status: "not_submitted",
+        })
+        .select("id")
+        .single();
+      if (profileInsertError || !repairedProfile) {
+        throw new Error(
+          `[ensureTalentAccount.profileRepair] ${profileInsertError?.message ?? "No profile returned"}`,
+        );
+      }
+    }
+
+    return {
+      ok: true as const,
+      created: false as const,
+      preservedExistingTalent: true as const,
+      talentId: existingTalent.id,
+    };
+  }
 
   const { data: createdTalent, error: insertError } = await admin
     .from("talents")
@@ -165,19 +182,32 @@ export async function ensureTalentAccountFromSignupData(
   if (insertError || !createdTalent) throw new Error(`[ensureTalentAccount.talentInsert] ${insertError?.message ?? "No talent returned"}`);
 
   let profileWriteError: { message?: string } | null = null;
+  let persistedProfileId: number | string | null = null;
   if (profile) {
-    const { error } = await admin.from("profiles").update(profilePayload).eq("id", profile.id).eq("user_id", userId);
+    const { data: persistedProfile, error } = await admin
+      .from("profiles")
+      .update(profilePayload)
+      .eq("id", profile.id)
+      .eq("user_id", userId)
+      .select("id")
+      .maybeSingle();
     profileWriteError = error;
+    persistedProfileId = persistedProfile?.id ?? null;
   } else {
-    const { error } = await admin.from("profiles").insert({
-      user_id: userId,
-      ...profilePayload,
-      approval_status: "not_submitted",
-    });
+    const { data: persistedProfile, error } = await admin
+      .from("profiles")
+      .insert({
+        user_id: userId,
+        ...profilePayload,
+        approval_status: "not_submitted",
+      })
+      .select("id")
+      .single();
     profileWriteError = error;
+    persistedProfileId = persistedProfile?.id ?? null;
   }
 
-  if (profileWriteError) {
+  if (profileWriteError || persistedProfileId === null) {
     const { error: rollbackError } = await admin
       .from("talents")
       .delete()
@@ -188,7 +218,9 @@ export async function ensureTalentAccountFromSignupData(
     if (rollbackError) {
       console.error("[ensureTalentAccount.rollbackTalent]", rollbackError.message);
     }
-    throw new Error(`[ensureTalentAccount.profileWrite] ${profileWriteError.message ?? "Unknown profile error"}`);
+    throw new Error(
+      `[ensureTalentAccount.profileWrite] ${profileWriteError?.message ?? "No profile row persisted"}`,
+    );
   }
 
   return {
