@@ -124,11 +124,17 @@ export default function ResetPasswordPage({
       return;
     }
 
-    if (password.length < 8) {
+    const minimumPasswordLength =
+      isAdminInvite ? 12 : 8;
+
+    if (
+      password.length <
+      minimumPasswordLength
+    ) {
       setErrorMessage(
         isArabic
-          ? "يجب أن تتكون كلمة المرور من 8 أحرف على الأقل."
-          : "Password must be at least 8 characters long.",
+          ? `يجب أن تتكون كلمة المرور من ${minimumPasswordLength} حرفًا على الأقل.`
+          : `Password must be at least ${minimumPasswordLength} characters long.`,
       );
       return;
     }
@@ -255,6 +261,7 @@ export default function ResetPasswordPage({
                   show={showPassword}
                   label={isArabic ? "كلمة المرور الجديدة" : "New password"}
                   isArabic={isArabic}
+                  minLength={isAdminInvite ? 12 : 8}
                 />
                 <PasswordInput
                   value={confirmPassword}
@@ -262,6 +269,7 @@ export default function ResetPasswordPage({
                   show={showPassword}
                   label={isArabic ? "تأكيد كلمة المرور" : "Confirm password"}
                   isArabic={isArabic}
+                  minLength={isAdminInvite ? 12 : 8}
                 />
 
                 <button
@@ -314,12 +322,14 @@ function PasswordInput({
   show,
   label,
   isArabic,
+  minLength = 8,
 }: {
   value: string;
   onChange: (value: string) => void;
   show: boolean;
   label: string;
   isArabic: boolean;
+  minLength?: number;
 }) {
   return (
     <div className="relative">
@@ -333,7 +343,7 @@ function PasswordInput({
         type={show ? "text" : "password"}
         autoComplete="new-password"
         required
-        minLength={8}
+        minLength={minLength}
         placeholder={label}
         className={`w-full rounded-2xl border border-white/10 bg-black/30 py-4 text-white outline-none placeholder:text-white/25 focus:border-gold/50 ${isArabic ? "pr-12 pl-4" : "pl-12 pr-4"}`}
       />
