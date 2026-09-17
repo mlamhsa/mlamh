@@ -4,6 +4,7 @@ import { assertApprovedInvestorGmail } from "@/lib/intelligence/investors/accoun
 import { getInvestorGmailConnectionState } from "@/lib/intelligence/investors/gmail";
 import { discoverVerifiedInvestors, enrichInvestorContacts } from "@/lib/intelligence/investors/research-v2";
 import { withInvestorResearchRetry } from "@/lib/intelligence/investors/research-retry";
+import { ensureInvestorStructuredProvider } from "@/lib/intelligence/investors/structured-provider";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   prepareDueInvestorFollowUps,
@@ -34,6 +35,7 @@ async function discoveryIsDue() {
 export async function GET(request: Request) {
   if (!authorized(request)) return NextResponse.json({ ok: false }, { status: 401 });
   try {
+    ensureInvestorStructuredProvider();
     const gmail = await getInvestorGmailConnectionState();
     if (gmail.status === "connected") assertApprovedInvestorGmail(gmail.emailAddress);
 
