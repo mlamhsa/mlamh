@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Copy, ExternalLink, Linkedin, RefreshCw, Sparkles } from "lucide-react";
+import { Check, Copy, ExternalLink, MessageCircle, RefreshCw, Sparkles } from "lucide-react";
 
 type Props = {
   investorId: number;
@@ -76,7 +76,7 @@ export function InvestorLinkedInOutreach({ investorId, contactName, isArabic, di
             rel="noreferrer"
             className="inline-flex items-center gap-2 rounded-xl border border-white/[0.08] px-3 py-2 text-xs text-white/60 transition hover:border-sky-300/20 hover:text-sky-200"
           >
-            <Linkedin className="h-3.5 w-3.5" />
+            <MessageCircle className="h-3.5 w-3.5" />
             {isArabic ? "فتح LinkedIn" : "Open LinkedIn"}
             <ExternalLink className="h-3 w-3" />
           </a>
