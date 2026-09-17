@@ -5,6 +5,7 @@ import { assertApprovedInvestorGmail } from "@/lib/intelligence/investors/accoun
 import { getInvestorGmailConnectionState } from "@/lib/intelligence/investors/gmail";
 import { discoverVerifiedInvestors, enrichInvestorContacts } from "@/lib/intelligence/investors/research-v2";
 import { withInvestorResearchRetry } from "@/lib/intelligence/investors/research-retry";
+import { ensureInvestorStructuredProvider } from "@/lib/intelligence/investors/structured-provider";
 import {
   prepareDueInvestorFollowUps,
   syncInvestorReplies,
@@ -16,6 +17,7 @@ export const maxDuration = 300;
 export async function POST() {
   await requireAdminAccess();
   try {
+    ensureInvestorStructuredProvider();
     const gmail = await getInvestorGmailConnectionState();
     if (gmail.status === "connected") assertApprovedInvestorGmail(gmail.emailAddress);
     const replies = await syncInvestorReplies({ limit: 20 });
