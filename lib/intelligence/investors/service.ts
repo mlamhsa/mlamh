@@ -6,10 +6,13 @@ import {
   sendInvestorGmailMessage,
 } from "./gmail";
 
-const DEFAULT_MASTER_BRIEF = `MLAMH is a Saudi-based talent marketplace focused on Actors and Models. It connects talent with publishers such as production companies, agencies, brands, event organizers and project owners. The core workflow is: verified professional talent supply → publisher opportunity/brief → qualified applications or managed casting shortlist → selection → direct conversation/booking. MLAMH is live in Saudi Arabia, with a multi-country architecture prepared for expansion. AI capabilities are being developed around talent qualification, matching, opportunity creation, growth intelligence and operational workflows. Investor outreach should position MLAMH as a technology-enabled marketplace and operating layer for talent discovery and casting, not as a traditional talent agency.`;
+const DEFAULT_MASTER_BRIEF_EN = `MLAMH is a Saudi-based talent marketplace focused on Actors and Models. It connects talent with publishers such as production companies, agencies, brands, event organizers and project owners. The core workflow is: verified professional talent supply → publisher opportunity/brief → qualified applications or managed casting shortlist → selection → direct conversation/booking. MLAMH is live in Saudi Arabia, with a multi-country architecture prepared for expansion. AI capabilities are being developed around talent qualification, matching, opportunity creation, growth intelligence and operational workflows. Investor outreach should position MLAMH as a technology-enabled marketplace and operating layer for talent discovery and casting, not as a traditional talent agency.`;
+
+const DEFAULT_MASTER_BRIEF_AR = `ملامح منصة سعودية للمواهب تركز حاليًا على الممثلين والمودلز، وتربط المواهب بالناشرين مثل شركات الإنتاج والوكالات والعلامات التجارية ومنظمي الفعاليات وأصحاب المشاريع. رحلة العمل الأساسية هي: مواهب مهنية موثوقة → فرصة أو موجز من الناشر → طلبات مؤهلة أو قائمة ترشيح مُدارة → اختيار → محادثة مباشرة وحجز. ملامح تعمل حاليًا في السعودية، وبنيتها التقنية مهيأة للتوسع إلى أسواق خليجية ودولية. تتطور قدرات الذكاء الاصطناعي في التأهيل والمطابقة وإنشاء الفرص وذكاء النمو والعمليات. عند التواصل مع المستثمرين يجب تقديم ملامح كسوق تقني وطبقة تشغيل لاكتشاف المواهب والكاستينغ، وليس كوكالة مواهب تقليدية.`;
 
 export type InvestorRelationsSettings = {
-  masterBrief: string;
+  masterBriefAr: string;
+  masterBriefEn: string;
   targetRegions: string[];
   targetStages: string[];
   targetSectors: string[];
@@ -124,16 +127,24 @@ function uniqUrls(value: unknown) {
   return [...new Set(urls)];
 }
 
+const GCC_COUNTRY_CODES = new Set(["SA", "AE", "QA", "KW", "BH", "OM"]);
+
+function isAllowedInvestorCountry(value: unknown) {
+  const code = asString(value, 8).toUpperCase();
+  return GCC_COUNTRY_CODES.has(code);
+}
+
 export async function getInvestorRelationsSettings(): Promise<InvestorRelationsSettings> {
   const db = createAdminClient();
   const { data, error } = await db
     .from("investor_relations_settings")
-    .select("master_brief,target_regions,target_stages,target_sectors,minimum_fit_score,follow_up_days")
+    .select("master_brief,master_brief_ar,master_brief_en,target_regions,target_stages,target_sectors,minimum_fit_score,follow_up_days")
     .eq("id", 1)
     .maybeSingle();
   if (error) throw new Error("Investor relations settings could not be loaded.");
   return {
-    masterBrief: asString(data?.master_brief, 20000) || DEFAULT_MASTER_BRIEF,
+    masterBriefAr: asString(data?.master_brief_ar, 20000) || DEFAULT_MASTER_BRIEF_AR,
+    masterBriefEn: asString(data?.master_brief_en, 20000) || asString(data?.master_brief, 20000) || DEFAULT_MASTER_BRIEF_EN,
     targetRegions: asStringArray(data?.target_regions) || ["SA", "AE", "GCC"],
     targetStages: asStringArray(data?.target_stages) || ["pre_seed", "seed"],
     targetSectors: asStringArray(data?.target_sectors) || ["marketplace", "media_tech", "creator_economy", "future_of_work", "ai"],
@@ -144,13 +155,16 @@ export async function getInvestorRelationsSettings(): Promise<InvestorRelationsS
   };
 }
 
-export async function updateInvestorMasterBrief({ masterBrief, userId }: { masterBrief: string; userId: string }) {
-  const value = masterBrief.trim().slice(0, 20000);
-  if (value.length < 100) throw new Error("Master investor brief is too short.");
+export async function updateInvestorMasterBrief({ masterBriefAr, masterBriefEn, userId }: { masterBriefAr: string; masterBriefEn: string; userId: string }) {
+  const arValue = masterBriefAr.trim().slice(0, 20000);
+  const enValue = masterBriefEn.trim().slice(0, 20000);
+  if (arValue.length < 100 || enValue.length < 100) throw new Error("Both Arabic and English master investor briefs are required.");
   const db = createAdminClient();
   const { error } = await db.from("investor_relations_settings").upsert({
     id: 1,
-    master_brief: value,
+    master_brief_ar: arValue,
+    master_brief_en: enValue,
+    master_brief: enValue,
     updated_by_user_id: userId,
     updated_at: new Date().toISOString(),
   });
@@ -209,7 +223,7 @@ export async function discoverInvestors({ limit = 8 }: { limit?: number } = {}) 
       },
       {
         role: "user",
-        content: `MLAMH master brief:\n${settings.masterBrief}\n\nTarget regions: ${settings.targetRegions.join(", ")}\nTarget stages: ${settings.targetStages.join(", ")}\nTarget sectors: ${settings.targetSectors.join(", ")}\nMinimum desired fit: ${settings.minimumFitScore}/100.\n\nAlready known investors to avoid duplicates:\n${excluded.length ? excluded.join("\n") : "None yet."}\n\nFind up to ${Math.max(1, Math.min(limit, 12))} NEW investor organizations with credible current evidence. Focus first on Saudi Arabia and UAE/GCC, then international investors with demonstrated MENA/GCC appetite. Include VCs, angels, family offices, corporate venture arms, strategic investors and accelerators where genuinely relevant.\n\nReturn this exact structure:\n{\n  "investors": [\n    {\n      "organization_name": "",\n      "organization_type": "vc|angel|family_office|corporate_vc|strategic|accelerator|government|other",\n      "website_url": null,\n      "linkedin_url": null,\n      "country_code": null,\n      "city": null,\n      "investment_stage": [],\n      "sector_focus": [],\n      "geography_focus": [],\n      "cheque_min": null,\n      "cheque_max": null,\n      "cheque_currency": null,\n      "thesis_summary": "",\n      "fit_score": 0,\n      "fit_rationale": "",\n      "contact_name": null,\n      "contact_role": null,\n      "contact_email": null,\n      "contact_linkedin_url": null,\n      "source_urls": []\n    }\n  ]\n}`,
+        content: `MLAMH master brief (Arabic):\n${settings.masterBriefAr}\n\nMLAMH master brief (English):\n${settings.masterBriefEn}\n\nTarget regions: ${settings.targetRegions.join(", ")}\nTarget stages: ${settings.targetStages.join(", ")}\nTarget sectors: ${settings.targetSectors.join(", ")}\nMinimum desired fit: ${settings.minimumFitScore}/100.\n\nAlready known investors to avoid duplicates:\n${excluded.length ? excluded.join("\n") : "None yet."}\n\nFind up to ${Math.max(1, Math.min(limit, 12))} NEW investors with credible current evidence. HARD GEOGRAPHIC RULE: only Saudi Arabia, UAE, Qatar, Kuwait, Bahrain, or Oman. Prioritize Saudi Arabia first, UAE second, then the rest of the GCC. Include VCs, angel investors/individuals, family offices, corporate venture arms, strategic companies, accelerators and government investment programs where genuinely relevant. Do not return investors outside the GCC.\n\nReturn this exact structure:\n{\n  "investors": [\n    {\n      "organization_name": "",\n      "organization_type": "vc|angel|family_office|corporate_vc|strategic|accelerator|government|other",\n      "website_url": null,\n      "linkedin_url": null,\n      "country_code": null,\n      "city": null,\n      "investment_stage": [],\n      "sector_focus": [],\n      "geography_focus": [],\n      "cheque_min": null,\n      "cheque_max": null,\n      "cheque_currency": null,\n      "thesis_summary": "",\n      "fit_score": 0,\n      "fit_rationale": "",\n      "contact_name": null,\n      "contact_role": null,\n      "contact_email": null,\n      "contact_linkedin_url": null,\n      "source_urls": []\n    }\n  ]\n}`,
       },
     ],
   });
@@ -225,6 +239,10 @@ export async function discoverInvestors({ limit = 8 }: { limit?: number } = {}) 
   for (const item of items.slice(0, Math.max(1, Math.min(limit, 12)))) {
     const organizationName = asString(item.organization_name, 300);
     if (!organizationName) continue;
+    if (!isAllowedInvestorCountry(item.country_code)) {
+      skipped.push(`${organizationName} (outside GCC)`);
+      continue;
+    }
     const websiteUrl = asNullableString(item.website_url, 1000);
     const { data: duplicate } = await db.from("investor_leads")
       .select("id")
@@ -301,11 +319,11 @@ export async function generateInvestorOutreachDraft(investorId: number) {
     messages: [
       {
         role: "system",
-        content: `You write concise, professional investor outreach for MLAMH. Do not invent traction, revenue, users, funding amounts, partnerships or team credentials. Use only the supplied master brief and verified investor research. The goal is to start a serious investment conversation, not oversell. Prefer 120-180 words. Return JSON only.`,
+        content: `You write concise, professional investor outreach for MLAMH. Do not invent traction, revenue, users, funding amounts, partnerships or team credentials. Use only the supplied master brief and verified investor research. The goal is to start a serious investment conversation, not oversell. Choose Arabic when the recipient's verified public business context is clearly Arabic; otherwise use English. Use the matching master brief and never mix languages in one email. Prefer 120-180 words. Return JSON only.`,
       },
       {
         role: "user",
-        content: `MLAMH master brief:\n${settings.masterBrief}\n\nInvestor record:\n${JSON.stringify(investor, null, 2)}\n\nWrite a personalized first outreach email to ${investor.contact_name || "the investment team"}. Explain why MLAMH is relevant to this investor's documented thesis. Do not state that they are interested already.\n\nReturn:\n{\n  "subject": "",\n  "body": "",\n  "rationale": "Why this angle fits this investor",\n  "positioning_angle": "",\n  "recommended_attachments": ["optional items only if useful"]\n}`,
+        content: `MLAMH master brief (Arabic):\n${settings.masterBriefAr}\n\nMLAMH master brief (English):\n${settings.masterBriefEn}\n\nInvestor record:\n${JSON.stringify(investor, null, 2)}\n\nWrite a personalized first outreach email to ${investor.contact_name || "the investment team"}. Explain why MLAMH is relevant to this investor's documented thesis. Do not state that they are interested already.\n\nReturn:\n{\n  "subject": "",\n  "body": "",\n  "rationale": "Why this angle fits this investor",\n  "positioning_angle": "",\n  "recommended_attachments": ["optional items only if useful"]\n}`,
       },
     ],
   });
@@ -474,11 +492,11 @@ async function generateReplyDraft({ investor: investorInput, inboundText, inboun
     messages: [
       {
         role: "system",
-        content: `You are MLAMH Investor Relations AI. Analyze a real investor reply and prepare the next response for CEO/admin approval. Never invent facts or commitments. If the investor asks for information not present in the master brief, say it should be prepared rather than fabricating it. Return JSON only.`,
+        content: `You are MLAMH Investor Relations AI. Analyze a real investor reply and prepare the next response for CEO/admin approval. Never invent facts or commitments. If the investor asks for information not present in the master brief, say it should be prepared rather than fabricating it. Draft the reply in the same language as the inbound investor email. Return JSON only.`,
       },
       {
         role: "user",
-        content: `MLAMH master brief:\n${settings.masterBrief}\n\nInvestor record:\n${JSON.stringify(investorInput, null, 2)}\n\nInbound email from: ${inboundFrom}\nSubject: ${inboundSubject}\nBody:\n${inboundText.slice(0, 12000)}\n\nClassify the reply as one of: positive, meeting, info_request, not_now, pass, other. Then draft a concise reply.\nReturn: {"classification":"", "summary":"", "subject":"", "body":"", "suggested_follow_up_days": null}`,
+        content: `MLAMH master brief (Arabic):\n${settings.masterBriefAr}\n\nMLAMH master brief (English):\n${settings.masterBriefEn}\n\nInvestor record:\n${JSON.stringify(investorInput, null, 2)}\n\nInbound email from: ${inboundFrom}\nSubject: ${inboundSubject}\nBody:\n${inboundText.slice(0, 12000)}\n\nClassify the reply as one of: positive, meeting, info_request, not_now, pass, other. Then draft a concise reply.\nReturn: {"classification":"", "summary":"", "subject":"", "body":"", "suggested_follow_up_days": null}`,
       },
     ],
   });
@@ -621,11 +639,11 @@ export async function prepareDueInvestorFollowUps({ limit = 10 }: { limit?: numb
       messages: [
         {
           role: "system",
-          content: `Write a short, non-pushy investor follow-up for MLAMH. Do not invent traction or urgency. Keep it under 100 words and return JSON only.`,
+          content: `Write a short, non-pushy investor follow-up for MLAMH. Do not invent traction or urgency. Use Arabic when the recipient's verified public business context is clearly Arabic; otherwise use English. Keep it under 100 words and return JSON only.`,
         },
         {
           role: "user",
-          content: `MLAMH master brief:\n${settings.masterBrief}\n\nInvestor record:\n${JSON.stringify(investor, null, 2)}\n\nReturn {"subject":"", "body":"", "rationale":""}.`,
+          content: `MLAMH master brief (Arabic):\n${settings.masterBriefAr}\n\nMLAMH master brief (English):\n${settings.masterBriefEn}\n\nInvestor record:\n${JSON.stringify(investor, null, 2)}\n\nReturn {"subject":"", "body":"", "rationale":""}.`,
         },
       ],
     });
