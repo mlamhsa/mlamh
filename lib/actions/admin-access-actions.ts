@@ -251,8 +251,30 @@ export async function inviteAdminAction(
 
   const locale =
     getLocale(formData);
-  const email =
-    getInviteEmail(formData);
+
+  let email: string;
+
+  try {
+    email =
+      getInviteEmail(formData);
+  } catch {
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "invite_admin",
+      outcome: "blocked",
+      targetId: "invalid-input",
+      reason: "invalid_email_input",
+    });
+
+    redirect(
+      accessCenterUrl(locale, {
+        access_error:
+          "invalid_input",
+      }),
+    );
+  }
+
   const adminClient =
     createAdminClient();
 
@@ -717,8 +739,30 @@ export async function resendAdminInviteAction(
 
   const locale =
     getLocale(formData);
-  const targetUserId =
-    getTargetUserId(formData);
+
+  let targetUserId: string;
+
+  try {
+    targetUserId =
+      getTargetUserId(formData);
+  } catch {
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "resend_admin_invite",
+      outcome: "blocked",
+      targetId: "invalid-input",
+      reason: "invalid_admin_id",
+    });
+
+    redirect(
+      accessCenterUrl(locale, {
+        access_error:
+          "invalid_input",
+      }),
+    );
+  }
+
   const adminClient =
     createAdminClient();
 
@@ -897,8 +941,30 @@ export async function cancelPendingAdminInviteAction(
 
   const locale =
     getLocale(formData);
-  const targetUserId =
-    getTargetUserId(formData);
+
+  let targetUserId: string;
+
+  try {
+    targetUserId =
+      getTargetUserId(formData);
+  } catch {
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "cancel_admin_invite",
+      outcome: "blocked",
+      targetId: "invalid-input",
+      reason: "invalid_admin_id",
+    });
+
+    redirect(
+      accessCenterUrl(locale, {
+        access_error:
+          "invalid_input",
+      }),
+    );
+  }
+
   const adminClient =
     createAdminClient();
 
@@ -1099,10 +1165,52 @@ export async function updateAdminRoleAction(
 
   const locale =
     getLocale(formData);
-  const targetUserId =
-    getTargetUserId(formData);
-  const roleKey =
-    getRoleKey(formData);
+
+  let targetUserId: string;
+
+  try {
+    targetUserId =
+      getTargetUserId(formData);
+  } catch {
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "update_admin_role",
+      outcome: "blocked",
+      targetId: "invalid-input",
+      reason: "invalid_admin_id",
+    });
+
+    redirect(
+      accessCenterUrl(locale, {
+        access_error:
+          "invalid_input",
+      }),
+    );
+  }
+
+  let roleKey: RoleKey;
+
+  try {
+    roleKey =
+      getRoleKey(formData);
+  } catch {
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "update_admin_role",
+      outcome: "blocked",
+      targetId: targetUserId,
+      reason: "invalid_role_input",
+    });
+
+    redirect(
+      accessCenterUrl(locale, {
+        access_error:
+          "invalid_input",
+      }),
+    );
+  }
 
   const adminClient =
     createAdminClient();
@@ -1549,8 +1657,29 @@ export async function revokeAdminAccessAction(
 
   const locale =
     getLocale(formData);
-  const targetUserId =
-    getTargetUserId(formData);
+
+  let targetUserId: string;
+
+  try {
+    targetUserId =
+      getTargetUserId(formData);
+  } catch {
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "revoke_admin_access",
+      outcome: "blocked",
+      targetId: "invalid-input",
+      reason: "invalid_admin_id",
+    });
+
+    redirect(
+      accessCenterUrl(locale, {
+        access_error:
+          "invalid_input",
+      }),
+    );
+  }
 
   if (actor.id === targetUserId) {
     await recordAdminAccessOutcome({
