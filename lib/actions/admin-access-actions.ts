@@ -352,6 +352,40 @@ export async function inviteAdminAction(
 
   const rollbackInvite =
     async (reason: string) => {
+      const cleanupResults =
+        await Promise.all([
+          adminClient
+            .from("user_roles")
+            .delete()
+            .eq(
+              "user_id",
+              invitedUser.id,
+            ),
+          adminClient
+            .from("admin_users")
+            .delete()
+            .eq(
+              "id",
+              invitedUser.id,
+            ),
+          adminClient
+            .from("profiles")
+            .delete()
+            .eq(
+              "user_id",
+              invitedUser.id,
+            ),
+        ]);
+
+      for (const cleanupResult of cleanupResults) {
+        if (cleanupResult.error) {
+          console.error(
+            `[inviteAdminAction rollback data ${reason}]`,
+            cleanupResult.error,
+          );
+        }
+      }
+
       const { error: rollbackError } =
         await adminClient.auth.admin.deleteUser(
           invitedUser.id,
@@ -359,7 +393,7 @@ export async function inviteAdminAction(
 
       if (rollbackError) {
         console.error(
-          `[inviteAdminAction rollback ${reason}]`,
+          `[inviteAdminAction rollback auth ${reason}]`,
           rollbackError,
         );
       }
