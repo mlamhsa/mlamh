@@ -9,6 +9,7 @@ import {
   CreditCard,
   FileClock,
   Globe2,
+  Handshake,
   Headphones,
   LayoutDashboard,
   Megaphone,
@@ -89,6 +90,12 @@ export const adminNavigation: AdminNavigationGroup[] = [
         labelEn: "Growth Intelligence",
         href: "/admin/intelligence/growth",
         icon: BarChart3,
+      },
+      {
+        labelAr: "علاقات المستثمرين AI",
+        labelEn: "Investor Relations AI",
+        href: "/admin/intelligence/investors",
+        icon: Handshake,
       },
       {
         labelAr: "Investor Demo",
