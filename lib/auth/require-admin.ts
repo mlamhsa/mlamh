@@ -37,9 +37,13 @@ export async function requireAdminAccess() {
       .maybeSingle(),
     adminClient
       .from("user_roles")
-      .select("role_id")
-      .eq("user_id", user.id)
-      .limit(1),
+      .select(`
+        role_id,
+        roles (
+          key
+        )
+      `)
+      .eq("user_id", user.id),
   ]);
 
   // Admin access is intentionally fail-closed and requires all three layers:
@@ -56,7 +60,16 @@ export async function requireAdminAccess() {
     profile.account_type !== "admin" ||
     !adminRegistry ||
     !roleAssignments ||
-    roleAssignments.length === 0
+    !roleAssignments.some((assignment) => {
+      const role = Array.isArray(assignment.roles)
+        ? assignment.roles[0]
+        : assignment.roles;
+
+      return (
+        role?.key === "super_admin" ||
+        role?.key === "admin"
+      );
+    })
   ) {
     redirect(ADMIN_LOGIN_PATH);
   }
