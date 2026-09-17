@@ -411,6 +411,10 @@ import {
                 admin_invite_resent
               </option>
 
+              <option value="admin_invite_cancelled">
+                admin_invite_cancelled
+              </option>
+
               <option value="admin_role_changed">
                 admin_role_changed
               </option>
