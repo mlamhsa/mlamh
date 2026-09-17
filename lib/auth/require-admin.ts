@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
+import { isActiveAdminAccessRole } from "@/lib/rbac/admin-access-policy";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -65,9 +66,8 @@ export async function requireAdminAccess() {
         ? assignment.roles[0]
         : assignment.roles;
 
-      return (
-        role?.key === "super_admin" ||
-        role?.key === "admin"
+      return isActiveAdminAccessRole(
+        role?.key,
       );
     })
   ) {
