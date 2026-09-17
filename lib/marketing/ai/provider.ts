@@ -180,6 +180,19 @@ Use a staged search strategy instead of stopping after one exact-name query:
 6. Fail closed: if you cannot source a real person + professional role + public business email or personal LinkedIn profile, return the partial company evidence and missing fields instead of fabricating readiness.
 For each researched lead, return lead_research items with lead_id, readiness_status, candidate_contact {name, role, public_business_email, public_linkedin_url, company_website}, source_evidence [{url,title,claim}], confidence, missing_fields, remaining_gaps. Every non-null candidate field must be supported by claim-level source evidence; otherwise use null. Never claim that a candidate has been verified into MLAMH records, approved, or contacted.`;
 
+const INVESTOR_RESEARCH_GUIDANCE = `You are researching investors for MLAMH using only current, publicly available professional information.
+Use web search as a staged investor-research workflow and actively search both investment organizations and individual investors.
+1. Geography is mandatory: Saudi Arabia first, United Arab Emirates second, then Qatar, Kuwait, Bahrain and Oman. Do not return investors outside the GCC.
+2. Organization discovery: search VC funds, corporate venture arms, strategic investors, family offices, accelerators and government-backed investment programs. Verify the entity through its official website, portfolio/investment pages, reputable investment announcements or an official LinkedIn company page.
+3. Individual investor discovery: actively search public professional LinkedIn profiles for angel investors, high-net-worth investors with a documented startup-investing record, family-office principals, General Partners, Managing Partners, Partners, Investment Directors, Principals and other people who can make or strongly influence investment decisions. For an independent angel, the person may be the investor lead itself.
+4. LinkedIn person verification: prefer a public personal LinkedIn URL containing /in/. A LinkedIn company page is not a substitute for a personal profile. The person's current role and investment relevance must be supported by public evidence. Do not guess a person's role from a company name.
+5. Investment-fit evidence: look for documented investments, portfolio companies, sector thesis, stage, geography, check-size information when public, and evidence relevant to marketplaces, media-tech, creator economy, future of work, AI, SaaS or adjacent technology. Never claim interest in MLAMH unless explicitly documented; score only objective fit.
+6. Contact evidence: a public professional LinkedIn profile is a valid contact route even when no public business email exists. Use a public business email only when explicitly published by the person or organization. Never infer email patterns, private phone numbers or gated contact data.
+7. Individual lead representation: when the lead is an independent angel/person rather than an organization, use the person's full name as organization_name, set organization_type to angel, set contact_name to the same person, put their current investor role in contact_role, and use the verified personal LinkedIn /in/ URL for both linkedin_url and contact_linkedin_url when appropriate.
+8. Decision-maker enrichment: for organization leads, identify the best relevant person when possible and populate contact_name, contact_role and contact_linkedin_url with the verified public professional profile.
+9. Fail closed: if an organization or person cannot be verified with credible public evidence, exclude it rather than fabricate details. Every LinkedIn URL, investment claim, role, thesis, cheque size and contact detail must be evidence-backed.
+10. Avoid duplicates and weak directory-style results. Prefer fewer high-confidence leads over a larger speculative list.`;
+
 class ResponsesMarketingProvider implements MarketingAIProvider {
   public readonly id: string;
   private readonly apiKey: string;
@@ -195,6 +208,7 @@ class ResponsesMarketingProvider implements MarketingAIProvider {
 
   async generate(request: MarketingAIRequest): Promise<MarketingAIResponse> {
     const leadResearch = request.taskType === "lead_enrichment";
+    const investorResearch = leadResearch && request.metadata?.workflow === "investor_discovery_v1";
     const input = request.messages.map((message) => ({
       type: "message",
       role: message.role === "system" ? "developer" : message.role,
@@ -213,7 +227,7 @@ class ResponsesMarketingProvider implements MarketingAIProvider {
       input.unshift({
         type: "message",
         role: "developer",
-        content: LEAD_RESEARCH_GUIDANCE,
+        content: investorResearch ? INVESTOR_RESEARCH_GUIDANCE : LEAD_RESEARCH_GUIDANCE,
       });
     }
 
@@ -312,7 +326,9 @@ class ResponsesMarketingProvider implements MarketingAIProvider {
         ...(leadResearch ? {
           web_search_used: true,
           web_source_count: webSources.length,
-          research_strategy: "entity_resolution_then_decision_maker_v1",
+          research_strategy: investorResearch
+            ? "gcc_investor_and_linkedin_people_v1"
+            : "entity_resolution_then_decision_maker_v1",
         } : {}),
       },
     };
