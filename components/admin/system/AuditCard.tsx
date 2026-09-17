@@ -100,6 +100,136 @@ import {
       );
   
     switch (event.event_type) {
+      case "admin_invited":
+        return {
+          title: isArabic
+            ? "دعوة مشرف"
+            : "Admin invited",
+          description:
+            getMetadataString(
+              metadata,
+              "invited_email",
+            ) ||
+            (isArabic
+              ? "تم إنشاء دعوة جديدة لحساب إدارة."
+              : "A new admin invitation was created."),
+          icon: Send,
+        };
+
+      case "admin_invite_resent":
+        return {
+          title: isArabic
+            ? "إعادة إرسال دعوة مشرف"
+            : "Admin invitation resent",
+          description:
+            getMetadataString(
+              metadata,
+              "invited_email",
+            ) ||
+            (isArabic
+              ? "تمت إعادة إرسال رابط التفعيل."
+              : "The activation link was resent."),
+          icon: Send,
+        };
+
+      case "admin_invite_cancelled":
+        return {
+          title: isArabic
+            ? "إلغاء دعوة مشرف"
+            : "Admin invitation cancelled",
+          description:
+            getMetadataString(
+              metadata,
+              "invited_email",
+            ) ||
+            (isArabic
+              ? "تم إلغاء دعوة مشرف غير مفعلة."
+              : "An unactivated admin invitation was cancelled."),
+          icon: XCircle,
+        };
+
+      case "admin_role_changed": {
+        const previousRoles =
+          getMetadataString(
+            metadata,
+            "previous_roles",
+          );
+        const newRole =
+          getMetadataString(
+            metadata,
+            "new_role",
+          );
+
+        return {
+          title: isArabic
+            ? "تغيير دور مشرف"
+            : "Admin role changed",
+          description:
+            previousRoles &&
+            newRole
+              ? `${previousRoles} → ${newRole}`
+              : isArabic
+                ? "تم تغيير الدور الإداري."
+                : "The admin role was changed.",
+          icon: FilePenLine,
+        };
+      }
+
+      case "admin_access_revoked":
+        return {
+          title: isArabic
+            ? "سحب وصول مشرف"
+            : "Admin access revoked",
+          description:
+            getMetadataString(
+              metadata,
+              "target_email",
+            ) ||
+            (isArabic
+              ? "تم سحب وصول الحساب إلى لوحة الإدارة."
+              : "The account's admin-console access was revoked."),
+          icon: XCircle,
+        };
+
+      case "admin_access_action_blocked":
+        return {
+          title: isArabic
+            ? "إجراء إداري محظور"
+            : "Admin action blocked",
+          description:
+            reason ||
+            (isArabic
+              ? "تم منع الإجراء بواسطة ضوابط الحماية."
+              : "The action was blocked by access safeguards."),
+          icon: Bell,
+        };
+
+      case "admin_access_action_failed":
+        return {
+          title: isArabic
+            ? "فشل إجراء إداري"
+            : "Admin action failed",
+          description:
+            reason ||
+            (isArabic
+              ? "فشل الإجراء وتم تسجيل السبب."
+              : "The action failed and the reason was recorded."),
+          icon: XCircle,
+        };
+
+      case "admin_access_action_noop":
+        return {
+          title: isArabic
+            ? "إجراء بلا تغيير"
+            : "Admin action no-op",
+          description:
+            reason ||
+            (isArabic
+              ? "تم تنفيذ الطلب دون الحاجة إلى تغيير الحالة."
+              : "The request required no state change."),
+          icon: History,
+        };
+
       case "talent_approved":
         return {
           title: isArabic
@@ -408,12 +538,35 @@ import {
                     : "Target"}
                 </p>
   
-                <p className="mt-1 text-xs text-white/60">
+                <p
+                  dir={
+                    getMetadataString(
+                      event.metadata,
+                      "target_email",
+                    ) ||
+                    getMetadataString(
+                      event.metadata,
+                      "invited_email",
+                    )
+                      ? "ltr"
+                      : undefined
+                  }
+                  className="mt-1 truncate text-xs text-white/60"
+                >
                   {getTargetLabel(
                     event.target_type,
                     language,
                   )}{" "}
-                  · {event.target_id}
+                  ·{" "}
+                  {getMetadataString(
+                    event.metadata,
+                    "target_email",
+                  ) ||
+                    getMetadataString(
+                      event.metadata,
+                      "invited_email",
+                    ) ||
+                    event.target_id}
                 </p>
               </div>
   
@@ -428,11 +581,19 @@ import {
                   dir="ltr"
                   className="mt-1 truncate text-xs text-white/60"
                   title={
-                    event.actor_id ??
+                    getMetadataString(
+                      event.metadata,
+                      "actor_email",
+                    ) ||
+                    event.actor_id ||
                     undefined
                   }
                 >
-                  {event.actor_id ||
+                  {getMetadataString(
+                    event.metadata,
+                    "actor_email",
+                  ) ||
+                    event.actor_id ||
                     (isArabic
                       ? "النظام"
                       : "System")}
