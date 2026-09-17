@@ -99,11 +99,33 @@ function score(value: unknown) {
 }
 
 function parseAIJson(content: string) {
-  try {
-    return JSON.parse(content) as unknown;
-  } catch {
-    throw new Error("Investor AI returned invalid JSON.");
+  const trimmed = content.trim();
+  const candidates: string[] = [trimmed];
+
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fenced?.[1]) candidates.push(fenced[1].trim());
+
+  const objectStart = trimmed.indexOf("{");
+  const objectEnd = trimmed.lastIndexOf("}");
+  if (objectStart >= 0 && objectEnd > objectStart) {
+    candidates.push(trimmed.slice(objectStart, objectEnd + 1));
   }
+
+  const arrayStart = trimmed.indexOf("[");
+  const arrayEnd = trimmed.lastIndexOf("]");
+  if (arrayStart >= 0 && arrayEnd > arrayStart) {
+    candidates.push(trimmed.slice(arrayStart, arrayEnd + 1));
+  }
+
+  for (const candidate of [...new Set(candidates.filter(Boolean))]) {
+    try {
+      return JSON.parse(candidate) as unknown;
+    } catch {
+      // Try the next safe extraction candidate.
+    }
+  }
+
+  throw new Error("Investor AI returned invalid JSON.");
 }
 
 function normalizeOrgType(value: unknown) {
