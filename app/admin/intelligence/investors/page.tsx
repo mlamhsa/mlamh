@@ -5,6 +5,7 @@ import {
   AdminPageHeader,
   AdminStatCard,
 } from "@/components/admin/ui";
+import { InvestorLinkedInPanel } from "@/components/admin/investors/InvestorLinkedInPanel";
 import { InvestorRelationsWorkspace } from "@/components/admin/investors/InvestorRelationsWorkspace";
 import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { getInvestorRelationsDashboard } from "@/lib/intelligence/investors/service";
@@ -144,6 +145,8 @@ export default async function AdminInvestorRelationsAIPage({ searchParams }: Pag
           ))}
         </AdminGrid>
       </div>
+
+      <InvestorLinkedInPanel leads={dashboard.leads} isArabic={isArabic} />
 
       <InvestorRelationsWorkspace
         isArabic={isArabic}
