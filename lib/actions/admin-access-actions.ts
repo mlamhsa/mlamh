@@ -271,6 +271,15 @@ export async function inviteAdminAction(
       existingAdminError,
     );
 
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "invite_admin",
+      outcome: "failed",
+      targetId: email,
+      reason: "registry_lookup_failed",
+    });
+
     redirect(
       accessCenterUrl(locale, {
         access_error:
@@ -280,6 +289,18 @@ export async function inviteAdminAction(
   }
 
   if (existingAdmin) {
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "invite_admin",
+      outcome: "blocked",
+      targetId: existingAdmin.id,
+      reason: "admin_already_exists",
+      metadata: {
+        target_email: email,
+      },
+    });
+
     redirect(
       accessCenterUrl(locale, {
         access_error:
@@ -304,6 +325,15 @@ export async function inviteAdminAction(
       existingAccountError,
     );
 
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "invite_admin",
+      outcome: "failed",
+      targetId: email,
+      reason: "auth_lookup_failed",
+    });
+
     redirect(
       accessCenterUrl(locale, {
         access_error:
@@ -322,6 +352,15 @@ export async function inviteAdminAction(
   if (
     existingAccount?.account_exists
   ) {
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "invite_admin",
+      outcome: "blocked",
+      targetId: email,
+      reason: "email_in_use",
+    });
+
     redirect(
       accessCenterUrl(locale, {
         access_error:
@@ -344,6 +383,15 @@ export async function inviteAdminAction(
       "[inviteAdminAction role]",
       roleError,
     );
+
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "invite_admin",
+      outcome: "failed",
+      targetId: email,
+      reason: "default_role_unavailable",
+    });
 
     redirect(
       accessCenterUrl(locale, {
@@ -389,6 +437,15 @@ export async function inviteAdminAction(
       "[inviteAdminAction create user]",
       createUserError,
     );
+
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "invite_admin",
+      outcome: "failed",
+      targetId: email,
+      reason: "auth_user_create_failed",
+    });
 
     redirect(
       accessCenterUrl(locale, {
@@ -473,6 +530,18 @@ export async function inviteAdminAction(
       "profile",
     );
 
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "invite_admin",
+      outcome: "failed",
+      targetId: invitedUser.id,
+      reason: "profile_create_failed",
+      metadata: {
+        target_email: email,
+      },
+    });
+
     redirect(
       accessCenterUrl(locale, {
         access_error:
@@ -501,6 +570,18 @@ export async function inviteAdminAction(
       "registry",
     );
 
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "invite_admin",
+      outcome: "failed",
+      targetId: invitedUser.id,
+      reason: "registry_create_failed",
+      metadata: {
+        target_email: email,
+      },
+    });
+
     redirect(
       accessCenterUrl(locale, {
         access_error:
@@ -526,6 +607,18 @@ export async function inviteAdminAction(
     await rollbackInvite(
       "role_assignment",
     );
+
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "invite_admin",
+      outcome: "failed",
+      targetId: invitedUser.id,
+      reason: "role_assignment_failed",
+      metadata: {
+        target_email: email,
+      },
+    });
 
     redirect(
       accessCenterUrl(locale, {
@@ -560,6 +653,18 @@ export async function inviteAdminAction(
     await rollbackInvite(
       "recovery_email",
     );
+
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "invite_admin",
+      outcome: "failed",
+      targetId: invitedUser.id,
+      reason: "activation_email_failed",
+      metadata: {
+        target_email: email,
+      },
+    });
 
     redirect(
       accessCenterUrl(locale, {
