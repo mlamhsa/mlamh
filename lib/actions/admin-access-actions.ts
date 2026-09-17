@@ -1540,6 +1540,15 @@ export async function revokeAdminAccessAction(
     getTargetUserId(formData);
 
   if (actor.id === targetUserId) {
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "revoke_admin_access",
+      outcome: "blocked",
+      targetId: targetUserId,
+      reason: "self_revoke",
+    });
+
     redirect(
       accessCenterUrl(locale, {
         access_error:
@@ -1563,6 +1572,15 @@ export async function revokeAdminAccessAction(
       "[revokeAdminAccessAction target]",
       error,
     );
+
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "revoke_admin_access",
+      outcome: "failed",
+      targetId: targetUserId,
+      reason: "target_not_available",
+    });
 
     redirect(
       accessCenterUrl(locale, {
@@ -1602,6 +1620,21 @@ export async function revokeAdminAccessAction(
       await countSuperAdmins();
 
     if (superAdminCount <= 1) {
+      await recordAdminAccessOutcome({
+        actorId: actor.id,
+        actorEmail: actor.email,
+        action: "revoke_admin_access",
+        outcome: "blocked",
+        targetId: targetUserId,
+        reason: "last_super_admin",
+        metadata: {
+          target_email:
+            targetAdmin.email,
+          previous_roles:
+            previousRoleKeys,
+        },
+      });
+
       redirect(
         accessCenterUrl(locale, {
           access_error:
@@ -1629,6 +1662,21 @@ export async function revokeAdminAccessAction(
       roleCleanupError,
     );
 
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "revoke_admin_access",
+      outcome: "failed",
+      targetId: targetUserId,
+      reason: "role_cleanup_failed",
+      metadata: {
+        target_email:
+          targetAdmin.email,
+        previous_roles:
+          previousRoleKeys,
+      },
+    });
+
     redirect(
       accessCenterUrl(locale, {
         access_error:
@@ -1651,6 +1699,8 @@ export async function revokeAdminAccessAction(
       registryError,
     );
 
+    let rollbackSucceeded = true;
+
     if (
       previousRoleIds.length > 0
     ) {
@@ -1668,12 +1718,30 @@ export async function revokeAdminAccessAction(
           );
 
       if (rollbackError) {
+        rollbackSucceeded = false;
         console.error(
           "[revokeAdminAccessAction rollback]",
           rollbackError,
         );
       }
     }
+
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "revoke_admin_access",
+      outcome: "failed",
+      targetId: targetUserId,
+      reason: "registry_revoke_failed",
+      metadata: {
+        target_email:
+          targetAdmin.email,
+        previous_roles:
+          previousRoleKeys,
+        rollback_succeeded:
+          rollbackSucceeded,
+      },
+    });
 
     redirect(
       accessCenterUrl(locale, {
@@ -1696,6 +1764,8 @@ export async function revokeAdminAccessAction(
             targetAdmin.email,
           previous_roles:
             previousRoleKeys,
+          actor_email:
+            actor.email ?? null,
         },
       });
   } catch (auditError) {
