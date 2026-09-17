@@ -1,7 +1,7 @@
 import {
   ROLES,
   type RoleKey,
-} from "./roles";
+} from "./roles.ts";
 
 export const ACTIVE_ADMIN_ACCESS_ROLES = [
   ROLES.SUPER_ADMIN,
