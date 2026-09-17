@@ -133,13 +133,16 @@ export function InvestorRelationsWorkspace({ isArabic, leads, outreach, masterBr
   }
 
   function updateDraft(item: Outreach, patch: Partial<DraftEdit>) {
-    setDraftEdits((current) => ({
-      ...current,
-      [item.id]: {
-        ...currentDraft(item),
-        ...patch,
-      },
-    }));
+    setDraftEdits((current) => {
+      const base = current[item.id] ?? { subject: item.subject, bodyText: item.body_text };
+      return {
+        ...current,
+        [item.id]: {
+          ...base,
+          ...patch,
+        },
+      };
+    });
   }
 
   async function saveDraft(item: Outreach) {
