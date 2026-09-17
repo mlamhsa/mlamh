@@ -1,0 +1,30 @@
+name: Traffic Preview Test
+
+on:
+  push:
+    branches:
+      - test/traffic-scalability
+    paths:
+      - .github/workflows/traffic-preview.yml
+
+permissions:
+  contents: read
+
+jobs:
+  public-read-load:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TRAFFIC_BASE_URL: https://mlamh-95ee797wg-osam2yach-6288s-projects.vercel.app
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify preview is reachable
+        run: curl --fail --silent --show-error --location --retry 5 --retry-delay 5 "$TRAFFIC_BASE_URL/ar" > /dev/null
+
+      - name: Run guarded k6 public-read load test
+        run: |
+          docker run --rm \
+            -e TRAFFIC_BASE_URL="$TRAFFIC_BASE_URL" \
+            -v "$PWD:/work" \
+            grafana/k6 run /work/tests/traffic/public-read.k6.js
