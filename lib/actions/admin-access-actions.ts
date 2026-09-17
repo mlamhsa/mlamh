@@ -546,6 +546,146 @@ export async function inviteAdminAction(
   );
 }
 
+export async function resendAdminInviteAction(
+  formData: FormData,
+) {
+  const actor =
+    await requirePermission(
+      PERMISSIONS.ADMINS_MANAGE,
+    );
+
+  const locale =
+    getLocale(formData);
+  const targetUserId =
+    getTargetUserId(formData);
+  const adminClient =
+    createAdminClient();
+
+  const {
+    data: targetAdmin,
+    error: targetAdminError,
+  } = await adminClient
+    .from("admin_users")
+    .select("id, email, role")
+    .eq("id", targetUserId)
+    .maybeSingle();
+
+  if (
+    targetAdminError ||
+    !targetAdmin ||
+    !isAssignableAdminRole(
+      targetAdmin.role,
+    )
+  ) {
+    console.error(
+      "[resendAdminInviteAction target]",
+      targetAdminError,
+    );
+
+    redirect(
+      accessCenterUrl(locale, {
+        access_error:
+          "admin_not_found",
+      }),
+    );
+  }
+
+  const {
+    data: authUserData,
+    error: authUserError,
+  } =
+    await adminClient.auth.admin.getUserById(
+      targetUserId,
+    );
+
+  const authUser =
+    authUserData.user;
+  const invitedAt =
+    typeof authUser?.user_metadata
+      ?.admin_invited_at ===
+    "string"
+      ? authUser.user_metadata
+          .admin_invited_at
+      : null;
+
+  if (
+    authUserError ||
+    !authUser ||
+    !invitedAt ||
+    authUser.last_sign_in_at
+  ) {
+    console.error(
+      "[resendAdminInviteAction auth state]",
+      authUserError,
+    );
+
+    redirect(
+      accessCenterUrl(locale, {
+        access_error:
+          "invite_not_pending",
+      }),
+    );
+  }
+
+  const siteUrl = (
+    process.env
+      .NEXT_PUBLIC_SITE_URL ||
+    "https://mlamh.net"
+  ).replace(/\/$/, "");
+
+  const {
+    error: resendError,
+  } = await adminClient.auth.resetPasswordForEmail(
+    targetAdmin.email,
+    {
+      redirectTo:
+        `${siteUrl}/${locale}/reset-password?mode=admin-invite`,
+    },
+  );
+
+  if (resendError) {
+    console.error(
+      "[resendAdminInviteAction email]",
+      resendError,
+    );
+
+    redirect(
+      accessCenterUrl(locale, {
+        access_error:
+          "invite_resend_failed",
+      }),
+    );
+  }
+
+  try {
+    await createEvent({
+      type:
+        EVENT_TYPES.admin_invite_resent,
+      target:
+        EVENT_TARGETS.ADMIN,
+      targetId: targetUserId,
+      actorId: actor.id,
+      metadata: {
+        invited_email:
+          targetAdmin.email,
+      },
+    });
+  } catch (auditError) {
+    console.error(
+      "[resendAdminInviteAction audit]",
+      auditError,
+    );
+  }
+
+  revalidateAdminAccessPaths();
+
+  redirect(
+    accessCenterUrl(locale, {
+      access_resent: "1",
+    }),
+  );
+}
+
 export async function updateAdminRoleAction(
   formData: FormData,
 ) {
