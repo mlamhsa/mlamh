@@ -7,12 +7,12 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   const user = await requireAdminAccess();
-  const payload = await request.json().catch(() => ({})) as { masterBrief?: unknown };
-  if (typeof payload.masterBrief !== "string") {
-    return NextResponse.json({ ok: false, error: "master_brief_required" }, { status: 400 });
+  const payload = await request.json().catch(() => ({})) as { masterBriefAr?: unknown; masterBriefEn?: unknown };
+  if (typeof payload.masterBriefAr !== "string" || typeof payload.masterBriefEn !== "string") {
+    return NextResponse.json({ ok: false, error: "master_brief_ar_and_en_required" }, { status: 400 });
   }
   try {
-    await updateInvestorMasterBrief({ masterBrief: payload.masterBrief, userId: user.id });
+    await updateInvestorMasterBrief({ masterBriefAr: payload.masterBriefAr, masterBriefEn: payload.masterBriefEn, userId: user.id });
     return NextResponse.json({ ok: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Master investor brief update failed.";
