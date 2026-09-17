@@ -912,6 +912,11 @@ export default async function AdminUsersPage({
 
   const accessErrorMessage =
     access_error ===
+    "invalid_input"
+      ? isArabic
+        ? "تم رفض الطلب لأن بيانات إجراء الإدارة غير صالحة. تم تسجيل المحاولة في سجل العمليات."
+        : "The request was blocked because the admin-action input was invalid. The attempt was recorded in the audit log."
+      : access_error ===
     "admin_exists"
       ? isArabic
         ? "هذا البريد مسجل بالفعل ضمن حسابات الإدارة."
