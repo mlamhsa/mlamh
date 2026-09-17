@@ -5,6 +5,7 @@ import {
   BriefcaseBusiness,
   MapPin,
   Search,
+  Sparkles,
   Wallet,
   Zap,
 } from "lucide-react-native";
@@ -18,7 +19,6 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 import { getMobileOpportunities } from "@/src/domains/opportunities/api";
 import type { MobilePublicOpportunity } from "@/src/domains/opportunities/types";
@@ -81,7 +81,7 @@ export function OpportunitiesDirectoryScreen() {
   }, [items, mode, query]);
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <View style={styles.screen}>
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
@@ -89,18 +89,23 @@ export function OpportunitiesDirectoryScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={colors.gold} />}
       >
         <View style={styles.hero}>
-          <View style={isArabic ? styles.rowRtl : styles.rowLtr}>
-            <BriefcaseBusiness size={18} color={colors.gold} />
-            <Text style={styles.eyebrow}>{isArabic ? "الفرص" : "OPPORTUNITIES"}</Text>
+          <View style={[styles.heroTop, isArabic ? styles.rowRtl : styles.rowLtr]}>
+            <View style={styles.heroCopy}>
+              <View style={isArabic ? styles.rowRtl : styles.rowLtr}>
+                <BriefcaseBusiness size={18} color={colors.gold} />
+                <Text style={styles.eyebrow}>{isArabic ? "فرص ملامح" : "MLAMH OPPORTUNITIES"}</Text>
+              </View>
+              <Text style={[styles.title, { textAlign: align }]}>
+                {isArabic ? "اكتشف فرصتك القادمة" : "Find your next opportunity"}
+              </Text>
+              <Text style={[styles.description, { textAlign: align }]}>
+                {isArabic
+                  ? "استعرض فرص الكاست والإعلانات وصناعة المحتوى من الشركات والوكالات."
+                  : "Browse casting, advertising and content opportunities from companies and agencies."}
+              </Text>
+            </View>
+            <View style={styles.heroIcon}><Sparkles size={21} color={colors.gold} /></View>
           </View>
-          <Text style={[styles.title, { textAlign: align }]}>
-            {isArabic ? "اكتشف فرصتك القادمة" : "Discover your next opportunity"}
-          </Text>
-          <Text style={[styles.description, { textAlign: align }]}>
-            {isArabic
-              ? "طلبات سريعة وفرص كاستينغ منشورة من جهات تبحث عن مواهب."
-              : "Quick requests and casting opportunities from publishers looking for talent."}
-          </Text>
         </View>
 
         <View style={styles.searchBox}>
@@ -211,17 +216,20 @@ export function OpportunitiesDirectoryScreen() {
           </View>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: colors.background },
+  screen: { flex: 1, backgroundColor: colors.background },
   scroll: { flex: 1, backgroundColor: colors.background },
-  content: { paddingHorizontal: spacing.lg, paddingBottom: 48 },
+  content: { paddingHorizontal: spacing.lg, paddingBottom: 120 },
   rowRtl: { flexDirection: "row-reverse", alignItems: "center", gap: spacing.sm },
   rowLtr: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  hero: { paddingTop: spacing.xl, paddingBottom: spacing.lg },
+  hero: { marginTop: spacing.xl, marginBottom: spacing.lg, borderWidth: 1, borderColor: "rgba(255,255,255,0.08)", backgroundColor: "rgba(255,255,255,0.035)", borderRadius: 28, padding: spacing.xl },
+  heroTop: { alignItems: "flex-start", justifyContent: "space-between", gap: spacing.md },
+  heroCopy: { flex: 1, minWidth: 0 },
+  heroIcon: { width: 48, height: 48, borderRadius: 16, borderWidth: 1, borderColor: "rgba(201,169,98,0.20)", backgroundColor: "rgba(201,169,98,0.08)", alignItems: "center", justifyContent: "center" },
   eyebrow: { color: colors.gold, fontSize: 11, fontWeight: "700" },
   title: { color: colors.textPrimary, fontSize: 31, lineHeight: 38, fontWeight: "700", marginTop: spacing.md },
   description: { color: colors.textMuted, fontSize: 13, lineHeight: 23, marginTop: spacing.sm },

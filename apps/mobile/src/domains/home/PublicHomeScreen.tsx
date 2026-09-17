@@ -10,10 +10,10 @@ import {
   UsersRound,
 } from "lucide-react-native";
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 import { HomeHowItWorksSection } from "@/src/domains/home/HomeHowItWorksSection";
 import { HomeOpportunitiesSection } from "@/src/domains/home/HomeOpportunitiesSection";
+import { HomePostJourneySections } from "@/src/domains/home/HomePostJourneySections";
 import { HomeTalentsSection } from "@/src/domains/home/HomeTalentsSection";
 import { HomeValuePropsSection } from "@/src/domains/home/HomeValuePropsSection";
 import { useHomeContent } from "@/src/domains/home/useHomeContent";
@@ -94,14 +94,14 @@ export function PublicHomeScreen() {
   ] as const;
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <View style={styles.safeArea}>
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.heroCard}>
-          <View style={[styles.eyebrowPill, isArabic ? styles.rowRtl : styles.rowLtr]}>
+          <View style={[styles.eyebrowPill, isArabic ? styles.eyebrowRtl : styles.eyebrowLtr, isArabic ? styles.rowRtl : styles.rowLtr]}>
             <Sparkles size={14} color={colors.gold} />
             <Text style={styles.eyebrowText}>{heroEyebrow}</Text>
           </View>
@@ -128,7 +128,7 @@ export function PublicHomeScreen() {
             </View>
           </Pressable>
 
-          <View style={styles.heroActions}>
+          <View style={[styles.heroActions, isArabic && styles.rowReverse]}>
             <Pressable
               accessibilityRole="button"
               onPress={() => go(primaryHref)}
@@ -145,7 +145,7 @@ export function PublicHomeScreen() {
             </Pressable>
           </View>
 
-          <View style={styles.heroGallery}>
+          <View style={[styles.heroGallery, isArabic && styles.rowReverse]}>
             <Pressable accessibilityRole="button" onPress={() => go("/talents")} style={[styles.heroLargeImage, styles.imageCard]}>
               <Image source={{ uri: `${IMAGE_BASE}/hero-actor.webp` }} style={styles.imageFill} resizeMode="cover" />
               <View style={styles.imageShade} />
@@ -232,14 +232,9 @@ export function PublicHomeScreen() {
         <HomeHowItWorksSection isArabic={isArabic} />
         <HomeTalentsSection isArabic={isArabic} items={talents} loading={talentsLoading} />
         <HomeOpportunitiesSection isArabic={isArabic} items={opportunities} loading={opportunitiesLoading} />
-
-        <View style={styles.nextMarker}>
-          <Text style={styles.nextMarkerText}>
-            {isArabic ? "التالي: الجهات، مشهد ملامح والدعوة الختامية." : "Next: organizations, MLAMH Scene and the final call to action."}
-          </Text>
-        </View>
+        <HomePostJourneySections isArabic={isArabic} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -248,10 +243,13 @@ const absoluteFill = { position: "absolute" as const, top: 0, right: 0, bottom: 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
   scroll: { flex: 1, backgroundColor: colors.background },
-  content: { paddingHorizontal: spacing.lg, paddingTop: spacing.xl, paddingBottom: 48 },
+  content: { paddingHorizontal: spacing.lg, paddingTop: spacing.xl, paddingBottom: 120 },
   flexOne: { flex: 1 },
   rowRtl: { flexDirection: "row-reverse", alignItems: "center", gap: spacing.md },
   rowLtr: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+  rowReverse: { flexDirection: "row-reverse" },
+  eyebrowRtl: { alignSelf: "flex-end" },
+  eyebrowLtr: { alignSelf: "flex-start" },
   pressed: { opacity: 0.82, transform: [{ scale: 0.992 }] },
   heroCard: { borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, borderRadius: 32, padding: spacing.xl },
   eyebrowPill: { alignSelf: "flex-start", borderWidth: 1, borderColor: "rgba(201,169,98,0.28)", backgroundColor: "rgba(201,169,98,0.08)", borderRadius: radius.pill, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
@@ -304,6 +302,4 @@ const styles = StyleSheet.create({
   quickSmallBottom: { marginTop: "auto", paddingTop: spacing.xl },
   quickSmallTitle: { color: colors.textPrimary, fontSize: 15, lineHeight: 22, fontWeight: "700", marginTop: 4 },
   quickSmallText: { color: "rgba(255,255,255,0.35)", fontSize: 11, lineHeight: 18, marginTop: 6 },
-  nextMarker: { marginTop: 36, borderWidth: 1, borderStyle: "dashed", borderColor: "rgba(255,255,255,0.10)", borderRadius: radius.xl, padding: spacing.xl },
-  nextMarkerText: { color: colors.textMuted, fontSize: 12, lineHeight: 20, textAlign: "center" },
 });

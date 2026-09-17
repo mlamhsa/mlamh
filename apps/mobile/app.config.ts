@@ -13,11 +13,11 @@ const androidAppLinkData = ["mlamh.net", "www.mlamh.net"].flatMap((host) =>
 );
 
 const config: ExpoConfig = {
-  name: "MLAMH", slug: "mlamh", scheme: "mlamh", version: "0.2.0", icon: "./assets/icon.png",
+  name: "MLAMH", slug: "mlamh", scheme: "mlamh", version: "0.2.0", icon: "./assets/app-icon.png",
   orientation: "portrait", userInterfaceStyle: "dark",
   plugins: [
     "expo-router","expo-localization","expo-apple-authentication",
-    ["expo-splash-screen",{ backgroundColor: "#000000", image: "./assets/icon.png", imageWidth: 220 }],
+    ["expo-splash-screen",{ backgroundColor: "#000000", image: "./assets/logo.ar.png", imageWidth: 220 }],
     ["expo-image-picker",{ photosPermission: "Allow MLAMH to access your photos so you can build and update your professional profile.", cameraPermission: "Allow MLAMH to use your camera when you choose to capture profile or portfolio media.", microphonePermission: false }],
     ["expo-notifications",{ color: "#C9A962", defaultChannel: "mlamh-updates", enableBackgroundRemoteNotifications: false }],
   ],
@@ -29,7 +29,7 @@ const config: ExpoConfig = {
   },
   android: {
     package: "net.mlamh.app", versionCode: 15,
-    adaptiveIcon: { foregroundImage: "./assets/icon.png", backgroundColor: "#000000" },
+    adaptiveIcon: { foregroundImage: "./assets/app-icon.png", backgroundColor: "#000000" },
     intentFilters: [{ action: "VIEW", autoVerify: true, data: androidAppLinkData, category: ["BROWSABLE", "DEFAULT"] }],
   },
   experiments: { typedRoutes: true },

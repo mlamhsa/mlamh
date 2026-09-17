@@ -12,7 +12,6 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 import { getMobileTalents } from "@/src/domains/talent/api";
 import type { MobilePublicTalent } from "@/src/domains/talent/types";
@@ -108,12 +107,10 @@ export function TalentDirectoryScreen() {
   ), [align, isArabic, items.length, query, role, total]);
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <View style={styles.screen}>
       <FlatList
         data={items}
         keyExtractor={(item) => String(item.id)}
-        numColumns={2}
-        columnWrapperStyle={styles.columns}
         contentContainerStyle={styles.content}
         ListHeaderComponent={header}
         renderItem={({ item }) => <TalentCard talent={item} isArabic={isArabic} />}
@@ -130,7 +127,7 @@ export function TalentDirectoryScreen() {
         )}
         showsVerticalScrollIndicator={false}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -163,8 +160,8 @@ function TalentCard({ talent, isArabic }: { talent: MobilePublicTalent; isArabic
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: colors.background },
-  content: { paddingHorizontal: spacing.lg, paddingBottom: 48 },
+  screen: { flex: 1, backgroundColor: colors.background },
+  content: { paddingHorizontal: spacing.lg, paddingBottom: 120 },
   rowRtl: { flexDirection: "row-reverse", alignItems: "center" },
   rowLtr: { flexDirection: "row", alignItems: "center" },
   hero: { paddingTop: spacing.xl, paddingBottom: spacing.xl },
@@ -185,17 +182,16 @@ const styles = StyleSheet.create({
   resultHeader: { justifyContent: "space-between", marginTop: 30, marginBottom: spacing.md },
   resultTitle: { color: colors.textPrimary, fontSize: 19, fontWeight: "600" },
   resultCount: { color: colors.textMuted, fontSize: 11 },
-  columns: { gap: spacing.md },
-  card: { flex: 1, maxWidth: "50%", marginBottom: spacing.lg, borderWidth: 1, borderColor: "rgba(255,255,255,0.08)", backgroundColor: "rgba(255,255,255,0.025)", borderRadius: 22, overflow: "hidden", paddingBottom: spacing.md },
+  card: { width: "100%", marginBottom: spacing.lg, borderWidth: 1, borderColor: "rgba(255,255,255,0.08)", backgroundColor: "rgba(255,255,255,0.025)", borderRadius: 28, overflow: "hidden", paddingBottom: spacing.lg },
   pressed: { opacity: 0.84, transform: [{ scale: 0.992 }] },
   imageWrap: { aspectRatio: 0.8, backgroundColor: "#0b0b0b", overflow: "hidden" },
   image: { width: "100%", height: "100%" },
   imageFallback: { flex: 1, alignItems: "center", justifyContent: "center" },
   featured: { position: "absolute", top: 10, right: 10, flexDirection: "row", alignItems: "center", gap: 4, borderWidth: 1, borderColor: "rgba(201,169,98,0.28)", backgroundColor: "rgba(0,0,0,0.58)", borderRadius: radius.pill, paddingHorizontal: 7, paddingVertical: 5 },
   featuredText: { color: colors.gold, fontSize: 9 },
-  name: { color: colors.textPrimary, fontSize: 15, fontWeight: "700", marginTop: spacing.md, paddingHorizontal: spacing.md },
-  role: { color: colors.gold, fontSize: 11, marginTop: 4, paddingHorizontal: spacing.md },
-  cityRow: { gap: 4, marginTop: 7, paddingHorizontal: spacing.md },
+  name: { color: colors.textPrimary, fontSize: 22, lineHeight: 28, fontWeight: "600", marginTop: spacing.lg, paddingHorizontal: spacing.lg },
+  role: { color: colors.gold, fontSize: 11, marginTop: 5, paddingHorizontal: spacing.lg },
+  cityRow: { gap: 5, marginTop: 9, paddingHorizontal: spacing.lg },
   city: { flex: 1, color: colors.textMuted, fontSize: 10 },
   stateCard: { minHeight: 180, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.xl },
   stateTitle: { color: colors.textPrimary, fontSize: 15, textAlign: "center" },
