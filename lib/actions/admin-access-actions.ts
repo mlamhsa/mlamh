@@ -1133,6 +1133,18 @@ export async function updateAdminRoleAction(
         targetProfileError,
     );
 
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "update_admin_role",
+      outcome: "failed",
+      targetId: targetUserId,
+      reason: "target_not_available",
+      metadata: {
+        requested_role: roleKey,
+      },
+    });
+
     redirect(
       accessCenterUrl(locale, {
         access_error:
@@ -1149,6 +1161,20 @@ export async function updateAdminRoleAction(
       "[updateAdminRoleAction role]",
       selectedRoleError,
     );
+
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "update_admin_role",
+      outcome: "failed",
+      targetId: targetUserId,
+      reason: "selected_role_unavailable",
+      metadata: {
+        requested_role: roleKey,
+        target_email:
+          targetAdmin.email,
+      },
+    });
 
     redirect(
       accessCenterUrl(locale, {
@@ -1188,6 +1214,22 @@ export async function updateAdminRoleAction(
     actor.id === targetUserId &&
     currentRoleKey !== roleKey
   ) {
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "update_admin_role",
+      outcome: "blocked",
+      targetId: targetUserId,
+      reason: "self_role_change",
+      metadata: {
+        target_email:
+          targetAdmin.email,
+        previous_roles:
+          previousRoleKeys,
+        requested_role: roleKey,
+      },
+    });
+
     redirect(
       accessCenterUrl(locale, {
         access_error:
@@ -1207,6 +1249,22 @@ export async function updateAdminRoleAction(
       await countSuperAdmins();
 
     if (superAdminCount <= 1) {
+      await recordAdminAccessOutcome({
+        actorId: actor.id,
+        actorEmail: actor.email,
+        action: "update_admin_role",
+        outcome: "blocked",
+        targetId: targetUserId,
+        reason: "last_super_admin",
+        metadata: {
+          target_email:
+            targetAdmin.email,
+          previous_roles:
+            previousRoleKeys,
+          requested_role: roleKey,
+        },
+      });
+
       redirect(
         accessCenterUrl(locale, {
           access_error:
@@ -1223,6 +1281,20 @@ export async function updateAdminRoleAction(
     targetAdmin.role === roleKey;
 
   if (alreadyAligned) {
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "update_admin_role",
+      outcome: "noop",
+      targetId: targetUserId,
+      reason: "already_aligned",
+      metadata: {
+        target_email:
+          targetAdmin.email,
+        role: roleKey,
+      },
+    });
+
     redirect(
       accessCenterUrl(locale, {
         access_saved: "1",
@@ -1244,6 +1316,22 @@ export async function updateAdminRoleAction(
       "[updateAdminRoleAction delete]",
       deleteError,
     );
+
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "update_admin_role",
+      outcome: "failed",
+      targetId: targetUserId,
+      reason: "existing_role_delete_failed",
+      metadata: {
+        target_email:
+          targetAdmin.email,
+        previous_roles:
+          previousRoleKeys,
+        requested_role: roleKey,
+      },
+    });
 
     redirect(
       accessCenterUrl(locale, {
@@ -1267,6 +1355,8 @@ export async function updateAdminRoleAction(
       insertError,
     );
 
+    let rollbackSucceeded = true;
+
     if (
       previousRoleIds.length > 0
     ) {
@@ -1284,12 +1374,31 @@ export async function updateAdminRoleAction(
           );
 
       if (rollbackError) {
+        rollbackSucceeded = false;
         console.error(
           "[updateAdminRoleAction rollback roles]",
           rollbackError,
         );
       }
     }
+
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "update_admin_role",
+      outcome: "failed",
+      targetId: targetUserId,
+      reason: "new_role_insert_failed",
+      metadata: {
+        target_email:
+          targetAdmin.email,
+        previous_roles:
+          previousRoleKeys,
+        requested_role: roleKey,
+        rollback_succeeded:
+          rollbackSucceeded,
+      },
+    });
 
     redirect(
       accessCenterUrl(locale, {
@@ -1313,6 +1422,8 @@ export async function updateAdminRoleAction(
       registryError,
     );
 
+    let rollbackSucceeded = true;
+
     const { error: cleanupError } =
       await adminClient
         .from("user_roles")
@@ -1323,6 +1434,7 @@ export async function updateAdminRoleAction(
         );
 
     if (cleanupError) {
+      rollbackSucceeded = false;
       console.error(
         "[updateAdminRoleAction cleanup]",
         cleanupError,
@@ -1346,12 +1458,31 @@ export async function updateAdminRoleAction(
           );
 
       if (rollbackError) {
+        rollbackSucceeded = false;
         console.error(
           "[updateAdminRoleAction rollback registry]",
           rollbackError,
         );
       }
     }
+
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "update_admin_role",
+      outcome: "failed",
+      targetId: targetUserId,
+      reason: "registry_update_failed",
+      metadata: {
+        target_email:
+          targetAdmin.email,
+        previous_roles:
+          previousRoleKeys,
+        requested_role: roleKey,
+        rollback_succeeded:
+          rollbackSucceeded,
+      },
+    });
 
     redirect(
       accessCenterUrl(locale, {
@@ -1375,6 +1506,8 @@ export async function updateAdminRoleAction(
           previous_roles:
             previousRoleKeys,
           new_role: roleKey,
+          actor_email:
+            actor.email ?? null,
         },
       });
   } catch (auditError) {
