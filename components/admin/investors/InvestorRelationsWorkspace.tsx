@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ExternalLink, Mail, Play, RefreshCw, Send, ShieldCheck, Sparkles, X } from "lucide-react";
+import { ExternalLink, Mail, Play, RefreshCw, Save, Send, ShieldCheck, Sparkles, X } from "lucide-react";
 
 type Lead = {
   id: number;
@@ -52,6 +52,11 @@ type Props = {
   };
 };
 
+type DraftEdit = {
+  subject: string;
+  bodyText: string;
+};
+
 function statusLabel(status: string, isArabic: boolean) {
   const labels: Record<string, [string, string]> = {
     discovered: ["مكتشف", "Discovered"],
@@ -93,12 +98,16 @@ export function InvestorRelationsWorkspace({ isArabic, leads, outreach, masterBr
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [brief, setBrief] = useState(masterBrief);
+  const [draftEdits, setDraftEdits] = useState<Record<number, DraftEdit>>({});
 
   async function action(key: string, url: string, init: RequestInit = { method: "POST" }) {
     setBusy(key);
     setMessage(null);
     try {
-      const response = await fetch(url, { ...init, headers: { "Content-Type": "application/json", ...(init.headers ?? {}) } });
+      const response = await fetch(url, {
+        ...init,
+        headers: { "Content-Type": "application/json" },
+      });
       const payload = await response.json().catch(() => ({})) as { ok?: boolean; error?: string };
       if (!response.ok || payload.ok === false) throw new Error(payload.error || `HTTP ${response.status}`);
       setMessage(isArabic ? "تم تنفيذ الإجراء." : "Action completed.");
@@ -117,6 +126,35 @@ export function InvestorRelationsWorkspace({ isArabic, leads, outreach, masterBr
       method: "POST",
       body: JSON.stringify({ masterBrief: brief }),
     });
+  }
+
+  function currentDraft(item: Outreach): DraftEdit {
+    return draftEdits[item.id] ?? { subject: item.subject, bodyText: item.body_text };
+  }
+
+  function updateDraft(item: Outreach, patch: Partial<DraftEdit>) {
+    setDraftEdits((current) => ({
+      ...current,
+      [item.id]: {
+        ...currentDraft(item),
+        ...patch,
+      },
+    }));
+  }
+
+  async function saveDraft(item: Outreach) {
+    const draft = currentDraft(item);
+    const saved = await action(`edit-${item.id}`, `/api/admin/investors/outreach/${item.id}/edit`, {
+      method: "POST",
+      body: JSON.stringify({ subject: draft.subject, bodyText: draft.bodyText }),
+    });
+    if (saved) {
+      setDraftEdits((current) => {
+        const next = { ...current };
+        delete next[item.id];
+        return next;
+      });
+    }
   }
 
   const queue = outreach.filter((item) => ["pending_approval", "approved", "failed"].includes(item.status));
@@ -285,6 +323,8 @@ export function InvestorRelationsWorkspace({ isArabic, leads, outreach, masterBr
           <div className="space-y-4">
             {queue.map((item) => {
               const lead = leads.find((candidate) => candidate.id === item.investor_id);
+              const draft = currentDraft(item);
+              const dirty = Boolean(draftEdits[item.id]);
               return (
                 <article key={item.id} className="rounded-2xl border border-white/[0.08] bg-white/[0.022] p-5 sm:p-6">
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -307,14 +347,44 @@ export function InvestorRelationsWorkspace({ isArabic, leads, outreach, masterBr
 
                   <div className="mt-4 rounded-xl border border-white/[0.07] bg-black/25 p-4">
                     <p className="text-[10px] uppercase tracking-[0.15em] text-white/25">SUBJECT</p>
-                    <p className="mt-2 text-sm font-medium text-white/80" dir="auto">{item.subject}</p>
+                    {item.status === "pending_approval" ? (
+                      <input
+                        value={draft.subject}
+                        onChange={(event) => updateDraft(item, { subject: event.target.value })}
+                        dir="auto"
+                        className="mt-2 w-full rounded-lg border border-white/[0.08] bg-black/25 px-3 py-2 text-sm font-medium text-white/80 outline-none transition focus:border-gold/30"
+                      />
+                    ) : (
+                      <p className="mt-2 text-sm font-medium text-white/80" dir="auto">{item.subject}</p>
+                    )}
                     <div className="my-4 h-px bg-white/[0.06]" />
-                    <pre className="whitespace-pre-wrap font-sans text-sm leading-7 text-white/60" dir="auto">{item.body_text}</pre>
+                    {item.status === "pending_approval" ? (
+                      <textarea
+                        value={draft.bodyText}
+                        onChange={(event) => updateDraft(item, { bodyText: event.target.value })}
+                        rows={9}
+                        dir="auto"
+                        className="w-full resize-y rounded-lg border border-white/[0.08] bg-black/20 px-3 py-3 text-sm leading-7 text-white/65 outline-none transition focus:border-gold/30"
+                      />
+                    ) : (
+                      <pre className="whitespace-pre-wrap font-sans text-sm leading-7 text-white/60" dir="auto">{item.body_text}</pre>
+                    )}
                   </div>
 
                   <div className="mt-4 flex flex-wrap justify-end gap-2">
                     {item.status === "pending_approval" ? (
                       <>
+                        {dirty ? (
+                          <button
+                            type="button"
+                            onClick={() => saveDraft(item)}
+                            disabled={busy !== null || !draft.subject.trim() || draft.bodyText.trim().length < 20}
+                            className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-gold/25 bg-gold/[0.05] px-3 py-2 text-xs font-medium text-gold transition hover:bg-gold/[0.09] disabled:opacity-35"
+                          >
+                            {busy === `edit-${item.id}` ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                            {isArabic ? "حفظ التعديلات" : "Save edits"}
+                          </button>
+                        ) : null}
                         <button
                           type="button"
                           onClick={() => action(`reject-${item.id}`, `/api/admin/investors/outreach/${item.id}/reject`, { method: "POST", body: JSON.stringify({}) })}
@@ -326,8 +396,9 @@ export function InvestorRelationsWorkspace({ isArabic, leads, outreach, masterBr
                         <button
                           type="button"
                           onClick={() => action(`approve-${item.id}`, `/api/admin/investors/outreach/${item.id}/approve`)}
-                          disabled={busy !== null}
-                          className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-emerald-400/25 bg-emerald-400/[0.07] px-3 py-2 text-xs font-medium text-emerald-200 transition hover:bg-emerald-400/[0.11] disabled:opacity-40"
+                          disabled={busy !== null || dirty}
+                          title={dirty ? (isArabic ? "احفظ التعديلات قبل الموافقة" : "Save your edits before approving") : undefined}
+                          className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-emerald-400/25 bg-emerald-400/[0.07] px-3 py-2 text-xs font-medium text-emerald-200 transition hover:bg-emerald-400/[0.11] disabled:cursor-not-allowed disabled:opacity-40"
                         >
                           <ShieldCheck className="h-3.5 w-3.5" />{isArabic ? "أوافق" : "Approve"}
                         </button>
