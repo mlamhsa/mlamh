@@ -44,7 +44,8 @@ type Props = {
   isArabic: boolean;
   leads: Lead[];
   outreach: Outreach[];
-  masterBrief: string;
+  masterBriefAr: string;
+  masterBriefEn: string;
   gmail: {
     status: string;
     emailAddress: string | null;
@@ -93,11 +94,12 @@ function formatDate(value: string | null, isArabic: boolean) {
   }
 }
 
-export function InvestorRelationsWorkspace({ isArabic, leads, outreach, masterBrief, gmail }: Props) {
+export function InvestorRelationsWorkspace({ isArabic, leads, outreach, masterBriefAr, masterBriefEn, gmail }: Props) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [brief, setBrief] = useState(masterBrief);
+  const [briefAr, setBriefAr] = useState(masterBriefAr);
+  const [briefEn, setBriefEn] = useState(masterBriefEn);
   const [draftEdits, setDraftEdits] = useState<Record<number, DraftEdit>>({});
 
   async function action(key: string, url: string, init: RequestInit = { method: "POST" }) {
@@ -124,7 +126,7 @@ export function InvestorRelationsWorkspace({ isArabic, leads, outreach, masterBr
   async function saveBrief() {
     await action("brief", "/api/admin/investors/master-brief", {
       method: "POST",
-      body: JSON.stringify({ masterBrief: brief }),
+      body: JSON.stringify({ masterBriefAr: briefAr, masterBriefEn: briefEn }),
     });
   }
 
@@ -240,19 +242,47 @@ export function InvestorRelationsWorkspace({ isArabic, leads, outreach, masterBr
             <button
               type="button"
               onClick={saveBrief}
-              disabled={busy !== null || brief.trim() === masterBrief.trim()}
+              disabled={busy !== null || (briefAr.trim() === masterBriefAr.trim() && briefEn.trim() === masterBriefEn.trim())}
               className="rounded-xl border border-gold/25 px-4 py-2 text-xs font-medium text-gold transition hover:bg-gold/[0.08] disabled:cursor-not-allowed disabled:opacity-35"
             >
               {busy === "brief" ? (isArabic ? "جارٍ الحفظ..." : "Saving...") : (isArabic ? "حفظ" : "Save")}
             </button>
           </div>
-          <textarea
-            value={brief}
-            onChange={(event) => setBrief(event.target.value)}
-            rows={10}
-            className="mt-4 w-full resize-y rounded-xl border border-white/[0.09] bg-black/25 p-4 text-sm leading-7 text-white/75 outline-none transition focus:border-gold/30"
-            placeholder={isArabic ? "تعريف ملامح، السوق، نموذج العمل، المرحلة الحالية وما نبحث عنه من المستثمر..." : "MLAMH overview, market, business model, current stage and what we seek from investors..."}
-          />
+          <div className="mt-4 grid gap-4 xl:grid-cols-2">
+            <div>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <span className="text-xs font-medium text-white/60">العربية</span>
+                <span className="text-[10px] uppercase tracking-[0.14em] text-white/25">AR</span>
+              </div>
+              <textarea
+                dir="rtl"
+                value={briefAr}
+                onChange={(event) => setBriefAr(event.target.value)}
+                rows={12}
+                className="w-full resize-y rounded-xl border border-white/[0.09] bg-black/25 p-4 text-right text-sm leading-7 text-white/75 outline-none transition focus:border-gold/30"
+                placeholder="تعريف ملامح، السوق، نموذج العمل، المرحلة الحالية وما نبحث عنه من المستثمر..."
+              />
+            </div>
+            <div>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <span className="text-xs font-medium text-white/60">English</span>
+                <span className="text-[10px] uppercase tracking-[0.14em] text-white/25">EN</span>
+              </div>
+              <textarea
+                dir="ltr"
+                value={briefEn}
+                onChange={(event) => setBriefEn(event.target.value)}
+                rows={12}
+                className="w-full resize-y rounded-xl border border-white/[0.09] bg-black/25 p-4 text-left text-sm leading-7 text-white/75 outline-none transition focus:border-gold/30"
+                placeholder="MLAMH overview, market, business model, current stage and what we seek from investors..."
+              />
+            </div>
+          </div>
+          <p className="mt-3 text-[11px] leading-5 text-white/30">
+            {isArabic
+              ? "يحفظ النظام النسختين كمصدر حقيقة واحد، ويختار الوكيل لغة التواصل المناسبة تلقائيًا. يجب أن تبقى الحقائق متطابقة بين النسختين."
+              : "Both versions are stored as one governed source of truth. The agent selects the appropriate outreach language automatically, while facts must stay aligned across both versions."}
+          </p>
         </div>
       </section>
 
