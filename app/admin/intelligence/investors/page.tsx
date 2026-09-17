@@ -68,6 +68,9 @@ export default async function AdminInvestorRelationsAIPage({ searchParams }: Pag
   const { lang = "ar", gmail: gmailResult } = await searchParams;
   const isArabic = lang !== "en";
   const dashboard = await getInvestorRelationsDashboard();
+  const gmailOAuthConfigured = Boolean(
+    process.env.INVESTOR_GMAIL_CLIENT_ID?.trim() && process.env.INVESTOR_GMAIL_CLIENT_SECRET?.trim(),
+  );
 
   return (
     <AdminPageContainer>
@@ -87,6 +90,20 @@ export default async function AdminInvestorRelationsAIPage({ searchParams }: Pag
             : (isArabic ? "تعذر إكمال ربط Gmail. راجع إعداد OAuth وحاول مرة أخرى." : "Gmail connection could not be completed. Review OAuth configuration and try again.")}
         </div>
       ) : null}
+
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.025] px-4 py-3">
+        <div>
+          <p className="text-[10px] uppercase tracking-[0.18em] text-white/35">GMAIL OAUTH READINESS</p>
+          <p className="mt-1 text-xs text-white/55">
+            {gmailOAuthConfigured
+              ? (isArabic ? "تم العثور على بيانات OAuth الآمنة في بيئة الخادم." : "Server-side OAuth credentials are configured securely.")
+              : (isArabic ? "بيانات OAuth غير مكتملة في بيئة الخادم." : "Server-side OAuth credentials are not fully configured.")}
+          </p>
+        </div>
+        <span className={`rounded-full border px-3 py-1 text-[11px] font-medium ${gmailOAuthConfigured ? "border-emerald-400/25 bg-emerald-400/[0.08] text-emerald-200" : "border-amber-300/20 bg-amber-300/[0.07] text-amber-100/80"}`}>
+          {gmailOAuthConfigured ? "OAUTH READY" : "SETUP REQUIRED"}
+        </span>
+      </div>
 
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gold/20 bg-gold/[0.055] px-4 py-3">
         <div>
