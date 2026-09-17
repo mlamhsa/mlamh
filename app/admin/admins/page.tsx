@@ -1779,13 +1779,22 @@ export default async function AdminUsersPage({
               </div>
               <p className="mt-1.5 text-xs leading-6 text-white/35">
                 {isArabic
-                  ? "سجل مختصر لأحدث عمليات الدعوة وتغيير الأدوار وسحب الوصول."
-                  : "A concise trail of recent invitations, role changes, and access revocations."}
+                  ? "سجل مختصر لأحدث عمليات الوصول، بما فيها النجاحات والإجراءات المحظورة والفاشلة ومحاولات بلا تغيير."
+                  : "A concise trail of recent access activity, including successful, blocked, failed, and no-op actions."}
               </p>
             </div>
           </div>
 
-          {accessEvents.length === 0 ? (
+          {accessEventsUnavailable ? (
+            <div className="flex items-start gap-3 p-6 text-sm text-amber-100/75">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <p>
+                {isArabic
+                  ? "تعذر تحميل سجل تغييرات الوصول حاليًا. لم يتم افتراض أن السجل فارغ."
+                  : "The access-change audit trail is temporarily unavailable. The UI is not treating it as an empty history."}
+              </p>
+            </div>
+          ) : accessEvents.length === 0 ? (
             <p className="p-8 text-center text-sm text-white/35">
               {isArabic
                 ? "لا توجد تغييرات وصول مسجلة حتى الآن."
@@ -1811,6 +1820,35 @@ export default async function AdminUsersPage({
                             )}…`
                           : "-";
 
+                  const actorLabel =
+                    typeof metadata.actor_email ===
+                    "string"
+                      ? metadata.actor_email
+                      : event.actor_id
+                        ? `${event.actor_id.slice(
+                            0,
+                            8,
+                          )}…`
+                        : "-";
+
+                  const actionLabel =
+                    typeof metadata.action ===
+                    "string"
+                      ? metadata.action
+                      : null;
+
+                  const reasonLabel =
+                    typeof metadata.reason ===
+                    "string"
+                      ? metadata.reason
+                      : null;
+
+                  const outcomeLabel =
+                    typeof metadata.outcome ===
+                    "string"
+                      ? metadata.outcome
+                      : null;
+
                   return (
                     <div
                       key={event.id}
@@ -1835,6 +1873,23 @@ export default async function AdminUsersPage({
                         >
                           {targetEmail}
                         </p>
+
+                        {actionLabel ||
+                        reasonLabel ||
+                        outcomeLabel ? (
+                          <p
+                            dir="ltr"
+                            className="mt-1.5 truncate font-mono text-[10px] text-white/25"
+                          >
+                            {[
+                              actionLabel,
+                              outcomeLabel,
+                              reasonLabel,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </p>
+                        ) : null}
                       </div>
 
                       <div>
@@ -1845,14 +1900,9 @@ export default async function AdminUsersPage({
                         </p>
                         <p
                           dir="ltr"
-                          className="mt-1 font-mono text-[10px] text-white/38"
+                          className="mt-1 truncate font-mono text-[10px] text-white/38"
                         >
-                          {event.actor_id
-                            ? `${event.actor_id.slice(
-                                0,
-                                8,
-                              )}…`
-                            : "-"}
+                          {actorLabel}
                         </p>
                       </div>
 
@@ -1883,8 +1933,8 @@ export default async function AdminUsersPage({
               </h2>
               <p className="mt-2 max-w-3xl text-xs leading-6 text-white/40">
                 {isArabic
-                  ? "الدخول إلى لوحة الإدارة يتطلب حسابًا مسجلًا في سجل الإدارة، ودور وصول فعّالًا، وجلسة مصادقًا عليها بمستوى AAL2. تغييرات الأدوار وسحب الوصول محمية من التعديل الذاتي ومن إزالة آخر مدير أعلى، وتُسجل في سجل العمليات."
-                  : "Admin access requires an explicit registry entry, an active access role, and an AAL2-authenticated session. Role changes and revocation are protected against self-lockout and removal of the last Super Admin, and are written to the audit log."}
+                  ? "الدخول إلى لوحة الإدارة يتطلب حسابًا مسجلًا في سجل الإدارة، ودور وصول فعّالًا، وجلسة مصادقًا عليها بمستوى AAL2. كل إجراء حساس في إدارة الوصول يُسجل بنتيجته: ناجح أو محظور أو فاشل أو بلا تغيير، مع هوية المنفذ والمستهدف والسبب وحالة التراجع عند الحاجة. لا يتم تسجيل كلمات المرور أو رموز التفعيل."
+                  : "Admin access requires an explicit registry entry, an active access role, and an AAL2-authenticated session. Every sensitive access-management action is audited with its outcome—success, blocked, failed, or no-op—plus actor, target, reason, and rollback status when relevant. Passwords and activation tokens are never logged."}
               </p>
             </div>
           </div>
