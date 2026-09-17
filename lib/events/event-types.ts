@@ -22,6 +22,12 @@ export const EVENT_TYPES = {
   account_type_selected: "account_type_selected",
 
   /*
+   * Admin access / RBAC audit trail
+   */
+  admin_role_changed: "admin_role_changed",
+  admin_access_revoked: "admin_access_revoked",
+
+  /*
    * Talent review workflow
    */
   talent_created: "talent_created",
