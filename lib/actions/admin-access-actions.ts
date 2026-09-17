@@ -683,8 +683,12 @@ export async function inviteAdminAction(
         targetId: invitedUser.id,
         actorId: actor.id,
         metadata: {
+          action: "invite_admin",
+          outcome: "success",
           role: ROLES.ADMIN,
           invited_email: email,
+          actor_email:
+            actor.email ?? null,
         },
       });
   } catch (auditError) {
@@ -858,6 +862,9 @@ export async function resendAdminInviteAction(
       targetId: targetUserId,
       actorId: actor.id,
       metadata: {
+        action:
+          "resend_admin_invite",
+        outcome: "success",
         invited_email:
           targetAdmin.email,
         actor_email:
@@ -1057,6 +1064,9 @@ export async function cancelPendingAdminInviteAction(
       targetId: targetUserId,
       actorId: actor.id,
       metadata: {
+        action:
+          "cancel_admin_invite",
+        outcome: "success",
         invited_email:
           targetAdmin.email,
         actor_email:
@@ -1501,6 +1511,9 @@ export async function updateAdminRoleAction(
         targetId: targetUserId,
         actorId: actor.id,
         metadata: {
+          action:
+            "update_admin_role",
+          outcome: "success",
           target_email:
             targetAdmin.email,
           previous_roles:
@@ -1760,6 +1773,9 @@ export async function revokeAdminAccessAction(
         targetId: targetUserId,
         actorId: actor.id,
         metadata: {
+          action:
+            "revoke_admin_access",
+          outcome: "success",
           target_email:
             targetAdmin.email,
           previous_roles:
