@@ -20,10 +20,10 @@ export function HomeFinalCTASection({ isArabic }: Props) {
           <Text style={styles.badgeText}>MLAMH</Text>
         </View>
 
-        <Text style={styles.title}>
+        <Text style={[styles.title, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
           {isArabic ? "مكان واحد تبدأ منه فرصتك القادمة." : "One Place to Start What Comes Next."}
         </Text>
-        <Text style={styles.description}>
+        <Text style={[styles.description, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
           {isArabic
             ? "سواء كنت موهبة تبحث عن فرصة، أو جهة تبحث عن الشخص المناسب لمشروعها، ملامح تجمع رحلة الاكتشاف والتقديم والكاست في تجربة واحدة."
             : "Whether you're talent looking for your next opportunity or an organization searching for the right person, MLAMH brings discovery, applications, and casting into one experience."}
@@ -35,9 +35,9 @@ export function HomeFinalCTASection({ isArabic }: Props) {
           style={({ pressed }) => [styles.talentCard, pressed && styles.pressed]}
         >
           <Users size={24} color="#090909" />
-          <Text style={styles.talentEyebrow}>{isArabic ? "للمواهب" : "FOR TALENT"}</Text>
-          <Text style={styles.talentTitle}>{isArabic ? "أنشئ ملفك المهني" : "Create Your Talent Profile"}</Text>
-          <Text style={styles.talentText}>
+          <Text style={[styles.talentEyebrow, { textAlign: align }]}>{isArabic ? "للمواهب" : "FOR TALENT"}</Text>
+          <Text style={[styles.talentTitle, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{isArabic ? "أنشئ ملفك المهني" : "Create Your Talent Profile"}</Text>
+          <Text style={[styles.talentText, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
             {isArabic ? "اعرض أعمالك، اكتشف الفرص وابدأ التقديم." : "Show your work, discover opportunities, and start applying."}
           </Text>
           <View style={[styles.cardFooter, isArabic ? styles.rowRtl : styles.rowLtr]}>

@@ -61,10 +61,10 @@ export function HomeOpportunitiesSection({
               {isArabic ? "طلبات وفرص جديدة" : "NEW REQUESTS & OPPORTUNITIES"}
             </Text>
           </View>
-          <Text style={[styles.title, { textAlign: align }]}>
+          <Text style={[styles.title, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
             {isArabic ? "فيه من يبحث عن مواهب الآن" : "Talent is needed now"}
           </Text>
-          <Text style={[styles.description, { textAlign: align }]}>
+          <Text style={[styles.description, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
             {isArabic
               ? "اكتشف طلبات سريعة وفرص كاستينغ من جهات تبحث عن ممثلين ومودلز."
               : "Discover quick requests and casting opportunities from publishers looking for actors and models."}
@@ -146,7 +146,7 @@ function OpportunityCard({
         {index === 0 ? <Text style={styles.latest}>{isArabic ? "الأحدث" : "LATEST"}</Text> : null}
       </View>
 
-      <Text style={[styles.cardTitle, { textAlign: align }]} numberOfLines={2}>{item.title}</Text>
+      <Text style={[styles.cardTitle, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]} numberOfLines={2}>{item.title}</Text>
 
       <View style={[styles.companyRow, isArabic ? styles.rowRtl : styles.rowLtr]}>
         <Building2 size={13} color="rgba(201,169,98,0.68)" />
@@ -159,14 +159,14 @@ function OpportunityCard({
             <MapPin size={11} color="rgba(201,169,98,0.65)" />
             <Text style={styles.infoLabel}>{isArabic ? "الموقع" : "Location"}</Text>
           </View>
-          <Text numberOfLines={1} style={[styles.infoValue, { textAlign: align }]}>{item.city || "-"}</Text>
+          <Text numberOfLines={1} style={[styles.infoValue, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{item.city || "-"}</Text>
         </View>
         <View style={styles.infoCard}>
           <View style={[styles.infoLabelRow, isArabic ? styles.rowRtl : styles.rowLtr]}>
             <Wallet size={11} color="rgba(201,169,98,0.65)" />
             <Text style={styles.infoLabel}>{isArabic ? "المقابل" : "Compensation"}</Text>
           </View>
-          <Text numberOfLines={1} style={[styles.infoValue, { textAlign: align }]}>{formatCompensation(item, isArabic)}</Text>
+          <Text numberOfLines={1} style={[styles.infoValue, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{formatCompensation(item, isArabic)}</Text>
         </View>
       </View>
 

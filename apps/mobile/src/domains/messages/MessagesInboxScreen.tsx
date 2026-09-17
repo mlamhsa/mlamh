@@ -2,7 +2,6 @@ import { router, useFocusEffect } from "expo-router";
 import { BriefcaseBusiness, MessageCircle, RefreshCcw, Zap } from "lucide-react-native";
 import { useCallback, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 import { getConversations } from "@/src/domains/messages/api";
 import type { MobileConversation } from "@/src/domains/messages/types";
@@ -48,7 +47,7 @@ export function MessagesInboxScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <View style={styles.safeArea}>
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
@@ -57,13 +56,13 @@ export function MessagesInboxScreen() {
       >
         <View style={[styles.headerRow, isArabic ? styles.rowRtl : styles.rowLtr]}>
           <View style={styles.headerCopy}>
-            <Text style={[styles.eyebrow, { textAlign: align }]}>{isArabic ? "الرسائل" : "MESSAGES"}</Text>
-            <Text style={[styles.title, { textAlign: align }]}>{isArabic ? "محادثات مرتبطة بالفرص" : "Opportunity-linked conversations"}</Text>
+            <Text style={[styles.eyebrow, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{isArabic ? "الرسائل" : "MESSAGES"}</Text>
+            <Text style={[styles.title, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{isArabic ? "محادثات مرتبطة بالفرص" : "Opportunity-linked conversations"}</Text>
           </View>
           {unreadCount > 0 ? <View style={styles.unreadPill}><Text style={styles.unreadPillText}>{unreadCount}</Text></View> : null}
         </View>
 
-        <Text style={[styles.description, { textAlign: align }]}>
+        <Text style={[styles.description, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
           {isArabic
             ? "لا توجد رسائل مفتوحة خارج سياق فرصة أو طلب. كل محادثة مرتبطة بسياق واضح داخل ملامح."
             : "There are no open DMs. Every conversation stays tied to a clear opportunity or request context."}
@@ -87,7 +86,7 @@ export function MessagesInboxScreen() {
           </View>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -113,13 +112,13 @@ function ConversationCard({ item, isArabic }: { item: MobileConversation; isArab
       <View style={[styles.partyRow, isArabic ? styles.rowRtl : styles.rowLtr]}>
         <MessageCircle size={18} color={colors.gold} />
         <View style={styles.partyCopy}>
-          <Text numberOfLines={1} style={[styles.partyName, { textAlign: align }]}>{item.partyName}</Text>
-          <Text numberOfLines={1} style={[styles.opportunity, { textAlign: align }]}>{item.opportunityTitle || (isArabic ? "فرصة ملامح" : "MLAMH opportunity")}</Text>
+          <Text numberOfLines={1} style={[styles.partyName, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{item.partyName}</Text>
+          <Text numberOfLines={1} style={[styles.opportunity, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{item.opportunityTitle || (isArabic ? "فرصة ملامح" : "MLAMH opportunity")}</Text>
         </View>
         {item.unreadCount > 0 ? <View style={styles.badge}><Text style={styles.badgeText}>{item.unreadCount}</Text></View> : null}
       </View>
 
-      <Text numberOfLines={2} style={[styles.preview, { textAlign: align }]}>
+      <Text numberOfLines={2} style={[styles.preview, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
         {item.latestMessage || (isArabic ? "افتح المحادثة لمتابعة الطلب." : "Open the conversation to continue.")}
       </Text>
     </Pressable>

@@ -66,9 +66,11 @@ export async function mobileApiRequest<T>(
     const message =
       typeof payload?.message === "string"
         ? payload.message
-        : typeof payload?.error?.message === "string"
-          ? payload.error.message
-          : undefined;
+        : typeof payload?.error === "string"
+          ? payload.error
+          : typeof payload?.error?.message === "string"
+            ? payload.error.message
+            : undefined;
     throw new MobileApiError(response.status, code, message, payload?.details);
   }
 

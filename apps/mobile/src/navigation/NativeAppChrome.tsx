@@ -40,7 +40,7 @@ type NavItem = {
 };
 
 const HIDE_ALL = new Set(["/", "/+not-found"]);
-const HIDE_BOTTOM = new Set(["/login"]);
+const HIDE_BOTTOM = new Set(["/login", "/account-type", "/register", "/verify-email", "/setup-account", "/forgot-password", "/reset-password"]);
 
 function push(href: string) {
   router.push(href as Href);
@@ -63,7 +63,7 @@ export function NativeAppChrome({ children }: PropsWithChildren) {
         { key: "opportunities", labelAr: "الفرص", labelEn: "Opportunities", href: "/opportunities", icon: BriefcaseBusiness },
         { key: "profile", labelAr: "ملفي", labelEn: "My profile", href: "/account", icon: UserRound, primary: true },
         { key: "applications", labelAr: "طلباتي", labelEn: "Applications", href: "/applications", icon: ClipboardList },
-        { key: "messages", labelAr: "الرسائل", labelEn: "Messages", href: "/messages", icon: MessageCircle },
+        { key: "notifications", labelAr: "الإشعارات", labelEn: "Notifications", href: "/notifications", icon: Bell },
       ];
     }
     if (session.status === "publisher") {
@@ -71,7 +71,7 @@ export function NativeAppChrome({ children }: PropsWithChildren) {
         { key: "home", labelAr: "الرئيسية", labelEn: "Home", href: "/publisher-home", icon: Home },
         { key: "talents", labelAr: "المواهب", labelEn: "Talents", href: "/talents", icon: UsersRound },
         { key: "publish", labelAr: "نشر", labelEn: "Publish", href: "/create-opportunity", icon: CirclePlus, primary: true },
-        { key: "opportunities", labelAr: "الفرص", labelEn: "Opportunities", href: "/publisher-opportunities", icon: BriefcaseBusiness },
+        { key: "opportunities", labelAr: "الفرص", labelEn: "Opportunities", href: "/opportunities", icon: BriefcaseBusiness },
         { key: "account", labelAr: "حسابي", labelEn: "Account", href: "/account", icon: User },
       ];
     }
@@ -186,7 +186,7 @@ export function NativeAppChrome({ children }: PropsWithChildren) {
             <DrawerLink label={isArabic ? "المواهب" : "Talents"} icon={UsersRound} onPress={() => { setMenuOpen(false); push("/talents"); }} isArabic={isArabic} />
             <DrawerLink label={isArabic ? "الفرص" : "Opportunities"} icon={BriefcaseBusiness} onPress={() => { setMenuOpen(false); push("/opportunities"); }} isArabic={isArabic} />
             {session.status === "guest" ? (
-              <DrawerLink label={isArabic ? "الجهات" : "Organizations"} icon={Grid2X2} onPress={() => { setMenuOpen(false); push("/publishers"); }} isArabic={isArabic} />
+              <DrawerLink label={isArabic ? "للناشرين" : "For Publishers"} icon={Grid2X2} onPress={() => { setMenuOpen(false); push("/publishers"); }} isArabic={isArabic} />
             ) : (
               <DrawerLink label={isArabic ? "الرسائل" : "Messages"} icon={MessageCircle} onPress={() => { setMenuOpen(false); push("/messages"); }} isArabic={isArabic} />
             )}

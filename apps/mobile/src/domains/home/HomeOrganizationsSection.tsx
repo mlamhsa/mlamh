@@ -60,15 +60,15 @@ export function HomeOrganizationsSection({ isArabic }: Props) {
         <View style={styles.headerText}>
           <View style={[styles.eyebrowRow, isArabic ? styles.rowRtl : styles.rowLtr]}>
             <Building2 size={14} color={colors.gold} />
-            <Text style={styles.eyebrow}>{isArabic ? "صنّاع الفرص" : "INDUSTRY"}</Text>
+            <Text style={styles.eyebrow}>{isArabic ? "للناشرين" : "FOR PUBLISHERS"}</Text>
           </View>
-          <Text style={[styles.title, { textAlign: align }]}>
-            {isArabic ? "اكتشف الجهات" : "Discover organizations"}
+          <Text style={[styles.title, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
+            {isArabic ? "انشر احتياجك" : "Post what you need"}
           </Text>
-          <Text style={[styles.description, { textAlign: align }]}>
+          <Text style={[styles.description, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
             {isArabic
-              ? "تعرّف على الوكالات وشركات الإنتاج والجهات التي تبحث عن المواهب."
-              : "Explore agencies, production companies, and organizations looking for talent."}
+              ? "سواء كنت فردًا أو صاحب مشروع أو متجرًا أو شركة، أنشئ طلبك أو فرصتك واعثر على الموهبة المناسبة."
+              : "Whether you are an individual, business, or organization, post your need and find the right talent."}
           </Text>
         </View>
 
@@ -98,8 +98,8 @@ export function HomeOrganizationsSection({ isArabic }: Props) {
                 <DirectionArrow size={15} color="rgba(255,255,255,0.24)" />
               </View>
               <View style={styles.cardBottom}>
-                <Text style={[styles.subtitle, { textAlign: align }]}>{item.subtitle}</Text>
-                <Text style={[styles.cardTitle, { textAlign: align }]}>{item.title}</Text>
+                <Text style={[styles.subtitle, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{item.subtitle}</Text>
+                <Text style={[styles.cardTitle, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{item.title}</Text>
               </View>
             </Pressable>
           );

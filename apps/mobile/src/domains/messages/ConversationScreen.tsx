@@ -2,7 +2,6 @@ import { router, useLocalSearchParams } from "expo-router";
 import { CalendarClock, Check, ChevronLeft, ChevronRight, FileText, MessageCircle, Phone, Ruler, Send, Video, X, Zap } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 import { MobileApiError } from "@/src/api/client";
 import {
@@ -204,15 +203,15 @@ export function ConversationScreen() {
   const remainingMaterials = MATERIAL_OPTIONS.filter((option) => !workflow?.requestedMaterials.includes(option.type));
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
+    <View style={styles.safeArea}>
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-        <View style={styles.header}>
+        <View style={[styles.header, isArabic ? styles.rowRtl : styles.rowLtr]}>
           <Pressable accessibilityRole="button" onPress={() => router.back()} style={styles.backButton}>
             <BackIcon size={20} color={colors.textSecondary} />
           </Pressable>
           <View style={styles.headerCopy}>
-            <Text numberOfLines={1} style={[styles.party, { textAlign: align }]}>{data?.conversation.partyName || (isArabic ? "المحادثة" : "Conversation")}</Text>
-            <Text numberOfLines={1} style={[styles.opportunity, { textAlign: align }]}>{data?.conversation.opportunityTitle || "MLAMH"}</Text>
+            <Text numberOfLines={1} style={[styles.party, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{data?.conversation.partyName || (isArabic ? "المحادثة" : "Conversation")}</Text>
+            <Text numberOfLines={1} style={[styles.opportunity, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{data?.conversation.opportunityTitle || "MLAMH"}</Text>
           </View>
           <MessageCircle size={19} color={colors.gold} />
         </View>
@@ -222,15 +221,15 @@ export function ConversationScreen() {
             <View style={[styles.workflowRow, isArabic ? styles.rowRtl : styles.rowLtr]}>
               <Zap size={14} color="#F6D487" />
               <Text style={styles.workflowEyebrow}>{isArabic ? "طلب الآن" : "QUICK REQUEST"}</Text>
-              <Text style={styles.workflowState}>{workflowLabel(workflow.state, isArabic)}</Text>
+              <Text style={[styles.workflowState, { textAlign: isArabic ? "right" : "left", writingDirection: isArabic ? "rtl" : "ltr" }]}>{workflowLabel(workflow.state, isArabic)}</Text>
             </View>
 
             {workflow.actions.canRequestMaterials ? (
               <View style={styles.publisherActionBox}>
-                <Text style={[styles.workflowAction, { textAlign: align }]}>
+                <Text style={[styles.workflowAction, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
                   {isArabic ? "يمكنك طلب مادة إضافية قبل تأكيد اختيار الموهبة." : "You can request additional material before confirming the talent."}
                 </Text>
-                <View style={styles.materialGrid}>
+                <View style={[styles.materialGrid, isArabic && styles.rowReverse]}>
                   {remainingMaterials.map((option) => {
                     const Icon = option.icon;
                     return (
@@ -263,7 +262,7 @@ export function ConversationScreen() {
 
             {workflow.actions.canTalentConfirm ? (
               <>
-                <Text style={[styles.workflowAction, { textAlign: align }]}>
+                <Text style={[styles.workflowAction, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
                   {isArabic ? "الجهة أكدت اختيارك. أكد قبولك أو اعتذر لإكمال الطلب." : "The publisher confirmed your selection. Confirm or decline to complete the request."}
                 </Text>
                 <View style={[styles.decisionRow, isArabic ? styles.rowRtl : styles.rowLtr]}>
@@ -281,7 +280,7 @@ export function ConversationScreen() {
 
             {workflow.actions.canShareContact ? (
               <View style={styles.contactShareBox}>
-                <Text style={[styles.contactShareText, { textAlign: align }]}>
+                <Text style={[styles.contactShareText, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
                   {isArabic
                     ? "تم تأكيد التعاون من الطرفين. يمكنك الآن مشاركة رقم جوالك المحفوظ في حسابك، ولن تتم مشاركته إلا عند ضغطك على الزر."
                     : "Both sides confirmed the collaboration. You can now explicitly share the mobile number saved on your account; it is never shared automatically."}
@@ -299,7 +298,7 @@ export function ConversationScreen() {
             ) : null}
 
             {workflow.requestedMaterials.length ? (
-              <Text style={[styles.workflowNote, { textAlign: align }]}>
+              <Text style={[styles.workflowNote, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
                 {isArabic ? `تم طلب: ${workflow.requestedMaterials.join("، ")}` : `Requested: ${workflow.requestedMaterials.join(", ")}`}
               </Text>
             ) : null}
@@ -312,7 +311,7 @@ export function ConversationScreen() {
           {data?.messages.map((message) => (
             <View key={String(message.id)} style={[styles.messageRow, message.isMine ? styles.mineRow : styles.theirRow]}>
               <View style={[styles.bubble, message.isMine ? styles.mineBubble : styles.theirBubble]}>
-                <Text style={[styles.messageBody, { textAlign: align }]}>{message.body}</Text>
+                <Text style={[styles.messageBody, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{message.body}</Text>
               </View>
             </View>
           ))}
@@ -328,14 +327,14 @@ export function ConversationScreen() {
             placeholderTextColor="rgba(255,255,255,0.28)"
             multiline
             maxLength={4000}
-            style={[styles.input, { textAlign: align }]}
+            style={[styles.input, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}
           />
           <Pressable accessibilityRole="button" disabled={!draft.trim() || sending} onPress={() => void send()} style={[styles.sendButton, (!draft.trim() || sending) && styles.sendDisabled]}>
             <Send size={18} color="#090909" />
           </Pressable>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -344,7 +343,8 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   rowRtl: { flexDirection: "row-reverse", alignItems: "center", gap: spacing.sm },
   rowLtr: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  header: { minHeight: 66, flexDirection: "row", alignItems: "center", gap: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border, paddingHorizontal: spacing.lg },
+  rowReverse: { flexDirection: "row-reverse" },
+  header: { minHeight: 66, alignItems: "center", gap: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border, paddingHorizontal: spacing.lg },
   backButton: { width: 42, height: 42, alignItems: "center", justifyContent: "center", borderRadius: 21, borderWidth: 1, borderColor: colors.border },
   headerCopy: { flex: 1 },
   party: { color: colors.textPrimary, fontSize: 15, fontWeight: "700" },

@@ -13,7 +13,6 @@ import {
 } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 import { getMobileOpportunity } from "@/src/domains/opportunities/api";
 import { OpportunityResponseCTA } from "@/src/domains/opportunities/OpportunityResponseCTA";
@@ -74,9 +73,9 @@ export function OpportunityDetailScreenV2() {
   }, [load]);
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <View style={styles.safeArea}>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Pressable accessibilityRole="button" onPress={() => router.back()} style={styles.backButton}>
+        <Pressable accessibilityRole="button" onPress={() => router.back()} style={[styles.backButton, isArabic && styles.backButtonRtl, isArabic ? styles.rowRtl : styles.rowLtr]}>
           <BackIcon size={18} color={colors.textSecondary} />
           <Text style={styles.backText}>{isArabic ? "رجوع" : "Back"}</Text>
         </Pressable>
@@ -94,7 +93,7 @@ export function OpportunityDetailScreenV2() {
           <>
             <View style={styles.heroCard}>
               <View style={[styles.rowBetween, isArabic ? styles.rowRtl : styles.rowLtr]}>
-                <View style={[styles.modePill, item.postingMode === "quick" ? styles.quickPill : styles.castingPill]}>
+                <View style={[styles.modePill, isArabic && styles.rowReverse, item.postingMode === "quick" ? styles.quickPill : styles.castingPill]}>
                   {item.postingMode === "quick" ? <Zap size={12} color="#F6D487" /> : <BriefcaseBusiness size={12} color={colors.gold} />}
                   <Text style={[styles.modeText, item.postingMode === "quick" && styles.quickText]}>
                     {item.postingMode === "quick" ? (isArabic ? "طلب الآن" : "Quick Request") : (isArabic ? "كاستينغ" : "Casting")}
@@ -103,15 +102,15 @@ export function OpportunityDetailScreenV2() {
                 {item.featured ? <Text style={styles.featured}>{isArabic ? "مميز" : "FEATURED"}</Text> : null}
               </View>
 
-              <Text style={[styles.title, { textAlign: align }]}>{item.title}</Text>
-              <View style={[styles.companyRow, isArabic ? styles.rowRtl : styles.rowLtr]}>
+              <Text style={[styles.title, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{item.title}</Text>
+              <View style={[styles.companyRow, isArabic ? styles.companyRowRtl : styles.companyRowLtr, isArabic ? styles.rowRtl : styles.rowLtr]}>
                 <Building2 size={15} color={colors.gold} />
                 <Text style={styles.company}>{item.companyName}</Text>
               </View>
-              {item.description ? <Text style={[styles.description, { textAlign: align }]}>{item.description}</Text> : null}
+              {item.description ? <Text style={[styles.description, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{item.description}</Text> : null}
             </View>
 
-            <View style={styles.infoGrid}>
+            <View style={[styles.infoGrid, isArabic && styles.rowReverse]}>
               <InfoCard icon={MapPin} label={isArabic ? "الموقع" : "Location"} value={item.city || (isArabic ? "غير محدد" : "Not specified")} isArabic={isArabic} />
               <InfoCard icon={Wallet} label={isArabic ? "المقابل" : "Compensation"} value={compensationLabel(item, isArabic)} isArabic={isArabic} />
               <InfoCard icon={UsersRound} label={isArabic ? "العدد المطلوب" : "Required count"} value={item.requiredCount ? String(item.requiredCount) : (isArabic ? "غير محدد" : "Not specified")} isArabic={isArabic} />
@@ -119,7 +118,7 @@ export function OpportunityDetailScreenV2() {
             </View>
 
             <View style={styles.sectionCard}>
-              <Text style={[styles.sectionTitle, { textAlign: align }]}>{isArabic ? "تفاصيل الفرصة" : "Opportunity details"}</Text>
+              <Text style={[styles.sectionTitle, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{isArabic ? "تفاصيل الفرصة" : "Opportunity details"}</Text>
               <DetailRow label={isArabic ? "نوع الموهبة" : "Talent type"} value={item.opportunityType || "—"} isArabic={isArabic} />
               <DetailRow label={isArabic ? "الجنس المطلوب" : "Required gender"} value={item.requiredGender || (isArabic ? "غير محدد" : "Not specified")} isArabic={isArabic} />
               <DetailRow label={isArabic ? "العمر" : "Age"} value={item.minAge || item.maxAge ? `${item.minAge ?? "—"} - ${item.maxAge ?? "—"}` : (isArabic ? "غير محدد" : "Not specified")} isArabic={isArabic} />
@@ -128,15 +127,15 @@ export function OpportunityDetailScreenV2() {
             </View>
 
             <View style={styles.semanticCard}>
-              <Text style={[styles.semanticEyebrow, { textAlign: align }]}>
+              <Text style={[styles.semanticEyebrow, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
                 {item.postingMode === "quick" ? (isArabic ? "طلب سريع" : "QUICK REQUEST") : (isArabic ? "فرصة كاستينغ" : "CASTING OPPORTUNITY")}
               </Text>
-              <Text style={[styles.semanticTitle, { textAlign: align }]}>
+              <Text style={[styles.semanticTitle, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
                 {item.postingMode === "quick"
                   ? (isArabic ? "إبداء الاهتمام ليس قبولًا نهائيًا." : "Interest is not final acceptance.")
                   : (isArabic ? "التقديم يرسل طلبك للجهة للمراجعة." : "Applying sends your profile for publisher review.")}
               </Text>
-              <Text style={[styles.semanticText, { textAlign: align }]}>
+              <Text style={[styles.semanticText, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
                 {item.postingMode === "quick"
                   ? (isArabic
                     ? "عند إبداء الاهتمام تبدأ رحلة الطلب داخل ملامح، والاختيار المبدئي يبقى منفصلًا عن التأكيد النهائي."
@@ -151,7 +150,7 @@ export function OpportunityDetailScreenV2() {
           </>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -178,7 +177,7 @@ function DetailRow({ label, value, isArabic, icon: Icon }: { label: string; valu
         {Icon ? <Icon size={13} color={colors.gold} /> : null}
         <Text style={styles.detailLabel}>{label}</Text>
       </View>
-      <Text numberOfLines={2} style={[styles.detailValue, { textAlign: isArabic ? "left" : "right" }]}>{value}</Text>
+      <Text numberOfLines={2} style={[styles.detailValue, { textAlign: isArabic ? "left" : "right", writingDirection: isArabic ? "rtl" : "ltr" }]}>{value}</Text>
     </View>
   );
 }
@@ -189,8 +188,10 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: spacing.lg, paddingBottom: 56 },
   rowRtl: { flexDirection: "row-reverse", alignItems: "center", gap: spacing.sm },
   rowLtr: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  rowReverse: { flexDirection: "row-reverse" },
   rowBetween: { justifyContent: "space-between" },
-  backButton: { alignSelf: "flex-start", minHeight: 44, flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.sm },
+  backButton: { alignSelf: "flex-start", minHeight: 44, alignItems: "center", gap: spacing.sm, marginTop: spacing.sm },
+  backButtonRtl: { alignSelf: "flex-end" },
   backText: { color: colors.textSecondary, fontSize: 12 },
   stateCard: { marginTop: spacing.xxl, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.xxl, alignItems: "center" },
   stateTitle: { color: colors.textPrimary, fontSize: 14, fontWeight: "600", textAlign: "center" },
@@ -205,7 +206,9 @@ const styles = StyleSheet.create({
   quickText: { color: "#F6D487" },
   featured: { color: "rgba(201,169,98,0.65)", fontSize: 9, fontWeight: "700" },
   title: { color: colors.textPrimary, fontSize: 29, lineHeight: 37, fontWeight: "700", marginTop: spacing.xl },
-  companyRow: { alignSelf: "flex-start", marginTop: spacing.md },
+  companyRow: { marginTop: spacing.md },
+  companyRowRtl: { alignSelf: "flex-end" },
+  companyRowLtr: { alignSelf: "flex-start" },
   company: { color: "rgba(255,255,255,0.52)", fontSize: 13 },
   description: { color: colors.textSecondary, fontSize: 14, lineHeight: 25, marginTop: spacing.lg },
   infoGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md, marginTop: spacing.lg },

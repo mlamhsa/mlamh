@@ -59,10 +59,10 @@ export function HomeSceneSection({ isArabic }: Props) {
         <Text style={styles.eyebrow}>MLAMH SCENE</Text>
       </View>
 
-      <Text style={[styles.title, { textAlign: align }]}>
+      <Text style={[styles.title, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
         {isArabic ? "ادخل مشهد ملامح" : "Enter MLAMH Scene"}
       </Text>
-      <Text style={[styles.description, { textAlign: align }]}>
+      <Text style={[styles.description, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
         {isArabic
           ? "مساحة داخل ملامح تجمع المعرفة العملية، شروحات المنصة، الكاستينغ وصناعة المواهب في مكان واحد."
           : "A space inside MLAMH for practical knowledge, platform guidance, casting and the talent industry."}
@@ -91,9 +91,9 @@ export function HomeSceneSection({ isArabic }: Props) {
                 <Icon size={20} color={colors.gold} />
                 <DirectionArrow size={14} color="rgba(201,169,98,0.72)" />
               </View>
-              <Text style={[styles.pathTitle, { textAlign: align }]}>{item.label}</Text>
-              <Text style={[styles.pathText, { textAlign: align }]}>{item.text}</Text>
-              <Text style={[styles.startText, { textAlign: align }]}>{isArabic ? "ابدأ من هنا" : "Start here"}</Text>
+              <Text style={[styles.pathTitle, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{item.label}</Text>
+              <Text style={[styles.pathText, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{item.text}</Text>
+              <Text style={[styles.startText, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{isArabic ? "ابدأ من هنا" : "Start here"}</Text>
             </Pressable>
           );
         })}

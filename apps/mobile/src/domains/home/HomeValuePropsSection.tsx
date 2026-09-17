@@ -26,15 +26,15 @@ export function HomeValuePropsSection({ isArabic, items }: Props) {
 
   return (
     <View style={styles.section}>
-      <Text style={[styles.eyebrow, { textAlign: align }]}>
+      <Text style={[styles.eyebrow, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
         {isArabic ? "لماذا ملامح" : "WHY MLAMH"}
       </Text>
-      <Text style={[styles.title, { textAlign: align }]}>
+      <Text style={[styles.title, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
         {isArabic
           ? "كل ما تحتاجه لاكتشاف الموهبة المناسبة، في مكان واحد."
           : "Everything you need to discover the right talent, in one place."}
       </Text>
-      <Text style={[styles.description, { textAlign: align }]}>
+      <Text style={[styles.description, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
         {isArabic
           ? "ملامح تجمع المواهب، الجهات، والفرص داخل تجربة واحدة مصممة لتكون أسرع، أوضح، وأكثر احترافية."
           : "MLAMH brings talents, organizations, and opportunities into one experience built to be faster, clearer, and more professional."}
@@ -51,8 +51,8 @@ export function HomeValuePropsSection({ isArabic, items }: Props) {
                 </View>
                 <Text style={styles.indexText}>0{index + 1}</Text>
               </View>
-              <Text style={[styles.cardTitle, { textAlign: align }]}>{item.title}</Text>
-              <Text style={[styles.cardText, { textAlign: align }]}>{item.description}</Text>
+              <Text style={[styles.cardTitle, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{item.title}</Text>
+              <Text style={[styles.cardText, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{item.description}</Text>
             </View>
           );
         })}

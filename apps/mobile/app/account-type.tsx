@@ -2,7 +2,6 @@ import { router } from "expo-router";
 import { BriefcaseBusiness, UserRound } from "lucide-react-native";
 import { useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useSessionContext } from "@/src/runtime/SessionContext";
 import { selectMobileAccountType } from "@/src/domains/account/api";
@@ -20,6 +19,14 @@ export default function AccountTypeScreen() {
 
   async function choose(accountType: AccountType) {
     if (saving) return;
+    if (session.status === "guest") {
+      router.push(`/register?type=${accountType}` as never);
+      return;
+    }
+    if (session.status === "account_missing") {
+      router.push(`/setup-account?type=${accountType}` as never);
+      return;
+    }
     setSaving(accountType);
     try {
       await selectMobileAccountType(accountType);
@@ -38,13 +45,13 @@ export default function AccountTypeScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <View style={styles.container}>
         <Text style={styles.eyebrow}>MLAMH</Text>
-        <Text style={[styles.title, { textAlign: align }]}>
+        <Text style={[styles.title, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
           {isArabic ? "كيف تريد استخدام ملامح؟" : "How will you use MLAMH?"}
         </Text>
-        <Text style={[styles.subtitle, { textAlign: align }]}>
+        <Text style={[styles.subtitle, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
           {isArabic
             ? "اختر المسار الأقرب لك الآن. يمكنك بدء ملف موهبة أو استخدام ملامح للبحث عن المواهب."
             : "Choose the path that fits you now. Start as talent or use MLAMH to find talent."}
@@ -60,10 +67,10 @@ export default function AccountTypeScreen() {
             <View style={isArabic ? styles.rowRtl : styles.rowLtr}>
               <View style={styles.iconBox}><UserRound size={22} color={colors.gold} /></View>
               <View style={styles.flexOne}>
-                <Text style={[styles.optionTitle, { textAlign: align }]}>
+                <Text style={[styles.optionTitle, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
                   {isArabic ? "أنا موهبة" : "I am talent"}
                 </Text>
-                <Text style={[styles.optionText, { textAlign: align }]}>
+                <Text style={[styles.optionText, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
                   {isArabic
                     ? "أنشئ ملفك المهني واكتشف الفرص المناسبة لك."
                     : "Build your professional profile and discover opportunities."}
@@ -84,10 +91,10 @@ export default function AccountTypeScreen() {
             <View style={isArabic ? styles.rowRtl : styles.rowLtr}>
               <View style={styles.iconBox}><BriefcaseBusiness size={22} color={colors.gold} /></View>
               <View style={styles.flexOne}>
-                <Text style={[styles.optionTitle, { textAlign: align }]}>
+                <Text style={[styles.optionTitle, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
                   {isArabic ? "أبحث عن مواهب" : "I am looking for talent"}
                 </Text>
-                <Text style={[styles.optionText, { textAlign: align }]}>
+                <Text style={[styles.optionText, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
                   {isArabic
                     ? "أنشئ طلبًا أو فرصة وابدأ الوصول للمواهب المناسبة."
                     : "Create a request or opportunity and start finding the right talent."}
@@ -100,7 +107,7 @@ export default function AccountTypeScreen() {
           </Pressable>
         </View>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 

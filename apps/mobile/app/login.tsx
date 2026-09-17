@@ -1,7 +1,7 @@
 import * as AppleAuthentication from "expo-apple-authentication";
 import { router } from "expo-router";
 import { LockKeyhole, Mail } from "lucide-react-native";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -13,10 +13,10 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useLocale } from "@/src/i18n/LocaleProvider";
 import { signInWithNativeApple } from "@/src/native/apple-auth";
+import { signInWithNativeGoogle } from "@/src/native/google-auth";
 import { supabase } from "@/src/services/supabase";
 import { colors, radius, spacing } from "@/src/theme/tokens";
 
@@ -28,13 +28,24 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [appleSubmitting, setAppleSubmitting] = useState(false);
+  const [googleSubmitting, setGoogleSubmitting] = useState(false);
+  const [appleAvailable, setAppleAvailable] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    if (Platform.OS !== "ios") return () => { active = false; };
+    void AppleAuthentication.isAvailableAsync()
+      .then((available) => { if (active) setAppleAvailable(available); })
+      .catch(() => { if (active) setAppleAvailable(false); });
+    return () => { active = false; };
+  }, []);
 
   async function finishSignIn() {
     router.replace("/" as never);
   }
 
   async function handleEmailSignIn() {
-    if (submitting || appleSubmitting) return;
+    if (submitting || appleSubmitting || googleSubmitting) return;
     const normalizedEmail = email.trim().toLowerCase();
     if (!normalizedEmail || !password) {
       Alert.alert(
@@ -70,8 +81,28 @@ export default function LoginScreen() {
     }
   }
 
+  async function handleGoogleSignIn() {
+    if (submitting || appleSubmitting || googleSubmitting) return;
+    setGoogleSubmitting(true);
+    try {
+      const result = await signInWithNativeGoogle();
+      if (!result.ok) {
+        if (!result.canceled) {
+          Alert.alert(
+            isArabic ? "تعذر تسجيل الدخول عبر Google" : "Google sign-in failed",
+            isArabic ? "حاول مرة أخرى بعد قليل." : "Please try again in a moment.",
+          );
+        }
+        return;
+      }
+      await finishSignIn();
+    } finally {
+      setGoogleSubmitting(false);
+    }
+  }
+
   async function handleAppleSignIn() {
-    if (submitting || appleSubmitting) return;
+    if (submitting || appleSubmitting || googleSubmitting) return;
     setAppleSubmitting(true);
     try {
       const result = await signInWithNativeApple();
@@ -90,10 +121,10 @@ export default function LoginScreen() {
     }
   }
 
-  const disabled = submitting || appleSubmitting;
+  const disabled = submitting || appleSubmitting || googleSubmitting;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={styles.flex}
@@ -106,23 +137,23 @@ export default function LoginScreen() {
           <Pressable
             accessibilityRole="button"
             onPress={() => router.back()}
-            style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
+            style={({ pressed }) => [styles.backButton, isArabic && styles.backButtonRtl, pressed && styles.pressed]}
           >
             <Text style={styles.backText}>{isArabic ? "رجوع" : "Back"}</Text>
           </Pressable>
 
-          <Text style={styles.brand}>MLAMH</Text>
+          <Text style={[styles.brand, { textAlign: align }]}>MLAMH</Text>
           <Text style={[styles.title, { textAlign: align }]}>
-            {isArabic ? "تسجيل الدخول" : "Sign in"}
+            {isArabic ? "مرحبًا بعودتك" : "Welcome back"}
           </Text>
           <Text style={[styles.subtitle, { textAlign: align }]}>
             {isArabic
-              ? "ادخل إلى حسابك في ملامح وتابع ملفك وفرصك ورسائلك."
-              : "Access your MLAMH account, profile, opportunities and messages."}
+              ? "سجّل الدخول للوصول إلى حسابك ولوحة التحكم الخاصة بك."
+              : "Sign in to access your account and dashboard."}
           </Text>
 
           <View style={styles.form}>
-            <View style={styles.inputShell}>
+            <View style={[styles.inputShell, isArabic ? styles.rowRtl : styles.rowLtr]}>
               <Mail size={18} color={colors.gold} />
               <TextInput
                 value={email}
@@ -133,11 +164,11 @@ export default function LoginScreen() {
                 textContentType="emailAddress"
                 placeholder={isArabic ? "البريد الإلكتروني" : "Email"}
                 placeholderTextColor={colors.textMuted}
-                style={[styles.input, { textAlign: align }]}
+                style={[styles.input, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}
               />
             </View>
 
-            <View style={styles.inputShell}>
+            <View style={[styles.inputShell, isArabic ? styles.rowRtl : styles.rowLtr]}>
               <LockKeyhole size={18} color={colors.gold} />
               <TextInput
                 value={password}
@@ -148,10 +179,18 @@ export default function LoginScreen() {
                 textContentType="password"
                 placeholder={isArabic ? "كلمة المرور" : "Password"}
                 placeholderTextColor={colors.textMuted}
-                style={[styles.input, { textAlign: align }]}
+                style={[styles.input, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}
                 onSubmitEditing={() => void handleEmailSignIn()}
               />
             </View>
+
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => router.push(`/forgot-password?email=${encodeURIComponent(email.trim().toLowerCase())}` as never)}
+              style={styles.forgotButton}
+            >
+              <Text style={[styles.forgotText, { textAlign: align }]}>{isArabic ? "نسيت كلمة المرور؟" : "Forgot password?"}</Text>
+            </Pressable>
 
             <Pressable
               accessibilityRole="button"
@@ -175,36 +214,61 @@ export default function LoginScreen() {
             </Pressable>
           </View>
 
-          {Platform.OS === "ios" ? (
-            <View style={styles.appleBlock}>
-              <View style={styles.dividerRow}>
-                <View style={styles.divider} />
-                <Text style={styles.dividerText}>{isArabic ? "أو" : "OR"}</Text>
-                <View style={styles.divider} />
-              </View>
-              <AppleAuthentication.AppleAuthenticationButton
-                buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-                buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
-                cornerRadius={14}
-                style={[styles.appleButton, disabled && styles.disabled]}
-                onPress={() => void handleAppleSignIn()}
-              />
-              {appleSubmitting ? (
-                <Text style={styles.appleLoading}>
-                  {isArabic ? "جارٍ تأكيد Apple…" : "Confirming with Apple…"}
-                </Text>
-              ) : null}
+          <View style={styles.socialBlock}>
+            <View style={styles.dividerRow}>
+              <View style={styles.divider} />
+              <Text style={styles.dividerText}>{isArabic ? "أو" : "OR"}</Text>
+              <View style={styles.divider} />
             </View>
-          ) : null}
 
-          <Text style={[styles.note, { textAlign: align }]}>
-            {isArabic
-              ? "هذه النسخة التجريبية تستخدم حساب ملامح الحالي. إنشاء حساب جديد سيُستكمل ضمن رحلة التسجيل المعتمدة."
-              : "This test build uses your existing MLAMH account. New-account onboarding will follow the approved registration flow."}
-          </Text>
+            <Pressable
+              accessibilityRole="button"
+              disabled={disabled}
+              onPress={() => void handleGoogleSignIn()}
+              style={({ pressed }) => [styles.googleButton, disabled && styles.disabled, pressed && styles.pressed]}
+            >
+              <Text style={styles.googleMark}>G</Text>
+              <Text style={styles.googleText}>
+                {googleSubmitting
+                  ? isArabic ? "جارٍ فتح Google…" : "Opening Google…"
+                  : isArabic ? "المتابعة باستخدام Google" : "Continue with Google"}
+              </Text>
+            </Pressable>
+
+            {Platform.OS === "ios" ? (
+              appleAvailable ? (
+                <AppleAuthentication.AppleAuthenticationButton
+                  buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+                  buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
+                  cornerRadius={14}
+                  style={[styles.appleButton, disabled && styles.disabled]}
+                  onPress={() => void handleAppleSignIn()}
+                />
+              ) : (
+                <View style={[styles.appleFallback, styles.disabledPreview]}>
+                  <Text style={styles.appleMark}></Text>
+                  <Text style={styles.appleFallbackText}>
+                    {isArabic ? "المتابعة باستخدام Apple" : "Continue with Apple"}
+                  </Text>
+                </View>
+              )
+            ) : null}
+
+            {appleSubmitting ? (
+              <Text style={styles.appleLoading}>
+                {isArabic ? "جارٍ تأكيد Apple…" : "Confirming with Apple…"}
+              </Text>
+            ) : null}
+          </View>
+
+          <Pressable accessibilityRole="button" onPress={() => router.push("/account-type" as never)} style={styles.joinRow}>
+            <Text style={[styles.note, { textAlign: "center" }]}>
+              {isArabic ? "ليس لديك حساب؟ انضم إلى ملامح" : "New to MLAMH? Join now"}
+            </Text>
+          </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -227,6 +291,9 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     marginBottom: spacing.xxxl,
   },
+  backButtonRtl: { alignSelf: "flex-end" },
+  rowRtl: { flexDirection: "row-reverse" },
+  rowLtr: { flexDirection: "row" },
   backText: { color: colors.textSecondary, fontSize: 13, fontWeight: "700" },
   brand: {
     color: colors.gold,
@@ -248,6 +315,10 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   form: { gap: spacing.md, marginTop: spacing.xxxl },
+  rowReverse: { flexDirection: "row-reverse" },
+  forgotButton: { alignSelf: "stretch", minHeight: 30, justifyContent: "center" },
+  forgotText: { color: colors.gold, fontSize: 12, fontWeight: "600" },
+  joinRow: { marginTop: spacing.xl, alignItems: "center" },
   inputShell: {
     minHeight: 56,
     flexDirection: "row",
@@ -274,11 +345,18 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   primaryText: { color: colors.background, fontSize: 15, fontWeight: "900" },
-  appleBlock: { marginTop: spacing.xl },
+  socialBlock: { marginTop: spacing.xl, gap: spacing.md },
   dividerRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, marginBottom: spacing.lg },
   divider: { flex: 1, height: 1, backgroundColor: colors.border },
   dividerText: { color: colors.textMuted, fontSize: 10, fontWeight: "700" },
+  googleButton: { width: "100%", height: 54, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.md, borderRadius: 14, backgroundColor: "#FFFFFF" },
+  googleMark: { color: "#111111", fontSize: 19, fontWeight: "800" },
+  googleText: { color: "#111111", fontSize: 14, fontWeight: "700" },
   appleButton: { width: "100%", height: 54 },
+  appleFallback: { width: "100%", height: 54, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm, borderRadius: 14, backgroundColor: "#FFFFFF" },
+  appleMark: { color: "#000000", fontSize: 21, fontWeight: "700" },
+  appleFallbackText: { color: "#000000", fontSize: 14, fontWeight: "700" },
+  disabledPreview: { opacity: 0.92 },
   appleLoading: { color: colors.textMuted, fontSize: 11, textAlign: "center", marginTop: spacing.sm },
   note: { color: colors.textMuted, fontSize: 11, lineHeight: 18, marginTop: spacing.xl },
   disabled: { opacity: 0.55 },

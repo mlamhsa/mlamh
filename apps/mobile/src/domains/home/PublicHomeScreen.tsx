@@ -84,10 +84,10 @@ export function PublicHomeScreen() {
     {
       key: "organizations",
       eyebrow: isArabic ? "تواصل" : "CONNECT",
-      title: isArabic ? "اكتشف الجهات" : "Explore organizations",
+      title: isArabic ? "للناشرين" : "For publishers",
       description: isArabic
-        ? "وكالات وشركات إنتاج وجهات تبحث عن مواهب."
-        : "Agencies, production companies, and organizations seeking talent.",
+        ? "انشر احتياجك واعثر على الموهبة المناسبة لمشروعك."
+        : "Post what you need and find the right talent for your project.",
       href: "/publishers",
       icon: Building2,
     },
@@ -106,11 +106,11 @@ export function PublicHomeScreen() {
             <Text style={styles.eyebrowText}>{heroEyebrow}</Text>
           </View>
 
-          <Text style={[styles.heroTitle, { textAlign: align }]}>{heroTitle}</Text>
+          <Text style={[styles.heroTitle, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{heroTitle}</Text>
           {heroTitle2 ? (
-            <Text style={[styles.heroTitleGold, { textAlign: align }]}>{heroTitle2}</Text>
+            <Text style={[styles.heroTitleGold, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{heroTitle2}</Text>
           ) : null}
-          <Text style={[styles.heroDescription, { textAlign: align }]}>{heroDescription}</Text>
+          <Text style={[styles.heroDescription, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{heroDescription}</Text>
 
           <Pressable
             accessibilityRole="button"
@@ -119,7 +119,7 @@ export function PublicHomeScreen() {
           >
             <View style={isArabic ? styles.rowRtl : styles.rowLtr}>
               <Search size={20} color={colors.gold} />
-              <Text style={[styles.searchText, { textAlign: align }]}>
+              <Text style={[styles.searchText, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
                 {isArabic ? "ابحث عن موهبة أو تخصص..." : "Search for talent or expertise..."}
               </Text>
               <View style={styles.arrowCircle}>
@@ -151,7 +151,7 @@ export function PublicHomeScreen() {
               <View style={styles.imageShade} />
               <View style={styles.imageCaption}>
                 <Text style={styles.imageBadge}>{isArabic ? "ممثل" : "Actor"}</Text>
-                <Text style={[styles.imageTitle, { textAlign: align }]}>
+                <Text style={[styles.imageTitle, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
                   {isArabic ? "وجوه جديدة تستحق فرصتها" : "New faces deserve a chance"}
                 </Text>
               </View>
@@ -181,18 +181,18 @@ export function PublicHomeScreen() {
           <View style={isArabic ? styles.rowRtl : styles.rowLtr}>
             <View style={styles.castingIcon}><ClipboardList size={22} color={colors.gold} /></View>
             <View style={styles.flexOne}>
-              <Text style={[styles.castingEyebrow, { textAlign: align }]}>{isArabic ? "للشركات والوكالات وجهات الإنتاج" : "FOR COMPANIES, AGENCIES & PRODUCTIONS"}</Text>
-              <Text style={[styles.castingTitle, { textAlign: align }]}>{isArabic ? "عندك مشروع وتحتاج ممثلين أو مودلز؟ أرسل الـ Brief" : "Need actors or models for a project? Send the brief"}</Text>
-              <Text style={[styles.castingText, { textAlign: align }]}>{isArabic ? "أرسل احتياج الكاستينغ مباشرة إلى فريق ملامح." : "Send your casting requirements directly to the MLAMH team."}</Text>
+              <Text style={[styles.castingEyebrow, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{isArabic ? "للشركات والوكالات وجهات الإنتاج" : "FOR COMPANIES, AGENCIES & PRODUCTIONS"}</Text>
+              <Text style={[styles.castingTitle, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{isArabic ? "عندك مشروع وتحتاج ممثلين أو مودلز؟ أرسل تفاصيل احتياجك" : "Need actors or models for a project? Send the brief"}</Text>
+              <Text style={[styles.castingText, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{isArabic ? "أرسل احتياج الكاستينغ مباشرة إلى فريق ملامح." : "Send your casting requirements directly to the MLAMH team."}</Text>
             </View>
             <DirectionArrow size={17} color={colors.gold} />
           </View>
         </Pressable>
 
-        <View style={styles.sectionHeader}>
+        <View style={[styles.sectionHeader, isArabic && styles.rowReverse]}>
           <View>
-            <Text style={[styles.sectionEyebrow, { textAlign: align }]}>{isArabic ? "وصول سريع" : "QUICK ACCESS"}</Text>
-            <Text style={[styles.sectionTitle, { textAlign: align }]}>{isArabic ? "ابدأ من هنا" : "Start here"}</Text>
+            <Text style={[styles.sectionEyebrow, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{isArabic ? "وصول سريع" : "QUICK ACCESS"}</Text>
+            <Text style={[styles.sectionTitle, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{isArabic ? "ابدأ من هنا" : "Start here"}</Text>
           </View>
           <Text style={styles.sectionBrand}>MLAMH</Text>
         </View>
@@ -201,9 +201,9 @@ export function PublicHomeScreen() {
           <View style={isArabic ? styles.rowRtl : styles.rowLtr}>
             <View style={styles.quickPrimaryIcon}><UsersRound size={25} color={colors.gold} /></View>
             <View style={styles.flexOne}>
-              <Text style={[styles.quickEyebrow, { textAlign: align }]}>{quickItems[0].eyebrow}</Text>
-              <Text style={[styles.quickTitle, { textAlign: align }]}>{quickItems[0].title}</Text>
-              <Text style={[styles.quickText, { textAlign: align }]}>{quickItems[0].description}</Text>
+              <Text style={[styles.quickEyebrow, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{quickItems[0].eyebrow}</Text>
+              <Text style={[styles.quickTitle, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{quickItems[0].title}</Text>
+              <Text style={[styles.quickText, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{quickItems[0].description}</Text>
             </View>
             <DirectionArrow size={18} color={colors.textMuted} />
           </View>
@@ -219,9 +219,9 @@ export function PublicHomeScreen() {
                   <DirectionArrow size={16} color={colors.textMuted} />
                 </View>
                 <View style={styles.quickSmallBottom}>
-                  <Text style={[styles.quickEyebrow, { textAlign: align }]}>{item.eyebrow}</Text>
-                  <Text style={[styles.quickSmallTitle, { textAlign: align }]}>{item.title}</Text>
-                  <Text numberOfLines={2} style={[styles.quickSmallText, { textAlign: align }]}>{item.description}</Text>
+                  <Text style={[styles.quickEyebrow, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{item.eyebrow}</Text>
+                  <Text style={[styles.quickSmallTitle, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{item.title}</Text>
+                  <Text numberOfLines={2} style={[styles.quickSmallText, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{item.description}</Text>
                 </View>
               </Pressable>
             );

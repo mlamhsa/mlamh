@@ -2,7 +2,6 @@ import { router, useLocalSearchParams } from "expo-router";
 import { BriefcaseBusiness, Check, ChevronLeft, ChevronRight, MessageCircle, UserRound, X, Zap } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
   decidePublisherApplicant,
@@ -136,7 +135,7 @@ export function PublisherOpportunityWorkspaceScreen() {
   }, [isArabic, isQuick, runDecision]);
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <View style={styles.safeArea}>
       <View style={styles.header}>
         <Pressable accessibilityRole="button" onPress={() => router.back()} style={styles.backButton}>
           <BackIcon size={20} color={colors.textSecondary} />
@@ -212,7 +211,7 @@ export function PublisherOpportunityWorkspaceScreen() {
           </>
         ) : null}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

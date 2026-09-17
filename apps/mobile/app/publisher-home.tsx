@@ -10,7 +10,6 @@ import {
   Zap,
 } from "lucide-react-native";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useSessionContext } from "@/src/runtime/SessionContext";
 import { useLocale } from "@/src/i18n/LocaleProvider";
@@ -78,10 +77,10 @@ export default function PublisherHomeScreen() {
   const canCreate = Boolean(capabilities?.canCreate);
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <View style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={[styles.eyebrow, { textAlign: align }]}>{isArabic ? "مساحة الناشر" : "PUBLISHER WORKSPACE"}</Text>
-        <Text style={[styles.title, { textAlign: align }]}>
+        <Text style={[styles.eyebrow, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{isArabic ? "مساحة الناشر" : "PUBLISHER WORKSPACE"}</Text>
+        <Text style={[styles.title, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
           {account?.displayName
             ? isArabic
               ? `مرحبًا، ${account.displayName}`
@@ -90,7 +89,7 @@ export default function PublisherHomeScreen() {
               ? "مرحبًا"
               : "Welcome"}
         </Text>
-        <Text style={[styles.subtitle, { textAlign: align }]}>
+        <Text style={[styles.subtitle, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
           {isArabic
             ? "ابدأ من قرار واضح: أنشئ طلبًا، اكتشف المواهب، أو تابع المحادثات. صلاحيات الإنشاء تأتي من الخادم ولا تُفترض داخل التطبيق."
             : "Start with a clear decision: create a request, discover talent, or follow conversations. Creation permission always comes from the server."}
@@ -99,12 +98,12 @@ export default function PublisherHomeScreen() {
         <View style={[styles.statusCard, isArabic ? styles.rowRtl : styles.rowLtr]}>
           <View style={styles.statusIcon}><ShieldCheck size={20} color={colors.gold} /></View>
           <View style={styles.statusCopy}>
-            <Text style={[styles.statusTitle, { textAlign: align }]}>
+            <Text style={[styles.statusTitle, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
               {account?.verified
                 ? (isArabic ? "الجهة موثقة" : "Verified publisher")
                 : (isArabic ? "حالة التوثيق مستقلة عن اعتماد الحساب" : "Verification is separate from account approval")}
             </Text>
-            <Text style={[styles.statusText, { textAlign: align }]}>
+            <Text style={[styles.statusText, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
               {isArabic
                 ? `الاعتماد: ${account?.approvalStatus ?? "—"} · التوثيق: ${account?.verificationStatus ?? "unverified"}`
                 : `Approval: ${account?.approvalStatus ?? "—"} · Verification: ${account?.verificationStatus ?? "unverified"}`}
@@ -119,7 +118,7 @@ export default function PublisherHomeScreen() {
 
         {canCreate ? (
           <View style={styles.createSection}>
-            <Text style={[styles.sectionTitle, { textAlign: align }]}>{isArabic ? "إنشاء جديد" : "Create new"}</Text>
+            <Text style={[styles.sectionTitle, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{isArabic ? "إنشاء جديد" : "Create new"}</Text>
             <View style={styles.createGrid}>
               <CreateCard
                 enabled={canCreateQuick}
@@ -127,6 +126,7 @@ export default function PublisherHomeScreen() {
                 title={isArabic ? "طلب الآن" : "Quick Request"}
                 body={isArabic ? "احتياج سريع ومباشر للممثلين أو المودلز." : "A fast, direct Actor or Model need."}
                 onPress={() => router.push("/create-opportunity?mode=quick" as never)}
+                isArabic={isArabic}
               />
               <CreateCard
                 enabled={canCreateCasting}
@@ -134,12 +134,13 @@ export default function PublisherHomeScreen() {
                 title={isArabic ? "كاستينغ" : "Casting"}
                 body={isArabic ? "فرصة أوسع بمراحل اختيار وتفاصيل عمل." : "A structured opportunity with a fuller selection flow."}
                 onPress={() => router.push("/create-opportunity?mode=casting" as never)}
+                isArabic={isArabic}
               />
             </View>
           </View>
         ) : (
           <View style={styles.notice}>
-            <Text style={[styles.noticeText, { textAlign: align }]}>
+            <Text style={[styles.noticeText, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
               {isArabic
                 ? "إنشاء الطلبات غير متاح لهذا الحساب حاليًا. يمكنك الاستمرار في اكتشاف المواهب ومتابعة الرسائل أثناء معالجة حالة الحساب."
                 : "Creation is not currently available for this account. You can still discover talent and follow messages while the account status is being resolved."}
@@ -160,8 +161,8 @@ export default function PublisherHomeScreen() {
                 <View style={[styles.actionRow, isArabic ? styles.rowRtl : styles.rowLtr]}>
                   <View style={styles.actionIcon}><Icon size={21} color={colors.gold} /></View>
                   <View style={styles.actionCopy}>
-                    <Text style={[styles.actionTitle, { textAlign: align }]}>{isArabic ? item.titleAr : item.titleEn}</Text>
-                    <Text style={[styles.actionText, { textAlign: align }]}>{isArabic ? item.bodyAr : item.bodyEn}</Text>
+                    <Text style={[styles.actionTitle, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{isArabic ? item.titleAr : item.titleEn}</Text>
+                    <Text style={[styles.actionText, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{isArabic ? item.bodyAr : item.bodyEn}</Text>
                   </View>
                   <DirectionArrow size={17} color={colors.textMuted} />
                 </View>
@@ -170,7 +171,7 @@ export default function PublisherHomeScreen() {
           })}
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -184,12 +185,12 @@ function Capability({ enabled, icon: Icon, label }: { enabled: boolean; icon: ty
   );
 }
 
-function CreateCard({ enabled, icon: Icon, title, body, onPress }: { enabled: boolean; icon: typeof Zap; title: string; body: string; onPress: () => void }) {
+function CreateCard({ enabled, icon: Icon, title, body, onPress, isArabic }: { enabled: boolean; icon: typeof Zap; title: string; body: string; onPress: () => void; isArabic: boolean }) {
   return (
     <Pressable disabled={!enabled} onPress={onPress} style={({ pressed }) => [styles.createCard, enabled && styles.createCardEnabled, !enabled && styles.disabled, pressed && styles.pressed]}>
       <Icon size={20} color={enabled ? colors.gold : colors.textMuted} />
-      <Text style={[styles.createTitle, enabled && styles.createTitleEnabled]}>{title}</Text>
-      <Text style={styles.createBody}>{body}</Text>
+      <Text style={[styles.createTitle, enabled && styles.createTitleEnabled, { textAlign: isArabic ? "right" : "left", writingDirection: isArabic ? "rtl" : "ltr" }]}>{title}</Text>
+      <Text style={[styles.createBody, { textAlign: isArabic ? "right" : "left", writingDirection: isArabic ? "rtl" : "ltr" }]}>{body}</Text>
     </Pressable>
   );
 }

@@ -2,7 +2,6 @@ import { router, useLocalSearchParams } from "expo-router";
 import { ArrowLeft, ArrowRight, BadgeCheck, BriefcaseBusiness, Globe2, MapPin, Ruler, ShieldCheck, Sparkles, UserRound } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 import { getMobileTalentProfile } from "@/src/domains/talent/api";
 import type { MobilePublicTalent } from "@/src/domains/talent/types";
@@ -66,7 +65,7 @@ export function TalentProfileScreen() {
   const role = talent.role === "actor" ? (isArabic ? "ممثل" : "Actor") : talent.role === "model" ? (isArabic ? "مودل" : "Model") : (isArabic ? "موهبة" : "Talent");
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <View style={styles.safeArea}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <View style={styles.topBar}>
           <Pressable accessibilityRole="button" onPress={() => router.back()} style={styles.backButton}>
@@ -84,7 +83,7 @@ export function TalentProfileScreen() {
               {talent.featured ? <View style={styles.goldBadge}><Sparkles size={12} color={colors.gold} /><Text style={styles.goldBadgeText}>{isArabic ? "مميزة" : "Featured"}</Text></View> : null}
               {talent.verified ? <View style={styles.verifiedBadge}><BadgeCheck size={12} color={colors.textPrimary} /><Text style={styles.verifiedText}>{isArabic ? "موثقة" : "Verified"}</Text></View> : null}
             </View>
-            <Text style={[styles.name, { textAlign: align }]}>{talent.name}</Text>
+            <Text style={[styles.name, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{talent.name}</Text>
             <View style={[styles.meta, isArabic ? styles.rowRtl : styles.rowLtr]}>
               <Text style={styles.role}>{role}</Text>
               {talent.city ? <><View style={styles.dot} /><MapPin size={12} color={colors.textMuted} /><Text style={styles.metaText}>{talent.city}</Text></> : null}
@@ -92,7 +91,7 @@ export function TalentProfileScreen() {
           </View>
         </View>
 
-        {talent.bio ? <Section title={isArabic ? "نبذة" : "About"}><Text style={[styles.body, { textAlign: align }]}>{talent.bio}</Text></Section> : null}
+        {talent.bio ? <Section title={isArabic ? "نبذة" : "About"}><Text style={[styles.body, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{talent.bio}</Text></Section> : null}
 
         <View style={styles.infoGrid}>
           {talent.age != null ? <InfoCard label={isArabic ? "العمر" : "Age"} value={String(talent.age)} icon={UserRound} /> : null}
@@ -116,17 +115,17 @@ export function TalentProfileScreen() {
         <View style={styles.privacyCard}>
           <ShieldCheck size={20} color={colors.gold} />
           <View style={styles.privacyCopy}>
-            <Text style={[styles.privacyTitle, { textAlign: align }]}>{isArabic ? "خصوصية الموهبة" : "Talent privacy"}</Text>
-            <Text style={[styles.privacyText, { textAlign: align }]}>{isArabic ? "بيانات التواصل والمحتوى الخاص لا تظهر للعامة، وتخضع لصلاحيات المنصة." : "Contact details and private content are not public and remain protected by platform permissions."}</Text>
+            <Text style={[styles.privacyTitle, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{isArabic ? "خصوصية الموهبة" : "Talent privacy"}</Text>
+            <Text style={[styles.privacyText, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{isArabic ? "بيانات التواصل والمحتوى الخاص لا تظهر للعامة، وتخضع لصلاحيات المنصة." : "Contact details and private content are not public and remain protected by platform permissions."}</Text>
           </View>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 function StateScreen({ children }: { children: React.ReactNode }) {
-  return <SafeAreaView style={styles.safeArea}><View style={styles.state}>{children}</View></SafeAreaView>;
+  return <View style={styles.safeArea}><View style={styles.state}>{children}</View></View>;
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {

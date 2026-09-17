@@ -13,7 +13,6 @@ import {
   UserRound,
 } from "lucide-react-native";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useSessionContext } from "@/src/runtime/SessionContext";
 import { useLocale } from "@/src/i18n/LocaleProvider";
@@ -143,15 +142,15 @@ export default function TalentHomeScreen() {
   const StatusIcon = status.icon;
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <View style={styles.safeArea}>
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={[styles.eyebrow, { textAlign: align }]}>
+        <Text style={[styles.eyebrow, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
           {isArabic ? "مساحة الموهبة" : "TALENT WORKSPACE"}
         </Text>
-        <Text style={[styles.title, { textAlign: align }]}>
+        <Text style={[styles.title, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
           {account?.displayName
             ? isArabic
               ? `مرحبًا، ${account.displayName}`
@@ -160,7 +159,7 @@ export default function TalentHomeScreen() {
               ? "مرحبًا"
               : "Welcome"}
         </Text>
-        <Text style={[styles.subtitle, { textAlign: align }]}>
+        <Text style={[styles.subtitle, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
           {isArabic
             ? "كل ما تحتاجه الآن: اكتشف فرصة، تابع طلباتك، وأكمل محادثاتك بدون خلط بين طلبات الآن والكاستينغ."
             : "Everything you need now: discover an opportunity, track applications, and continue conversations without mixing Quick Requests with Casting."}
@@ -179,18 +178,18 @@ export default function TalentHomeScreen() {
               <StatusIcon size={20} color={colors.gold} />
             </View>
             <View style={styles.flexOne}>
-              <Text style={[styles.statusTitle, { textAlign: align }]}>{status.title}</Text>
-              <Text style={[styles.statusBody, { textAlign: align }]}>{status.body}</Text>
+              <Text style={[styles.statusTitle, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{status.title}</Text>
+              <Text style={[styles.statusBody, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{status.body}</Text>
             </View>
           </View>
-          <Text style={[styles.statusMeta, { textAlign: align }]}>
+          <Text style={[styles.statusMeta, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
             {isArabic
               ? `الحالة: ${account?.approvalStatus ?? "غير مكتمل"}`
               : `Status: ${account?.approvalStatus ?? "incomplete"}`}
           </Text>
         </View>
 
-        <Text style={[styles.sectionTitle, { textAlign: align }]}>
+        <Text style={[styles.sectionTitle, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
           {isArabic ? "ابدأ من هنا" : "Start here"}
         </Text>
 
@@ -209,10 +208,10 @@ export default function TalentHomeScreen() {
                     <Icon size={21} color={colors.gold} />
                   </View>
                   <View style={styles.flexOne}>
-                    <Text style={[styles.actionTitle, { textAlign: align }]}>
+                    <Text style={[styles.actionTitle, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
                       {isArabic ? item.titleAr : item.titleEn}
                     </Text>
-                    <Text style={[styles.actionBody, { textAlign: align }]}>
+                    <Text style={[styles.actionBody, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
                       {isArabic ? item.bodyAr : item.bodyEn}
                     </Text>
                   </View>
@@ -223,7 +222,7 @@ export default function TalentHomeScreen() {
           })}
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

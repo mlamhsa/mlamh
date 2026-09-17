@@ -95,10 +95,10 @@ export function OpportunitiesDirectoryScreen() {
                 <BriefcaseBusiness size={18} color={colors.gold} />
                 <Text style={styles.eyebrow}>{isArabic ? "فرص ملامح" : "MLAMH OPPORTUNITIES"}</Text>
               </View>
-              <Text style={[styles.title, { textAlign: align }]}>
+              <Text style={[styles.title, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
                 {isArabic ? "اكتشف فرصتك القادمة" : "Find your next opportunity"}
               </Text>
-              <Text style={[styles.description, { textAlign: align }]}>
+              <Text style={[styles.description, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
                 {isArabic
                   ? "استعرض فرص الكاست والإعلانات وصناعة المحتوى من الشركات والوكالات."
                   : "Browse casting, advertising and content opportunities from companies and agencies."}
@@ -108,18 +108,18 @@ export function OpportunitiesDirectoryScreen() {
           </View>
         </View>
 
-        <View style={styles.searchBox}>
+        <View style={[styles.searchBox, isArabic ? styles.rowRtl : styles.rowLtr]}>
           <Search size={19} color={colors.gold} />
           <TextInput
             value={query}
             onChangeText={setQuery}
             placeholder={isArabic ? "ابحث عن فرصة أو جهة أو مدينة..." : "Search opportunity, organization or city..."}
             placeholderTextColor="rgba(255,255,255,0.28)"
-            style={[styles.searchInput, { textAlign: align }]}
+            style={[styles.searchInput, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}
           />
         </View>
 
-        <View style={styles.tabs}>
+        <View style={[styles.tabs, isArabic && styles.rowReverse]}>
           {([
             ["all", isArabic ? "الكل" : "All"],
             ["quick", isArabic ? "طلبات الآن" : "Quick"],
@@ -176,7 +176,7 @@ export function OpportunitiesDirectoryScreen() {
                 >
                   <View style={[styles.cardTop, isArabic ? styles.rowRtl : styles.rowLtr]}>
                     <View style={isArabic ? styles.rowRtl : styles.rowLtr}>
-                      <View style={[styles.modePill, isQuick ? styles.quickPill : styles.castingPill]}>
+                      <View style={[styles.modePill, isArabic && styles.rowReverse, isQuick ? styles.quickPill : styles.castingPill]}>
                         {isQuick ? <Zap size={11} color="#F6D487" /> : <BriefcaseBusiness size={11} color={colors.gold} />}
                         <Text style={[styles.modeText, isQuick && styles.quickText]}>
                           {isQuick ? (isArabic ? "طلب الآن" : "Quick Request") : (isArabic ? "كاستينغ" : "Casting")}
@@ -186,23 +186,23 @@ export function OpportunitiesDirectoryScreen() {
                     {item.featured ? <Text style={styles.featuredLabel}>{isArabic ? "مميز" : "FEATURED"}</Text> : null}
                   </View>
 
-                  <Text style={[styles.cardTitle, { textAlign: align }]}>{item.title}</Text>
-                  <Text style={[styles.company, { textAlign: align }]}>{item.companyName}</Text>
+                  <Text style={[styles.cardTitle, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{item.title}</Text>
+                  <Text style={[styles.company, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{item.companyName}</Text>
 
-                  <View style={styles.metaGrid}>
+                  <View style={[styles.metaGrid, isArabic && styles.rowReverse]}>
                     <View style={styles.metaBox}>
                       <View style={isArabic ? styles.rowRtl : styles.rowLtr}>
                         <MapPin size={12} color={colors.gold} />
                         <Text style={styles.metaLabel}>{isArabic ? "الموقع" : "Location"}</Text>
                       </View>
-                      <Text numberOfLines={1} style={[styles.metaValue, { textAlign: align }]}>{item.city || (isArabic ? "غير محدد" : "Not specified")}</Text>
+                      <Text numberOfLines={1} style={[styles.metaValue, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{item.city || (isArabic ? "غير محدد" : "Not specified")}</Text>
                     </View>
                     <View style={styles.metaBox}>
                       <View style={isArabic ? styles.rowRtl : styles.rowLtr}>
                         <Wallet size={12} color={colors.gold} />
                         <Text style={styles.metaLabel}>{isArabic ? "المقابل" : "Compensation"}</Text>
                       </View>
-                      <Text numberOfLines={1} style={[styles.metaValue, { textAlign: align }]}>{compensationLabel(item, isArabic)}</Text>
+                      <Text numberOfLines={1} style={[styles.metaValue, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{compensationLabel(item, isArabic)}</Text>
                     </View>
                   </View>
 
@@ -226,6 +226,7 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: spacing.lg, paddingBottom: 120 },
   rowRtl: { flexDirection: "row-reverse", alignItems: "center", gap: spacing.sm },
   rowLtr: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  rowReverse: { flexDirection: "row-reverse" },
   hero: { marginTop: spacing.xl, marginBottom: spacing.lg, borderWidth: 1, borderColor: "rgba(255,255,255,0.08)", backgroundColor: "rgba(255,255,255,0.035)", borderRadius: 28, padding: spacing.xl },
   heroTop: { alignItems: "flex-start", justifyContent: "space-between", gap: spacing.md },
   heroCopy: { flex: 1, minWidth: 0 },

@@ -2,7 +2,6 @@ import { router } from "expo-router";
 import { BriefcaseBusiness, ChevronLeft, ChevronRight, Eye, Users, Zap } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
   getPublisherOpportunities,
@@ -72,7 +71,7 @@ export function PublisherOpportunitiesScreen() {
   ];
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <View style={styles.safeArea}>
       <View style={styles.header}>
         <Pressable accessibilityRole="button" onPress={() => router.back()} style={styles.backButton}>
           <BackIcon size={20} color={colors.textSecondary} />
@@ -133,7 +132,7 @@ export function PublisherOpportunitiesScreen() {
           {items.map((item) => <OpportunityCard key={item.id} item={item} isArabic={isArabic} align={align} />)}
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

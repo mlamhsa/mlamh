@@ -63,7 +63,7 @@ export function TalentDirectoryScreen() {
   const header = useMemo(() => (
     <View>
       <View style={styles.hero}>
-        <View style={[styles.badge, isArabic ? styles.rowRtl : styles.rowLtr]}>
+        <View style={[styles.badge, isArabic ? styles.badgeRtl : styles.badgeLtr, isArabic ? styles.rowRtl : styles.rowLtr]}>
           <UserRound size={14} color={colors.gold} />
           <Text style={styles.badgeText}>{isArabic ? "دليل المواهب" : "TALENT DIRECTORY"}</Text>
         </View>
@@ -79,14 +79,14 @@ export function TalentDirectoryScreen() {
         </View>
       </View>
 
-      <View style={styles.searchBox}>
+      <View style={[styles.searchBox, isArabic ? styles.rowRtl : styles.rowLtr]}>
         <Search size={19} color={colors.gold} />
         <TextInput
           value={query}
           onChangeText={setQuery}
           placeholder={isArabic ? "ابحث بالاسم أو المدينة..." : "Search by name or city..."}
           placeholderTextColor="rgba(255,255,255,0.28)"
-          style={[styles.searchInput, { textAlign: align }]}
+          style={[styles.searchInput, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}
           autoCorrect={false}
           returnKeyType="search"
         />
@@ -154,7 +154,7 @@ function TalentCard({ talent, isArabic }: { talent: MobilePublicTalent; isArabic
       </View>
       <Text numberOfLines={1} style={[styles.name, { textAlign: align }]}>{talent.name}</Text>
       <Text style={[styles.role, { textAlign: align }]}>{role}</Text>
-      {talent.city ? <View style={[styles.cityRow, isArabic ? styles.rowRtl : styles.rowLtr]}><MapPin size={11} color={colors.textMuted} /><Text numberOfLines={1} style={styles.city}>{talent.city}</Text></View> : null}
+      {talent.city ? <View style={[styles.cityRow, isArabic ? styles.rowRtl : styles.rowLtr]}><MapPin size={11} color={colors.textMuted} /><Text numberOfLines={1} style={[styles.city, { textAlign: align }]}>{talent.city}</Text></View> : null}
     </Pressable>
   );
 }
@@ -165,7 +165,9 @@ const styles = StyleSheet.create({
   rowRtl: { flexDirection: "row-reverse", alignItems: "center" },
   rowLtr: { flexDirection: "row", alignItems: "center" },
   hero: { paddingTop: spacing.xl, paddingBottom: spacing.xl },
-  badge: { alignSelf: "flex-start", gap: 7, borderWidth: 1, borderColor: "rgba(201,169,98,0.24)", backgroundColor: "rgba(201,169,98,0.07)", borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 7 },
+  badge: { gap: 7, borderWidth: 1, borderColor: "rgba(201,169,98,0.24)", backgroundColor: "rgba(201,169,98,0.07)", borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 7 },
+  badgeRtl: { alignSelf: "flex-end" },
+  badgeLtr: { alignSelf: "flex-start" },
   badgeText: { color: colors.gold, fontSize: 10, fontWeight: "600" },
   title: { color: colors.textPrimary, fontSize: 34, lineHeight: 41, fontWeight: "700", marginTop: spacing.lg },
   subtitle: { color: colors.textMuted, fontSize: 13, lineHeight: 23, marginTop: spacing.sm },

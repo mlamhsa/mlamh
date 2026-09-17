@@ -72,7 +72,7 @@ function talentGate(
         ? "ملفك جاهز. أرسله للمراجعة قبل التقديم على الفرص."
         : "Your profile is ready. Submit it for review before responding to opportunities.",
       enabled: true,
-      route: "/(talent)" as Href,
+      route: "/talent-home" as Href,
     };
   }
 
@@ -83,7 +83,7 @@ function talentGate(
         ? "أكمل التعديلات المطلوبة ثم أرسل ملفك للمراجعة مرة أخرى."
         : "Complete the requested changes and resubmit your profile.",
       enabled: true,
-      route: "/(talent)" as Href,
+      route: "/talent-home" as Href,
     };
   }
 
@@ -94,7 +94,7 @@ function talentGate(
         ? "لا يمكن التقديم بهذا الملف حاليًا."
         : "This profile cannot respond to opportunities right now.",
       enabled: true,
-      route: "/(talent)" as Href,
+      route: "/talent-home" as Href,
     };
   }
 
@@ -104,7 +104,7 @@ function talentGate(
       ? "أكمل ملفك وأرسله للمراجعة قبل التقديم على الفرص."
       : "Complete and submit your profile for review before responding.",
     enabled: true,
-    route: "/(talent)" as Href,
+    route: "/talent-home" as Href,
   };
 }
 
@@ -186,7 +186,7 @@ export function OpportunityResponseCTA({ item, locale }: Props) {
           ? "حساب الناشر لا يتقدم على الفرص. انتقل لمساحة الناشر لإنشاء طلب أو فرصة."
           : "Publisher accounts do not apply to opportunities. Use your publisher workspace to create requests or casting opportunities.",
         enabled: true,
-        route: "/(publisher)" as Href,
+        route: "/publisher-home" as Href,
       };
     }
 

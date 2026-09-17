@@ -14,9 +14,13 @@ import {
 } from "@/src/services/supabase";
 
 async function routeIncomingUrl(rawUrl: string) {
-  if (await consumeNativeAuthCallback(rawUrl)) return;
+  const authConsumed = await consumeNativeAuthCallback(rawUrl);
   const href = getMobileHrefFromUrl(rawUrl);
-  if (href) router.push(href);
+  if (href) {
+    router.push(href);
+    return;
+  }
+  if (authConsumed) return;
 }
 
 export function AppBootstrap({ children }: PropsWithChildren) {

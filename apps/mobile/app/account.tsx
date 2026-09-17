@@ -2,7 +2,6 @@ import { router } from "expo-router";
 import { ChevronLeft, ChevronRight, LogOut, ShieldCheck, Trash2 } from "lucide-react-native";
 import { useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 import { MobileApiError } from "@/src/api/client";
 import { deleteMobileAccount } from "@/src/domains/account/api";
@@ -76,7 +75,7 @@ export default function AccountScreen() {
 
       await deleteMobileAccount(appleAuthorizationCode);
       await signOutMobile();
-      router.replace("/(public)" as never);
+      router.replace("/public-home" as never);
     } catch (error) {
       Alert.alert(
         isArabic ? "لم يتم حذف الحساب" : "Account not deleted",
@@ -124,14 +123,14 @@ export default function AccountScreen() {
     setSigningOut(true);
     try {
       await signOutMobile();
-      router.replace("/(public)" as never);
+      router.replace("/public-home" as never);
     } finally {
       setSigningOut(false);
     }
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <View style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Pressable
           accessibilityRole="button"
@@ -142,13 +141,13 @@ export default function AccountScreen() {
           <BackIcon size={20} color={colors.textPrimary} />
         </Pressable>
 
-        <Text style={[styles.eyebrow, { textAlign: align }]}>
+        <Text style={[styles.eyebrow, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
           {isArabic ? "الحساب والخصوصية" : "ACCOUNT & PRIVACY"}
         </Text>
-        <Text style={[styles.title, { textAlign: align }]}>
+        <Text style={[styles.title, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
           {isArabic ? "إدارة حسابك" : "Manage your account"}
         </Text>
-        <Text style={[styles.subtitle, { textAlign: align }]}>
+        <Text style={[styles.subtitle, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
           {isArabic
             ? "تحكم في جلستك وحسابك من مكان واضح داخل ملامح."
             : "Manage your session and account from one clear place inside MLAMH."}
@@ -160,10 +159,10 @@ export default function AccountScreen() {
               <ShieldCheck size={20} color={colors.gold} />
             </View>
             <View style={styles.flexOne}>
-              <Text style={[styles.cardTitle, { textAlign: align }]}>
+              <Text style={[styles.cardTitle, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
                 {isArabic ? "خصوصيتك أولًا" : "Privacy first"}
               </Text>
-              <Text style={[styles.cardBody, { textAlign: align }]}>
+              <Text style={[styles.cardBody, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
                 {isArabic
                   ? "حذف الحساب يتم من الخادم. وإذا كان الحساب مرتبطًا بـApple يتم إلغاء تفويض Apple قبل إكمال الحذف."
                   : "Account deletion is completed server-side. Apple authorization is revoked first when the account is linked to Apple."}
@@ -191,10 +190,10 @@ export default function AccountScreen() {
         </Pressable>
 
         <View style={styles.dangerZone}>
-          <Text style={[styles.dangerTitle, { textAlign: align }]}>
+          <Text style={[styles.dangerTitle, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
             {isArabic ? "حذف الحساب" : "Delete account"}
           </Text>
-          <Text style={[styles.dangerBody, { textAlign: align }]}>
+          <Text style={[styles.dangerBody, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
             {isArabic
               ? "هذا الإجراء نهائي. سيُطلب منك التأكيد مرة أخرى قبل بدء الحذف."
               : "This action is permanent. You will be asked to confirm again before deletion starts."}
@@ -222,7 +221,7 @@ export default function AccountScreen() {
           </Pressable>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

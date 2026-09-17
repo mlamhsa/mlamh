@@ -38,10 +38,10 @@ export function HomeTalentsSection({
             <Sparkles size={14} color={colors.gold} />
             <Text style={styles.eyebrow}>{isArabic ? "مختارات ملامح" : "MLAMH SELECTIONS"}</Text>
           </View>
-          <Text style={[styles.title, { textAlign: align }]}>
+          <Text style={[styles.title, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
             {isArabic ? "مواهب تستحق الاكتشاف" : "Talent worth discovering"}
           </Text>
-          <Text style={[styles.description, { textAlign: align }]}>
+          <Text style={[styles.description, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
             {isArabic
               ? "اكتشف وجوهًا جديدة وملفات مهنية جاهزة للفرصة المناسبة."
               : "Discover new faces and professional profiles ready for the right opportunity."}
@@ -114,7 +114,7 @@ function TalentHeroCard({ talent, isArabic }: { talent: MobilePublicTalent; isAr
               <Text style={styles.featuredText}>{isArabic ? "موهبة مميزة" : "Featured talent"}</Text>
             </View>
           ) : null}
-          <Text numberOfLines={1} style={[styles.heroName, { textAlign: align }]}>{talent.name}</Text>
+          <Text numberOfLines={1} style={[styles.heroName, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{talent.name}</Text>
           <TalentMeta talent={talent} isArabic={isArabic} />
         </View>
         <View style={styles.arrowButton}><DirectionArrow size={17} color={colors.textPrimary} /></View>
@@ -133,7 +133,7 @@ function TalentSmallCard({ talent, isArabic }: { talent: MobilePublicTalent; isA
       <View style={styles.overlayStrong} />
       {talent.featured ? <View style={styles.featuredDot}><BadgeCheck size={13} color={colors.gold} /></View> : null}
       <View style={styles.smallTalentContent}>
-        <Text numberOfLines={1} style={[styles.smallName, { textAlign: align }]}>{talent.name}</Text>
+        <Text numberOfLines={1} style={[styles.smallName, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{talent.name}</Text>
         <TalentMeta talent={talent} isArabic={isArabic} compact />
       </View>
     </Pressable>

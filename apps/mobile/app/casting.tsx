@@ -1,5 +1,5 @@
-import { OpportunitiesDirectoryScreen } from "@/src/domains/opportunities/OpportunitiesDirectoryScreen";
+import { ManagedCastingScreen } from "@/src/domains/casting/ManagedCastingScreen";
 
 export default function CastingRoute() {
-  return <OpportunitiesDirectoryScreen />;
+  return <ManagedCastingScreen />;
 }
