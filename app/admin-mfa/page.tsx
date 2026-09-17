@@ -16,13 +16,39 @@ export default async function AdminMfaPage() {
   }
 
   const adminClient = createAdminClient();
-  const { data: profile, error: profileError } = await adminClient
-    .from("profiles")
-    .select("account_type")
-    .eq("user_id", user.id)
-    .maybeSingle();
 
-  if (profileError || !profile || profile.account_type !== "admin") {
+  const [
+    { data: profile, error: profileError },
+    { data: adminRegistry, error: adminRegistryError },
+    { data: roleAssignments, error: roleAssignmentsError },
+  ] = await Promise.all([
+    adminClient
+      .from("profiles")
+      .select("account_type")
+      .eq("user_id", user.id)
+      .maybeSingle(),
+    adminClient
+      .from("admin_users")
+      .select("id")
+      .eq("id", user.id)
+      .maybeSingle(),
+    adminClient
+      .from("user_roles")
+      .select("role_id")
+      .eq("user_id", user.id)
+      .limit(1),
+  ]);
+
+  if (
+    profileError ||
+    adminRegistryError ||
+    roleAssignmentsError ||
+    !profile ||
+    profile.account_type !== "admin" ||
+    !adminRegistry ||
+    !roleAssignments ||
+    roleAssignments.length === 0
+  ) {
     redirect("/ar/login");
   }
 
