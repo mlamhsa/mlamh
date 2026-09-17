@@ -8,12 +8,13 @@ import {
   Users,
 } from "lucide-react";
 
+import { AdminInviteDialog } from "@/components/admin/rbac/AdminInviteDialog";
 import { AdminRoleControls } from "@/components/admin/rbac/AdminRoleControls";
 import {
   AdminPageContainer,
   AdminPageHeader,
 } from "@/components/admin/ui";
-import { requirePermission } from "@/lib/rbac/guards";
+import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { userHasPermission } from "@/lib/rbac/helpers";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -23,6 +24,7 @@ type PageProps = {
     lang?: string;
     access_saved?: string;
     access_revoked?: string;
+    access_invited?: string;
     access_error?: string;
   }>;
 };
@@ -231,14 +233,13 @@ export default async function AdminUsersPage({
   searchParams,
 }: PageProps) {
   const currentAdmin =
-    await requirePermission(
-      PERMISSIONS.ADMINS_VIEW,
-    );
+    await requireAdminAccess();
 
   const {
     lang,
     access_saved,
     access_revoked,
+    access_invited,
     access_error,
   } = await searchParams;
 
@@ -480,6 +481,28 @@ export default async function AdminUsersPage({
 
   const accessErrorMessage =
     access_error ===
+    "admin_exists"
+      ? isArabic
+        ? "هذا البريد مسجل بالفعل ضمن حسابات الإدارة."
+        : "This email is already registered as an admin."
+      : access_error ===
+          "email_in_use"
+        ? isArabic
+          ? "هذا البريد مرتبط بحساب موجود في ملامح. لا يتم تحويل حسابات المواهب أو الناشرين إلى إدارة تلقائيًا لأسباب أمنية."
+          : "This email already belongs to a MLAMH account. Talent or publisher accounts are never converted to admin automatically for security reasons."
+        : access_error ===
+            "invite_email_failed"
+          ? isArabic
+            ? "تعذر إرسال رابط تفعيل حساب الإدارة. تم التراجع عن إنشاء الحساب."
+            : "The admin activation email could not be sent. Account creation was rolled back."
+          : access_error ===
+              "invite_lookup_failed" ||
+            access_error ===
+              "invite_create_failed"
+            ? isArabic
+              ? "تعذر إنشاء دعوة المشرف بأمان. لم يتم اعتماد الحساب."
+              : "The admin invitation could not be created safely. No account was approved."
+            : access_error ===
     "self_role_change"
       ? isArabic
         ? "لا يمكن تغيير دور حسابك الحالي من هذه الصفحة لتجنب فقدان الوصول بالخطأ."
@@ -529,12 +552,18 @@ export default async function AdminUsersPage({
               : "A unified access center for reviewing admin accounts, roles, and effective platform permissions."
           }
           actions={
-            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/[0.07] px-3 py-2 text-[11px] font-medium text-emerald-200">
-              <ShieldCheck className="h-3.5 w-3.5" />
-              {isArabic
-                ? "MFA / AAL2 مفعّل"
-                : "MFA / AAL2 enforced"}
-            </div>
+            <>
+              <AdminInviteDialog
+                locale={locale}
+                canManage={canManage}
+              />
+              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/[0.07] px-3 py-2 text-[11px] font-medium text-emerald-200">
+                <ShieldCheck className="h-3.5 w-3.5" />
+                {isArabic
+                  ? "MFA / AAL2 مفعّل"
+                  : "MFA / AAL2 enforced"}
+              </div>
+            </>
           }
         />
 
@@ -556,6 +585,17 @@ export default async function AdminUsersPage({
               {isArabic
                 ? "تم سحب وصول الحساب إلى لوحة الإدارة فورًا وتسجيل العملية."
                 : "Admin access was revoked immediately and recorded."}
+            </p>
+          </div>
+        ) : null}
+
+        {access_invited === "1" ? (
+          <div className="mb-5 flex items-start gap-3 rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.07] px-4 py-3 text-sm text-emerald-200">
+            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+            <p>
+              {isArabic
+                ? "تم إنشاء حساب الإدارة وإرسال رابط آمن لتعيين كلمة المرور. لن يتمكن المشرف من الدخول قبل إكمال كلمة المرور والمصادقة الثنائية."
+                : "The admin account was created and a secure password-setup link was sent. Access remains blocked until password setup and MFA are completed."}
             </p>
           </div>
         ) : null}
