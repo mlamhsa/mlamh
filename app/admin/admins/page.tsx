@@ -1465,6 +1465,19 @@ export default async function AdminUsersPage({
                               )}
                               …
                             </span>
+                            <span aria-hidden="true">
+                              •
+                            </span>
+                            <Link
+                              href={`/admin/audit-log?lang=${locale}&q=${encodeURIComponent(
+                                admin.id,
+                              )}`}
+                              className="text-gold/55 transition hover:text-gold"
+                            >
+                              {isArabic
+                                ? "نشاط المشرف"
+                                : "Admin activity"}
+                            </Link>
                           </div>
                         </div>
                       </div>
