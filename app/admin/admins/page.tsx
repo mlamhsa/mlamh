@@ -416,6 +416,57 @@ export default async function AdminUsersPage({
     (adminsResult.data ??
       []) as AdminUserRow[];
 
+  const adminAuthStateEntries =
+    await Promise.all(
+      admins.map(async (admin) => {
+        const {
+          data,
+          error,
+        } =
+          await adminClient.auth.admin.getUserById(
+            admin.id,
+          );
+
+        if (error || !data.user) {
+          console.error(
+            "[AdminAccessCenter authUser]",
+            error,
+          );
+
+          return [
+            admin.id,
+            null,
+          ] as const;
+        }
+
+        const invitedAt =
+          typeof data.user
+            .user_metadata
+            ?.admin_invited_at ===
+          "string"
+            ? data.user
+                .user_metadata
+                .admin_invited_at
+            : null;
+
+        return [
+          admin.id,
+          {
+            invitedAt,
+            lastSignInAt:
+              data.user
+                .last_sign_in_at ??
+              null,
+          },
+        ] as const;
+      }),
+    );
+
+  const adminAuthStateById =
+    new Map(
+      adminAuthStateEntries,
+    );
+
   const roles = rolesResult.error
     ? []
     : ((rolesResult.data ??
@@ -526,8 +577,8 @@ export default async function AdminUsersPage({
     (role) => role.is_system,
   ).length;
 
-  const activeAdminCount =
-    admins.filter((admin) => {
+  const adminAccessStates =
+    admins.map((admin) => {
       const assignedRoleKeys =
         (roleIdsByUser.get(
           admin.id,
@@ -545,17 +596,48 @@ export default async function AdminUsersPage({
               Boolean(roleKey),
           );
 
-      return assignedRoleKeys.some(
-        isAssignableAdminRole,
-      );
-    }).length;
+      const hasActiveRole =
+        assignedRoleKeys.some(
+          isAssignableAdminRole,
+        );
+
+      const authState =
+        adminAuthStateById.get(
+          admin.id,
+        );
+
+      const pendingInvite =
+        Boolean(
+          authState?.invitedAt,
+        ) &&
+        !authState?.lastSignInAt;
+
+      return {
+        adminId: admin.id,
+        hasActiveRole,
+        pendingInvite,
+      };
+    });
+
+  const pendingAdminCount =
+    adminAccessStates.filter(
+      (state) =>
+        state.hasActiveRole &&
+        state.pendingInvite,
+    ).length;
+
+  const activeAdminCount =
+    adminAccessStates.filter(
+      (state) =>
+        state.hasActiveRole &&
+        !state.pendingInvite,
+    ).length;
 
   const revokedAdminCount =
-    Math.max(
-      0,
-      admins.length -
-        activeAdminCount,
-    );
+    adminAccessStates.filter(
+      (state) =>
+        !state.hasActiveRole,
+    ).length;
 
   const roleOptions = roles
     .filter((role) =>
@@ -713,8 +795,8 @@ export default async function AdminUsersPage({
             </p>
             <p className="mt-1 text-[11px] text-white/30">
               {isArabic
-                ? `${activeAdminCount} نشط · ${revokedAdminCount} مسحوب`
-                : `${activeAdminCount} active · ${revokedAdminCount} revoked`}
+                ? `${activeAdminCount} نشط · ${pendingAdminCount} دعوة معلقة · ${revokedAdminCount} مسحوب`
+                : `${activeAdminCount} active · ${pendingAdminCount} pending · ${revokedAdminCount} revoked`}
             </p>
           </div>
 
@@ -841,6 +923,18 @@ export default async function AdminUsersPage({
                       isAssignableAdminRole,
                     );
 
+                  const authState =
+                    adminAuthStateById.get(
+                      admin.id,
+                    );
+
+                  const pendingInvite =
+                    hasActiveAccess &&
+                    Boolean(
+                      authState?.invitedAt,
+                    ) &&
+                    !authState?.lastSignInAt;
+
                   const initial =
                     admin.email
                       .charAt(0)
@@ -867,22 +961,30 @@ export default async function AdminUsersPage({
 
                           <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[10px] text-white/28">
                             <span className={`inline-flex items-center gap-1.5 ${
-                              hasActiveAccess
-                                ? "text-emerald-300/75"
-                                : "text-red-200/55"
+                              pendingInvite
+                                ? "text-amber-200/70"
+                                : hasActiveAccess
+                                  ? "text-emerald-300/75"
+                                  : "text-red-200/55"
                             }`}>
-                              {hasActiveAccess ? (
+                              {pendingInvite ? (
+                                <History className="h-3 w-3" />
+                              ) : hasActiveAccess ? (
                                 <CheckCircle2 className="h-3 w-3" />
                               ) : (
                                 <LockKeyhole className="h-3 w-3" />
                               )}
-                              {hasActiveAccess
+                              {pendingInvite
                                 ? isArabic
-                                  ? "نشط"
-                                  : "Active"
-                                : isArabic
-                                  ? "الوصول مسحوب"
-                                  : "Access revoked"}
+                                  ? "دعوة معلقة"
+                                  : "Invite pending"
+                                : hasActiveAccess
+                                  ? isArabic
+                                    ? "نشط"
+                                    : "Active"
+                                  : isArabic
+                                    ? "الوصول مسحوب"
+                                    : "Access revoked"}
                             </span>
                             <span aria-hidden="true">
                               •
