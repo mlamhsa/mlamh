@@ -407,6 +407,10 @@ import {
                 admin_invited
               </option>
 
+              <option value="admin_invite_resent">
+                admin_invite_resent
+              </option>
+
               <option value="admin_role_changed">
                 admin_role_changed
               </option>
