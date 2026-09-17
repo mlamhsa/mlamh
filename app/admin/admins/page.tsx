@@ -29,6 +29,7 @@ type PageProps = {
     access_revoked?: string;
     access_invited?: string;
     access_resent?: string;
+    access_cancelled?: string;
     access_error?: string;
   }>;
 };
@@ -264,6 +265,15 @@ function getAccessEventLabel(
 
   if (
     eventType ===
+    "admin_invite_cancelled"
+  ) {
+    return isArabic
+      ? "إلغاء دعوة مشرف"
+      : "Admin invite cancelled";
+  }
+
+  if (
+    eventType ===
     "admin_role_changed"
   ) {
     return isArabic
@@ -315,6 +325,7 @@ export default async function AdminUsersPage({
     access_revoked,
     access_invited,
     access_resent,
+    access_cancelled,
     access_error,
   } = await searchParams;
 
@@ -377,6 +388,7 @@ export default async function AdminUsersPage({
       .in("event_type", [
         "admin_invited",
         "admin_invite_resent",
+        "admin_invite_cancelled",
         "admin_role_changed",
         "admin_access_revoked",
       ])
@@ -724,11 +736,16 @@ export default async function AdminUsersPage({
               ? "تعذر إعادة إرسال رابط تفعيل حساب الإدارة. حاول مرة أخرى."
               : "The admin activation link could not be resent. Please try again."
             : access_error ===
-                "invite_not_pending"
+                "invite_cancel_failed"
               ? isArabic
-                ? "هذه الدعوة لم تعد معلقة، لذلك لا يمكن إعادة إرسال رابط التفعيل."
-                : "This invitation is no longer pending, so its activation link cannot be resent."
+                ? "تعذر إلغاء دعوة المشرف بالكامل. لم يتم اعتماد الإلغاء."
+                : "The admin invitation could not be fully cancelled. The cancellation was not confirmed."
               : access_error ===
+                  "invite_not_pending"
+                ? isArabic
+                  ? "هذه الدعوة لم تعد معلقة، لذلك لا يمكن تنفيذ هذا الإجراء عليها."
+                  : "This invitation is no longer pending, so this action cannot be performed."
+                : access_error ===
                   "invite_lookup_failed" ||
                 access_error ===
                   "invite_create_failed"
@@ -860,6 +877,17 @@ export default async function AdminUsersPage({
               {isArabic
                 ? "تمت إعادة إرسال رابط تفعيل حساب الإدارة بنجاح."
                 : "The admin activation link was resent successfully."}
+            </p>
+          </div>
+        ) : null}
+
+        {access_cancelled === "1" ? (
+          <div className="mb-5 flex items-start gap-3 rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.07] px-4 py-3 text-sm text-emerald-200">
+            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+            <p>
+              {isArabic
+                ? "تم إلغاء دعوة المشرف وحذف الحساب غير المفعّل."
+                : "The admin invitation was cancelled and the unactivated account was removed."}
             </p>
           </div>
         ) : null}
