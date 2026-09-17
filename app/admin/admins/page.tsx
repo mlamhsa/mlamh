@@ -15,6 +15,7 @@ import {
   AdminPageHeader,
 } from "@/components/admin/ui";
 import { requireAdminAccess } from "@/lib/auth/require-admin";
+import { isAssignableAdminRole } from "@/lib/rbac/admin-access-policy";
 import { userHasPermission } from "@/lib/rbac/helpers";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -465,11 +466,10 @@ export default async function AdminUsersPage({
     }).length;
 
   const roleOptions = roles
-    .filter(
-      (role) =>
-        role.key ===
-          "super_admin" ||
-        role.key === "admin",
+    .filter((role) =>
+      isAssignableAdminRole(
+        role.key,
+      ),
     )
     .map((role) => ({
       key: role.key,
@@ -908,9 +908,9 @@ export default async function AdminUsersPage({
                     ) ?? 0;
 
                   const assignable =
-                    role.key ===
-                      "super_admin" ||
-                    role.key === "admin";
+                    isAssignableAdminRole(
+                      role.key,
+                    );
 
                   return (
                     <div
