@@ -517,18 +517,25 @@ export async function inviteAdminAction(
     );
   }
 
-  await createEvent({
-    type:
-      EVENT_TYPES.admin_invited,
-    target:
-      EVENT_TARGETS.ADMIN,
-    targetId: invitedUser.id,
-    actorId: actor.id,
-    metadata: {
-      role: ROLES.ADMIN,
-      invited_email: email,
-    },
-  });
+  try {
+      await createEvent({
+        type:
+          EVENT_TYPES.admin_invited,
+        target:
+          EVENT_TARGETS.ADMIN,
+        targetId: invitedUser.id,
+        actorId: actor.id,
+        metadata: {
+          role: ROLES.ADMIN,
+          invited_email: email,
+        },
+      });
+  } catch (auditError) {
+    console.error(
+      "[inviteAdminAction audit]",
+      auditError,
+    );
+  }
 
   revalidateAdminAccessPaths();
 
@@ -821,21 +828,28 @@ export async function updateAdminRoleAction(
     );
   }
 
-  await createEvent({
-    type:
-      EVENT_TYPES.admin_role_changed,
-    target:
-      EVENT_TARGETS.ADMIN,
-    targetId: targetUserId,
-    actorId: actor.id,
-    metadata: {
-      target_email:
-        targetAdmin.email,
-      previous_roles:
-        previousRoleKeys,
-      new_role: roleKey,
-    },
-  });
+  try {
+      await createEvent({
+        type:
+          EVENT_TYPES.admin_role_changed,
+        target:
+          EVENT_TARGETS.ADMIN,
+        targetId: targetUserId,
+        actorId: actor.id,
+        metadata: {
+          target_email:
+            targetAdmin.email,
+          previous_roles:
+            previousRoleKeys,
+          new_role: roleKey,
+        },
+      });
+  } catch (auditError) {
+    console.error(
+      "[updateAdminRoleAction audit]",
+      auditError,
+    );
+  }
 
   revalidateAdminAccessPaths();
 
@@ -1003,20 +1017,27 @@ export async function revokeAdminAccessAction(
     );
   }
 
-  await createEvent({
-    type:
-      EVENT_TYPES.admin_access_revoked,
-    target:
-      EVENT_TARGETS.ADMIN,
-    targetId: targetUserId,
-    actorId: actor.id,
-    metadata: {
-      target_email:
-        targetAdmin.email,
-      previous_roles:
-        previousRoleKeys,
-    },
-  });
+  try {
+      await createEvent({
+        type:
+          EVENT_TYPES.admin_access_revoked,
+        target:
+          EVENT_TARGETS.ADMIN,
+        targetId: targetUserId,
+        actorId: actor.id,
+        metadata: {
+          target_email:
+            targetAdmin.email,
+          previous_roles:
+            previousRoleKeys,
+        },
+      });
+  } catch (auditError) {
+    console.error(
+      "[revokeAdminAccessAction audit]",
+      auditError,
+    );
+  }
 
   revalidateAdminAccessPaths();
 
