@@ -829,6 +829,8 @@ export async function updateAdminRoleAction(
     targetId: targetUserId,
     actorId: actor.id,
     metadata: {
+      target_email:
+        targetAdmin.email,
       previous_roles:
         previousRoleKeys,
       new_role: roleKey,
@@ -970,6 +972,8 @@ export async function revokeAdminAccessAction(
     targetId: targetUserId,
     actorId: actor.id,
     metadata: {
+      target_email:
+        targetAdmin.email,
       previous_roles:
         previousRoleKeys,
     },
