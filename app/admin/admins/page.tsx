@@ -86,6 +86,32 @@ const ROLE_LABELS: Record<
   },
 };
 
+const ROLE_DESCRIPTIONS: Record<
+  string,
+  { ar: string; en: string }
+> = {
+  super_admin: {
+    ar: "وصول كامل إلى جميع أقسام الإدارة، بما فيها إدارة المشرفين والصلاحيات الحساسة.",
+    en: "Full access to every admin area, including administrator and sensitive permission management.",
+  },
+  admin: {
+    ar: "وصول إداري تشغيلي واسع دون صلاحية إدارة المشرفين أو تغيير نموذج الوصول.",
+    en: "Broad operational admin access without administrator management or access-model changes.",
+  },
+  content_manager: {
+    ar: "مخصص لإدارة المحتوى العام. التعيين غير مفعّل حتى اكتمال الحماية الدقيقة لجميع المسارات.",
+    en: "Prepared for public content management. Assignment stays disabled until granular route enforcement is complete.",
+  },
+  moderator: {
+    ar: "مخصص للمراجعة والإشراف التشغيلي. التعيين غير مفعّل حتى اكتمال الحماية الدقيقة.",
+    en: "Prepared for moderation workflows. Assignment stays disabled until granular enforcement is complete.",
+  },
+  viewer: {
+    ar: "دور قراءة فقط مخطط له. التعيين غير مفعّل حتى اكتمال الحماية الدقيقة.",
+    en: "Prepared read-only role. Assignment stays disabled until granular enforcement is complete.",
+  },
+};
+
 const GROUP_LABELS: Record<
   string,
   { ar: string; en: string }
@@ -437,15 +463,20 @@ export default async function AdminUsersPage({
       );
     }).length;
 
-  const roleOptions = roles.map(
-    (role) => ({
+  const roleOptions = roles
+    .filter(
+      (role) =>
+        role.key ===
+          "super_admin" ||
+        role.key === "admin",
+    )
+    .map((role) => ({
       key: role.key,
       label: formatRoleKey(
         role.key,
         isArabic,
       ),
-    }),
-  );
+    }));
 
   const accessErrorMessage =
     access_error ===
@@ -569,8 +600,8 @@ export default async function AdminUsersPage({
             </p>
             <p className="mt-1 text-[11px] text-white/30">
               {isArabic
-                ? `${systemRoles} أدوار نظامية`
-                : `${systemRoles} system roles`}
+                ? `${roleOptions.length} قابلة للتعيين الآن من ${systemRoles}`
+                : `${roleOptions.length} assignable now of ${systemRoles}`}
             </p>
           </div>
 
@@ -836,6 +867,11 @@ export default async function AdminUsersPage({
                       role.id,
                     ) ?? 0;
 
+                  const assignable =
+                    role.key ===
+                      "super_admin" ||
+                    role.key === "admin";
+
                   return (
                     <div
                       key={role.id}
@@ -859,6 +895,22 @@ export default async function AdminUsersPage({
                                   : "System"}
                               </span>
                             ) : null}
+
+                            <span
+                              className={`rounded-full border px-2 py-0.5 text-[9px] font-medium ${
+                                assignable
+                                  ? "border-emerald-400/20 bg-emerald-400/[0.06] text-emerald-200"
+                                  : "border-amber-400/20 bg-amber-400/[0.05] text-amber-100/70"
+                              }`}
+                            >
+                              {assignable
+                                ? isArabic
+                                  ? "قابل للتعيين"
+                                  : "Assignable"
+                                : isArabic
+                                  ? "محضّر"
+                                  : "Prepared"}
+                            </span>
                           </div>
                           <p
                             dir="ltr"
@@ -883,10 +935,20 @@ export default async function AdminUsersPage({
                       </div>
 
                       <p className="mt-4 min-h-12 text-xs leading-6 text-white/38">
-                        {role.description ||
-                          (isArabic
-                            ? "دور وصول إداري ضمن منظومة الصلاحيات."
-                            : "Administrative access role in the permission system.")}
+                        {ROLE_DESCRIPTIONS[
+                          role.key
+                        ]
+                          ? isArabic
+                            ? ROLE_DESCRIPTIONS[
+                                role.key
+                              ].ar
+                            : ROLE_DESCRIPTIONS[
+                                role.key
+                              ].en
+                          : role.description ||
+                            (isArabic
+                              ? "دور وصول إداري ضمن منظومة الصلاحيات."
+                              : "Administrative access role in the permission system.")}
                       </p>
 
                       <div className="mt-5 grid grid-cols-2 gap-3 border-t border-white/[0.07] pt-4">
