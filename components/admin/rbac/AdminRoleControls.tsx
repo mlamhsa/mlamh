@@ -1,9 +1,12 @@
 "use client";
 
 import {
+  AlertTriangle,
   Save,
   ShieldOff,
+  X,
 } from "lucide-react";
+import { useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import {
@@ -73,6 +76,10 @@ export function AdminRoleControls({
 }) {
   const isArabic =
     locale === "ar";
+  const [
+    revokeOpen,
+    setRevokeOpen,
+  ] = useState(false);
 
   if (!canManage) {
     return (
@@ -141,42 +148,117 @@ export function AdminRoleControls({
         />
       </form>
 
-      <form
-        action={
-          revokeAdminAccessAction
+      <button
+        type="button"
+        onClick={() =>
+          setRevokeOpen(true)
         }
-        onSubmit={(event) => {
-          const confirmed =
-            window.confirm(
-              isArabic
-                ? "سيتم سحب وصول هذا الحساب إلى لوحة الإدارة فورًا. هل تريد المتابعة؟"
-                : "This account will immediately lose admin access. Continue?",
-            );
-
-          if (!confirmed) {
-            event.preventDefault();
-          }
-        }}
+        className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-red-400/15 bg-red-400/[0.035] px-3 text-[11px] font-medium text-red-200/65 transition hover:border-red-400/30 hover:bg-red-400/[0.075] hover:text-red-100"
       >
-        <input
-          type="hidden"
-          name="admin_id"
-          value={adminId}
-        />
-        <input
-          type="hidden"
-          name="locale"
-          value={locale}
-        />
+        <ShieldOff className="h-3.5 w-3.5" />
+        {isArabic
+          ? "سحب الوصول"
+          : "Revoke access"}
+      </button>
 
-        <RevokeButton
-          label={
-            isArabic
-              ? "سحب الوصول"
-              : "Revoke access"
-          }
-        />
-      </form>
+      {revokeOpen ? (
+        <div
+          className="fixed inset-0 z-[110] flex items-center justify-center bg-black/75 px-4 backdrop-blur-sm"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (
+              event.target ===
+              event.currentTarget
+            ) {
+              setRevokeOpen(false);
+            }
+          }}
+        >
+          <section
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby={`revoke-admin-${adminId}`}
+            dir={
+              isArabic
+                ? "rtl"
+                : "ltr"
+            }
+            className="relative w-full max-w-md overflow-hidden rounded-[1.75rem] border border-red-400/15 bg-[#0b0b0b] p-5 text-white shadow-[0_30px_100px_rgba(0,0,0,0.55)] sm:p-6"
+          >
+            <button
+              type="button"
+              aria-label={
+                isArabic
+                  ? "إغلاق"
+                  : "Close"
+              }
+              onClick={() =>
+                setRevokeOpen(false)
+              }
+              className="absolute end-4 top-4 flex h-9 w-9 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.025] text-white/45 transition hover:text-white"
+            >
+              <X className="h-4 w-4" />
+            </button>
+
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-red-400/20 bg-red-400/[0.07] text-red-200">
+              <AlertTriangle className="h-5 w-5" />
+            </div>
+
+            <h3
+              id={`revoke-admin-${adminId}`}
+              className="mt-4 pe-10 text-xl font-light"
+            >
+              {isArabic
+                ? "سحب وصول المشرف؟"
+                : "Revoke admin access?"}
+            </h3>
+
+            <p className="mt-2 text-xs leading-6 text-white/42">
+              {isArabic
+                ? "سيُمنع هذا الحساب فورًا من دخول لوحة الإدارة، وستتم إزالة تعيين دوره الإداري وتسجيل العملية في سجل النظام."
+                : "This account will immediately lose admin-console access, its admin role assignment will be removed, and the action will be recorded in the audit log."}
+            </p>
+
+            <form
+              action={
+                revokeAdminAccessAction
+              }
+              className="mt-6 flex gap-2"
+            >
+              <input
+                type="hidden"
+                name="admin_id"
+                value={adminId}
+              />
+              <input
+                type="hidden"
+                name="locale"
+                value={locale}
+              />
+
+              <RevokeButton
+                label={
+                  isArabic
+                    ? "تأكيد سحب الوصول"
+                    : "Confirm revoke"
+                }
+              />
+
+              <button
+                type="button"
+                onClick={() =>
+                  setRevokeOpen(false)
+                }
+                className="h-10 rounded-xl border border-white/[0.09] px-3 text-[11px] text-white/50 transition hover:border-white/[0.16] hover:text-white"
+              >
+                {isArabic
+                  ? "إلغاء"
+                  : "Cancel"}
+              </button>
+            </form>
+          </section>
+        </div>
+      ) : null}
     </div>
   );
 }
