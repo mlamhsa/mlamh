@@ -69,4 +69,4 @@ jobs:
           path: apps/mobile/build22.ipa
           if-no-files-found: error
       - name: Submit Build 22 to TestFlight
-        run: eas submit --platform ios --profile testflight --path ./build22.ipa --non-interactive
+        run: eas submit --platform ios --profile testflight --path ./build22.ipa --non-interactive --no-wait
