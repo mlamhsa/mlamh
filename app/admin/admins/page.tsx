@@ -1,4 +1,5 @@
 import {
+  AlertTriangle,
   CheckCircle2,
   Crown,
   History,
@@ -412,6 +413,42 @@ export default async function AdminUsersPage({
     accessEventsResult.error,
   );
 
+  const rbacDataHealthy =
+    !rolesResult.error &&
+    !permissionsResult.error &&
+    !rolePermissionsResult.error &&
+    !userRolesResult.error;
+
+  const degradedDataSources = [
+    rolesResult.error
+      ? isArabic
+        ? "الأدوار"
+        : "roles"
+      : null,
+    permissionsResult.error
+      ? isArabic
+        ? "الصلاحيات"
+        : "permissions"
+      : null,
+    rolePermissionsResult.error
+      ? isArabic
+        ? "ربط الأدوار بالصلاحيات"
+        : "role-permission mappings"
+      : null,
+    userRolesResult.error
+      ? isArabic
+        ? "تعيينات أدوار المشرفين"
+        : "admin role assignments"
+      : null,
+  ].filter(
+    (value): value is string =>
+      Boolean(value),
+  );
+
+  const effectiveCanManage =
+    canManage &&
+    rbacDataHealthy;
+
   const admins =
     (adminsResult.data ??
       []) as AdminUserRow[];
@@ -729,7 +766,9 @@ export default async function AdminUsersPage({
             <>
               <AdminInviteDialog
                 locale={locale}
-                canManage={canManage}
+                canManage={
+                  effectiveCanManage
+                }
               />
               <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/[0.07] px-3 py-2 text-[11px] font-medium text-emerald-200">
                 <ShieldCheck className="h-3.5 w-3.5" />
@@ -740,6 +779,24 @@ export default async function AdminUsersPage({
             </>
           }
         />
+
+        {!rbacDataHealthy ? (
+          <div className="mb-5 flex items-start gap-3 rounded-2xl border border-amber-400/20 bg-amber-400/[0.07] px-4 py-3 text-sm text-amber-100">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <div>
+              <p className="font-medium">
+                {isArabic
+                  ? "تعذر تحميل بعض بيانات الصلاحيات بدقة"
+                  : "Some access-control data could not be loaded reliably"}
+              </p>
+              <p className="mt-1 text-xs leading-6 text-amber-100/65">
+                {isArabic
+                  ? `المصادر المتأثرة: ${degradedDataSources.join("، ")}. تم تعطيل تغييرات الوصول مؤقتًا، ولن تُعرض القيم المفقودة على أنها أصفار حقيقية.`
+                  : `Affected sources: ${degradedDataSources.join(", ")}. Access mutations are temporarily disabled, and missing values are not being presented as real zeros.`}
+              </p>
+            </div>
+          </div>
+        ) : null}
 
         {access_saved === "1" ? (
           <div className="mb-5 flex items-start gap-3 rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.07] px-4 py-3 text-sm text-emerald-200">
@@ -810,12 +867,18 @@ export default async function AdminUsersPage({
               <UserCog className="h-4 w-4 text-white/45" />
             </div>
             <p className="mt-4 text-3xl font-light tabular-nums text-white">
-              {roles.length}
+              {rolesResult.error
+                ? "—"
+                : roles.length}
             </p>
             <p className="mt-1 text-[11px] text-white/30">
-              {isArabic
-                ? `${roleOptions.length} قابلة للتعيين الآن من ${systemRoles}`
-                : `${roleOptions.length} assignable now of ${systemRoles}`}
+              {rolesResult.error
+                ? isArabic
+                  ? "البيانات غير متاحة حاليًا"
+                  : "Data temporarily unavailable"
+                : isArabic
+                  ? `${roleOptions.length} قابلة للتعيين الآن من ${systemRoles}`
+                  : `${roleOptions.length} assignable now of ${systemRoles}`}
             </p>
           </div>
 
@@ -829,12 +892,18 @@ export default async function AdminUsersPage({
               <KeyRound className="h-4 w-4 text-white/45" />
             </div>
             <p className="mt-4 text-3xl font-light tabular-nums text-white">
-              {permissions.length}
+              {permissionsResult.error
+                ? "—"
+                : permissions.length}
             </p>
             <p className="mt-1 text-[11px] text-white/30">
-              {isArabic
-                ? `${groupedPermissions.length} مجموعات وصول`
-                : `${groupedPermissions.length} access groups`}
+              {permissionsResult.error
+                ? isArabic
+                  ? "البيانات غير متاحة حاليًا"
+                  : "Data temporarily unavailable"
+                : isArabic
+                  ? `${groupedPermissions.length} مجموعات وصول`
+                  : `${groupedPermissions.length} access groups`}
             </p>
           </div>
 
@@ -1062,7 +1131,9 @@ export default async function AdminUsersPage({
                           admin.id ===
                           currentAdmin.id
                         }
-                        canManage={canManage}
+                        canManage={
+                          effectiveCanManage
+                        }
                       />
                     </div>
                   );
