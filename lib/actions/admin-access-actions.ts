@@ -686,6 +686,155 @@ export async function resendAdminInviteAction(
   );
 }
 
+export async function cancelPendingAdminInviteAction(
+  formData: FormData,
+) {
+  const actor =
+    await requirePermission(
+      PERMISSIONS.ADMINS_MANAGE,
+    );
+
+  const locale =
+    getLocale(formData);
+  const targetUserId =
+    getTargetUserId(formData);
+  const adminClient =
+    createAdminClient();
+
+  const {
+    data: targetAdmin,
+    error: targetAdminError,
+  } = await adminClient
+    .from("admin_users")
+    .select("id, email, role")
+    .eq("id", targetUserId)
+    .maybeSingle();
+
+  if (
+    targetAdminError ||
+    !targetAdmin ||
+    !isAssignableAdminRole(
+      targetAdmin.role,
+    )
+  ) {
+    console.error(
+      "[cancelPendingAdminInviteAction target]",
+      targetAdminError,
+    );
+
+    redirect(
+      accessCenterUrl(locale, {
+        access_error:
+          "admin_not_found",
+      }),
+    );
+  }
+
+  const {
+    data: authUserData,
+    error: authUserError,
+  } =
+    await adminClient.auth.admin.getUserById(
+      targetUserId,
+    );
+
+  const authUser =
+    authUserData.user;
+  const invitedAt =
+    typeof authUser?.user_metadata
+      ?.admin_invited_at ===
+    "string"
+      ? authUser.user_metadata
+          .admin_invited_at
+      : null;
+
+  if (
+    authUserError ||
+    !authUser ||
+    !invitedAt ||
+    authUser.last_sign_in_at
+  ) {
+    console.error(
+      "[cancelPendingAdminInviteAction auth state]",
+      authUserError,
+    );
+
+    redirect(
+      accessCenterUrl(locale, {
+        access_error:
+          "invite_not_pending",
+      }),
+    );
+  }
+
+  // Remove the Auth identity first. admin_users and user_roles cascade from auth.users.
+  // The profile row is cleaned explicitly because it is not guaranteed to cascade.
+  const {
+    error: deleteAuthError,
+  } =
+    await adminClient.auth.admin.deleteUser(
+      targetUserId,
+    );
+
+  if (deleteAuthError) {
+    console.error(
+      "[cancelPendingAdminInviteAction auth delete]",
+      deleteAuthError,
+    );
+
+    redirect(
+      accessCenterUrl(locale, {
+        access_error:
+          "invite_cancel_failed",
+      }),
+    );
+  }
+
+  const { error: profileCleanupError } =
+    await adminClient
+      .from("profiles")
+      .delete()
+      .eq(
+        "user_id",
+        targetUserId,
+      );
+
+  if (profileCleanupError) {
+    console.error(
+      "[cancelPendingAdminInviteAction profile cleanup]",
+      profileCleanupError,
+    );
+  }
+
+  try {
+    await createEvent({
+      type:
+        EVENT_TYPES.admin_invite_cancelled,
+      target:
+        EVENT_TARGETS.ADMIN,
+      targetId: targetUserId,
+      actorId: actor.id,
+      metadata: {
+        invited_email:
+          targetAdmin.email,
+      },
+    });
+  } catch (auditError) {
+    console.error(
+      "[cancelPendingAdminInviteAction audit]",
+      auditError,
+    );
+  }
+
+  revalidateAdminAccessPaths();
+
+  redirect(
+    accessCenterUrl(locale, {
+      access_cancelled: "1",
+    }),
+  );
+}
+
 export async function updateAdminRoleAction(
   formData: FormData,
 ) {
