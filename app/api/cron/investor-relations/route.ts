@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+import { assertApprovedInvestorGmail } from "@/lib/intelligence/investors/account-policy";
+import { getInvestorGmailConnectionState } from "@/lib/intelligence/investors/gmail";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   discoverInvestors,
@@ -31,6 +33,9 @@ async function discoveryIsDue() {
 export async function GET(request: Request) {
   if (!authorized(request)) return NextResponse.json({ ok: false }, { status: 401 });
   try {
+    const gmail = await getInvestorGmailConnectionState();
+    if (gmail.status === "connected") assertApprovedInvestorGmail(gmail.emailAddress);
+
     // Reply sync happens first so a real investor response suppresses unnecessary follow-up drafting.
     const replies = await syncInvestorReplies({ limit: 30 });
     const followUps = await prepareDueInvestorFollowUps({ limit: 12 });
