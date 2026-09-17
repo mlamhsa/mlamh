@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
 import { requireAdminAccess } from "@/lib/auth/require-admin";
+import { assertApprovedInvestorGmail } from "@/lib/intelligence/investors/account-policy";
 import {
   exchangeInvestorGmailAuthorizationCode,
   persistInvestorGmailConnection,
@@ -38,10 +39,11 @@ export async function GET(request: Request) {
       throw new Error("Investor Gmail OAuth state validation failed.");
     }
     const tokenSet = await exchangeInvestorGmailAuthorizationCode({ code, codeVerifier });
-    await persistInvestorGmailConnection({
+    const profile = await persistInvestorGmailConnection({
       accessToken: tokenSet.accessToken,
       refreshToken: tokenSet.refreshToken,
     });
+    assertApprovedInvestorGmail(profile.emailAddress);
     return adminRedirect(request, "connected");
   } catch (error) {
     console.error("[Investor Gmail callback]", error instanceof Error ? error.message : "oauth_callback_failed");
