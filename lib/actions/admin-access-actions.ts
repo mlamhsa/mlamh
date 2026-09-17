@@ -5,7 +5,7 @@ import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { createEvent } from "@/lib/events/create-event";
+import { createAuditEvent } from "@/lib/events/create-audit-event";
 import { EVENT_TARGETS } from "@/lib/events/event-targets";
 import { EVENT_TYPES } from "@/lib/events/event-types";
 import { isAssignableAdminRole } from "@/lib/rbac/admin-access-policy";
@@ -219,7 +219,7 @@ async function recordAdminAccessOutcome({
         : EVENT_TYPES.admin_access_action_noop;
 
   try {
-    await createEvent({
+    await createAuditEvent({
       type: eventType,
       target: EVENT_TARGETS.ADMIN,
       targetId,
@@ -675,7 +675,7 @@ export async function inviteAdminAction(
   }
 
   try {
-      await createEvent({
+      await createAuditEvent({
         type:
           EVENT_TYPES.admin_invited,
         target:
@@ -850,7 +850,7 @@ export async function resendAdminInviteAction(
   }
 
   try {
-    await createEvent({
+    await createAuditEvent({
       type:
         EVENT_TYPES.admin_invite_resent,
       target:
@@ -1049,7 +1049,7 @@ export async function cancelPendingAdminInviteAction(
   }
 
   try {
-    await createEvent({
+    await createAuditEvent({
       type:
         EVENT_TYPES.admin_invite_cancelled,
       target:
@@ -1493,7 +1493,7 @@ export async function updateAdminRoleAction(
   }
 
   try {
-      await createEvent({
+      await createAuditEvent({
         type:
           EVENT_TYPES.admin_role_changed,
         target:
@@ -1752,7 +1752,7 @@ export async function revokeAdminAccessAction(
   }
 
   try {
-      await createEvent({
+      await createAuditEvent({
         type:
           EVENT_TYPES.admin_access_revoked,
         target:
