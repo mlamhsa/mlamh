@@ -30,7 +30,7 @@ export default async function AdminMfaPage() {
       .maybeSingle(),
     adminClient
       .from("admin_users")
-      .select("id")
+      .select("id, role")
       .eq("id", user.id)
       .maybeSingle(),
     adminClient
@@ -51,6 +51,9 @@ export default async function AdminMfaPage() {
     !profile ||
     profile.account_type !== "admin" ||
     !adminRegistry ||
+    !isActiveAdminAccessRole(
+      adminRegistry.role,
+    ) ||
     !roleAssignments ||
     !roleAssignments.some((assignment) => {
       const role = Array.isArray(assignment.roles)
