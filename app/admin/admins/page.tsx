@@ -1465,8 +1465,15 @@ export default async function AdminUsersPage({
                       </div>
 
                       <div className="flex flex-wrap gap-2">
-                        {effectiveRoleKeys.length >
-                        0 ? (
+                        {!accessStateKnown ? (
+                          <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/15 bg-amber-400/[0.04] px-2.5 py-1.5 text-[11px] text-amber-100/65">
+                            <AlertTriangle className="h-3 w-3" />
+                            {isArabic
+                              ? "بيانات الدور غير متاحة"
+                              : "Role data unavailable"}
+                          </span>
+                        ) : effectiveRoleKeys.length >
+                          0 ? (
                           effectiveRoleKeys.map(
                             (roleKey) => (
                               <span
@@ -1499,24 +1506,32 @@ export default async function AdminUsersPage({
 
                       <div className="xl:text-end">
                         <p className="text-[10px] uppercase tracking-[0.18em] text-white/25">
-                          {authState?.lastSignInAt
+                          {!authStateKnown
                             ? isArabic
-                              ? "آخر دخول"
-                              : "Last sign-in"
-                            : isArabic
-                              ? "تاريخ الإضافة"
-                              : "Added"}
+                              ? "حالة الدخول"
+                              : "Sign-in state"
+                            : authState?.lastSignInAt
+                              ? isArabic
+                                ? "آخر دخول"
+                                : "Last sign-in"
+                              : isArabic
+                                ? "تاريخ الإضافة"
+                                : "Added"}
                         </p>
                         <p className="mt-1.5 text-xs text-white/55">
-                          {authState?.lastSignInAt
-                            ? formatDateTime(
-                                authState.lastSignInAt,
-                                isArabic,
-                              )
-                            : formatDate(
-                                admin.created_at,
-                                isArabic,
-                              )}
+                          {!authStateKnown
+                            ? isArabic
+                              ? "غير متاحة حاليًا"
+                              : "Temporarily unavailable"
+                            : authState?.lastSignInAt
+                              ? formatDateTime(
+                                  authState.lastSignInAt,
+                                  isArabic,
+                                )
+                              : formatDate(
+                                  admin.created_at,
+                                  isArabic,
+                                )}
                         </p>
                       </div>
 
@@ -1681,9 +1696,9 @@ export default async function AdminUsersPage({
                               : "Permissions"}
                           </p>
                           <p className="mt-1 text-lg font-light tabular-nums text-white/80">
-                            {
-                              permissionCount
-                            }
+                            {rolePermissionsResult.error
+                              ? "—"
+                              : permissionCount}
                           </p>
                         </div>
                         <div>
@@ -1693,9 +1708,9 @@ export default async function AdminUsersPage({
                               : "Assigned"}
                           </p>
                           <p className="mt-1 text-lg font-light tabular-nums text-white/80">
-                            {
-                              assignedCount
-                            }
+                            {userRolesResult.error
+                              ? "—"
+                              : assignedCount}
                           </p>
                         </div>
                       </div>
