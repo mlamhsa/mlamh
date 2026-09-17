@@ -29,6 +29,9 @@ export const EVENT_TYPES = {
   admin_invite_cancelled: "admin_invite_cancelled",
   admin_role_changed: "admin_role_changed",
   admin_access_revoked: "admin_access_revoked",
+  admin_access_action_blocked: "admin_access_action_blocked",
+  admin_access_action_failed: "admin_access_action_failed",
+  admin_access_action_noop: "admin_access_action_noop",
 
   /*
    * Talent review workflow
