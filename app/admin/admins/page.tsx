@@ -526,7 +526,7 @@ export default async function AdminUsersPage({
     (role) => role.is_system,
   ).length;
 
-  const privilegedAdmins =
+  const activeAdminCount =
     admins.filter((admin) => {
       const assignedRoleKeys =
         (roleIdsByUser.get(
@@ -538,20 +538,24 @@ export default async function AdminUsersPage({
                 roleId,
               )?.key,
           )
-          .filter(Boolean);
+          .filter(
+            (
+              roleKey,
+            ): roleKey is string =>
+              Boolean(roleKey),
+          );
 
-      return (
-        assignedRoleKeys.includes(
-          "super_admin",
-        ) ||
-        assignedRoleKeys.includes(
-          "admin",
-        ) ||
-        admin.role ===
-          "super_admin" ||
-        admin.role === "admin"
+      return assignedRoleKeys.some(
+        isAssignableAdminRole,
       );
     }).length;
+
+  const revokedAdminCount =
+    Math.max(
+      0,
+      admins.length -
+        activeAdminCount,
+    );
 
   const roleOptions = roles
     .filter((role) =>
@@ -709,8 +713,8 @@ export default async function AdminUsersPage({
             </p>
             <p className="mt-1 text-[11px] text-white/30">
               {isArabic
-                ? `${privilegedAdmins} بصلاحيات إدارية عليا`
-                : `${privilegedAdmins} privileged accounts`}
+                ? `${activeAdminCount} نشط · ${revokedAdminCount} مسحوب`
+                : `${activeAdminCount} active · ${revokedAdminCount} revoked`}
             </p>
           </div>
 
@@ -830,12 +834,12 @@ export default async function AdminUsersPage({
                       );
 
                   const effectiveRoleKeys =
-                    mappedRoleKeys.length >
-                    0
-                      ? mappedRoleKeys
-                      : admin.role
-                        ? [admin.role]
-                        : [];
+                    mappedRoleKeys;
+
+                  const hasActiveAccess =
+                    effectiveRoleKeys.some(
+                      isAssignableAdminRole,
+                    );
 
                   const initial =
                     admin.email
@@ -862,11 +866,23 @@ export default async function AdminUsersPage({
                           </p>
 
                           <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[10px] text-white/28">
-                            <span className="inline-flex items-center gap-1.5">
-                              <CheckCircle2 className="h-3 w-3 text-emerald-300/70" />
-                              {isArabic
-                                ? "نشط"
-                                : "Active"}
+                            <span className={`inline-flex items-center gap-1.5 ${
+                              hasActiveAccess
+                                ? "text-emerald-300/75"
+                                : "text-red-200/55"
+                            }`}>
+                              {hasActiveAccess ? (
+                                <CheckCircle2 className="h-3 w-3" />
+                              ) : (
+                                <LockKeyhole className="h-3 w-3" />
+                              )}
+                              {hasActiveAccess
+                                ? isArabic
+                                  ? "نشط"
+                                  : "Active"
+                                : isArabic
+                                  ? "الوصول مسحوب"
+                                  : "Access revoked"}
                             </span>
                             <span aria-hidden="true">
                               •
@@ -910,10 +926,10 @@ export default async function AdminUsersPage({
                             ),
                           )
                         ) : (
-                          <span className="text-xs text-white/30">
+                          <span className="inline-flex rounded-full border border-white/[0.08] bg-white/[0.025] px-2.5 py-1.5 text-[11px] text-white/35">
                             {isArabic
-                              ? "لا يوجد دور"
-                              : "No role"}
+                              ? "بدون دور وصول فعّال"
+                              : "No active access role"}
                           </span>
                         )}
                       </div>
