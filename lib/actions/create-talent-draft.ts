@@ -162,20 +162,52 @@ export async function createTalentDraftAction(
       createdTalentId = createdTalent.id;
     }
 
-    const { error: onboardingError } = await adminClient
-      .from("profiles")
-      .update({
-        account_type: "talent",
-        onboarding_status: "profile_in_progress",
-        onboarding_step: "talent_profile",
-        approval_status: "not_submitted",
-        profile_completed_at: null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("user_id", user.id);
+    const now = new Date().toISOString();
+    const profilePayload = {
+      account_type: "talent",
+      onboarding_status: "profile_in_progress",
+      onboarding_step: "talent_profile",
+      approval_status: "not_submitted",
+      profile_completed_at: null,
+      updated_at: now,
+    };
 
-    if (onboardingError) {
-      console.error("[createTalentDraftAction onboarding]", onboardingError);
+    let onboardingError: { message?: string } | null = null;
+    let persistedProfileId: number | string | null = null;
+
+    if (profile) {
+      const { data: persistedProfile, error } = await adminClient
+        .from("profiles")
+        .update(profilePayload)
+        .eq("id", profile.id)
+        .eq("user_id", user.id)
+        .select("id")
+        .maybeSingle();
+      onboardingError = error;
+      persistedProfileId = persistedProfile?.id ?? null;
+    } else {
+      const metadataPhone = String(user.user_metadata?.phone ?? "").trim() || null;
+      const { data: persistedProfile, error } = await adminClient
+        .from("profiles")
+        .insert({
+          user_id: user.id,
+          display_name: displayName,
+          phone: metadataPhone,
+          status: "active",
+          data_accuracy_contact_consent: false,
+          ...profilePayload,
+        })
+        .select("id")
+        .single();
+      onboardingError = error;
+      persistedProfileId = persistedProfile?.id ?? null;
+    }
+
+    if (onboardingError || persistedProfileId === null) {
+      console.error(
+        "[createTalentDraftAction onboarding]",
+        onboardingError?.message || "No profile row persisted",
+      );
 
       if (createdTalentId !== null) {
         const { error: rollbackError } = await adminClient
