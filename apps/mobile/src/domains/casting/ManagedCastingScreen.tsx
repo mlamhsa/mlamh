@@ -77,7 +77,7 @@ export function ManagedCastingScreen() {
       <View style={styles.successIcon}><CheckCircle2 size={28} color={colors.gold} /></View>
       <Text style={[styles.eyebrow, { textAlign: align }]}>{isArabic ? "تم استلام ملخص المشروع" : "BRIEF RECEIVED"}</Text>
       <Text style={[styles.successTitle, { textAlign: align, writingDirection: direction }]}>{isArabic ? "بدأنا من هنا." : "We'll take it from here."}</Text>
-      <Text style={[styles.successText, { textAlign: align, writingDirection: direction }]}>{isArabic ? "وصل طلبك إلى فريق MLAMH Casting. سنراجع الاحتياج قبل أي عرض أو نشر، ونتواصل معك على بيانات التواصل المرسلة." : "Your request is with the MLAMH Casting team. We will review it before any proposal or publication and contact you using the details provided."}</Text>
+      <Text style={[styles.successText, { textAlign: align, writingDirection: direction }]}>{isArabic ? "وصل طلبك إلى فريق كاستينغ ملامح. سنراجع الاحتياج قبل أي عرض أو نشر، ونتواصل معك على بيانات التواصل المرسلة." : "Your request is with the MLAMH Casting team. We will review it before any proposal or publication and contact you using the details provided."}</Text>
       {success.id ? <Text style={styles.requestId}>#{success.id}</Text> : null}
       {success.path ? <Pressable onPress={() => void openTracking()} style={styles.goldButton}><Text style={styles.goldButtonText}>{isArabic ? "متابعة حالة الطلب" : "Track request status"}</Text></Pressable> : null}
     </View></View>;
