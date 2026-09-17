@@ -80,6 +80,12 @@ export function AdminRoleControls({
     revokeOpen,
     setRevokeOpen,
   ] = useState(false);
+  const hasActiveRole =
+    roles.some(
+      (role) =>
+        role.key ===
+        currentRoleKey,
+    );
 
   if (!canManage) {
     return (
@@ -123,10 +129,23 @@ export function AdminRoleControls({
         <select
           name="role_key"
           defaultValue={
-            currentRoleKey
+            hasActiveRole
+              ? currentRoleKey
+              : ""
           }
           className="h-10 min-w-0 flex-1 rounded-xl border border-white/[0.09] bg-black/35 px-3 text-[11px] text-white/70 outline-none transition focus:border-gold/30"
         >
+          {!hasActiveRole ? (
+            <option
+              value=""
+              disabled
+            >
+              {isArabic
+                ? "اختر دورًا لإعادة منح الوصول"
+                : "Choose a role to restore access"}
+            </option>
+          ) : null}
+
           {roles.map(
             (role) => (
               <option
@@ -141,14 +160,19 @@ export function AdminRoleControls({
 
         <SubmitButton
           label={
-            isArabic
-              ? "حفظ"
-              : "Save"
+            hasActiveRole
+              ? isArabic
+                ? "حفظ"
+                : "Save"
+              : isArabic
+                ? "إعادة الوصول"
+                : "Restore"
           }
         />
       </form>
 
-      <button
+      {hasActiveRole ? (
+        <button
         type="button"
         onClick={() =>
           setRevokeOpen(true)
@@ -159,7 +183,14 @@ export function AdminRoleControls({
         {isArabic
           ? "سحب الوصول"
           : "Revoke access"}
-      </button>
+        </button>
+      ) : (
+        <span className="inline-flex items-center rounded-full border border-white/[0.08] bg-white/[0.025] px-3 py-1.5 text-[10px] text-white/35">
+          {isArabic
+            ? "الوصول مسحوب"
+            : "Access revoked"}
+        </span>
+      )}
 
       {revokeOpen ? (
         <div
