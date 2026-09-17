@@ -189,6 +189,58 @@ function revalidateAdminAccessPaths() {
   revalidatePath("/admin/audit-log");
 }
 
+type AdminAuditOutcome =
+  | "blocked"
+  | "failed"
+  | "noop";
+
+async function recordAdminAccessOutcome({
+  actorId,
+  actorEmail,
+  action,
+  outcome,
+  targetId,
+  reason,
+  metadata = {},
+}: {
+  actorId: string;
+  actorEmail?: string | null;
+  action: string;
+  outcome: AdminAuditOutcome;
+  targetId: string;
+  reason: string;
+  metadata?: Record<string, unknown>;
+}) {
+  const eventType =
+    outcome === "blocked"
+      ? EVENT_TYPES.admin_access_action_blocked
+      : outcome === "failed"
+        ? EVENT_TYPES.admin_access_action_failed
+        : EVENT_TYPES.admin_access_action_noop;
+
+  try {
+    await createEvent({
+      type: eventType,
+      target: EVENT_TARGETS.ADMIN,
+      targetId,
+      actorId,
+      metadata: {
+        action,
+        outcome,
+        reason,
+        actor_email:
+          actorEmail ?? null,
+        ...metadata,
+      },
+    });
+  } catch (auditError) {
+    console.error(
+      "[recordAdminAccessOutcome]",
+      auditError,
+    );
+  }
+}
+
 export async function inviteAdminAction(
   formData: FormData,
 ) {
