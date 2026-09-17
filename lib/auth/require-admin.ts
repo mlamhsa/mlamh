@@ -33,7 +33,7 @@ export async function requireAdminAccess() {
       .maybeSingle(),
     adminClient
       .from("admin_users")
-      .select("id")
+      .select("id, role")
       .eq("id", user.id)
       .maybeSingle(),
     adminClient
@@ -60,6 +60,9 @@ export async function requireAdminAccess() {
     !profile ||
     profile.account_type !== "admin" ||
     !adminRegistry ||
+    !isActiveAdminAccessRole(
+      adminRegistry.role,
+    ) ||
     !roleAssignments ||
     !roleAssignments.some((assignment) => {
       const role = Array.isArray(assignment.roles)
