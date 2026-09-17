@@ -739,6 +739,15 @@ export async function resendAdminInviteAction(
       targetAdminError,
     );
 
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "resend_admin_invite",
+      outcome: "failed",
+      targetId: targetUserId,
+      reason: "target_not_available",
+    });
+
     redirect(
       accessCenterUrl(locale, {
         access_error:
@@ -776,6 +785,19 @@ export async function resendAdminInviteAction(
       authUserError,
     );
 
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "resend_admin_invite",
+      outcome: "blocked",
+      targetId: targetUserId,
+      reason: "invite_not_pending",
+      metadata: {
+        target_email:
+          targetAdmin.email,
+      },
+    });
+
     redirect(
       accessCenterUrl(locale, {
         access_error:
@@ -806,6 +828,19 @@ export async function resendAdminInviteAction(
       resendError,
     );
 
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "resend_admin_invite",
+      outcome: "failed",
+      targetId: targetUserId,
+      reason: "activation_email_failed",
+      metadata: {
+        target_email:
+          targetAdmin.email,
+      },
+    });
+
     redirect(
       accessCenterUrl(locale, {
         access_error:
@@ -825,6 +860,8 @@ export async function resendAdminInviteAction(
       metadata: {
         invited_email:
           targetAdmin.email,
+        actor_email:
+          actor.email ?? null,
       },
     });
   } catch (auditError) {
@@ -879,6 +916,15 @@ export async function cancelPendingAdminInviteAction(
       targetAdminError,
     );
 
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "cancel_admin_invite",
+      outcome: "failed",
+      targetId: targetUserId,
+      reason: "target_not_available",
+    });
+
     redirect(
       accessCenterUrl(locale, {
         access_error:
@@ -916,6 +962,19 @@ export async function cancelPendingAdminInviteAction(
       authUserError,
     );
 
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "cancel_admin_invite",
+      outcome: "blocked",
+      targetId: targetUserId,
+      reason: "invite_not_pending",
+      metadata: {
+        target_email:
+          targetAdmin.email,
+      },
+    });
+
     redirect(
       accessCenterUrl(locale, {
         access_error:
@@ -939,6 +998,19 @@ export async function cancelPendingAdminInviteAction(
       deleteAuthError,
     );
 
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "cancel_admin_invite",
+      outcome: "failed",
+      targetId: targetUserId,
+      reason: "auth_delete_failed",
+      metadata: {
+        target_email:
+          targetAdmin.email,
+      },
+    });
+
     redirect(
       accessCenterUrl(locale, {
         access_error:
@@ -961,6 +1033,19 @@ export async function cancelPendingAdminInviteAction(
       "[cancelPendingAdminInviteAction profile cleanup]",
       profileCleanupError,
     );
+
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "cancel_admin_invite",
+      outcome: "failed",
+      targetId: targetUserId,
+      reason: "profile_cleanup_failed_after_auth_delete",
+      metadata: {
+        target_email:
+          targetAdmin.email,
+      },
+    });
   }
 
   try {
@@ -974,6 +1059,8 @@ export async function cancelPendingAdminInviteAction(
       metadata: {
         invited_email:
           targetAdmin.email,
+        actor_email:
+          actor.email ?? null,
       },
     });
   } catch (auditError) {
