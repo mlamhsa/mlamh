@@ -730,9 +730,9 @@ export default async function AdminUsersPage({
       const pendingInvite =
         statusKnown &&
         Boolean(
-          authState.invitedAt,
+          authState?.invitedAt,
         ) &&
-        !authState.lastSignInAt;
+        !authState?.lastSignInAt;
 
       return {
         adminId: admin.id,
@@ -1292,9 +1292,9 @@ export default async function AdminUsersPage({
                     accessStateKnown &&
                     rawHasActiveAccess &&
                     Boolean(
-                      authState.invitedAt,
+                      authState?.invitedAt,
                     ) &&
-                    !authState.lastSignInAt;
+                    !authState?.lastSignInAt;
 
                   const initial =
                     admin.email
