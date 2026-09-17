@@ -415,6 +415,18 @@ import {
                 admin_invite_cancelled
               </option>
 
+              <option value="admin_access_action_blocked">
+                admin_access_action_blocked
+              </option>
+
+              <option value="admin_access_action_failed">
+                admin_access_action_failed
+              </option>
+
+              <option value="admin_access_action_noop">
+                admin_access_action_noop
+              </option>
+
               <option value="admin_role_changed">
                 admin_role_changed
               </option>
