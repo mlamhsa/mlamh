@@ -6,21 +6,15 @@ import {
   type MarketingAIResponse,
 } from "@/lib/marketing/ai/provider";
 
-type Annotation = { url?: string; title?: string };
-type ResponsesPayload = {
-  model?: string;
-  output_text?: string;
-  output?: Array<{ content?: Array<{ type?: string; text?: string; annotations?: Annotation[] }> }>;
-  usage?: { input_tokens?: number; output_tokens?: number; total_tokens?: number };
-  error?: { message?: string };
-};
-
 const INVESTOR_WORKFLOW = "investor_discovery_v1";
+const FREE_INVESTOR_MODEL = "poolside/laguna-s-2.1-free";
+const GATEWAY_V4_URL = "https://ai-gateway.vercel.sh/v4/ai/language-model";
 let installed = false;
 
 function nullableString() {
   return { type: ["string", "null"] } as const;
 }
+
 function nullableNumber() {
   return { type: ["number", "null"] } as const;
 }
@@ -101,52 +95,127 @@ const enrichmentSchema = {
   required: ["enrichments"],
 } as const;
 
-function config() {
-  const gatewayKey = process.env.AI_GATEWAY_API_KEY?.trim() || process.env.VERCEL_OIDC_TOKEN?.trim() || "";
-  const openAIKey = process.env.OPENAI_API_KEY?.trim() || "";
-  const requested = process.env.MARKETING_AI_MODEL?.trim() || "gpt-5.6-luna";
-  if (gatewayKey) {
-    return {
-      key: gatewayKey,
-      baseUrl: "https://ai-gateway.vercel.sh/v1",
-      model: requested.includes("/") ? requested : `openai/${requested}`,
-    };
-  }
-  if (openAIKey) {
-    return {
-      key: openAIKey,
-      baseUrl: (process.env.OPENAI_BASE_URL?.trim() || "https://api.openai.com/v1").replace(/\/$/, ""),
-      model: requested.startsWith("openai/") ? requested.slice("openai/".length) : requested,
-    };
-  }
-  throw new Error("Investor structured research provider is not configured.");
+type GatewayContent = {
+  type?: string;
+  text?: string;
+  result?: unknown;
+  isError?: boolean;
+};
+
+type GatewayPayload = {
+  content?: GatewayContent[] | GatewayContent;
+  model?: string;
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    input_tokens?: number;
+    output_tokens?: number;
+    total_tokens?: number;
+  };
+  error?: { message?: string } | string;
+};
+
+type WebSource = { url: string; title?: string };
+
+function gatewayToken() {
+  const token = process.env.AI_GATEWAY_API_KEY?.trim() || process.env.VERCEL_OIDC_TOKEN?.trim() || "";
+  if (!token) throw new Error("[InvestorStructuredAI] Vercel AI Gateway is not configured.");
+  return token;
 }
 
-function sources(payload: ResponsesPayload) {
-  const found = new Map<string, { url: string; title?: string }>();
-  for (const item of payload.output ?? []) {
-    for (const part of item.content ?? []) {
-      for (const annotation of part.annotations ?? []) {
-        const url = typeof annotation.url === "string" ? annotation.url.trim() : "";
-        if (!/^https?:\/\//i.test(url)) continue;
-        if (!found.has(url)) found.set(url, { url, ...(annotation.title?.trim() ? { title: annotation.title.trim() } : {}) });
-      }
+function cleanJsonText(value: string) {
+  let text = value.trim();
+  const fenced = text.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+  if (fenced?.[1]) text = fenced[1].trim();
+  try {
+    JSON.parse(text);
+    return text;
+  } catch {
+    const firstObject = text.indexOf("{");
+    const lastObject = text.lastIndexOf("}");
+    if (firstObject >= 0 && lastObject > firstObject) {
+      const candidate = text.slice(firstObject, lastObject + 1);
+      JSON.parse(candidate);
+      return candidate;
     }
+    throw new Error("Investor research returned invalid JSON.");
+  }
+}
+
+function normalizeContent(payload: GatewayPayload) {
+  if (Array.isArray(payload.content)) return payload.content;
+  return payload.content ? [payload.content] : [];
+}
+
+function collectUrls(value: unknown, found: Map<string, WebSource>) {
+  if (!value || typeof value !== "object") return;
+  if (Array.isArray(value)) {
+    for (const item of value) collectUrls(item, found);
+    return;
+  }
+  const record = value as Record<string, unknown>;
+  const url = typeof record.url === "string" ? record.url.trim() : "";
+  if (/^https?:\/\//i.test(url) && !found.has(url)) {
+    const title = typeof record.title === "string" ? record.title.trim() : "";
+    found.set(url, { url, ...(title ? { title } : {}) });
+  }
+  const webpageUrl = typeof record.webpage_url === "string" ? record.webpage_url.trim() : "";
+  if (/^https?:\/\//i.test(webpageUrl) && !found.has(webpageUrl)) {
+    const title = typeof record.title === "string" ? record.title.trim() : "";
+    found.set(webpageUrl, { url: webpageUrl, ...(title ? { title } : {}) });
+  }
+  for (const nested of Object.values(record)) collectUrls(nested, found);
+}
+
+function extractWebSources(content: GatewayContent[]) {
+  const found = new Map<string, WebSource>();
+  for (const item of content) {
+    if (item.type !== "tool-result" || item.isError) continue;
+    collectUrls(item.result, found);
   }
   return [...found.values()].slice(0, 40);
 }
 
-function outputText(payload: ResponsesPayload) {
-  return payload.output_text?.trim() || payload.output
-    ?.flatMap((item) => item.content ?? [])
-    .filter((part) => part.type === "output_text" && typeof part.text === "string")
-    .map((part) => part.text?.trim() ?? "")
+function extractText(content: GatewayContent[]) {
+  return content
+    .filter((item) => item.type === "text" && typeof item.text === "string")
+    .map((item) => item.text?.trim() ?? "")
     .filter(Boolean)
-    .join("\n") || "";
+    .join("\n")
+    .trim();
+}
+
+function buildPrompt(request: MarketingAIRequest) {
+  const system = [
+    "You are the MLAMH Investor Relations research engine.",
+    "You MUST use the tako_search tool before returning investor data.",
+    "Research only current public professional/business evidence.",
+    "Never invent firms, people, emails, URLs, roles, investment claims or cheque sizes.",
+    "Geography is restricted to Saudi Arabia first, UAE second, then Qatar, Kuwait, Bahrain and Oman only.",
+    "For organizations, verify the official website and identify a public business email, official contact/apply/pitch route, or a verified decision-maker LinkedIn /in/ profile when possible.",
+    "For individual investors, require a public professional LinkedIn /in/ profile plus evidence of actual startup investing.",
+    "Public business emails must be explicitly published. Never infer an email pattern.",
+    "Return fewer verified results rather than speculative results.",
+    "Every URL placed in the output must be supported by the search results returned by the tool.",
+  ].join(" ");
+
+  const prompt: Array<Record<string, unknown>> = [{ role: "system", content: system }];
+  for (const message of request.messages) {
+    if (message.role === "system") {
+      prompt.push({ role: "system", content: message.content });
+    } else {
+      prompt.push({
+        role: message.role,
+        content: [{ type: "text", text: message.content }],
+      });
+    }
+  }
+  return prompt;
 }
 
 class InvestorStructuredProvider implements MarketingAIProvider {
   readonly id: string;
+
   constructor(private readonly base: MarketingAIProvider) {
     this.id = base.id;
   }
@@ -155,79 +224,94 @@ class InvestorStructuredProvider implements MarketingAIProvider {
     const investorResearch = request.taskType === "lead_enrichment" && request.metadata?.workflow === INVESTOR_WORKFLOW && request.responseFormat === "json";
     if (!investorResearch) return this.base.generate(request);
 
-    const settings = config();
     const phase = request.metadata?.phase === "contact_enrichment_v1" ? "contact_enrichment" : "discovery";
     const schema = phase === "contact_enrichment" ? enrichmentSchema : discoverySchema;
-    const input = [
-      {
-        type: "message",
-        role: "developer",
-        content: "Use web search for current public investor evidence. Never invent firms, people, emails, URLs, roles or investment claims. Return only schema-compliant data. Use only Saudi Arabia, UAE, Qatar, Kuwait, Bahrain and Oman, prioritizing Saudi Arabia then UAE. Public business emails must be explicitly published. Personal professional profiles must be public LinkedIn /in/ pages. Prefer fewer verified results over speculation.",
-      },
-      ...request.messages.map((message) => ({
-        type: "message",
-        role: message.role === "system" ? "developer" : message.role,
-        content: message.content,
-      })),
-    ];
-
-    const response = await fetch(`${settings.baseUrl}/responses`, {
+    const response = await fetch(GATEWAY_V4_URL, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${settings.key}`,
+        Authorization: `Bearer ${gatewayToken()}`,
         "Content-Type": "application/json",
+        "ai-language-model-specification-version": "4",
+        "ai-language-model-id": FREE_INVESTOR_MODEL,
+        "ai-language-model-streaming": "false",
         "http-referer": "https://mlamh.net",
         "x-title": "MLAMH Investor Relations AI",
       },
       body: JSON.stringify({
-        model: settings.model,
-        store: false,
-        input,
-        tools: [{ type: "web_search" }],
-        text: {
-          format: {
-            type: "json_schema",
-            name: phase === "contact_enrichment" ? "investor_contact_enrichment" : "investor_discovery",
-            strict: true,
-            schema,
-          },
+        prompt: buildPrompt(request),
+        maxOutputTokens: 7000,
+        responseFormat: {
+          type: "json",
+          schema,
+          name: phase === "contact_enrichment" ? "investor_contact_enrichment" : "investor_discovery",
+          description: "Verified GCC investor research grounded only in Tako Search public web results.",
         },
+        tools: [
+          {
+            type: "provider",
+            id: "gateway.tako_search",
+            name: "tako_search",
+            args: {
+              effort: "fast",
+              sources: {
+                web: {
+                  count: 12,
+                  include_contents: false,
+                  highlights: true,
+                  snippet_max_chars: 1400,
+                },
+              },
+              locale: "en-SA",
+              timezone: "Asia/Riyadh",
+            },
+          },
+        ],
+        toolChoice: "auto",
       }),
       cache: "no-store",
     });
 
-    let payload: ResponsesPayload;
+    let payload: GatewayPayload;
     try {
-      payload = await response.json() as ResponsesPayload;
+      payload = await response.json() as GatewayPayload;
     } catch {
-      throw new Error(`[InvestorStructuredAI] Invalid provider response (HTTP ${response.status}).`);
+      throw new Error(`[InvestorStructuredAI] Invalid Gateway response (HTTP ${response.status}).`);
     }
-    if (!response.ok) throw new Error(`[InvestorStructuredAI] ${payload.error?.message || `HTTP ${response.status}`}`);
 
-    const text = outputText(payload);
-    if (!text) throw new Error("[InvestorStructuredAI] The model returned no structured output.");
-    let parsed: Record<string, unknown>;
-    try {
-      parsed = JSON.parse(text) as Record<string, unknown>;
-    } catch {
-      throw new Error("Investor research returned invalid JSON.");
+    if (!response.ok) {
+      const message = typeof payload.error === "string" ? payload.error : payload.error?.message;
+      throw new Error(`[InvestorStructuredAI] ${message || `HTTP ${response.status}`}`);
     }
-    const webSources = sources(payload);
-    const content = JSON.stringify({ ...parsed, web_sources: webSources });
+
+    const contentParts = normalizeContent(payload);
+    const webSources = extractWebSources(contentParts);
+    if (!webSources.length) {
+      throw new Error("[InvestorStructuredAI] Research returned no verified Tako web sources.");
+    }
+
+    const rawText = extractText(contentParts);
+    if (!rawText) throw new Error("[InvestorStructuredAI] The free research model returned no output.");
+    const text = cleanJsonText(rawText);
+    const parsed = JSON.parse(text) as Record<string, unknown>;
+    const finalContent = JSON.stringify({ ...parsed, web_sources: webSources });
+
     const usage: Record<string, number> = {};
-    if (typeof payload.usage?.input_tokens === "number") usage.input_tokens = payload.usage.input_tokens;
-    if (typeof payload.usage?.output_tokens === "number") usage.output_tokens = payload.usage.output_tokens;
+    const inputTokens = payload.usage?.input_tokens ?? payload.usage?.prompt_tokens;
+    const outputTokens = payload.usage?.output_tokens ?? payload.usage?.completion_tokens;
+    if (typeof inputTokens === "number") usage.input_tokens = inputTokens;
+    if (typeof outputTokens === "number") usage.output_tokens = outputTokens;
     if (typeof payload.usage?.total_tokens === "number") usage.total_tokens = payload.usage.total_tokens;
 
     return {
-      content,
-      model: payload.model || settings.model,
+      content: finalContent,
+      model: payload.model || FREE_INVESTOR_MODEL,
       provider: this.id,
       usage,
       metadata: {
         ...(request.metadata ?? {}),
         structured_output: true,
         web_search_used: true,
+        research_stack: "gateway_v4_laguna_free_tako_v1",
         web_source_count: webSources.length,
         web_sources: webSources,
       },
