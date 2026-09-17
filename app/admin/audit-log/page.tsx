@@ -403,6 +403,14 @@ import {
                   : "All event types"}
               </option>
   
+              <option value="admin_role_changed">
+                admin_role_changed
+              </option>
+
+              <option value="admin_access_revoked">
+                admin_access_revoked
+              </option>
+
               <option value="talent_approved">
                 talent_approved
               </option>
