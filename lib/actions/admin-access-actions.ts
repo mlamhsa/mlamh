@@ -8,6 +8,7 @@ import { redirect } from "next/navigation";
 import { createEvent } from "@/lib/events/create-event";
 import { EVENT_TARGETS } from "@/lib/events/event-targets";
 import { EVENT_TYPES } from "@/lib/events/event-types";
+import { isAssignableAdminRole } from "@/lib/rbac/admin-access-policy";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 import { requirePermission } from "@/lib/rbac/guards";
 import { ROLES, type RoleKey } from "@/lib/rbac/roles";
@@ -22,11 +23,6 @@ type RoleAssignmentRow = {
     | { key?: string | null }[]
     | null;
 };
-
-const MANAGEABLE_ROLE_KEYS = new Set<RoleKey>([
-  ROLES.SUPER_ADMIN,
-  ROLES.ADMIN,
-]);
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -83,9 +79,9 @@ function getRoleKey(
 ): RoleKey {
   const value = String(
     formData.get("role_key") ?? "",
-  ) as RoleKey;
+  );
 
-  if (!MANAGEABLE_ROLE_KEYS.has(value)) {
+  if (!isAssignableAdminRole(value)) {
     throw new Error(
       "Invalid admin role.",
     );
