@@ -128,6 +128,7 @@ export function AdminRoleControls({
 
         <select
           name="role_key"
+          required
           defaultValue={
             hasActiveRole
               ? currentRoleKey
