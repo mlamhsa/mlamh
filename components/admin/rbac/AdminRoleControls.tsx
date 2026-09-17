@@ -10,6 +10,7 @@ import { useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import {
+  resendAdminInviteAction,
   revokeAdminAccessAction,
   updateAdminRoleAction,
 } from "@/lib/actions/admin-access-actions";
@@ -32,6 +33,26 @@ function SubmitButton({
       type="submit"
       disabled={pending}
       className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-gold/25 bg-gold/[0.08] px-3 text-[11px] font-medium text-gold transition hover:bg-gold hover:text-black disabled:cursor-not-allowed disabled:opacity-45"
+    >
+      <Save className="h-3.5 w-3.5" />
+      {pending ? "…" : label}
+    </button>
+  );
+}
+
+function ResendInviteButton({
+  label,
+}: {
+  label: string;
+}) {
+  const { pending } =
+    useFormStatus();
+
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-amber-400/20 bg-amber-400/[0.06] px-3 text-[11px] font-medium text-amber-100/80 transition hover:border-amber-400/35 hover:bg-amber-400/[0.11] hover:text-amber-50 disabled:cursor-not-allowed disabled:opacity-45"
     >
       <Save className="h-3.5 w-3.5" />
       {pending ? "…" : label}
@@ -66,6 +87,7 @@ export function AdminRoleControls({
   locale,
   isSelf,
   canManage,
+  pendingInvite,
 }: {
   adminId: string;
   currentRoleKey: string;
@@ -73,6 +95,7 @@ export function AdminRoleControls({
   locale: "ar" | "en";
   isSelf: boolean;
   canManage: boolean;
+  pendingInvite: boolean;
 }) {
   const isArabic =
     locale === "ar";
@@ -109,6 +132,33 @@ export function AdminRoleControls({
 
   return (
     <div className="flex flex-col gap-2.5 xl:items-end">
+      {pendingInvite ? (
+        <form
+          action={
+            resendAdminInviteAction
+          }
+          className="flex w-full max-w-[360px] items-center justify-end gap-2"
+        >
+          <input
+            type="hidden"
+            name="admin_id"
+            value={adminId}
+          />
+          <input
+            type="hidden"
+            name="locale"
+            value={locale}
+          />
+
+          <ResendInviteButton
+            label={
+              isArabic
+                ? "إعادة إرسال التفعيل"
+                : "Resend activation"
+            }
+          />
+        </form>
+      ) : (
       <form
         action={
           updateAdminRoleAction
@@ -171,6 +221,7 @@ export function AdminRoleControls({
           }
         />
       </form>
+      )}
 
       {hasActiveRole ? (
         <button
