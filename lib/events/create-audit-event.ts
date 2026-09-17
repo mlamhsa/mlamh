@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sanitizeAuditMetadata } from "./audit-sanitizer";
 import type { EventTarget } from "./event-targets";
 import type { EventType } from "./event-types";
 
@@ -29,7 +30,10 @@ export async function createAuditEvent({
         actor_id: actorId
           ? String(actorId)
           : null,
-        metadata,
+        metadata:
+          sanitizeAuditMetadata(
+            metadata,
+          ),
       })
       .select("id")
       .single();
