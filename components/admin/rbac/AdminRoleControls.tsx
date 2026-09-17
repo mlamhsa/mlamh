@@ -10,6 +10,7 @@ import { useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import {
+  cancelPendingAdminInviteAction,
   resendAdminInviteAction,
   revokeAdminAccessAction,
   updateAdminRoleAction,
@@ -103,6 +104,10 @@ export function AdminRoleControls({
     revokeOpen,
     setRevokeOpen,
   ] = useState(false);
+  const [
+    cancelInviteOpen,
+    setCancelInviteOpen,
+  ] = useState(false);
   const hasActiveRole =
     roles.some(
       (role) =>
@@ -133,31 +138,45 @@ export function AdminRoleControls({
   return (
     <div className="flex flex-col gap-2.5 xl:items-end">
       {pendingInvite ? (
-        <form
-          action={
-            resendAdminInviteAction
-          }
-          className="flex w-full max-w-[360px] items-center justify-end gap-2"
-        >
-          <input
-            type="hidden"
-            name="admin_id"
-            value={adminId}
-          />
-          <input
-            type="hidden"
-            name="locale"
-            value={locale}
-          />
-
-          <ResendInviteButton
-            label={
-              isArabic
-                ? "إعادة إرسال التفعيل"
-                : "Resend activation"
+        <div className="flex w-full max-w-[360px] flex-wrap items-center justify-end gap-2">
+          <form
+            action={
+              resendAdminInviteAction
             }
-          />
-        </form>
+          >
+            <input
+              type="hidden"
+              name="admin_id"
+              value={adminId}
+            />
+            <input
+              type="hidden"
+              name="locale"
+              value={locale}
+            />
+
+            <ResendInviteButton
+              label={
+                isArabic
+                  ? "إعادة إرسال التفعيل"
+                  : "Resend activation"
+              }
+            />
+          </form>
+
+          <button
+            type="button"
+            onClick={() =>
+              setCancelInviteOpen(true)
+            }
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-red-400/15 bg-red-400/[0.035] px-3 text-[11px] font-medium text-red-200/65 transition hover:border-red-400/30 hover:bg-red-400/[0.075] hover:text-red-100"
+          >
+            <X className="h-3.5 w-3.5" />
+            {isArabic
+              ? "إلغاء الدعوة"
+              : "Cancel invite"}
+          </button>
+        </div>
       ) : (
       <form
         action={
@@ -243,6 +262,111 @@ export function AdminRoleControls({
             : "Access revoked"}
         </span>
       )}
+
+      {cancelInviteOpen ? (
+        <div
+          className="fixed inset-0 z-[110] flex items-center justify-center bg-black/75 px-4 backdrop-blur-sm"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (
+              event.target ===
+              event.currentTarget
+            ) {
+              setCancelInviteOpen(
+                false,
+              );
+            }
+          }}
+        >
+          <section
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby={`cancel-invite-${adminId}`}
+            dir={
+              isArabic
+                ? "rtl"
+                : "ltr"
+            }
+            className="relative w-full max-w-md overflow-hidden rounded-[1.75rem] border border-red-400/15 bg-[#0b0b0b] p-5 text-white shadow-[0_30px_100px_rgba(0,0,0,0.55)] sm:p-6"
+          >
+            <button
+              type="button"
+              aria-label={
+                isArabic
+                  ? "إغلاق"
+                  : "Close"
+              }
+              onClick={() =>
+                setCancelInviteOpen(
+                  false,
+                )
+              }
+              className="absolute end-4 top-4 flex h-9 w-9 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.025] text-white/45 transition hover:text-white"
+            >
+              <X className="h-4 w-4" />
+            </button>
+
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-red-400/20 bg-red-400/[0.07] text-red-200">
+              <AlertTriangle className="h-5 w-5" />
+            </div>
+
+            <h3
+              id={`cancel-invite-${adminId}`}
+              className="mt-4 pe-10 text-xl font-light"
+            >
+              {isArabic
+                ? "إلغاء دعوة المشرف؟"
+                : "Cancel admin invitation?"}
+            </h3>
+
+            <p className="mt-2 text-xs leading-6 text-white/42">
+              {isArabic
+                ? "سيتم حذف حساب الدعوة غير المفعّل ولن يتمكن صاحب البريد من استخدام رابط التفعيل السابق. يمكن إرسال دعوة جديدة لاحقًا."
+                : "The unactivated invited account will be removed and its previous activation link will no longer be usable. A new invitation can be sent later."}
+            </p>
+
+            <form
+              action={
+                cancelPendingAdminInviteAction
+              }
+              className="mt-6 flex gap-2"
+            >
+              <input
+                type="hidden"
+                name="admin_id"
+                value={adminId}
+              />
+              <input
+                type="hidden"
+                name="locale"
+                value={locale}
+              />
+
+              <RevokeButton
+                label={
+                  isArabic
+                    ? "تأكيد إلغاء الدعوة"
+                    : "Confirm cancellation"
+                }
+              />
+
+              <button
+                type="button"
+                onClick={() =>
+                  setCancelInviteOpen(
+                    false,
+                  )
+                }
+                className="h-10 rounded-xl border border-white/[0.09] px-3 text-[11px] text-white/50 transition hover:border-white/[0.16] hover:text-white"
+              >
+                {isArabic
+                  ? "رجوع"
+                  : "Back"}
+              </button>
+            </form>
+          </section>
+        </div>
+      ) : null}
 
       {revokeOpen ? (
         <div
