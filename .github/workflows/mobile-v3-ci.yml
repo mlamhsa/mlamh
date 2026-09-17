@@ -9,6 +9,7 @@ on:
   push:
     branches:
       - main
+      - feat/mobile-native-v3-foundation
     paths:
       - "apps/mobile/**"
       - ".github/workflows/mobile-v3-ci.yml"
