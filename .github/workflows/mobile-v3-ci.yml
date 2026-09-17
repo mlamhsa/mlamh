@@ -1,6 +1,7 @@
 name: Mobile V3 CI
 
 on:
+  workflow_dispatch:
   pull_request:
     paths:
       - "apps/mobile/**"
