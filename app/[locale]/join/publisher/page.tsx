@@ -5,6 +5,7 @@ import {
   isValidLocale,
   type Locale,
 } from "@/lib/i18n";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { notFound, redirect } from "next/navigation";
 
@@ -45,10 +46,14 @@ export default async function JoinPublisherPage({
     redirect(`/${locale}/join?type=publisher`);
   }
 
+  // auth.getUser() above is the trusted identity check. Database lookups use
+  // the server-only admin client, explicitly scoped to that verified user, so
+  // PostgREST does not re-validate the session JWT and fail on transient clock skew.
+  const adminClient = createAdminClient();
   const {
     data: profile,
     error: profileError,
-  } = await authClient
+  } = await adminClient
     .from("profiles")
     .select(
       "id, account_type, display_name, phone, onboarding_status, onboarding_step"
@@ -61,7 +66,7 @@ export default async function JoinPublisherPage({
     const {
       data: publisherRecord,
       error: publisherRecordError,
-    } = await authClient
+    } = await adminClient
       .from("publishers")
       .select("id")
       .eq("profile_id", profile.id)

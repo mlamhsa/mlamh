@@ -2,6 +2,7 @@ import { Footer } from "@/components/Footer";
 import { Navbar } from "@/components/Navbar";
 import { TalentQuickSetupForm } from "@/components/TalentQuickSetupForm";
 import { isValidLocale, type Locale } from "@/lib/i18n";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { notFound, redirect } from "next/navigation";
 
@@ -41,13 +42,17 @@ export default async function JoinTalentPage({ params, searchParams }: PageProps
 
   if (userError || !user) redirect(`/${locale}/join`);
 
+  // auth.getUser() above is the trusted identity check. Database lookups use
+  // the server-only admin client, explicitly scoped to that verified user, so
+  // PostgREST does not re-validate the session JWT and fail on transient clock skew.
+  const adminClient = createAdminClient();
   const [profileResult, talentResult] = await Promise.all([
-    authClient
+    adminClient
       .from("profiles")
       .select("account_type, onboarding_status, onboarding_step")
       .eq("user_id", user.id)
       .maybeSingle<ProfileRow>(),
-    authClient
+    adminClient
       .from("talents")
       .select("id")
       .eq("user_id", user.id)
