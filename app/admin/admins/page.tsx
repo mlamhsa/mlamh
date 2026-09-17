@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import {
   AlertTriangle,
   CheckCircle2,
@@ -375,6 +377,11 @@ export default async function AdminUsersPage({
       ? status
       : "all";
   const adminClient = createAdminClient();
+  const auditWindowStart =
+    new Date(
+      Date.now() -
+        24 * 60 * 60 * 1000,
+    ).toISOString();
 
   const canManage =
     await userHasPermission(
@@ -389,6 +396,7 @@ export default async function AdminUsersPage({
     rolePermissionsResult,
     userRolesResult,
     accessEventsResult,
+    accessHealthEventsResult,
   ] = await Promise.all([
     adminClient
       .from("admin_users")
@@ -441,6 +449,18 @@ export default async function AdminUsersPage({
         ascending: false,
       })
       .limit(8),
+    adminClient
+      .from("events")
+      .select("event_type")
+      .eq("target_type", "admin")
+      .in("event_type", [
+        "admin_access_action_blocked",
+        "admin_access_action_failed",
+      ])
+      .gte(
+        "created_at",
+        auditWindowStart,
+      ),
   ]);
 
   if (adminsResult.error) {
@@ -480,6 +500,10 @@ export default async function AdminUsersPage({
   logOptionalError(
     "accessEvents",
     accessEventsResult.error,
+  );
+  logOptionalError(
+    "accessHealthEvents",
+    accessHealthEventsResult.error,
   );
 
   const accessStateDataHealthy =
@@ -608,6 +632,33 @@ export default async function AdminUsersPage({
       ? []
       : ((accessEventsResult.data ??
           []) as AccessEventRow[]);
+
+  const accessHealthEvents =
+    accessHealthEventsResult.error
+      ? []
+      : ((accessHealthEventsResult.data ??
+          []) as {
+          event_type: string;
+        }[]);
+
+  const failedAccessActions24h =
+    accessHealthEvents.filter(
+      (event) =>
+        event.event_type ===
+        "admin_access_action_failed",
+    ).length;
+
+  const blockedAccessActions24h =
+    accessHealthEvents.filter(
+      (event) =>
+        event.event_type ===
+        "admin_access_action_blocked",
+    ).length;
+
+  const accessHealthSummaryUnavailable =
+    Boolean(
+      accessHealthEventsResult.error,
+    );
 
   const roleById = new Map(
     roles.map((role) => [
@@ -1040,6 +1091,38 @@ export default async function AdminUsersPage({
         {accessErrorMessage ? (
           <div className="mb-5 rounded-2xl border border-red-400/20 bg-red-400/[0.06] px-4 py-3 text-sm leading-6 text-red-200">
             {accessErrorMessage}
+          </div>
+        ) : null}
+
+        {accessHealthSummaryUnavailable ? (
+          <div className="mb-5 flex items-start gap-3 rounded-2xl border border-amber-400/20 bg-amber-400/[0.06] px-4 py-3 text-sm text-amber-100/75">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <p>
+              {isArabic
+                ? "تعذر تحميل ملخص محاولات الوصول الإدارية خلال آخر 24 ساعة. راجع سجل العمليات عند الحاجة."
+                : "The 24-hour admin-access activity summary is temporarily unavailable. Review the audit log if needed."}
+            </p>
+          </div>
+        ) : failedAccessActions24h > 0 ||
+          blockedAccessActions24h > 0 ? (
+          <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-amber-400/20 bg-amber-400/[0.06] px-4 py-3 text-sm text-amber-100/80 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <p>
+                {isArabic
+                  ? `آخر 24 ساعة: ${failedAccessActions24h} إجراء فشل و${blockedAccessActions24h} إجراء تم منعه بواسطة ضوابط الحماية.`
+                  : `Last 24 hours: ${failedAccessActions24h} failed actions and ${blockedAccessActions24h} actions blocked by safeguards.`}
+              </p>
+            </div>
+
+            <Link
+              href={`/admin/audit-log?lang=${locale}&target=admin`}
+              className="shrink-0 text-xs font-medium text-gold transition hover:text-white"
+            >
+              {isArabic
+                ? "عرض السجل الكامل"
+                : "View full audit log"}
+            </Link>
           </div>
         ) : null}
 
