@@ -149,7 +149,8 @@ export default async function AdminInvestorRelationsAIPage({ searchParams }: Pag
         isArabic={isArabic}
         leads={dashboard.leads}
         outreach={dashboard.outreach}
-        masterBrief={dashboard.settings.masterBrief}
+        masterBriefAr={dashboard.settings.masterBriefAr}
+        masterBriefEn={dashboard.settings.masterBriefEn}
         gmail={{
           status: dashboard.gmail.status,
           emailAddress: dashboard.gmail.emailAddress,
