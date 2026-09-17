@@ -28,6 +28,7 @@ type PageProps = {
     access_saved?: string;
     access_revoked?: string;
     access_invited?: string;
+    access_resent?: string;
     access_error?: string;
   }>;
 };
@@ -254,6 +255,15 @@ function getAccessEventLabel(
 
   if (
     eventType ===
+    "admin_invite_resent"
+  ) {
+    return isArabic
+      ? "إعادة إرسال التفعيل"
+      : "Activation resent";
+  }
+
+  if (
+    eventType ===
     "admin_role_changed"
   ) {
     return isArabic
@@ -304,6 +314,7 @@ export default async function AdminUsersPage({
     access_saved,
     access_revoked,
     access_invited,
+    access_resent,
     access_error,
   } = await searchParams;
 
@@ -365,6 +376,7 @@ export default async function AdminUsersPage({
       .eq("target_type", "admin")
       .in("event_type", [
         "admin_invited",
+        "admin_invite_resent",
         "admin_role_changed",
         "admin_access_revoked",
       ])
@@ -707,13 +719,23 @@ export default async function AdminUsersPage({
             ? "تعذر إرسال رابط تفعيل حساب الإدارة. تم التراجع عن إنشاء الحساب."
             : "The admin activation email could not be sent. Account creation was rolled back."
           : access_error ===
-              "invite_lookup_failed" ||
-            access_error ===
-              "invite_create_failed"
+              "invite_resend_failed"
             ? isArabic
-              ? "تعذر إنشاء دعوة المشرف بأمان. لم يتم اعتماد الحساب."
-              : "The admin invitation could not be created safely. No account was approved."
+              ? "تعذر إعادة إرسال رابط تفعيل حساب الإدارة. حاول مرة أخرى."
+              : "The admin activation link could not be resent. Please try again."
             : access_error ===
+                "invite_not_pending"
+              ? isArabic
+                ? "هذه الدعوة لم تعد معلقة، لذلك لا يمكن إعادة إرسال رابط التفعيل."
+                : "This invitation is no longer pending, so its activation link cannot be resent."
+              : access_error ===
+                  "invite_lookup_failed" ||
+                access_error ===
+                  "invite_create_failed"
+                ? isArabic
+                  ? "تعذر إنشاء دعوة المشرف بأمان. لم يتم اعتماد الحساب."
+                  : "The admin invitation could not be created safely. No account was approved."
+                : access_error ===
     "self_role_change"
       ? isArabic
         ? "لا يمكن تغيير دور حسابك الحالي من هذه الصفحة لتجنب فقدان الوصول بالخطأ."
@@ -827,6 +849,17 @@ export default async function AdminUsersPage({
               {isArabic
                 ? "تم إنشاء حساب الإدارة وإرسال رابط آمن لتعيين كلمة المرور. لن يتمكن المشرف من الدخول قبل إكمال كلمة المرور والمصادقة الثنائية."
                 : "The admin account was created and a secure password-setup link was sent. Access remains blocked until password setup and MFA are completed."}
+            </p>
+          </div>
+        ) : null}
+
+        {access_resent === "1" ? (
+          <div className="mb-5 flex items-start gap-3 rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.07] px-4 py-3 text-sm text-emerald-200">
+            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+            <p>
+              {isArabic
+                ? "تمت إعادة إرسال رابط تفعيل حساب الإدارة بنجاح."
+                : "The admin activation link was resent successfully."}
             </p>
           </div>
         ) : null}
@@ -1133,6 +1166,9 @@ export default async function AdminUsersPage({
                         }
                         canManage={
                           effectiveCanManage
+                        }
+                        pendingInvite={
+                          pendingInvite
                         }
                       />
                     </div>
