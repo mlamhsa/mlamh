@@ -20,6 +20,10 @@ function authorized(request: Request) {
   return request.headers.get("authorization") === `Bearer ${secret}`;
 }
 
+function configureInvestorResearchModel() {
+  process.env.MARKETING_AI_MODEL = process.env.INVESTOR_AI_MODEL?.trim() || "gpt-5.6-luna";
+}
+
 async function discoveryIsDue() {
   const db = createAdminClient();
   const { data, error } = await db.from("investor_activity")
@@ -35,6 +39,7 @@ async function discoveryIsDue() {
 export async function GET(request: Request) {
   if (!authorized(request)) return NextResponse.json({ ok: false }, { status: 401 });
   try {
+    configureInvestorResearchModel();
     ensureInvestorStructuredProvider();
     const gmail = await getInvestorGmailConnectionState();
     if (gmail.status === "connected") assertApprovedInvestorGmail(gmail.emailAddress);
