@@ -8,15 +8,23 @@ import {
   Users,
 } from "lucide-react";
 
+import { AdminRoleControls } from "@/components/admin/rbac/AdminRoleControls";
 import {
   AdminPageContainer,
   AdminPageHeader,
 } from "@/components/admin/ui";
-import { requireAdminAccess } from "@/lib/auth/require-admin";
+import { requirePermission } from "@/lib/rbac/guards";
+import { userHasPermission } from "@/lib/rbac/helpers";
+import { PERMISSIONS } from "@/lib/rbac/permissions";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 type PageProps = {
-  searchParams: Promise<{ lang?: string }>;
+  searchParams: Promise<{
+    lang?: string;
+    access_saved?: string;
+    access_revoked?: string;
+    access_error?: string;
+  }>;
 };
 
 type AdminUserRow = {
@@ -196,11 +204,28 @@ function getRoleTone(roleKey: string) {
 export default async function AdminUsersPage({
   searchParams,
 }: PageProps) {
-  await requireAdminAccess();
+  const currentAdmin =
+    await requirePermission(
+      PERMISSIONS.ADMINS_VIEW,
+    );
 
-  const { lang } = await searchParams;
+  const {
+    lang,
+    access_saved,
+    access_revoked,
+    access_error,
+  } = await searchParams;
+
   const isArabic = lang !== "en";
+  const locale: "ar" | "en" =
+    isArabic ? "ar" : "en";
   const adminClient = createAdminClient();
+
+  const canManage =
+    await userHasPermission(
+      currentAdmin.id,
+      PERMISSIONS.ADMINS_MANAGE,
+    );
 
   const [
     adminsResult,
@@ -386,12 +411,73 @@ export default async function AdminUsersPage({
   ).length;
 
   const privilegedAdmins =
-    admins.filter(
-      (admin) =>
+    admins.filter((admin) => {
+      const assignedRoleKeys =
+        (roleIdsByUser.get(
+          admin.id,
+        ) ?? [])
+          .map(
+            (roleId) =>
+              roleById.get(
+                roleId,
+              )?.key,
+          )
+          .filter(Boolean);
+
+      return (
+        assignedRoleKeys.includes(
+          "super_admin",
+        ) ||
+        assignedRoleKeys.includes(
+          "admin",
+        ) ||
         admin.role ===
           "super_admin" ||
-        admin.role === "admin",
-    ).length;
+        admin.role === "admin"
+      );
+    }).length;
+
+  const roleOptions = roles.map(
+    (role) => ({
+      key: role.key,
+      label: formatRoleKey(
+        role.key,
+        isArabic,
+      ),
+    }),
+  );
+
+  const accessErrorMessage =
+    access_error ===
+    "self_role_change"
+      ? isArabic
+        ? "لا يمكن تغيير دور حسابك الحالي من هذه الصفحة لتجنب فقدان الوصول بالخطأ."
+        : "You cannot change your current account role from this page to prevent accidental lockout."
+      : access_error ===
+          "self_revoke"
+        ? isArabic
+          ? "لا يمكن سحب وصول حسابك الحالي من نفس الجلسة."
+          : "You cannot revoke your current account from the same session."
+        : access_error ===
+            "last_super_admin"
+          ? isArabic
+            ? "لا يمكن إزالة آخر مدير أعلى من النظام. عيّن مديرًا أعلى آخر أولًا."
+            : "The last Super Admin cannot be removed. Assign another Super Admin first."
+          : access_error ===
+                "admin_not_found"
+            ? isArabic
+              ? "تعذر العثور على حساب الإدارة المطلوب."
+              : "The requested admin account could not be found."
+            : access_error ===
+                  "role_not_found"
+              ? isArabic
+                ? "الدور المحدد غير متاح."
+                : "The selected role is unavailable."
+              : access_error
+                ? isArabic
+                  ? "تعذر تحديث صلاحيات الإدارة. لم يتم اعتماد التغيير."
+                  : "Admin access could not be updated. The change was not applied."
+                : null;
 
   return (
     <div
@@ -420,6 +506,34 @@ export default async function AdminUsersPage({
             </div>
           }
         />
+
+        {access_saved === "1" ? (
+          <div className="mb-5 flex items-start gap-3 rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.07] px-4 py-3 text-sm text-emerald-200">
+            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+            <p>
+              {isArabic
+                ? "تم تحديث دور المشرف وتسجيل العملية في سجل النظام."
+                : "The admin role was updated and recorded in the audit log."}
+            </p>
+          </div>
+        ) : null}
+
+        {access_revoked === "1" ? (
+          <div className="mb-5 flex items-start gap-3 rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.07] px-4 py-3 text-sm text-emerald-200">
+            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+            <p>
+              {isArabic
+                ? "تم سحب وصول الحساب إلى لوحة الإدارة فورًا وتسجيل العملية."
+                : "Admin access was revoked immediately and recorded."}
+            </p>
+          </div>
+        ) : null}
+
+        {accessErrorMessage ? (
+          <div className="mb-5 rounded-2xl border border-red-400/20 bg-red-400/[0.06] px-4 py-3 text-sm leading-6 text-red-200">
+            {accessErrorMessage}
+          </div>
+        ) : null}
 
         <section className="mb-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-2xl border border-gold/15 bg-gradient-to-b from-gold/[0.08] to-gold/[0.025] p-4 sm:p-5">
@@ -573,7 +687,7 @@ export default async function AdminUsersPage({
                   return (
                     <div
                       key={admin.id}
-                      className="grid gap-4 px-5 py-5 sm:px-6 lg:grid-cols-[minmax(0,1.45fr)_minmax(220px,0.8fr)_180px] lg:items-center"
+                      className="grid gap-4 px-5 py-5 sm:px-6 xl:grid-cols-[minmax(0,1.25fr)_minmax(180px,0.65fr)_140px_minmax(260px,0.9fr)] xl:items-center"
                     >
                       <div className="flex min-w-0 items-center gap-3.5">
                         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-gold/20 bg-gold/[0.08] text-sm font-medium text-gold">
@@ -645,7 +759,7 @@ export default async function AdminUsersPage({
                         )}
                       </div>
 
-                      <div className="lg:text-end">
+                      <div className="xl:text-end">
                         <p className="text-[10px] uppercase tracking-[0.18em] text-white/25">
                           {isArabic
                             ? "تاريخ الإضافة"
@@ -658,6 +772,21 @@ export default async function AdminUsersPage({
                           )}
                         </p>
                       </div>
+
+                      <AdminRoleControls
+                        adminId={admin.id}
+                        currentRoleKey={
+                          effectiveRoleKeys[0] ??
+                          admin.role
+                        }
+                        roles={roleOptions}
+                        locale={locale}
+                        isSelf={
+                          admin.id ===
+                          currentAdmin.id
+                        }
+                        canManage={canManage}
+                      />
                     </div>
                   );
                 },
