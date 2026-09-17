@@ -1,11 +1,13 @@
 name: Traffic Preview Test
 
 on:
-  push:
+  pull_request:
     branches:
-      - test/traffic-scalability
+      - main
     paths:
       - .github/workflows/traffic-preview.yml
+      - tests/traffic/**
+      - package.json
 
 permissions:
   contents: read
