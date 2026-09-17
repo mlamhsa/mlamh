@@ -1005,6 +1005,15 @@ export default async function AdminUsersPage({
                   effectiveCanManage
                 }
               />
+              <Link
+                href={`/admin/audit-log?lang=${locale}&target=admin`}
+                className="inline-flex items-center gap-2 rounded-xl border border-white/[0.09] bg-white/[0.025] px-3 py-2 text-[11px] font-medium text-white/55 transition hover:border-gold/20 hover:text-gold"
+              >
+                <History className="h-3.5 w-3.5" />
+                {isArabic
+                  ? "سجل العمليات"
+                  : "Audit log"}
+              </Link>
               <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/[0.07] px-3 py-2 text-[11px] font-medium text-emerald-200">
                 <ShieldCheck className="h-3.5 w-3.5" />
                 {isArabic
