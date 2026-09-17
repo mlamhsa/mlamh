@@ -219,7 +219,7 @@ export async function enrichInvestorContacts({ limit = 12 }: { limit?: number } 
   if (error) throw new Error("Investor contact enrichment could not load leads.");
   if (!leads?.length) return { checked: 0, enriched: 0, withEmail: 0, withOfficialRoute: 0, withLinkedIn: 0 };
 
-  const normalizedLeads = leads as Array<Record<string, unknown>>;
+  const normalizedLeads = leads as unknown as Array<Record<string, unknown>>;
   const provider = getMarketingAIProvider();
   const response = await provider.generate({
     taskType: "lead_enrichment",
