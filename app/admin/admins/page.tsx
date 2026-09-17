@@ -482,11 +482,19 @@ export default async function AdminUsersPage({
     accessEventsResult.error,
   );
 
-  const rbacDataHealthy =
+  const accessStateDataHealthy =
     !rolesResult.error &&
-    !permissionsResult.error &&
-    !rolePermissionsResult.error &&
     !userRolesResult.error;
+
+  const rbacDataHealthy =
+    accessStateDataHealthy &&
+    !permissionsResult.error &&
+    !rolePermissionsResult.error;
+
+  const accessEventsUnavailable =
+    Boolean(
+      accessEventsResult.error,
+    );
 
   const degradedDataSources = [
     rolesResult.error
@@ -712,22 +720,35 @@ export default async function AdminUsersPage({
           admin.id,
         );
 
+      const authStateKnown =
+        authState !== null &&
+        authState !== undefined;
+      const statusKnown =
+        accessStateDataHealthy &&
+        authStateKnown;
+
       const pendingInvite =
+        statusKnown &&
         Boolean(
-          authState?.invitedAt,
+          authState.invitedAt,
         ) &&
-        !authState?.lastSignInAt;
+        !authState.lastSignInAt;
 
       return {
         adminId: admin.id,
-        hasActiveRole,
+        hasActiveRole:
+          statusKnown
+            ? hasActiveRole
+            : false,
         pendingInvite,
+        statusKnown,
       };
     });
 
   const pendingAdminCount =
     adminAccessStates.filter(
       (state) =>
+        state.statusKnown &&
         state.hasActiveRole &&
         state.pendingInvite,
     ).length;
@@ -735,6 +756,7 @@ export default async function AdminUsersPage({
   const activeAdminCount =
     adminAccessStates.filter(
       (state) =>
+        state.statusKnown &&
         state.hasActiveRole &&
         !state.pendingInvite,
     ).length;
@@ -742,7 +764,14 @@ export default async function AdminUsersPage({
   const revokedAdminCount =
     adminAccessStates.filter(
       (state) =>
+        state.statusKnown &&
         !state.hasActiveRole,
+    ).length;
+
+  const unknownAdminCount =
+    adminAccessStates.filter(
+      (state) =>
+        !state.statusKnown,
     ).length;
 
   const adminAccessStateById =
@@ -786,6 +815,10 @@ export default async function AdminUsersPage({
         );
 
       if (!state) {
+        return false;
+      }
+
+      if (!state.statusKnown) {
         return false;
       }
 
@@ -1024,9 +1057,13 @@ export default async function AdminUsersPage({
               {admins.length}
             </p>
             <p className="mt-1 text-[11px] text-white/30">
-              {isArabic
-                ? `${activeAdminCount} نشط · ${pendingAdminCount} دعوة معلقة · ${revokedAdminCount} مسحوب`
-                : `${activeAdminCount} active · ${pendingAdminCount} pending · ${revokedAdminCount} revoked`}
+              {unknownAdminCount > 0
+                ? isArabic
+                  ? `${activeAdminCount} نشط · ${pendingAdminCount} دعوة معلقة · ${revokedAdminCount} مسحوب · ${unknownAdminCount} غير متحقق`
+                  : `${activeAdminCount} active · ${pendingAdminCount} pending · ${revokedAdminCount} revoked · ${unknownAdminCount} unverified`
+                : isArabic
+                  ? `${activeAdminCount} نشط · ${pendingAdminCount} دعوة معلقة · ${revokedAdminCount} مسحوب`
+                  : `${activeAdminCount} active · ${pendingAdminCount} pending · ${revokedAdminCount} revoked`}
             </p>
           </div>
 
@@ -1232,7 +1269,7 @@ export default async function AdminUsersPage({
                   const effectiveRoleKeys =
                     mappedRoleKeys;
 
-                  const hasActiveAccess =
+                  const rawHasActiveAccess =
                     effectiveRoleKeys.some(
                       isAssignableAdminRole,
                     );
@@ -1241,13 +1278,23 @@ export default async function AdminUsersPage({
                     adminAuthStateById.get(
                       admin.id,
                     );
+                  const authStateKnown =
+                    authState !== null &&
+                    authState !== undefined;
+                  const accessStateKnown =
+                    accessStateDataHealthy &&
+                    authStateKnown;
+                  const hasActiveAccess =
+                    accessStateKnown &&
+                    rawHasActiveAccess;
 
                   const pendingInvite =
-                    hasActiveAccess &&
+                    accessStateKnown &&
+                    rawHasActiveAccess &&
                     Boolean(
-                      authState?.invitedAt,
+                      authState.invitedAt,
                     ) &&
-                    !authState?.lastSignInAt;
+                    !authState.lastSignInAt;
 
                   const initial =
                     admin.email
@@ -1275,30 +1322,38 @@ export default async function AdminUsersPage({
 
                           <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[10px] text-white/28">
                             <span className={`inline-flex items-center gap-1.5 ${
-                              pendingInvite
+                              !accessStateKnown
                                 ? "text-amber-200/70"
-                                : hasActiveAccess
-                                  ? "text-emerald-300/75"
-                                  : "text-red-200/55"
+                                : pendingInvite
+                                  ? "text-amber-200/70"
+                                  : hasActiveAccess
+                                    ? "text-emerald-300/75"
+                                    : "text-red-200/55"
                             }`}>
-                              {pendingInvite ? (
+                              {!accessStateKnown ? (
+                                <AlertTriangle className="h-3 w-3" />
+                              ) : pendingInvite ? (
                                 <History className="h-3 w-3" />
                               ) : hasActiveAccess ? (
                                 <CheckCircle2 className="h-3 w-3" />
                               ) : (
                                 <LockKeyhole className="h-3 w-3" />
                               )}
-                              {pendingInvite
+                              {!accessStateKnown
                                 ? isArabic
-                                  ? "دعوة معلقة"
-                                  : "Invite pending"
-                                : hasActiveAccess
+                                  ? "تعذر التحقق من حالة الوصول"
+                                  : "Access state unavailable"
+                                : pendingInvite
                                   ? isArabic
-                                    ? "نشط"
-                                    : "Active"
-                                  : isArabic
-                                    ? "الوصول مسحوب"
-                                    : "Access revoked"}
+                                    ? "دعوة معلقة"
+                                    : "Invite pending"
+                                  : hasActiveAccess
+                                    ? isArabic
+                                      ? "نشط"
+                                      : "Active"
+                                    : isArabic
+                                      ? "الوصول مسحوب"
+                                      : "Access revoked"}
                             </span>
                             <span aria-hidden="true">
                               •
@@ -1386,7 +1441,8 @@ export default async function AdminUsersPage({
                           currentAdmin.id
                         }
                         canManage={
-                          effectiveCanManage
+                          effectiveCanManage &&
+                          accessStateKnown
                         }
                         pendingInvite={
                           pendingInvite
