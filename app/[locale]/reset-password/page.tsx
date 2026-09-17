@@ -69,7 +69,7 @@ export default function ResetPasswordPage({
             return;
           }
 
-          window.history.replaceState(null, "", window.location.pathname);
+          window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
         }
 
         const {
