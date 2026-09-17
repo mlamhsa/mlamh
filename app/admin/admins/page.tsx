@@ -5,6 +5,7 @@ import {
   History,
   KeyRound,
   LockKeyhole,
+  Search,
   ShieldCheck,
   UserCog,
   Users,
@@ -31,6 +32,8 @@ type PageProps = {
     access_resent?: string;
     access_cancelled?: string;
     access_error?: string;
+    q?: string;
+    status?: string;
   }>;
 };
 
@@ -327,11 +330,23 @@ export default async function AdminUsersPage({
     access_resent,
     access_cancelled,
     access_error,
+    q,
+    status,
   } = await searchParams;
 
   const isArabic = lang !== "en";
   const locale: "ar" | "en" =
     isArabic ? "ar" : "en";
+  const searchQuery =
+    (q ?? "").trim();
+  const normalizedSearchQuery =
+    searchQuery.toLowerCase();
+  const statusFilter =
+    status === "active" ||
+    status === "pending" ||
+    status === "revoked"
+      ? status
+      : "all";
   const adminClient = createAdminClient();
 
   const canManage =
@@ -700,6 +715,73 @@ export default async function AdminUsersPage({
         !state.hasActiveRole,
     ).length;
 
+  const adminAccessStateById =
+    new Map(
+      adminAccessStates.map(
+        (state) => [
+          state.adminId,
+          state,
+        ],
+      ),
+    );
+
+  const filteredAdmins =
+    admins.filter((admin) => {
+      const matchesSearch =
+        !normalizedSearchQuery ||
+        admin.email
+          .toLowerCase()
+          .includes(
+            normalizedSearchQuery,
+          ) ||
+        admin.id
+          .toLowerCase()
+          .includes(
+            normalizedSearchQuery,
+          );
+
+      if (!matchesSearch) {
+        return false;
+      }
+
+      if (
+        statusFilter === "all"
+      ) {
+        return true;
+      }
+
+      const state =
+        adminAccessStateById.get(
+          admin.id,
+        );
+
+      if (!state) {
+        return false;
+      }
+
+      if (
+        statusFilter ===
+        "pending"
+      ) {
+        return (
+          state.hasActiveRole &&
+          state.pendingInvite
+        );
+      }
+
+      if (
+        statusFilter ===
+        "active"
+      ) {
+        return (
+          state.hasActiveRole &&
+          !state.pendingInvite
+        );
+      }
+
+      return !state.hasActiveRole;
+    });
+
   const roleOptions = roles
     .filter((role) =>
       isAssignableAdminRole(
@@ -989,39 +1071,111 @@ export default async function AdminUsersPage({
         </section>
 
         <section className="mb-8 overflow-hidden rounded-[1.75rem] border border-white/[0.09] bg-gradient-to-b from-white/[0.035] to-white/[0.018] shadow-[0_18px_55px_rgba(0,0,0,0.18)]">
-          <div className="flex flex-col gap-3 border-b border-white/[0.08] px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-            <div>
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4 text-gold" />
-                <h2 className="text-base font-semibold text-white sm:text-lg">
+          <div className="border-b border-white/[0.08] px-5 py-5 sm:px-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-gold" />
+                  <h2 className="text-base font-semibold text-white sm:text-lg">
+                    {isArabic
+                      ? "حسابات الإدارة"
+                      : "Admin accounts"}
+                  </h2>
+                </div>
+                <p className="mt-1.5 text-xs leading-6 text-white/35">
                   {isArabic
-                    ? "حسابات الإدارة"
-                    : "Admin accounts"}
-                </h2>
+                    ? "ابحث بالبريد أو المعرّف، وفلتر الحسابات حسب حالة الوصول."
+                    : "Search by email or ID and filter accounts by access state."}
+                </p>
               </div>
-              <p className="mt-1.5 text-xs leading-6 text-white/35">
+
+              <span className="w-fit rounded-full border border-white/[0.08] bg-black/20 px-3 py-1.5 text-[11px] text-white/40">
                 {isArabic
-                  ? "الحسابات المسجلة حاليًا مع دور الوصول وتاريخ الإضافة."
-                  : "Currently registered accounts with access role and creation date."}
-              </p>
+                  ? `${filteredAdmins.length} من ${admins.length}`
+                  : `${filteredAdmins.length} of ${admins.length}`}
+              </span>
             </div>
 
-            <span className="w-fit rounded-full border border-white/[0.08] bg-black/20 px-3 py-1.5 text-[11px] text-white/40">
-              {isArabic
-                ? `${admins.length} حساب`
-                : `${admins.length} accounts`}
-            </span>
+            <form
+              method="get"
+              className="mt-4 grid gap-2 sm:grid-cols-[minmax(0,1fr)_180px_auto]"
+            >
+              <input
+                type="hidden"
+                name="lang"
+                value={locale}
+              />
+
+              <label className="relative block">
+                <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/25" />
+                <input
+                  type="search"
+                  name="q"
+                  defaultValue={
+                    searchQuery
+                  }
+                  placeholder={
+                    isArabic
+                      ? "ابحث بالبريد أو المعرّف..."
+                      : "Search email or ID..."
+                  }
+                  className="h-11 w-full rounded-xl border border-white/[0.09] bg-black/25 ps-10 pe-3 text-sm text-white outline-none transition placeholder:text-white/20 focus:border-gold/30"
+                />
+              </label>
+
+              <select
+                name="status"
+                defaultValue={
+                  statusFilter
+                }
+                className="h-11 rounded-xl border border-white/[0.09] bg-black/25 px-3 text-xs text-white/65 outline-none transition focus:border-gold/30"
+              >
+                <option value="all">
+                  {isArabic
+                    ? "كل الحالات"
+                    : "All states"}
+                </option>
+                <option value="active">
+                  {isArabic
+                    ? "نشط"
+                    : "Active"}
+                </option>
+                <option value="pending">
+                  {isArabic
+                    ? "دعوة معلقة"
+                    : "Pending invite"}
+                </option>
+                <option value="revoked">
+                  {isArabic
+                    ? "الوصول مسحوب"
+                    : "Revoked"}
+                </option>
+              </select>
+
+              <button
+                type="submit"
+                className="h-11 rounded-xl border border-gold/20 bg-gold/[0.08] px-4 text-xs font-medium text-gold transition hover:bg-gold hover:text-black"
+              >
+                {isArabic
+                  ? "تطبيق"
+                  : "Apply"}
+              </button>
+            </form>
           </div>
 
-          {admins.length === 0 ? (
+          {filteredAdmins.length === 0 ? (
             <p className="p-10 text-center text-sm text-white/40">
-              {isArabic
-                ? "لا توجد حسابات إدارة."
-                : "No admin accounts found."}
+              {admins.length === 0
+                ? isArabic
+                  ? "لا توجد حسابات إدارة."
+                  : "No admin accounts found."
+                : isArabic
+                  ? "لا توجد نتائج مطابقة للبحث أو الفلتر الحالي."
+                  : "No admin accounts match the current search or filter."}
             </p>
           ) : (
             <div className="divide-y divide-white/[0.07]">
-              {admins.map(
+              {filteredAdmins.map(
                 (admin) => {
                   const mappedRoleIds =
                     roleIdsByUser.get(
@@ -1168,15 +1322,24 @@ export default async function AdminUsersPage({
 
                       <div className="xl:text-end">
                         <p className="text-[10px] uppercase tracking-[0.18em] text-white/25">
-                          {isArabic
-                            ? "تاريخ الإضافة"
-                            : "Added"}
+                          {authState?.lastSignInAt
+                            ? isArabic
+                              ? "آخر دخول"
+                              : "Last sign-in"
+                            : isArabic
+                              ? "تاريخ الإضافة"
+                              : "Added"}
                         </p>
                         <p className="mt-1.5 text-xs text-white/55">
-                          {formatDate(
-                            admin.created_at,
-                            isArabic,
-                          )}
+                          {authState?.lastSignInAt
+                            ? formatDateTime(
+                                authState.lastSignInAt,
+                                isArabic,
+                              )
+                            : formatDate(
+                                admin.created_at,
+                                isArabic,
+                              )}
                         </p>
                       </div>
 
