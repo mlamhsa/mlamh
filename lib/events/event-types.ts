@@ -26,6 +26,7 @@ export const EVENT_TYPES = {
    */
   admin_invited: "admin_invited",
   admin_invite_resent: "admin_invite_resent",
+  admin_invite_cancelled: "admin_invite_cancelled",
   admin_role_changed: "admin_role_changed",
   admin_access_revoked: "admin_access_revoked",
 
