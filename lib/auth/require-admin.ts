@@ -20,16 +20,43 @@ export async function requireAdminAccess() {
 
   const adminClient = createAdminClient();
 
-  const { data: profile, error: profileError } = await adminClient
-    .from("profiles")
-    .select("account_type")
-    .eq("user_id", user.id)
-    .maybeSingle();
+  const [
+    { data: profile, error: profileError },
+    { data: adminRegistry, error: adminRegistryError },
+    { data: roleAssignments, error: roleAssignmentsError },
+  ] = await Promise.all([
+    adminClient
+      .from("profiles")
+      .select("account_type")
+      .eq("user_id", user.id)
+      .maybeSingle(),
+    adminClient
+      .from("admin_users")
+      .select("id")
+      .eq("id", user.id)
+      .maybeSingle(),
+    adminClient
+      .from("user_roles")
+      .select("role_id")
+      .eq("user_id", user.id)
+      .limit(1),
+  ]);
 
+  // Admin access is intentionally fail-closed and requires all three layers:
+  // 1) the profile is an admin profile,
+  // 2) the account is present in the explicit admin registry,
+  // 3) at least one RBAC role is assigned.
+  //
+  // This prevents stale profile flags from granting access after an admin is revoked.
   if (
     profileError ||
+    adminRegistryError ||
+    roleAssignmentsError ||
     !profile ||
-    profile.account_type !== "admin"
+    profile.account_type !== "admin" ||
+    !adminRegistry ||
+    !roleAssignments ||
+    roleAssignments.length === 0
   ) {
     redirect(ADMIN_LOGIN_PATH);
   }
