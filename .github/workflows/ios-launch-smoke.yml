@@ -8,6 +8,7 @@ on:
     paths:
       - ".github/workflows/ios-launch-smoke.yml"
       - "apps/mobile/app/**"
+      - "apps/mobile/assets/**"
       - "apps/mobile/src/navigation/**"
       - "apps/mobile/app.config.ts"
       - "apps/mobile/package.json"
