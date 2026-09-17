@@ -277,6 +277,33 @@ function getAccessEventLabel(
 
   if (
     eventType ===
+    "admin_access_action_blocked"
+  ) {
+    return isArabic
+      ? "إجراء إداري محظور"
+      : "Admin action blocked";
+  }
+
+  if (
+    eventType ===
+    "admin_access_action_failed"
+  ) {
+    return isArabic
+      ? "فشل إجراء إداري"
+      : "Admin action failed";
+  }
+
+  if (
+    eventType ===
+    "admin_access_action_noop"
+  ) {
+    return isArabic
+      ? "إجراء بلا تغيير"
+      : "Admin action no-op";
+  }
+
+  if (
+    eventType ===
     "admin_role_changed"
   ) {
     return isArabic
@@ -404,6 +431,9 @@ export default async function AdminUsersPage({
         "admin_invited",
         "admin_invite_resent",
         "admin_invite_cancelled",
+        "admin_access_action_blocked",
+        "admin_access_action_failed",
+        "admin_access_action_noop",
         "admin_role_changed",
         "admin_access_revoked",
       ])
