@@ -14,14 +14,9 @@ import {
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
-function configureInvestorResearchModel() {
-  process.env.MARKETING_AI_MODEL = process.env.INVESTOR_AI_MODEL?.trim() || "gpt-5.6-luna";
-}
-
 export async function POST() {
   await requireAdminAccess();
   try {
-    configureInvestorResearchModel();
     ensureInvestorStructuredProvider();
     const gmail = await getInvestorGmailConnectionState();
     if (gmail.status === "connected") assertApprovedInvestorGmail(gmail.emailAddress);
