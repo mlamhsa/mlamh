@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { assertApprovedInvestorGmail } from "@/lib/intelligence/investors/account-policy";
 import { getInvestorGmailConnectionState } from "@/lib/intelligence/investors/gmail";
 import { discoverVerifiedInvestors, enrichInvestorContacts } from "@/lib/intelligence/investors/research-v2";
+import { withInvestorResearchRetry } from "@/lib/intelligence/investors/research-retry";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   prepareDueInvestorFollowUps,
@@ -39,9 +40,9 @@ export async function GET(request: Request) {
     const replies = await syncInvestorReplies({ limit: 30 });
     const followUps = await prepareDueInvestorFollowUps({ limit: 12 });
     const discovery = await discoveryIsDue()
-      ? await discoverVerifiedInvestors({ limit: 8 })
+      ? await withInvestorResearchRetry(() => discoverVerifiedInvestors({ limit: 8 }))
       : { skipped: true, reason: "discovery_interval_not_due" };
-    const contactEnrichment = await enrichInvestorContacts({ limit: 16 });
+    const contactEnrichment = await withInvestorResearchRetry(() => enrichInvestorContacts({ limit: 16 }));
 
     // This cron never sends investor email. External sending remains approval-gated and manual.
     return NextResponse.json({ ok: true, replies, followUps, discovery, contactEnrichment, sendingEnabled: false });
