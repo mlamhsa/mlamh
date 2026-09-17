@@ -34,9 +34,13 @@ export default async function AdminMfaPage() {
       .maybeSingle(),
     adminClient
       .from("user_roles")
-      .select("role_id")
-      .eq("user_id", user.id)
-      .limit(1),
+      .select(`
+        role_id,
+        roles (
+          key
+        )
+      `)
+      .eq("user_id", user.id),
   ]);
 
   if (
@@ -47,7 +51,16 @@ export default async function AdminMfaPage() {
     profile.account_type !== "admin" ||
     !adminRegistry ||
     !roleAssignments ||
-    roleAssignments.length === 0
+    !roleAssignments.some((assignment) => {
+      const role = Array.isArray(assignment.roles)
+        ? assignment.roles[0]
+        : assignment.roles;
+
+      return (
+        role?.key === "super_admin" ||
+        role?.key === "admin"
+      );
+    })
   ) {
     redirect("/ar/login");
   }
