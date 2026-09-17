@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 
 import { assertApprovedInvestorGmail } from "@/lib/intelligence/investors/account-policy";
 import { getInvestorGmailConnectionState } from "@/lib/intelligence/investors/gmail";
+import { discoverVerifiedInvestors, enrichInvestorContacts } from "@/lib/intelligence/investors/research";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
-  discoverInvestors,
   prepareDueInvestorFollowUps,
   syncInvestorReplies,
 } from "@/lib/intelligence/investors/service";
@@ -40,11 +40,12 @@ export async function GET(request: Request) {
     const replies = await syncInvestorReplies({ limit: 30 });
     const followUps = await prepareDueInvestorFollowUps({ limit: 12 });
     const discovery = await discoveryIsDue()
-      ? await discoverInvestors({ limit: 8 })
+      ? await discoverVerifiedInvestors({ limit: 8 })
       : { skipped: true, reason: "discovery_interval_not_due" };
+    const contactEnrichment = await enrichInvestorContacts({ limit: 16 });
 
     // This cron NEVER calls the Gmail send function. All external email remains admin-approved and manually sent.
-    return NextResponse.json({ ok: true, replies, followUps, discovery, sendingEnabled: false });
+    return NextResponse.json({ ok: true, replies, followUps, discovery, contactEnrichment, sendingEnabled: false });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Investor relations cron failed.";
     console.error("[InvestorRelations cron]", message);
