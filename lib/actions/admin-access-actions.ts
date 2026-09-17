@@ -1,5 +1,7 @@
 "use server";
 
+import { randomBytes } from "node:crypto";
+
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -35,6 +37,29 @@ function getLocale(
   return formData.get("locale") === "en"
     ? "en"
     : "ar";
+}
+
+function getInviteEmail(
+  formData: FormData,
+) {
+  const value = String(
+    formData.get("email") ?? "",
+  )
+    .trim()
+    .toLowerCase();
+
+  if (
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+      value,
+    ) ||
+    value.length > 254
+  ) {
+    throw new Error(
+      "Invalid admin email.",
+    );
+  }
+
+  return value;
 }
 
 function getTargetUserId(
@@ -166,6 +191,322 @@ async function countSuperAdmins() {
 function revalidateAdminAccessPaths() {
   revalidatePath("/admin/admins");
   revalidatePath("/admin/audit-log");
+}
+
+export async function inviteAdminAction(
+  formData: FormData,
+) {
+  const actor =
+    await requirePermission(
+      PERMISSIONS.ADMINS_MANAGE,
+    );
+
+  const locale =
+    getLocale(formData);
+  const email =
+    getInviteEmail(formData);
+  const adminClient =
+    createAdminClient();
+
+  const {
+    data: existingAdmin,
+    error: existingAdminError,
+  } = await adminClient
+    .from("admin_users")
+    .select("id")
+    .eq("email", email)
+    .maybeSingle();
+
+  if (existingAdminError) {
+    console.error(
+      "[inviteAdminAction registry lookup]",
+      existingAdminError,
+    );
+
+    redirect(
+      accessCenterUrl(locale, {
+        access_error:
+          "invite_lookup_failed",
+      }),
+    );
+  }
+
+  if (existingAdmin) {
+    redirect(
+      accessCenterUrl(locale, {
+        access_error:
+          "admin_exists",
+      }),
+    );
+  }
+
+  const {
+    data: existingAccountRows,
+    error: existingAccountError,
+  } = await adminClient.rpc(
+    "lookup_auth_email_provider",
+    {
+      p_email: email,
+    },
+  );
+
+  if (existingAccountError) {
+    console.error(
+      "[inviteAdminAction auth lookup]",
+      existingAccountError,
+    );
+
+    redirect(
+      accessCenterUrl(locale, {
+        access_error:
+          "invite_lookup_failed",
+      }),
+    );
+  }
+
+  const existingAccount =
+    Array.isArray(
+      existingAccountRows,
+    )
+      ? existingAccountRows[0]
+      : existingAccountRows;
+
+  if (
+    existingAccount?.account_exists
+  ) {
+    redirect(
+      accessCenterUrl(locale, {
+        access_error:
+          "email_in_use",
+      }),
+    );
+  }
+
+  const {
+    data: adminRole,
+    error: roleError,
+  } = await adminClient
+    .from("roles")
+    .select("id, key")
+    .eq("key", ROLES.ADMIN)
+    .maybeSingle();
+
+  if (roleError || !adminRole) {
+    console.error(
+      "[inviteAdminAction role]",
+      roleError,
+    );
+
+    redirect(
+      accessCenterUrl(locale, {
+        access_error:
+          "role_not_found",
+      }),
+    );
+  }
+
+  const now =
+    new Date().toISOString();
+  const temporaryPassword =
+    randomBytes(48).toString(
+      "base64url",
+    );
+
+  const {
+    data: createdUserData,
+    error: createUserError,
+  } = await adminClient.auth.admin.createUser(
+    {
+      email,
+      password:
+        temporaryPassword,
+      email_confirm: true,
+      user_metadata: {
+        account_type: "admin",
+        admin_invited_by:
+          actor.id,
+        admin_invited_at: now,
+      },
+    },
+  );
+
+  const invitedUser =
+    createdUserData.user;
+
+  if (
+    createUserError ||
+    !invitedUser
+  ) {
+    console.error(
+      "[inviteAdminAction create user]",
+      createUserError,
+    );
+
+    redirect(
+      accessCenterUrl(locale, {
+        access_error:
+          "invite_create_failed",
+      }),
+    );
+  }
+
+  const rollbackInvite =
+    async (reason: string) => {
+      const { error: rollbackError } =
+        await adminClient.auth.admin.deleteUser(
+          invitedUser.id,
+        );
+
+      if (rollbackError) {
+        console.error(
+          `[inviteAdminAction rollback ${reason}]`,
+          rollbackError,
+        );
+      }
+    };
+
+  const { error: profileError } =
+    await adminClient
+      .from("profiles")
+      .insert({
+        user_id: invitedUser.id,
+        account_type: "admin",
+        display_name: email,
+        status: "active",
+        onboarding_status:
+          "completed",
+        onboarding_step:
+          "dashboard",
+        approval_status:
+          "approved",
+      });
+
+  if (profileError) {
+    console.error(
+      "[inviteAdminAction profile]",
+      profileError,
+    );
+
+    await rollbackInvite(
+      "profile",
+    );
+
+    redirect(
+      accessCenterUrl(locale, {
+        access_error:
+          "invite_create_failed",
+      }),
+    );
+  }
+
+  const { error: registryError } =
+    await adminClient
+      .from("admin_users")
+      .insert({
+        id: invitedUser.id,
+        email,
+        role: ROLES.ADMIN,
+        created_at: now,
+      });
+
+  if (registryError) {
+    console.error(
+      "[inviteAdminAction registry]",
+      registryError,
+    );
+
+    await rollbackInvite(
+      "registry",
+    );
+
+    redirect(
+      accessCenterUrl(locale, {
+        access_error:
+          "invite_create_failed",
+      }),
+    );
+  }
+
+  const { error: roleAssignmentError } =
+    await adminClient
+      .from("user_roles")
+      .insert({
+        user_id: invitedUser.id,
+        role_id: adminRole.id,
+      });
+
+  if (roleAssignmentError) {
+    console.error(
+      "[inviteAdminAction role assignment]",
+      roleAssignmentError,
+    );
+
+    await rollbackInvite(
+      "role_assignment",
+    );
+
+    redirect(
+      accessCenterUrl(locale, {
+        access_error:
+          "invite_create_failed",
+      }),
+    );
+  }
+
+  const siteUrl = (
+    process.env
+      .NEXT_PUBLIC_SITE_URL ||
+    "https://mlamh.net"
+  ).replace(/\/$/, "");
+
+  const {
+    error: recoveryEmailError,
+  } = await adminClient.auth.resetPasswordForEmail(
+    email,
+    {
+      redirectTo:
+        `${siteUrl}/${locale}/reset-password?mode=admin-invite`,
+    },
+  );
+
+  if (recoveryEmailError) {
+    console.error(
+      "[inviteAdminAction recovery email]",
+      recoveryEmailError,
+    );
+
+    await rollbackInvite(
+      "recovery_email",
+    );
+
+    redirect(
+      accessCenterUrl(locale, {
+        access_error:
+          "invite_email_failed",
+      }),
+    );
+  }
+
+  await createEvent({
+    type:
+      EVENT_TYPES.admin_invited,
+    target:
+      EVENT_TARGETS.ADMIN,
+    targetId: invitedUser.id,
+    actorId: actor.id,
+    metadata: {
+      role: ROLES.ADMIN,
+      invited_email: email,
+    },
+  });
+
+  revalidateAdminAccessPaths();
+
+  redirect(
+    accessCenterUrl(locale, {
+      access_invited: "1",
+    }),
+  );
 }
 
 export async function updateAdminRoleAction(
