@@ -874,7 +874,7 @@ export async function revokeAdminAccessAction(
   const { data: targetAdmin, error } =
     await adminClient
       .from("admin_users")
-      .select("id, email")
+      .select("id, email, role")
       .eq("id", targetUserId)
       .maybeSingle();
 
@@ -895,6 +895,12 @@ export async function revokeAdminAccessAction(
   const currentAssignments =
     await getAdminRoleAssignments(
       targetUserId,
+    );
+
+  const previousRoleIds =
+    currentAssignments.map(
+      (assignment) =>
+        assignment.role_id,
     );
 
   const previousRoleKeys =
@@ -925,29 +931,9 @@ export async function revokeAdminAccessAction(
     }
   }
 
-  // Delete the explicit registry entry first.
-  // requireAdminAccess() checks this registry on every admin request,
-  // so access is revoked immediately even if later cleanup fails.
-  const { error: revokeError } =
-    await adminClient
-      .from("admin_users")
-      .delete()
-      .eq("id", targetUserId);
-
-  if (revokeError) {
-    console.error(
-      "[revokeAdminAccessAction registry]",
-      revokeError,
-    );
-
-    redirect(
-      accessCenterUrl(locale, {
-        access_error:
-          "revoke_failed",
-      }),
-    );
-  }
-
+  // Active access is granted by user_roles. Remove those assignments first
+  // so the account is denied immediately while preserving the registry row
+  // as an auditable, restorable admin identity.
   const { error: roleCleanupError } =
     await adminClient
       .from("user_roles")
@@ -961,6 +947,59 @@ export async function revokeAdminAccessAction(
     console.error(
       "[revokeAdminAccessAction role cleanup]",
       roleCleanupError,
+    );
+
+    redirect(
+      accessCenterUrl(locale, {
+        access_error:
+          "revoke_failed",
+      }),
+    );
+  }
+
+  const { error: registryError } =
+    await adminClient
+      .from("admin_users")
+      .update({
+        role: "revoked",
+      })
+      .eq("id", targetUserId);
+
+  if (registryError) {
+    console.error(
+      "[revokeAdminAccessAction registry]",
+      registryError,
+    );
+
+    if (
+      previousRoleIds.length > 0
+    ) {
+      const { error: rollbackError } =
+        await adminClient
+          .from("user_roles")
+          .insert(
+            previousRoleIds.map(
+              (roleId) => ({
+                user_id:
+                  targetUserId,
+                role_id: roleId,
+              }),
+            ),
+          );
+
+      if (rollbackError) {
+        console.error(
+          "[revokeAdminAccessAction rollback]",
+          rollbackError,
+        );
+      }
+    }
+
+    redirect(
+      accessCenterUrl(locale, {
+        access_error:
+          "revoke_failed",
+      }),
     );
   }
 
