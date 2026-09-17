@@ -1,6 +1,7 @@
 import {
   CheckCircle2,
   Crown,
+  History,
   KeyRound,
   LockKeyhole,
   ShieldCheck,
@@ -61,6 +62,15 @@ type RolePermissionRow = {
 type UserRoleRow = {
   user_id: string;
   role_id: number;
+};
+
+type AccessEventRow = {
+  id: number;
+  event_type: string;
+  target_id: string | null;
+  actor_id: string | null;
+  created_at: string;
+  metadata: Record<string, unknown> | null;
 };
 
 const ROLE_LABELS: Record<
@@ -210,6 +220,58 @@ function formatDate(
   ).format(date);
 }
 
+function formatDateTime(
+  value: string,
+  isArabic: boolean,
+) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "-";
+  }
+
+  return new Intl.DateTimeFormat(
+    isArabic
+      ? "ar-SA-u-nu-latn"
+      : "en-US",
+    {
+      dateStyle: "medium",
+      timeStyle: "short",
+    },
+  ).format(date);
+}
+
+function getAccessEventLabel(
+  eventType: string,
+  isArabic: boolean,
+) {
+  if (eventType === "admin_invited") {
+    return isArabic
+      ? "دعوة مشرف"
+      : "Admin invited";
+  }
+
+  if (
+    eventType ===
+    "admin_role_changed"
+  ) {
+    return isArabic
+      ? "تغيير الدور"
+      : "Role changed";
+  }
+
+  if (
+    eventType ===
+    "admin_access_revoked"
+  ) {
+    return isArabic
+      ? "سحب الوصول"
+      : "Access revoked";
+  }
+
+  return eventType;
+}
+
 function getRoleTone(roleKey: string) {
   if (roleKey === "super_admin") {
     return "border-gold/30 bg-gold/[0.10] text-gold";
@@ -261,6 +323,7 @@ export default async function AdminUsersPage({
     permissionsResult,
     rolePermissionsResult,
     userRolesResult,
+    accessEventsResult,
   ] = await Promise.all([
     adminClient
       .from("admin_users")
@@ -293,6 +356,21 @@ export default async function AdminUsersPage({
     adminClient
       .from("user_roles")
       .select("user_id, role_id"),
+    adminClient
+      .from("events")
+      .select(
+        "id, event_type, target_id, actor_id, created_at, metadata",
+      )
+      .eq("target_type", "admin")
+      .in("event_type", [
+        "admin_invited",
+        "admin_role_changed",
+        "admin_access_revoked",
+      ])
+      .order("created_at", {
+        ascending: false,
+      })
+      .limit(8),
   ]);
 
   if (adminsResult.error) {
@@ -329,6 +407,10 @@ export default async function AdminUsersPage({
     "userRoles",
     userRolesResult.error,
   );
+  logOptionalError(
+    "accessEvents",
+    accessEventsResult.error,
+  );
 
   const admins =
     (adminsResult.data ??
@@ -355,6 +437,12 @@ export default async function AdminUsersPage({
     ? []
     : ((userRolesResult.data ??
         []) as UserRoleRow[]);
+
+  const accessEvents =
+    accessEventsResult.error
+      ? []
+      : ((accessEventsResult.data ??
+          []) as AccessEventRow[]);
 
   const roleById = new Map(
     roles.map((role) => [
@@ -1176,6 +1264,110 @@ export default async function AdminUsersPage({
           )}
         </section>
 
+        <section className="mb-8 overflow-hidden rounded-[1.75rem] border border-white/[0.09] bg-white/[0.02]">
+          <div className="flex flex-col gap-3 border-b border-white/[0.08] px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+            <div>
+              <div className="flex items-center gap-2">
+                <History className="h-4 w-4 text-gold" />
+                <h2 className="text-base font-semibold text-white sm:text-lg">
+                  {isArabic
+                    ? "آخر تغييرات الوصول"
+                    : "Recent access changes"}
+                </h2>
+              </div>
+              <p className="mt-1.5 text-xs leading-6 text-white/35">
+                {isArabic
+                  ? "سجل مختصر لأحدث عمليات الدعوة وتغيير الأدوار وسحب الوصول."
+                  : "A concise trail of recent invitations, role changes, and access revocations."}
+              </p>
+            </div>
+          </div>
+
+          {accessEvents.length === 0 ? (
+            <p className="p-8 text-center text-sm text-white/35">
+              {isArabic
+                ? "لا توجد تغييرات وصول مسجلة حتى الآن."
+                : "No access changes have been recorded yet."}
+            </p>
+          ) : (
+            <div className="divide-y divide-white/[0.06]">
+              {accessEvents.map(
+                (event) => {
+                  const metadata =
+                    event.metadata ?? {};
+                  const targetEmail =
+                    typeof metadata.target_email ===
+                    "string"
+                      ? metadata.target_email
+                      : typeof metadata.invited_email ===
+                          "string"
+                        ? metadata.invited_email
+                        : event.target_id
+                          ? `${event.target_id.slice(
+                              0,
+                              8,
+                            )}…`
+                          : "-";
+
+                  return (
+                    <div
+                      key={event.id}
+                      className="grid gap-3 px-5 py-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(180px,0.55fr)_190px] lg:items-center"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-white/75">
+                          {getAccessEventLabel(
+                            event.event_type,
+                            isArabic,
+                          )}
+                        </p>
+                        <p
+                          dir={
+                            targetEmail.includes(
+                              "@",
+                            )
+                              ? "ltr"
+                              : undefined
+                          }
+                          className="mt-1 truncate text-[11px] text-white/35"
+                        >
+                          {targetEmail}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-[10px] uppercase tracking-[0.14em] text-white/22">
+                          {isArabic
+                            ? "المنفذ"
+                            : "Actor"}
+                        </p>
+                        <p
+                          dir="ltr"
+                          className="mt-1 font-mono text-[10px] text-white/38"
+                        >
+                          {event.actor_id
+                            ? `${event.actor_id.slice(
+                                0,
+                                8,
+                              )}…`
+                            : "-"}
+                        </p>
+                      </div>
+
+                      <p className="text-xs text-white/38 lg:text-end">
+                        {formatDateTime(
+                          event.created_at,
+                          isArabic,
+                        )}
+                      </p>
+                    </div>
+                  );
+                },
+              )}
+            </div>
+          )}
+        </section>
+
         <section className="rounded-[1.75rem] border border-white/[0.08] bg-gradient-to-br from-gold/[0.045] via-white/[0.02] to-transparent p-5 sm:p-6">
           <div className="flex items-start gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-gold/20 bg-gold/[0.08] text-gold">
@@ -1189,8 +1381,8 @@ export default async function AdminUsersPage({
               </h2>
               <p className="mt-2 max-w-3xl text-xs leading-6 text-white/40">
                 {isArabic
-                  ? "الدخول إلى لوحة الإدارة يتطلب حساب إدارة صالحًا وجلسة مصادقًا عليها بمستوى AAL2. هذه الصفحة تعرض بنية الأدوار والصلاحيات الحالية دون تنفيذ تغييرات مباشرة على التعيينات."
-                  : "Admin access requires a valid admin account and an AAL2-authenticated session. This page presents the current role and permission structure without directly changing assignments."}
+                  ? "الدخول إلى لوحة الإدارة يتطلب حسابًا مسجلًا في سجل الإدارة، ودور وصول فعّالًا، وجلسة مصادقًا عليها بمستوى AAL2. تغييرات الأدوار وسحب الوصول محمية من التعديل الذاتي ومن إزالة آخر مدير أعلى، وتُسجل في سجل العمليات."
+                  : "Admin access requires an explicit registry entry, an active access role, and an AAL2-authenticated session. Role changes and revocation are protected against self-lockout and removal of the last Super Admin, and are written to the audit log."}
               </p>
             </div>
           </div>
