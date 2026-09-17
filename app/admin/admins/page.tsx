@@ -1739,9 +1739,20 @@ export default async function AdminUsersPage({
             </p>
           </div>
 
-          {roles.length === 0 ||
-          groupedPermissions.length ===
-            0 ? (
+          {rolesResult.error ||
+          permissionsResult.error ||
+          rolePermissionsResult.error ? (
+            <div className="flex items-start gap-3 p-6 text-sm text-amber-100/75">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <p>
+                {isArabic
+                  ? "تعذر التحقق من مصفوفة الصلاحيات بشكل كامل. تم إخفاء القيم غير المؤكدة بدل عرض أرقام صفرية مضللة."
+                  : "The permission matrix could not be verified completely. Uncertain values are hidden instead of being shown as misleading zeros."}
+              </p>
+            </div>
+          ) : roles.length === 0 ||
+            groupedPermissions.length ===
+              0 ? (
             <p className="p-8 text-center text-sm text-white/40">
               {isArabic
                 ? "لا توجد بيانات كافية لعرض مصفوفة الصلاحيات."
