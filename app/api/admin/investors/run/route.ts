@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 
 import { requireAdminAccess } from "@/lib/auth/require-admin";
+import { assertApprovedInvestorGmail } from "@/lib/intelligence/investors/account-policy";
+import { getInvestorGmailConnectionState } from "@/lib/intelligence/investors/gmail";
 import {
   discoverInvestors,
   prepareDueInvestorFollowUps,
@@ -13,6 +15,8 @@ export const maxDuration = 300;
 export async function POST() {
   await requireAdminAccess();
   try {
+    const gmail = await getInvestorGmailConnectionState();
+    if (gmail.status === "connected") assertApprovedInvestorGmail(gmail.emailAddress);
     const replies = await syncInvestorReplies({ limit: 20 });
     const followUps = await prepareDueInvestorFollowUps({ limit: 10 });
     const discovery = await discoverInvestors({ limit: 8 });
