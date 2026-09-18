@@ -723,3 +723,48 @@ test("legacy role registry repair does not rewrite effective RBAC assignment", a
     "registry-only sync must not rewrite the effective RBAC assignment",
   );
 });
+
+
+test("final Super Admin count follows effective RBAC while registry only gates active/revoked state", async () => {
+  const actions = await source(
+    "lib/actions/admin-access-actions.ts",
+  );
+
+  const start =
+    actions.indexOf(
+      "async function countSuperAdmins",
+    );
+  const end =
+    actions.indexOf(
+      "function revalidateAdminAccessPaths",
+      start,
+    );
+
+  assert.ok(
+    start >= 0 &&
+      end > start,
+    "countSuperAdmins helper must exist",
+  );
+
+  const segment =
+    actions.slice(
+      start,
+      end,
+    );
+
+  assert.equal(
+    segment.includes(
+      '.eq(\n      "role_id",\n      superAdminRole.id',
+    ),
+    true,
+    "Super Admin identity must come from the RBAC role assignment",
+  );
+
+  assert.equal(
+    segment.includes(
+      '.in(\n      "role",\n      [\n        ROLES.SUPER_ADMIN,\n        ROLES.ADMIN',
+    ),
+    true,
+    "admin registry must be treated as an active/revoked gate rather than the permission source of truth",
+  );
+});
