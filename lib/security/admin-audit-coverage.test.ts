@@ -823,3 +823,46 @@ test("Super Admin privilege boundary changes require explicit confirmation", asy
     "role controls must route Super Admin boundary changes through a confirmation dialog",
   );
 });
+
+
+test("audit log keeps server-side pagination and exact actor scoping", async () => {
+  const page = await source(
+    "app/admin/audit-log/page.tsx",
+  );
+
+  assert.equal(
+    page.includes(
+      "const pageSize = 100",
+    ) &&
+      page.includes(
+        ".range(",
+      ) &&
+      page.includes(
+        'count: databaseSearchMode',
+      ),
+    true,
+    "audit log must paginate database-backed history instead of truncating all activity to one recent window",
+  );
+
+  assert.equal(
+    page.includes(
+      '.eq(\n        "actor_id",\n        actorFilter',
+    ) &&
+      page.includes(
+        "actorEmail",
+      ),
+    true,
+    "actor activity views must keep exact server-side actor filtering and surface the resolved admin identity",
+  );
+
+  assert.equal(
+    page.includes(
+      "currentPage > totalPages",
+    ) &&
+      page.includes(
+        "page: totalPages",
+      ),
+    true,
+    "out-of-range audit pages must redirect to the final valid page",
+  );
+});
