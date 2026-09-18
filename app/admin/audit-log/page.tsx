@@ -413,6 +413,12 @@ import {
                   : "Messages"}
               </option>
 
+              <option value="conversation">
+                {isArabic
+                  ? "المحادثات"
+                  : "Conversations"}
+              </option>
+
               <option value="casting_project">
                 {isArabic
                   ? "مشاريع الكاستينغ"
