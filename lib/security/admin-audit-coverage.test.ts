@@ -361,3 +361,75 @@ test("last Super Admin protection verifies all access sources", async () => {
     );
   }
 });
+
+
+test("sensitive admin access pages require admins view permission", async () => {
+  for (const file of [
+    "app/admin/admins/page.tsx",
+    "app/admin/audit-log/page.tsx",
+  ]) {
+    const text =
+      await source(file);
+
+    assert.equal(
+      text.includes(
+        "requirePermission",
+      ) &&
+        text.includes(
+          "PERMISSIONS.ADMINS_VIEW",
+        ),
+      true,
+      `${file} must require admins.view before rendering sensitive access data`,
+    );
+  }
+});
+
+test("admin navigation hides sensitive destinations without admins view permission", async () => {
+  const navigation = await source(
+    "components/admin/layout/admin-navigation.ts",
+  );
+
+  for (const href of [
+    "/admin/admins",
+    "/admin/audit-log",
+  ]) {
+    const start =
+      navigation.indexOf(
+        `href: "${href}"`,
+      );
+
+    assert.ok(
+      start >= 0,
+      `expected navigation item for ${href}`,
+    );
+
+    const segment =
+      navigation.slice(
+        start,
+        start + 240,
+      );
+
+    assert.equal(
+      segment.includes(
+        "PERMISSIONS.ADMINS_VIEW",
+      ),
+      true,
+      `${href} must remain permission-gated in navigation`,
+    );
+  }
+
+  const layout = await source(
+    "app/admin/layout.tsx",
+  );
+
+  assert.equal(
+    layout.includes(
+      "getUserPermissions",
+    ) &&
+      layout.includes(
+        "permissions={permissions}",
+      ),
+    true,
+    "admin layout must pass effective permissions into desktop and mobile navigation",
+  );
+});
