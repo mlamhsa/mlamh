@@ -1056,3 +1056,24 @@ test("audit CSV export is permission-gated, rate-limited, audited, and formula-s
     "audit export must keep an explicit maximum row limit",
   );
 });
+
+
+test("access center surfaces Super Admin redundancy health", async () => {
+  const page = await source(
+    "app/admin/admins/page.tsx",
+  );
+
+  assert.equal(
+    page.includes(
+      "effectiveSuperAdminCount",
+    ) &&
+      page.includes(
+        "Only one effective Super Admin is available",
+      ) &&
+      page.includes(
+        "No effective Super Admin detected",
+      ),
+    true,
+    "access center must surface effective Super Admin redundancy and lockout risk",
+  );
+});
