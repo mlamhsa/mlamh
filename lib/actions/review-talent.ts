@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { createEvent } from "@/lib/events/create-event";
+import { recordAdminAction } from "@/lib/events/admin-audit";
+import { EVENT_TARGETS } from "@/lib/events/event-targets";
 import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { TALENT_CATEGORIES } from "@/lib/data/talent-categories";
 import { isActiveTalentCountryCode } from "@/lib/data/talent-active-market";
@@ -70,6 +72,21 @@ async function updateTalentReviewStatus({
 
   if (talentError) {
     console.error("[updateTalentReviewStatus talent]", talentError);
+
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "review_talent_profile",
+      outcome: "failed",
+      target: EVENT_TARGETS.TALENT,
+      targetId: id,
+      reason: "talent_load_failed",
+      metadata: {
+        requested_decision:
+          decision,
+      },
+    });
+
     return {
       success: false,
       message: locale === "ar" ? "تعذر تحميل ملف الموهبة." : "Unable to load the talent profile.",
@@ -77,6 +94,20 @@ async function updateTalentReviewStatus({
   }
 
   if (!talent) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "review_talent_profile",
+      outcome: "failed",
+      target: EVENT_TARGETS.TALENT,
+      targetId: id,
+      reason: "talent_not_found",
+      metadata: {
+        requested_decision:
+          decision,
+      },
+    });
+
     return {
       success: false,
       message: locale === "ar" ? "لم يتم العثور على ملف الموهبة." : "Talent profile not found.",
@@ -84,6 +115,20 @@ async function updateTalentReviewStatus({
   }
 
   if (!talent.user_id) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "review_talent_profile",
+      outcome: "failed",
+      target: EVENT_TARGETS.TALENT,
+      targetId: id,
+      reason: "talent_user_account_missing",
+      metadata: {
+        requested_decision:
+          decision,
+      },
+    });
+
     return {
       success: false,
       message: locale === "ar"
@@ -93,6 +138,20 @@ async function updateTalentReviewStatus({
   }
 
   if (decision === "changes_requested" && !reason) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "review_talent_profile",
+      outcome: "blocked",
+      target: EVENT_TARGETS.TALENT,
+      targetId: id,
+      reason: "changes_reason_required",
+      metadata: {
+        requested_decision:
+          decision,
+      },
+    });
+
     return {
       success: false,
       message: locale === "ar" ? "اكتب سبب طلب التعديل." : "Please provide a reason for requesting changes.",
@@ -100,6 +159,20 @@ async function updateTalentReviewStatus({
   }
 
   if (decision === "rejected" && !reason) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "review_talent_profile",
+      outcome: "blocked",
+      target: EVENT_TARGETS.TALENT,
+      targetId: id,
+      reason: "rejection_reason_required",
+      metadata: {
+        requested_decision:
+          decision,
+      },
+    });
+
     return {
       success: false,
       message: locale === "ar" ? "اكتب سبب رفض الملف." : "Please provide a reason for rejecting the profile.",
@@ -114,6 +187,21 @@ async function updateTalentReviewStatus({
 
   if (profileError) {
     console.error("[updateTalentReviewStatus profile read]", profileError);
+
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "review_talent_profile",
+      outcome: "failed",
+      target: EVENT_TARGETS.TALENT,
+      targetId: id,
+      reason: "talent_profile_lookup_failed",
+      metadata: {
+        requested_decision:
+          decision,
+      },
+    });
+
     return {
       success: false,
       message: locale === "ar"
@@ -123,6 +211,20 @@ async function updateTalentReviewStatus({
   }
 
   if (!profile || profile.account_type !== "talent") {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "review_talent_profile",
+      outcome: "failed",
+      target: EVENT_TARGETS.TALENT,
+      targetId: id,
+      reason: "linked_talent_profile_not_found",
+      metadata: {
+        requested_decision:
+          decision,
+      },
+    });
+
     return {
       success: false,
       message: locale === "ar"
@@ -135,6 +237,24 @@ async function updateTalentReviewStatus({
     const activeRole = String(talent.primary_role ?? talent.category_slug ?? "").trim().toLowerCase();
     const roleIsActive = TALENT_CATEGORIES.some((category) => category.slug === activeRole);
     if (!roleIsActive || !isActiveTalentCountryCode(talent.base_country_code)) {
+      await recordAdminAction({
+        actorId: adminUser.id,
+        actorEmail: adminUser.email,
+        action: "review_talent_profile",
+        outcome: "blocked",
+        target: EVENT_TARGETS.TALENT,
+        targetId: id,
+        reason: "talent_outside_active_launch_scope",
+        metadata: {
+          requested_decision:
+            decision,
+          primary_role:
+            activeRole,
+          base_country_code:
+            talent.base_country_code,
+        },
+      });
+
       return {
         success: false,
         message: locale === "ar"
@@ -153,6 +273,25 @@ async function updateTalentReviewStatus({
       const missingFields = readiness.missingRequirements
         .map((requirement) => (locale === "ar" ? requirement.ar : requirement.en))
         .join("، ");
+
+      await recordAdminAction({
+        actorId: adminUser.id,
+        actorEmail: adminUser.email,
+        action: "review_talent_profile",
+        outcome: "blocked",
+        target: EVENT_TARGETS.TALENT,
+        targetId: id,
+        reason: "core_requirements_incomplete",
+        metadata: {
+          requested_decision:
+            decision,
+          missing_requirements:
+            readiness.missingRequirements.map(
+              (requirement) =>
+                requirement.key,
+            ),
+        },
+      });
 
       return {
         success: false,
@@ -178,6 +317,23 @@ async function updateTalentReviewStatus({
 
     if (syncError) {
       console.error("[updateTalentReviewStatus idempotent sync]", syncError);
+
+      await recordAdminAction({
+        actorId: adminUser.id,
+        actorEmail: adminUser.email,
+        action: "review_talent_profile",
+        outcome: "failed",
+        target: EVENT_TARGETS.TALENT,
+        targetId: id,
+        reason: "idempotent_operational_sync_failed",
+        metadata: {
+          current_status:
+            previousStatus,
+          requested_decision:
+            decision,
+        },
+      });
+
       return {
         success: false,
         message: locale === "ar"
@@ -185,6 +341,24 @@ async function updateTalentReviewStatus({
           : "The review state is already saved, but operational fields could not be synchronized.",
       };
     }
+
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "review_talent_profile",
+      outcome: "noop",
+      target: EVENT_TARGETS.TALENT,
+      targetId: id,
+      reason: "decision_already_set",
+      metadata: {
+        current_status:
+          previousStatus,
+        requested_decision:
+          decision,
+        operational_sync_completed:
+          true,
+      },
+    });
 
     revalidateTalentReviewPaths(id);
     return {
@@ -204,6 +378,23 @@ async function updateTalentReviewStatus({
 
   if (profileUpdateError || updatedProfile?.approval_status !== decision) {
     console.error("[updateTalentReviewStatus profile update]", profileUpdateError ?? { updatedProfile });
+
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "review_talent_profile",
+      outcome: "failed",
+      target: EVENT_TARGETS.TALENT,
+      targetId: id,
+      reason: "profile_review_status_update_failed",
+      metadata: {
+        previous_status:
+          previousStatus,
+        requested_decision:
+          decision,
+      },
+    });
+
     return {
       success: false,
       message: locale === "ar"
@@ -230,6 +421,24 @@ async function updateTalentReviewStatus({
       .update({ approval_status: previousStatus })
       .eq("id", profile.id)
       .eq("account_type", "talent");
+
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "review_talent_profile",
+      outcome: "failed",
+      target: EVENT_TARGETS.TALENT,
+      targetId: id,
+      reason: "talent_operational_update_failed",
+      metadata: {
+        previous_status:
+          previousStatus,
+        requested_decision:
+          decision,
+        profile_rollback_attempted:
+          true,
+      },
+    });
 
     return {
       success: false,
@@ -267,6 +476,23 @@ async function updateTalentReviewStatus({
         .eq("id", id),
     ]);
 
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "review_talent_profile",
+      outcome: "failed",
+      target: EVENT_TARGETS.TALENT,
+      targetId: id,
+      reason: "review_history_write_failed",
+      metadata: {
+        previous_status:
+          previousStatus,
+        requested_decision:
+          decision,
+        rollback_attempted: true,
+      },
+    });
+
     return {
       success: false,
       message: locale === "ar"
@@ -284,6 +510,26 @@ async function updateTalentReviewStatus({
 
   if (verifyError || persistedProfile?.approval_status !== decision) {
     console.error("[updateTalentReviewStatus verify]", verifyError ?? { persistedProfile, decision });
+
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "review_talent_profile",
+      outcome: "failed",
+      target: EVENT_TARGETS.TALENT,
+      targetId: id,
+      reason: "final_state_verification_failed",
+      metadata: {
+        previous_status:
+          previousStatus,
+        requested_decision:
+          decision,
+        persisted_status:
+          persistedProfile?.approval_status ??
+          null,
+      },
+    });
+
     return {
       success: false,
       message: locale === "ar"
@@ -313,6 +559,33 @@ async function updateTalentReviewStatus({
       public_published: published,
       reason: reason ?? null,
       admin_note: adminNote ?? null,
+    },
+  });
+
+  await recordAdminAction({
+    actorId: adminUser.id,
+    actorEmail: adminUser.email,
+    action: "review_talent_profile",
+    outcome: "success",
+    target: EVENT_TARGETS.TALENT,
+    targetId: id,
+    metadata: {
+      profile_id:
+        profile.id,
+      previous_status:
+        previousStatus,
+      new_status:
+        decision,
+      profile_visibility:
+        isPublicProfile
+          ? "public"
+          : "private",
+      public_published:
+        published,
+      reason:
+        reason ?? null,
+      admin_note:
+        adminNote ?? null,
     },
   });
 
