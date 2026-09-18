@@ -830,6 +830,25 @@ import {
               </div>
             </div>
   
+            {getMetadataString(
+              event.metadata,
+              "change_reason",
+            ) ? (
+              <div className="mt-4 rounded-xl border border-gold/10 bg-gold/[0.035] p-3">
+                <p className="text-[10px] uppercase tracking-[0.16em] text-gold/60">
+                  {isArabic
+                    ? "مبرر التغيير"
+                    : "Change justification"}
+                </p>
+                <p className="mt-1.5 text-xs leading-6 text-white/60">
+                  {getMetadataString(
+                    event.metadata,
+                    "change_reason",
+                  )}
+                </p>
+              </div>
+            ) : null}
+
             {event.metadata &&
             Object.keys(event.metadata)
               .length > 0 ? (
