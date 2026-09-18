@@ -472,6 +472,30 @@ import {
                   ? "استبدالات المواهب"
                   : "Casting replacements"}
               </option>
+
+              <option value="investor">
+                {isArabic
+                  ? "المستثمرون"
+                  : "Investors"}
+              </option>
+
+              <option value="investor_outreach">
+                {isArabic
+                  ? "تواصل المستثمرين"
+                  : "Investor outreach"}
+              </option>
+
+              <option value="integration">
+                {isArabic
+                  ? "التكاملات"
+                  : "Integrations"}
+              </option>
+
+              <option value="verification_proof">
+                {isArabic
+                  ? "مستندات التحقق"
+                  : "Verification proofs"}
+              </option>
             </select>
   
             <select
