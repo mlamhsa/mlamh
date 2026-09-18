@@ -123,6 +123,68 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
       ? `/admin/audit-log?${query}`
       : "/admin/audit-log";
   }
+
+  function buildExportHref({
+    q,
+    target,
+    event,
+    actor,
+    period,
+  }: {
+    q?: string;
+    target?: string;
+    event?: string;
+    actor?: string;
+    period?: string;
+  }) {
+    const params =
+      new URLSearchParams();
+
+    if (q) {
+      params.set(
+        "q",
+        q,
+      );
+    }
+
+    if (target) {
+      params.set(
+        "target",
+        target,
+      );
+    }
+
+    if (event) {
+      params.set(
+        "event",
+        event,
+      );
+    }
+
+    if (actor) {
+      params.set(
+        "actor",
+        actor,
+      );
+    }
+
+    if (
+      period &&
+      period !== "all"
+    ) {
+      params.set(
+        "period",
+        period,
+      );
+    }
+
+    const query =
+      params.toString();
+
+    return query
+      ? `/api/admin/audit/export?${query}`
+      : "/api/admin/audit/export";
+  }
   
   export default async function AdminAuditLogPage({
     searchParams,
@@ -1088,16 +1150,36 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
                 : "Latest activity"}
             </h2>
           </div>
-  
-          <p className="text-xs text-white/35">
-            {databaseSearchMode
-              ? isArabic
-                ? `${matchingCount} نتيجة · الصفحة ${currentPage} من ${totalPages}`
-                : `${matchingCount} results · page ${currentPage} of ${totalPages}`
-              : isArabic
-                ? `${filteredEvents.length} نتيجة ضمن أحدث 500 حدث`
-                : `${filteredEvents.length} results within the latest 500 events`}
-          </p>
+
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <p className="text-xs text-white/35">
+              {databaseSearchMode
+                ? isArabic
+                  ? `${matchingCount} نتيجة · الصفحة ${currentPage} من ${totalPages}`
+                  : `${matchingCount} results · page ${currentPage} of ${totalPages}`
+                : isArabic
+                  ? `${filteredEvents.length} نتيجة ضمن أحدث 500 حدث`
+                  : `${filteredEvents.length} results within the latest 500 events`}
+            </p>
+
+            <a
+              href={buildExportHref({
+                q,
+                target,
+                event,
+                actor:
+                  actorFilter ??
+                  undefined,
+                period:
+                  periodFilter,
+              })}
+              className="rounded-xl border border-white/[0.09] bg-white/[0.025] px-3 py-2 text-[11px] text-white/55 transition hover:border-gold/20 hover:text-gold"
+            >
+              {isArabic
+                ? "تصدير CSV"
+                : "Export CSV"}
+            </a>
+          </div>
         </div>
   
         {filteredEvents.length ===
