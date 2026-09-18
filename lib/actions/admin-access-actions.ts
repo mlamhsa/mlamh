@@ -189,6 +189,52 @@ function revalidateAdminAccessPaths() {
   revalidatePath("/admin/audit-log");
 }
 
+function getPendingAdminInviteState(
+  user:
+    | {
+        last_sign_in_at?: string | null;
+        user_metadata?: Record<
+          string,
+          unknown
+        > | null;
+      }
+    | null
+    | undefined,
+) {
+  const invitedAt =
+    typeof user?.user_metadata
+      ?.admin_invited_at ===
+    "string"
+      ? user.user_metadata
+          .admin_invited_at
+      : null;
+
+  return {
+    invitedAt,
+    pending:
+      Boolean(invitedAt) &&
+      !user?.last_sign_in_at,
+  };
+}
+
+async function hasActiveAdminAssignment(
+  userId: string,
+) {
+  const assignments =
+    await getAdminRoleAssignments(
+      userId,
+    );
+
+  return assignments.some(
+    (assignment) =>
+      isAssignableAdminRole(
+        extractRoleKey(
+          assignment,
+        ),
+      ),
+  );
+}
+
 type AdminAuditOutcome =
   | "blocked"
   | "failed"
@@ -804,6 +850,62 @@ export async function resendAdminInviteAction(
     );
   }
 
+  let hasActiveAssignment = false;
+
+  try {
+    hasActiveAssignment =
+      await hasActiveAdminAssignment(
+        targetUserId,
+      );
+  } catch (assignmentError) {
+    console.error(
+      "[resendAdminInviteAction assignment]",
+      assignmentError,
+    );
+
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "resend_admin_invite",
+      outcome: "failed",
+      targetId: targetUserId,
+      reason: "role_assignment_lookup_failed",
+      metadata: {
+        target_email:
+          targetAdmin.email,
+      },
+    });
+
+    redirect(
+      accessCenterUrl(locale, {
+        access_error:
+          "invite_resend_failed",
+      }),
+    );
+  }
+
+  if (!hasActiveAssignment) {
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "resend_admin_invite",
+      outcome: "blocked",
+      targetId: targetUserId,
+      reason: "invite_access_inconsistent",
+      metadata: {
+        target_email:
+          targetAdmin.email,
+      },
+    });
+
+    redirect(
+      accessCenterUrl(locale, {
+        access_error:
+          "invite_access_inconsistent",
+      }),
+    );
+  }
+
   const {
     data: authUserData,
     error: authUserError,
@@ -814,19 +916,15 @@ export async function resendAdminInviteAction(
 
   const authUser =
     authUserData.user;
-  const invitedAt =
-    typeof authUser?.user_metadata
-      ?.admin_invited_at ===
-    "string"
-      ? authUser.user_metadata
-          .admin_invited_at
-      : null;
+  const inviteState =
+    getPendingAdminInviteState(
+      authUser,
+    );
 
   if (
     authUserError ||
     !authUser ||
-    !invitedAt ||
-    authUser.last_sign_in_at
+    !inviteState.pending
   ) {
     console.error(
       "[resendAdminInviteAction auth state]",
@@ -1006,6 +1104,62 @@ export async function cancelPendingAdminInviteAction(
     );
   }
 
+  let hasActiveAssignment = false;
+
+  try {
+    hasActiveAssignment =
+      await hasActiveAdminAssignment(
+        targetUserId,
+      );
+  } catch (assignmentError) {
+    console.error(
+      "[cancelPendingAdminInviteAction assignment]",
+      assignmentError,
+    );
+
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "cancel_admin_invite",
+      outcome: "failed",
+      targetId: targetUserId,
+      reason: "role_assignment_lookup_failed",
+      metadata: {
+        target_email:
+          targetAdmin.email,
+      },
+    });
+
+    redirect(
+      accessCenterUrl(locale, {
+        access_error:
+          "invite_cancel_failed",
+      }),
+    );
+  }
+
+  if (!hasActiveAssignment) {
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "cancel_admin_invite",
+      outcome: "blocked",
+      targetId: targetUserId,
+      reason: "invite_access_inconsistent",
+      metadata: {
+        target_email:
+          targetAdmin.email,
+      },
+    });
+
+    redirect(
+      accessCenterUrl(locale, {
+        access_error:
+          "invite_access_inconsistent",
+      }),
+    );
+  }
+
   const {
     data: authUserData,
     error: authUserError,
@@ -1016,19 +1170,15 @@ export async function cancelPendingAdminInviteAction(
 
   const authUser =
     authUserData.user;
-  const invitedAt =
-    typeof authUser?.user_metadata
-      ?.admin_invited_at ===
-    "string"
-      ? authUser.user_metadata
-          .admin_invited_at
-      : null;
+  const inviteState =
+    getPendingAdminInviteState(
+      authUser,
+    );
 
   if (
     authUserError ||
     !authUser ||
-    !invitedAt ||
-    authUser.last_sign_in_at
+    !inviteState.pending
   ) {
     console.error(
       "[cancelPendingAdminInviteAction auth state]",
@@ -1298,6 +1448,77 @@ export async function updateAdminRoleAction(
       accessCenterUrl(locale, {
         access_error:
           "role_not_found",
+      }),
+    );
+  }
+
+  const {
+    data: targetAuthData,
+    error: targetAuthError,
+  } =
+    await adminClient.auth.admin.getUserById(
+      targetUserId,
+    );
+
+  if (
+    targetAuthError ||
+    !targetAuthData.user
+  ) {
+    console.error(
+      "[updateAdminRoleAction auth]",
+      targetAuthError,
+    );
+
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "update_admin_role",
+      outcome: "failed",
+      targetId: targetUserId,
+      reason: "target_auth_state_unavailable",
+      metadata: {
+        requested_role: roleKey,
+        target_email:
+          targetAdmin.email,
+      },
+    });
+
+    redirect(
+      accessCenterUrl(locale, {
+        access_error:
+          "admin_not_found",
+      }),
+    );
+  }
+
+  const targetInviteState =
+    getPendingAdminInviteState(
+      targetAuthData.user,
+    );
+
+  if (
+    targetInviteState.pending
+  ) {
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "update_admin_role",
+      outcome: "blocked",
+      targetId: targetUserId,
+      reason: "invite_pending_role_change",
+      metadata: {
+        target_email:
+          targetAdmin.email,
+        requested_role: roleKey,
+        invited_at:
+          targetInviteState.invitedAt,
+      },
+    });
+
+    redirect(
+      accessCenterUrl(locale, {
+        access_error:
+          "invite_pending_role_change",
       }),
     );
   }
