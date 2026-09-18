@@ -1,3 +1,5 @@
+import * as Sentry from "@sentry/nextjs";
+
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sanitizeAuditMetadata } from "./audit-sanitizer";
 import type { EventTarget } from "./event-targets";
@@ -39,9 +41,30 @@ export async function createAuditEvent({
       .single();
 
   if (error || !data) {
-    throw new Error(
-      `Audit event insert failed: ${error?.message ?? "unknown error"}`,
+    const auditError =
+      new Error(
+        `Audit event insert failed: ${error?.message ?? "unknown error"}`,
+      );
+
+    Sentry.captureException(
+      auditError,
+      {
+        tags: {
+          subsystem:
+            "admin_audit",
+          audit_event_type:
+            type,
+          audit_target:
+            target,
+        },
+        extra: {
+          targetId:
+            String(targetId),
+        },
+      },
     );
+
+    throw auditError;
   }
 
   return data.id;
