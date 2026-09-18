@@ -173,6 +173,9 @@ export const dynamic = "force-dynamic";
 const STALE_ADMIN_INVITE_MS =
   7 * 24 * 60 * 60 * 1000;
 
+const DORMANT_ADMIN_MS =
+  90 * 24 * 60 * 60 * 1000;
+
 function formatRoleKey(
   roleKey: string,
   isArabic: boolean,
@@ -385,7 +388,8 @@ export default async function AdminUsersPage({
     status === "pending" ||
     status === "revoked" ||
     status === "inconsistent" ||
-    status === "stale"
+    status === "stale" ||
+    status === "dormant"
       ? status
       : "all";
   const adminClient = createAdminClient();
@@ -894,6 +898,24 @@ export default async function AdminUsersPage({
             invitedAtMs >=
           STALE_ADMIN_INVITE_MS;
 
+      const lastSignInMs =
+        authState?.lastSignInAt
+          ? Date.parse(
+              authState.lastSignInAt,
+            )
+          : Number.NaN;
+
+      const dormantAdmin =
+        statusKnown &&
+        hasActiveRole &&
+        !pendingInvite &&
+        Number.isFinite(
+          lastSignInMs,
+        ) &&
+        Date.now() -
+            lastSignInMs >=
+          DORMANT_ADMIN_MS;
+
       return {
         adminId: admin.id,
         hasActiveRole:
@@ -906,6 +928,7 @@ export default async function AdminUsersPage({
             : false,
         pendingInvite,
         staleInvite,
+        dormantAdmin,
         statusKnown,
       };
     });
@@ -924,6 +947,13 @@ export default async function AdminUsersPage({
         state.statusKnown &&
         state.hasActiveRole &&
         state.staleInvite,
+    ).length;
+
+  const dormantAdminCount =
+    adminAccessStates.filter(
+      (state) =>
+        state.statusKnown &&
+        state.dormantAdmin,
     ).length;
 
   const activeAdminCount =
@@ -1079,6 +1109,13 @@ export default async function AdminUsersPage({
           state.hasActiveRole &&
           state.staleInvite
         );
+      }
+
+      if (
+        statusFilter ===
+        "dormant"
+      ) {
+        return state.dormantAdmin;
       }
 
       return (
@@ -1298,6 +1335,25 @@ export default async function AdminUsersPage({
                   : isArabic
                     ? "حماية «آخر مدير أعلى» تمنع فقدان الوصول، لكن يوصى بوجود مدير أعلى ثانٍ موثّق للطوارئ واستمرارية الإدارة."
                     : "Last-Super-Admin protection prevents lockout, but a second verified Super Admin is recommended for emergency recovery and administrative continuity."}
+              </p>
+            </div>
+          </div>
+        ) : null}
+
+        {dormantAdminCount > 0 &&
+        accessStateDataHealthy ? (
+          <div className="mb-5 flex items-start gap-3 rounded-2xl border border-sky-400/20 bg-sky-400/[0.055] px-4 py-3 text-sm text-sky-100">
+            <UserCog className="mt-0.5 h-4 w-4 shrink-0" />
+            <div>
+              <p className="font-medium">
+                {isArabic
+                  ? `يوجد ${dormantAdminCount} حساب إدارة فعّال لم يسجل الدخول منذ 90 يومًا أو أكثر`
+                  : `${dormantAdminCount} active admin account${dormantAdminCount === 1 ? "" : "s"} have not signed in for 90 days or more`}
+              </p>
+              <p className="mt-1 text-xs leading-6 text-sky-100/65">
+                {isArabic
+                  ? "راجع الحاجة الفعلية لهذه الحسابات. إذا لم تعد مطلوبة، اسحب الوصول بدل ترك صلاحيات إدارية غير مستخدمة."
+                  : "Review whether these accounts still need access. If they are no longer required, revoke access instead of leaving unused administrative privileges active."}
               </p>
             </div>
           </div>
@@ -1643,6 +1699,11 @@ export default async function AdminUsersPage({
                     ? "دعوات قديمة"
                     : "Stale invites"}
                 </option>
+                <option value="dormant">
+                  {isArabic
+                    ? "مشرفون غير نشطين"
+                    : "Dormant admins"}
+                </option>
               </select>
 
               <button
@@ -1755,6 +1816,24 @@ export default async function AdminUsersPage({
                         invitedAtMs >=
                       STALE_ADMIN_INVITE_MS;
 
+                  const lastSignInMs =
+                    authState?.lastSignInAt
+                      ? Date.parse(
+                          authState.lastSignInAt,
+                        )
+                      : Number.NaN;
+
+                  const dormantAdmin =
+                    accessStateKnown &&
+                    rawHasActiveAccess &&
+                    !pendingInvite &&
+                    Number.isFinite(
+                      lastSignInMs,
+                    ) &&
+                    Date.now() -
+                        lastSignInMs >=
+                      DORMANT_ADMIN_MS;
+
                   const initial =
                     admin.email
                       .charAt(0)
@@ -1814,6 +1893,10 @@ export default async function AdminUsersPage({
                                     ? isArabic
                                       ? "دعوة معلقة قديمة"
                                       : "Stale pending invite"
+                                  : dormantAdmin
+                                    ? isArabic
+                                      ? "حساب إدارة غير نشط"
+                                      : "Dormant admin"
                                   : pendingInvite
                                   ? isArabic
                                     ? "دعوة معلقة"
