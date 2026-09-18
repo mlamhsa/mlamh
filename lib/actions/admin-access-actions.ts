@@ -13,6 +13,7 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
 import { requirePermission } from "@/lib/rbac/guards";
 import { ROLES, type RoleKey } from "@/lib/rbac/roles";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { consumeServerRateLimit } from "@/lib/security/server-rate-limit";
 
 type Locale = "ar" | "en";
 
@@ -692,6 +693,72 @@ export async function inviteAdminAction(
       accessCenterUrl(locale, {
         access_error:
           "invite_create_failed",
+      }),
+    );
+  }
+
+  let resendRateLimit;
+
+  try {
+    resendRateLimit =
+      await consumeServerRateLimit({
+        namespace:
+          "admin_invite_resend",
+        identifier:
+          `${actor.id}:${targetUserId}`,
+        limit: 3,
+        windowSeconds:
+          30 * 60,
+      });
+  } catch (rateLimitError) {
+    console.error(
+      "[resendAdminInviteAction rate limit]",
+      rateLimitError,
+    );
+
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "resend_admin_invite",
+      outcome: "failed",
+      targetId: targetUserId,
+      reason:
+        "invite_resend_rate_limit_unavailable",
+      metadata: {
+        target_email:
+          targetAdmin.email,
+      },
+    });
+
+    redirect(
+      accessCenterUrl(locale, {
+        access_error:
+          "invite_resend_failed",
+      }),
+    );
+  }
+
+  if (!resendRateLimit.allowed) {
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "resend_admin_invite",
+      outcome: "blocked",
+      targetId: targetUserId,
+      reason:
+        "invite_resend_rate_limited",
+      metadata: {
+        target_email:
+          targetAdmin.email,
+        retry_after_seconds:
+          resendRateLimit.retryAfterSeconds,
+      },
+    });
+
+    redirect(
+      accessCenterUrl(locale, {
+        access_error:
+          "invite_rate_limited",
       }),
     );
   }
