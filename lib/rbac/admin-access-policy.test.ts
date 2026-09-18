@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   ACTIVE_ADMIN_ACCESS_ROLES,
+  hasConsistentActiveAdminRole,
   isActiveAdminAccessRole,
   isAssignableAdminRole,
 } from "./admin-access-policy.ts";
@@ -58,4 +59,40 @@ test("only active access roles can be assigned from the access center", () => {
     ),
     false,
   );
+});
+
+
+test("admin registry and RBAC role must match exactly", () => {
+  assert.equal(
+    hasConsistentActiveAdminRole(
+      "admin",
+      ["admin"],
+    ),
+    true,
+  );
+
+  assert.equal(
+    hasConsistentActiveAdminRole(
+      "super_admin",
+      ["super_admin"],
+    ),
+    true,
+  );
+
+  for (const [registry, assignments] of [
+    ["admin", ["super_admin"]],
+    ["super_admin", ["admin"]],
+    ["admin", ["admin", "super_admin"]],
+    ["admin", []],
+    ["revoked", ["admin"]],
+  ] as const) {
+    assert.equal(
+      hasConsistentActiveAdminRole(
+        registry,
+        [...assignments],
+      ),
+      false,
+      `${registry} / ${assignments.join(",")} must fail closed`,
+    );
+  }
 });
