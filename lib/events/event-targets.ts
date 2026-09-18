@@ -8,6 +8,7 @@ export const EVENT_TARGETS = {
   CLAIM_REQUEST: "claim_request",
   SUPPORT: "support",
   MESSAGE: "message",
+  CONVERSATION: "conversation",
   CASTING_PROJECT: "casting_project",
   PAYMENT: "payment",
   ENTITLEMENT: "entitlement",
