@@ -1824,6 +1824,49 @@ export async function updateAdminRoleAction(
       ? previousRoleKeys[0]
       : null;
 
+  const crossesSuperAdminBoundary =
+    Boolean(currentRoleKey) &&
+    (
+      currentRoleKey ===
+        ROLES.SUPER_ADMIN
+    ) !==
+      (
+        roleKey ===
+        ROLES.SUPER_ADMIN
+      );
+
+  if (
+    crossesSuperAdminBoundary &&
+    formData.get(
+      "confirm_sensitive_role",
+    ) !== "1"
+  ) {
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "update_admin_role",
+      outcome: "blocked",
+      targetId: targetUserId,
+      reason:
+        "sensitive_role_confirmation_required",
+      metadata: {
+        target_email:
+          targetAdmin.email,
+        previous_roles:
+          previousRoleKeys,
+        requested_role:
+          roleKey,
+      },
+    });
+
+    redirect(
+      accessCenterUrl(locale, {
+        access_error:
+          "sensitive_role_confirmation_required",
+      }),
+    );
+  }
+
   if (
     actor.id === targetUserId &&
     currentRoleKey !== roleKey
