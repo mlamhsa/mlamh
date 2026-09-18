@@ -573,6 +573,21 @@ import {
         return isArabic
           ? "رسالة"
           : "Message";
+
+      case "casting_project":
+        return isArabic
+          ? "مشروع كاستينغ"
+          : "Casting project";
+
+      case "payment":
+        return isArabic
+          ? "دفعة"
+          : "Payment";
+
+      case "notification":
+        return isArabic
+          ? "إشعار"
+          : "Notification";
   
       default:
         return targetType;
