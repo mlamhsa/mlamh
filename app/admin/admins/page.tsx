@@ -1004,6 +1004,11 @@ export default async function AdminUsersPage({
             ? "لا يمكن إزالة آخر مدير أعلى من النظام. عيّن مديرًا أعلى آخر أولًا."
             : "The last Super Admin cannot be removed. Assign another Super Admin first."
           : access_error ===
+              "super_admin_change_busy"
+            ? isArabic
+              ? "يوجد تغيير حساس آخر على صلاحيات المدير الأعلى قيد التنفيذ. تم منع العملية مؤقتًا لحماية الوصول؛ حاول مرة أخرى بعد ثوانٍ."
+              : "Another sensitive Super Admin change is already in progress. This action was temporarily blocked to protect access; try again in a few seconds."
+          : access_error ===
                 "admin_not_found"
             ? isArabic
               ? "تعذر العثور على حساب الإدارة المطلوب."
