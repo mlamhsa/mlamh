@@ -1125,14 +1125,36 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
               </option>
             </select>
   
-            <button
-              type="submit"
-              className="rounded-2xl border border-gold/35 bg-gold/[0.05] px-7 py-4 text-sm text-gold transition hover:bg-gold hover:text-black"
-            >
-              {isArabic
-                ? "بحث"
-                : "Search"}
-            </button>
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                className="rounded-2xl border border-gold/35 bg-gold/[0.05] px-7 py-4 text-sm text-gold transition hover:bg-gold hover:text-black"
+              >
+                {isArabic
+                  ? "بحث"
+                  : "Search"}
+              </button>
+
+              {(q ||
+                target ||
+                event ||
+                periodFilter !==
+                  "all") ? (
+                <Link
+                  href={buildHref({
+                    lang,
+                    actor:
+                      actorFilter ??
+                      undefined,
+                  })}
+                  className="inline-flex items-center justify-center rounded-2xl border border-white/[0.09] px-4 py-4 text-xs text-white/45 transition hover:border-white/[0.16] hover:text-white"
+                >
+                  {isArabic
+                    ? "مسح الفلاتر"
+                    : "Clear"}
+                </Link>
+              ) : null}
+            </div>
           </div>
         </form>
   
