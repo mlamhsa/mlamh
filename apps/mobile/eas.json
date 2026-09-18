@@ -26,7 +26,7 @@
     },
     "testflight": {
       "distribution": "store",
-      "environment": "preview",
+      "environment": "production",
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://ozieysztwlispglupuox.supabase.co",
         "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_8fHyfoV7YWfed4yRhu_BOw_BtzOId8g",
