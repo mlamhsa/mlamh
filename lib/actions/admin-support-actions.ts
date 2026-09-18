@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireAdminAccess } from "@/lib/auth/require-admin";
+import { recordAdminAction } from "@/lib/events/admin-audit";
+import { EVENT_TARGETS } from "@/lib/events/event-targets";
 import { processSupportCommercialIntake } from "@/lib/marketing/dana/support-adapter";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -24,6 +26,22 @@ export async function adminReplySupportTicketAction(formData: FormData) {
   const message = String(formData.get("message") ?? "").trim();
 
   if (!message || message.length > 10000) {
+    await recordAdminAction({
+      actorId: admin.id,
+      actorEmail: admin.email,
+      action: "reply_support_ticket",
+      outcome: "blocked",
+      target: EVENT_TARGETS.SUPPORT,
+      targetId: ticketId,
+      reason: !message
+        ? "empty_support_reply"
+        : "support_reply_too_long",
+      metadata: {
+        message_length:
+          message.length,
+      },
+    });
+
     redirect(`/admin/support/${ticketId}?lang=${locale}&error=invalid_message`);
   }
 
@@ -36,8 +54,36 @@ export async function adminReplySupportTicketAction(formData: FormData) {
 
   if (error) {
     console.error("[adminReplySupportTicketAction]", error);
+
+    await recordAdminAction({
+      actorId: admin.id,
+      actorEmail: admin.email,
+      action: "reply_support_ticket",
+      outcome: "failed",
+      target: EVENT_TARGETS.SUPPORT,
+      targetId: ticketId,
+      reason: "support_reply_rpc_failed",
+      metadata: {
+        message_length:
+          message.length,
+      },
+    });
+
     redirect(`/admin/support/${ticketId}?lang=${locale}&error=reply_failed`);
   }
+
+  await recordAdminAction({
+    actorId: admin.id,
+    actorEmail: admin.email,
+    action: "reply_support_ticket",
+    outcome: "success",
+    target: EVENT_TARGETS.SUPPORT,
+    targetId: ticketId,
+    metadata: {
+      message_length:
+        message.length,
+    },
+  });
 
   revalidatePath(`/admin/support/${ticketId}`);
   revalidatePath("/admin/support");
@@ -45,7 +91,8 @@ export async function adminReplySupportTicketAction(formData: FormData) {
 }
 
 export async function runDanaForExistingSupportTicketAction(formData: FormData) {
-  await requireAdminAccess();
+  const admin =
+    await requireAdminAccess();
   const ticketId = getTicketId(formData);
   const locale = getLocale(formData);
   const adminClient = createAdminClient();
@@ -68,6 +115,17 @@ export async function runDanaForExistingSupportTicketAction(formData: FormData) 
 
   if (ticketError || !ticket || messageError || !message) {
     console.error("[runDanaForExistingSupportTicketAction.load]", ticketError ?? messageError);
+
+    await recordAdminAction({
+      actorId: admin.id,
+      actorEmail: admin.email,
+      action: "run_dana_support_intake",
+      outcome: "failed",
+      target: EVENT_TARGETS.SUPPORT,
+      targetId: ticketId,
+      reason: "support_source_unavailable",
+    });
+
     redirect(`/admin/support/${ticketId}?lang=${locale}&error=dana_source_unavailable`);
   }
 
@@ -93,8 +151,40 @@ export async function runDanaForExistingSupportTicketAction(formData: FormData) 
           : "prepared";
   } catch (error) {
     console.error("[runDanaForExistingSupportTicketAction]", error);
+
+    await recordAdminAction({
+      actorId: admin.id,
+      actorEmail: admin.email,
+      action: "run_dana_support_intake",
+      outcome: "failed",
+      target: EVENT_TARGETS.SUPPORT,
+      targetId: ticketId,
+      reason: "dana_processing_failed",
+      metadata: {
+        ticket_number:
+          ticket.ticket_number,
+      },
+    });
+
     redirect(`/admin/support/${ticketId}?lang=${locale}&error=dana_failed`);
   }
+
+  await recordAdminAction({
+    actorId: admin.id,
+    actorEmail: admin.email,
+    action: "run_dana_support_intake",
+    outcome: "success",
+    target: EVENT_TARGETS.SUPPORT,
+    targetId: ticketId,
+    metadata: {
+      ticket_number:
+        ticket.ticket_number,
+      dana_result:
+        dana,
+      category:
+        ticket.category,
+    },
+  });
 
   revalidatePath(`/admin/support/${ticketId}`);
   revalidatePath("/admin/marketing");
@@ -103,13 +193,28 @@ export async function runDanaForExistingSupportTicketAction(formData: FormData) 
 }
 
 export async function updateSupportTicketStatusAction(formData: FormData) {
-  await requireAdminAccess();
+  const admin =
+    await requireAdminAccess();
   const ticketId = getTicketId(formData);
   const locale = getLocale(formData);
   const status = String(formData.get("status") ?? "");
   const allowed = new Set(["new", "open", "in_progress", "pending_user", "resolved", "closed"]);
 
   if (!allowed.has(status)) {
+    await recordAdminAction({
+      actorId: admin.id,
+      actorEmail: admin.email,
+      action: "update_support_ticket_status",
+      outcome: "blocked",
+      target: EVENT_TARGETS.SUPPORT,
+      targetId: ticketId,
+      reason: "invalid_support_status",
+      metadata: {
+        requested_status:
+          status,
+      },
+    });
+
     redirect(`/admin/support/${ticketId}?lang=${locale}&error=invalid_status`);
   }
 
@@ -121,8 +226,36 @@ export async function updateSupportTicketStatusAction(formData: FormData) {
 
   if (error) {
     console.error("[updateSupportTicketStatusAction]", error);
+
+    await recordAdminAction({
+      actorId: admin.id,
+      actorEmail: admin.email,
+      action: "update_support_ticket_status",
+      outcome: "failed",
+      target: EVENT_TARGETS.SUPPORT,
+      targetId: ticketId,
+      reason: "support_status_update_failed",
+      metadata: {
+        requested_status:
+          status,
+      },
+    });
+
     redirect(`/admin/support/${ticketId}?lang=${locale}&error=status_failed`);
   }
+
+  await recordAdminAction({
+    actorId: admin.id,
+    actorEmail: admin.email,
+    action: "update_support_ticket_status",
+    outcome: "success",
+    target: EVENT_TARGETS.SUPPORT,
+    targetId: ticketId,
+    metadata: {
+      new_status:
+        status,
+    },
+  });
 
   revalidatePath(`/admin/support/${ticketId}`);
   revalidatePath("/admin/support");
