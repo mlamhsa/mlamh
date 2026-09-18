@@ -1825,7 +1825,6 @@ export async function updateAdminRoleAction(
       : null;
 
   const crossesSuperAdminBoundary =
-    Boolean(currentRoleKey) &&
     (
       currentRoleKey ===
         ROLES.SUPER_ADMIN
