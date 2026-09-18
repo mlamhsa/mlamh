@@ -318,6 +318,10 @@ export async function GET(
     );
   }
 
+  const exportTruncated =
+    (data ?? []).length >=
+    EXPORT_LIMIT;
+
   const rows =
     (data ?? []).filter(
       (item) => {
@@ -496,6 +500,8 @@ export async function GET(
           : false,
       actor_identity_matches:
         actorEmailById.size,
+      export_truncated:
+        exportTruncated,
     },
   });
 
@@ -520,6 +526,14 @@ export async function GET(
           "private, no-store",
         "X-Content-Type-Options":
           "nosniff",
+        "X-MLAMH-Audit-Truncated":
+          exportTruncated
+            ? "true"
+            : "false",
+        "X-MLAMH-Audit-Limit":
+          String(
+            EXPORT_LIMIT,
+          ),
       },
     },
   );
