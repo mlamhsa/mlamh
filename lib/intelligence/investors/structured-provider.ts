@@ -110,6 +110,8 @@ type ResponsesPayload = {
   output_text?: string;
   output?: ResponseOutput[];
   citations?: unknown;
+  search_results?: unknown;
+  sources?: unknown;
   usage?: {
     input_tokens?: number;
     output_tokens?: number;
@@ -195,6 +197,8 @@ function extractWebSources(payload: ResponsesPayload) {
   }
 
   collectSourcesFromUnknown(payload.citations, found);
+  collectSourcesFromUnknown(payload.search_results, found);
+  collectSourcesFromUnknown(payload.sources, found);
   return [...found.values()].slice(0, 40);
 }
 
