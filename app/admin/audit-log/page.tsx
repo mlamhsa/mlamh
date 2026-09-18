@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import {
     AdminEmptyState,
     AdminGrid,
@@ -289,6 +291,38 @@ import {
                 : "A chronological record of events, decisions, and operational activity across the platform. UUID searches are applied at the database layer so history is not limited to the latest 500 events."
           }
         />
+
+        {actorFilter ? (
+          <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-gold/15 bg-gold/[0.045] px-4 py-3 text-xs text-white/55 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="font-medium text-gold/80">
+                {isArabic
+                  ? "فلتر نشاط مشرف محدد"
+                  : "Specific admin activity filter"}
+              </p>
+              <p
+                dir="ltr"
+                className="mt-1 font-mono text-[10px] text-white/35"
+              >
+                {actorFilter}
+              </p>
+            </div>
+
+            <Link
+              href={buildHref({
+                lang,
+                q,
+                target,
+                event,
+              })}
+              className="shrink-0 rounded-xl border border-white/[0.09] px-3 py-2 text-[11px] text-white/50 transition hover:border-gold/20 hover:text-gold"
+            >
+              {isArabic
+                ? "عرض سجل جميع المشرفين"
+                : "Show all admin activity"}
+            </Link>
+          </div>
+        ) : null}
   
         <AdminGrid className="mb-8 md:grid-cols-2 xl:grid-cols-5">
           <AdminStatCard
