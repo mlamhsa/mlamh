@@ -3,6 +3,8 @@ export const EVENT_TARGETS = {
   TALENT: "talent",
   PUBLISHER: "publisher",
   AUTH_USER: "auth_user",
+  OPPORTUNITY: "opportunity",
+  APPLICATION: "application",
 } as const;
   
   export type EventTarget =
