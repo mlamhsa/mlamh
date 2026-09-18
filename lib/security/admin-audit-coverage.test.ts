@@ -1247,3 +1247,49 @@ test("access-center recent security timeline includes generic admin audit outcom
     );
   }
 });
+
+
+test("admin logout lifecycle is audited before session teardown", async () => {
+  const route = await source(
+    "app/api/admin/security/logout-event/route.ts",
+  );
+
+  assert.equal(
+    route.includes(
+      "requireAdminAccess",
+    ) &&
+      route.includes(
+        '"admin_logout_requested"',
+      ) &&
+      route.includes(
+        '"admin_logout_failed"',
+      ) &&
+      route.includes(
+        "recordAdminAction",
+      ),
+    true,
+    "admin logout audit endpoint must require AAL2 admin access and record requested/failed outcomes",
+  );
+
+  const button = await source(
+    "components/admin/AdminLogoutButton.tsx",
+  );
+
+  assert.ok(
+    button.indexOf(
+      'outcome:\n              "requested"',
+    ) <
+      button.indexOf(
+        "supabase.auth.signOut()",
+      ),
+    "logout request must be audited before the browser session is destroyed",
+  );
+
+  assert.equal(
+    button.includes(
+      'outcome:\n                "failed"',
+    ),
+    true,
+    "failed browser sign-out must be reported while the admin session is still available",
+  );
+});
