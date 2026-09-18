@@ -446,6 +446,28 @@ export function AdminRoleControls({
                 value={locale}
               />
 
+              <label className="block text-[11px] leading-5 text-white/55">
+                <span className="mb-1.5 block">
+                  {isArabic
+                    ? "سبب سحب الوصول"
+                    : "Reason for revocation"}
+                </span>
+                <textarea
+                  name="change_reason"
+                  required
+                  minLength={5}
+                  maxLength={300}
+                  rows={3}
+                  placeholder={
+                    isArabic
+                      ? "مثال: انتهاء الحاجة التشغيلية أو تغيير المسؤوليات..."
+                      : "Example: access no longer needed or responsibilities changed..."
+                  }
+                  className="w-full resize-none rounded-xl border border-white/[0.09] bg-black/35 px-3 py-2.5 text-xs leading-5 text-white/70 outline-none placeholder:text-white/25 focus:border-red-400/30"
+                />
+              </label>
+
+              <div className="flex gap-2">
               <RevokeButton
                 label={
                   isArabic
@@ -548,7 +570,7 @@ export function AdminRoleControls({
               action={
                 updateAdminRoleAction
               }
-              className="mt-6 flex gap-2"
+              className="mt-6 space-y-3"
             >
               <input
                 type="hidden"
@@ -571,6 +593,28 @@ export function AdminRoleControls({
                 value="1"
               />
 
+              <label className="block text-[11px] leading-5 text-white/55">
+                <span className="mb-1.5 block">
+                  {isArabic
+                    ? "سبب التغيير"
+                    : "Reason for change"}
+                </span>
+                <textarea
+                  name="change_reason"
+                  required
+                  minLength={5}
+                  maxLength={300}
+                  rows={3}
+                  placeholder={
+                    isArabic
+                      ? "اكتب سببًا واضحًا لهذا التغيير الحساس..."
+                      : "Enter a clear justification for this sensitive change..."
+                  }
+                  className="w-full resize-none rounded-xl border border-white/[0.09] bg-black/35 px-3 py-2.5 text-xs leading-5 text-white/70 outline-none placeholder:text-white/25 focus:border-gold/30"
+                />
+              </label>
+
+              <div className="flex gap-2">
               <SubmitButton
                 label={
                   isArabic
@@ -592,6 +636,7 @@ export function AdminRoleControls({
                   ? "رجوع"
                   : "Back"}
               </button>
+              </div>
             </form>
           </section>
         </div>
@@ -659,7 +704,7 @@ export function AdminRoleControls({
               action={
                 revokeAdminAccessAction
               }
-              className="mt-6 flex gap-2"
+              className="mt-6 space-y-3"
             >
               <input
                 type="hidden"
@@ -691,6 +736,7 @@ export function AdminRoleControls({
                   ? "إلغاء"
                   : "Cancel"}
               </button>
+              </div>
             </form>
           </section>
         </div>
