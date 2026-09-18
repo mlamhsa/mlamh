@@ -150,6 +150,7 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
           <AdminSidebar
             counts={navigationCounts}
             permissions={permissions}
+            adminEmail={currentAdmin.email}
           />
         </Suspense>
 
@@ -163,6 +164,7 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
               counts={navigationCounts}
               unreadAdminNotifications={counts.unreadAdminNotifications}
               permissions={permissions}
+              adminEmail={currentAdmin.email}
             />
           </Suspense>
 
