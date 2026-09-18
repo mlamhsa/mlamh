@@ -16,6 +16,8 @@ export const EVENT_TARGETS = {
   MANAGED_CASTING_INVITATION: "managed_casting_invitation",
   CASTING_ROLE: "casting_role",
   CASTING_SHORTLIST: "casting_shortlist",
+  BOOKING: "booking",
+  CASTING_REPLACEMENT: "casting_replacement",
 } as const;
   
   export type EventTarget =
