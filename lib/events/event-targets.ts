@@ -8,6 +8,9 @@ export const EVENT_TARGETS = {
   CLAIM_REQUEST: "claim_request",
   SUPPORT: "support",
   MESSAGE: "message",
+  CASTING_PROJECT: "casting_project",
+  PAYMENT: "payment",
+  NOTIFICATION: "notification",
 } as const;
   
   export type EventTarget =
