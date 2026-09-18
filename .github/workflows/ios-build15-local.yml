@@ -2,11 +2,6 @@ name: iOS TestFlight Release Gate
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - feat/mobile-native-v3-foundation
-    paths:
-      - ".github/workflows/ios-build15-local.yml"
 
 permissions:
   contents: read
@@ -60,13 +55,24 @@ jobs:
       - name: Export iOS bundle route preflight
         run: npx expo export --platform ios --output-dir dist-route-check --clear
 
+      - name: Require latest iOS Launch Smoke success
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          HEAD_SHA="$(git rev-parse HEAD)"
+          RUN_JSON="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ios-launch-smoke.yml/runs?branch=${GITHUB_REF_NAME}&head_sha=${HEAD_SHA}&per_page=10")"
+          SUCCESS_RUNS="$(echo "$RUN_JSON" | jq '[.workflow_runs[] | select(.head_sha == "'"$HEAD_SHA"'" and .status == "completed" and .conclusion == "success")] | length')"
+          test "$SUCCESS_RUNS" -gt 0 || (echo "BLOCKED: iOS Launch Smoke has not passed for exact commit $HEAD_SHA." && exit 1)
+          echo "Launch Smoke passed for exact commit $HEAD_SHA."
+
       - name: Build iOS locally
-        run: eas build --platform ios --profile testflight --local --non-interactive --output ./build24.ipa
+        run: eas build --platform ios --profile testflight --local --non-interactive --output ./testflight.ipa
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
           name: mlamh-ios-testflight
-          path: apps/mobile/build24.ipa
+          path: apps/mobile/testflight.ipa
           if-no-files-found: error
       - name: Submit verified build to TestFlight
-        run: eas submit --platform ios --profile testflight --path ./build24.ipa --non-interactive --no-wait
+        run: eas submit --platform ios --profile testflight --path ./testflight.ipa --non-interactive --no-wait
