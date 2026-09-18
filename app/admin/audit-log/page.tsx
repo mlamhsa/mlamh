@@ -37,6 +37,7 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
       event?: string;
       actor?: string;
       page?: string;
+      period?: string;
     }>;
   };
   
@@ -47,6 +48,7 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
     event,
     actor,
     page,
+    period,
   }: {
     lang?: string;
     q?: string;
@@ -54,6 +56,7 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
     event?: string;
     actor?: string;
     page?: number;
+    period?: string;
   }) {
     const params =
       new URLSearchParams();
@@ -102,6 +105,16 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
         String(page),
       );
     }
+
+    if (
+      period &&
+      period !== "all"
+    ) {
+      params.set(
+        "period",
+        period,
+      );
+    }
   
     const query =
       params.toString();
@@ -125,6 +138,7 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
       event,
       actor,
       page,
+      period,
     } = await searchParams;
   
     const language:
@@ -174,6 +188,30 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
         : 1;
 
     const pageSize = 100;
+
+    const periodFilter =
+      period === "24h" ||
+      period === "7d" ||
+      period === "30d"
+        ? period
+        : "all";
+
+    const periodMilliseconds =
+      periodFilter === "24h"
+        ? 24 * 60 * 60 * 1000
+        : periodFilter === "7d"
+          ? 7 * 24 * 60 * 60 * 1000
+          : periodFilter === "30d"
+            ? 30 * 24 * 60 * 60 * 1000
+            : null;
+
+    const periodStart =
+      periodMilliseconds
+        ? new Date(
+            Date.now() -
+              periodMilliseconds,
+          ).toISOString()
+        : null;
 
     const databaseSearchMode =
       !cleanSearch ||
@@ -225,6 +263,13 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
       query = query.eq(
         "event_type",
         event,
+      );
+    }
+
+    if (periodStart) {
+      query = query.gte(
+        "created_at",
+        periodStart,
       );
     }
 
@@ -323,6 +368,14 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
           countQuery.eq(
             "event_type",
             event,
+          );
+      }
+
+      if (periodStart) {
+        countQuery =
+          countQuery.gte(
+            "created_at",
+            periodStart,
           );
       }
 
@@ -461,6 +514,8 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
             actorFilter ??
             undefined,
           page: totalPages,
+          period:
+            periodFilter,
         }),
       );
     }
@@ -543,6 +598,8 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
                 q,
                 target,
                 event,
+                period:
+                  periodFilter,
               })}
               className="shrink-0 rounded-xl border border-white/[0.09] px-3 py-2 text-[11px] text-white/50 transition hover:border-gold/20 hover:text-gold"
             >
@@ -567,6 +624,8 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
               q,
               event,
               actor: actorFilter ?? undefined,
+              period:
+                periodFilter,
             })}
           />
   
@@ -586,6 +645,8 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
               q,
               event,
               actor: actorFilter ?? undefined,
+              period:
+                periodFilter,
               target:
                 "admin",
             })}
@@ -607,6 +668,8 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
               q,
               event,
               actor: actorFilter ?? undefined,
+              period:
+                periodFilter,
               target:
                 "talent",
             })}
@@ -628,6 +691,8 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
               q,
               event,
               actor: actorFilter ?? undefined,
+              period:
+                periodFilter,
               target:
                 "publisher",
             })}
@@ -649,6 +714,8 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
               q,
               event,
               actor: actorFilter ?? undefined,
+              period:
+                periodFilter,
               target:
                 "opportunity",
             })}
@@ -673,7 +740,7 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
             />
           ) : null}
   
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_200px_240px_auto]">
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_170px_200px_240px_auto]">
             <input
               name="q"
               defaultValue={q}
@@ -685,6 +752,35 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
               className="rounded-2xl border border-white/10 bg-black/40 px-5 py-4 text-sm text-white outline-none placeholder:text-white/30 focus:border-gold/30"
             />
   
+            <select
+              name="period"
+              defaultValue={
+                periodFilter
+              }
+              className="rounded-2xl border border-white/10 bg-black/40 px-4 py-4 text-sm text-white outline-none"
+            >
+              <option value="all">
+                {isArabic
+                  ? "كل الفترات"
+                  : "All time"}
+              </option>
+              <option value="24h">
+                {isArabic
+                  ? "آخر 24 ساعة"
+                  : "Last 24 hours"}
+              </option>
+              <option value="7d">
+                {isArabic
+                  ? "آخر 7 أيام"
+                  : "Last 7 days"}
+              </option>
+              <option value="30d">
+                {isArabic
+                  ? "آخر 30 يومًا"
+                  : "Last 30 days"}
+              </option>
+            </select>
+
             <select
               name="target"
               defaultValue={
@@ -1054,6 +1150,8 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
                   page:
                     currentPage -
                     1,
+                  period:
+                    periodFilter,
                 })}
                 className="rounded-xl border border-white/[0.09] px-4 py-2 text-xs text-white/55 transition hover:border-gold/20 hover:text-gold"
               >
@@ -1085,6 +1183,8 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
                   page:
                     currentPage +
                     1,
+                  period:
+                    periodFilter,
                 })}
                 className="rounded-xl border border-gold/20 bg-gold/[0.05] px-4 py-2 text-xs text-gold transition hover:bg-gold hover:text-black"
               >
