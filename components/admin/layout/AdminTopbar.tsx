@@ -28,6 +28,7 @@ type AdminTopbarProps = {
   unreadAdminNotifications?: number;
   counts?: AdminTopbarCounts;
   permissions?: Permission[];
+  adminEmail?: string | null;
 };
 
 function buildLanguageSwitchHref({
@@ -56,6 +57,7 @@ export function AdminTopbar({
   unreadAdminNotifications = 0,
   counts = {},
   permissions = [],
+  adminEmail = null,
 }: AdminTopbarProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -171,7 +173,7 @@ export function AdminTopbar({
               className="flex min-h-10 items-center gap-3 rounded-xl border border-white/[0.08] bg-white/[0.025] px-2.5 py-1.5 text-start transition hover:border-gold/25"
             >
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gold/10 text-xs text-gold">
-                A
+                {(adminEmail?.charAt(0) || "A").toUpperCase()}
               </span>
 
               <span className="hidden min-w-0 sm:block">
@@ -182,7 +184,7 @@ export function AdminTopbar({
                   dir="ltr"
                   className="mt-0.5 block truncate text-[10px] text-white/30"
                 >
-                  admin@mlamh.com
+                  {adminEmail ?? "—"}
                 </span>
               </span>
             </button>
