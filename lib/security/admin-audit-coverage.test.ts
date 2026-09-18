@@ -282,3 +282,82 @@ test("platform admin audit metadata stays sanitized before persistence", async (
     "strict audit persistence must sanitize metadata",
   );
 });
+
+
+test("admin invitation lifecycle keeps activation and resend safeguards", async () => {
+  const text = await source(
+    "lib/actions/admin-access-actions.ts",
+  );
+
+  assert.equal(
+    text.includes(
+      "invite_pending_role_change",
+    ),
+    true,
+    "pending invited admins must not be promoted before activation",
+  );
+
+  assert.equal(
+    text.includes(
+      "invite_access_inconsistent",
+    ),
+    true,
+    "invite resend/cancel must fail closed when registry and RBAC assignment disagree",
+  );
+
+  assert.equal(
+    text.includes(
+      "admin_invite_resend",
+    ) &&
+      text.includes(
+        "consumeServerRateLimit",
+      ) &&
+      text.includes(
+        "invite_resend_rate_limited",
+      ),
+    true,
+    "activation email resends must keep server-side throttling",
+  );
+});
+
+test("last Super Admin protection verifies all access sources", async () => {
+  const text = await source(
+    "lib/actions/admin-access-actions.ts",
+  );
+
+  const start =
+    text.indexOf(
+      "async function countSuperAdmins",
+    );
+  const end =
+    text.indexOf(
+      "function revalidateAdminAccessPaths",
+      start,
+    );
+
+  assert.ok(
+    start >= 0 &&
+      end > start,
+    "countSuperAdmins helper must exist",
+  );
+
+  const helper =
+    text.slice(
+      start,
+      end,
+    );
+
+  for (const sourceName of [
+    "user_roles",
+    "admin_users",
+    "profiles",
+  ]) {
+    assert.equal(
+      helper.includes(
+        sourceName,
+      ),
+      true,
+      `last Super Admin protection must verify ${sourceName}`,
+    );
+  }
+});
