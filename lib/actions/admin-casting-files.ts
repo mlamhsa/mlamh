@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 
 import { requireAdminAccess } from "@/lib/auth/require-admin";
+import { recordAdminAction } from "@/lib/events/admin-audit";
+import { EVENT_TARGETS } from "@/lib/events/event-targets";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const BUCKET = "casting-project-files";
@@ -120,19 +122,116 @@ export async function uploadCastingProjectFileAction(formData: FormData) {
   const category = ALLOWED_CATEGORIES.has(rawCategory) ? rawCategory : "general";
   const visibleToClient = formData.get("visible_to_client") !== "false";
   const file = formData.get("file");
-  if (!(file instanceof File) || file.size <= 0) throw new Error("A file is required.");
-  if (file.size > MAX_BYTES) throw new Error("File exceeds the 20 MB limit.");
-  if (!ALLOWED_TYPES.has(file.type)) throw new Error("Unsupported file type.");
+
+  if (!(file instanceof File) || file.size <= 0) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "upload_casting_project_file",
+      outcome: "blocked",
+      target: EVENT_TARGETS.CASTING_FILE,
+      targetId: "invalid-input",
+      reason: "file_required",
+      metadata: {
+        casting_project_id:
+          projectId,
+      },
+    });
+
+    throw new Error("A file is required.");
+  }
+
+  if (file.size > MAX_BYTES) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "upload_casting_project_file",
+      outcome: "blocked",
+      target: EVENT_TARGETS.CASTING_FILE,
+      targetId: "invalid-input",
+      reason: "file_too_large",
+      metadata: {
+        casting_project_id:
+          projectId,
+        size_bytes:
+          file.size,
+        max_bytes:
+          MAX_BYTES,
+      },
+    });
+
+    throw new Error("File exceeds the 20 MB limit.");
+  }
+
+  if (!ALLOWED_TYPES.has(file.type)) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "upload_casting_project_file",
+      outcome: "blocked",
+      target: EVENT_TARGETS.CASTING_FILE,
+      targetId: "invalid-input",
+      reason: "unsupported_file_type",
+      metadata: {
+        casting_project_id:
+          projectId,
+        mime_type:
+          file.type,
+      },
+    });
+
+    throw new Error("Unsupported file type.");
+  }
 
   const fileName = cleanName(file.name);
   const extension = extensionOf(fileName);
   const allowedExtensions = ALLOWED_EXTENSIONS[file.type];
   if (!extension || !allowedExtensions?.has(extension)) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "upload_casting_project_file",
+      outcome: "blocked",
+      target: EVENT_TARGETS.CASTING_FILE,
+      targetId: "invalid-input",
+      reason: "file_extension_mismatch",
+      metadata: {
+        casting_project_id:
+          projectId,
+        file_name:
+          fileName,
+        mime_type:
+          file.type,
+        extension:
+          extension || null,
+      },
+    });
+
     throw new Error("File extension does not match the declared file type.");
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
   if (buffer.length !== file.size || !hasExpectedSignature(file.type, buffer)) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "upload_casting_project_file",
+      outcome: "blocked",
+      target: EVENT_TARGETS.CASTING_FILE,
+      targetId: "invalid-input",
+      reason: "file_signature_mismatch",
+      metadata: {
+        casting_project_id:
+          projectId,
+        file_name:
+          fileName,
+        mime_type:
+          file.type,
+        size_bytes:
+          file.size,
+      },
+    });
+
     throw new Error("File signature does not match the declared file type.");
   }
 
@@ -142,43 +241,178 @@ export async function uploadCastingProjectFileAction(formData: FormData) {
     contentType: file.type,
     upsert: false,
   });
-  if (uploadError) throw new Error(uploadError.message);
+  if (uploadError) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "upload_casting_project_file",
+      outcome: "failed",
+      target: EVENT_TARGETS.CASTING_FILE,
+      targetId: "upload-failed",
+      reason: "storage_upload_failed",
+      metadata: {
+        casting_project_id:
+          projectId,
+        file_name:
+          fileName,
+        mime_type:
+          file.type,
+        size_bytes:
+          file.size,
+        category,
+        visible_to_client:
+          visibleToClient,
+      },
+    });
 
-  const { error: insertError } = await admin.from("casting_project_files").insert({
-    casting_project_id: projectId,
-    file_name: fileName,
-    storage_path: storagePath,
-    mime_type: file.type,
-    size_bytes: file.size,
-    category,
-    visible_to_client: visibleToClient,
-    uploaded_by: adminUser.id,
-  });
-  if (insertError) {
-    await admin.storage.from(BUCKET).remove([storagePath]);
-    throw new Error(insertError.message);
+    throw new Error(uploadError.message);
   }
+
+  const {
+    data: createdFile,
+    error: insertError,
+  } = await admin
+    .from("casting_project_files")
+    .insert({
+      casting_project_id: projectId,
+      file_name: fileName,
+      storage_path: storagePath,
+      mime_type: file.type,
+      size_bytes: file.size,
+      category,
+      visible_to_client: visibleToClient,
+      uploaded_by: adminUser.id,
+    })
+    .select("id")
+    .single();
+
+  if (insertError || !createdFile) {
+    const {
+      error: cleanupError,
+    } = await admin.storage
+      .from(BUCKET)
+      .remove([storagePath]);
+
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "upload_casting_project_file",
+      outcome: "failed",
+      target: EVENT_TARGETS.CASTING_FILE,
+      targetId: "insert-failed",
+      reason: "file_metadata_insert_failed",
+      metadata: {
+        casting_project_id:
+          projectId,
+        file_name:
+          fileName,
+        mime_type:
+          file.type,
+        size_bytes:
+          file.size,
+        storage_cleanup_succeeded:
+          !cleanupError,
+      },
+    });
+
+    throw new Error(
+      insertError?.message ??
+        "Unable to save project file metadata.",
+    );
+  }
+
+  await recordAdminAction({
+    actorId: adminUser.id,
+    actorEmail: adminUser.email,
+    action: "upload_casting_project_file",
+    outcome: "success",
+    target: EVENT_TARGETS.CASTING_FILE,
+    targetId: createdFile.id,
+    metadata: {
+      casting_project_id:
+        projectId,
+      file_name:
+        fileName,
+      mime_type:
+        file.type,
+      size_bytes:
+        file.size,
+      category,
+      visible_to_client:
+        visibleToClient,
+    },
+  });
 
   refresh(projectId, project.client_access_token);
 }
 
 export async function updateCastingProjectFileVisibilityAction(formData: FormData) {
-  await requireAdminAccess();
+  const adminUser =
+    await requireAdminAccess();
   const projectId = positiveInt(formData.get("project_id"));
   const fileId = positiveInt(formData.get("file_id"));
   const project = await projectContext(projectId);
   const visibleToClient = formData.get("visible_to_client") === "true";
   const admin = createAdminClient();
-  const { error } = await admin.from("casting_project_files")
-    .update({ visible_to_client: visibleToClient, updated_at: new Date().toISOString() })
+  const { data, error } = await admin
+    .from("casting_project_files")
+    .update({
+      visible_to_client:
+        visibleToClient,
+      updated_at:
+        new Date().toISOString(),
+    })
     .eq("id", fileId)
-    .eq("casting_project_id", projectId);
-  if (error) throw new Error(error.message);
+    .eq("casting_project_id", projectId)
+    .select("id")
+    .maybeSingle();
+
+  if (error || !data) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_casting_file_visibility",
+      outcome: "failed",
+      target: EVENT_TARGETS.CASTING_FILE,
+      targetId: fileId,
+      reason: !data
+        ? "casting_file_not_found"
+        : "casting_file_visibility_update_failed",
+      metadata: {
+        casting_project_id:
+          projectId,
+        requested_visible_to_client:
+          visibleToClient,
+      },
+    });
+
+    throw new Error(
+      error?.message ??
+        "Project file not found.",
+    );
+  }
+
+  await recordAdminAction({
+    actorId: adminUser.id,
+    actorEmail: adminUser.email,
+    action: "update_casting_file_visibility",
+    outcome: "success",
+    target: EVENT_TARGETS.CASTING_FILE,
+    targetId: fileId,
+    metadata: {
+      casting_project_id:
+        projectId,
+      visible_to_client:
+        visibleToClient,
+    },
+  });
+
   refresh(projectId, project.client_access_token);
 }
 
 export async function deleteCastingProjectFileAction(formData: FormData) {
-  await requireAdminAccess();
+  const adminUser =
+    await requireAdminAccess();
   const projectId = positiveInt(formData.get("project_id"));
   const fileId = positiveInt(formData.get("file_id"));
   const project = await projectContext(projectId);
@@ -188,10 +422,81 @@ export async function deleteCastingProjectFileAction(formData: FormData) {
     .eq("id", fileId)
     .eq("casting_project_id", projectId)
     .maybeSingle();
-  if (lookupError || !row) throw new Error("Project file not found.");
-  const { error: storageError } = await admin.storage.from(BUCKET).remove([row.storage_path]);
-  if (storageError) throw new Error(storageError.message);
-  const { error: deleteError } = await admin.from("casting_project_files").delete().eq("id", row.id);
-  if (deleteError) throw new Error(deleteError.message);
+  if (lookupError || !row) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "delete_casting_project_file",
+      outcome: "failed",
+      target: EVENT_TARGETS.CASTING_FILE,
+      targetId: fileId,
+      reason: "casting_file_not_found",
+      metadata: {
+        casting_project_id:
+          projectId,
+      },
+    });
+
+    throw new Error("Project file not found.");
+  }
+
+  // Delete the database reference first so a storage cleanup problem cannot
+  // leave the application pointing at an object that no longer exists.
+  const { data: deletedRow, error: deleteError } =
+    await admin
+      .from("casting_project_files")
+      .delete()
+      .eq("id", row.id)
+      .select("id")
+      .maybeSingle();
+
+  if (deleteError || !deletedRow) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "delete_casting_project_file",
+      outcome: "failed",
+      target: EVENT_TARGETS.CASTING_FILE,
+      targetId: fileId,
+      reason: "casting_file_metadata_delete_failed",
+      metadata: {
+        casting_project_id:
+          projectId,
+      },
+    });
+
+    throw new Error(
+      deleteError?.message ??
+        "Project file could not be deleted.",
+    );
+  }
+
+  const { error: storageError } =
+    await admin.storage
+      .from(BUCKET)
+      .remove([row.storage_path]);
+
+  if (storageError) {
+    console.error(
+      "[deleteCastingProjectFileAction storage cleanup]",
+      storageError,
+    );
+  }
+
+  await recordAdminAction({
+    actorId: adminUser.id,
+    actorEmail: adminUser.email,
+    action: "delete_casting_project_file",
+    outcome: "success",
+    target: EVENT_TARGETS.CASTING_FILE,
+    targetId: fileId,
+    metadata: {
+      casting_project_id:
+        projectId,
+      storage_cleanup_succeeded:
+        !storageError,
+    },
+  });
+
   refresh(projectId, project.client_access_token);
 }
