@@ -4,6 +4,9 @@ import { redirect } from "next/navigation";
 
 import { createAdminOpportunityAction } from "@/lib/actions/create-admin-opportunity";
 import { translateOpportunityContent } from "@/lib/ai/translate-opportunity";
+import { requireAdminAccess } from "@/lib/auth/require-admin";
+import { recordAdminAction } from "@/lib/events/admin-audit";
+import { EVENT_TARGETS } from "@/lib/events/event-targets";
 import { SAUDI_CITIES } from "@/lib/data/saudi-cities";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -21,6 +24,9 @@ function numberValue(value: FormDataEntryValue | null) {
 export async function createAdminOpportunityAutoTranslateFormAction(
   formData: FormData,
 ) {
+  const adminUser =
+    await requireAdminAccess();
+
   const sourceLanguage =
     formData.get("content_language") === "en" ? "en" : "ar";
 
@@ -28,6 +34,20 @@ export async function createAdminOpportunityAutoTranslateFormAction(
   const sourceDescription = stringValue(formData.get("description"));
 
   if (!sourceTitle || !sourceDescription) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "create_auto_translated_opportunity",
+      outcome: "blocked",
+      target: EVENT_TARGETS.OPPORTUNITY,
+      targetId: "invalid-input",
+      reason: "source_content_required",
+      metadata: {
+        source_language:
+          sourceLanguage,
+      },
+    });
+
     throw new Error(
       sourceLanguage === "ar"
         ? "أدخل عنوان الفرصة ووصفها."
@@ -35,11 +55,39 @@ export async function createAdminOpportunityAutoTranslateFormAction(
     );
   }
 
-  const translated = await translateOpportunityContent({
-    sourceLanguage,
-    title: sourceTitle,
-    description: sourceDescription,
-  });
+  let translated: Awaited<
+    ReturnType<
+      typeof translateOpportunityContent
+    >
+  >;
+
+  try {
+    translated =
+      await translateOpportunityContent({
+        sourceLanguage,
+        title: sourceTitle,
+        description:
+          sourceDescription,
+      });
+  } catch (error) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "create_auto_translated_opportunity",
+      outcome: "failed",
+      target: EVENT_TARGETS.OPPORTUNITY,
+      targetId: "translation-failed",
+      reason: "automatic_translation_failed",
+      metadata: {
+        source_language:
+          sourceLanguage,
+        title:
+          sourceTitle,
+      },
+    });
+
+    throw error;
+  }
 
   const titleAr =
     sourceLanguage === "ar" ? sourceTitle : translated.title;
@@ -67,6 +115,22 @@ export async function createAdminOpportunityAutoTranslateFormAction(
     SAUDI_CITIES.find((item) => item.slug === citySlug) ?? null;
 
   if (!city) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "create_auto_translated_opportunity",
+      outcome: "blocked",
+      target: EVENT_TARGETS.OPPORTUNITY,
+      targetId: "invalid-input",
+      reason: "invalid_city",
+      metadata: {
+        source_language:
+          sourceLanguage,
+        city_slug:
+          citySlug || null,
+      },
+    });
+
     throw new Error("يرجى اختيار مدينة صحيحة.");
   }
 
@@ -78,6 +142,16 @@ export async function createAdminOpportunityAutoTranslateFormAction(
 
   if (sourceType === "client" && publicSourceMode === "client_name") {
     if (!clientCompanyName) {
+      await recordAdminAction({
+        actorId: adminUser.id,
+        actorEmail: adminUser.email,
+        action: "create_auto_translated_opportunity",
+        outcome: "blocked",
+        target: EVENT_TARGETS.OPPORTUNITY,
+        targetId: "invalid-input",
+        reason: "client_company_name_required",
+      });
+
       throw new Error("اسم الجهة أو العميل مطلوب.");
     }
     publicCompanyName = clientCompanyName;
@@ -101,6 +175,16 @@ export async function createAdminOpportunityAutoTranslateFormAction(
       : null;
 
   if (compensationType === "fixed" && !budget) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "create_auto_translated_opportunity",
+      outcome: "blocked",
+      target: EVENT_TARGETS.OPPORTUNITY,
+      targetId: "invalid-input",
+      reason: "fixed_budget_required",
+    });
+
     throw new Error("أدخل مبلغ الفرصة.");
   }
 
@@ -157,6 +241,20 @@ export async function createAdminOpportunityAutoTranslateFormAction(
   const opportunityId = result?.opportunity?.id;
 
   if (!opportunityId) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "create_auto_translated_opportunity",
+      outcome: "failed",
+      target: EVENT_TARGETS.OPPORTUNITY,
+      targetId: "creation-failed",
+      reason: "base_opportunity_creation_failed",
+      metadata: {
+        source_language:
+          sourceLanguage,
+      },
+    });
+
     throw new Error("تعذر إنشاء الفرصة.");
   }
 
@@ -175,15 +273,53 @@ export async function createAdminOpportunityAutoTranslateFormAction(
       localizationError,
     );
 
-    await adminClient
+    const {
+      error: rollbackError,
+    } = await adminClient
       .from("opportunities")
-      .update({ status: "draft", published: false })
+      .update({
+        status: "draft",
+        published: false,
+      })
       .eq("id", opportunityId);
+
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "localize_admin_opportunity",
+      outcome: "failed",
+      target: EVENT_TARGETS.OPPORTUNITY,
+      targetId: opportunityId,
+      reason: "localized_fields_update_failed",
+      metadata: {
+        source_language:
+          sourceLanguage,
+        rollback_succeeded:
+          !rollbackError,
+      },
+    });
 
     throw new Error(
       "تم إنشاء المسودة لكن تعذر حفظ الترجمة. أعد المحاولة قبل النشر.",
     );
   }
+
+  await recordAdminAction({
+    actorId: adminUser.id,
+    actorEmail: adminUser.email,
+    action: "localize_admin_opportunity",
+    outcome: "success",
+    target: EVENT_TARGETS.OPPORTUNITY,
+    targetId: opportunityId,
+    metadata: {
+      source_language:
+        sourceLanguage,
+      translated_to:
+        sourceLanguage === "ar"
+          ? "en"
+          : "ar",
+    },
+  });
 
   redirect(`/admin/opportunities/${opportunityId}?created=1&translated=1`);
 }
