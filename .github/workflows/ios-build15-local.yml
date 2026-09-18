@@ -1,4 +1,4 @@
-name: iOS Build 24 Local TestFlight
+name: iOS TestFlight Release Gate
 
 on:
   workflow_dispatch:
@@ -65,8 +65,8 @@ jobs:
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
-          name: mlamh-ios-build24
+          name: mlamh-ios-testflight
           path: apps/mobile/build24.ipa
           if-no-files-found: error
-      - name: Submit Build 24 to TestFlight
+      - name: Submit verified build to TestFlight
         run: eas submit --platform ios --profile testflight --path ./build24.ipa --non-interactive --no-wait
