@@ -425,6 +425,12 @@ import {
                   : "Payments"}
               </option>
 
+              <option value="entitlement">
+                {isArabic
+                  ? "الاستحقاقات"
+                  : "Entitlements"}
+              </option>
+
               <option value="notification">
                 {isArabic
                   ? "الإشعارات"
