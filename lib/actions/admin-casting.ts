@@ -1055,9 +1055,23 @@ export async function linkCastingOpportunityAction(formData: FormData) {
 }
 
 export async function createCastingOpportunityFromBriefAction(formData: FormData) {
-  await requireAdminAccess();
+  const adminUser =
+    await requireAdminAccess();
   const projectId = toPositiveInt(formData.get("project_id"));
-  if (!projectId) throw new Error("Invalid casting project.");
+
+  if (!projectId) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "create_casting_opportunity_from_brief",
+      outcome: "blocked",
+      target: EVENT_TARGETS.CASTING_PROJECT,
+      targetId: "invalid-input",
+      reason: "invalid_casting_project_id",
+    });
+
+    throw new Error("Invalid casting project.");
+  }
 
   const adminClient = createAdminClient();
   const { data: project, error: projectError } = await adminClient
@@ -1065,23 +1079,108 @@ export async function createCastingOpportunityFromBriefAction(formData: FormData
     .select("*")
     .eq("id", projectId)
     .maybeSingle();
-  if (projectError || !project) throw new Error(projectError?.message || "Casting project not found.");
-  if (project.opportunity_id) redirect(`/admin/casting/${projectId}?lang=ar`);
+  if (projectError || !project) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "create_casting_opportunity_from_brief",
+      outcome: "failed",
+      target: EVENT_TARGETS.CASTING_PROJECT,
+      targetId: projectId,
+      reason: "casting_project_not_found",
+    });
+
+    throw new Error(projectError?.message || "Casting project not found.");
+  }
+
+  if (project.opportunity_id) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "create_casting_opportunity_from_brief",
+      outcome: "noop",
+      target: EVENT_TARGETS.CASTING_PROJECT,
+      targetId: projectId,
+      reason: "casting_opportunity_already_exists",
+      metadata: {
+        opportunity_id:
+          project.opportunity_id,
+      },
+    });
+
+    redirect(`/admin/casting/${projectId}?lang=ar`);
+  }
 
   const rawTitle = stringValue(formData.get("title"));
   const rawDescription = stringValue(formData.get("description"));
-  if (!rawTitle || !rawDescription) throw new Error("Title and description are required.");
+  if (!rawTitle || !rawDescription) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "create_casting_opportunity_from_brief",
+      outcome: "blocked",
+      target: EVENT_TARGETS.CASTING_PROJECT,
+      targetId: projectId,
+      reason: "title_and_description_required",
+    });
+
+    throw new Error("Title and description are required.");
+  }
 
   const opportunityType = formData.get("opportunity_type") === "model" ? "model" : "actor";
   const citySlug = stringValue(formData.get("city_slug"));
   const city = SAUDI_CITIES.find((item) => item.slug === citySlug) ?? null;
   const sourceLanguage: "ar" | "en" = /[\u0600-\u06FF]/.test(`${rawTitle} ${rawDescription}`) ? "ar" : "en";
-  const translated = await translateOpportunityContent({ sourceLanguage, title: rawTitle, description: rawDescription });
+  let translated: Awaited<
+    ReturnType<
+      typeof translateOpportunityContent
+    >
+  >;
+
+  try {
+    translated =
+      await translateOpportunityContent({
+        sourceLanguage,
+        title: rawTitle,
+        description:
+          rawDescription,
+      });
+  } catch (error) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "create_casting_opportunity_from_brief",
+      outcome: "failed",
+      target: EVENT_TARGETS.CASTING_PROJECT,
+      targetId: projectId,
+      reason: "automatic_translation_failed",
+      metadata: {
+        source_language:
+          sourceLanguage,
+      },
+    });
+
+    throw error;
+  }
   const titleAr = sourceLanguage === "ar" ? rawTitle : translated.title.trim();
   const descriptionAr = sourceLanguage === "ar" ? rawDescription : translated.description.trim();
   const titleEn = sourceLanguage === "en" ? rawTitle : translated.title.trim();
   const descriptionEn = sourceLanguage === "en" ? rawDescription : translated.description.trim();
   if (!titleAr || !descriptionAr || !titleEn || !descriptionEn) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "create_casting_opportunity_from_brief",
+      outcome: "failed",
+      target: EVENT_TARGETS.CASTING_PROJECT,
+      targetId: projectId,
+      reason: "automatic_translation_empty",
+      metadata: {
+        source_language:
+          sourceLanguage,
+      },
+    });
+
     throw new Error("Automatic bilingual content generation failed.");
   }
 
@@ -1089,7 +1188,19 @@ export async function createCastingOpportunityFromBriefAction(formData: FormData
   const compensationType: "fixed" | "negotiable" | "unpaid" =
     compensationRaw === "fixed" || compensationRaw === "unpaid" ? compensationRaw : "negotiable";
   const budget = compensationType === "fixed" ? stringValue(formData.get("budget")) || null : null;
-  if (compensationType === "fixed" && !budget) throw new Error("Budget is required for fixed compensation.");
+  if (compensationType === "fixed" && !budget) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "create_casting_opportunity_from_brief",
+      outcome: "blocked",
+      target: EVENT_TARGETS.CASTING_PROJECT,
+      targetId: projectId,
+      reason: "fixed_budget_required",
+    });
+
+    throw new Error("Budget is required for fixed compensation.");
+  }
 
   const publicCompanyName = stringValue(formData.get("public_company_name")) || project.company_name || "من عملاء ملامح";
   const result = await createAdminOpportunityAction({
@@ -1130,6 +1241,16 @@ export async function createCastingOpportunityFromBriefAction(formData: FormData
 
   const opportunityId = Number(result?.opportunity?.id);
   if (!Number.isInteger(opportunityId) || opportunityId <= 0) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "create_casting_opportunity_from_brief",
+      outcome: "failed",
+      target: EVENT_TARGETS.CASTING_PROJECT,
+      targetId: projectId,
+      reason: "opportunity_creation_failed",
+    });
+
     throw new Error("Unable to create opportunity from casting brief.");
   }
 
@@ -1138,7 +1259,24 @@ export async function createCastingOpportunityFromBriefAction(formData: FormData
     .from("opportunities")
     .update({ title_en: titleEn, description_en: descriptionEn, managed_by_mlamh: true, updated_at: now })
     .eq("id", opportunityId);
-  if (opportunityError) throw new Error(opportunityError.message);
+
+  if (opportunityError) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "create_casting_opportunity_from_brief",
+      outcome: "failed",
+      target: EVENT_TARGETS.CASTING_PROJECT,
+      targetId: projectId,
+      reason: "opportunity_localization_update_failed",
+      metadata: {
+        opportunity_id:
+          opportunityId,
+      },
+    });
+
+    throw new Error(opportunityError.message);
+  }
 
   const { error: castingError } = await adminClient
     .from("casting_projects")
@@ -1150,7 +1288,43 @@ export async function createCastingOpportunityFromBriefAction(formData: FormData
       updated_at: now,
     })
     .eq("id", projectId);
-  if (castingError) throw new Error(castingError.message);
+  if (castingError) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "create_casting_opportunity_from_brief",
+      outcome: "failed",
+      target: EVENT_TARGETS.CASTING_PROJECT,
+      targetId: projectId,
+      reason: "casting_project_opportunity_link_failed",
+      metadata: {
+        opportunity_id:
+          opportunityId,
+        orphan_draft_opportunity:
+          true,
+      },
+    });
+
+    throw new Error(castingError.message);
+  }
+
+  await recordAdminAction({
+    actorId: adminUser.id,
+    actorEmail: adminUser.email,
+    action: "create_casting_opportunity_from_brief",
+    outcome: "success",
+    target: EVENT_TARGETS.CASTING_PROJECT,
+    targetId: projectId,
+    metadata: {
+      opportunity_id:
+        opportunityId,
+      source_language:
+        sourceLanguage,
+      status: "draft",
+      managed_by_mlamh:
+        true,
+    },
+  });
 
   revalidateCasting(projectId);
   revalidatePath("/admin/opportunities");
