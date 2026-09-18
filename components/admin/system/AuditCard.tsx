@@ -548,6 +548,11 @@ import {
         return isArabic
           ? "الإدارة"
           : "Admin";
+
+      case "auth_user":
+        return isArabic
+          ? "حساب مصادقة"
+          : "Auth user";
   
       case "opportunity":
         return isArabic
