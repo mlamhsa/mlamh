@@ -32,6 +32,10 @@ export const EVENT_TYPES = {
   admin_access_action_blocked: "admin_access_action_blocked",
   admin_access_action_failed: "admin_access_action_failed",
   admin_access_action_noop: "admin_access_action_noop",
+  admin_action_success: "admin_action_success",
+  admin_action_blocked: "admin_action_blocked",
+  admin_action_failed: "admin_action_failed",
+  admin_action_noop: "admin_action_noop",
 
   /*
    * Talent review workflow
