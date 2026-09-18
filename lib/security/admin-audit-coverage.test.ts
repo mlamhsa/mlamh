@@ -611,3 +611,22 @@ test("admin invitation creation keeps server-side throttling", async () => {
     "admin invitation creation must remain server-side rate limited",
   );
 });
+
+
+test("admin entry and MFA gates require exact registry/RBAC role consistency", async () => {
+  for (const file of [
+    "lib/auth/require-admin.ts",
+    "app/admin-mfa/page.tsx",
+  ]) {
+    const text =
+      await source(file);
+
+    assert.equal(
+      text.includes(
+        "hasConsistentActiveAdminRole",
+      ),
+      true,
+      `${file} must fail closed when admin registry and RBAC roles do not match exactly`,
+    );
+  }
+});
