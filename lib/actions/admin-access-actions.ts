@@ -1827,9 +1827,16 @@ export async function updateAdminRoleAction(
       ? previousRoleKeys[0]
       : null;
 
+  const currentAccessRole =
+    isAssignableAdminRole(
+      targetAdmin.role,
+    )
+      ? currentRoleKey
+      : null;
+
   const sensitiveRoleChange =
     crossesSuperAdminBoundary(
-      currentRoleKey,
+      currentAccessRole,
       roleKey,
     );
 
