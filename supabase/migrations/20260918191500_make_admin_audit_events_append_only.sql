@@ -11,7 +11,7 @@ set search_path = public
 as $$
 begin
   if tg_op = 'DELETE' then
-    if old.event_type like 'admin\_%' escape '\\' then
+    if left(old.event_type, 6) = 'admin_' then
       raise exception
         'admin audit events are append-only'
         using errcode = '42501';
@@ -21,8 +21,8 @@ begin
   end if;
 
   if
-    old.event_type like 'admin\_%' escape '\\'
-    or new.event_type like 'admin\_%' escape '\\'
+    left(old.event_type, 6) = 'admin_'
+    or left(new.event_type, 6) = 'admin_'
   then
     raise exception
       'admin audit events are append-only'
