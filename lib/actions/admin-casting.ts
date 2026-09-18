@@ -859,10 +859,29 @@ export async function ensureCastingClientAccessAction(formData: FormData) {
 }
 
 export async function linkCastingOpportunityAction(formData: FormData) {
-  await requireAdminAccess();
+  const adminUser =
+    await requireAdminAccess();
   const projectId = toPositiveInt(formData.get("project_id"));
   const opportunityId = toPositiveInt(formData.get("opportunity_id"));
-  if (!projectId || !opportunityId) return;
+
+  if (!projectId || !opportunityId) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "link_casting_opportunity",
+      outcome: "blocked",
+      target: EVENT_TARGETS.CASTING_PROJECT,
+      targetId:
+        projectId ?? "invalid-input",
+      reason: "invalid_casting_opportunity_link",
+      metadata: {
+        opportunity_id:
+          opportunityId,
+      },
+    });
+
+    return;
+  }
 
   const adminClient = createAdminClient();
   const [{ data: project, error: projectError }, { data: opportunity, error: opportunityError }] = await Promise.all([
@@ -871,6 +890,42 @@ export async function linkCastingOpportunityAction(formData: FormData) {
   ]);
   if (projectError || opportunityError || !project || !opportunity) {
     console.error("[linkCastingOpportunityAction] lookup failed", projectError ?? opportunityError);
+
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "link_casting_opportunity",
+      outcome: "failed",
+      target: EVENT_TARGETS.CASTING_PROJECT,
+      targetId: projectId,
+      reason: "casting_or_opportunity_lookup_failed",
+      metadata: {
+        opportunity_id:
+          opportunityId,
+      },
+    });
+
+    return;
+  }
+
+  if (
+    Number(project.opportunity_id) ===
+    opportunityId
+  ) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "link_casting_opportunity",
+      outcome: "noop",
+      target: EVENT_TARGETS.CASTING_PROJECT,
+      targetId: projectId,
+      reason: "opportunity_already_linked",
+      metadata: {
+        opportunity_id:
+          opportunityId,
+      },
+    });
+
     return;
   }
 
@@ -881,26 +936,117 @@ export async function linkCastingOpportunityAction(formData: FormData) {
     .eq("id", projectId);
   if (projectUpdateError) {
     console.error("[linkCastingOpportunityAction] project update", projectUpdateError);
+
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "link_casting_opportunity",
+      outcome: "failed",
+      target: EVENT_TARGETS.CASTING_PROJECT,
+      targetId: projectId,
+      reason: "casting_project_link_update_failed",
+      metadata: {
+        previous_opportunity_id:
+          previousOpportunityId,
+        requested_opportunity_id:
+          opportunityId,
+      },
+    });
+
     return;
   }
 
-  await adminClient
+  const {
+    error: opportunityManagedError,
+  } = await adminClient
     .from("opportunities")
-    .update({ managed_by_mlamh: true, updated_at: new Date().toISOString() })
+    .update({
+      managed_by_mlamh: true,
+      updated_at:
+        new Date().toISOString(),
+    })
     .eq("id", opportunityId);
+
+  if (opportunityManagedError) {
+    const {
+      error: rollbackError,
+    } = await adminClient
+      .from("casting_projects")
+      .update({
+        opportunity_id:
+          previousOpportunityId,
+        updated_at:
+          new Date().toISOString(),
+      })
+      .eq("id", projectId);
+
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "link_casting_opportunity",
+      outcome: "failed",
+      target: EVENT_TARGETS.CASTING_PROJECT,
+      targetId: projectId,
+      reason: "managed_opportunity_flag_update_failed",
+      metadata: {
+        previous_opportunity_id:
+          previousOpportunityId,
+        requested_opportunity_id:
+          opportunityId,
+        rollback_succeeded:
+          !rollbackError,
+      },
+    });
+
+    return;
+  }
+
+  let previousCleanupSucceeded = true;
 
   if (previousOpportunityId && previousOpportunityId !== opportunityId) {
     const [{ count: projectCount }, { count: roleCount }] = await Promise.all([
       adminClient.from("casting_projects").select("id", { count: "exact", head: true }).eq("opportunity_id", previousOpportunityId),
       adminClient.from("casting_roles").select("id", { count: "exact", head: true }).eq("opportunity_id", previousOpportunityId),
     ]);
+
     if ((projectCount ?? 0) === 0 && (roleCount ?? 0) === 0) {
-      await adminClient
+      const {
+        error: cleanupError,
+      } = await adminClient
         .from("opportunities")
-        .update({ managed_by_mlamh: false, updated_at: new Date().toISOString() })
+        .update({
+          managed_by_mlamh: false,
+          updated_at:
+            new Date().toISOString(),
+        })
         .eq("id", previousOpportunityId);
+
+      if (cleanupError) {
+        previousCleanupSucceeded = false;
+        console.error(
+          "[linkCastingOpportunityAction previous cleanup]",
+          cleanupError,
+        );
+      }
     }
   }
+
+  await recordAdminAction({
+    actorId: adminUser.id,
+    actorEmail: adminUser.email,
+    action: "link_casting_opportunity",
+    outcome: "success",
+    target: EVENT_TARGETS.CASTING_PROJECT,
+    targetId: projectId,
+    metadata: {
+      previous_opportunity_id:
+        previousOpportunityId,
+      new_opportunity_id:
+        opportunityId,
+      previous_cleanup_succeeded:
+        previousCleanupSucceeded,
+    },
+  });
 
   revalidateCasting(projectId);
   revalidatePath(`/admin/opportunities/${opportunityId}`);
