@@ -439,15 +439,79 @@ export async function replaceManagedTalentWithReserveAction(formData: FormData) 
   const bookingId = positiveInt(formData.get("booking_id"));
   const reserveShortlistId = positiveInt(formData.get("reserve_shortlist_id"));
   const reason = text(formData.get("reason")).slice(0, 2000);
-  if (!projectId || !bookingId || !reserveShortlistId) throw new Error("Invalid managed casting replacement request.");
+
+  if (!projectId || !bookingId || !reserveShortlistId) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "replace_managed_talent_with_reserve",
+      outcome: "blocked",
+      target: EVENT_TARGETS.CASTING_REPLACEMENT,
+      targetId: "invalid-input",
+      reason: "invalid_replacement_request",
+      metadata: {
+        casting_project_id:
+          projectId,
+        booking_id:
+          bookingId,
+        reserve_shortlist_id:
+          reserveShortlistId,
+      },
+    });
+
+    throw new Error("Invalid managed casting replacement request.");
+  }
 
   const admin = createAdminClient();
   const [{ data: project }, { data: oldBooking }] = await Promise.all([
     admin.from("casting_projects").select("id,service_mode,client_access_token,client_selection_confirmed_at").eq("id", projectId).maybeSingle(),
     admin.from("talent_bookings").select("id,application_id,conversation_id,opportunity_id,talent_id,status,cancelled_at,confirmed_at").eq("id", bookingId).eq("managed_casting_project_id", projectId).maybeSingle(),
   ]);
-  if (!project || project.service_mode !== "managed" || !project.client_selection_confirmed_at) throw new Error("Managed casting project is not ready for replacement.");
-  if (!oldBooking || !["proposed", "changes_requested", "confirmed"].includes(String(oldBooking.status))) throw new Error("This booking cannot be replaced.");
+  if (!project || project.service_mode !== "managed" || !project.client_selection_confirmed_at) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "replace_managed_talent_with_reserve",
+      outcome: "blocked",
+      target: EVENT_TARGETS.CASTING_REPLACEMENT,
+      targetId: "project-not-ready",
+      reason: "managed_casting_project_not_ready",
+      metadata: {
+        casting_project_id:
+          projectId,
+        booking_id:
+          bookingId,
+      },
+    });
+
+    throw new Error("Managed casting project is not ready for replacement.");
+  }
+
+  if (!oldBooking || !["proposed", "changes_requested", "confirmed"].includes(String(oldBooking.status))) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "replace_managed_talent_with_reserve",
+      outcome: oldBooking
+        ? "blocked"
+        : "failed",
+      target: EVENT_TARGETS.CASTING_REPLACEMENT,
+      targetId: "booking-unavailable",
+      reason: oldBooking
+        ? "booking_not_replaceable"
+        : "booking_not_found",
+      metadata: {
+        casting_project_id:
+          projectId,
+        booking_id:
+          bookingId,
+        booking_status:
+          oldBooking?.status ?? null,
+      },
+    });
+
+    throw new Error("This booking cannot be replaced.");
+  }
 
   const { data: oldShortlist } = await admin.from("casting_shortlist")
     .select("id,application_id,casting_role_id,status")
@@ -455,14 +519,119 @@ export async function replaceManagedTalentWithReserveAction(formData: FormData) 
   const { data: reserveShortlist } = await admin.from("casting_shortlist")
     .select("id,application_id,casting_role_id,status")
     .eq("id", reserveShortlistId).eq("casting_project_id", projectId).maybeSingle();
-  if (!oldShortlist || oldShortlist.status !== "selected") throw new Error("The current talent is not an active selected candidate.");
-  if (!reserveShortlist || reserveShortlist.status !== "reserved") throw new Error("Replacement must come from the reserve shortlist.");
-  if ((oldShortlist.casting_role_id ?? null) !== (reserveShortlist.casting_role_id ?? null)) throw new Error("Replacement talent must belong to the same casting role.");
+  if (!oldShortlist || oldShortlist.status !== "selected") {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "replace_managed_talent_with_reserve",
+      outcome: "blocked",
+      target: EVENT_TARGETS.CASTING_REPLACEMENT,
+      targetId: "current-shortlist-invalid",
+      reason: "current_talent_not_selected",
+      metadata: {
+        casting_project_id:
+          projectId,
+        booking_id:
+          bookingId,
+      },
+    });
+
+    throw new Error("The current talent is not an active selected candidate.");
+  }
+
+  if (!reserveShortlist || reserveShortlist.status !== "reserved") {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "replace_managed_talent_with_reserve",
+      outcome: "blocked",
+      target: EVENT_TARGETS.CASTING_REPLACEMENT,
+      targetId: "reserve-shortlist-invalid",
+      reason: "replacement_not_from_reserve",
+      metadata: {
+        casting_project_id:
+          projectId,
+        booking_id:
+          bookingId,
+        reserve_shortlist_id:
+          reserveShortlistId,
+      },
+    });
+
+    throw new Error("Replacement must come from the reserve shortlist.");
+  }
+
+  if ((oldShortlist.casting_role_id ?? null) !== (reserveShortlist.casting_role_id ?? null)) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "replace_managed_talent_with_reserve",
+      outcome: "blocked",
+      target: EVENT_TARGETS.CASTING_REPLACEMENT,
+      targetId: "role-mismatch",
+      reason: "replacement_casting_role_mismatch",
+      metadata: {
+        casting_project_id:
+          projectId,
+        booking_id:
+          bookingId,
+        current_casting_role_id:
+          oldShortlist.casting_role_id,
+        reserve_casting_role_id:
+          reserveShortlist.casting_role_id,
+      },
+    });
+
+    throw new Error("Replacement talent must belong to the same casting role.");
+  }
 
   const { data: reserveApplication } = await admin.from("opportunity_applications")
     .select("id,opportunity_id,talent_id,status").eq("id", reserveShortlist.application_id).maybeSingle();
-  if (!reserveApplication || Number(reserveApplication.opportunity_id) !== Number(oldBooking.opportunity_id)) throw new Error("Reserve candidate is not linked to the same opportunity.");
-  if (!["pending", "reviewing", "shortlisted", "accepted"].includes(String(reserveApplication.status))) throw new Error("Reserve candidate is no longer eligible for confirmation.");
+  if (!reserveApplication || Number(reserveApplication.opportunity_id) !== Number(oldBooking.opportunity_id)) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "replace_managed_talent_with_reserve",
+      outcome: "blocked",
+      target: EVENT_TARGETS.CASTING_REPLACEMENT,
+      targetId: "reserve-application-invalid",
+      reason: "reserve_candidate_opportunity_mismatch",
+      metadata: {
+        casting_project_id:
+          projectId,
+        booking_id:
+          bookingId,
+        reserve_shortlist_id:
+          reserveShortlistId,
+        reserve_application_id:
+          reserveApplication?.id ?? null,
+      },
+    });
+
+    throw new Error("Reserve candidate is not linked to the same opportunity.");
+  }
+
+  if (!["pending", "reviewing", "shortlisted", "accepted"].includes(String(reserveApplication.status))) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "replace_managed_talent_with_reserve",
+      outcome: "blocked",
+      target: EVENT_TARGETS.CASTING_REPLACEMENT,
+      targetId: reserveApplication.id,
+      reason: "reserve_candidate_not_eligible",
+      metadata: {
+        casting_project_id:
+          projectId,
+        booking_id:
+          bookingId,
+        reserve_application_status:
+          reserveApplication.status,
+      },
+    });
+
+    throw new Error("Reserve candidate is no longer eligible for confirmation.");
+  }
 
   const now = new Date().toISOString();
   const originalBookingStatus = String(oldBooking.status);
@@ -524,19 +693,147 @@ export async function replaceManagedTalentWithReserveAction(formData: FormData) 
       updated_at: new Date().toISOString(),
     }).eq("id", projectId).eq("service_mode", "managed");
 
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "replace_managed_talent_with_reserve",
+      outcome: "success",
+      target: EVENT_TARGETS.CASTING_REPLACEMENT,
+      targetId:
+        replacementAuditId ??
+        newBooking.id,
+      metadata: {
+        casting_project_id:
+          projectId,
+        replaced_booking_id:
+          oldBooking.id,
+        replacement_booking_id:
+          newBooking.id,
+        replaced_talent_id:
+          oldBooking.talent_id,
+        replacement_talent_id:
+          reserveApplication.talent_id,
+        replaced_shortlist_id:
+          oldShortlist.id,
+        replacement_shortlist_id:
+          reserveShortlist.id,
+        reason_present:
+          Boolean(reason),
+        replacement_status:
+          newBooking.status,
+      },
+    });
+
     revalidateManaged(projectId, Number(newBooking.conversation_id), project.client_access_token);
   } catch (error) {
+    let rollbackSucceeded = true;
+
     if (replacementAuditId) {
-      await admin.from("managed_casting_replacements").update({ status: "replacement_failed", updated_at: new Date().toISOString() }).eq("id", replacementAuditId);
+      const { error: auditRollbackError } =
+        await admin
+          .from("managed_casting_replacements")
+          .update({
+            status:
+              "replacement_failed",
+            updated_at:
+              new Date().toISOString(),
+          })
+          .eq(
+            "id",
+            replacementAuditId,
+          );
+
+      if (auditRollbackError) {
+        rollbackSucceeded = false;
+        console.error(
+          "[replaceManagedTalentWithReserveAction audit rollback]",
+          auditRollbackError,
+        );
+      }
     }
-    await admin.from("casting_shortlist").update({ status: "reserved", updated_at: new Date().toISOString() }).eq("id", reserveShortlist.id).eq("status", "selected");
-    await admin.from("casting_shortlist").update({ status: "selected", updated_at: new Date().toISOString() }).eq("id", oldShortlist.id).eq("status", "replaced");
-    await admin.from("talent_bookings").update({
-      status: originalBookingStatus,
-      cancelled_at: originalCancelledAt,
-      confirmed_at: originalConfirmedAt,
-      updated_at: new Date().toISOString(),
-    }).eq("id", oldBooking.id).eq("managed_casting_project_id", projectId);
+
+    const [
+      reserveRollback,
+      oldShortlistRollback,
+      bookingRollback,
+    ] = await Promise.all([
+      admin
+        .from("casting_shortlist")
+        .update({
+          status: "reserved",
+          updated_at:
+            new Date().toISOString(),
+        })
+        .eq("id", reserveShortlist.id)
+        .eq("status", "selected"),
+      admin
+        .from("casting_shortlist")
+        .update({
+          status: "selected",
+          updated_at:
+            new Date().toISOString(),
+        })
+        .eq("id", oldShortlist.id)
+        .eq("status", "replaced"),
+      admin
+        .from("talent_bookings")
+        .update({
+          status:
+            originalBookingStatus,
+          cancelled_at:
+            originalCancelledAt,
+          confirmed_at:
+            originalConfirmedAt,
+          updated_at:
+            new Date().toISOString(),
+        })
+        .eq("id", oldBooking.id)
+        .eq(
+          "managed_casting_project_id",
+          projectId,
+        ),
+    ]);
+
+    if (
+      reserveRollback.error ||
+      oldShortlistRollback.error ||
+      bookingRollback.error
+    ) {
+      rollbackSucceeded = false;
+      console.error(
+        "[replaceManagedTalentWithReserveAction rollback]",
+        reserveRollback.error ??
+          oldShortlistRollback.error ??
+          bookingRollback.error,
+      );
+    }
+
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "replace_managed_talent_with_reserve",
+      outcome: "failed",
+      target: EVENT_TARGETS.CASTING_REPLACEMENT,
+      targetId:
+        replacementAuditId ??
+        "replacement-failed",
+      reason: "managed_casting_replacement_failed",
+      metadata: {
+        casting_project_id:
+          projectId,
+        replaced_booking_id:
+          oldBooking.id,
+        replaced_talent_id:
+          oldBooking.talent_id,
+        replacement_talent_id:
+          reserveApplication.talent_id,
+        reserve_shortlist_id:
+          reserveShortlist.id,
+        rollback_succeeded:
+          rollbackSucceeded,
+      },
+    });
+
     throw error;
   }
 }
