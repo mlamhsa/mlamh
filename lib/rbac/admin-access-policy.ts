@@ -93,3 +93,24 @@ export function hasValidActiveAdminAssignment(
     )
   );
 }
+
+
+export function crossesSuperAdminBoundary(
+  currentRoleKey:
+    | string
+    | null
+    | undefined,
+  requestedRoleKey:
+    | string
+    | null
+    | undefined,
+) {
+  return (
+    currentRoleKey ===
+      ROLES.SUPER_ADMIN
+  ) !==
+    (
+      requestedRoleKey ===
+      ROLES.SUPER_ADMIN
+    );
+}
