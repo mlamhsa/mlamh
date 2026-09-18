@@ -545,25 +545,125 @@ export async function updateManagedBookingDetailsAction(formData: FormData) {
   const adminUser = await requireAdminAccess();
   const projectId = positiveInt(formData.get("project_id"));
   const bookingId = positiveInt(formData.get("booking_id"));
-  if (!projectId || !bookingId) throw new Error("Invalid managed booking.");
+
+  if (!projectId || !bookingId) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_managed_booking_details",
+      outcome: "blocked",
+      target: EVENT_TARGETS.BOOKING,
+      targetId:
+        bookingId ?? "invalid-input",
+      reason: "invalid_managed_booking",
+      metadata: {
+        casting_project_id:
+          projectId,
+      },
+    });
+
+    throw new Error("Invalid managed booking.");
+  }
   const admin = createAdminClient();
   const { data: booking } = await admin.from("talent_bookings")
     .select("id,conversation_id,opportunity_id,talent_id,status,managed_casting_project_id")
     .eq("id", bookingId).eq("managed_casting_project_id", projectId).maybeSingle();
-  if (!booking || !["proposed", "changes_requested"].includes(booking.status)) throw new Error("Booking details can no longer be changed.");
+  if (!booking || !["proposed", "changes_requested"].includes(booking.status)) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_managed_booking_details",
+      outcome: booking
+        ? "blocked"
+        : "failed",
+      target: EVENT_TARGETS.BOOKING,
+      targetId: bookingId,
+      reason: booking
+        ? "booking_details_locked"
+        : "booking_not_found",
+      metadata: {
+        casting_project_id:
+          projectId,
+        current_status:
+          booking?.status ?? null,
+      },
+    });
+
+    throw new Error("Booking details can no longer be changed.");
+  }
 
   const workDate = text(formData.get("work_date"));
   const locationText = text(formData.get("location_text"));
   const workTime = text(formData.get("work_time"));
   const workDuration = text(formData.get("work_duration"));
   const compensationType = text(formData.get("compensation_type")) || "negotiable";
-  if (!workDate || !locationText) throw new Error("Work date and location are required.");
-  if (!["fixed", "negotiable", "unpaid"].includes(compensationType)) throw new Error("Invalid compensation type.");
+  if (!workDate || !locationText) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_managed_booking_details",
+      outcome: "blocked",
+      target: EVENT_TARGETS.BOOKING,
+      targetId: bookingId,
+      reason: "work_date_and_location_required",
+    });
+
+    throw new Error("Work date and location are required.");
+  }
+
+  if (!["fixed", "negotiable", "unpaid"].includes(compensationType)) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_managed_booking_details",
+      outcome: "blocked",
+      target: EVENT_TARGETS.BOOKING,
+      targetId: bookingId,
+      reason: "invalid_compensation_type",
+      metadata: {
+        compensation_type:
+          compensationType,
+      },
+    });
+
+    throw new Error("Invalid compensation type.");
+  }
   const amountRaw = text(formData.get("compensation_amount"));
   const compensationAmount = amountRaw ? Number(amountRaw) : null;
-  if (compensationType === "fixed" && (compensationAmount === null || !Number.isFinite(compensationAmount) || compensationAmount < 0)) throw new Error("A valid fixed compensation amount is required.");
+  if (compensationType === "fixed" && (compensationAmount === null || !Number.isFinite(compensationAmount) || compensationAmount < 0)) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_managed_booking_details",
+      outcome: "blocked",
+      target: EVENT_TARGETS.BOOKING,
+      targetId: bookingId,
+      reason: "invalid_fixed_compensation_amount",
+      metadata: {
+        compensation_amount:
+          compensationAmount,
+      },
+    });
+
+    throw new Error("A valid fixed compensation amount is required.");
+  }
   const currency = (text(formData.get("currency")) || "SAR").toUpperCase();
-  if (!/^[A-Z]{3}$/.test(currency)) throw new Error("Invalid currency.");
+  if (!/^[A-Z]{3}$/.test(currency)) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_managed_booking_details",
+      outcome: "blocked",
+      target: EVENT_TARGETS.BOOKING,
+      targetId: bookingId,
+      reason: "invalid_currency",
+      metadata: {
+        currency,
+      },
+    });
+
+    throw new Error("Invalid currency.");
+  }
   const now = new Date().toISOString();
   const { error } = await admin.from("talent_bookings").update({
     status: "proposed", work_date: workDate, work_time: workTime || null, work_duration: workDuration || null,
@@ -571,9 +671,63 @@ export async function updateManagedBookingDetailsAction(formData: FormData) {
     currency, notes: text(formData.get("notes")) || null, talent_response_note: null, talent_response_at: null, confirmed_at: null,
     proposed_by: adminUser.id, proposed_at: now, admin_user_id: adminUser.id, updated_at: now,
   }).eq("id", booking.id);
-  if (error) throw new Error(error.message);
+  if (error) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_managed_booking_details",
+      outcome: "failed",
+      target: EVENT_TARGETS.BOOKING,
+      targetId: bookingId,
+      reason: "booking_details_update_failed",
+      metadata: {
+        casting_project_id:
+          projectId,
+        previous_status:
+          booking.status,
+      },
+    });
+
+    throw new Error(error.message);
+  }
+
   const { data: project } = await admin.from("casting_projects").select("client_access_token").eq("id", projectId).maybeSingle();
   await createTalentNotification({ admin, adminUserId: adminUser.id, talentId: Number(booking.talent_id), bookingId: Number(booking.id), conversationId: Number(booking.conversation_id), opportunityId: Number(booking.opportunity_id), title: "تم تحديث تفاصيل العمل", body: "راجع التفاصيل المحدثة وأكد الحجز أو اطلب تعديلًا آخر من فريق ملامح." });
+
+  await recordAdminAction({
+    actorId: adminUser.id,
+    actorEmail: adminUser.email,
+    action: "update_managed_booking_details",
+    outcome: "success",
+    target: EVENT_TARGETS.BOOKING,
+    targetId: bookingId,
+    metadata: {
+      casting_project_id:
+        projectId,
+      previous_status:
+        booking.status,
+      new_status:
+        "proposed",
+      work_date:
+        workDate,
+      work_time:
+        workTime || null,
+      work_duration:
+        workDuration || null,
+      location_text:
+        locationText,
+      compensation_type:
+        compensationType,
+      compensation_amount:
+        compensationType === "fixed"
+          ? compensationAmount
+          : null,
+      currency,
+      talent_notified:
+        true,
+    },
+  });
+
   revalidateManaged(projectId, Number(booking.conversation_id), project?.client_access_token);
 }
 
@@ -581,17 +735,123 @@ export async function markManagedBookingCompletedAction(formData: FormData) {
   const adminUser = await requireAdminAccess();
   const projectId = positiveInt(formData.get("project_id"));
   const bookingId = positiveInt(formData.get("booking_id"));
-  if (!projectId || !bookingId) return;
+
+  if (!projectId || !bookingId) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "mark_managed_booking_completed",
+      outcome: "blocked",
+      target: EVENT_TARGETS.BOOKING,
+      targetId:
+        bookingId ?? "invalid-input",
+      reason: "invalid_managed_booking",
+      metadata: {
+        casting_project_id:
+          projectId,
+      },
+    });
+
+    return;
+  }
   const admin = createAdminClient();
   const { data: booking } = await admin.from("talent_bookings").select("id,conversation_id,status,publisher_completed_at,talent_completed_at,admin_user_id,managed_casting_project_id").eq("id", bookingId).eq("managed_casting_project_id", projectId).maybeSingle();
-  if (!booking || !["confirmed", "completed"].includes(booking.status)) return;
+  if (!booking || !["confirmed", "completed"].includes(booking.status)) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "mark_managed_booking_completed",
+      outcome: booking
+        ? "blocked"
+        : "failed",
+      target: EVENT_TARGETS.BOOKING,
+      targetId: bookingId,
+      reason: booking
+        ? "booking_not_completable"
+        : "booking_not_found",
+      metadata: {
+        casting_project_id:
+          projectId,
+        current_status:
+          booking?.status ?? null,
+      },
+    });
+
+    return;
+  }
   const now = new Date().toISOString();
   const publisherCompletedAt = booking.publisher_completed_at || now;
   const bothComplete = Boolean(publisherCompletedAt && booking.talent_completed_at);
   const { error } = await admin.from("talent_bookings").update({ publisher_completed_at: publisherCompletedAt, status: bothComplete ? "completed" : "confirmed", completed_at: bothComplete ? now : null, updated_at: now, admin_user_id: booking.admin_user_id || adminUser.id }).eq("id", booking.id);
-  if (error) throw new Error(error.message);
+  if (error) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "mark_managed_booking_completed",
+      outcome: "failed",
+      target: EVENT_TARGETS.BOOKING,
+      targetId: bookingId,
+      reason: "booking_completion_update_failed",
+      metadata: {
+        casting_project_id:
+          projectId,
+        previous_status:
+          booking.status,
+      },
+    });
+
+    throw new Error(error.message);
+  }
   const { data: project } = await admin.from("casting_projects").select("client_access_token").eq("id", projectId).maybeSingle();
   const { data: remaining } = await admin.from("talent_bookings").select("id,status").eq("managed_casting_project_id", projectId).neq("status", "completed");
-  if ((remaining ?? []).length === 0) await admin.from("casting_projects").update({ status: "completed", client_status_note: "اكتمل تنفيذ مشروع الكاستينغ والمواهب المؤكدة. يمكنكم الآن تقييم التجربة والمواهب.", updated_at: now }).eq("id", projectId);
+  let projectCompleted =
+    false;
+
+  if ((remaining ?? []).length === 0) {
+    const { error: projectCompleteError } =
+      await admin
+        .from("casting_projects")
+        .update({
+          status: "completed",
+          client_status_note: "اكتمل تنفيذ مشروع الكاستينغ والمواهب المؤكدة. يمكنكم الآن تقييم التجربة والمواهب.",
+          updated_at: now,
+        })
+        .eq("id", projectId);
+
+    if (projectCompleteError) {
+      console.error(
+        "[markManagedBookingCompletedAction project]",
+        projectCompleteError,
+      );
+    } else {
+      projectCompleted = true;
+    }
+  }
+
+  await recordAdminAction({
+    actorId: adminUser.id,
+    actorEmail: adminUser.email,
+    action: "mark_managed_booking_completed",
+    outcome: "success",
+    target: EVENT_TARGETS.BOOKING,
+    targetId: bookingId,
+    metadata: {
+      casting_project_id:
+        projectId,
+      previous_status:
+        booking.status,
+      new_status:
+        bothComplete
+          ? "completed"
+          : "confirmed",
+      publisher_completed_at:
+        publisherCompletedAt,
+      talent_completed_at:
+        booking.talent_completed_at,
+      project_completed:
+        projectCompleted,
+    },
+  });
+
   revalidateManaged(projectId, Number(booking.conversation_id), project?.client_access_token);
 }
