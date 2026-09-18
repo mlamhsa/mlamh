@@ -12,7 +12,8 @@ const EXTRA_SENSITIVE_ACTION_FILES = [
   "lib/actions/create-admin-opportunity-auto-translate.ts",
   "lib/actions/review-talent.ts",
   "lib/actions/review-talent-profile-change.ts",
-  "lib/actions/update-admin-talent-status.ts",
+  "lib/actions/reactivate-entitlement.ts",
+  "lib/actions/revoke-entitlement.ts",
 ] as const;
 
 async function source(
@@ -39,7 +40,7 @@ async function actionFiles() {
   const discovered =
     entries
       .filter((name) =>
-        /^admin-.*\.ts$/.test(
+        /^(admin-|create-admin-|update-admin-).*\.ts$/.test(
           name,
         ),
       )
