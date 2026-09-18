@@ -36,18 +36,39 @@ export async function recordAdminAction({
           ? EVENT_TYPES.admin_action_failed
           : EVENT_TYPES.admin_action_noop;
 
-  await createAuditEvent({
-    type,
-    target,
-    targetId,
-    actorId,
-    metadata: {
-      action,
-      outcome,
-      reason: reason ?? null,
-      actor_email:
-        actorEmail ?? null,
-      ...metadata,
-    },
-  });
+  try {
+    await createAuditEvent({
+      type,
+      target,
+      targetId,
+      actorId,
+      metadata: {
+        action,
+        outcome,
+        reason:
+          reason ?? null,
+        actor_email:
+          actorEmail ?? null,
+        ...metadata,
+      },
+    });
+
+    return true;
+  } catch (error) {
+    // Never make an already-completed admin mutation look like it failed
+    // only because the audit persistence layer had a separate problem.
+    // The failure remains visible in server logs / observability.
+    console.error(
+      "[recordAdminAction]",
+      {
+        action,
+        outcome,
+        target,
+        targetId,
+        error,
+      },
+    );
+
+    return false;
+  }
 }
