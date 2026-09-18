@@ -408,6 +408,66 @@ export async function inviteAdminAction(
     );
   }
 
+  let inviteRateLimit;
+
+  try {
+    inviteRateLimit =
+      await consumeServerRateLimit({
+        namespace:
+          "admin_invite_create",
+        identifier:
+          actor.id,
+        limit: 10,
+        windowSeconds:
+          60 * 60,
+      });
+  } catch (rateLimitError) {
+    console.error(
+      "[inviteAdminAction rate limit]",
+      rateLimitError,
+    );
+
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "invite_admin",
+      outcome: "failed",
+      targetId: email,
+      reason:
+        "invite_rate_limit_unavailable",
+    });
+
+    redirect(
+      accessCenterUrl(locale, {
+        access_error:
+          "invite_create_failed",
+      }),
+    );
+  }
+
+  if (!inviteRateLimit.allowed) {
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "invite_admin",
+      outcome: "blocked",
+      targetId: email,
+      reason:
+        "invite_create_rate_limited",
+      metadata: {
+        retry_after_seconds:
+          inviteRateLimit.retryAfterSeconds,
+      },
+    });
+
+    redirect(
+      accessCenterUrl(locale, {
+        access_error:
+          "invite_create_rate_limited",
+      }),
+    );
+  }
+
   const adminClient =
     createAdminClient();
 
