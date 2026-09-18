@@ -35,6 +35,7 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
       target?: string;
       event?: string;
       actor?: string;
+      page?: string;
     }>;
   };
   
@@ -44,12 +45,14 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
     target,
     event,
     actor,
+    page,
   }: {
     lang?: string;
     q?: string;
     target?: string;
     event?: string;
     actor?: string;
+    page?: number;
   }) {
     const params =
       new URLSearchParams();
@@ -88,6 +91,16 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
         actor,
       );
     }
+
+    if (
+      page &&
+      page > 1
+    ) {
+      params.set(
+        "page",
+        String(page),
+      );
+    }
   
     const query =
       params.toString();
@@ -110,6 +123,7 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
       target,
       event,
       actor,
+      page,
     } = await searchParams;
   
     const language:
@@ -144,27 +158,53 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
         ? cleanActor
         : null;
 
+    const requestedPage =
+      Number.parseInt(
+        page ?? "1",
+        10,
+      );
+
+    const currentPage =
+      Number.isFinite(
+        requestedPage,
+      ) &&
+      requestedPage > 0
+        ? requestedPage
+        : 1;
+
+    const pageSize = 100;
+
+    const databaseSearchMode =
+      !cleanSearch ||
+      exactIdSearch;
+
     const adminClient =
       createAdminClient();
   
     let query = adminClient
       .from("events")
-      .select(`
-        id,
-        event_type,
-        target_type,
-        target_id,
-        actor_id,
-        metadata,
-        created_at
-      `)
+      .select(
+        `
+          id,
+          event_type,
+          target_type,
+          target_id,
+          actor_id,
+          metadata,
+          created_at
+        `,
+        {
+          count: databaseSearchMode
+            ? "exact"
+            : undefined,
+        },
+      )
       .order(
         "created_at",
         {
           ascending: false,
         },
-      )
-      .limit(500);
+      );
   
     if (actorFilter) {
       query = query.eq(
@@ -195,10 +235,24 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
         `actor_id.eq.${cleanSearch},target_id.eq.${cleanSearch}`,
       );
     }
+
+    if (databaseSearchMode) {
+      const from =
+        (currentPage - 1) *
+        pageSize;
+
+      query = query.range(
+        from,
+        from + pageSize - 1,
+      );
+    } else {
+      query = query.limit(500);
+    }
   
     const {
       data,
       error,
+      count,
     } = await query;
   
     if (error) {
@@ -245,36 +299,174 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
         },
       );
   
-    const total =
-      events.length;
-  
-    const adminTarget =
-      events.filter(
+    const createCountQuery = (
+      targetType?: string,
+    ) => {
+      let countQuery = adminClient
+        .from("events")
+        .select("id", {
+          count: "exact",
+          head: true,
+        });
+
+      if (actorFilter) {
+        countQuery =
+          countQuery.eq(
+            "actor_id",
+            actorFilter,
+          );
+      }
+
+      if (event) {
+        countQuery =
+          countQuery.eq(
+            "event_type",
+            event,
+          );
+      }
+
+      if (targetType) {
+        countQuery =
+          countQuery.eq(
+            "target_type",
+            targetType,
+          );
+      }
+
+      if (
+        exactIdSearch &&
+        cleanSearch
+      ) {
+        countQuery =
+          countQuery.or(
+            `actor_id.eq.${cleanSearch},target_id.eq.${cleanSearch}`,
+          );
+      }
+
+      return countQuery;
+    };
+
+    let total =
+      filteredEvents.length;
+    let adminTarget =
+      filteredEvents.filter(
         (item) =>
           item.target_type ===
           "admin",
       ).length;
-  
-    const talentTarget =
-      events.filter(
+    let talentTarget =
+      filteredEvents.filter(
         (item) =>
           item.target_type ===
           "talent",
       ).length;
-  
-    const publisherTarget =
-      events.filter(
+    let publisherTarget =
+      filteredEvents.filter(
         (item) =>
           item.target_type ===
           "publisher",
       ).length;
-  
-    const opportunityTarget =
-      events.filter(
+    let opportunityTarget =
+      filteredEvents.filter(
         (item) =>
           item.target_type ===
           "opportunity",
       ).length;
+
+    if (databaseSearchMode) {
+      const [
+        totalCountResult,
+        adminCountResult,
+        talentCountResult,
+        publisherCountResult,
+        opportunityCountResult,
+      ] = await Promise.all([
+        createCountQuery(),
+        createCountQuery(
+          "admin",
+        ),
+        createCountQuery(
+          "talent",
+        ),
+        createCountQuery(
+          "publisher",
+        ),
+        createCountQuery(
+          "opportunity",
+        ),
+      ]);
+
+      const countErrors = [
+        totalCountResult.error,
+        adminCountResult.error,
+        talentCountResult.error,
+        publisherCountResult.error,
+        opportunityCountResult.error,
+      ].filter(Boolean);
+
+      if (countErrors.length > 0) {
+        console.error(
+          "[AdminAuditLogPage counts]",
+          countErrors,
+        );
+      } else {
+        total =
+          totalCountResult.count ??
+          count ??
+          filteredEvents.length;
+        adminTarget =
+          adminCountResult.count ??
+          0;
+        talentTarget =
+          talentCountResult.count ??
+          0;
+        publisherTarget =
+          publisherCountResult.count ??
+          0;
+        opportunityTarget =
+          opportunityCountResult.count ??
+          0;
+      }
+    }
+
+    const matchingCount =
+      databaseSearchMode
+        ? count ??
+          filteredEvents.length
+        : filteredEvents.length;
+
+    const totalPages =
+      databaseSearchMode
+        ? Math.max(
+            1,
+            Math.ceil(
+              matchingCount /
+                pageSize,
+            ),
+          )
+        : 1;
+
+    const actorIdentity =
+      actorFilter
+        ? await adminClient
+            .from("admin_users")
+            .select("email")
+            .eq("id", actorFilter)
+            .maybeSingle()
+        : null;
+
+    if (
+      actorIdentity?.error
+    ) {
+      console.error(
+        "[AdminAuditLogPage actor identity]",
+        actorIdentity.error,
+      );
+    }
+
+    const actorEmail =
+      actorIdentity?.data?.email ??
+      null;
   
     return (
       <AdminPageContainer>
@@ -288,10 +480,16 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
             isArabic
               ? actorFilter
                 ? "عرض مخصص لكل العمليات التي نفذها هذا المشرف عبر المنصة. يمكن تضييق النتائج بالمستهدف أو نوع الحدث."
-                : "سجل زمني للأحداث والقرارات والعمليات المسجلة داخل المنصة. البحث بمعرّف UUID يتم مباشرة من قاعدة البيانات لضمان إظهار السجل حتى لو كان أقدم من آخر 500 حدث."
+                : cleanSearch &&
+                    !exactIdSearch
+                  ? "بحث نصي داخل أحدث 500 حدث مسجل. استخدم معرّف UUID للوصول المباشر إلى السجل الكامل لمشرف أو مستهدف."
+                  : "سجل زمني كامل للأحداث والقرارات والعمليات المسجلة داخل المنصة مع تقسيم النتائج إلى صفحات."
               : actorFilter
                 ? "A dedicated view of every recorded platform action performed by this admin. Narrow the results by target or event type."
-                : "A chronological record of events, decisions, and operational activity across the platform. UUID searches are applied at the database layer so history is not limited to the latest 500 events."
+                : cleanSearch &&
+                    !exactIdSearch
+                  ? "Free-text search across the latest 500 recorded events. Use a UUID for direct full-history lookup by actor or target."
+                  : "A complete chronological audit trail with server-side pagination for recorded platform events."
           }
         />
 
@@ -303,6 +501,15 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
                   ? "فلتر نشاط مشرف محدد"
                   : "Specific admin activity filter"}
               </p>
+              {actorEmail ? (
+                <p
+                  dir="ltr"
+                  className="mt-1 text-xs text-white/55"
+                >
+                  {actorEmail}
+                </p>
+              ) : null}
+
               <p
                 dir="ltr"
                 className="mt-1 font-mono text-[10px] text-white/35"
@@ -763,9 +970,13 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
           </div>
   
           <p className="text-xs text-white/35">
-            {isArabic
-              ? `${filteredEvents.length} نتيجة`
-              : `${filteredEvents.length} results`}
+            {databaseSearchMode
+              ? isArabic
+                ? `${matchingCount} نتيجة · الصفحة ${currentPage} من ${totalPages}`
+                : `${matchingCount} results · page ${currentPage} of ${totalPages}`
+              : isArabic
+                ? `${filteredEvents.length} نتيجة ضمن أحدث 500 حدث`
+                : `${filteredEvents.length} results within the latest 500 events`}
           </p>
         </div>
   
@@ -795,6 +1006,73 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
             )}
           </div>
         )}
+
+        {databaseSearchMode &&
+        totalPages > 1 ? (
+          <nav
+            aria-label={
+              isArabic
+                ? "صفحات سجل العمليات"
+                : "Audit log pages"
+            }
+            className="mt-6 flex items-center justify-between gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-3"
+          >
+            {currentPage > 1 ? (
+              <Link
+                href={buildHref({
+                  lang,
+                  q,
+                  target,
+                  event,
+                  actor:
+                    actorFilter ??
+                    undefined,
+                  page:
+                    currentPage -
+                    1,
+                })}
+                className="rounded-xl border border-white/[0.09] px-4 py-2 text-xs text-white/55 transition hover:border-gold/20 hover:text-gold"
+              >
+                {isArabic
+                  ? "السابق"
+                  : "Previous"}
+              </Link>
+            ) : (
+              <span />
+            )}
+
+            <span className="text-[11px] text-white/35">
+              {isArabic
+                ? `صفحة ${currentPage} من ${totalPages}`
+                : `Page ${currentPage} of ${totalPages}`}
+            </span>
+
+            {currentPage <
+            totalPages ? (
+              <Link
+                href={buildHref({
+                  lang,
+                  q,
+                  target,
+                  event,
+                  actor:
+                    actorFilter ??
+                    undefined,
+                  page:
+                    currentPage +
+                    1,
+                })}
+                className="rounded-xl border border-gold/20 bg-gold/[0.05] px-4 py-2 text-xs text-gold transition hover:bg-gold hover:text-black"
+              >
+                {isArabic
+                  ? "التالي"
+                  : "Next"}
+              </Link>
+            ) : (
+              <span />
+            )}
+          </nav>
+        ) : null}
       </AdminPageContainer>
     );
   }
