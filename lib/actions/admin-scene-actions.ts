@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireAdminAccess } from "@/lib/auth/require-admin";
+import { recordAdminAction } from "@/lib/events/admin-audit";
+import { EVENT_TARGETS } from "@/lib/events/event-targets";
 import { SceneService } from "@/lib/services/SceneService";
 import type {
   SceneArticleStatus,
@@ -135,11 +137,22 @@ function revalidateScene(slug?: string) {
 }
 
 export async function createSceneArticleAction(formData: FormData) {
-  await requireAdminAccess();
+  const adminUser =
+    await requireAdminAccess();
   const locale: "ar" | "en" = formData.get("locale") === "en" ? "en" : "ar";
   const parsed = buildArticleValues(formData);
 
   if ("error" in parsed) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "create_scene_article",
+      outcome: "blocked",
+      target: EVENT_TARGETS.SCENE_ARTICLE,
+      targetId: "invalid-input",
+      reason: parsed.error,
+    });
+
     redirect(sceneAdminUrl(locale, { error: parsed.error }));
   }
 
@@ -149,30 +162,110 @@ export async function createSceneArticleAction(formData: FormData) {
   if (result.error || !result.data) {
     console.error("[createSceneArticleAction]", result.error);
     const code = result.error?.code === "23505" ? "duplicate_slug" : "create_failed";
+
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "create_scene_article",
+      outcome:
+        code === "duplicate_slug"
+          ? "blocked"
+          : "failed",
+      target: EVENT_TARGETS.SCENE_ARTICLE,
+      targetId:
+        articleData.slug,
+      reason: code,
+      metadata: {
+        slug:
+          articleData.slug,
+        status:
+          articleData.status ??
+          null,
+      },
+    });
+
     redirect(sceneAdminUrl(locale, { error: code }));
   }
+
+  await recordAdminAction({
+    actorId: adminUser.id,
+    actorEmail: adminUser.email,
+    action: "create_scene_article",
+    outcome: "success",
+    target: EVENT_TARGETS.SCENE_ARTICLE,
+    targetId: Number(result.data.id),
+    metadata: {
+      slug:
+        articleData.slug,
+      status:
+        articleData.status ??
+        null,
+      audience:
+        articleData.audience ??
+        null,
+      content_type:
+        articleData.content_type ??
+        null,
+    },
+  });
 
   revalidateScene(articleData.slug);
   redirect(sceneEditUrl(Number(result.data.id), locale, { saved: "1" }));
 }
 
 export async function updateSceneArticleAction(formData: FormData) {
-  await requireAdminAccess();
+  const adminUser =
+    await requireAdminAccess();
   const locale: "ar" | "en" = formData.get("locale") === "en" ? "en" : "ar";
   const id = Number(formData.get("article_id"));
 
   if (!Number.isInteger(id) || id <= 0) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_scene_article",
+      outcome: "blocked",
+      target: EVENT_TARGETS.SCENE_ARTICLE,
+      targetId: "invalid-input",
+      reason: "invalid_article",
+    });
+
     redirect(sceneAdminUrl(locale, { error: "invalid_article" }));
   }
 
   const existing = await SceneService.getArticleForAdminById(id);
   if (existing.error || !existing.data) {
     console.error("[updateSceneArticleAction existing]", existing.error);
+
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_scene_article",
+      outcome: "failed",
+      target: EVENT_TARGETS.SCENE_ARTICLE,
+      targetId: id,
+      reason: "article_not_found",
+    });
+
     redirect(sceneAdminUrl(locale, { error: "article_not_found" }));
   }
 
   const parsed = buildArticleValues(formData);
   if ("error" in parsed) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_scene_article",
+      outcome: "blocked",
+      target: EVENT_TARGETS.SCENE_ARTICLE,
+      targetId: id,
+      reason: parsed.error,
+      metadata: {
+        previous_slug:
+          existing.data.slug,
+      },
+    });
+
     redirect(sceneEditUrl(id, locale, { error: parsed.error }));
   }
 
@@ -181,8 +274,61 @@ export async function updateSceneArticleAction(formData: FormData) {
   if (result.error) {
     console.error("[updateSceneArticleAction]", result.error);
     const code = result.error.code === "23505" ? "duplicate_slug" : "update_failed";
+
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_scene_article",
+      outcome:
+        code === "duplicate_slug"
+          ? "blocked"
+          : "failed",
+      target: EVENT_TARGETS.SCENE_ARTICLE,
+      targetId: id,
+      reason: code,
+      metadata: {
+        previous_slug:
+          existing.data.slug,
+        requested_slug:
+          articleData.slug,
+        previous_status:
+          existing.data.status ??
+          null,
+        requested_status:
+          articleData.status ??
+          null,
+      },
+    });
+
     redirect(sceneEditUrl(id, locale, { error: code }));
   }
+
+  await recordAdminAction({
+    actorId: adminUser.id,
+    actorEmail: adminUser.email,
+    action: "update_scene_article",
+    outcome: "success",
+    target: EVENT_TARGETS.SCENE_ARTICLE,
+    targetId: id,
+    metadata: {
+      previous_slug:
+        existing.data.slug,
+      new_slug:
+        articleData.slug,
+      previous_status:
+        existing.data.status ??
+        null,
+      new_status:
+        articleData.status ??
+        null,
+      audience:
+        articleData.audience ??
+        null,
+      content_type:
+        articleData.content_type ??
+        null,
+    },
+  });
 
   revalidateScene(String(existing.data.slug));
   revalidateScene(articleData.slug);
