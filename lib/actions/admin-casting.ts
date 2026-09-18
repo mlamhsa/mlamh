@@ -550,18 +550,70 @@ export async function updateCastingRoleAction(formData: FormData) {
 }
 
 export async function createCastingRoleOpportunityAction(formData: FormData) {
-  await requireAdminAccess();
+  const adminUser =
+    await requireAdminAccess();
   const projectId = toPositiveInt(formData.get("project_id"));
   const roleId = toPositiveInt(formData.get("role_id"));
-  if (!projectId || !roleId) throw new Error("Invalid casting role.");
+
+  if (!projectId || !roleId) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "create_casting_role_opportunity",
+      outcome: "blocked",
+      target: EVENT_TARGETS.CASTING_ROLE,
+      targetId:
+        roleId ?? "invalid-input",
+      reason: "invalid_casting_role_input",
+      metadata: {
+        casting_project_id:
+          projectId,
+      },
+    });
+
+    throw new Error("Invalid casting role.");
+  }
 
   const adminClient = createAdminClient();
   const [{ data: project }, { data: role }] = await Promise.all([
     adminClient.from("casting_projects").select("*").eq("id", projectId).maybeSingle(),
     adminClient.from("casting_roles").select("*").eq("id", roleId).eq("casting_project_id", projectId).maybeSingle(),
   ]);
-  if (!project || !role) throw new Error("Casting project or role not found.");
+  if (!project || !role) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "create_casting_role_opportunity",
+      outcome: "failed",
+      target: EVENT_TARGETS.CASTING_ROLE,
+      targetId: roleId,
+      reason: "casting_project_or_role_not_found",
+      metadata: {
+        casting_project_id:
+          projectId,
+      },
+    });
+
+    throw new Error("Casting project or role not found.");
+  }
+
   if (role.opportunity_id) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "create_casting_role_opportunity",
+      outcome: "noop",
+      target: EVENT_TARGETS.CASTING_ROLE,
+      targetId: roleId,
+      reason: "role_opportunity_already_exists",
+      metadata: {
+        casting_project_id:
+          projectId,
+        opportunity_id:
+          role.opportunity_id,
+      },
+    });
+
     revalidateCasting(projectId);
     return;
   }
@@ -611,6 +663,20 @@ export async function createCastingRoleOpportunityAction(formData: FormData) {
 
   const opportunityId = Number(result?.opportunity?.id);
   if (!Number.isInteger(opportunityId) || opportunityId <= 0) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "create_casting_role_opportunity",
+      outcome: "failed",
+      target: EVENT_TARGETS.CASTING_ROLE,
+      targetId: roleId,
+      reason: "opportunity_creation_failed",
+      metadata: {
+        casting_project_id:
+          projectId,
+      },
+    });
+
     throw new Error("Unable to create role opportunity.");
   }
 
@@ -619,23 +685,96 @@ export async function createCastingRoleOpportunityAction(formData: FormData) {
     .from("opportunities")
     .update({ title_en: titleEn, description_en: descriptionEn, managed_by_mlamh: true, updated_at: now })
     .eq("id", opportunityId);
-  if (opportunityError) throw new Error(opportunityError.message);
+
+  if (opportunityError) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "create_casting_role_opportunity",
+      outcome: "failed",
+      target: EVENT_TARGETS.CASTING_ROLE,
+      targetId: roleId,
+      reason: "opportunity_localization_link_failed",
+      metadata: {
+        casting_project_id:
+          projectId,
+        opportunity_id:
+          opportunityId,
+      },
+    });
+
+    throw new Error(opportunityError.message);
+  }
 
   const { error: roleError } = await adminClient
     .from("casting_roles")
     .update({ opportunity_id: opportunityId, status: "active", updated_at: now })
     .eq("id", roleId)
     .eq("casting_project_id", projectId);
-  if (roleError) throw new Error(roleError.message);
+
+  if (roleError) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "create_casting_role_opportunity",
+      outcome: "failed",
+      target: EVENT_TARGETS.CASTING_ROLE,
+      targetId: roleId,
+      reason: "casting_role_opportunity_link_failed",
+      metadata: {
+        casting_project_id:
+          projectId,
+        opportunity_id:
+          opportunityId,
+        orphan_draft_opportunity:
+          true,
+      },
+    });
+
+    throw new Error(roleError.message);
+  }
+
+  await recordAdminAction({
+    actorId: adminUser.id,
+    actorEmail: adminUser.email,
+    action: "create_casting_role_opportunity",
+    outcome: "success",
+    target: EVENT_TARGETS.CASTING_ROLE,
+    targetId: roleId,
+    metadata: {
+      casting_project_id:
+        projectId,
+      opportunity_id:
+        opportunityId,
+      new_role_status:
+        "active",
+      talent_type:
+        role.talent_type,
+    },
+  });
 
   revalidateCasting(projectId);
   revalidatePath("/admin/opportunities");
 }
 
 export async function ensureCastingClientAccessAction(formData: FormData) {
-  await requireAdminAccess();
+  const adminUser =
+    await requireAdminAccess();
   const projectId = toPositiveInt(formData.get("project_id"));
-  if (!projectId) return;
+
+  if (!projectId) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "ensure_casting_client_access",
+      outcome: "blocked",
+      target: EVENT_TARGETS.CASTING_PROJECT,
+      targetId: "invalid-input",
+      reason: "invalid_casting_project_id",
+    });
+
+    return;
+  }
 
   const adminClient = createAdminClient();
   const { data: project, error: lookupError } = await adminClient
@@ -645,23 +784,77 @@ export async function ensureCastingClientAccessAction(formData: FormData) {
     .maybeSingle();
   if (lookupError || !project) {
     console.error("[ensureCastingClientAccessAction lookup]", lookupError);
+
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "ensure_casting_client_access",
+      outcome: "failed",
+      target: EVENT_TARGETS.CASTING_PROJECT,
+      targetId: projectId,
+      reason: "casting_project_lookup_failed",
+    });
+
     return;
   }
 
-  if (!project.client_access_token) {
-    const { error } = await adminClient
-      .from("casting_projects")
-      .update({
-        client_access_token: crypto.randomUUID(),
-        client_shared_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", projectId);
-    if (error) {
-      console.error("[ensureCastingClientAccessAction update]", error);
-      return;
-    }
+  if (project.client_access_token) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "ensure_casting_client_access",
+      outcome: "noop",
+      target: EVENT_TARGETS.CASTING_PROJECT,
+      targetId: projectId,
+      reason: "client_access_already_exists",
+      metadata: {
+        client_access_token_present:
+          true,
+      },
+    });
+
+    revalidateCasting(projectId);
+    return;
   }
+
+  const { error } = await adminClient
+    .from("casting_projects")
+    .update({
+      client_access_token: crypto.randomUUID(),
+      client_shared_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", projectId);
+
+  if (error) {
+    console.error("[ensureCastingClientAccessAction update]", error);
+
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "ensure_casting_client_access",
+      outcome: "failed",
+      target: EVENT_TARGETS.CASTING_PROJECT,
+      targetId: projectId,
+      reason: "client_access_creation_failed",
+    });
+
+    return;
+  }
+
+  await recordAdminAction({
+    actorId: adminUser.id,
+    actorEmail: adminUser.email,
+    action: "ensure_casting_client_access",
+    outcome: "success",
+    target: EVENT_TARGETS.CASTING_PROJECT,
+    targetId: projectId,
+    metadata: {
+      client_access_created:
+        true,
+    },
+  });
+
   revalidateCasting(projectId);
 }
 
