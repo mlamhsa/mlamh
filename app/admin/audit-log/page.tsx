@@ -436,6 +436,12 @@ import {
                   ? "محتوى مشهد"
                   : "Scene content"}
               </option>
+
+              <option value="casting_file">
+                {isArabic
+                  ? "ملفات الكاستينغ"
+                  : "Casting files"}
+              </option>
             </select>
   
             <select
