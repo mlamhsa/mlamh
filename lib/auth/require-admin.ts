@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-import { hasConsistentActiveAdminRole } from "@/lib/rbac/admin-access-policy";
+import { hasValidActiveAdminAssignment } from "@/lib/rbac/admin-access-policy";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -50,7 +50,7 @@ export async function requireAdminAccess() {
   // Admin access is intentionally fail-closed and requires all three layers:
   // 1) the profile is an admin profile,
   // 2) the account is present in the explicit admin registry,
-  // 3) exactly one active RBAC role is assigned and it matches the registry role.
+  // 3) exactly one active RBAC role is assigned. RBAC remains the permission source of truth; the registry is the active/revoked gate.
   //
   // This prevents stale profile flags from granting access after an admin is revoked.
   if (
@@ -61,7 +61,7 @@ export async function requireAdminAccess() {
     profile.account_type !== "admin" ||
     !adminRegistry ||
     !roleAssignments ||
-    !hasConsistentActiveAdminRole(
+    !hasValidActiveAdminAssignment(
       adminRegistry.role,
       roleAssignments.map(
         (assignment) => {
