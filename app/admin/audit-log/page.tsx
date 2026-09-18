@@ -388,6 +388,12 @@ import {
                   ? "الفرص"
                   : "Opportunities"}
               </option>
+
+              <option value="application">
+                {isArabic
+                  ? "طلبات التقديم"
+                  : "Applications"}
+              </option>
             </select>
   
             <select
@@ -425,6 +431,22 @@ import {
 
               <option value="admin_access_action_noop">
                 admin_access_action_noop
+              </option>
+
+              <option value="admin_action_success">
+                admin_action_success
+              </option>
+
+              <option value="admin_action_blocked">
+                admin_action_blocked
+              </option>
+
+              <option value="admin_action_failed">
+                admin_action_failed
+              </option>
+
+              <option value="admin_action_noop">
+                admin_action_noop
               </option>
 
               <option value="admin_role_changed">
