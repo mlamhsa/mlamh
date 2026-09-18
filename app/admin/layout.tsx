@@ -4,6 +4,7 @@ import { AdminSidebar } from "@/components/admin/layout/AdminSidebar";
 import { AdminTopbar } from "@/components/admin/layout/AdminTopbar";
 import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { getUserPermissions } from "@/lib/rbac/helpers";
+import type { Permission } from "@/lib/rbac/permissions";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 type AdminLayoutProps = {
@@ -115,7 +116,7 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
   const currentAdmin =
     await requireAdminAccess();
 
-  let permissions = [];
+  let permissions: Permission[] = [];
 
   try {
     permissions =
