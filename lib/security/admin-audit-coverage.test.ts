@@ -931,3 +931,25 @@ test("audit log time filters stay server-side and survive pagination", async () 
     "audit pagination must preserve the selected time window",
   );
 });
+
+
+test("audit history keeps supporting database indexes", async () => {
+  const migration = await source(
+    "supabase/migrations/20260918190000_add_admin_audit_query_indexes.sql",
+  );
+
+  for (const indexName of [
+    "events_actor_created_at_idx",
+    "events_target_type_created_at_idx",
+    "events_event_type_created_at_idx",
+    "events_target_id_created_at_idx",
+  ]) {
+    assert.equal(
+      migration.includes(
+        indexName,
+      ),
+      true,
+      `audit query index ${indexName} must remain defined`,
+    );
+  }
+});
