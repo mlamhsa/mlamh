@@ -1,20 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { requireAdminAccess } from "@/lib/auth/require-admin";
+import {
+  requireAdminAccess,
+  requireAdminIdentity,
+} from "@/lib/auth/require-admin";
 import { recordAdminAction } from "@/lib/events/admin-audit";
 import { EVENT_TARGETS } from "@/lib/events/event-targets";
+import { consumeServerRateLimit } from "@/lib/security/server-rate-limit";
 
 type MfaAuditMode =
   | "enrollment"
   | "challenge";
 
+type MfaAuditOutcome =
+  | "success"
+  | "failed";
+
 export async function POST(
   request: NextRequest,
 ) {
-  const adminUser =
-    await requireAdminAccess();
+  const identityUser =
+    await requireAdminIdentity();
 
   let mode: MfaAuditMode;
+  let outcome:
+    MfaAuditOutcome;
 
   try {
     const body =
@@ -29,18 +39,28 @@ export async function POST(
       );
     }
 
+    if (
+      body?.outcome !== "success" &&
+      body?.outcome !== "failed"
+    ) {
+      throw new Error(
+        "invalid outcome",
+      );
+    }
+
     mode = body.mode;
+    outcome = body.outcome;
   } catch {
     await recordAdminAction({
-      actorId: adminUser.id,
+      actorId: verifiedUser.id,
       actorEmail:
-        adminUser.email,
+        verifiedUser.email,
       action:
         "record_admin_mfa_event",
       outcome: "blocked",
       target:
         EVENT_TARGETS.ADMIN,
-      targetId: adminUser.id,
+      targetId: verifiedUser.id,
       reason:
         "invalid_mfa_audit_payload",
     });
@@ -56,11 +76,99 @@ export async function POST(
     );
   }
 
+  if (outcome === "failed") {
+    let rateLimit;
+
+    try {
+      rateLimit =
+        await consumeServerRateLimit({
+          namespace:
+            "admin_mfa_failed_audit",
+          identifier:
+            identityUser.id,
+          limit: 30,
+          windowSeconds:
+            60 * 60,
+        });
+    } catch (rateLimitError) {
+      console.error(
+        "[AdminMfaEvent failed audit rate limit]",
+        rateLimitError,
+      );
+
+      return NextResponse.json(
+        {
+          error:
+            "MFA audit is temporarily unavailable.",
+        },
+        {
+          status: 503,
+        },
+      );
+    }
+
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        {
+          recorded: false,
+        },
+        {
+          status: 202,
+          headers: {
+            "Cache-Control":
+              "no-store",
+          },
+        },
+      );
+    }
+
+    const recorded =
+      await recordAdminAction({
+        actorId:
+          identityUser.id,
+        actorEmail:
+          identityUser.email,
+        action:
+          "admin_mfa_verification_failed",
+        outcome: "failed",
+        target:
+          EVENT_TARGETS.ADMIN,
+        targetId:
+          identityUser.id,
+        reason:
+          "mfa_verification_failed",
+        metadata: {
+          mfa_factor_type:
+            "totp",
+          verification_context:
+            mode,
+        },
+      });
+
+    return NextResponse.json(
+      {
+        recorded,
+      },
+      {
+        status: recorded
+          ? 200
+          : 503,
+        headers: {
+          "Cache-Control":
+            "no-store",
+        },
+      },
+    );
+  }
+
+  const verifiedUser =
+    await requireAdminAccess();
+
   const recorded =
     await recordAdminAction({
-      actorId: adminUser.id,
+      actorId: identityUser.id,
       actorEmail:
-        adminUser.email,
+        identityUser.email,
       action:
         mode ===
         "enrollment"
@@ -69,7 +177,7 @@ export async function POST(
       outcome: "success",
       target:
         EVENT_TARGETS.ADMIN,
-      targetId: adminUser.id,
+      targetId: identityUser.id,
       metadata: {
         assurance_level:
           "aal2",
