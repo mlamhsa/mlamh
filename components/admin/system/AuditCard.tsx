@@ -159,6 +159,36 @@ import {
             metadata,
             "new_role",
           );
+        const registryOnlySync =
+          metadata.registry_only_sync ===
+          true;
+
+        if (registryOnlySync) {
+          const previousRegistryRole =
+            getMetadataString(
+              metadata,
+              "previous_registry_role",
+            );
+          const effectiveRole =
+            getMetadataString(
+              metadata,
+              "effective_role",
+            );
+
+          return {
+            title: isArabic
+              ? "مزامنة سجل دور مشرف"
+              : "Admin role registry synchronized",
+            description:
+              previousRegistryRole &&
+              effectiveRole
+                ? `${previousRegistryRole} → ${effectiveRole}`
+                : isArabic
+                  ? "تمت مزامنة سجل الإدارة مع دور RBAC الفعلي دون تغيير الصلاحيات."
+                  : "The admin registry was synchronized with the effective RBAC role without changing permissions.",
+            icon: FilePenLine,
+          };
+        }
 
         return {
           title: isArabic
