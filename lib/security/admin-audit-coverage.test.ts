@@ -899,3 +899,35 @@ test("revoked registry state is treated as no active role for Super Admin restor
     "UI confirmation logic must treat revoked registry state as no active access",
   );
 });
+
+
+test("audit log time filters stay server-side and survive pagination", async () => {
+  const page = await source(
+    "app/admin/audit-log/page.tsx",
+  );
+
+  assert.equal(
+    page.includes(
+      'period === "24h"',
+    ) &&
+      page.includes(
+        'period === "7d"',
+      ) &&
+      page.includes(
+        'period === "30d"',
+      ) &&
+      page.includes(
+        '.gte(\n        "created_at",\n        periodStart',
+      ),
+    true,
+    "audit log time windows must be enforced by the database query",
+  );
+
+  assert.equal(
+    page.includes(
+      "period:\n                    periodFilter",
+    ),
+    true,
+    "audit pagination must preserve the selected time window",
+  );
+});
