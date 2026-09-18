@@ -574,6 +574,11 @@ import {
           ? "رسالة"
           : "Message";
 
+      case "conversation":
+        return isArabic
+          ? "محادثة"
+          : "Conversation";
+
       case "casting_project":
         return isArabic
           ? "مشروع كاستينغ"
