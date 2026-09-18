@@ -24,7 +24,7 @@ import {
   hasConsistentActiveAdminRole,
   isAssignableAdminRole,
 } from "@/lib/rbac/admin-access-policy";
-import { userHasPermission } from "@/lib/rbac/helpers";
+import { getUserPermissions } from "@/lib/rbac/helpers";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -389,24 +389,47 @@ export default async function AdminUsersPage({
         24 * 60 * 60 * 1000,
     ).toISOString();
 
-  const [
-    canManage,
-    canManageRoles,
-    canViewRoles,
-  ] = await Promise.all([
-    userHasPermission(
-      currentAdmin.id,
+  let currentPermissions:
+    Awaited<
+      ReturnType<
+        typeof getUserPermissions
+      >
+    > = [];
+
+  let permissionSnapshotHealthy =
+    true;
+
+  try {
+    currentPermissions =
+      await getUserPermissions(
+        currentAdmin.id,
+      );
+  } catch (permissionError) {
+    permissionSnapshotHealthy =
+      false;
+    console.error(
+      "[AdminAccessCenter permissions snapshot]",
+      permissionError,
+    );
+  }
+
+  const currentPermissionSet =
+    new Set(currentPermissions);
+
+  const canManage =
+    currentPermissionSet.has(
       PERMISSIONS.ADMINS_MANAGE,
-    ),
-    userHasPermission(
-      currentAdmin.id,
+    );
+
+  const canManageRoles =
+    currentPermissionSet.has(
       PERMISSIONS.ROLES_MANAGE,
-    ),
-    userHasPermission(
-      currentAdmin.id,
+    );
+
+  const canViewRoles =
+    currentPermissionSet.has(
       PERMISSIONS.ROLES_VIEW,
-    ),
-  ]);
+    );
 
   const [
     adminsResult,
@@ -540,6 +563,11 @@ export default async function AdminUsersPage({
     );
 
   const degradedDataSources = [
+    !permissionSnapshotHealthy
+      ? isArabic
+        ? "صلاحيات حسابك الحالي"
+        : "current admin permissions"
+      : null,
     rolesResult.error
       ? isArabic
         ? "الأدوار"
@@ -566,10 +594,12 @@ export default async function AdminUsersPage({
   );
 
   const effectiveCanManage =
+    permissionSnapshotHealthy &&
     canManage &&
     rbacDataHealthy;
 
   const effectiveCanManageRoles =
+    permissionSnapshotHealthy &&
     canManageRoles &&
     canViewRoles &&
     rbacDataHealthy;
