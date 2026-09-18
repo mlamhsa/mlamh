@@ -216,7 +216,15 @@ export async function enrichInvestorContacts({ limit = 12 }: { limit?: number } 
     .in("status", ["qualified", "discovered"])
     .order("fit_score", { ascending: false, nullsFirst: false })
     .limit(Math.max(1, Math.min(limit, 20)));
-  if (error) {\n    console.error("[InvestorRelations enrichment.leadLookup]", { code: error.code, message: error.message, details: error.details, hint: error.hint });\n    throw new Error(`Investor contact enrichment could not load leads: ${error.code ?? "unknown"}`);\n  }
+  if (error) {
+    console.error("[InvestorRelations enrichment.leadLookup]", {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+    });
+    throw new Error(`Investor contact enrichment could not load leads: ${error.code ?? "unknown"}`);
+  }
   if (!leads?.length) return { checked: 0, enriched: 0, withEmail: 0, withOfficialRoute: 0, withLinkedIn: 0 };
 
   const normalizedLeads = leads as unknown as Array<Record<string, unknown>>;
