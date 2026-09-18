@@ -1385,3 +1385,38 @@ test("access center shows a 24-hour security health summary", async () => {
     "access center must aggregate recent access, MFA, and identity-gate security signals",
   );
 });
+
+
+test("database enforces one admin role per user and valid registry states", async () => {
+  const migration = await source(
+    "supabase/migrations/20260918193000_harden_admin_rbac_invariants.sql",
+  );
+
+  assert.equal(
+    migration.includes(
+      "admin_users_role_allowed_check",
+    ) &&
+      migration.includes(
+        "'admin'",
+      ) &&
+      migration.includes(
+        "'super_admin'",
+      ) &&
+      migration.includes(
+        "'revoked'",
+      ),
+    true,
+    "admin registry must reject unsupported role-state values",
+  );
+
+  assert.equal(
+    migration.includes(
+      "user_roles_single_role_per_user_idx",
+    ) &&
+      migration.includes(
+        "unique index",
+      ),
+    true,
+    "database must prevent multiple RBAC role assignments for the same user",
+  );
+});
