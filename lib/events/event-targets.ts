@@ -18,6 +18,10 @@ export const EVENT_TARGETS = {
   CASTING_SHORTLIST: "casting_shortlist",
   BOOKING: "booking",
   CASTING_REPLACEMENT: "casting_replacement",
+  INVESTOR: "investor",
+  INVESTOR_OUTREACH: "investor_outreach",
+  INTEGRATION: "integration",
+  VERIFICATION_PROOF: "verification_proof",
 } as const;
   
   export type EventTarget =
