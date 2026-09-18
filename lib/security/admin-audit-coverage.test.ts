@@ -568,3 +568,46 @@ test("Super Admin removal attempts are serialized before final-admin checks", as
     );
   }
 });
+
+
+test("admin invitation creation keeps server-side throttling", async () => {
+  const actions = await source(
+    "lib/actions/admin-access-actions.ts",
+  );
+
+  const start =
+    actions.indexOf(
+      "export async function inviteAdminAction",
+    );
+  const end =
+    actions.indexOf(
+      "export async function resendAdminInviteAction",
+      start,
+    );
+
+  assert.ok(
+    start >= 0 &&
+      end > start,
+    "inviteAdminAction must exist",
+  );
+
+  const segment =
+    actions.slice(
+      start,
+      end,
+    );
+
+  assert.equal(
+    segment.includes(
+      '"admin_invite_create"',
+    ) &&
+      segment.includes(
+        "consumeServerRateLimit",
+      ) &&
+      segment.includes(
+        "invite_create_rate_limited",
+      ),
+    true,
+    "admin invitation creation must remain server-side rate limited",
+  );
+});
