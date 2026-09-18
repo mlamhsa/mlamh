@@ -9,6 +9,7 @@ import {
   EVENT_TARGETS,
   EVENT_TYPES,
 } from "@/lib/events";
+import { recordAdminAction } from "@/lib/events/admin-audit";
 
 import { OpportunityService } from "@/lib/services/opportunities/OpportunityService";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -111,7 +112,24 @@ async function updateOpportunityStatus({
 
   const adminUser = await requireAdminAccess();
   const opportunity = await OpportunityService.getStatusSnapshot(id);
-  if (!opportunity) throw new Error("Opportunity not found.");
+
+  if (!opportunity) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_opportunity_status",
+      outcome: "failed",
+      target: EVENT_TARGETS.OPPORTUNITY,
+      targetId: id,
+      reason: "opportunity_not_found",
+      metadata: {
+        requested_status: status,
+        published,
+      },
+    });
+
+    throw new Error("Opportunity not found.");
+  }
 
   const adminClient = createAdminClient();
   let applicationStartDate: string | null = null;
@@ -126,9 +144,41 @@ async function updateOpportunityStatus({
       .maybeSingle();
 
     if (publisherError || !publisher) {
+      await recordAdminAction({
+        actorId: adminUser.id,
+        actorEmail: adminUser.email,
+        action: "publish_opportunity",
+        outcome: "failed",
+        target: EVENT_TARGETS.OPPORTUNITY,
+        targetId: id,
+        reason: "publisher_not_found",
+        metadata: {
+          publisher_id:
+            opportunity.publisher_id,
+          previous_status:
+            opportunity.status ?? null,
+        },
+      });
+
       throw new Error(locale === "ar" ? "تعذر العثور على حساب الناشر المرتبط بهذه الفرصة." : "The publisher account linked to this opportunity could not be found.");
     }
+
     if (publisher.status === "suspended") {
+      await recordAdminAction({
+        actorId: adminUser.id,
+        actorEmail: adminUser.email,
+        action: "publish_opportunity",
+        outcome: "blocked",
+        target: EVENT_TARGETS.OPPORTUNITY,
+        targetId: id,
+        reason: "publisher_suspended",
+        metadata: {
+          publisher_id: publisher.id,
+          previous_status:
+            opportunity.status ?? null,
+        },
+      });
+
       throw new Error(locale === "ar" ? "لا يمكن نشر الفرصة لأن حساب الناشر موقوف." : "This opportunity cannot be published because the publisher account is suspended.");
     }
 
@@ -140,9 +190,38 @@ async function updateOpportunityStatus({
       .maybeSingle();
 
     if (publisherProfileError || !publisherProfile) {
+      await recordAdminAction({
+        actorId: adminUser.id,
+        actorEmail: adminUser.email,
+        action: "publish_opportunity",
+        outcome: "failed",
+        target: EVENT_TARGETS.OPPORTUNITY,
+        targetId: id,
+        reason: "publisher_approval_lookup_failed",
+        metadata: {
+          publisher_id: publisher.id,
+        },
+      });
+
       throw new Error(locale === "ar" ? "تعذر التحقق من حالة اعتماد الناشر." : "Unable to verify the publisher approval status.");
     }
+
     if (publisherProfile.approval_status !== "approved") {
+      await recordAdminAction({
+        actorId: adminUser.id,
+        actorEmail: adminUser.email,
+        action: "publish_opportunity",
+        outcome: "blocked",
+        target: EVENT_TARGETS.OPPORTUNITY,
+        targetId: id,
+        reason: "publisher_not_approved",
+        metadata: {
+          publisher_id: publisher.id,
+          publisher_approval_status:
+            publisherProfile.approval_status,
+        },
+      });
+
       throw new Error(locale === "ar" ? "لا يمكن نشر الفرصة قبل اعتماد ملف الناشر." : "The opportunity cannot be published until the publisher profile is approved.");
     }
 
@@ -161,12 +240,89 @@ async function updateOpportunityStatus({
 
     if (error) {
       console.error("[AdminOpportunity publish]", error);
+
+      await recordAdminAction({
+        actorId: adminUser.id,
+        actorEmail: adminUser.email,
+        action: "publish_opportunity",
+        outcome: "failed",
+        target: EVENT_TARGETS.OPPORTUNITY,
+        targetId: id,
+        reason: "opportunity_update_failed",
+        metadata: {
+          previous_status:
+            opportunity.status ?? null,
+          requested_status: status,
+        },
+      });
+
       throw new Error("Unable to publish the opportunity.");
     }
-    if (!data) throw new Error("Opportunity not found.");
+
+    if (!data) {
+      await recordAdminAction({
+        actorId: adminUser.id,
+        actorEmail: adminUser.email,
+        action: "publish_opportunity",
+        outcome: "failed",
+        target: EVENT_TARGETS.OPPORTUNITY,
+        targetId: id,
+        reason: "opportunity_missing_after_update",
+      });
+
+      throw new Error("Opportunity not found.");
+    }
   } else {
-    await OpportunityService.updateStatus({ id, status, published });
+    try {
+      await OpportunityService.updateStatus({ id, status, published });
+    } catch (error) {
+      await recordAdminAction({
+        actorId: adminUser.id,
+        actorEmail: adminUser.email,
+        action: "update_opportunity_status",
+        outcome: "failed",
+        target: EVENT_TARGETS.OPPORTUNITY,
+        targetId: id,
+        reason: "opportunity_status_update_failed",
+        metadata: {
+          previous_status:
+            opportunity.status ?? null,
+          requested_status: status,
+          published,
+        },
+      });
+
+      throw error;
+    }
   }
+
+  await recordAdminAction({
+    actorId: adminUser.id,
+    actorEmail: adminUser.email,
+    action:
+      status === "published"
+        ? "publish_opportunity"
+        : "update_opportunity_status",
+    outcome: "success",
+    target: EVENT_TARGETS.OPPORTUNITY,
+    targetId: id,
+    metadata: {
+      previous_status:
+        opportunity.status ?? null,
+      new_status: status,
+      published,
+      publisher_id:
+        opportunity.publisher_id ?? null,
+      reason: cleanReason,
+      admin_note: cleanAdminNote,
+      application_days:
+        effectiveApplicationDays,
+      application_start_date:
+        applicationStartDate,
+      application_deadline:
+        applicationDeadline,
+    },
+  });
 
   const eventType = getEventTypeForStatus(status);
   if (eventType && opportunity.publisher_id) {
@@ -224,7 +380,7 @@ export async function archiveOpportunityAction(formData: FormData) {
 
 export async function setFeaturedOpportunityAction(formData: FormData) {
   const id = getOpportunityId(formData);
-  await requireAdminAccess();
+  const adminUser = await requireAdminAccess();
   const adminClient = createAdminClient();
   const featuredUntil = new Date();
   featuredUntil.setUTCDate(featuredUntil.getUTCDate() + 30);
@@ -237,20 +393,97 @@ export async function setFeaturedOpportunityAction(formData: FormData) {
     .select("id")
     .maybeSingle();
 
-  if (error) throw new Error(`Unable to feature opportunity: ${error.message}`);
-  if (!data) throw new Error("Only a published opportunity can be featured.");
+  if (error) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "feature_opportunity",
+      outcome: "failed",
+      target: EVENT_TARGETS.OPPORTUNITY,
+      targetId: id,
+      reason: "feature_update_failed",
+    });
+
+    throw new Error(`Unable to feature opportunity: ${error.message}`);
+  }
+
+  if (!data) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "feature_opportunity",
+      outcome: "blocked",
+      target: EVENT_TARGETS.OPPORTUNITY,
+      targetId: id,
+      reason: "opportunity_not_published",
+    });
+
+    throw new Error("Only a published opportunity can be featured.");
+  }
+
+  await recordAdminAction({
+    actorId: adminUser.id,
+    actorEmail: adminUser.email,
+    action: "feature_opportunity",
+    outcome: "success",
+    target: EVENT_TARGETS.OPPORTUNITY,
+    targetId: id,
+    metadata: {
+      featured_until:
+        featuredUntil.toISOString(),
+    },
+  });
+
   revalidateOpportunityPaths(id);
 }
 
 export async function clearFeaturedOpportunityAction(formData: FormData) {
   const id = getOpportunityId(formData);
-  await requireAdminAccess();
+  const adminUser = await requireAdminAccess();
   const adminClient = createAdminClient();
-  const { error } = await adminClient
+  const { data, error } = await adminClient
     .from("opportunities")
     .update({ featured: false, featured_until: null })
-    .eq("id", id);
+    .eq("id", id)
+    .select("id")
+    .maybeSingle();
 
-  if (error) throw new Error(`Unable to remove featured opportunity: ${error.message}`);
+  if (error) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "clear_featured_opportunity",
+      outcome: "failed",
+      target: EVENT_TARGETS.OPPORTUNITY,
+      targetId: id,
+      reason: "featured_clear_failed",
+    });
+
+    throw new Error(`Unable to remove featured opportunity: ${error.message}`);
+  }
+
+  if (!data) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "clear_featured_opportunity",
+      outcome: "failed",
+      target: EVENT_TARGETS.OPPORTUNITY,
+      targetId: id,
+      reason: "opportunity_not_found",
+    });
+
+    throw new Error("Opportunity not found.");
+  }
+
+  await recordAdminAction({
+    actorId: adminUser.id,
+    actorEmail: adminUser.email,
+    action: "clear_featured_opportunity",
+    outcome: "success",
+    target: EVENT_TARGETS.OPPORTUNITY,
+    targetId: id,
+  });
+
   revalidateOpportunityPaths(id);
 }
