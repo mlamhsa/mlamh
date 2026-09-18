@@ -19,7 +19,7 @@ import {
   AdminPageContainer,
   AdminPageHeader,
 } from "@/components/admin/ui";
-import { requireAdminAccess } from "@/lib/auth/require-admin";
+import { requirePermission } from "@/lib/rbac/guards";
 import { isAssignableAdminRole } from "@/lib/rbac/admin-access-policy";
 import { userHasPermission } from "@/lib/rbac/helpers";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
@@ -349,7 +349,9 @@ export default async function AdminUsersPage({
   searchParams,
 }: PageProps) {
   const currentAdmin =
-    await requireAdminAccess();
+    await requirePermission(
+      PERMISSIONS.ADMINS_VIEW,
+    );
 
   const {
     lang,
