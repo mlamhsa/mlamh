@@ -1459,3 +1459,21 @@ test("sensitive role changes and revocations require human justification", async
     "sensitive access dialogs must collect the bounded justification before submission",
   );
 });
+
+
+test("audit cards surface human justification for sensitive access changes", async () => {
+  const card = await source(
+    "components/admin/system/AuditCard.tsx",
+  );
+
+  assert.equal(
+    card.includes(
+      '"change_reason"',
+    ) &&
+      card.includes(
+        "Change justification",
+      ),
+    true,
+    "sensitive access-change justification must be visible without opening raw metadata",
+  );
+});
