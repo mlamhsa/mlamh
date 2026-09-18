@@ -630,3 +630,48 @@ test("admin entry and MFA gates require one active RBAC assignment plus an activ
     );
   }
 });
+
+
+test("legacy admin role mismatch can be repaired without self-escalation", async () => {
+  const controls = await source(
+    "components/admin/rbac/AdminRoleControls.tsx",
+  );
+
+  assert.equal(
+    controls.includes(
+      "roleMismatch",
+    ) &&
+      controls.includes(
+        "Sync role registry",
+      ),
+    true,
+    "self account controls must expose only an explicit registry-sync path when RBAC and registry differ",
+  );
+
+  const actions = await source(
+    "lib/actions/admin-access-actions.ts",
+  );
+
+  const start =
+    actions.indexOf(
+      "export async function updateAdminRoleAction",
+    );
+  const end =
+    actions.indexOf(
+      "export async function revokeAdminAccessAction",
+      start,
+    );
+  const segment =
+    actions.slice(
+      start,
+      end,
+    );
+
+  assert.equal(
+    segment.includes(
+      "currentRoleKey !== roleKey",
+    ),
+    true,
+    "self role changes must remain blocked whenever the requested role differs from the effective RBAC role",
+  );
+});
