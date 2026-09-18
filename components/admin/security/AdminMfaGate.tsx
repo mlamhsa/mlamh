@@ -96,6 +96,39 @@ export function AdminMfaGate() {
         throw new Error("لم يتم رفع مستوى الجلسة إلى AAL2.");
       }
 
+      try {
+        const auditResponse =
+          await fetch(
+            "/api/admin/security/mfa-event",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type":
+                  "application/json",
+              },
+              body: JSON.stringify({
+                mode: enrollment
+                  ? "enrollment"
+                  : "challenge",
+              }),
+              cache: "no-store",
+              keepalive: true,
+            },
+          );
+
+        if (!auditResponse.ok) {
+          console.warn(
+            "[AdminMfaGate audit]",
+            auditResponse.status,
+          );
+        }
+      } catch (auditError) {
+        console.warn(
+          "[AdminMfaGate audit]",
+          auditError,
+        );
+      }
+
       window.location.replace("/admin");
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : "رمز التحقق غير صالح.";
