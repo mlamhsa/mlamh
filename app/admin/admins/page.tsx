@@ -1395,6 +1395,14 @@ export default async function AdminUsersPage({
                   ? "راجع الحاجة الفعلية لهذه الحسابات. إذا لم تعد مطلوبة، اسحب الوصول بدل ترك صلاحيات إدارية غير مستخدمة."
                   : "Review whether these accounts still need access. If they are no longer required, revoke access instead of leaving unused administrative privileges active."}
               </p>
+              <Link
+                href={`/admin/admins?lang=${locale}&status=dormant`}
+                className="mt-2 inline-flex text-xs font-medium text-gold transition hover:text-white"
+              >
+                {isArabic
+                  ? "مراجعة الحسابات غير النشطة"
+                  : "Review dormant admins"}
+              </Link>
             </div>
           </div>
         ) : null}
@@ -1414,6 +1422,14 @@ export default async function AdminUsersPage({
                   ? "راجع الدعوات القديمة: أعد إرسال رابط التفعيل إذا كان الوصول ما زال مطلوبًا، أو ألغِ الدعوة لتقليل الحسابات غير المفعلة."
                   : "Review stale invitations: resend activation if access is still needed, or cancel the invitation to reduce unactivated admin identities."}
               </p>
+              <Link
+                href={`/admin/admins?lang=${locale}&status=stale`}
+                className="mt-2 inline-flex text-xs font-medium text-gold transition hover:text-white"
+              >
+                {isArabic
+                  ? "مراجعة الدعوات القديمة"
+                  : "Review stale invites"}
+              </Link>
             </div>
           </div>
         ) : null}
@@ -1432,6 +1448,14 @@ export default async function AdminUsersPage({
                   ? "راجع سجل العمليات وهوية المشرف المستهدف قبل إجراء أي تغيير حساس. لا يتم عرض رمز التحقق أو المفتاح السري في السجل."
                   : "Review the audit log and affected admin identity before making sensitive changes. Verification codes and MFA secrets are never stored in the audit trail."}
               </p>
+              <Link
+                href={`/admin/audit-log?lang=${locale}&target=admin&period=24h&q=admin_mfa_verification_failed`}
+                className="mt-2 inline-flex text-xs font-medium text-gold transition hover:text-white"
+              >
+                {isArabic
+                  ? "مراجعة محاولات MFA الفاشلة"
+                  : "Review failed MFA attempts"}
+              </Link>
             </div>
           </div>
         ) : null}
@@ -1451,6 +1475,14 @@ export default async function AdminUsersPage({
                   ? "دور RBAC الفعلي يظل مصدر الصلاحيات، لكن قيمة سجل الإدارة لا تطابقه. راجع الحساب المعلّم «عدم تطابق في صلاحية الوصول» واستخدم مزامنة السجل الآمنة عند الحاجة."
                   : "The effective RBAC role remains the permission source of truth, but the admin registry label does not match it. Review accounts marked “Access-role mismatch” and use the safe registry sync when appropriate."}
               </p>
+              <Link
+                href={`/admin/admins?lang=${locale}&status=inconsistent`}
+                className="mt-2 inline-flex text-xs font-medium text-gold transition hover:text-white"
+              >
+                {isArabic
+                  ? "مراجعة حالات عدم التطابق"
+                  : "Review mismatches"}
+              </Link>
             </div>
           </div>
         ) : null}
