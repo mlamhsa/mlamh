@@ -36,6 +36,7 @@ type PageProps = {
     access_invited?: string;
     access_resent?: string;
     access_cancelled?: string;
+    access_synced?: string;
     access_error?: string;
     q?: string;
     status?: string;
@@ -363,6 +364,7 @@ export default async function AdminUsersPage({
     access_invited,
     access_resent,
     access_cancelled,
+    access_synced,
     access_error,
     q,
     status,
@@ -1152,7 +1154,8 @@ export default async function AdminUsersPage({
           }
         />
 
-        {!rbacDataHealthy ? (
+        {!rbacDataHealthy ||
+        !permissionSnapshotHealthy ? (
           <div className="mb-5 flex items-start gap-3 rounded-2xl border border-amber-400/20 bg-amber-400/[0.07] px-4 py-3 text-sm text-amber-100">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
             <div>
@@ -1177,6 +1180,17 @@ export default async function AdminUsersPage({
               {isArabic
                 ? "تم تحديث دور المشرف وتسجيل العملية في سجل النظام."
                 : "The admin role was updated and recorded in the audit log."}
+            </p>
+          </div>
+        ) : null}
+
+        {access_synced === "1" ? (
+          <div className="mb-5 flex items-start gap-3 rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.07] px-4 py-3 text-sm text-emerald-200">
+            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+            <p>
+              {isArabic
+                ? "تمت مزامنة سجل دور المشرف مع دور RBAC الفعلي دون تغيير الصلاحيات الحالية."
+                : "The admin registry role was synchronized with the effective RBAC role without changing current permissions."}
             </p>
           </div>
         ) : null}
