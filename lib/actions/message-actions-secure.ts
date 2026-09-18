@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 
 import { requireAdminAccess } from "@/lib/auth/require-admin";
+import { recordAdminAction } from "@/lib/events/admin-audit";
+import { EVENT_TARGETS } from "@/lib/events/event-targets";
 import { validateAndSanitizeMessageAttachment } from "@/lib/security/message-attachment";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -161,6 +163,17 @@ export async function sendMessageAction(formData: FormData) {
     await getAuthenticatedParticipant(conversationId);
 
   if ((conversation.status ?? "active") !== "active") {
+    if (dashboard === "admin") {
+      await recordAdminAction({
+        actorId: user.id,
+        actorEmail: user.email,
+        action: "send_admin_message",
+        outcome: "blocked",
+        target: EVENT_TARGETS.CONVERSATION,
+        targetId: conversationId,
+        reason: "conversation_not_active",
+      });
+    }
     throw new Error("This conversation is not active.");
   }
 
@@ -183,6 +196,17 @@ export async function sendMessageAction(formData: FormData) {
 
   if (insertError || !createdMessage) {
     console.error("Send message error:", insertError);
+    if (dashboard === "admin") {
+      await recordAdminAction({
+        actorId: user.id,
+        actorEmail: user.email,
+        action: "send_admin_message",
+        outcome: "failed",
+        target: EVENT_TARGETS.CONVERSATION,
+        targetId: conversationId,
+        reason: "message_insert_failed",
+      });
+    }
     throw new Error(insertError?.message ?? "Message could not be created.");
   }
 
@@ -243,6 +267,24 @@ export async function sendMessageAction(formData: FormData) {
     if (messageCleanupError) {
       console.error("Message cleanup error:", messageCleanupError);
     }
+
+    if (dashboard === "admin") {
+      await recordAdminAction({
+        actorId: user.id,
+        actorEmail: user.email,
+        action: "send_admin_message",
+        outcome: "failed",
+        target: EVENT_TARGETS.CONVERSATION,
+        targetId: conversationId,
+        reason: "message_attachment_processing_failed",
+        metadata: {
+          message_id: createdMessage.id,
+          cleanup_failed:
+            Boolean(messageCleanupError),
+        },
+      });
+    }
+
     throw error;
   }
 
@@ -337,6 +379,21 @@ export async function sendMessageAction(formData: FormData) {
     if (notificationError) {
       console.error("Create message notification error:", notificationError);
     }
+  }
+
+  if (dashboard === "admin") {
+    await recordAdminAction({
+      actorId: user.id,
+      actorEmail: user.email,
+      action: "send_admin_message",
+      outcome: "success",
+      target: EVENT_TARGETS.MESSAGE,
+      targetId: createdMessage.id,
+      metadata: {
+        conversation_id: conversationId,
+        has_attachment: hasAttachment,
+      },
+    });
   }
 
   revalidatePath(getConversationPath(locale, dashboard, conversationId));
