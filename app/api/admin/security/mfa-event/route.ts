@@ -52,15 +52,15 @@ export async function POST(
     outcome = body.outcome;
   } catch {
     await recordAdminAction({
-      actorId: verifiedUser.id,
+      actorId: identityUser.id,
       actorEmail:
-        verifiedUser.email,
+        identityUser.email,
       action:
         "record_admin_mfa_event",
       outcome: "blocked",
       target:
         EVENT_TARGETS.ADMIN,
-      targetId: verifiedUser.id,
+      targetId: identityUser.id,
       reason:
         "invalid_mfa_audit_payload",
     });
@@ -166,9 +166,9 @@ export async function POST(
 
   const recorded =
     await recordAdminAction({
-      actorId: identityUser.id,
+      actorId: verifiedUser.id,
       actorEmail:
-        identityUser.email,
+        verifiedUser.email,
       action:
         mode ===
         "enrollment"
@@ -177,7 +177,7 @@ export async function POST(
       outcome: "success",
       target:
         EVENT_TARGETS.ADMIN,
-      targetId: identityUser.id,
+      targetId: verifiedUser.id,
       metadata: {
         assurance_level:
           "aal2",
