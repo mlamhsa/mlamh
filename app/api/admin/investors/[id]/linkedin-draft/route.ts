@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 
 import { requireAdminAccess } from "@/lib/auth/require-admin";
+import { recordAdminAction } from "@/lib/events/admin-audit";
+import { EVENT_TARGETS } from "@/lib/events/event-targets";
 import { getMarketingAIProvider } from "@/lib/marketing/ai/provider";
 import { getInvestorRelationsSettings } from "@/lib/intelligence/investors/service";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -33,11 +35,23 @@ function parseJson(content: string) {
 }
 
 export async function POST(_request: Request, context: { params: Promise<{ id: string }> }) {
-  await requireAdminAccess();
+  const adminUser =
+    await requireAdminAccess();
+
   try {
     const { id } = await context.params;
     const investorId = Number(id);
     if (!Number.isInteger(investorId) || investorId <= 0) {
+      await recordAdminAction({
+        actorId: adminUser.id,
+        actorEmail: adminUser.email,
+        action: "generate_investor_linkedin_draft",
+        outcome: "blocked",
+        target: EVENT_TARGETS.INVESTOR,
+        targetId: "invalid-input",
+        reason: "invalid_investor_id",
+      });
+
       return NextResponse.json({ ok: false, error: "Invalid investor id." }, { status: 400 });
     }
 
@@ -49,17 +63,47 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
       .maybeSingle();
 
     if (error || !investor) {
+      await recordAdminAction({
+        actorId: adminUser.id,
+        actorEmail: adminUser.email,
+        action: "generate_investor_linkedin_draft",
+        outcome: "failed",
+        target: EVENT_TARGETS.INVESTOR,
+        targetId: investorId,
+        reason: "investor_not_found",
+      });
+
       return NextResponse.json({ ok: false, error: "Investor lead was not found." }, { status: 404 });
     }
 
     const linkedinUrl = typeof investor.contact_linkedin_url === "string" ? investor.contact_linkedin_url.trim() : "";
     if (!/^https:\/\/(?:[a-z]{2}\.)?linkedin\.com\/in\//i.test(linkedinUrl)) {
+      await recordAdminAction({
+        actorId: adminUser.id,
+        actorEmail: adminUser.email,
+        action: "generate_investor_linkedin_draft",
+        outcome: "blocked",
+        target: EVENT_TARGETS.INVESTOR,
+        targetId: investorId,
+        reason: "verified_linkedin_profile_required",
+      });
+
       return NextResponse.json({ ok: false, error: "A verified personal LinkedIn profile is required first." }, { status: 400 });
     }
 
     const contactName = typeof investor.contact_name === "string" ? investor.contact_name.trim() : "";
     const contactRole = typeof investor.contact_role === "string" ? investor.contact_role.trim() : "";
     if (!contactName || !contactRole) {
+      await recordAdminAction({
+        actorId: adminUser.id,
+        actorEmail: adminUser.email,
+        action: "generate_investor_linkedin_draft",
+        outcome: "blocked",
+        target: EVENT_TARGETS.INVESTOR,
+        targetId: investorId,
+        reason: "verified_contact_required",
+      });
+
       return NextResponse.json({ ok: false, error: "A verified decision-maker name and role are required first." }, { status: 400 });
     }
 
@@ -100,10 +144,54 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
       },
     });
 
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "generate_investor_linkedin_draft",
+      outcome: "success",
+      target: EVENT_TARGETS.INVESTOR,
+      targetId: investorId,
+      metadata: {
+        channel: "linkedin",
+        contact_name:
+          contactName,
+        contact_role:
+          contactRole,
+        provider:
+          response.provider,
+        model:
+          response.model ?? null,
+        draft_length:
+          draft.length,
+      },
+    });
+
     return NextResponse.json({ ok: true, draft, linkedinUrl });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not prepare LinkedIn outreach.";
     console.error("[InvestorRelations linkedin-draft]", message);
+
+    const { id } =
+      await context.params;
+    const parsedInvestorId =
+      Number(id);
+
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "generate_investor_linkedin_draft",
+      outcome: "failed",
+      target: EVENT_TARGETS.INVESTOR,
+      targetId:
+        Number.isInteger(
+          parsedInvestorId,
+        ) &&
+        parsedInvestorId > 0
+          ? parsedInvestorId
+          : "unknown-investor",
+      reason: "linkedin_draft_generation_failed",
+    });
+
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
 }
