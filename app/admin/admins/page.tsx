@@ -485,6 +485,7 @@ export default async function AdminUsersPage({
     userRolesResult,
     accessEventsResult,
     accessHealthEventsResult,
+    identityGateEventsResult,
   ] = await Promise.all([
     adminClient
       .from("admin_users")
@@ -554,6 +555,21 @@ export default async function AdminUsersPage({
         "created_at",
         auditWindowStart,
       ),
+    adminClient
+      .from("events")
+      .select("event_type, metadata")
+      .eq(
+        "target_type",
+        "auth_user",
+      )
+      .in("event_type", [
+        "admin_action_blocked",
+        "admin_action_failed",
+      ])
+      .gte(
+        "created_at",
+        auditWindowStart,
+      ),
   ]);
 
   if (adminsResult.error) {
@@ -597,6 +613,10 @@ export default async function AdminUsersPage({
   logOptionalError(
     "accessHealthEvents",
     accessHealthEventsResult.error,
+  );
+  logOptionalError(
+    "identityGateEvents",
+    identityGateEventsResult.error,
   );
 
   const accessStateDataHealthy =
@@ -775,9 +795,31 @@ export default async function AdminUsersPage({
           "admin_mfa_verification_failed",
     ).length;
 
+  const identityGateEvents =
+    identityGateEventsResult.error
+      ? []
+      : ((identityGateEventsResult.data ??
+          []) as {
+          event_type: string;
+          metadata:
+            | Record<
+                string,
+                unknown
+              >
+            | null;
+        }[]);
+
+  const blockedIdentityGateAttempts24h =
+    identityGateEvents.filter(
+      (event) =>
+        event.metadata?.action ===
+          "admin_identity_gate",
+    ).length;
+
   const accessHealthSummaryUnavailable =
     Boolean(
-      accessHealthEventsResult.error,
+      accessHealthEventsResult.error ||
+      identityGateEventsResult.error,
     );
 
   const roleById = new Map(
@@ -1556,6 +1598,32 @@ export default async function AdminUsersPage({
         {accessErrorMessage ? (
           <div className="mb-5 rounded-2xl border border-red-400/20 bg-red-400/[0.06] px-4 py-3 text-sm leading-6 text-red-200">
             {accessErrorMessage}
+          </div>
+        ) : null}
+
+        {blockedIdentityGateAttempts24h > 0 ? (
+          <div className="mb-5 flex items-start gap-3 rounded-2xl border border-red-400/20 bg-red-400/[0.06] px-4 py-3 text-sm text-red-100">
+            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
+            <div>
+              <p className="font-medium">
+                {isArabic
+                  ? `تم تسجيل ${blockedIdentityGateAttempts24h} محاولة وصول إدارية بهوية غير صالحة خلال آخر 24 ساعة`
+                  : `${blockedIdentityGateAttempts24h} invalid admin-identity access attempt${blockedIdentityGateAttempts24h === 1 ? "" : "s"} were recorded in the last 24 hours`}
+              </p>
+              <p className="mt-1 text-xs leading-6 text-red-100/65">
+                {isArabic
+                  ? "تشمل هذه الحالات الحسابات المسجلة دخولها والتي لا تمر ببوابة ملف الإدارة أو السجل أو تعيين RBAC الفعّال."
+                  : "These are authenticated accounts that failed the admin profile, registry, or active-RBAC identity gate."}
+              </p>
+              <Link
+                href={`/admin/audit-log?lang=${locale}&target=auth_user&period=24h&q=admin_identity_gate`}
+                className="mt-2 inline-flex text-xs font-medium text-gold transition hover:text-white"
+              >
+                {isArabic
+                  ? "مراجعة محاولات الوصول"
+                  : "Review access attempts"}
+              </Link>
+            </div>
           </div>
         ) : null}
 
