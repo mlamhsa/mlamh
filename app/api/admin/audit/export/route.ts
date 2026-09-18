@@ -55,16 +55,49 @@ export async function GET(
       PERMISSIONS.ADMINS_VIEW,
     );
 
-  const rateLimit =
-    await consumeServerRateLimit({
-      namespace:
-        "admin_audit_export",
-      identifier:
-        adminUser.id,
-      limit: 10,
-      windowSeconds:
-        60 * 60,
+  let rateLimit;
+
+  try {
+    rateLimit =
+      await consumeServerRateLimit({
+        namespace:
+          "admin_audit_export",
+        identifier:
+          adminUser.id,
+        limit: 10,
+        windowSeconds:
+          60 * 60,
+      });
+  } catch (rateLimitError) {
+    console.error(
+      "[AdminAuditExport rate limit]",
+      rateLimitError,
+    );
+
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail:
+        adminUser.email,
+      action:
+        "export_admin_audit_log",
+      outcome: "failed",
+      target:
+        EVENT_TARGETS.ADMIN,
+      targetId: adminUser.id,
+      reason:
+        "audit_export_rate_limit_unavailable",
     });
+
+    return NextResponse.json(
+      {
+        error:
+          "Audit export is temporarily unavailable.",
+      },
+      {
+        status: 503,
+      },
+    );
+  }
 
   if (!rateLimit.allowed) {
     await recordAdminAction({
@@ -121,6 +154,36 @@ export async function GET(
     params.get("period");
   const periodStart =
     getPeriodStart(period);
+
+  if (
+    q.length > 200 ||
+    target.length > 80 ||
+    event.length > 120
+  ) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail:
+        adminUser.email,
+      action:
+        "export_admin_audit_log",
+      outcome: "blocked",
+      target:
+        EVENT_TARGETS.ADMIN,
+      targetId: adminUser.id,
+      reason:
+        "audit_export_filter_too_long",
+    });
+
+    return NextResponse.json(
+      {
+        error:
+          "Audit export filter is too long.",
+      },
+      {
+        status: 400,
+      },
+    );
+  }
 
   if (
     actor &&
