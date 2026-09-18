@@ -616,22 +616,39 @@ test("admin invitation creation keeps server-side throttling", async () => {
 });
 
 
-test("admin entry and MFA gates require one active RBAC assignment plus an active registry", async () => {
-  for (const file of [
+test("admin entry and MFA gates share the centralized active-admin identity guard", async () => {
+  const guard = await source(
     "lib/auth/require-admin.ts",
-    "app/admin-mfa/page.tsx",
-  ]) {
-    const text =
-      await source(file);
+  );
 
-    assert.equal(
-      text.includes(
-        "hasValidActiveAdminAssignment",
+  assert.equal(
+    guard.includes(
+      "hasValidActiveAdminAssignment",
+    ) &&
+      guard.includes(
+        "requireAdminIdentityInternal",
+      ) &&
+      guard.includes(
+        "export async function requireAdminIdentity",
+      ) &&
+      guard.includes(
+        "export async function requireAdminAccess",
       ),
-      true,
-      `${file} must fail closed unless the registry is active and exactly one active RBAC role is assigned`,
-    );
-  }
+    true,
+    "admin identity and full AAL2 access must share one fail-closed registry/RBAC guard",
+  );
+
+  const mfaPage = await source(
+    "app/admin-mfa/page.tsx",
+  );
+
+  assert.equal(
+    mfaPage.includes(
+      "requireAdminIdentity",
+    ),
+    true,
+    "MFA enrollment page must reuse the centralized pre-MFA admin identity guard",
+  );
 });
 
 
@@ -1109,15 +1126,18 @@ test("access center surfaces stale pending admin invitations", async () => {
 });
 
 
-test("successful admin MFA enrollment and verification are audited after AAL2", async () => {
+test("admin MFA success and failed verification attempts are audited at the correct assurance level", async () => {
   const route = await source(
     "app/api/admin/security/mfa-event/route.ts",
   );
 
   assert.equal(
     route.includes(
-      "requireAdminAccess",
+      "requireAdminIdentity",
     ) &&
+      route.includes(
+        "requireAdminAccess",
+      ) &&
       route.includes(
         '"admin_mfa_enrolled"',
       ) &&
@@ -1125,10 +1145,13 @@ test("successful admin MFA enrollment and verification are audited after AAL2", 
         '"admin_mfa_verified"',
       ) &&
       route.includes(
-        '"aal2"',
+        '"admin_mfa_verification_failed"',
+      ) &&
+      route.includes(
+        '"admin_mfa_failed_audit"',
       ),
     true,
-    "MFA audit endpoint must require a fully verified admin session and record enrollment/verification",
+    "MFA audit endpoint must accept pre-AAL2 failure telemetry but require AAL2 for successful verification records",
   );
 
   const gate = await source(
@@ -1140,9 +1163,12 @@ test("successful admin MFA enrollment and verification are audited after AAL2", 
       '"/api/admin/security/mfa-event"',
     ) &&
       gate.includes(
-        'mode: enrollment',
+        'outcome:\n                  "success"',
+      ) &&
+      gate.includes(
+        'outcome:\n                "failed"',
       ),
     true,
-    "MFA client must report the successful verification context before entering admin",
+    "MFA client must report both successful and failed verification outcomes",
   );
 });
