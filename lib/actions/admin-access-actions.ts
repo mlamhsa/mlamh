@@ -1796,6 +1796,79 @@ export async function updateAdminRoleAction(
     roleKey !==
       ROLES.SUPER_ADMIN
   ) {
+    let mutationGuard;
+
+    try {
+      mutationGuard =
+        await consumeServerRateLimit({
+          namespace:
+            "super_admin_mutation",
+          identifier:
+            "global",
+          limit: 1,
+          windowSeconds: 10,
+        });
+    } catch (guardError) {
+      console.error(
+        "[updateAdminRoleAction super admin guard]",
+        guardError,
+      );
+
+      await recordAdminAccessOutcome({
+        actorId: actor.id,
+        actorEmail: actor.email,
+        action: "update_admin_role",
+        outcome: "failed",
+        targetId: targetUserId,
+        reason:
+          "super_admin_mutation_guard_unavailable",
+        metadata: {
+          target_email:
+            targetAdmin.email,
+          previous_roles:
+            previousRoleKeys,
+          requested_role:
+            roleKey,
+        },
+      });
+
+      redirect(
+        accessCenterUrl(locale, {
+          access_error:
+            "super_admin_change_busy",
+        }),
+      );
+    }
+
+    if (!mutationGuard.allowed) {
+      await recordAdminAccessOutcome({
+        actorId: actor.id,
+        actorEmail: actor.email,
+        action: "update_admin_role",
+        outcome: "blocked",
+        targetId: targetUserId,
+        reason:
+          "super_admin_mutation_guard_busy",
+        metadata: {
+          target_email:
+            targetAdmin.email,
+          previous_roles:
+            previousRoleKeys,
+          requested_role:
+            roleKey,
+          retry_after_seconds:
+            mutationGuard.retryAfterSeconds,
+        },
+      });
+
+      redirect(
+        accessCenterUrl(locale, {
+          access_error:
+            "super_admin_change_busy",
+        }),
+      );
+    }
+
     let superAdminCount: number;
 
     try {
@@ -2255,6 +2328,75 @@ export async function revokeAdminAccessAction(
       ROLES.SUPER_ADMIN,
     )
   ) {
+    let mutationGuard;
+
+    try {
+      mutationGuard =
+        await consumeServerRateLimit({
+          namespace:
+            "super_admin_mutation",
+          identifier:
+            "global",
+          limit: 1,
+          windowSeconds: 10,
+        });
+    } catch (guardError) {
+      console.error(
+        "[revokeAdminAccessAction super admin guard]",
+        guardError,
+      );
+
+      await recordAdminAccessOutcome({
+        actorId: actor.id,
+        actorEmail: actor.email,
+        action: "revoke_admin_access",
+        outcome: "failed",
+        targetId: targetUserId,
+        reason:
+          "super_admin_mutation_guard_unavailable",
+        metadata: {
+          target_email:
+            targetAdmin.email,
+          previous_roles:
+            previousRoleKeys,
+        },
+      });
+
+      redirect(
+        accessCenterUrl(locale, {
+          access_error:
+            "super_admin_change_busy",
+        }),
+      );
+    }
+
+    if (!mutationGuard.allowed) {
+      await recordAdminAccessOutcome({
+        actorId: actor.id,
+        actorEmail: actor.email,
+        action: "revoke_admin_access",
+        outcome: "blocked",
+        targetId: targetUserId,
+        reason:
+          "super_admin_mutation_guard_busy",
+        metadata: {
+          target_email:
+            targetAdmin.email,
+          previous_roles:
+            previousRoleKeys,
+          retry_after_seconds:
+            mutationGuard.retryAfterSeconds,
+        },
+      });
+
+      redirect(
+        accessCenterUrl(locale, {
+          access_error:
+            "super_admin_change_busy",
+        }),
+      );
+    }
+
     let superAdminCount: number;
 
     try {
