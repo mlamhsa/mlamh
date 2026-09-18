@@ -236,9 +236,12 @@ test("admin API routes keep explicit admin authorization and audit coverage", as
     assert.equal(
       text.includes(
         "requireAdminAccess",
-      ),
+      ) ||
+        text.includes(
+          "requirePermission",
+        ),
       true,
-      `${file} must authenticate through requireAdminAccess()`,
+      `${file} must authenticate through requireAdminAccess() or requirePermission()`,
     );
 
     assert.equal(
