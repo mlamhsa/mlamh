@@ -508,3 +508,63 @@ test("access center separates roles view from admin view", async () => {
     "role controls must distinguish role changes from other admin access actions",
   );
 });
+
+
+test("Super Admin removal attempts are serialized before final-admin checks", async () => {
+  const actions = await source(
+    "lib/actions/admin-access-actions.ts",
+  );
+
+  for (const actionName of [
+    "updateAdminRoleAction",
+    "revokeAdminAccessAction",
+  ]) {
+    const start =
+      actions.indexOf(
+        `export async function ${actionName}`,
+      );
+
+    assert.ok(
+      start >= 0,
+      `${actionName} must exist`,
+    );
+
+    const nextExport =
+      actions.indexOf(
+        "export async function ",
+        start + 24,
+      );
+
+    const segment =
+      actions.slice(
+        start,
+        nextExport >= 0
+          ? nextExport
+          : undefined,
+      );
+
+    assert.equal(
+      segment.includes(
+        'namespace:\n            "super_admin_mutation"',
+      ) &&
+        segment.includes(
+          'identifier:\n            "global"',
+        ) &&
+        segment.includes(
+          "super_admin_change_busy",
+        ),
+      true,
+      `${actionName} must serialize Super Admin removal attempts through the shared DB-backed guard`,
+    );
+
+    assert.ok(
+      segment.indexOf(
+        '"super_admin_mutation"',
+      ) <
+        segment.indexOf(
+          "countSuperAdmins()",
+        ),
+      `${actionName} must acquire the mutation guard before counting/removing Super Admin access`,
+    );
+  }
+});
