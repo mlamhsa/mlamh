@@ -142,6 +142,9 @@ test("every privileged server action keeps explicit audit instrumentation", asyn
     "expected at least one privileged admin server action",
   );
 
+  const missingAudit: string[] =
+    [];
+
   for (const file of files) {
     const text =
       await source(file);
@@ -154,12 +157,16 @@ test("every privileged server action keeps explicit audit instrumentation", asyn
         "recordAdminAccessOutcome",
       );
 
-    assert.equal(
-      audited,
-      true,
-      `${file} uses an admin authorization gate and must record admin action outcomes`,
-    );
+    if (!audited) {
+      missingAudit.push(file);
+    }
   }
+
+  assert.deepEqual(
+    missingAudit,
+    [],
+    `privileged server actions missing audit instrumentation: ${missingAudit.join(", ")}`,
+  );
 });
 
 async function adminApiRoutes() {
