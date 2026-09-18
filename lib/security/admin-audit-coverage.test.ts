@@ -1051,9 +1051,15 @@ test("audit CSV export is permission-gated, rate-limited, audited, and formula-s
   assert.equal(
     route.includes(
       "const EXPORT_LIMIT = 5000",
-    ),
+    ) &&
+      route.includes(
+        "X-MLAMH-Audit-Truncated",
+      ) &&
+      route.includes(
+        "export_truncated",
+      ),
     true,
-    "audit export must keep an explicit maximum row limit",
+    "audit export must keep an explicit row cap and disclose truncation to both the response and audit record",
   );
 });
 
