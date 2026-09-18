@@ -292,21 +292,32 @@ function getPendingAdminInviteState(
   };
 }
 
-async function hasActiveAdminAssignment(
+async function hasConsistentAdminAssignment(
   userId: string,
+  registryRole: string,
 ) {
   const assignments =
     await getAdminRoleAssignments(
       userId,
     );
 
-  return assignments.some(
-    (assignment) =>
-      isAssignableAdminRole(
-        extractRoleKey(
-          assignment,
-        ),
-      ),
+  if (
+    assignments.length !== 1
+  ) {
+    return false;
+  }
+
+  const assignedRole =
+    extractRoleKey(
+      assignments[0],
+    );
+
+  return (
+    assignedRole ===
+      registryRole &&
+    isAssignableAdminRole(
+      assignedRole,
+    )
   );
 }
 
@@ -929,8 +940,9 @@ export async function resendAdminInviteAction(
 
   try {
     hasActiveAssignment =
-      await hasActiveAdminAssignment(
+      await hasConsistentAdminAssignment(
         targetUserId,
+        targetAdmin.role,
       );
   } catch (assignmentError) {
     console.error(
@@ -1249,8 +1261,9 @@ export async function cancelPendingAdminInviteAction(
 
   try {
     hasActiveAssignment =
-      await hasActiveAdminAssignment(
+      await hasConsistentAdminAssignment(
         targetUserId,
+        targetAdmin.role,
       );
   } catch (assignmentError) {
     console.error(
