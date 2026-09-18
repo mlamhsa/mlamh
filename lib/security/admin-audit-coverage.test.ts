@@ -953,3 +953,38 @@ test("audit history keeps supporting database indexes", async () => {
     );
   }
 });
+
+
+test("admin audit events are append-only at the database layer", async () => {
+  const migration = await source(
+    "supabase/migrations/20260918191500_make_admin_audit_events_append_only.sql",
+  );
+
+  assert.equal(
+    migration.includes(
+      "create trigger prevent_admin_audit_event_mutation",
+    ) &&
+      migration.includes(
+        "before update or delete",
+      ) &&
+      migration.includes(
+        "left(old.event_type, 6) = 'admin_'",
+      ) &&
+      migration.includes(
+        "left(new.event_type, 6) = 'admin_'",
+      ),
+    true,
+    "admin_* audit rows must remain append-only for runtime update/delete attempts",
+  );
+
+  assert.equal(
+    migration.includes(
+      "revoke all",
+    ) &&
+      migration.includes(
+        "service_role",
+      ),
+    true,
+    "audit mutation trigger function must not be directly executable by application roles",
+  );
+});
