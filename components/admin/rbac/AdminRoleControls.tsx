@@ -88,6 +88,7 @@ export function AdminRoleControls({
   locale,
   isSelf,
   canManage,
+  canManageRoles,
   pendingInvite,
 }: {
   adminId: string;
@@ -96,6 +97,7 @@ export function AdminRoleControls({
   locale: "ar" | "en";
   isSelf: boolean;
   canManage: boolean;
+  canManageRoles: boolean;
   pendingInvite: boolean;
 }) {
   const isArabic =
@@ -177,69 +179,75 @@ export function AdminRoleControls({
               : "Cancel invite"}
           </button>
         </div>
-      ) : (
-      <form
-        action={
-          updateAdminRoleAction
-        }
-        className="flex w-full max-w-[360px] items-center gap-2"
-      >
-        <input
-          type="hidden"
-          name="admin_id"
-          value={adminId}
-        />
-        <input
-          type="hidden"
-          name="locale"
-          value={locale}
-        />
-
-        <select
-          name="role_key"
-          required
-          defaultValue={
-            hasActiveRole
-              ? currentRoleKey
-              : ""
+      ) : canManageRoles ? (
+        <form
+          action={
+            updateAdminRoleAction
           }
-          className="h-10 min-w-0 flex-1 rounded-xl border border-white/[0.09] bg-black/35 px-3 text-[11px] text-white/70 outline-none transition focus:border-gold/30"
+          className="flex w-full max-w-[360px] items-center gap-2"
         >
-          {!hasActiveRole ? (
-            <option
-              value=""
-              disabled
-            >
-              {isArabic
-                ? "اختر دورًا لإعادة منح الوصول"
-                : "Choose a role to restore access"}
-            </option>
-          ) : null}
+          <input
+            type="hidden"
+            name="admin_id"
+            value={adminId}
+          />
+          <input
+            type="hidden"
+            name="locale"
+            value={locale}
+          />
 
-          {roles.map(
-            (role) => (
+          <select
+            name="role_key"
+            required
+            defaultValue={
+              hasActiveRole
+                ? currentRoleKey
+                : ""
+            }
+            className="h-10 min-w-0 flex-1 rounded-xl border border-white/[0.09] bg-black/35 px-3 text-[11px] text-white/70 outline-none transition focus:border-gold/30"
+          >
+            {!hasActiveRole ? (
               <option
-                key={role.key}
-                value={role.key}
+                value=""
+                disabled
               >
-                {role.label}
+                {isArabic
+                  ? "اختر دورًا لإعادة منح الوصول"
+                  : "Choose a role to restore access"}
               </option>
-            ),
-          )}
-        </select>
+            ) : null}
 
-        <SubmitButton
-          label={
-            hasActiveRole
-              ? isArabic
-                ? "حفظ"
-                : "Save"
-              : isArabic
-                ? "إعادة الوصول"
-                : "Restore"
-          }
-        />
-      </form>
+            {roles.map(
+              (role) => (
+                <option
+                  key={role.key}
+                  value={role.key}
+                >
+                  {role.label}
+                </option>
+              ),
+            )}
+          </select>
+
+          <SubmitButton
+            label={
+              hasActiveRole
+                ? isArabic
+                  ? "حفظ"
+                  : "Save"
+                : isArabic
+                  ? "إعادة الوصول"
+                  : "Restore"
+            }
+          />
+        </form>
+      ) : (
+        <span className="inline-flex max-w-[360px] items-center rounded-xl border border-white/[0.08] bg-white/[0.025] px-3 py-2 text-[10px] leading-5 text-white/35">
+          {isArabic
+            ? "تغيير الأدوار يتطلب صلاحية إدارة الأدوار."
+            : "Role changes require the roles.manage permission."}
+        </span>
       )}
 
       {pendingInvite ? null : hasActiveRole ? (
