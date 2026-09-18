@@ -170,6 +170,9 @@ export const metadata = {
 
 export const dynamic = "force-dynamic";
 
+const STALE_ADMIN_INVITE_MS =
+  7 * 24 * 60 * 60 * 1000;
+
 function formatRoleKey(
   roleKey: string,
   isArabic: boolean,
@@ -381,7 +384,8 @@ export default async function AdminUsersPage({
     status === "active" ||
     status === "pending" ||
     status === "revoked" ||
-    status === "inconsistent"
+    status === "inconsistent" ||
+    status === "stale"
       ? status
       : "all";
   const adminClient = createAdminClient();
@@ -858,6 +862,22 @@ export default async function AdminUsersPage({
         ) &&
         !authState?.lastSignInAt;
 
+      const invitedAtMs =
+        authState?.invitedAt
+          ? Date.parse(
+              authState.invitedAt,
+            )
+          : Number.NaN;
+
+      const staleInvite =
+        pendingInvite &&
+        Number.isFinite(
+          invitedAtMs,
+        ) &&
+        Date.now() -
+            invitedAtMs >=
+          STALE_ADMIN_INVITE_MS;
+
       return {
         adminId: admin.id,
         hasActiveRole:
@@ -869,6 +889,7 @@ export default async function AdminUsersPage({
             ? hasInconsistentRole
             : false,
         pendingInvite,
+        staleInvite,
         statusKnown,
       };
     });
@@ -879,6 +900,14 @@ export default async function AdminUsersPage({
         state.statusKnown &&
         state.hasActiveRole &&
         state.pendingInvite,
+    ).length;
+
+  const staleInviteCount =
+    adminAccessStates.filter(
+      (state) =>
+        state.statusKnown &&
+        state.hasActiveRole &&
+        state.staleInvite,
     ).length;
 
   const activeAdminCount =
@@ -1024,6 +1053,16 @@ export default async function AdminUsersPage({
         "inconsistent"
       ) {
         return state.hasInconsistentRole;
+      }
+
+      if (
+        statusFilter ===
+        "stale"
+      ) {
+        return (
+          state.hasActiveRole &&
+          state.staleInvite
+        );
       }
 
       return (
@@ -1248,6 +1287,25 @@ export default async function AdminUsersPage({
           </div>
         ) : null}
 
+        {staleInviteCount > 0 &&
+        accessStateDataHealthy ? (
+          <div className="mb-5 flex items-start gap-3 rounded-2xl border border-amber-400/20 bg-amber-400/[0.06] px-4 py-3 text-sm text-amber-100">
+            <History className="mt-0.5 h-4 w-4 shrink-0" />
+            <div>
+              <p className="font-medium">
+                {isArabic
+                  ? `يوجد ${staleInviteCount} دعوة إدارة معلقة منذ 7 أيام أو أكثر`
+                  : `${staleInviteCount} admin invite${staleInviteCount === 1 ? "" : "s"} have been pending for 7 days or more`}
+              </p>
+              <p className="mt-1 text-xs leading-6 text-amber-100/65">
+                {isArabic
+                  ? "راجع الدعوات القديمة: أعد إرسال رابط التفعيل إذا كان الوصول ما زال مطلوبًا، أو ألغِ الدعوة لتقليل الحسابات غير المفعلة."
+                  : "Review stale invitations: resend activation if access is still needed, or cancel the invitation to reduce unactivated admin identities."}
+              </p>
+            </div>
+          </div>
+        ) : null}
+
         {inconsistentAdminCount > 0 &&
         accessStateDataHealthy ? (
           <div className="mb-5 flex items-start gap-3 rounded-2xl border border-orange-400/20 bg-orange-400/[0.06] px-4 py-3 text-sm text-orange-100">
@@ -1386,8 +1444,8 @@ export default async function AdminUsersPage({
             </p>
             <p className="mt-1 text-[11px] text-white/30">
               {isArabic
-                ? `${activeAdminCount} نشط · ${pendingAdminCount} دعوة معلقة · ${revokedAdminCount} مسحوب${inconsistentAdminCount > 0 ? ` · ${inconsistentAdminCount} غير متطابق` : ""}${unknownAdminCount > 0 ? ` · ${unknownAdminCount} غير متحقق` : ""}`
-                : `${activeAdminCount} active · ${pendingAdminCount} pending · ${revokedAdminCount} revoked${inconsistentAdminCount > 0 ? ` · ${inconsistentAdminCount} inconsistent` : ""}${unknownAdminCount > 0 ? ` · ${unknownAdminCount} unverified` : ""}`}
+                ? `${activeAdminCount} نشط · ${pendingAdminCount} دعوة معلقة${staleInviteCount > 0 ? ` (${staleInviteCount} قديمة)` : ""} · ${revokedAdminCount} مسحوب${inconsistentAdminCount > 0 ? ` · ${inconsistentAdminCount} غير متطابق` : ""}${unknownAdminCount > 0 ? ` · ${unknownAdminCount} غير متحقق` : ""}`
+                : `${activeAdminCount} active · ${pendingAdminCount} pending${staleInviteCount > 0 ? ` (${staleInviteCount} stale)` : ""} · ${revokedAdminCount} revoked${inconsistentAdminCount > 0 ? ` · ${inconsistentAdminCount} inconsistent` : ""}${unknownAdminCount > 0 ? ` · ${unknownAdminCount} unverified` : ""}`}
             </p>
           </div>
 
@@ -1546,6 +1604,11 @@ export default async function AdminUsersPage({
                     ? "عدم تطابق في الوصول"
                     : "Access mismatch"}
                 </option>
+                <option value="stale">
+                  {isArabic
+                    ? "دعوات قديمة"
+                    : "Stale invites"}
+                </option>
               </select>
 
               <button
@@ -1642,6 +1705,22 @@ export default async function AdminUsersPage({
                     ) &&
                     !authState?.lastSignInAt;
 
+                  const invitedAtMs =
+                    authState?.invitedAt
+                      ? Date.parse(
+                          authState.invitedAt,
+                        )
+                      : Number.NaN;
+
+                  const staleInvite =
+                    pendingInvite &&
+                    Number.isFinite(
+                      invitedAtMs,
+                    ) &&
+                    Date.now() -
+                        invitedAtMs >=
+                      STALE_ADMIN_INVITE_MS;
+
                   const initial =
                     admin.email
                       .charAt(0)
@@ -1697,6 +1776,10 @@ export default async function AdminUsersPage({
                                   ? isArabic
                                     ? "عدم تطابق في صلاحية الوصول"
                                     : "Access-role mismatch"
+                                  : staleInvite
+                                    ? isArabic
+                                      ? "دعوة معلقة قديمة"
+                                      : "Stale pending invite"
                                   : pendingInvite
                                   ? isArabic
                                     ? "دعوة معلقة"
