@@ -1313,3 +1313,48 @@ test("access health alerts provide direct remediation paths", async () => {
     );
   }
 });
+
+
+test("authenticated admin identity-gate failures are audited and surfaced", async () => {
+  const guard = await source(
+    "lib/auth/require-admin.ts",
+  );
+
+  assert.equal(
+    guard.includes(
+      '"admin_identity_gate"',
+    ) &&
+      guard.includes(
+        "profile_not_admin",
+      ) &&
+      guard.includes(
+        "admin_registry_missing",
+      ) &&
+      guard.includes(
+        "invalid_admin_role_assignment",
+      ) &&
+      guard.includes(
+        "EVENT_TARGETS.AUTH_USER",
+      ),
+    true,
+    "authenticated users that fail the admin identity gate must produce a non-secret audit event",
+  );
+
+  const page = await source(
+    "app/admin/admins/page.tsx",
+  );
+
+  assert.equal(
+    page.includes(
+      "blockedIdentityGateAttempts24h",
+    ) &&
+      page.includes(
+        "admin_identity_gate",
+      ) &&
+      page.includes(
+        "target=auth_user",
+      ),
+    true,
+    "access center must surface and link to recent invalid admin identity attempts",
+  );
+});
