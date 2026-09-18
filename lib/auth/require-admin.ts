@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 
 import { hasValidActiveAdminAssignment } from "@/lib/rbac/admin-access-policy";
+import { recordAdminAction } from "@/lib/events/admin-audit";
+import { EVENT_TARGETS } from "@/lib/events/event-targets";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -67,6 +69,27 @@ async function requireAdminIdentityInternal() {
   // RBAC remains the permission source of truth; the registry remains the
   // active/revoked gate. This preserves legacy registry compatibility while
   // rejecting duplicate, revoked, or prepared-role access.
+  const assignedRoleKeys =
+    (roleAssignments ?? []).map(
+      (assignment) => {
+        const role =
+          Array.isArray(
+            assignment.roles,
+          )
+            ? assignment.roles[0]
+            : assignment.roles;
+
+        return role?.key;
+      },
+    );
+
+  const activeAssignmentValid =
+    adminRegistry &&
+    hasValidActiveAdminAssignment(
+      adminRegistry.role,
+      assignedRoleKeys,
+    );
+
   if (
     profileError ||
     adminRegistryError ||
@@ -76,22 +99,55 @@ async function requireAdminIdentityInternal() {
       "admin" ||
     !adminRegistry ||
     !roleAssignments ||
-    !hasValidActiveAdminAssignment(
-      adminRegistry.role,
-      roleAssignments.map(
-        (assignment) => {
-          const role =
-            Array.isArray(
-              assignment.roles,
-            )
-              ? assignment.roles[0]
-              : assignment.roles;
-
-          return role?.key;
-        },
-      ),
-    )
+    !activeAssignmentValid
   ) {
+    const lookupFailed =
+      Boolean(
+        profileError ||
+          adminRegistryError ||
+          roleAssignmentsError,
+      );
+
+    const reason =
+      profileError
+        ? "profile_lookup_failed"
+        : adminRegistryError
+          ? "admin_registry_lookup_failed"
+          : roleAssignmentsError
+            ? "role_assignment_lookup_failed"
+            : !profile ||
+                profile.account_type !==
+                  "admin"
+              ? "profile_not_admin"
+              : !adminRegistry
+                ? "admin_registry_missing"
+                : "invalid_admin_role_assignment";
+
+    await recordAdminAction({
+      actorId: user.id,
+      actorEmail:
+        user.email,
+      action:
+        "admin_identity_gate",
+      outcome: lookupFailed
+        ? "failed"
+        : "blocked",
+      target:
+        EVENT_TARGETS.AUTH_USER,
+      targetId: user.id,
+      reason,
+      metadata: {
+        registry_present:
+          Boolean(
+            adminRegistry,
+          ),
+        assigned_role_count:
+          assignedRoleKeys.filter(
+            Boolean,
+          ).length,
+      },
+    });
+
     redirect(ADMIN_LOGIN_PATH);
   }
 
