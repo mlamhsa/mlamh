@@ -1172,3 +1172,32 @@ test("admin MFA success and failed verification attempts are audited at the corr
     "MFA client must report both successful and failed verification outcomes",
   );
 });
+
+
+test("access center surfaces recent failed MFA activity without secret material", async () => {
+  const page = await source(
+    "app/admin/admins/page.tsx",
+  );
+
+  assert.equal(
+    page.includes(
+      "failedMfaAttempts24h",
+    ) &&
+      page.includes(
+        '"admin_mfa_verification_failed"',
+      ) &&
+      page.includes(
+        "failed MFA verification attempt",
+      ),
+    true,
+    "access center must surface failed admin MFA activity from the audit stream",
+  );
+
+  assert.equal(
+    page.includes(
+      "Verification codes and MFA secrets are never stored",
+    ),
+    true,
+    "MFA health messaging must explicitly confirm secret values are not persisted in audit data",
+  );
+});
