@@ -442,6 +442,36 @@ import {
                   ? "ملفات الكاستينغ"
                   : "Casting files"}
               </option>
+
+              <option value="managed_casting_invitation">
+                {isArabic
+                  ? "دعوات الكاستينغ المُدار"
+                  : "Managed casting invitations"}
+              </option>
+
+              <option value="casting_role">
+                {isArabic
+                  ? "أدوار الكاستينغ"
+                  : "Casting roles"}
+              </option>
+
+              <option value="casting_shortlist">
+                {isArabic
+                  ? "القوائم المختصرة"
+                  : "Casting shortlists"}
+              </option>
+
+              <option value="booking">
+                {isArabic
+                  ? "حجوزات المواهب"
+                  : "Talent bookings"}
+              </option>
+
+              <option value="casting_replacement">
+                {isArabic
+                  ? "استبدالات المواهب"
+                  : "Casting replacements"}
+              </option>
             </select>
   
             <select
