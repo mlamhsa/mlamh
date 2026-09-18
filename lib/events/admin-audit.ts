@@ -1,5 +1,3 @@
-import * as Sentry from "@sentry/nextjs";
-
 import { createAuditEvent } from "./create-audit-event";
 import { EVENT_TYPES } from "./event-types";
 import type { EventTarget } from "./event-targets";
@@ -68,26 +66,6 @@ export async function recordAdminAction({
         target,
         targetId,
         error,
-      },
-    );
-
-    Sentry.captureException(
-      error,
-      {
-        tags: {
-          subsystem:
-            "admin_audit",
-          audit_action:
-            action,
-          audit_outcome:
-            outcome,
-          audit_target:
-            target,
-        },
-        extra: {
-          targetId:
-            String(targetId),
-        },
       },
     );
 
