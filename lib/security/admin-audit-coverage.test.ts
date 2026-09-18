@@ -57,6 +57,42 @@ async function actionFiles() {
   ).sort();
 }
 
+async function privilegedActionFiles() {
+  const actionsDir = path.join(
+    process.cwd(),
+    "lib/actions",
+  );
+
+  const entries =
+    await readdir(actionsDir);
+
+  const privileged: string[] = [];
+
+  for (const name of entries) {
+    if (!name.endsWith(".ts")) {
+      continue;
+    }
+
+    const file =
+      `lib/actions/${name}`;
+    const text =
+      await source(file);
+
+    if (
+      text.includes(
+        "requireAdminAccess",
+      ) ||
+      text.includes(
+        "requirePermission",
+      )
+    ) {
+      privileged.push(file);
+    }
+  }
+
+  return privileged.sort();
+}
+
 test("sensitive admin action files keep an explicit admin authorization gate", async () => {
   for (const file of await actionFiles()) {
     const text = await source(file);
@@ -93,6 +129,35 @@ test("sensitive admin action files keep explicit audit instrumentation", async (
       audited,
       true,
       `${file} must record admin action outcomes`,
+    );
+  }
+});
+
+test("every privileged server action keeps explicit audit instrumentation", async () => {
+  const files =
+    await privilegedActionFiles();
+
+  assert.ok(
+    files.length > 0,
+    "expected at least one privileged admin server action",
+  );
+
+  for (const file of files) {
+    const text =
+      await source(file);
+
+    const audited =
+      text.includes(
+        "recordAdminAction",
+      ) ||
+      text.includes(
+        "recordAdminAccessOutcome",
+      );
+
+    assert.equal(
+      audited,
+      true,
+      `${file} uses an admin authorization gate and must record admin action outcomes`,
     );
   }
 });
