@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   ACTIVE_ADMIN_ACCESS_ROLES,
+  crossesSuperAdminBoundary,
   hasConsistentActiveAdminRole,
   hasValidActiveAdminAssignment,
   isActiveAdminAccessRole,
@@ -139,4 +140,56 @@ test("admin entry accepts one active RBAC role while registry remains an active/
       false,
     );
   }
+});
+
+
+test("Super Admin boundary policy covers promotion, demotion, and revoked restore", () => {
+  assert.equal(
+    crossesSuperAdminBoundary(
+      "admin",
+      "super_admin",
+    ),
+    true,
+  );
+
+  assert.equal(
+    crossesSuperAdminBoundary(
+      "super_admin",
+      "admin",
+    ),
+    true,
+  );
+
+  assert.equal(
+    crossesSuperAdminBoundary(
+      null,
+      "super_admin",
+    ),
+    true,
+    "restoring a revoked/unassigned account directly as Super Admin must require confirmation",
+  );
+
+  assert.equal(
+    crossesSuperAdminBoundary(
+      "revoked",
+      "super_admin",
+    ),
+    true,
+  );
+
+  assert.equal(
+    crossesSuperAdminBoundary(
+      "admin",
+      "admin",
+    ),
+    false,
+  );
+
+  assert.equal(
+    crossesSuperAdminBoundary(
+      null,
+      "admin",
+    ),
+    false,
+  );
 });
