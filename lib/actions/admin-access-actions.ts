@@ -11,6 +11,7 @@ import { EVENT_TYPES } from "@/lib/events/event-types";
 import { isAssignableAdminRole } from "@/lib/rbac/admin-access-policy";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 import { requirePermission } from "@/lib/rbac/guards";
+import { userHasPermission } from "@/lib/rbac/helpers";
 import { ROLES, type RoleKey } from "@/lib/rbac/roles";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { consumeServerRateLimit } from "@/lib/security/server-rate-limit";
@@ -1469,6 +1470,32 @@ export async function updateAdminRoleAction(
 
   const locale =
     getLocale(formData);
+
+  const canManageRoles =
+    await userHasPermission(
+      actor.id,
+      PERMISSIONS.ROLES_MANAGE,
+    );
+
+  if (!canManageRoles) {
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "update_admin_role",
+      outcome: "blocked",
+      targetId:
+        "permission-denied",
+      reason:
+        "roles_manage_permission_required",
+    });
+
+    redirect(
+      accessCenterUrl(locale, {
+        access_error:
+          "role_permission_denied",
+      }),
+    );
+  }
 
   let targetUserId: string;
 
