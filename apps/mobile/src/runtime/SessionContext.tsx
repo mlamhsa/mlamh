@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type PropsWithChildren } from "react";
 
 import { getMobileAccountContext } from "@/src/domains/account/api";
+import { MobileApiError } from "@/src/api/client";
 import type { MobileAccountContext } from "@/src/domains/account/types";
 import { supabase } from "@/src/services/supabase";
 
@@ -46,7 +47,22 @@ export function SessionProvider({ children }: PropsWithChildren) {
         status: result.account.type === "talent" ? "talent" : "publisher",
         account: result.account,
       });
-    } catch {
+    } catch (error) {
+      // A stale/invalid persisted token is an authentication state problem,
+      // not a network outage. Clear it so TestFlight can recover to the public
+      // experience instead of trapping the user on "Unable to reach MLAMH".
+      if (
+        error instanceof MobileApiError &&
+        error.status === 401 &&
+        (error.code === "UNAUTHENTICATED" ||
+          error.code === "INVALID_ACCESS_TOKEN" ||
+          error.code === "MISSING_BEARER_TOKEN")
+      ) {
+        await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
+        setState({ status: "guest", account: null });
+        return;
+      }
+
       setState({ status: "unavailable", account: null });
     }
   }, []);
