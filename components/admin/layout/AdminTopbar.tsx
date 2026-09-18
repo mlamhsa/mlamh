@@ -19,6 +19,7 @@ import {
   type AdminLanguage,
 } from "@/lib/admin/i18n";
 import { adminNavigation, type AdminBadgeKey } from "./admin-navigation";
+import type { Permission } from "@/lib/rbac/permissions";
 
 type AdminTopbarCounts = Partial<Record<AdminBadgeKey, number>>;
 
@@ -26,6 +27,7 @@ type AdminTopbarProps = {
   onOpenMobileMenu?: () => void;
   unreadAdminNotifications?: number;
   counts?: AdminTopbarCounts;
+  permissions?: Permission[];
 };
 
 function buildLanguageSwitchHref({
@@ -53,6 +55,7 @@ export function AdminTopbar({
   onOpenMobileMenu,
   unreadAdminNotifications = 0,
   counts = {},
+  permissions = [],
 }: AdminTopbarProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -61,6 +64,22 @@ export function AdminTopbar({
   const language = getAdminLanguage(searchParams.get("lang"));
   const dictionary = getAdminDictionary(language);
   const isArabic = language === "ar";
+  const permissionSet = new Set<Permission>(permissions);
+  const visibleNavigation = adminNavigation
+    .map((group) => ({
+      ...group,
+      items: group.items.filter(
+        (item) =>
+          !item.requiredPermission ||
+          permissionSet.has(
+            item.requiredPermission,
+          ),
+      ),
+    }))
+    .filter(
+      (group) =>
+        group.items.length > 0,
+    );
 
   const languageSwitchHref = buildLanguageSwitchHref({
     pathname,
@@ -233,7 +252,7 @@ export function AdminTopbar({
             </div>
 
             <nav className="flex-1 space-y-7 overflow-y-auto px-4 py-5">
-              {adminNavigation.map((group) => (
+              {visibleNavigation.map((group) => (
                 <section key={group.titleEn}>
                   <p className="mb-2 px-3 text-[9px] uppercase tracking-[0.28em] text-white/25">
                     {isArabic ? group.titleAr : group.titleEn}
