@@ -1484,7 +1484,7 @@ export default async function AdminUsersPage({
                               •
                             </span>
                             <Link
-                              href={`/admin/audit-log?lang=${locale}&q=${encodeURIComponent(
+                              href={`/admin/audit-log?lang=${locale}&actor=${encodeURIComponent(
                                 admin.id,
                               )}`}
                               className="text-gold/55 transition hover:text-gold"
