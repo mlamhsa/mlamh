@@ -564,6 +564,11 @@ export function AdminRoleControls({
                 name="role_key"
                 value={selectedRole}
               />
+              <input
+                type="hidden"
+                name="confirm_sensitive_role"
+                value="1"
+              />
 
               <SubmitButton
                 label={
