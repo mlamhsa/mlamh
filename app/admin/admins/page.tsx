@@ -1173,6 +1173,25 @@ export default async function AdminUsersPage({
           </div>
         ) : null}
 
+        {inconsistentAdminCount > 0 &&
+        accessStateDataHealthy ? (
+          <div className="mb-5 flex items-start gap-3 rounded-2xl border border-orange-400/20 bg-orange-400/[0.06] px-4 py-3 text-sm text-orange-100">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <div>
+              <p className="font-medium">
+                {isArabic
+                  ? `يوجد ${inconsistentAdminCount} حساب إدارة يحتاج مزامنة سجل الدور`
+                  : `${inconsistentAdminCount} admin account${inconsistentAdminCount === 1 ? "" : "s"} need role-registry synchronization`}
+              </p>
+              <p className="mt-1 text-xs leading-6 text-orange-100/65">
+                {isArabic
+                  ? "دور RBAC الفعلي يظل مصدر الصلاحيات، لكن قيمة سجل الإدارة لا تطابقه. راجع الحساب المعلّم «عدم تطابق في صلاحية الوصول» واستخدم مزامنة السجل الآمنة عند الحاجة."
+                  : "The effective RBAC role remains the permission source of truth, but the admin registry label does not match it. Review accounts marked “Access-role mismatch” and use the safe registry sync when appropriate."}
+              </p>
+            </div>
+          </div>
+        ) : null}
+
         {access_saved === "1" ? (
           <div className="mb-5 flex items-start gap-3 rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.07] px-4 py-3 text-sm text-emerald-200">
             <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
