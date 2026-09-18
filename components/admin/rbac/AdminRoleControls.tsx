@@ -242,18 +242,18 @@ export function AdminRoleControls({
       </form>
       )}
 
-      {hasActiveRole ? (
+      {pendingInvite ? null : hasActiveRole ? (
         <button
-        type="button"
-        onClick={() =>
-          setRevokeOpen(true)
-        }
-        className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-red-400/15 bg-red-400/[0.035] px-3 text-[11px] font-medium text-red-200/65 transition hover:border-red-400/30 hover:bg-red-400/[0.075] hover:text-red-100"
-      >
-        <ShieldOff className="h-3.5 w-3.5" />
-        {isArabic
-          ? "سحب الوصول"
-          : "Revoke access"}
+          type="button"
+          onClick={() =>
+            setRevokeOpen(true)
+          }
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-red-400/15 bg-red-400/[0.035] px-3 text-[11px] font-medium text-red-200/65 transition hover:border-red-400/30 hover:bg-red-400/[0.075] hover:text-red-100"
+        >
+          <ShieldOff className="h-3.5 w-3.5" />
+          {isArabic
+            ? "سحب الوصول"
+            : "Revoke access"}
         </button>
       ) : (
         <span className="inline-flex items-center rounded-full border border-white/[0.08] bg-white/[0.025] px-3 py-1.5 text-[10px] text-white/35">
