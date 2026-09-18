@@ -623,6 +623,26 @@ import {
         return isArabic
           ? "استبدال موهبة"
           : "Casting replacement";
+
+      case "investor":
+        return isArabic
+          ? "مستثمر"
+          : "Investor";
+
+      case "investor_outreach":
+        return isArabic
+          ? "تواصل مستثمر"
+          : "Investor outreach";
+
+      case "integration":
+        return isArabic
+          ? "تكامل"
+          : "Integration";
+
+      case "verification_proof":
+        return isArabic
+          ? "مستند تحقق"
+          : "Verification proof";
   
       default:
         return targetType;
