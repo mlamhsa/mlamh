@@ -866,3 +866,36 @@ test("audit log keeps server-side pagination and exact actor scoping", async () 
     "out-of-range audit pages must redirect to the final valid page",
   );
 });
+
+
+test("revoked registry state is treated as no active role for Super Admin restoration", async () => {
+  const actions = await source(
+    "lib/actions/admin-access-actions.ts",
+  );
+
+  assert.equal(
+    actions.includes(
+      "const currentAccessRole =",
+    ) &&
+      actions.includes(
+        "isAssignableAdminRole(\n      targetAdmin.role",
+      ),
+    true,
+    "server must treat revoked registry state as no active access before evaluating Super Admin confirmation",
+  );
+
+  const controls = await source(
+    "components/admin/rbac/AdminRoleControls.tsx",
+  );
+
+  assert.equal(
+    controls.includes(
+      "registryActive",
+    ) &&
+      controls.includes(
+        "registryActive\n        ? currentRoleKey\n        : null",
+      ),
+    true,
+    "UI confirmation logic must treat revoked registry state as no active access",
+  );
+});
