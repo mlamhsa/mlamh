@@ -8,7 +8,10 @@ import { redirect } from "next/navigation";
 import { createAuditEvent } from "@/lib/events/create-audit-event";
 import { EVENT_TARGETS } from "@/lib/events/event-targets";
 import { EVENT_TYPES } from "@/lib/events/event-types";
-import { isAssignableAdminRole } from "@/lib/rbac/admin-access-policy";
+import {
+  crossesSuperAdminBoundary,
+  isAssignableAdminRole,
+} from "@/lib/rbac/admin-access-policy";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 import { requirePermission } from "@/lib/rbac/guards";
 import { userHasPermission } from "@/lib/rbac/helpers";
@@ -1824,18 +1827,14 @@ export async function updateAdminRoleAction(
       ? previousRoleKeys[0]
       : null;
 
-  const crossesSuperAdminBoundary =
-    (
-      currentRoleKey ===
-        ROLES.SUPER_ADMIN
-    ) !==
-      (
-        roleKey ===
-        ROLES.SUPER_ADMIN
-      );
+  const sensitiveRoleChange =
+    crossesSuperAdminBoundary(
+      currentRoleKey,
+      roleKey,
+    );
 
   if (
-    crossesSuperAdminBoundary &&
+    sensitiveRoleChange &&
     formData.get(
       "confirm_sensitive_role",
     ) !== "1"
