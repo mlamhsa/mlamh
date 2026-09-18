@@ -588,6 +588,11 @@ import {
         return isArabic
           ? "إشعار"
           : "Notification";
+
+      case "scene_article":
+        return isArabic
+          ? "مقال مشهد"
+          : "Scene article";
   
       default:
         return targetType;
