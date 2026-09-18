@@ -62,3 +62,34 @@ export function hasConsistentActiveAdminRole(
     )
   );
 }
+
+
+export function hasValidActiveAdminAssignment(
+  registryRole: string | null | undefined,
+  assignedRoleKeys: Array<
+    string | null | undefined
+  >,
+) {
+  if (
+    !isActiveAdminAccessRole(
+      registryRole,
+    )
+  ) {
+    return false;
+  }
+
+  const normalized =
+    assignedRoleKeys.filter(
+      (
+        value,
+      ): value is string =>
+        Boolean(value),
+    );
+
+  return (
+    normalized.length === 1 &&
+    isActiveAdminAccessRole(
+      normalized[0],
+    )
+  );
+}
