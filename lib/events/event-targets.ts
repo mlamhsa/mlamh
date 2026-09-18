@@ -5,6 +5,9 @@ export const EVENT_TARGETS = {
   AUTH_USER: "auth_user",
   OPPORTUNITY: "opportunity",
   APPLICATION: "application",
+  CLAIM_REQUEST: "claim_request",
+  SUPPORT: "support",
+  MESSAGE: "message",
 } as const;
   
   export type EventTarget =
