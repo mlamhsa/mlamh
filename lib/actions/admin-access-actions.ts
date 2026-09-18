@@ -164,21 +164,95 @@ async function countSuperAdmins() {
     );
   }
 
-  const { count, error } =
-    await adminClient
-      .from("user_roles")
-      .select("user_id", {
-        count: "exact",
-        head: true,
-      })
-      .eq(
-        "role_id",
-        superAdminRole.id,
-      );
+  const {
+    data: assignments,
+    error: assignmentError,
+  } = await adminClient
+    .from("user_roles")
+    .select("user_id")
+    .eq(
+      "role_id",
+      superAdminRole.id,
+    );
 
-  if (error) {
+  if (assignmentError) {
     throw new Error(
-      `Unable to count Super Admin assignments: ${error.message}`,
+      `Unable to load Super Admin assignments: ${assignmentError.message}`,
+    );
+  }
+
+  const assignedUserIds =
+    Array.from(
+      new Set(
+        (assignments ?? [])
+          .map((row) =>
+            String(
+              row.user_id ?? "",
+            ),
+          )
+          .filter(Boolean),
+      ),
+    );
+
+  if (
+    assignedUserIds.length === 0
+  ) {
+    return 0;
+  }
+
+  const {
+    data: registryRows,
+    error: registryError,
+  } = await adminClient
+    .from("admin_users")
+    .select("id")
+    .eq(
+      "role",
+      ROLES.SUPER_ADMIN,
+    )
+    .in(
+      "id",
+      assignedUserIds,
+    );
+
+  if (registryError) {
+    throw new Error(
+      `Unable to verify Super Admin registry: ${registryError.message}`,
+    );
+  }
+
+  const registryUserIds =
+    (registryRows ?? []).map(
+      (row) => row.id,
+    );
+
+  if (
+    registryUserIds.length === 0
+  ) {
+    return 0;
+  }
+
+  const {
+    count,
+    error: profileError,
+  } = await adminClient
+    .from("profiles")
+    .select("user_id", {
+      count: "exact",
+      head: true,
+    })
+    .eq(
+      "account_type",
+      "admin",
+    )
+    .in(
+      "user_id",
+      registryUserIds,
+    );
+
+  if (profileError) {
+    throw new Error(
+      `Unable to verify Super Admin profiles: ${profileError.message}`,
     );
   }
 
@@ -1590,10 +1664,41 @@ export async function updateAdminRoleAction(
     );
   }
 
-  const currentAssignments =
-    await getAdminRoleAssignments(
-      targetUserId,
+  let currentAssignments: RoleAssignmentRow[];
+
+  try {
+    currentAssignments =
+      await getAdminRoleAssignments(
+        targetUserId,
+      );
+  } catch (assignmentError) {
+    console.error(
+      "[updateAdminRoleAction assignments]",
+      assignmentError,
     );
+
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "update_admin_role",
+      outcome: "failed",
+      targetId: targetUserId,
+      reason:
+        "role_assignment_lookup_failed",
+      metadata: {
+        requested_role: roleKey,
+        target_email:
+          targetAdmin.email,
+      },
+    });
+
+    redirect(
+      accessCenterUrl(locale, {
+        access_error:
+          "role_update_failed",
+      }),
+    );
+  }
 
   const previousRoleIds =
     currentAssignments.map(
@@ -1651,8 +1756,42 @@ export async function updateAdminRoleAction(
     roleKey !==
       ROLES.SUPER_ADMIN
   ) {
-    const superAdminCount =
-      await countSuperAdmins();
+    let superAdminCount: number;
+
+    try {
+      superAdminCount =
+        await countSuperAdmins();
+    } catch (countError) {
+      console.error(
+        "[updateAdminRoleAction super admin count]",
+        countError,
+      );
+
+      await recordAdminAccessOutcome({
+        actorId: actor.id,
+        actorEmail: actor.email,
+        action: "update_admin_role",
+        outcome: "failed",
+        targetId: targetUserId,
+        reason:
+          "super_admin_count_failed",
+        metadata: {
+          target_email:
+            targetAdmin.email,
+          previous_roles:
+            previousRoleKeys,
+          requested_role:
+            roleKey,
+        },
+      });
+
+      redirect(
+        accessCenterUrl(locale, {
+          access_error:
+            "role_update_failed",
+        }),
+      );
+    }
 
     if (superAdminCount <= 1) {
       await recordAdminAccessOutcome({
@@ -2020,10 +2159,40 @@ export async function revokeAdminAccessAction(
     );
   }
 
-  const currentAssignments =
-    await getAdminRoleAssignments(
-      targetUserId,
+  let currentAssignments: RoleAssignmentRow[];
+
+  try {
+    currentAssignments =
+      await getAdminRoleAssignments(
+        targetUserId,
+      );
+  } catch (assignmentError) {
+    console.error(
+      "[revokeAdminAccessAction assignments]",
+      assignmentError,
     );
+
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "revoke_admin_access",
+      outcome: "failed",
+      targetId: targetUserId,
+      reason:
+        "role_assignment_lookup_failed",
+      metadata: {
+        target_email:
+          targetAdmin.email,
+      },
+    });
+
+    redirect(
+      accessCenterUrl(locale, {
+        access_error:
+          "revoke_failed",
+      }),
+    );
+  }
 
   const previousRoleIds =
     currentAssignments.map(
@@ -2046,8 +2215,40 @@ export async function revokeAdminAccessAction(
       ROLES.SUPER_ADMIN,
     )
   ) {
-    const superAdminCount =
-      await countSuperAdmins();
+    let superAdminCount: number;
+
+    try {
+      superAdminCount =
+        await countSuperAdmins();
+    } catch (countError) {
+      console.error(
+        "[revokeAdminAccessAction super admin count]",
+        countError,
+      );
+
+      await recordAdminAccessOutcome({
+        actorId: actor.id,
+        actorEmail: actor.email,
+        action: "revoke_admin_access",
+        outcome: "failed",
+        targetId: targetUserId,
+        reason:
+          "super_admin_count_failed",
+        metadata: {
+          target_email:
+            targetAdmin.email,
+          previous_roles:
+            previousRoleKeys,
+        },
+      });
+
+      redirect(
+        accessCenterUrl(locale, {
+          access_error:
+            "revoke_failed",
+        }),
+      );
+    }
 
     if (superAdminCount <= 1) {
       await recordAdminAccessOutcome({
