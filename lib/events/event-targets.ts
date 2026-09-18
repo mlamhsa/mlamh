@@ -10,6 +10,7 @@ export const EVENT_TARGETS = {
   MESSAGE: "message",
   CASTING_PROJECT: "casting_project",
   PAYMENT: "payment",
+  ENTITLEMENT: "entitlement",
   NOTIFICATION: "notification",
   SCENE_ARTICLE: "scene_article",
   CASTING_FILE: "casting_file",
