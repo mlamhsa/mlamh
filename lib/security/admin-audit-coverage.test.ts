@@ -1293,3 +1293,23 @@ test("admin logout lifecycle is audited before session teardown", async () => {
     "failed browser sign-out must be reported while the admin session is still available",
   );
 });
+
+
+test("access health alerts provide direct remediation paths", async () => {
+  const page = await source(
+    "app/admin/admins/page.tsx",
+  );
+
+  for (const fragment of [
+    "status=stale",
+    "status=dormant",
+    "status=inconsistent",
+    "admin_mfa_verification_failed",
+  ]) {
+    assert.equal(
+      page.includes(fragment),
+      true,
+      `access health alert must keep remediation path for ${fragment}`,
+    );
+  }
+});
