@@ -192,22 +192,82 @@ export async function updateCastingProjectAction(formData: FormData) {
 }
 
 export async function createCastingRoleAction(formData: FormData) {
-  await requireAdminAccess();
+  const adminUser =
+    await requireAdminAccess();
   const projectId = toPositiveInt(formData.get("project_id"));
-  if (!projectId) return;
+
+  if (!projectId) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "create_casting_role",
+      outcome: "blocked",
+      target: EVENT_TARGETS.CASTING_ROLE,
+      targetId: "invalid-input",
+      reason: "invalid_casting_project_id",
+    });
+
+    return;
+  }
 
   const title = stringValue(formData.get("title")).slice(0, 160);
   const description = stringValue(formData.get("description")).slice(0, 5000);
   const talentType = formData.get("talent_type") === "model" ? "model" : "actor";
   const requiredCount = Math.min(1000, Math.max(1, toPositiveInt(formData.get("required_count")) ?? 1));
-  if (!title) return;
+
+  if (!title) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "create_casting_role",
+      outcome: "blocked",
+      target: EVENT_TARGETS.CASTING_ROLE,
+      targetId: "invalid-input",
+      reason: "casting_role_title_required",
+      metadata: {
+        casting_project_id:
+          projectId,
+      },
+    });
+
+    return;
+  }
 
   const sourceLanguage: "ar" | "en" = /[\u0600-\u06FF]/.test(`${title} ${description}`) ? "ar" : "en";
-  const translated = await translateOpportunityContent({
-    sourceLanguage,
-    title,
-    description: description || title,
-  });
+  let translated: Awaited<
+    ReturnType<
+      typeof translateOpportunityContent
+    >
+  >;
+
+  try {
+    translated =
+      await translateOpportunityContent({
+        sourceLanguage,
+        title,
+        description:
+          description || title,
+      });
+  } catch (error) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "create_casting_role",
+      outcome: "failed",
+      target: EVENT_TARGETS.CASTING_ROLE,
+      targetId: "translation-failed",
+      reason: "casting_role_translation_failed",
+      metadata: {
+        casting_project_id:
+          projectId,
+        source_language:
+          sourceLanguage,
+        title,
+      },
+    });
+
+    throw error;
+  }
 
   const titlePrimary = sourceLanguage === "ar" ? title : translated.title.trim();
   const titleEn = sourceLanguage === "en" ? title : translated.title.trim();
@@ -222,15 +282,59 @@ export async function createCastingRoleAction(formData: FormData) {
       : translated.description.trim()
     : null;
 
-  if (!titlePrimary || !titleEn) return;
+  if (!titlePrimary || !titleEn) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "create_casting_role",
+      outcome: "failed",
+      target: EVENT_TARGETS.CASTING_ROLE,
+      targetId: "translation-failed",
+      reason: "casting_role_translation_empty",
+      metadata: {
+        casting_project_id:
+          projectId,
+        source_language:
+          sourceLanguage,
+      },
+    });
+
+    return;
+  }
 
   const genderRaw = stringValue(formData.get("gender"));
   const gender = genderRaw === "male" || genderRaw === "female" ? genderRaw : "any";
   const minAge = optionalNumber(formData.get("min_age"));
   const maxAge = optionalNumber(formData.get("max_age"));
-  if (minAge !== null && (minAge < 1 || minAge > 120)) return;
-  if (maxAge !== null && (maxAge < 1 || maxAge > 120)) return;
-  if (minAge !== null && maxAge !== null && minAge > maxAge) return;
+  if (
+    (minAge !== null &&
+      (minAge < 1 || minAge > 120)) ||
+    (maxAge !== null &&
+      (maxAge < 1 || maxAge > 120)) ||
+    (minAge !== null &&
+      maxAge !== null &&
+      minAge > maxAge)
+  ) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "create_casting_role",
+      outcome: "blocked",
+      target: EVENT_TARGETS.CASTING_ROLE,
+      targetId: "invalid-input",
+      reason: "invalid_casting_role_age_range",
+      metadata: {
+        casting_project_id:
+          projectId,
+        min_age:
+          minAge,
+        max_age:
+          maxAge,
+      },
+    });
+
+    return;
+  }
 
   const adminClient = createAdminClient();
   const { data: project } = await adminClient
@@ -238,7 +342,23 @@ export async function createCastingRoleAction(formData: FormData) {
     .select("id")
     .eq("id", projectId)
     .maybeSingle();
-  if (!project) return;
+  if (!project) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "create_casting_role",
+      outcome: "failed",
+      target: EVENT_TARGETS.CASTING_ROLE,
+      targetId: "project-not-found",
+      reason: "casting_project_not_found",
+      metadata: {
+        casting_project_id:
+          projectId,
+      },
+    });
+
+    return;
+  }
 
   const { data: lastRole } = await adminClient
     .from("casting_roles")
@@ -253,39 +373,129 @@ export async function createCastingRoleAction(formData: FormData) {
     ? Math.floor(requestedSort)
     : Number(lastRole?.sort_order ?? -1) + 1;
 
-  const { error } = await adminClient.from("casting_roles").insert({
-    casting_project_id: projectId,
-    title: titlePrimary,
-    title_en: titleEn,
-    description: descriptionPrimary,
-    description_en: descriptionEn,
-    talent_type: talentType,
-    required_count: requiredCount,
-    status: "draft",
-    sort_order: sortOrder,
-    requirements: {
+  const {
+    data: createdRole,
+    error,
+  } = await adminClient
+    .from("casting_roles")
+    .insert({
+      casting_project_id: projectId,
+      title: titlePrimary,
+      title_en: titleEn,
+      description: descriptionPrimary,
+      description_en: descriptionEn,
+      talent_type: talentType,
+      required_count: requiredCount,
+      status: "draft",
+      sort_order: sortOrder,
+      requirements: {
+        gender,
+        min_age: minAge,
+        max_age: maxAge,
+        city: stringValue(formData.get("city")) || null,
+      },
+    })
+    .select("id")
+    .single();
+
+  if (error || !createdRole) {
+    console.error("[createCastingRoleAction]", error);
+
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "create_casting_role",
+      outcome: "failed",
+      target: EVENT_TARGETS.CASTING_ROLE,
+      targetId: "creation-failed",
+      reason: "casting_role_insert_failed",
+      metadata: {
+        casting_project_id:
+          projectId,
+        talent_type:
+          talentType,
+        required_count:
+          requiredCount,
+      },
+    });
+
+    return;
+  }
+
+  await recordAdminAction({
+    actorId: adminUser.id,
+    actorEmail: adminUser.email,
+    action: "create_casting_role",
+    outcome: "success",
+    target: EVENT_TARGETS.CASTING_ROLE,
+    targetId: createdRole.id,
+    metadata: {
+      casting_project_id:
+        projectId,
+      talent_type:
+        talentType,
+      required_count:
+        requiredCount,
+      status: "draft",
+      source_language:
+        sourceLanguage,
       gender,
-      min_age: minAge,
-      max_age: maxAge,
-      city: stringValue(formData.get("city")) || null,
+      min_age:
+        minAge,
+      max_age:
+        maxAge,
     },
   });
 
-  if (error) {
-    console.error("[createCastingRoleAction]", error);
-    return;
-  }
   revalidateCasting(projectId);
 }
 
 export async function updateCastingRoleAction(formData: FormData) {
-  await requireAdminAccess();
+  const adminUser =
+    await requireAdminAccess();
   const projectId = toPositiveInt(formData.get("project_id"));
   const roleId = toPositiveInt(formData.get("role_id"));
-  if (!projectId || !roleId) return;
+
+  if (!projectId || !roleId) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_casting_role",
+      outcome: "blocked",
+      target: EVENT_TARGETS.CASTING_ROLE,
+      targetId:
+        roleId ?? "invalid-input",
+      reason: "invalid_casting_role_input",
+      metadata: {
+        casting_project_id:
+          projectId,
+      },
+    });
+
+    return;
+  }
 
   const status = stringValue(formData.get("status"));
-  if (!allowedRoleStatuses.has(status)) return;
+
+  if (!allowedRoleStatuses.has(status)) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_casting_role",
+      outcome: "blocked",
+      target: EVENT_TARGETS.CASTING_ROLE,
+      targetId: roleId,
+      reason: "invalid_casting_role_status",
+      metadata: {
+        casting_project_id:
+          projectId,
+        requested_status:
+          status || null,
+      },
+    });
+
+    return;
+  }
   const requiredCount = Math.min(1000, Math.max(1, toPositiveInt(formData.get("required_count")) ?? 1));
 
   const adminClient = createAdminClient();
@@ -297,8 +507,45 @@ export async function updateCastingRoleAction(formData: FormData) {
 
   if (error) {
     console.error("[updateCastingRoleAction]", error);
+
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_casting_role",
+      outcome: "failed",
+      target: EVENT_TARGETS.CASTING_ROLE,
+      targetId: roleId,
+      reason: "casting_role_update_failed",
+      metadata: {
+        casting_project_id:
+          projectId,
+        requested_status:
+          status,
+        required_count:
+          requiredCount,
+      },
+    });
+
     return;
   }
+
+  await recordAdminAction({
+    actorId: adminUser.id,
+    actorEmail: adminUser.email,
+    action: "update_casting_role",
+    outcome: "success",
+    target: EVENT_TARGETS.CASTING_ROLE,
+    targetId: roleId,
+    metadata: {
+      casting_project_id:
+        projectId,
+      new_status:
+        status,
+      required_count:
+        requiredCount,
+    },
+  });
+
   revalidateCasting(projectId);
 }
 
