@@ -105,7 +105,16 @@ import {
   
     const isArabic =
       language === "ar";
-  
+
+    const cleanSearch =
+      q?.trim().toLowerCase() ??
+      "";
+
+    const exactIdSearch =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        cleanSearch,
+      );
+
     const adminClient =
       createAdminClient();
   
@@ -141,6 +150,15 @@ import {
         event,
       );
     }
+
+    if (
+      exactIdSearch &&
+      cleanSearch
+    ) {
+      query = query.or(
+        `actor_id.eq.${cleanSearch},target_id.eq.${cleanSearch}`,
+      );
+    }
   
     const {
       data,
@@ -157,14 +175,13 @@ import {
       (data ??
         []) as AuditEvent[];
   
-    const cleanSearch =
-      q?.trim().toLowerCase() ??
-      "";
-  
     const filteredEvents =
       events.filter(
         (item) => {
-          if (!cleanSearch) {
+          if (
+            !cleanSearch ||
+            exactIdSearch
+          ) {
             return true;
           }
   
@@ -233,8 +250,8 @@ import {
           }
           description={
             isArabic
-              ? "سجل زمني للأحداث والقرارات والعمليات المسجلة داخل المنصة."
-              : "A chronological record of events, decisions, and operational activity across the platform."
+              ? "سجل زمني للأحداث والقرارات والعمليات المسجلة داخل المنصة. البحث بمعرّف UUID يتم مباشرة من قاعدة البيانات لضمان إظهار سجل المشرف حتى لو كان أقدم من آخر 500 حدث."
+              : "A chronological record of events, decisions, and operational activity across the platform. UUID searches are applied at the database layer so an admin's history is not limited to the latest 500 events."
           }
         />
   
