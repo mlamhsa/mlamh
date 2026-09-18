@@ -82,7 +82,7 @@ export default function RegisterScreen() {
     return () => { active = false; };
   }, []);
 
-  async function finishSocialSignup() {
+  async function finishSocialSignup(providerName?: string | null) {
     try {
       const existing = await getMobileAccountContext();
       if (existing.ok) {
@@ -91,7 +91,8 @@ export default function RegisterScreen() {
         return;
       }
     } catch {}
-    router.replace(`/setup-account?type=${accountType}` as never);
+    const namePart = providerName?.trim() ? "&name=" + encodeURIComponent(providerName.trim()) : "";
+    router.replace(("/setup-account?type=" + accountType + "&source=social" + namePart) as never);
   }
 
   async function handleGoogleSignup() {
@@ -120,7 +121,7 @@ export default function RegisterScreen() {
         if (!result.canceled) setErrorMessage(isArabic ? "تعذر المتابعة باستخدام Apple. حاول مرة أخرى." : "Unable to continue with Apple. Please try again.");
         return;
       }
-      await finishSocialSignup();
+      await finishSocialSignup(result.displayName);
     } finally {
       setSocialSubmitting(null);
     }

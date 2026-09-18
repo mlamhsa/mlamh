@@ -17,11 +17,13 @@ import {
 import { useLocale } from "@/src/i18n/LocaleProvider";
 import { signInWithNativeApple } from "@/src/native/apple-auth";
 import { signInWithNativeGoogle } from "@/src/native/google-auth";
+import { useSessionContext } from "@/src/runtime/SessionContext";
 import { supabase } from "@/src/services/supabase";
 import { colors, radius, spacing } from "@/src/theme/tokens";
 
 export default function LoginScreen() {
   const { locale } = useLocale();
+  const session = useSessionContext();
   const isArabic = locale === "ar";
   const align = isArabic ? "right" : "left";
   const [email, setEmail] = useState("");
@@ -41,6 +43,7 @@ export default function LoginScreen() {
   }, []);
 
   async function finishSignIn() {
+    await session.refresh();
     router.replace("/" as never);
   }
 

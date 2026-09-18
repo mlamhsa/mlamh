@@ -29,7 +29,15 @@ export function SessionProvider({ children }: PropsWithChildren) {
     }
 
     try {
-      const result = await getMobileAccountContext();
+      let result;
+      try {
+        result = await getMobileAccountContext();
+      } catch {
+        // Social sign-in can complete a fraction before the backend sees the
+        // freshest Supabase token. Refresh once, then retry account context.
+        await supabase.auth.refreshSession().catch(() => undefined);
+        result = await getMobileAccountContext();
+      }
       if (!result.ok) {
         setState({ status: "account_missing", account: null });
         return;
@@ -39,11 +47,7 @@ export function SessionProvider({ children }: PropsWithChildren) {
         account: result.account,
       });
     } catch {
-      setState((current) =>
-        current.status === "loading" || current.status === "unavailable"
-          ? { status: "unavailable", account: null }
-          : current,
-      );
+      setState({ status: "unavailable", account: null });
     }
   }, []);
 

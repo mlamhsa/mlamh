@@ -52,12 +52,18 @@ export async function signInWithNativeApple(): Promise<NativeAppleAuthResult> {
     });
     if (error || !data.user) return { ok: false, code: "SIGN_IN_FAILED" };
 
-    const displayName = formatAppleName(credential.fullName);
-    if (displayName) {
+    const appleDisplayName = formatAppleName(credential.fullName);
+    const metadata = data.user.user_metadata ?? {};
+    const storedDisplayName = String(
+      metadata.full_name ?? metadata.name ?? metadata.display_name ?? "",
+    ).trim() || null;
+    const displayName = appleDisplayName || storedDisplayName;
+
+    if (appleDisplayName) {
       await supabase.auth
         .updateUser({
           data: {
-            full_name: displayName,
+            full_name: appleDisplayName,
             given_name: credential.fullName?.givenName ?? null,
             family_name: credential.fullName?.familyName ?? null,
           },

@@ -21,8 +21,9 @@ function normalizeSaudiPhone(value: string) {
 }
 
 export default function SetupAccountScreen() {
-  const params = useLocalSearchParams<{ type?: string | string[] }>();
+  const params = useLocalSearchParams<{ type?: string | string[]; name?: string | string[]; source?: string | string[] }>();
   const rawType = Array.isArray(params.type) ? params.type[0] : params.type;
+  const routeName = Array.isArray(params.name) ? params.name[0] : params.name;
   const accountType: AccountType = rawType === "publisher" ? "publisher" : "talent";
   const isTalent = accountType === "talent";
   const { locale } = useLocale();
@@ -31,7 +32,7 @@ export default function SetupAccountScreen() {
   const align = isArabic ? "right" : "left";
   const writingDirection = isArabic ? "rtl" : "ltr";
 
-  const [fullName, setFullName] = useState("");
+  const [fullName, setFullName] = useState(() => (routeName || "").trim());
   const [phone, setPhone] = useState("");
   const [talentType, setTalentType] = useState("");
   const [nationality, setNationality] = useState("");
@@ -48,7 +49,7 @@ export default function SetupAccountScreen() {
     void supabase.auth.getUser().then(({ data }) => {
       const metadata = data.user?.user_metadata ?? {};
       const suggested = String(metadata.full_name ?? metadata.name ?? metadata.display_name ?? "").trim();
-      if (suggested) setFullName(suggested);
+      if (suggested) setFullName((current) => current || suggested);
     });
   }, []);
 
@@ -151,7 +152,7 @@ function ConsentRow({ checked, onPress, text, isArabic }: { checked: boolean; on
 function OptionPicker({ title, options, value, onChange, isArabic, searchable = false }: { title: string; options: readonly Option[]; value: string; onChange: (value: string) => void; isArabic: boolean; searchable?: boolean }) {
   const [open, setOpen] = useState(false); const [query, setQuery] = useState(""); const selected = options.find((option) => option.value === value);
   const filtered = useMemo(() => { const q = query.trim().toLowerCase(); if (!q) return options; return options.filter((option) => `${option.ar} ${option.en}`.toLowerCase().includes(q)); }, [options, query]);
-  return <><Pressable onPress={() => setOpen(true)} style={[styles.picker, isArabic && styles.rowReverse]}><Text style={[styles.pickerText, !selected && styles.placeholder]}>{selected ? (isArabic ? selected.ar : selected.en) : title}</Text><ChevronDown size={17} color={colors.textMuted} /></Pressable><Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}><View style={styles.modalBackdrop}><View style={styles.modalCard}><View style={[styles.modalHeader, isArabic && styles.rowReverse]}><Text style={styles.modalTitle}>{title}</Text><Pressable onPress={() => setOpen(false)}><X size={22} color={colors.textPrimary} /></Pressable></View>{searchable ? <View style={[styles.searchBox, isArabic && styles.rowReverse]}><Search size={16} color={colors.textMuted} /><TextInput value={query} onChangeText={setQuery} placeholder={isArabic ? "بحث..." : "Search..."} placeholderTextColor={colors.textMuted} style={[styles.searchInput, { textAlign: isArabic ? "right" : "left" }]} /></View> : null}<FlatList data={filtered} keyExtractor={(item) => item.value} renderItem={({ item }) => <Pressable onPress={() => { onChange(item.value); setOpen(false); setQuery(""); }} style={[styles.optionRow, isArabic && styles.rowReverse]}><Text style={styles.optionText}>{isArabic ? item.ar : item.en}</Text>{item.value === value ? <Check size={17} color={colors.gold} /> : null}</Pressable>} /></View></View></Modal></>;
+  return <><Pressable onPress={() => setOpen(true)} style={[styles.picker, isArabic && styles.rowReverse]}><Text style={[styles.pickerText, !selected && styles.placeholder, { textAlign: isArabic ? "right" : "left", writingDirection: isArabic ? "rtl" : "ltr", flex: 1 }]}>{selected ? (isArabic ? selected.ar : selected.en) : title}</Text><ChevronDown size={17} color={colors.textMuted} /></Pressable><Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}><View style={styles.modalBackdrop}><View style={styles.modalCard}><View style={[styles.modalHeader, isArabic && styles.rowReverse]}><Text style={styles.modalTitle}>{title}</Text><Pressable onPress={() => setOpen(false)}><X size={22} color={colors.textPrimary} /></Pressable></View>{searchable ? <View style={[styles.searchBox, isArabic && styles.rowReverse]}><Search size={16} color={colors.textMuted} /><TextInput value={query} onChangeText={setQuery} placeholder={isArabic ? "بحث..." : "Search..."} placeholderTextColor={colors.textMuted} style={[styles.searchInput, { textAlign: isArabic ? "right" : "left" }]} /></View> : null}<FlatList data={filtered} keyExtractor={(item) => item.value} renderItem={({ item }) => <Pressable onPress={() => { onChange(item.value); setOpen(false); setQuery(""); }} style={[styles.optionRow, isArabic && styles.rowReverse]}><Text style={[styles.optionText, { textAlign: isArabic ? "right" : "left", writingDirection: isArabic ? "rtl" : "ltr", flex: 1 }]}>{isArabic ? item.ar : item.en}</Text>{item.value === value ? <Check size={17} color={colors.gold} /> : null}</Pressable>} /></View></View></Modal></>;
 }
 
 const styles = StyleSheet.create({
