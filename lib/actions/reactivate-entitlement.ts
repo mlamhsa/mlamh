@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 
 import { requireAdminAccess } from "@/lib/auth/require-admin";
+import { recordAdminAction } from "@/lib/events/admin-audit";
+import { EVENT_TARGETS } from "@/lib/events/event-targets";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const DAY_MS = 86_400_000;
@@ -26,11 +28,20 @@ function revalidateEntitlementSurfaces(targetType: string | null, targetId: stri
 }
 
 export async function reactivateEntitlement(formData: FormData) {
-  await requireAdminAccess();
+  const adminUser = await requireAdminAccess();
 
   const rawId = String(formData.get("entitlement_id") ?? "").trim();
   const entitlementId = Number(rawId);
   if (!Number.isInteger(entitlementId) || entitlementId <= 0) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "reactivate_entitlement",
+      outcome: "blocked",
+      target: EVENT_TARGETS.ENTITLEMENT,
+      targetId: "invalid-input",
+      reason: "invalid_entitlement_id",
+    });
     throw new Error("Invalid entitlement id.");
   }
 
@@ -41,8 +52,30 @@ export async function reactivateEntitlement(formData: FormData) {
     .eq("id", entitlementId)
     .maybeSingle();
 
-  if (loadError) throw new Error(`Unable to load entitlement: ${loadError.message}`);
-  if (!entitlement) throw new Error("Entitlement not found.");
+  if (loadError) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "reactivate_entitlement",
+      outcome: "failed",
+      target: EVENT_TARGETS.ENTITLEMENT,
+      targetId: entitlementId,
+      reason: "entitlement_load_failed",
+    });
+    throw new Error(`Unable to load entitlement: ${loadError.message}`);
+  }
+  if (!entitlement) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "reactivate_entitlement",
+      outcome: "failed",
+      target: EVENT_TARGETS.ENTITLEMENT,
+      targetId: entitlementId,
+      reason: "entitlement_not_found",
+    });
+    throw new Error("Entitlement not found.");
+  }
 
   const originalStart = validTime(entitlement.starts_at) ?? validTime(entitlement.created_at);
   const originalEnd = validTime(entitlement.expires_at);
@@ -67,8 +100,35 @@ export async function reactivateEntitlement(formData: FormData) {
     .eq("id", entitlementId);
 
   if (updateError) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "reactivate_entitlement",
+      outcome: "failed",
+      target: EVENT_TARGETS.ENTITLEMENT,
+      targetId: entitlementId,
+      reason: "entitlement_reactivate_failed",
+      metadata: { previous_status: entitlement.status },
+    });
     throw new Error(`Unable to reactivate entitlement: ${updateError.message}`);
   }
+
+  await recordAdminAction({
+    actorId: adminUser.id,
+    actorEmail: adminUser.email,
+    action: "reactivate_entitlement",
+    outcome: "success",
+    target: EVENT_TARGETS.ENTITLEMENT,
+    targetId: entitlementId,
+    metadata: {
+      previous_status: entitlement.status,
+      new_status: "active",
+      target_type: entitlement.target_type,
+      target_id: entitlement.target_id,
+      starts_at: startsAt,
+      expires_at: expiresAt,
+    },
+  });
 
   revalidateEntitlementSurfaces(entitlement.target_type, entitlement.target_id);
 }
