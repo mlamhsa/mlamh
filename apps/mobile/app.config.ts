@@ -22,7 +22,7 @@ const config: ExpoConfig = {
     ["expo-notifications",{ color: "#C9A962", defaultChannel: "mlamh-updates", enableBackgroundRemoteNotifications: false }],
   ],
   ios: {
-    supportsTablet: false, bundleIdentifier: "net.mlamh.app", buildNumber: "24", usesAppleSignIn: true,
+    supportsTablet: false, bundleIdentifier: "net.mlamh.app", buildNumber: "25", usesAppleSignIn: true,
     entitlements: { "com.apple.developer.applesignin": ["Default"] },
     infoPlist: { ITSAppUsesNonExemptEncryption: false, CFBundleAllowMixedLocalizations: true },
     associatedDomains: ["applinks:mlamh.net", "applinks:www.mlamh.net"],
