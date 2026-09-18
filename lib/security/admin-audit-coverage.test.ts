@@ -1107,3 +1107,42 @@ test("access center surfaces stale pending admin invitations", async () => {
     "pending admin invitations older than the operational threshold must be visible and filterable",
   );
 });
+
+
+test("successful admin MFA enrollment and verification are audited after AAL2", async () => {
+  const route = await source(
+    "app/api/admin/security/mfa-event/route.ts",
+  );
+
+  assert.equal(
+    route.includes(
+      "requireAdminAccess",
+    ) &&
+      route.includes(
+        '"admin_mfa_enrolled"',
+      ) &&
+      route.includes(
+        '"admin_mfa_verified"',
+      ) &&
+      route.includes(
+        '"aal2"',
+      ),
+    true,
+    "MFA audit endpoint must require a fully verified admin session and record enrollment/verification",
+  );
+
+  const gate = await source(
+    "components/admin/security/AdminMfaGate.tsx",
+  );
+
+  assert.equal(
+    gate.includes(
+      '"/api/admin/security/mfa-event"',
+    ) &&
+      gate.includes(
+        'mode: enrollment',
+      ),
+    true,
+    "MFA client must report the successful verification context before entering admin",
+  );
+});
