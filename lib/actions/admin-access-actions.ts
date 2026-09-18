@@ -2020,6 +2020,96 @@ export async function updateAdminRoleAction(
     );
   }
 
+  const registryOnlySync =
+    previousRoleKeys.length === 1 &&
+    previousRoleKeys[0] ===
+      roleKey &&
+    targetAdmin.role !== roleKey;
+
+  if (registryOnlySync) {
+    const { error: registrySyncError } =
+      await adminClient
+        .from("admin_users")
+        .update({
+          role: roleKey,
+        })
+        .eq(
+          "id",
+          targetUserId,
+        );
+
+    if (registrySyncError) {
+      console.error(
+        "[updateAdminRoleAction registry-only sync]",
+        registrySyncError,
+      );
+
+      await recordAdminAccessOutcome({
+        actorId: actor.id,
+        actorEmail: actor.email,
+        action: "update_admin_role",
+        outcome: "failed",
+        targetId: targetUserId,
+        reason:
+          "registry_sync_failed",
+        metadata: {
+          target_email:
+            targetAdmin.email,
+          previous_registry_role:
+            targetAdmin.role,
+          effective_role:
+            roleKey,
+        },
+      });
+
+      redirect(
+        accessCenterUrl(locale, {
+          access_error:
+            "role_update_failed",
+        }),
+      );
+    }
+
+    try {
+      await createAuditEvent({
+        type:
+          EVENT_TYPES.admin_role_changed,
+        target:
+          EVENT_TARGETS.ADMIN,
+        targetId: targetUserId,
+        actorId: actor.id,
+        metadata: {
+          action:
+            "sync_admin_role_registry",
+          outcome: "success",
+          target_email:
+            targetAdmin.email,
+          previous_registry_role:
+            targetAdmin.role,
+          effective_role:
+            roleKey,
+          registry_only_sync:
+            true,
+          actor_email:
+            actor.email ?? null,
+        },
+      });
+    } catch (auditError) {
+      console.error(
+        "[updateAdminRoleAction registry-only audit]",
+        auditError,
+      );
+    }
+
+    revalidateAdminAccessPaths();
+
+    redirect(
+      accessCenterUrl(locale, {
+        access_saved: "1",
+      }),
+    );
+  }
+
   const { error: deleteError } =
     await adminClient
       .from("user_roles")
