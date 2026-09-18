@@ -1361,3 +1361,27 @@ test("authenticated admin identity-gate failures are audited and surfaced", asyn
     "access center must surface and link to recent invalid admin identity attempts",
   );
 });
+
+
+test("access center shows a 24-hour security health summary", async () => {
+  const page = await source(
+    "app/admin/admins/page.tsx",
+  );
+
+  assert.equal(
+    page.includes(
+      "securityAlerts24h",
+    ) &&
+      page.includes(
+        "24h security alerts",
+      ) &&
+      page.includes(
+        "blockedIdentityGateAttempts24h",
+      ) &&
+      page.includes(
+        "failedMfaAttempts24h",
+      ),
+    true,
+    "access center must aggregate recent access, MFA, and identity-gate security signals",
+  );
+});
