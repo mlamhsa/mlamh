@@ -1158,11 +1158,33 @@ export async function createCastingOpportunityFromBriefAction(formData: FormData
 }
 
 export async function addCastingShortlistAction(formData: FormData) {
-  await requireAdminAccess();
+  const adminUser =
+    await requireAdminAccess();
   const projectId = toPositiveInt(formData.get("project_id"));
   const applicationId = toPositiveInt(formData.get("application_id"));
   const roleId = toPositiveInt(formData.get("casting_role_id"));
-  if (!projectId || !applicationId) return;
+
+  if (!projectId || !applicationId) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "add_casting_shortlist",
+      outcome: "blocked",
+      target: EVENT_TARGETS.CASTING_SHORTLIST,
+      targetId: "invalid-input",
+      reason: "invalid_shortlist_input",
+      metadata: {
+        casting_project_id:
+          projectId,
+        application_id:
+          applicationId,
+        casting_role_id:
+          roleId,
+      },
+    });
+
+    return;
+  }
 
   const adminClient = createAdminClient();
   const { data: application } = await adminClient
@@ -1170,14 +1192,50 @@ export async function addCastingShortlistAction(formData: FormData) {
     .select("id,opportunity_id")
     .eq("id", applicationId)
     .maybeSingle();
-  if (!application) return;
+  if (!application) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "add_casting_shortlist",
+      outcome: "failed",
+      target: EVENT_TARGETS.CASTING_SHORTLIST,
+      targetId: "application-not-found",
+      reason: "application_not_found",
+      metadata: {
+        casting_project_id:
+          projectId,
+        application_id:
+          applicationId,
+      },
+    });
+
+    return;
+  }
 
   const { data: project } = await adminClient
     .from("casting_projects")
     .select("opportunity_id")
     .eq("id", projectId)
     .maybeSingle();
-  if (!project) return;
+  if (!project) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "add_casting_shortlist",
+      outcome: "failed",
+      target: EVENT_TARGETS.CASTING_SHORTLIST,
+      targetId: "project-not-found",
+      reason: "casting_project_not_found",
+      metadata: {
+        casting_project_id:
+          projectId,
+        application_id:
+          applicationId,
+      },
+    });
+
+    return;
+  }
 
   let validOpportunity = Boolean(
     project.opportunity_id && Number(application.opportunity_id) === Number(project.opportunity_id),
@@ -1190,13 +1248,55 @@ export async function addCastingShortlistAction(formData: FormData) {
       .eq("id", roleId)
       .eq("casting_project_id", projectId)
       .maybeSingle();
-    if (!role || role.status === "cancelled") return;
+    if (!role || role.status === "cancelled") {
+      await recordAdminAction({
+        actorId: adminUser.id,
+        actorEmail: adminUser.email,
+        action: "add_casting_shortlist",
+        outcome: "blocked",
+        target: EVENT_TARGETS.CASTING_SHORTLIST,
+        targetId: "role-unavailable",
+        reason: "casting_role_unavailable",
+        metadata: {
+          casting_project_id:
+            projectId,
+          application_id:
+            applicationId,
+          casting_role_id:
+            roleId,
+        },
+      });
+
+      return;
+    }
     validOpportunity = Boolean(
       role.opportunity_id && Number(application.opportunity_id) === Number(role.opportunity_id),
     );
   }
 
-  if (!validOpportunity) return;
+  if (!validOpportunity) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "add_casting_shortlist",
+      outcome: "blocked",
+      target: EVENT_TARGETS.CASTING_SHORTLIST,
+      targetId: "opportunity-mismatch",
+      reason: "application_opportunity_mismatch",
+      metadata: {
+        casting_project_id:
+          projectId,
+        application_id:
+          applicationId,
+        casting_role_id:
+          roleId,
+        application_opportunity_id:
+          application.opportunity_id,
+      },
+    });
+
+    return;
+  }
 
   const { error } = await adminClient.from("casting_shortlist").upsert(
     {
@@ -1211,19 +1311,126 @@ export async function addCastingShortlistAction(formData: FormData) {
 
   if (error) {
     console.error("[addCastingShortlistAction]", error);
+
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "add_casting_shortlist",
+      outcome: "failed",
+      target: EVENT_TARGETS.CASTING_SHORTLIST,
+      targetId: "upsert-failed",
+      reason: "shortlist_upsert_failed",
+      metadata: {
+        casting_project_id:
+          projectId,
+        application_id:
+          applicationId,
+        casting_role_id:
+          roleId,
+      },
+    });
+
     return;
   }
+
+  await recordAdminAction({
+    actorId: adminUser.id,
+    actorEmail: adminUser.email,
+    action: "add_casting_shortlist",
+    outcome: "success",
+    target: EVENT_TARGETS.CASTING_SHORTLIST,
+    targetId: applicationId,
+    metadata: {
+      casting_project_id:
+        projectId,
+      application_id:
+        applicationId,
+      casting_role_id:
+        roleId,
+      new_status:
+        "shortlisted",
+    },
+  });
+
   revalidateCasting(projectId);
 }
 
 export async function updateCastingShortlistStatusAction(formData: FormData) {
-  await requireAdminAccess();
+  const adminUser =
+    await requireAdminAccess();
   const projectId = toPositiveInt(formData.get("project_id"));
   const shortlistId = toPositiveInt(formData.get("shortlist_id"));
   const status = stringValue(formData.get("status"));
-  if (!projectId || !shortlistId || !allowedShortlistStatuses.has(status)) return;
+  if (!projectId || !shortlistId || !allowedShortlistStatuses.has(status)) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_casting_shortlist_status",
+      outcome: "blocked",
+      target: EVENT_TARGETS.CASTING_SHORTLIST,
+      targetId:
+        shortlistId ?? "invalid-input",
+      reason: "invalid_shortlist_status_input",
+      metadata: {
+        casting_project_id:
+          projectId,
+        requested_status:
+          status || null,
+      },
+    });
+
+    return;
+  }
 
   const adminClient = createAdminClient();
+  const {
+    data: existingShortlist,
+    error: lookupError,
+  } = await adminClient
+    .from("casting_shortlist")
+    .select("id,status,application_id,casting_role_id")
+    .eq("id", shortlistId)
+    .eq("casting_project_id", projectId)
+    .maybeSingle();
+
+  if (lookupError || !existingShortlist) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_casting_shortlist_status",
+      outcome: "failed",
+      target: EVENT_TARGETS.CASTING_SHORTLIST,
+      targetId: shortlistId,
+      reason: "shortlist_not_found",
+      metadata: {
+        casting_project_id:
+          projectId,
+      },
+    });
+
+    return;
+  }
+
+  if (existingShortlist.status === status) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_casting_shortlist_status",
+      outcome: "noop",
+      target: EVENT_TARGETS.CASTING_SHORTLIST,
+      targetId: shortlistId,
+      reason: "shortlist_status_already_set",
+      metadata: {
+        casting_project_id:
+          projectId,
+        current_status:
+          existingShortlist.status,
+      },
+    });
+
+    return;
+  }
+
   const { error } = await adminClient
     .from("casting_shortlist")
     .update({ status, updated_at: new Date().toISOString() })
@@ -1232,7 +1439,48 @@ export async function updateCastingShortlistStatusAction(formData: FormData) {
 
   if (error) {
     console.error("[updateCastingShortlistStatusAction]", error);
+
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_casting_shortlist_status",
+      outcome: "failed",
+      target: EVENT_TARGETS.CASTING_SHORTLIST,
+      targetId: shortlistId,
+      reason: "shortlist_status_update_failed",
+      metadata: {
+        casting_project_id:
+          projectId,
+        previous_status:
+          existingShortlist.status,
+        requested_status:
+          status,
+      },
+    });
+
     return;
   }
+
+  await recordAdminAction({
+    actorId: adminUser.id,
+    actorEmail: adminUser.email,
+    action: "update_casting_shortlist_status",
+    outcome: "success",
+    target: EVENT_TARGETS.CASTING_SHORTLIST,
+    targetId: shortlistId,
+    metadata: {
+      casting_project_id:
+        projectId,
+      application_id:
+        existingShortlist.application_id,
+      casting_role_id:
+        existingShortlist.casting_role_id,
+      previous_status:
+        existingShortlist.status,
+      new_status:
+        status,
+    },
+  });
+
   revalidateCasting(projectId);
 }
