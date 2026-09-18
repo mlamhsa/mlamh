@@ -1310,6 +1310,16 @@ export default async function AdminUsersPage({
               ? "تغيير مستوى صلاحية «مدير أعلى» يتطلب تأكيدًا صريحًا من نافذة الحماية."
               : "Crossing the Super Admin privilege boundary requires explicit confirmation from the security dialog."
           : access_error ===
+              "sensitive_role_reason_required"
+            ? isArabic
+              ? "يلزم كتابة سبب واضح من 5 إلى 300 حرف قبل تنفيذ تغيير صلاحية حساس."
+              : "A clear 5–300 character justification is required before a sensitive role change."
+          : access_error ===
+              "revoke_reason_required"
+            ? isArabic
+              ? "يلزم كتابة سبب واضح من 5 إلى 300 حرف قبل سحب وصول المشرف."
+              : "A clear 5–300 character justification is required before revoking admin access."
+          : access_error ===
               "super_admin_change_busy"
             ? isArabic
               ? "يوجد تغيير حساس آخر على صلاحيات المدير الأعلى قيد التنفيذ. تم منع العملية مؤقتًا لحماية الوصول؛ حاول مرة أخرى بعد ثوانٍ."
