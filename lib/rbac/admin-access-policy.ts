@@ -29,3 +29,36 @@ export function isAssignableAdminRole(
     value as ActiveAdminAccessRole,
   );
 }
+
+
+export function hasConsistentActiveAdminRole(
+  registryRole: string | null | undefined,
+  assignedRoleKeys: Array<
+    string | null | undefined
+  >,
+) {
+  if (
+    !isActiveAdminAccessRole(
+      registryRole,
+    )
+  ) {
+    return false;
+  }
+
+  const normalized =
+    assignedRoleKeys.filter(
+      (
+        value,
+      ): value is string =>
+        Boolean(value),
+    );
+
+  return (
+    normalized.length === 1 &&
+    normalized[0] ===
+      registryRole &&
+    isActiveAdminAccessRole(
+      normalized[0],
+    )
+  );
+}
