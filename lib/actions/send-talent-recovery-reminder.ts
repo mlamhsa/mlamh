@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { requireAdminAccess } from "@/lib/auth/require-admin";
+import { recordAdminAction } from "@/lib/events/admin-audit";
 import { createEvent, EVENT_TARGETS, EVENT_TYPES } from "@/lib/events";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getTalentProfileReadiness } from "@/lib/talent/profile-review-readiness";
@@ -33,6 +34,17 @@ export async function sendTalentRecoveryReminderAction(
   const talentId = Number(formData.get("talent_id"));
 
   if (!Number.isInteger(talentId) || talentId <= 0) {
+    await recordAdminAction({
+      actorId: admin.id,
+      actorEmail: admin.email,
+      action:
+        "send_talent_recovery_reminder",
+      outcome: "blocked",
+      target: EVENT_TARGETS.TALENT,
+      targetId: "invalid-input",
+      reason: "invalid_talent_id",
+    });
+
     return {
       success: false,
       message:
@@ -49,6 +61,19 @@ export async function sendTalentRecoveryReminderAction(
 
   if (talentError || !talent?.user_id) {
     console.error("[sendTalentRecoveryReminderAction.talent]", talentError);
+
+    await recordAdminAction({
+      actorId: admin.id,
+      actorEmail: admin.email,
+      action:
+        "send_talent_recovery_reminder",
+      outcome: "failed",
+      target: EVENT_TARGETS.TALENT,
+      targetId: talentId,
+      reason:
+        "talent_or_linked_account_unavailable",
+    });
+
     return {
       success: false,
       message:
@@ -67,6 +92,19 @@ export async function sendTalentRecoveryReminderAction(
 
   if (profileError || !profile) {
     console.error("[sendTalentRecoveryReminderAction.profile]", profileError);
+
+    await recordAdminAction({
+      actorId: admin.id,
+      actorEmail: admin.email,
+      action:
+        "send_talent_recovery_reminder",
+      outcome: "failed",
+      target: EVENT_TARGETS.TALENT,
+      targetId: talent.id,
+      reason:
+        "talent_profile_lookup_failed",
+    });
+
     return {
       success: false,
       message:
@@ -78,6 +116,21 @@ export async function sendTalentRecoveryReminderAction(
 
   const status = String(profile.approval_status ?? "not_submitted");
   if (!["not_submitted", "changes_requested"].includes(status)) {
+    await recordAdminAction({
+      actorId: admin.id,
+      actorEmail: admin.email,
+      action:
+        "send_talent_recovery_reminder",
+      outcome: "blocked",
+      target: EVENT_TARGETS.TALENT,
+      targetId: talent.id,
+      reason:
+        "profile_state_not_eligible",
+      metadata: {
+        approval_status: status,
+      },
+    });
+
     return {
       success: false,
       message:
@@ -129,7 +182,27 @@ export async function sendTalentRecoveryReminderAction(
   });
 
   if (!result.success) {
-    return { success: false, message: result.message };
+    await recordAdminAction({
+      actorId: admin.id,
+      actorEmail: admin.email,
+      action:
+        "send_talent_recovery_reminder",
+      outcome: "failed",
+      target: EVENT_TARGETS.TALENT,
+      targetId: talent.id,
+      reason:
+        "reminder_delivery_failed",
+      metadata: {
+        recovery_kind: kind,
+        profile_completion:
+          completion,
+      },
+    });
+
+    return {
+      success: false,
+      message: result.message,
+    };
   }
 
   await createEvent({
@@ -151,6 +224,28 @@ export async function sendTalentRecoveryReminderAction(
         result.communicationLocale,
       ),
       change_reason: changeReason,
+    },
+  });
+
+  await recordAdminAction({
+    actorId: admin.id,
+    actorEmail: admin.email,
+    action:
+      "send_talent_recovery_reminder",
+    outcome: "success",
+    target: EVENT_TARGETS.TALENT,
+    targetId: talent.id,
+    metadata: {
+      communication_locale:
+        result.communicationLocale,
+      provider: result.provider,
+      recovery_kind: kind,
+      profile_completion:
+        completion,
+      missing_requirement_count:
+        missingItems.length,
+      has_change_reason:
+        Boolean(changeReason),
     },
   });
 
