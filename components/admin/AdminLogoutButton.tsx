@@ -25,6 +25,30 @@ export function AdminLogoutButton({
     const supabase =
       createBrowserSupabaseClient();
 
+    try {
+      await fetch(
+        "/api/admin/security/logout-event",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+          body: JSON.stringify({
+            outcome:
+              "requested",
+          }),
+          cache: "no-store",
+          keepalive: true,
+        },
+      );
+    } catch (auditError) {
+      console.warn(
+        "[AdminLogout audit requested]",
+        auditError,
+      );
+    }
+
     const { error } =
       await supabase.auth.signOut();
 
@@ -33,6 +57,30 @@ export function AdminLogoutButton({
         "Admin sign-out failed:",
         error,
       );
+
+      try {
+        await fetch(
+          "/api/admin/security/logout-event",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+            body: JSON.stringify({
+              outcome:
+                "failed",
+            }),
+            cache: "no-store",
+            keepalive: true,
+          },
+        );
+      } catch (auditError) {
+        console.warn(
+          "[AdminLogout audit failed]",
+          auditError,
+        );
+      }
 
       setIsSigningOut(false);
       return;
