@@ -124,18 +124,10 @@ jobs:
           xcrun simctl launch "$SIMULATOR_UDID" net.mlamh.app
           sleep 10
           xcrun simctl io "$SIMULATOR_UDID" screenshot "$RUNNER_TEMP/mlamh-normal.png"
-          python3 - <<'PY'
-          from PIL import Image, ImageChops
-          from pathlib import Path
-
-          shot = Image.open(Path.home() / "work/_temp/mlamh-normal.png").convert("RGB")
-          splash = Image.open("assets/logo.ar.png").convert("RGBA")
-          # The release smoke previously relied on console.log, which is not
-          # a reliable signal in a Release Hermes bundle. Preserve screenshot
-          # evidence and fail only if the process itself cannot stay launched.
-          print("Captured normal cold-launch screenshot:", shot.size)
-          PY
-          xcrun simctl spawn "$SIMULATOR_UDID" launchctl print system | grep -Fq 'net.mlamh.app' || true
+          test -s "$RUNNER_TEMP/mlamh-normal.png" || (echo "Cold-launch screenshot was not captured" && exit 1)
+          xcrun simctl launch "$SIMULATOR_UDID" net.mlamh.app > "$RUNNER_TEMP/mlamh-relaunch.txt"
+          cat "$RUNNER_TEMP/mlamh-relaunch.txt"
+          grep -Fq 'net.mlamh.app:' "$RUNNER_TEMP/mlamh-relaunch.txt" || (echo "App process did not remain launchable after cold start" && exit 1)
 
       - name: Verify mlamh:/// cold launch or headless consent gate
         run: |
