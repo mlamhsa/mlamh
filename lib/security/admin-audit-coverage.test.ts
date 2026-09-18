@@ -675,3 +675,51 @@ test("legacy admin role mismatch can be repaired without self-escalation", async
     "self role changes must remain blocked whenever the requested role differs from the effective RBAC role",
   );
 });
+
+
+test("legacy role registry repair does not rewrite effective RBAC assignment", async () => {
+  const actions = await source(
+    "lib/actions/admin-access-actions.ts",
+  );
+
+  const start =
+    actions.indexOf(
+      "const registryOnlySync =",
+    );
+  const end =
+    actions.indexOf(
+      "const { error: deleteError }",
+      start,
+    );
+
+  assert.ok(
+    start >= 0 &&
+      end > start,
+    "registry-only sync branch must exist before RBAC mutation",
+  );
+
+  const segment =
+    actions.slice(
+      start,
+      end,
+    );
+
+  assert.equal(
+    segment.includes(
+      '.from("admin_users")',
+    ) &&
+      segment.includes(
+        "registry_only_sync",
+      ),
+    true,
+    "registry-only sync must update and audit the admin registry",
+  );
+
+  assert.equal(
+    segment.includes(
+      '.from("user_roles")',
+    ),
+    false,
+    "registry-only sync must not rewrite the effective RBAC assignment",
+  );
+});
