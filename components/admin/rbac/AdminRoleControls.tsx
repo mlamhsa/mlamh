@@ -92,6 +92,7 @@ export function AdminRoleControls({
   canManageRoles,
   pendingInvite,
   roleMismatch,
+  registryActive,
 }: {
   adminId: string;
   currentRoleKey: string;
@@ -102,6 +103,7 @@ export function AdminRoleControls({
   canManageRoles: boolean;
   pendingInvite: boolean;
   roleMismatch: boolean;
+  registryActive: boolean;
 }) {
   const isArabic =
     locale === "ar";
@@ -135,7 +137,9 @@ export function AdminRoleControls({
   const crossesSuperAdminBoundary =
     Boolean(selectedRole) &&
     crossesSuperAdminBoundaryPolicy(
-      currentRoleKey,
+      registryActive
+        ? currentRoleKey
+        : null,
       selectedRole,
     );
 
