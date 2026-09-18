@@ -553,6 +553,26 @@ import {
         return isArabic
           ? "فرصة"
           : "Opportunity";
+
+      case "application":
+        return isArabic
+          ? "طلب تقديم"
+          : "Application";
+
+      case "claim_request":
+        return isArabic
+          ? "طلب مطالبة"
+          : "Claim request";
+
+      case "support":
+        return isArabic
+          ? "تذكرة دعم"
+          : "Support ticket";
+
+      case "message":
+        return isArabic
+          ? "رسالة"
+          : "Message";
   
       default:
         return targetType;
