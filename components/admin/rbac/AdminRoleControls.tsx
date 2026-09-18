@@ -90,6 +90,7 @@ export function AdminRoleControls({
   canManage,
   canManageRoles,
   pendingInvite,
+  roleMismatch,
 }: {
   adminId: string;
   currentRoleKey: string;
@@ -99,6 +100,7 @@ export function AdminRoleControls({
   canManage: boolean;
   canManageRoles: boolean;
   pendingInvite: boolean;
+  roleMismatch: boolean;
 }) {
   const isArabic =
     locale === "ar";
@@ -127,13 +129,70 @@ export function AdminRoleControls({
     );
   }
 
-  if (isSelf) {
+  if (
+    isSelf &&
+    !roleMismatch
+  ) {
     return (
       <span className="inline-flex items-center rounded-full border border-gold/15 bg-gold/[0.045] px-3 py-1.5 text-[10px] text-gold/70">
         {isArabic
           ? "حسابك — محمي من التعديل الذاتي"
           : "Your account — self-change protected"}
       </span>
+    );
+  }
+
+  if (
+    isSelf &&
+    roleMismatch
+  ) {
+    if (!canManageRoles) {
+      return (
+        <span className="inline-flex max-w-[360px] items-center rounded-xl border border-orange-400/15 bg-orange-400/[0.04] px-3 py-2 text-[10px] leading-5 text-orange-100/70">
+          {isArabic
+            ? "يوجد عدم تطابق في سجل دور حسابك. يلزم مدير أعلى آخر يملك صلاحية إدارة الأدوار لإصلاحه."
+            : "Your role registry is inconsistent. Another Super Admin with roles.manage must repair it."}
+        </span>
+      );
+    }
+
+    return (
+      <form
+        action={
+          updateAdminRoleAction
+        }
+        className="flex w-full max-w-[360px] flex-col items-end gap-2"
+      >
+        <input
+          type="hidden"
+          name="admin_id"
+          value={adminId}
+        />
+        <input
+          type="hidden"
+          name="locale"
+          value={locale}
+        />
+        <input
+          type="hidden"
+          name="role_key"
+          value={currentRoleKey}
+        />
+
+        <p className="w-full text-[10px] leading-5 text-orange-100/65">
+          {isArabic
+            ? "سيتم مزامنة سجل الإدارة مع دور RBAC الفعلي دون تغيير صلاحياتك الحالية."
+            : "This synchronizes the admin registry with your effective RBAC role without changing current permissions."}
+        </p>
+
+        <SubmitButton
+          label={
+            isArabic
+              ? "مزامنة سجل الدور"
+              : "Sync role registry"
+          }
+        />
+      </form>
     );
   }
 
