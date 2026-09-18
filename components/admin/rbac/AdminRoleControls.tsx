@@ -15,6 +15,7 @@ import {
   revokeAdminAccessAction,
   updateAdminRoleAction,
 } from "@/lib/actions/admin-access-actions";
+import { crossesSuperAdminBoundary as crossesSuperAdminBoundaryPolicy } from "@/lib/rbac/admin-access-policy";
 
 type RoleOption = {
   key: string;
@@ -133,14 +134,10 @@ export function AdminRoleControls({
 
   const crossesSuperAdminBoundary =
     Boolean(selectedRole) &&
-    (
-      selectedRole ===
-        "super_admin"
-    ) !==
-      (
-        currentRoleKey ===
-        "super_admin"
-      );
+    crossesSuperAdminBoundaryPolicy(
+      currentRoleKey,
+      selectedRole,
+    );
 
   if (!canManage) {
     return (
