@@ -433,3 +433,78 @@ test("admin navigation hides sensitive destinations without admins view permissi
     "admin layout must pass effective permissions into desktop and mobile navigation",
   );
 });
+
+
+test("admin role changes require roles manage permission", async () => {
+  const actions = await source(
+    "lib/actions/admin-access-actions.ts",
+  );
+
+  const start =
+    actions.indexOf(
+      "export async function updateAdminRoleAction",
+    );
+  const end =
+    actions.indexOf(
+      "export async function revokeAdminAccessAction",
+      start,
+    );
+
+  assert.ok(
+    start >= 0 &&
+      end > start,
+    "updateAdminRoleAction must exist",
+  );
+
+  const segment =
+    actions.slice(
+      start,
+      end,
+    );
+
+  assert.equal(
+    segment.includes(
+      "PERMISSIONS.ADMINS_MANAGE",
+    ) &&
+      segment.includes(
+        "PERMISSIONS.ROLES_MANAGE",
+      ) &&
+      segment.includes(
+        "roles_manage_permission_required",
+      ),
+    true,
+    "admin role changes must require and audit both admin and role management permissions",
+  );
+});
+
+test("access center separates roles view from admin view", async () => {
+  const page = await source(
+    "app/admin/admins/page.tsx",
+  );
+
+  assert.equal(
+    page.includes(
+      "PERMISSIONS.ROLES_VIEW",
+    ) &&
+      page.includes(
+        "PERMISSIONS.ROLES_MANAGE",
+      ) &&
+      page.includes(
+        "canManageRoles",
+      ),
+    true,
+    "access center must keep role-model visibility and role mutation permissions explicit",
+  );
+
+  const controls = await source(
+    "components/admin/rbac/AdminRoleControls.tsx",
+  );
+
+  assert.equal(
+    controls.includes(
+      "canManageRoles",
+    ),
+    true,
+    "role controls must distinguish role changes from other admin access actions",
+  );
+});
