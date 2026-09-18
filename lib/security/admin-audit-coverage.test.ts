@@ -1225,3 +1225,25 @@ test("access center surfaces dormant active admin accounts", async () => {
     "active admin accounts with 90-day sign-in inactivity must be visible and filterable",
   );
 });
+
+
+test("access-center recent security timeline includes generic admin audit outcomes", async () => {
+  const page = await source(
+    "app/admin/admins/page.tsx",
+  );
+
+  for (const eventType of [
+    "admin_action_success",
+    "admin_action_blocked",
+    "admin_action_failed",
+    "admin_action_noop",
+  ]) {
+    assert.equal(
+      page.includes(
+        `"${eventType}"`,
+      ),
+      true,
+      `recent admin access timeline must include ${eventType}`,
+    );
+  }
+});
