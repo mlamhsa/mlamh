@@ -378,7 +378,8 @@ export default async function AdminUsersPage({
   const statusFilter =
     status === "active" ||
     status === "pending" ||
-    status === "revoked"
+    status === "revoked" ||
+    status === "inconsistent"
       ? status
       : "all";
   const adminClient = createAdminClient();
@@ -945,6 +946,13 @@ export default async function AdminUsersPage({
         );
       }
 
+      if (
+        statusFilter ===
+        "inconsistent"
+      ) {
+        return state.hasInconsistentRole;
+      }
+
       return (
         !state.hasActiveRole &&
         !state.hasInconsistentRole
@@ -1394,6 +1402,11 @@ export default async function AdminUsersPage({
                   {isArabic
                     ? "الوصول مسحوب"
                     : "Revoked"}
+                </option>
+                <option value="inconsistent">
+                  {isArabic
+                    ? "عدم تطابق في الوصول"
+                    : "Access mismatch"}
                 </option>
               </select>
 
