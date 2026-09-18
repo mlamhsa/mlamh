@@ -499,11 +499,12 @@ export default async function AdminUsersPage({
       .limit(8),
     adminClient
       .from("events")
-      .select("event_type")
+      .select("event_type, metadata")
       .eq("target_type", "admin")
       .in("event_type", [
         "admin_access_action_blocked",
         "admin_access_action_failed",
+        "admin_action_failed",
       ])
       .gte(
         "created_at",
@@ -699,6 +700,12 @@ export default async function AdminUsersPage({
       : ((accessHealthEventsResult.data ??
           []) as {
           event_type: string;
+          metadata:
+            | Record<
+                string,
+                unknown
+              >
+            | null;
         }[]);
 
   const failedAccessActions24h =
@@ -713,6 +720,15 @@ export default async function AdminUsersPage({
       (event) =>
         event.event_type ===
         "admin_access_action_blocked",
+    ).length;
+
+  const failedMfaAttempts24h =
+    accessHealthEvents.filter(
+      (event) =>
+        event.event_type ===
+          "admin_action_failed" &&
+        event.metadata?.action ===
+          "admin_mfa_verification_failed",
     ).length;
 
   const accessHealthSummaryUnavailable =
@@ -1301,6 +1317,24 @@ export default async function AdminUsersPage({
                 {isArabic
                   ? "راجع الدعوات القديمة: أعد إرسال رابط التفعيل إذا كان الوصول ما زال مطلوبًا، أو ألغِ الدعوة لتقليل الحسابات غير المفعلة."
                   : "Review stale invitations: resend activation if access is still needed, or cancel the invitation to reduce unactivated admin identities."}
+              </p>
+            </div>
+          </div>
+        ) : null}
+
+        {failedMfaAttempts24h > 0 ? (
+          <div className="mb-5 flex items-start gap-3 rounded-2xl border border-red-400/20 bg-red-400/[0.06] px-4 py-3 text-sm text-red-100">
+            <LockKeyhole className="mt-0.5 h-4 w-4 shrink-0" />
+            <div>
+              <p className="font-medium">
+                {isArabic
+                  ? `تم تسجيل ${failedMfaAttempts24h} محاولة تحقق ثنائي فاشلة خلال آخر 24 ساعة`
+                  : `${failedMfaAttempts24h} failed MFA verification attempt${failedMfaAttempts24h === 1 ? "" : "s"} were recorded in the last 24 hours`}
+              </p>
+              <p className="mt-1 text-xs leading-6 text-red-100/65">
+                {isArabic
+                  ? "راجع سجل العمليات وهوية المشرف المستهدف قبل إجراء أي تغيير حساس. لا يتم عرض رمز التحقق أو المفتاح السري في السجل."
+                  : "Review the audit log and affected admin identity before making sensitive changes. Verification codes and MFA secrets are never stored in the audit trail."}
               </p>
             </div>
           </div>
