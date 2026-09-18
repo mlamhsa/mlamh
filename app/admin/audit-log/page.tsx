@@ -412,6 +412,24 @@ import {
                   ? "الرسائل"
                   : "Messages"}
               </option>
+
+              <option value="casting_project">
+                {isArabic
+                  ? "مشاريع الكاستينغ"
+                  : "Casting projects"}
+              </option>
+
+              <option value="payment">
+                {isArabic
+                  ? "المدفوعات"
+                  : "Payments"}
+              </option>
+
+              <option value="notification">
+                {isArabic
+                  ? "الإشعارات"
+                  : "Notifications"}
+              </option>
             </select>
   
             <select
