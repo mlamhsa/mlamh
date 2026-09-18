@@ -5,7 +5,10 @@ import { redirect } from "next/navigation";
 
 import { translateOpportunityContent } from "@/lib/ai/translate-opportunity";
 import { createAdminOpportunityAction } from "@/lib/actions/create-admin-opportunity";
+import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { SAUDI_CITIES } from "@/lib/data/saudi-cities";
+import { recordAdminAction } from "@/lib/events/admin-audit";
+import { EVENT_TARGETS } from "@/lib/events/event-targets";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 function stringValue(value: FormDataEntryValue | null) {
@@ -23,10 +26,23 @@ function numberValue(value: FormDataEntryValue | null) {
 export async function createAdminLocalizedOpportunityFormAction(
   formData: FormData,
 ) {
+  const adminUser =
+    await requireAdminAccess();
+
   const titleAr = stringValue(formData.get("title"));
   const descriptionAr = stringValue(formData.get("description"));
 
   if (!titleAr || !descriptionAr) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "create_localized_opportunity",
+      outcome: "blocked",
+      target: EVENT_TARGETS.OPPORTUNITY,
+      targetId: "invalid-input",
+      reason: "source_content_required",
+    });
+
     throw new Error("عنوان ووصف الفرصة مطلوبان.");
   }
 
@@ -45,28 +61,119 @@ export async function createAdminLocalizedOpportunityFormAction(
       .single();
 
     if (briefError || !brief) {
+      await recordAdminAction({
+        actorId: adminUser.id,
+        actorEmail: adminUser.email,
+        action: "create_localized_opportunity",
+        outcome: "failed",
+        target: EVENT_TARGETS.OPPORTUNITY,
+        targetId: "brief-lookup-failed",
+        reason: "marketing_brief_not_found",
+        metadata: {
+          marketing_brief_id:
+            marketingBriefId,
+        },
+      });
+
       throw new Error("تعذر العثور على البريف المرتبط.");
     }
+
     if (brief.status !== "complete") {
+      await recordAdminAction({
+        actorId: adminUser.id,
+        actorEmail: adminUser.email,
+        action: "create_localized_opportunity",
+        outcome: "blocked",
+        target: EVENT_TARGETS.OPPORTUNITY,
+        targetId: "invalid-input",
+        reason: "marketing_brief_not_complete",
+        metadata: {
+          marketing_brief_id:
+            marketingBriefId,
+          brief_status:
+            brief.status,
+        },
+      });
+
       throw new Error("يجب أن يكون البريف مكتملًا قبل تحويله إلى فرصة.");
     }
+
     if (brief.opportunity_id) {
+      await recordAdminAction({
+        actorId: adminUser.id,
+        actorEmail: adminUser.email,
+        action: "create_localized_opportunity",
+        outcome: "blocked",
+        target: EVENT_TARGETS.OPPORTUNITY,
+        targetId:
+          brief.opportunity_id,
+        reason: "marketing_brief_already_converted",
+        metadata: {
+          marketing_brief_id:
+            marketingBriefId,
+        },
+      });
+
       throw new Error("هذا البريف مرتبط بفرصة بالفعل.");
     }
 
     linkedLeadId = typeof brief.lead_id === "number" ? brief.lead_id : null;
   }
 
-  const translated = await translateOpportunityContent({
-    sourceLanguage: "ar",
-    title: titleAr,
-    description: descriptionAr,
-  });
+  let translated: Awaited<
+    ReturnType<
+      typeof translateOpportunityContent
+    >
+  >;
+
+  try {
+    translated =
+      await translateOpportunityContent({
+        sourceLanguage: "ar",
+        title: titleAr,
+        description:
+          descriptionAr,
+      });
+  } catch (error) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "create_localized_opportunity",
+      outcome: "failed",
+      target: EVENT_TARGETS.OPPORTUNITY,
+      targetId: "translation-failed",
+      reason: "automatic_translation_failed",
+      metadata: {
+        title:
+          titleAr,
+        marketing_brief_id:
+          marketingBriefId,
+      },
+    });
+
+    throw error;
+  }
 
   const titleEn = translated.title.trim();
   const descriptionEn = translated.description.trim();
 
   if (!titleEn || !descriptionEn) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "create_localized_opportunity",
+      outcome: "failed",
+      target: EVENT_TARGETS.OPPORTUNITY,
+      targetId: "translation-failed",
+      reason: "automatic_translation_empty",
+      metadata: {
+        title:
+          titleAr,
+        marketing_brief_id:
+          marketingBriefId,
+      },
+    });
+
     throw new Error("تعذر إنشاء النسخة الإنجليزية للفرصة تلقائيًا. حاول مرة أخرى.");
   }
 
@@ -91,6 +198,16 @@ export async function createAdminLocalizedOpportunityFormAction(
 
   if (sourceType === "client" && publicSourceMode === "client_name") {
     if (!clientCompanyName) {
+      await recordAdminAction({
+        actorId: adminUser.id,
+        actorEmail: adminUser.email,
+        action: "create_localized_opportunity",
+        outcome: "blocked",
+        target: EVENT_TARGETS.OPPORTUNITY,
+        targetId: "invalid-input",
+        reason: "client_company_name_required",
+      });
+
       throw new Error("اسم الجهة أو العميل مطلوب.");
     }
     publicCompanyName = clientCompanyName;
@@ -105,6 +222,20 @@ export async function createAdminLocalizedOpportunityFormAction(
   const city = SAUDI_CITIES.find((item) => item.slug === citySlug) ?? null;
 
   if (!city) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "create_localized_opportunity",
+      outcome: "blocked",
+      target: EVENT_TARGETS.OPPORTUNITY,
+      targetId: "invalid-input",
+      reason: "invalid_city",
+      metadata: {
+        city_slug:
+          citySlug || null,
+      },
+    });
+
     throw new Error("يرجى اختيار مدينة صحيحة.");
   }
 
@@ -123,6 +254,16 @@ export async function createAdminLocalizedOpportunityFormAction(
       : null;
 
   if (compensationType === "fixed" && !budget) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "create_localized_opportunity",
+      outcome: "blocked",
+      target: EVENT_TARGETS.OPPORTUNITY,
+      targetId: "invalid-input",
+      reason: "fixed_budget_required",
+    });
+
     throw new Error("أدخل مبلغ الفرصة.");
   }
 
@@ -184,6 +325,20 @@ export async function createAdminLocalizedOpportunityFormAction(
   const opportunityId = result?.opportunity?.id;
 
   if (!opportunityId) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "create_localized_opportunity",
+      outcome: "failed",
+      target: EVENT_TARGETS.OPPORTUNITY,
+      targetId: "creation-failed",
+      reason: "base_opportunity_creation_failed",
+      metadata: {
+        marketing_brief_id:
+          marketingBriefId,
+      },
+    });
+
     throw new Error("تعذر إنشاء الفرصة.");
   }
 
@@ -199,6 +354,22 @@ export async function createAdminLocalizedOpportunityFormAction(
     .eq("id", opportunityId);
 
   if (error) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "localize_admin_opportunity",
+      outcome: "failed",
+      target: EVENT_TARGETS.OPPORTUNITY,
+      targetId: opportunityId,
+      reason: "localized_fields_update_failed",
+      metadata: {
+        marketing_brief_id:
+          marketingBriefId,
+        requested_publish:
+          publishNow,
+      },
+    });
+
     throw new Error(
       `[createAdminLocalizedOpportunityFormAction] ${error.message}`,
     );
@@ -218,6 +389,20 @@ export async function createAdminLocalizedOpportunityFormAction(
       .is("opportunity_id", null);
 
     if (briefLinkError) {
+      await recordAdminAction({
+        actorId: adminUser.id,
+        actorEmail: adminUser.email,
+        action: "link_marketing_brief_to_opportunity",
+        outcome: "failed",
+        target: EVENT_TARGETS.OPPORTUNITY,
+        targetId: opportunityId,
+        reason: "marketing_brief_link_failed",
+        metadata: {
+          marketing_brief_id:
+            marketingBriefId,
+        },
+      });
+
       throw new Error(`[link marketing brief] ${briefLinkError.message}`);
     }
 
@@ -233,10 +418,47 @@ export async function createAdminLocalizedOpportunityFormAction(
         .eq("id", linkedLeadId);
 
       if (leadError) {
+        await recordAdminAction({
+          actorId: adminUser.id,
+          actorEmail: adminUser.email,
+          action: "advance_marketing_lead_after_opportunity",
+          outcome: "failed",
+          target: EVENT_TARGETS.OPPORTUNITY,
+          targetId: opportunityId,
+          reason: "marketing_lead_advance_failed",
+          metadata: {
+            marketing_brief_id:
+              marketingBriefId,
+            marketing_lead_id:
+              linkedLeadId,
+          },
+        });
+
         throw new Error(`[advance marketing lead] ${leadError.message}`);
       }
     }
   }
+
+  await recordAdminAction({
+    actorId: adminUser.id,
+    actorEmail: adminUser.email,
+    action: "create_localized_opportunity",
+    outcome: "success",
+    target: EVENT_TARGETS.OPPORTUNITY,
+    targetId: opportunityId,
+    metadata: {
+      source_language: "ar",
+      translated_to: "en",
+      status:
+        publishNow
+          ? "published"
+          : "draft",
+      marketing_brief_id:
+        marketingBriefId,
+      marketing_lead_id:
+        linkedLeadId,
+    },
+  });
 
   revalidatePath("/admin/opportunities");
   revalidatePath("/admin/marketing/briefs");
