@@ -385,11 +385,24 @@ export default async function AdminUsersPage({
         24 * 60 * 60 * 1000,
     ).toISOString();
 
-  const canManage =
-    await userHasPermission(
+  const [
+    canManage,
+    canManageRoles,
+    canViewRoles,
+  ] = await Promise.all([
+    userHasPermission(
       currentAdmin.id,
       PERMISSIONS.ADMINS_MANAGE,
-    );
+    ),
+    userHasPermission(
+      currentAdmin.id,
+      PERMISSIONS.ROLES_MANAGE,
+    ),
+    userHasPermission(
+      currentAdmin.id,
+      PERMISSIONS.ROLES_VIEW,
+    ),
+  ]);
 
   const [
     adminsResult,
@@ -550,6 +563,11 @@ export default async function AdminUsersPage({
 
   const effectiveCanManage =
     canManage &&
+    rbacDataHealthy;
+
+  const effectiveCanManageRoles =
+    canManageRoles &&
+    canViewRoles &&
     rbacDataHealthy;
 
   const admins =
@@ -991,6 +1009,11 @@ export default async function AdminUsersPage({
               ? "تعذر العثور على حساب الإدارة المطلوب."
               : "The requested admin account could not be found."
             : access_error ===
+                  "role_permission_denied"
+              ? isArabic
+                ? "تغيير أدوار المشرفين يتطلب صلاحية إدارة الأدوار."
+                : "Changing admin roles requires the roles.manage permission."
+              : access_error ===
                   "role_not_found"
               ? isArabic
                 ? "الدور المحدد غير متاح."
@@ -1586,6 +1609,10 @@ export default async function AdminUsersPage({
                           effectiveCanManage &&
                           accessStateKnown
                         }
+                        canManageRoles={
+                          effectiveCanManageRoles &&
+                          accessStateKnown
+                        }
                         pendingInvite={
                           pendingInvite
                         }
@@ -1619,7 +1646,13 @@ export default async function AdminUsersPage({
             </div>
           </div>
 
-          {roles.length === 0 ? (
+          {!canViewRoles ? (
+            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6 text-sm text-white/40">
+              {isArabic
+                ? "تفاصيل نموذج الأدوار تتطلب صلاحية عرض الأدوار."
+                : "Role-model details require the roles.view permission."}
+            </div>
+          ) : roles.length === 0 ? (
             <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6 text-sm text-white/40">
               {isArabic
                 ? "تعذر تحميل الأدوار حاليًا."
@@ -1774,7 +1807,16 @@ export default async function AdminUsersPage({
             </p>
           </div>
 
-          {rolesResult.error ||
+          {!canViewRoles ? (
+            <div className="flex items-start gap-3 p-6 text-sm text-white/45">
+              <LockKeyhole className="mt-0.5 h-4 w-4 shrink-0 text-white/30" />
+              <p>
+                {isArabic
+                  ? "عرض مصفوفة الصلاحيات يتطلب صلاحية عرض الأدوار."
+                  : "Viewing the permission matrix requires the roles.view permission."}
+              </p>
+            </div>
+          ) : rolesResult.error ||
           permissionsResult.error ||
           rolePermissionsResult.error ? (
             <div className="flex items-start gap-3 p-6 text-sm text-amber-100/75">
