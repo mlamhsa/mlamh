@@ -20,7 +20,10 @@ import {
   AdminPageHeader,
 } from "@/components/admin/ui";
 import { requirePermission } from "@/lib/rbac/guards";
-import { isAssignableAdminRole } from "@/lib/rbac/admin-access-policy";
+import {
+  hasConsistentActiveAdminRole,
+  isAssignableAdminRole,
+} from "@/lib/rbac/admin-access-policy";
 import { userHasPermission } from "@/lib/rbac/helpers";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -782,8 +785,25 @@ export default async function AdminUsersPage({
           );
 
       const hasActiveRole =
-        assignedRoleKeys.some(
-          isAssignableAdminRole,
+        hasConsistentActiveAdminRole(
+          admin.role,
+          assignedRoleKeys,
+        );
+
+      const hasInconsistentRole =
+        (
+          isAssignableAdminRole(
+            admin.role,
+          ) &&
+          !hasActiveRole
+        ) ||
+        (
+          !isAssignableAdminRole(
+            admin.role,
+          ) &&
+          assignedRoleKeys.some(
+            isAssignableAdminRole,
+          )
         );
 
       const authState =
@@ -811,6 +831,10 @@ export default async function AdminUsersPage({
           statusKnown
             ? hasActiveRole
             : false,
+        hasInconsistentRole:
+          statusKnown
+            ? hasInconsistentRole
+            : false,
         pendingInvite,
         statusKnown,
       };
@@ -836,7 +860,15 @@ export default async function AdminUsersPage({
     adminAccessStates.filter(
       (state) =>
         state.statusKnown &&
-        !state.hasActiveRole,
+        !state.hasActiveRole &&
+        !state.hasInconsistentRole,
+    ).length;
+
+  const inconsistentAdminCount =
+    adminAccessStates.filter(
+      (state) =>
+        state.statusKnown &&
+        state.hasInconsistentRole,
     ).length;
 
   const unknownAdminCount =
@@ -913,7 +945,10 @@ export default async function AdminUsersPage({
         );
       }
 
-      return !state.hasActiveRole;
+      return (
+        !state.hasActiveRole &&
+        !state.hasInconsistentRole
+      );
     });
 
   const roleOptions = roles
@@ -1204,13 +1239,9 @@ export default async function AdminUsersPage({
               {admins.length}
             </p>
             <p className="mt-1 text-[11px] text-white/30">
-              {unknownAdminCount > 0
-                ? isArabic
-                  ? `${activeAdminCount} نشط · ${pendingAdminCount} دعوة معلقة · ${revokedAdminCount} مسحوب · ${unknownAdminCount} غير متحقق`
-                  : `${activeAdminCount} active · ${pendingAdminCount} pending · ${revokedAdminCount} revoked · ${unknownAdminCount} unverified`
-                : isArabic
-                  ? `${activeAdminCount} نشط · ${pendingAdminCount} دعوة معلقة · ${revokedAdminCount} مسحوب`
-                  : `${activeAdminCount} active · ${pendingAdminCount} pending · ${revokedAdminCount} revoked`}
+              {isArabic
+                ? `${activeAdminCount} نشط · ${pendingAdminCount} دعوة معلقة · ${revokedAdminCount} مسحوب${inconsistentAdminCount > 0 ? ` · ${inconsistentAdminCount} غير متطابق` : ""}${unknownAdminCount > 0 ? ` · ${unknownAdminCount} غير متحقق` : ""}`
+                : `${activeAdminCount} active · ${pendingAdminCount} pending · ${revokedAdminCount} revoked${inconsistentAdminCount > 0 ? ` · ${inconsistentAdminCount} inconsistent` : ""}${unknownAdminCount > 0 ? ` · ${unknownAdminCount} unverified` : ""}`}
             </p>
           </div>
 
@@ -1417,8 +1448,25 @@ export default async function AdminUsersPage({
                     mappedRoleKeys;
 
                   const rawHasActiveAccess =
-                    effectiveRoleKeys.some(
-                      isAssignableAdminRole,
+                    hasConsistentActiveAdminRole(
+                      admin.role,
+                      effectiveRoleKeys,
+                    );
+
+                  const hasInconsistentAccess =
+                    (
+                      isAssignableAdminRole(
+                        admin.role,
+                      ) &&
+                      !rawHasActiveAccess
+                    ) ||
+                    (
+                      !isAssignableAdminRole(
+                        admin.role,
+                      ) &&
+                      effectiveRoleKeys.some(
+                        isAssignableAdminRole,
+                      )
                     );
 
                   const authState =
@@ -1471,13 +1519,17 @@ export default async function AdminUsersPage({
                             <span className={`inline-flex items-center gap-1.5 ${
                               !accessStateKnown
                                 ? "text-amber-200/70"
-                                : pendingInvite
-                                  ? "text-amber-200/70"
-                                  : hasActiveAccess
-                                    ? "text-emerald-300/75"
-                                    : "text-red-200/55"
+                                : hasInconsistentAccess
+                                  ? "text-orange-200/80"
+                                  : pendingInvite
+                                    ? "text-amber-200/70"
+                                    : hasActiveAccess
+                                      ? "text-emerald-300/75"
+                                      : "text-red-200/55"
                             }`}>
                               {!accessStateKnown ? (
+                                <AlertTriangle className="h-3 w-3" />
+                              ) : hasInconsistentAccess ? (
                                 <AlertTriangle className="h-3 w-3" />
                               ) : pendingInvite ? (
                                 <History className="h-3 w-3" />
@@ -1490,7 +1542,11 @@ export default async function AdminUsersPage({
                                 ? isArabic
                                   ? "تعذر التحقق من حالة الوصول"
                                   : "Access state unavailable"
-                                : pendingInvite
+                                : hasInconsistentAccess
+                                  ? isArabic
+                                    ? "عدم تطابق في صلاحية الوصول"
+                                    : "Access-role mismatch"
+                                  : pendingInvite
                                   ? isArabic
                                     ? "دعوة معلقة"
                                     : "Invite pending"
