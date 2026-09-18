@@ -1077,3 +1077,27 @@ test("access center surfaces Super Admin redundancy health", async () => {
     "access center must surface effective Super Admin redundancy and lockout risk",
   );
 });
+
+
+test("access center surfaces stale pending admin invitations", async () => {
+  const page = await source(
+    "app/admin/admins/page.tsx",
+  );
+
+  assert.equal(
+    page.includes(
+      "STALE_ADMIN_INVITE_MS",
+    ) &&
+      page.includes(
+        "staleInviteCount",
+      ) &&
+      page.includes(
+        'value="stale"',
+      ) &&
+      page.includes(
+        "Stale pending invite",
+      ),
+    true,
+    "pending admin invitations older than the operational threshold must be visible and filterable",
+  );
+});
