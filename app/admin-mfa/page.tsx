@@ -1,75 +1,14 @@
 import { redirect } from "next/navigation";
 
 import { AdminMfaGate } from "@/components/admin/security/AdminMfaGate";
-import { hasValidActiveAdminAssignment } from "@/lib/rbac/admin-access-policy";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { requireAdminIdentity } from "@/lib/auth/require-admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export default async function AdminMfaPage() {
-  const authClient = await createServerSupabaseClient();
-  const {
-    data: { user },
-    error: userError,
-  } = await authClient.auth.getUser();
+  await requireAdminIdentity();
 
-  if (userError || !user) {
-    redirect("/ar/login");
-  }
-
-  const adminClient = createAdminClient();
-
-  const [
-    { data: profile, error: profileError },
-    { data: adminRegistry, error: adminRegistryError },
-    { data: roleAssignments, error: roleAssignmentsError },
-  ] = await Promise.all([
-    adminClient
-      .from("profiles")
-      .select("account_type")
-      .eq("user_id", user.id)
-      .maybeSingle(),
-    adminClient
-      .from("admin_users")
-      .select("id, role")
-      .eq("id", user.id)
-      .maybeSingle(),
-    adminClient
-      .from("user_roles")
-      .select(`
-        role_id,
-        roles (
-          key
-        )
-      `)
-      .eq("user_id", user.id),
-  ]);
-
-  if (
-    profileError ||
-    adminRegistryError ||
-    roleAssignmentsError ||
-    !profile ||
-    profile.account_type !== "admin" ||
-    !adminRegistry ||
-    !roleAssignments ||
-    !hasValidActiveAdminAssignment(
-      adminRegistry.role,
-      roleAssignments.map(
-        (assignment) => {
-          const role =
-            Array.isArray(
-              assignment.roles,
-            )
-              ? assignment.roles[0]
-              : assignment.roles;
-
-          return role?.key;
-        },
-      ),
-    )
-  ) {
-    redirect("/ar/login");
-  }
+  const authClient =
+    await createServerSupabaseClient();
 
   const assurance = await authClient.auth.mfa.getAuthenticatorAssuranceLevel();
   if (!assurance.error && assurance.data.currentLevel === "aal2") {
