@@ -1,23 +1,12 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import {
+  readFile,
+  readdir,
+} from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 
-const ACTION_FILES = [
-  "lib/actions/admin-access-actions.ts",
-  "lib/actions/admin-application-actions.ts",
-  "lib/actions/admin-casting-commercial.ts",
-  "lib/actions/admin-casting-files.ts",
-  "lib/actions/admin-casting.ts",
-  "lib/actions/admin-claim-requests.ts",
-  "lib/actions/admin-managed-booking.ts",
-  "lib/actions/admin-managed-invitations.ts",
-  "lib/actions/admin-message-actions.ts",
-  "lib/actions/admin-notification-actions.ts",
-  "lib/actions/admin-opportunity-actions.ts",
-  "lib/actions/admin-publisher-verification.ts",
-  "lib/actions/admin-scene-actions.ts",
-  "lib/actions/admin-support-actions.ts",
+const EXTRA_SENSITIVE_ACTION_FILES = [
   "lib/actions/create-admin-opportunity.ts",
   "lib/actions/create-admin-localized-opportunity.ts",
   "lib/actions/create-admin-opportunity-auto-translate.ts",
@@ -38,8 +27,37 @@ async function source(
   );
 }
 
+async function actionFiles() {
+  const actionsDir = path.join(
+    process.cwd(),
+    "lib/actions",
+  );
+
+  const entries =
+    await readdir(actionsDir);
+
+  const discovered =
+    entries
+      .filter((name) =>
+        /^admin-.*\.ts$/.test(
+          name,
+        ),
+      )
+      .map(
+        (name) =>
+          `lib/actions/${name}`,
+      );
+
+  return Array.from(
+    new Set([
+      ...discovered,
+      ...EXTRA_SENSITIVE_ACTION_FILES,
+    ]),
+  ).sort();
+}
+
 test("sensitive admin action files keep an explicit admin authorization gate", async () => {
-  for (const file of ACTION_FILES) {
+  for (const file of await actionFiles()) {
     const text = await source(file);
 
     const authorized =
@@ -59,7 +77,7 @@ test("sensitive admin action files keep an explicit admin authorization gate", a
 });
 
 test("sensitive admin action files keep explicit audit instrumentation", async () => {
-  for (const file of ACTION_FILES) {
+  for (const file of await actionFiles()) {
     const text = await source(file);
 
     const audited =
