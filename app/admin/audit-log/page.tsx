@@ -387,6 +387,12 @@ import {
                   ? "الإدارة"
                   : "Admin"}
               </option>
+
+              <option value="auth_user">
+                {isArabic
+                  ? "حسابات المصادقة"
+                  : "Auth users"}
+              </option>
   
               <option value="talent">
                 {isArabic
