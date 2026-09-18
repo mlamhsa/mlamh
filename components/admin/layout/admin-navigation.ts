@@ -1,3 +1,5 @@
+import { PERMISSIONS, type Permission } from "@/lib/rbac/permissions";
+
 import {
   BarChart3,
   Bell,
@@ -35,6 +37,7 @@ export type AdminNavigationItem = {
   href: string;
   icon: typeof LayoutDashboard;
   badgeKey?: AdminBadgeKey;
+  requiredPermission?: Permission;
 };
 
 export type AdminNavigationGroup = {
@@ -220,6 +223,8 @@ export const adminNavigation: AdminNavigationGroup[] = [
         labelEn: "Audit Log",
         href: "/admin/audit-log",
         icon: FileClock,
+        requiredPermission:
+          PERMISSIONS.ADMINS_VIEW,
       },
     ],
   },
@@ -238,6 +243,8 @@ export const adminNavigation: AdminNavigationGroup[] = [
         labelEn: "Admins & Roles",
         href: "/admin/admins",
         icon: ShieldCheck,
+        requiredPermission:
+          PERMISSIONS.ADMINS_VIEW,
       },
       {
         labelAr: "الإعدادات",
