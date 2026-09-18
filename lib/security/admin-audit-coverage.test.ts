@@ -991,3 +991,68 @@ test("admin audit events are append-only at the database layer", async () => {
     "audit mutation trigger function must not be directly executable by application roles",
   );
 });
+
+
+test("audit CSV export is permission-gated, rate-limited, audited, and formula-safe", async () => {
+  const route = await source(
+    "app/api/admin/audit/export/route.ts",
+  );
+
+  assert.equal(
+    route.includes(
+      "PERMISSIONS.ADMINS_VIEW",
+    ) &&
+      route.includes(
+        "requirePermission",
+      ),
+    true,
+    "audit export must require admins.view permission",
+  );
+
+  assert.equal(
+    route.includes(
+      '"admin_audit_export"',
+    ) &&
+      route.includes(
+        "consumeServerRateLimit",
+      ) &&
+      route.includes(
+        "audit_export_rate_limited",
+      ),
+    true,
+    "audit export must remain server-side rate limited",
+  );
+
+  assert.equal(
+    route.includes(
+      "recordAdminAction",
+    ) &&
+      route.includes(
+        '"export_admin_audit_log"',
+      ),
+    true,
+    "audit export must record export activity",
+  );
+
+  assert.equal(
+    route.includes(
+      "/^[=+\\-@]/",
+    ) &&
+      route.includes(
+        '"Cache-Control":\n          "private, no-store"',
+      ) &&
+      route.includes(
+        '"X-Content-Type-Options":\n          "nosniff"',
+      ),
+    true,
+    "audit CSV must protect against formula injection and unsafe caching",
+  );
+
+  assert.equal(
+    route.includes(
+      "const EXPORT_LIMIT = 5000",
+    ),
+    true,
+    "audit export must keep an explicit maximum row limit",
+  );
+});
