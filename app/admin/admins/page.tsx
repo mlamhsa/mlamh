@@ -822,6 +822,12 @@ export default async function AdminUsersPage({
       identityGateEventsResult.error,
     );
 
+  const securityAlerts24h =
+    failedAccessActions24h +
+    blockedAccessActions24h +
+    failedMfaAttempts24h +
+    blockedIdentityGateAttempts24h;
+
   const roleById = new Map(
     roles.map((role) => [
       role.id,
@@ -1659,7 +1665,7 @@ export default async function AdminUsersPage({
           </div>
         ) : null}
 
-        <section className="mb-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <section className="mb-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
           <div className="rounded-2xl border border-gold/15 bg-gradient-to-b from-gold/[0.08] to-gold/[0.025] p-4 sm:p-5">
             <div className="flex items-center justify-between gap-3">
               <p className="text-xs text-white/45">
@@ -1747,6 +1753,43 @@ export default async function AdminUsersPage({
                 : "Multi-factor authentication required"}
             </p>
           </div>
+
+          <Link
+            href={`/admin/audit-log?lang=${locale}&target=admin&period=24h`}
+            className="rounded-2xl border border-white/[0.09] bg-white/[0.025] p-4 transition hover:border-gold/20 hover:bg-gold/[0.035] sm:p-5"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs text-white/45">
+                {isArabic
+                  ? "تنبيهات أمنية 24س"
+                  : "24h security alerts"}
+              </p>
+              {accessHealthSummaryUnavailable ||
+              securityAlerts24h > 0 ? (
+                <AlertTriangle className="h-4 w-4 text-amber-300" />
+              ) : (
+                <ShieldCheck className="h-4 w-4 text-emerald-300" />
+              )}
+            </div>
+            <p className="mt-4 text-3xl font-light tabular-nums text-white">
+              {accessHealthSummaryUnavailable
+                ? "—"
+                : securityAlerts24h}
+            </p>
+            <p className="mt-1 text-[11px] text-white/30">
+              {accessHealthSummaryUnavailable
+                ? isArabic
+                  ? "الملخص غير متاح مؤقتًا"
+                  : "Summary temporarily unavailable"
+                : securityAlerts24h > 0
+                  ? isArabic
+                    ? "راجع سجل العمليات"
+                    : "Review the audit log"
+                  : isArabic
+                    ? "لا توجد إشارات حديثة"
+                    : "No recent signals"}
+            </p>
+          </Link>
         </section>
 
         <section className="mb-8 overflow-hidden rounded-[1.75rem] border border-white/[0.09] bg-gradient-to-b from-white/[0.035] to-white/[0.018] shadow-[0_18px_55px_rgba(0,0,0,0.18)]">
