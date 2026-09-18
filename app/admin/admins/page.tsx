@@ -1767,6 +1767,11 @@ export default async function AdminUsersPage({
                           accessStateKnown &&
                           hasInconsistentAccess
                         }
+                        registryActive={
+                          isAssignableAdminRole(
+                            admin.role,
+                          )
+                        }
                       />
                     </div>
                   );
