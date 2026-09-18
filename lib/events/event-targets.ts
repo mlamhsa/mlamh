@@ -12,6 +12,7 @@ export const EVENT_TARGETS = {
   PAYMENT: "payment",
   NOTIFICATION: "notification",
   SCENE_ARTICLE: "scene_article",
+  CASTING_FILE: "casting_file",
 } as const;
   
   export type EventTarget =
