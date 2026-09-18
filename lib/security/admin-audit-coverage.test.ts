@@ -613,7 +613,7 @@ test("admin invitation creation keeps server-side throttling", async () => {
 });
 
 
-test("admin entry and MFA gates require exact registry/RBAC role consistency", async () => {
+test("admin entry and MFA gates require one active RBAC assignment plus an active registry", async () => {
   for (const file of [
     "lib/auth/require-admin.ts",
     "app/admin-mfa/page.tsx",
@@ -623,10 +623,10 @@ test("admin entry and MFA gates require exact registry/RBAC role consistency", a
 
     assert.equal(
       text.includes(
-        "hasConsistentActiveAdminRole",
+        "hasValidActiveAdminAssignment",
       ),
       true,
-      `${file} must fail closed when admin registry and RBAC roles do not match exactly`,
+      `${file} must fail closed unless the registry is active and exactly one active RBAC role is assigned`,
     );
   }
 });
