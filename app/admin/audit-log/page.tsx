@@ -394,6 +394,24 @@ import {
                   ? "طلبات التقديم"
                   : "Applications"}
               </option>
+
+              <option value="claim_request">
+                {isArabic
+                  ? "طلبات المطالبة"
+                  : "Claim requests"}
+              </option>
+
+              <option value="support">
+                {isArabic
+                  ? "الدعم"
+                  : "Support"}
+              </option>
+
+              <option value="message">
+                {isArabic
+                  ? "الرسائل"
+                  : "Messages"}
+              </option>
             </select>
   
             <select
