@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { AdminMfaGate } from "@/components/admin/security/AdminMfaGate";
-import { isActiveAdminAccessRole } from "@/lib/rbac/admin-access-policy";
+import { hasConsistentActiveAdminRole } from "@/lib/rbac/admin-access-policy";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -51,19 +51,22 @@ export default async function AdminMfaPage() {
     !profile ||
     profile.account_type !== "admin" ||
     !adminRegistry ||
-    !isActiveAdminAccessRole(
-      adminRegistry.role,
-    ) ||
     !roleAssignments ||
-    !roleAssignments.some((assignment) => {
-      const role = Array.isArray(assignment.roles)
-        ? assignment.roles[0]
-        : assignment.roles;
+    !hasConsistentActiveAdminRole(
+      adminRegistry.role,
+      roleAssignments.map(
+        (assignment) => {
+          const role =
+            Array.isArray(
+              assignment.roles,
+            )
+              ? assignment.roles[0]
+              : assignment.roles;
 
-      return isActiveAdminAccessRole(
-        role?.key,
-      );
-    })
+          return role?.key;
+        },
+      ),
+    )
   ) {
     redirect("/ar/login");
   }
