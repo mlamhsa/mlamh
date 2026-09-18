@@ -112,12 +112,35 @@ export function AdminRoleControls({
     cancelInviteOpen,
     setCancelInviteOpen,
   ] = useState(false);
+  const [
+    sensitiveRoleOpen,
+    setSensitiveRoleOpen,
+  ] = useState(false);
   const hasActiveRole =
     roles.some(
       (role) =>
         role.key ===
         currentRoleKey,
     );
+  const [
+    selectedRole,
+    setSelectedRole,
+  ] = useState(
+    hasActiveRole
+      ? currentRoleKey
+      : "",
+  );
+
+  const crossesSuperAdminBoundary =
+    Boolean(selectedRole) &&
+    (
+      selectedRole ===
+        "super_admin"
+    ) !==
+      (
+        currentRoleKey ===
+        "super_admin"
+      );
 
   if (!canManage) {
     return (
@@ -243,6 +266,16 @@ export function AdminRoleControls({
           action={
             updateAdminRoleAction
           }
+          onSubmit={(event) => {
+            if (
+              crossesSuperAdminBoundary
+            ) {
+              event.preventDefault();
+              setSensitiveRoleOpen(
+                true,
+              );
+            }
+          }}
           className="flex w-full max-w-[360px] items-center gap-2"
         >
           <input
@@ -259,10 +292,13 @@ export function AdminRoleControls({
           <select
             name="role_key"
             required
-            defaultValue={
-              hasActiveRole
-                ? currentRoleKey
-                : ""
+            value={
+              selectedRole
+            }
+            onChange={(event) =>
+              setSelectedRole(
+                event.target.value,
+              )
             }
             className="h-10 min-w-0 flex-1 rounded-xl border border-white/[0.09] bg-black/35 px-3 text-[11px] text-white/70 outline-none transition focus:border-gold/30"
           >
@@ -421,6 +457,126 @@ export function AdminRoleControls({
                 type="button"
                 onClick={() =>
                   setCancelInviteOpen(
+                    false,
+                  )
+                }
+                className="h-10 rounded-xl border border-white/[0.09] px-3 text-[11px] text-white/50 transition hover:border-white/[0.16] hover:text-white"
+              >
+                {isArabic
+                  ? "رجوع"
+                  : "Back"}
+              </button>
+            </form>
+          </section>
+        </div>
+      ) : null}
+
+      {sensitiveRoleOpen ? (
+        <div
+          className="fixed inset-0 z-[115] flex items-center justify-center bg-black/75 px-4 backdrop-blur-sm"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (
+              event.target ===
+              event.currentTarget
+            ) {
+              setSensitiveRoleOpen(
+                false,
+              );
+            }
+          }}
+        >
+          <section
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby={`sensitive-role-${adminId}`}
+            dir={
+              isArabic
+                ? "rtl"
+                : "ltr"
+            }
+            className="relative w-full max-w-md overflow-hidden rounded-[1.75rem] border border-gold/20 bg-[#0b0b0b] p-5 text-white shadow-[0_30px_100px_rgba(0,0,0,0.55)] sm:p-6"
+          >
+            <button
+              type="button"
+              aria-label={
+                isArabic
+                  ? "إغلاق"
+                  : "Close"
+              }
+              onClick={() =>
+                setSensitiveRoleOpen(
+                  false,
+                )
+              }
+              className="absolute end-4 top-4 flex h-9 w-9 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.025] text-white/45 transition hover:text-white"
+            >
+              <X className="h-4 w-4" />
+            </button>
+
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-gold/25 bg-gold/[0.08] text-gold">
+              <AlertTriangle className="h-5 w-5" />
+            </div>
+
+            <h3
+              id={`sensitive-role-${adminId}`}
+              className="mt-4 pe-10 text-xl font-light"
+            >
+              {selectedRole ===
+              "super_admin"
+                ? isArabic
+                  ? "منح صلاحية مدير أعلى؟"
+                  : "Grant Super Admin access?"
+                : isArabic
+                  ? "إزالة صلاحية المدير الأعلى؟"
+                  : "Remove Super Admin access?"}
+            </h3>
+
+            <p className="mt-2 text-xs leading-6 text-white/45">
+              {selectedRole ===
+              "super_admin"
+                ? isArabic
+                  ? "سيحصل هذا الحساب على أعلى مستوى من الصلاحيات الإدارية المتاحة حاليًا، بما في ذلك إدارة المشرفين والأدوار. سيتم تسجيل العملية بالكامل في سجل النظام."
+                  : "This account will receive the highest currently available admin privilege level, including administrator and role management. The action will be fully audited."
+                : isArabic
+                  ? "سيتم خفض هذا الحساب من «مدير أعلى» إلى الدور المحدد. لن يسمح النظام بإزالة آخر مدير أعلى، وسيتم تسجيل العملية بالكامل."
+                  : "This account will be moved from Super Admin to the selected role. The system will not allow removal of the final Super Admin, and the action will be fully audited."}
+            </p>
+
+            <form
+              action={
+                updateAdminRoleAction
+              }
+              className="mt-6 flex gap-2"
+            >
+              <input
+                type="hidden"
+                name="admin_id"
+                value={adminId}
+              />
+              <input
+                type="hidden"
+                name="locale"
+                value={locale}
+              />
+              <input
+                type="hidden"
+                name="role_key"
+                value={selectedRole}
+              />
+
+              <SubmitButton
+                label={
+                  isArabic
+                    ? "تأكيد تغيير الدور"
+                    : "Confirm role change"
+                }
+              />
+
+              <button
+                type="button"
+                onClick={() =>
+                  setSensitiveRoleOpen(
                     false,
                   )
                 }
