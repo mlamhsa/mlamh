@@ -952,6 +952,11 @@ export default async function AdminUsersPage({
             ? "تعذر إرسال رابط تفعيل حساب الإدارة. تم التراجع عن إنشاء الحساب."
             : "The admin activation email could not be sent. Account creation was rolled back."
           : access_error ===
+              "invite_create_rate_limited"
+            ? isArabic
+              ? "تم إيقاف إنشاء دعوات مشرفين جديدة مؤقتًا بسبب تكرار المحاولات. انتظر قليلًا ثم حاول مرة أخرى."
+              : "Creating new admin invitations is temporarily rate-limited because of repeated attempts. Please wait and try again."
+            : access_error ===
               "invite_resend_failed"
             ? isArabic
               ? "تعذر إعادة إرسال رابط تفعيل حساب الإدارة. حاول مرة أخرى."
