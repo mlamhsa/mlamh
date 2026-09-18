@@ -110,6 +110,8 @@ export function AdminMfaGate() {
                 mode: enrollment
                   ? "enrollment"
                   : "challenge",
+                outcome:
+                  "success",
               }),
               cache: "no-store",
               keepalive: true,
@@ -131,9 +133,43 @@ export function AdminMfaGate() {
 
       window.location.replace("/admin");
     } catch (caught) {
-      const message = caught instanceof Error ? caught.message : "رمز التحقق غير صالح.";
+      try {
+        await fetch(
+          "/api/admin/security/mfa-event",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+            body: JSON.stringify({
+              mode: enrollment
+                ? "enrollment"
+                : "challenge",
+              outcome:
+                "failed",
+            }),
+            cache: "no-store",
+            keepalive: true,
+          },
+        );
+      } catch (auditError) {
+        console.warn(
+          "[AdminMfaGate failed audit]",
+          auditError,
+        );
+      }
+
+      const message =
+        caught instanceof Error
+          ? caught.message
+          : "رمز التحقق غير صالح.";
       setError(message);
-      setMode(enrollment ? "enroll" : "challenge");
+      setMode(
+        enrollment
+          ? "enroll"
+          : "challenge",
+      );
     }
   }
 
