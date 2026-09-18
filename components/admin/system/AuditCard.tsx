@@ -593,6 +593,11 @@ import {
         return isArabic
           ? "مقال مشهد"
           : "Scene article";
+
+      case "casting_file":
+        return isArabic
+          ? "ملف كاستينغ"
+          : "Casting file";
   
       default:
         return targetType;
