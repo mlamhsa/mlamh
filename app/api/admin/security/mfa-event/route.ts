@@ -7,6 +7,7 @@ import {
 import { recordAdminAction } from "@/lib/events/admin-audit";
 import { EVENT_TARGETS } from "@/lib/events/event-targets";
 import { consumeServerRateLimit } from "@/lib/security/server-rate-limit";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 type MfaAuditMode =
   | "enrollment"
@@ -77,6 +78,52 @@ export async function POST(
   }
 
   if (outcome === "failed") {
+    const authClient =
+      await createServerSupabaseClient();
+
+    const assurance =
+      await authClient.auth.mfa.getAuthenticatorAssuranceLevel();
+
+    if (
+      assurance.error ||
+      assurance.data
+        .currentLevel === "aal2"
+    ) {
+      await recordAdminAction({
+        actorId:
+          identityUser.id,
+        actorEmail:
+          identityUser.email,
+        action:
+          "admin_mfa_verification_failed",
+        outcome: "blocked",
+        target:
+          EVENT_TARGETS.ADMIN,
+        targetId:
+          identityUser.id,
+        reason:
+          assurance.error
+            ? "mfa_assurance_lookup_failed"
+            : "failed_mfa_event_after_aal2",
+      });
+
+      return NextResponse.json(
+        {
+          recorded: false,
+        },
+        {
+          status:
+            assurance.error
+              ? 503
+              : 409,
+          headers: {
+            "Cache-Control":
+              "no-store",
+          },
+        },
+      );
+    }
+
     let rateLimit;
 
     try {
