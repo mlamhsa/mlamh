@@ -1084,6 +1084,11 @@ export default async function AdminUsersPage({
             ? "لا يمكن إزالة آخر مدير أعلى من النظام. عيّن مديرًا أعلى آخر أولًا."
             : "The last Super Admin cannot be removed. Assign another Super Admin first."
           : access_error ===
+              "sensitive_role_confirmation_required"
+            ? isArabic
+              ? "تغيير مستوى صلاحية «مدير أعلى» يتطلب تأكيدًا صريحًا من نافذة الحماية."
+              : "Crossing the Super Admin privilege boundary requires explicit confirmation from the security dialog."
+          : access_error ===
               "super_admin_change_busy"
             ? isArabic
               ? "يوجد تغيير حساس آخر على صلاحيات المدير الأعلى قيد التنفيذ. تم منع العملية مؤقتًا لحماية الوصول؛ حاول مرة أخرى بعد ثوانٍ."
