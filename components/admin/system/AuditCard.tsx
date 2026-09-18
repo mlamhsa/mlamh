@@ -584,6 +584,11 @@ import {
           ? "دفعة"
           : "Payment";
 
+      case "entitlement":
+        return isArabic
+          ? "استحقاق"
+          : "Entitlement";
+
       case "notification":
         return isArabic
           ? "إشعار"
