@@ -1420,3 +1420,42 @@ test("database enforces one admin role per user and valid registry states", asyn
     "database must prevent multiple RBAC role assignments for the same user",
   );
 });
+
+
+test("sensitive role changes and revocations require human justification", async () => {
+  const actions = await source(
+    "lib/actions/admin-access-actions.ts",
+  );
+
+  assert.equal(
+    actions.includes(
+      "sensitive_role_reason_required",
+    ) &&
+      actions.includes(
+        "revoke_reason_required",
+      ) &&
+      actions.includes(
+        "change_reason",
+      ),
+    true,
+    "sensitive admin access changes must require and audit a bounded human justification",
+  );
+
+  const controls = await source(
+    "components/admin/rbac/AdminRoleControls.tsx",
+  );
+
+  assert.equal(
+    controls.includes(
+      'name="change_reason"',
+    ) &&
+      controls.includes(
+        "minLength={5}",
+      ) &&
+      controls.includes(
+        "maxLength={300}",
+      ),
+    true,
+    "sensitive access dialogs must collect the bounded justification before submission",
+  );
+});
