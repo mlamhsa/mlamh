@@ -2105,7 +2105,7 @@ export async function updateAdminRoleAction(
 
     redirect(
       accessCenterUrl(locale, {
-        access_saved: "1",
+        access_synced: "1",
       }),
     );
   }
