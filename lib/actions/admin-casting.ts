@@ -7,6 +7,8 @@ import { createAdminOpportunityAction } from "@/lib/actions/create-admin-opportu
 import { translateOpportunityContent } from "@/lib/ai/translate-opportunity";
 import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { SAUDI_CITIES } from "@/lib/data/saudi-cities";
+import { recordAdminAction } from "@/lib/events/admin-audit";
+import { EVENT_TARGETS } from "@/lib/events/event-targets";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const allowedStatuses = new Set([
@@ -65,9 +67,23 @@ function revalidateCasting(projectId: number) {
 }
 
 export async function updateCastingProjectAction(formData: FormData) {
-  await requireAdminAccess();
+  const adminUser =
+    await requireAdminAccess();
   const projectId = toPositiveInt(formData.get("project_id"));
-  if (!projectId) return;
+
+  if (!projectId) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_casting_project",
+      outcome: "blocked",
+      target: EVENT_TARGETS.CASTING_PROJECT,
+      targetId: "invalid-input",
+      reason: "invalid_casting_project_id",
+    });
+
+    return;
+  }
 
   const status = stringValue(formData.get("status"));
   const packageCode = stringValue(formData.get("package_code"));
@@ -75,10 +91,44 @@ export async function updateCastingProjectAction(formData: FormData) {
   const internalNotes = stringValue(formData.get("internal_notes")).slice(0, 10000);
   const clientStatusNote = stringValue(formData.get("client_status_note")).slice(0, 5000);
 
-  if (!allowedStatuses.has(status) || (packageCode && !allowedPackages.has(packageCode))) return;
+  if (!allowedStatuses.has(status) || (packageCode && !allowedPackages.has(packageCode))) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_casting_project",
+      outcome: "blocked",
+      target: EVENT_TARGETS.CASTING_PROJECT,
+      targetId: projectId,
+      reason: "invalid_casting_project_fields",
+      metadata: {
+        requested_status:
+          status || null,
+        package_code:
+          packageCode || null,
+      },
+    });
+
+    return;
+  }
 
   const quotedAmount = quotedAmountRaw ? Number(quotedAmountRaw) : null;
-  if (quotedAmount !== null && (!Number.isFinite(quotedAmount) || quotedAmount < 0)) return;
+  if (quotedAmount !== null && (!Number.isFinite(quotedAmount) || quotedAmount < 0)) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_casting_project",
+      outcome: "blocked",
+      target: EVENT_TARGETS.CASTING_PROJECT,
+      targetId: projectId,
+      reason: "invalid_quoted_amount",
+      metadata: {
+        quoted_amount:
+          quotedAmountRaw || null,
+      },
+    });
+
+    return;
+  }
 
   const adminClient = createAdminClient();
   const { error } = await adminClient
@@ -95,8 +145,49 @@ export async function updateCastingProjectAction(formData: FormData) {
 
   if (error) {
     console.error("[updateCastingProjectAction]", error);
+
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_casting_project",
+      outcome: "failed",
+      target: EVENT_TARGETS.CASTING_PROJECT,
+      targetId: projectId,
+      reason: "casting_project_update_failed",
+      metadata: {
+        requested_status:
+          status,
+        package_code:
+          packageCode || null,
+        quoted_amount:
+          quotedAmount,
+      },
+    });
+
     return;
   }
+
+  await recordAdminAction({
+    actorId: adminUser.id,
+    actorEmail: adminUser.email,
+    action: "update_casting_project",
+    outcome: "success",
+    target: EVENT_TARGETS.CASTING_PROJECT,
+    targetId: projectId,
+    metadata: {
+      new_status:
+        status,
+      package_code:
+        packageCode || null,
+      quoted_amount:
+        quotedAmount,
+      internal_notes_present:
+        Boolean(internalNotes),
+      client_status_note_present:
+        Boolean(clientStatusNote),
+    },
+  });
+
   revalidateCasting(projectId);
 }
 
