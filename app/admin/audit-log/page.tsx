@@ -13,7 +13,8 @@ import {
     type AuditEvent,
   } from "@/components/admin/system/AuditCard";
   
-  import { requireAdminAccess } from "@/lib/auth/require-admin";
+  import { requirePermission } from "@/lib/rbac/guards";
+import { PERMISSIONS } from "@/lib/rbac/permissions";
   import { createAdminClient } from "@/lib/supabase/admin";
   
   export const metadata = {
@@ -99,7 +100,9 @@ import {
   export default async function AdminAuditLogPage({
     searchParams,
   }: PageProps) {
-    await requireAdminAccess();
+    await requirePermission(
+      PERMISSIONS.ADMINS_VIEW,
+    );
   
     const {
       lang = "ar",
