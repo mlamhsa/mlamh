@@ -947,6 +947,16 @@ export default async function AdminUsersPage({
                   ? "هذه الدعوة لم تعد معلقة، لذلك لا يمكن تنفيذ هذا الإجراء عليها."
                   : "This invitation is no longer pending, so this action cannot be performed."
                 : access_error ===
+                    "invite_pending_role_change"
+                  ? isArabic
+                    ? "لا يمكن تغيير دور المشرف قبل إكمال التفعيل وتسجيل الدخول الأول. تم منع التغيير وتسجيل المحاولة."
+                    : "The admin role cannot be changed before activation and first sign-in. The change was blocked and audited."
+                  : access_error ===
+                      "invite_access_inconsistent"
+                    ? isArabic
+                      ? "توجد حالة غير متطابقة بين سجل المشرف وتعيين الدور الفعلي. تم منع الإجراء لحماية الوصول حتى تتم المراجعة."
+                      : "The admin registry and effective role assignment are inconsistent. The action was blocked until the access state is reviewed."
+                    : access_error ===
                   "invite_lookup_failed" ||
                 access_error ===
                   "invite_create_failed"
