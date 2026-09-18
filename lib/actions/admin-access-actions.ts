@@ -1537,6 +1537,13 @@ export async function updateAdminRoleAction(
   const locale =
     getLocale(formData);
 
+  const rawChangeReason =
+    String(
+      formData.get(
+        "change_reason",
+      ) ?? "",
+    ).trim();
+
   const canManageRoles =
     await userHasPermission(
       actor.id,
@@ -1839,6 +1846,39 @@ export async function updateAdminRoleAction(
       currentAccessRole,
       roleKey,
     );
+
+  if (
+    sensitiveRoleChange &&
+    (
+      rawChangeReason.length < 5 ||
+      rawChangeReason.length > 300
+    )
+  ) {
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "update_admin_role",
+      outcome: "blocked",
+      targetId: targetUserId,
+      reason:
+        "sensitive_role_reason_required",
+      metadata: {
+        target_email:
+          targetAdmin.email,
+        previous_roles:
+          previousRoleKeys,
+        requested_role:
+          roleKey,
+      },
+    });
+
+    redirect(
+      accessCenterUrl(locale, {
+        access_error:
+          "sensitive_role_reason_required",
+      }),
+    );
+  }
 
   if (
     sensitiveRoleChange &&
@@ -2368,6 +2408,10 @@ export async function updateAdminRoleAction(
           previous_roles:
             previousRoleKeys,
           new_role: roleKey,
+          change_reason:
+            sensitiveRoleChange
+              ? rawChangeReason
+              : null,
           actor_email:
             actor.email ?? null,
         },
@@ -2398,6 +2442,35 @@ export async function revokeAdminAccessAction(
 
   const locale =
     getLocale(formData);
+
+  const revokeReason =
+    String(
+      formData.get(
+        "change_reason",
+      ) ?? "",
+    ).trim();
+
+  if (
+    revokeReason.length < 5 ||
+    revokeReason.length > 300
+  ) {
+    await recordAdminAccessOutcome({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "revoke_admin_access",
+      outcome: "blocked",
+      targetId: "invalid-input",
+      reason:
+        "revoke_reason_required",
+    });
+
+    redirect(
+      accessCenterUrl(locale, {
+        access_error:
+          "revoke_reason_required",
+      }),
+    );
+  }
 
   let targetUserId: string;
 
@@ -2781,6 +2854,8 @@ export async function revokeAdminAccessAction(
             targetAdmin.email,
           previous_roles:
             previousRoleKeys,
+          change_reason:
+            revokeReason,
           actor_email:
             actor.email ?? null,
         },
