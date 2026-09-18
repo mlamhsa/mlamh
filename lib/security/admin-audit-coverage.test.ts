@@ -1149,9 +1149,12 @@ test("admin MFA success and failed verification attempts are audited at the corr
       ) &&
       route.includes(
         '"admin_mfa_failed_audit"',
+      ) &&
+      route.includes(
+        '"failed_mfa_event_after_aal2"',
       ),
     true,
-    "MFA audit endpoint must accept pre-AAL2 failure telemetry but require AAL2 for successful verification records",
+    "MFA audit endpoint must accept pre-AAL2 failure telemetry, reject bogus post-AAL2 failures, and require AAL2 for successful verification records",
   );
 
   const gate = await source(
