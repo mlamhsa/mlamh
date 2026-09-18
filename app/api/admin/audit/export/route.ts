@@ -349,6 +349,65 @@ export async function GET(
       },
     );
 
+  const actorIds =
+    Array.from(
+      new Set(
+        rows
+          .map(
+            (item) =>
+              item.actor_id,
+          )
+          .filter(
+            (
+              value,
+            ): value is string =>
+              Boolean(value) &&
+              UUID_PATTERN.test(
+                value,
+              ),
+          ),
+      ),
+    );
+
+  const actorEmailById =
+    new Map<
+      string,
+      string
+    >();
+
+  if (actorIds.length > 0) {
+    const {
+      data: actorRows,
+      error: actorLookupError,
+    } = await adminClient
+      .from("admin_users")
+      .select("id, email")
+      .in(
+        "id",
+        actorIds.slice(
+          0,
+          100,
+        ),
+      );
+
+    if (actorLookupError) {
+      console.error(
+        "[AdminAuditExport actor lookup]",
+        actorLookupError,
+      );
+    } else {
+      for (
+        const actorRow of
+        actorRows ?? []
+      ) {
+        actorEmailById.set(
+          actorRow.id,
+          actorRow.email,
+        );
+      }
+    }
+  }
+
   const header = [
     "id",
     "created_at",
@@ -388,7 +447,14 @@ export async function GET(
         item.target_type,
         item.target_id,
         item.actor_id,
-        metadata.actor_email,
+        metadata.actor_email ||
+          (
+            item.actor_id
+              ? actorEmailById.get(
+                  item.actor_id,
+                )
+              : undefined
+          ),
         metadata.action,
         metadata.outcome,
         metadata.reason,
@@ -428,6 +494,8 @@ export async function GET(
         q && !UUID_PATTERN.test(q)
           ? true
           : false,
+      actor_identity_matches:
+        actorEmailById.size,
     },
   });
 
