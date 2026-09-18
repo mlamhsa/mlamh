@@ -910,6 +910,47 @@ export default async function AdminUsersPage({
         !state.statusKnown,
     ).length;
 
+  const effectiveSuperAdminCount =
+    accessStateDataHealthy
+      ? admins.filter(
+          (admin) => {
+            if (
+              !isAssignableAdminRole(
+                admin.role,
+              )
+            ) {
+              return false;
+            }
+
+            const assignedRoleKeys =
+              (roleIdsByUser.get(
+                admin.id,
+              ) ?? [])
+                .map(
+                  (roleId) =>
+                    roleById.get(
+                      roleId,
+                    )?.key,
+                )
+                .filter(
+                  (
+                    roleKey,
+                  ): roleKey is string =>
+                    Boolean(
+                      roleKey,
+                    ),
+                );
+
+            return (
+              assignedRoleKeys.length ===
+                1 &&
+              assignedRoleKeys[0] ===
+                "super_admin"
+            );
+          },
+        ).length
+      : null;
+
   const adminAccessStateById =
     new Map(
       adminAccessStates.map(
@@ -1173,6 +1214,35 @@ export default async function AdminUsersPage({
                 {isArabic
                   ? `المصادر المتأثرة: ${degradedDataSources.join("، ")}. تم تعطيل تغييرات الوصول مؤقتًا، ولن تُعرض القيم المفقودة على أنها أصفار حقيقية.`
                   : `Affected sources: ${degradedDataSources.join(", ")}. Access mutations are temporarily disabled, and missing values are not being presented as real zeros.`}
+              </p>
+            </div>
+          </div>
+        ) : null}
+
+        {effectiveSuperAdminCount !== null &&
+        effectiveSuperAdminCount <= 1 ? (
+          <div className="mb-5 flex items-start gap-3 rounded-2xl border border-amber-400/20 bg-amber-400/[0.06] px-4 py-3 text-sm text-amber-100">
+            <Crown className="mt-0.5 h-4 w-4 shrink-0" />
+            <div>
+              <p className="font-medium">
+                {effectiveSuperAdminCount ===
+                0
+                  ? isArabic
+                    ? "لم يتم اكتشاف مدير أعلى فعّال"
+                    : "No effective Super Admin detected"
+                  : isArabic
+                    ? "يوجد مدير أعلى فعّال واحد فقط"
+                    : "Only one effective Super Admin is available"}
+              </p>
+              <p className="mt-1 text-xs leading-6 text-amber-100/65">
+                {effectiveSuperAdminCount ===
+                0
+                  ? isArabic
+                    ? "تم تعطيل التغييرات الحساسة تلقائيًا كلما تعذر التحقق من حالة الوصول. راجع RBAC وسجل الإدارة قبل أي تغيير إضافي."
+                    : "Sensitive changes fail closed whenever access state cannot be verified. Review RBAC and the admin registry before making further changes."
+                  : isArabic
+                    ? "حماية «آخر مدير أعلى» تمنع فقدان الوصول، لكن يوصى بوجود مدير أعلى ثانٍ موثّق للطوارئ واستمرارية الإدارة."
+                    : "Last-Super-Admin protection prevents lockout, but a second verified Super Admin is recommended for emergency recovery and administrative continuity."}
               </p>
             </div>
           </div>
