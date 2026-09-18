@@ -430,6 +430,12 @@ import {
                   ? "الإشعارات"
                   : "Notifications"}
               </option>
+
+              <option value="scene_article">
+                {isArabic
+                  ? "محتوى مشهد"
+                  : "Scene content"}
+              </option>
             </select>
   
             <select
