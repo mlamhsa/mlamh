@@ -13,10 +13,10 @@ export function AdminShell({
       className="relative z-[2] min-h-screen bg-background text-white"
     >
       <div className="grid min-h-screen lg:grid-cols-[280px_1fr]">
-        <AdminSidebar />
+        <AdminSidebar permissions={[]} />
 
         <div className="min-w-0">
-          <AdminTopbar />
+          <AdminTopbar permissions={[]} />
 
           <div>{children}</div>
         </div>
