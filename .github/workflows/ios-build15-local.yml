@@ -1,4 +1,4 @@
-name: iOS Build 23 Local TestFlight
+name: iOS Build 24 Local TestFlight
 
 on:
   workflow_dispatch:
@@ -61,12 +61,12 @@ jobs:
         run: npx expo export --platform ios --output-dir dist-route-check --clear
 
       - name: Build iOS locally
-        run: eas build --platform ios --profile testflight --local --non-interactive --output ./build23.ipa
+        run: eas build --platform ios --profile testflight --local --non-interactive --output ./build24.ipa
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
-          name: mlamh-ios-build23
-          path: apps/mobile/build23.ipa
+          name: mlamh-ios-build24
+          path: apps/mobile/build24.ipa
           if-no-files-found: error
-      - name: Submit Build 23 to TestFlight
-        run: eas submit --platform ios --profile testflight --path ./build23.ipa --non-interactive --no-wait
+      - name: Submit Build 24 to TestFlight
+        run: eas submit --platform ios --profile testflight --path ./build24.ipa --non-interactive --no-wait
