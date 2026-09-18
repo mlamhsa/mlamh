@@ -768,3 +768,58 @@ test("final Super Admin count follows effective RBAC while registry only gates a
     "admin registry must be treated as an active/revoked gate rather than the permission source of truth",
   );
 });
+
+
+test("Super Admin privilege boundary changes require explicit confirmation", async () => {
+  const actions = await source(
+    "lib/actions/admin-access-actions.ts",
+  );
+
+  const start =
+    actions.indexOf(
+      "export async function updateAdminRoleAction",
+    );
+  const end =
+    actions.indexOf(
+      "export async function revokeAdminAccessAction",
+      start,
+    );
+
+  assert.ok(
+    start >= 0 &&
+      end > start,
+    "updateAdminRoleAction must exist",
+  );
+
+  const segment =
+    actions.slice(
+      start,
+      end,
+    );
+
+  assert.equal(
+    segment.includes(
+      "confirm_sensitive_role",
+    ) &&
+      segment.includes(
+        "sensitive_role_confirmation_required",
+      ),
+    true,
+    "Super Admin promotion/demotion must require explicit server-side confirmation",
+  );
+
+  const controls = await source(
+    "components/admin/rbac/AdminRoleControls.tsx",
+  );
+
+  assert.equal(
+    controls.includes(
+      'name="confirm_sensitive_role"',
+    ) &&
+      controls.includes(
+        "crossesSuperAdminBoundary",
+      ),
+    true,
+    "role controls must route Super Admin boundary changes through a confirmation dialog",
+  );
+});
