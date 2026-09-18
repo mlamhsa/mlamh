@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import {
     AdminEmptyState,
@@ -446,6 +447,24 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
           )
         : 1;
 
+    if (
+      databaseSearchMode &&
+      currentPage > totalPages
+    ) {
+      redirect(
+        buildHref({
+          lang,
+          q,
+          target,
+          event,
+          actor:
+            actorFilter ??
+            undefined,
+          page: totalPages,
+        }),
+      );
+    }
+
     const actorIdentity =
       actorFilter
         ? await adminClient
@@ -546,6 +565,7 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
             href={buildHref({
               lang,
               q,
+              event,
               actor: actorFilter ?? undefined,
             })}
           />
@@ -564,6 +584,7 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
             href={buildHref({
               lang,
               q,
+              event,
               actor: actorFilter ?? undefined,
               target:
                 "admin",
@@ -584,6 +605,7 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
             href={buildHref({
               lang,
               q,
+              event,
               actor: actorFilter ?? undefined,
               target:
                 "talent",
@@ -604,6 +626,7 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
             href={buildHref({
               lang,
               q,
+              event,
               actor: actorFilter ?? undefined,
               target:
                 "publisher",
@@ -624,6 +647,7 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
             href={buildHref({
               lang,
               q,
+              event,
               actor: actorFilter ?? undefined,
               target:
                 "opportunity",
