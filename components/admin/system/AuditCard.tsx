@@ -230,6 +230,85 @@ import {
           icon: History,
         };
 
+      case "admin_action_success":
+        return {
+          title: isArabic
+            ? "إجراء إداري ناجح"
+            : "Admin action succeeded",
+          description:
+            getMetadataString(
+              metadata,
+              "action",
+            ) ||
+            (isArabic
+              ? "تم تنفيذ إجراء إداري بنجاح."
+              : "An administrative action completed successfully."),
+          icon: CheckCircle2,
+        };
+
+      case "admin_action_blocked":
+        return {
+          title: isArabic
+            ? "إجراء إداري تم منعه"
+            : "Admin action blocked",
+          description:
+            [
+              getMetadataString(
+                metadata,
+                "action",
+              ),
+              reason,
+            ]
+              .filter(Boolean)
+              .join(" · ") ||
+            (isArabic
+              ? "تم منع الإجراء بواسطة ضوابط الحماية."
+              : "The action was blocked by safeguards."),
+          icon: Bell,
+        };
+
+      case "admin_action_failed":
+        return {
+          title: isArabic
+            ? "فشل إجراء إداري"
+            : "Admin action failed",
+          description:
+            [
+              getMetadataString(
+                metadata,
+                "action",
+              ),
+              reason,
+            ]
+              .filter(Boolean)
+              .join(" · ") ||
+            (isArabic
+              ? "فشل الإجراء وتم تسجيل السبب."
+              : "The action failed and the reason was recorded."),
+          icon: XCircle,
+        };
+
+      case "admin_action_noop":
+        return {
+          title: isArabic
+            ? "إجراء إداري بلا تغيير"
+            : "Admin action no-op",
+          description:
+            [
+              getMetadataString(
+                metadata,
+                "action",
+              ),
+              reason,
+            ]
+              .filter(Boolean)
+              .join(" · ") ||
+            (isArabic
+              ? "لم يحتج الطلب إلى تغيير الحالة."
+              : "The request required no state change."),
+          icon: History,
+        };
+
       case "talent_approved":
         return {
           title: isArabic
