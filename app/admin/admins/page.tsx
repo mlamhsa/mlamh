@@ -1682,6 +1682,10 @@ export default async function AdminUsersPage({
                         pendingInvite={
                           pendingInvite
                         }
+                        roleMismatch={
+                          accessStateKnown &&
+                          hasInconsistentAccess
+                        }
                       />
                     </div>
                   );
