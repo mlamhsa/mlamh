@@ -17,26 +17,17 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { getMobileOpportunity } from "@/src/domains/opportunities/api";
 import { OpportunityResponseCTA } from "@/src/domains/opportunities/OpportunityResponseCTA";
 import type { MobilePublicOpportunity } from "@/src/domains/opportunities/types";
+import { formatGregorianDate, formatLatinNumber, localizeCurrency, localizeGender, localizeTalentType } from "@/src/i18n/format";
 import { useLocale } from "@/src/i18n/LocaleProvider";
 import { colors, radius, spacing } from "@/src/theme/tokens";
 
-function compensationLabel(item: MobilePublicOpportunity, isArabic: boolean) {
+function compensationLabel(item: MobilePublicOpportunity, locale: "ar" | "en") {
+  const isArabic = locale === "ar";
   if (item.compensationType === "unpaid") return isArabic ? "غير مدفوع" : "Unpaid";
   if (item.compensationType === "negotiable") return isArabic ? "حسب الاتفاق" : "Negotiable";
   const amount = Number(item.budget);
   if (!Number.isFinite(amount) || amount <= 0) return isArabic ? "غير محدد" : "Not specified";
-  return `${new Intl.NumberFormat(isArabic ? "ar-SA-u-nu-latn" : "en-US").format(amount)} ${item.currency || "SAR"}`;
-}
-
-function dateLabel(value: string | null, locale: "ar" | "en") {
-  if (!value) return locale === "ar" ? "غير محدد" : "Not specified";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat(locale === "ar" ? "ar-SA-u-nu-latn" : "en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  }).format(date);
+  return formatLatinNumber(amount, locale) + " " + localizeCurrency(item.currency, locale);
 }
 
 export function OpportunityDetailScreenV2() {
@@ -112,18 +103,26 @@ export function OpportunityDetailScreenV2() {
 
             <View style={[styles.infoGrid, isArabic && styles.rowReverse]}>
               <InfoCard icon={MapPin} label={isArabic ? "الموقع" : "Location"} value={item.city || (isArabic ? "غير محدد" : "Not specified")} isArabic={isArabic} />
-              <InfoCard icon={Wallet} label={isArabic ? "المقابل" : "Compensation"} value={compensationLabel(item, isArabic)} isArabic={isArabic} />
-              <InfoCard icon={UsersRound} label={isArabic ? "العدد المطلوب" : "Required count"} value={item.requiredCount ? String(item.requiredCount) : (isArabic ? "غير محدد" : "Not specified")} isArabic={isArabic} />
-              <InfoCard icon={CalendarDays} label={isArabic ? "تاريخ العمل" : "Work date"} value={dateLabel(item.workDate, locale)} isArabic={isArabic} />
+              <InfoCard icon={Wallet} label={isArabic ? "المقابل" : "Compensation"} value={compensationLabel(item, locale)} isArabic={isArabic} />
+              <InfoCard icon={UsersRound} label={isArabic ? "العدد المطلوب" : "Required count"} value={item.requiredCount ? formatLatinNumber(item.requiredCount, locale) : (isArabic ? "غير محدد" : "Not specified")} isArabic={isArabic} />
+              <InfoCard icon={CalendarDays} label={isArabic ? "تاريخ العمل" : "Work date"} value={formatGregorianDate(item.workDate, locale)} isArabic={isArabic} />
             </View>
 
             <View style={styles.sectionCard}>
               <Text style={[styles.sectionTitle, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{isArabic ? "تفاصيل الفرصة" : "Opportunity details"}</Text>
-              <DetailRow label={isArabic ? "نوع الموهبة" : "Talent type"} value={item.opportunityType || "—"} isArabic={isArabic} />
-              <DetailRow label={isArabic ? "الجنس المطلوب" : "Required gender"} value={item.requiredGender || (isArabic ? "غير محدد" : "Not specified")} isArabic={isArabic} />
-              <DetailRow label={isArabic ? "العمر" : "Age"} value={item.minAge || item.maxAge ? `${item.minAge ?? "—"} - ${item.maxAge ?? "—"}` : (isArabic ? "غير محدد" : "Not specified")} isArabic={isArabic} />
+              <DetailRow label={isArabic ? "نوع الموهبة" : "Talent type"} value={localizeTalentType(item.opportunityType, locale)} isArabic={isArabic} />
+              <DetailRow label={isArabic ? "الجنس المطلوب" : "Required gender"} value={localizeGender(item.requiredGender, locale)} isArabic={isArabic} />
+              <DetailRow
+                label={isArabic ? "العمر" : "Age"}
+                value={item.minAge || item.maxAge
+                  ? (isArabic
+                    ? "من " + (item.minAge ?? "—") + " إلى " + (item.maxAge ?? "—")
+                    : (item.minAge ?? "—") + " – " + (item.maxAge ?? "—"))
+                  : (isArabic ? "غير محدد" : "Not specified")}
+                isArabic={isArabic}
+              />
               <DetailRow label={isArabic ? "مدة العمل" : "Work duration"} value={item.workDuration || (isArabic ? "غير محدد" : "Not specified")} isArabic={isArabic} icon={Clock3} />
-              <DetailRow label={isArabic ? "آخر موعد للتقديم" : "Application deadline"} value={dateLabel(item.applicationDeadline, locale)} isArabic={isArabic} />
+              <DetailRow label={isArabic ? "آخر موعد للتقديم" : "Application deadline"} value={formatGregorianDate(item.applicationDeadline, locale)} isArabic={isArabic} />
             </View>
 
             <View style={styles.semanticCard}>
@@ -163,9 +162,9 @@ function InfoCard({ icon: Icon, label, value, isArabic }: { icon: typeof MapPin;
     <View style={styles.infoCard}>
       <View style={isArabic ? styles.rowRtl : styles.rowLtr}>
         <Icon size={14} color={colors.gold} />
-        <Text style={styles.infoLabel}>{label}</Text>
+        <Text style={[styles.infoLabel, { textAlign: isArabic ? "right" : "left", writingDirection: isArabic ? "rtl" : "ltr" }]}>{label}</Text>
       </View>
-      <Text style={[styles.infoValue, { textAlign: isArabic ? "right" : "left" }]}>{value}</Text>
+      <Text style={[styles.infoValue, { textAlign: isArabic ? "right" : "left", writingDirection: isArabic ? "rtl" : "ltr" }]}>{value}</Text>
     </View>
   );
 }
@@ -175,9 +174,9 @@ function DetailRow({ label, value, isArabic, icon: Icon }: { label: string; valu
     <View style={[styles.detailRow, isArabic ? styles.rowRtl : styles.rowLtr]}>
       <View style={[styles.detailLabelWrap, isArabic ? styles.rowRtl : styles.rowLtr]}>
         {Icon ? <Icon size={13} color={colors.gold} /> : null}
-        <Text style={styles.detailLabel}>{label}</Text>
+        <Text style={[styles.detailLabel, { textAlign: isArabic ? "right" : "left", writingDirection: isArabic ? "rtl" : "ltr" }]}>{label}</Text>
       </View>
-      <Text numberOfLines={2} style={[styles.detailValue, { textAlign: isArabic ? "left" : "right", writingDirection: isArabic ? "rtl" : "ltr" }]}>{value}</Text>
+      <Text numberOfLines={2} style={[styles.detailValue, { textAlign: isArabic ? "right" : "left", writingDirection: isArabic ? "rtl" : "ltr" }]}>{value}</Text>
     </View>
   );
 }

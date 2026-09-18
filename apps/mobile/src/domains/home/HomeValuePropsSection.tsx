@@ -59,19 +59,19 @@ export function HomeValuePropsSection({ isArabic, items }: Props) {
       </View>
 
       <View style={styles.proofStrip}>
-        <ProofRow icon={Shield} text={isArabic ? "مراجعة واعتماد للملفات" : "Profile review and approval"} />
-        <ProofRow icon={Building2} text={isArabic ? "فرص من جهات تبحث عن مواهب" : "Opportunities from organizations looking for talent"} />
-        <ProofRow icon={Sparkles} text={isArabic ? "اكتشاف أسرع للمواهب المناسبة" : "Faster talent discovery"} />
+        <ProofRow icon={Shield} text={isArabic ? "مراجعة واعتماد للملفات" : "Profile review and approval"} isArabic={isArabic} />
+        <ProofRow icon={Building2} text={isArabic ? "فرص من جهات تبحث عن مواهب" : "Opportunities from organizations looking for talent"} isArabic={isArabic} />
+        <ProofRow icon={Sparkles} text={isArabic ? "اكتشاف أسرع للمواهب المناسبة" : "Faster talent discovery"} isArabic={isArabic} />
       </View>
     </View>
   );
 }
 
-function ProofRow({ icon: Icon, text }: { icon: LucideIcon; text: string }) {
+function ProofRow({ icon: Icon, text, isArabic }: { icon: LucideIcon; text: string; isArabic: boolean }) {
   return (
-    <View style={styles.proofRow}>
+    <View style={[styles.proofRow, isArabic && styles.proofRowRtl]}>
       <Icon size={16} color={colors.gold} />
-      <Text style={styles.proofText}>{text}</Text>
+      <Text style={[styles.proofText, { textAlign: isArabic ? "right" : "left", writingDirection: isArabic ? "rtl" : "ltr" }]}>{text}</Text>
     </View>
   );
 }
@@ -130,5 +130,6 @@ const styles = StyleSheet.create({
   cardText: { color: "rgba(255,255,255,0.44)", fontSize: 13, lineHeight: 23, marginTop: spacing.sm },
   proofStrip: { marginTop: spacing.xl, paddingTop: spacing.lg, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.07)", gap: spacing.md },
   proofRow: { flexDirection: "row", gap: spacing.md, alignItems: "center" },
+  proofRowRtl: { flexDirection: "row-reverse" },
   proofText: { flex: 1, color: "rgba(255,255,255,0.48)", fontSize: 13, lineHeight: 20 },
 });

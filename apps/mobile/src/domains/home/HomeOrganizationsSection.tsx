@@ -78,7 +78,7 @@ export function HomeOrganizationsSection({ isArabic }: Props) {
         </Pressable>
       </View>
 
-      <View style={styles.dividerRow}>
+      <View style={[styles.dividerRow, isArabic ? styles.rowRtl : styles.rowLtr]}>
         <View style={styles.divider} />
         <View style={styles.dividerGold} />
       </View>

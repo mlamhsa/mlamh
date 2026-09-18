@@ -12,7 +12,7 @@ function relativeDate(value: string | null, isArabic: boolean) {
   if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
-  return new Intl.DateTimeFormat(isArabic ? "ar-SA-u-nu-latn" : "en-US", { month: "short", day: "numeric" }).format(date);
+  return new Intl.DateTimeFormat(isArabic ? "ar-SA-u-ca-gregory-nu-latn" : "en-US-u-ca-gregory-nu-latn", { month: "short", day: "numeric" }).format(date);
 }
 
 export function MessagesInboxScreen() {

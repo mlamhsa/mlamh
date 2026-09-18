@@ -20,11 +20,18 @@ export function SceneFeedScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
+  const [usingFallback, setUsingFallback] = useState(false);
 
   const load = useCallback(async (refresh = false) => {
     if (refresh) setRefreshing(true); else setLoading(true);
     setError(false);
-    try { setData(await getSceneFeed(locale)); } catch { setError(true); }
+    setUsingFallback(false);
+    try { setData(await getSceneFeed(locale)); }
+    catch {
+      setData(null);
+      setError(false);
+      setUsingFallback(true);
+    }
     finally { setLoading(false); setRefreshing(false); }
   }, [locale]);
 
@@ -55,10 +62,10 @@ export function SceneFeedScreen() {
         <View style={styles.hero}>
           <View style={[styles.row, { flexDirection: isArabic ? "row-reverse" : "row" }]}>
             <BookOpen size={18} color={colors.gold} />
-            <Text style={styles.eyebrow}>{isArabic ? "مشهد ملامح" : "MLAMH SCENE"}</Text>
+  <Text style={[styles.eyebrow, { writingDirection: isArabic ? "rtl" : "ltr" }]}>{isArabic ? "مشهد ملامح" : "MLAMH SCENE"}</Text>
           </View>
-          <Text style={[styles.title, { textAlign: align }]}>{isArabic ? "معرفة تصنع حضورك" : "Knowledge that shapes your presence"}</Text>
-          <Text style={[styles.subtitle, { textAlign: align }]}>{isArabic ? "أدلة، قصص، تقارير ومحتوى عملي للمواهب والناشرين داخل ملامح." : "Guides, stories, reports, and practical knowledge for talent and publishers."}</Text>
+          <Text style={[styles.title, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{isArabic ? "معرفة تصنع حضورك" : "Knowledge that shapes your presence"}</Text>
+          <Text style={[styles.subtitle, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{isArabic ? "أدلة، قصص، تقارير ومحتوى عملي للمواهب والناشرين داخل ملامح." : "Guides, stories, reports, and practical knowledge for talent and publishers."}</Text>
         </View>
 
         <View style={[styles.searchBox, { flexDirection: isArabic ? "row-reverse" : "row" }]}>
@@ -69,10 +76,18 @@ export function SceneFeedScreen() {
         {loading ? <Text style={styles.stateText}>{isArabic ? "جارٍ تحميل المشهد..." : "Loading Scene..."}</Text> : null}
         {!loading && error ? <StateCard text={isArabic ? "تعذر تحميل مشهد ملامح." : "Unable to load MLAMH Scene."} action={isArabic ? "إعادة المحاولة" : "Retry"} onPress={() => void load()} /> : null}
 
+        {!loading && usingFallback ? (
+          <View style={styles.fallbackCard}>
+            <Text style={[styles.fallbackTitle, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{isArabic ? "مشهد ملامح قيد التحديث" : "MLAMH Scene is updating"}</Text>
+            <Text style={[styles.fallbackText, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{isArabic ? "يمكنك متابعة استخدام التطبيق بشكل طبيعي. سنعرض المقالات هنا فور اكتمال مزامنة المحتوى." : "You can continue using the app normally. Articles will appear here as soon as content sync is complete."}</Text>
+            <Pressable onPress={() => void load()} style={styles.retry}><Text style={styles.retryText}>{isArabic ? "تحديث المحتوى" : "Refresh content"}</Text></Pressable>
+          </View>
+        ) : null}
+
         {!loading && !error && data ? (
           <>
             {data.categories.length > 0 ? (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categories}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.categories, isArabic && styles.categoriesRtl]}>
                 {data.categories.map((category) => (
                   <Pressable key={category.id} onPress={() => router.push(`/scene/category/${category.slug}` as never)} style={styles.categoryChip}>
                     <Text style={styles.categoryText}>{category.name}</Text>
@@ -119,4 +134,4 @@ function ArticleCard({ article, isArabic, DirectionArrow }: { article: SceneArti
 function Section({ title, children, isArabic }: { title: string; children: React.ReactNode; isArabic: boolean }) { return <View style={styles.section}><Text style={[styles.sectionTitle, { textAlign: isArabic ? "right" : "left", writingDirection: isArabic ? "rtl" : "ltr" }]}>{title}</Text><View style={styles.sectionList}>{children}</View></View>; }
 function StateCard({ text, action, onPress }: { text: string; action: string; onPress: () => void }) { return <View style={styles.stateCard}><Text style={styles.stateText}>{text}</Text><Pressable onPress={onPress} style={styles.retry}><Text style={styles.retryText}>{action}</Text></Pressable></View>; }
 
-const styles = StyleSheet.create({ rowReverse:{flexDirection:"row-reverse"},safeArea:{flex:1,backgroundColor:colors.background},content:{paddingHorizontal:spacing.lg,paddingBottom:56},hero:{paddingTop:spacing.xl},row:{alignItems:"center",gap:spacing.sm},eyebrow:{color:colors.gold,fontSize:10,fontWeight:"800",letterSpacing:1.4},title:{color:colors.textPrimary,fontSize:31,lineHeight:39,fontWeight:"700",marginTop:spacing.md},subtitle:{color:colors.textMuted,fontSize:13,lineHeight:22,marginTop:spacing.sm},searchBox:{minHeight:52,alignItems:"center",gap:spacing.sm,borderWidth:1,borderColor:colors.border,borderRadius:radius.lg,paddingHorizontal:spacing.md,marginTop:spacing.lg,backgroundColor:colors.surface},searchInput:{flex:1,color:colors.textPrimary,fontSize:14},categories:{gap:spacing.sm,paddingVertical:spacing.lg},categoryChip:{borderWidth:1,borderColor:"rgba(201,169,98,0.28)",backgroundColor:"rgba(201,169,98,0.07)",borderRadius:999,paddingHorizontal:spacing.md,paddingVertical:9},categoryText:{color:colors.gold,fontSize:11,fontWeight:"700"},leadCard:{borderWidth:1,borderColor:"rgba(201,169,98,0.22)",backgroundColor:"rgba(201,169,98,0.05)",borderRadius:radius.xl,overflow:"hidden",padding:spacing.lg},leadImage:{width:"100%",height:190,borderRadius:radius.lg,marginBottom:spacing.md},leadTitle:{color:colors.textPrimary,fontSize:23,lineHeight:31,fontWeight:"700"},leadExcerpt:{color:colors.textSecondary,fontSize:12,lineHeight:21,marginTop:spacing.sm},readRow:{alignItems:"center",gap:6,marginTop:spacing.md},readText:{color:colors.gold,fontSize:11,fontWeight:"700"},section:{marginTop:spacing.xl},sectionTitle:{color:colors.textPrimary,fontSize:17,fontWeight:"800",marginBottom:spacing.md},sectionList:{gap:spacing.sm},articleCard:{minHeight:92,flexDirection:"row",alignItems:"center",gap:spacing.md,borderWidth:1,borderColor:colors.border,backgroundColor:colors.surface,borderRadius:radius.lg,padding:spacing.md},articleCopy:{flex:1},articleTitle:{color:colors.textPrimary,fontSize:14,lineHeight:20,fontWeight:"700"},articleExcerpt:{color:colors.textMuted,fontSize:10,lineHeight:17,marginTop:4},stateCard:{borderWidth:1,borderColor:colors.border,backgroundColor:colors.surface,borderRadius:radius.xl,padding:spacing.lg,marginTop:spacing.xl,alignItems:"center"},stateText:{color:colors.textMuted,fontSize:12,lineHeight:20,textAlign:"center",marginTop:spacing.md},retry:{marginTop:spacing.md,borderRadius:999,backgroundColor:colors.gold,paddingHorizontal:spacing.lg,paddingVertical:10},retryText:{color:"#090909",fontSize:11,fontWeight:"800"}});
+const styles = StyleSheet.create({ rowReverse:{flexDirection:"row-reverse"},safeArea:{flex:1,backgroundColor:colors.background},content:{paddingHorizontal:spacing.lg,paddingBottom:56},hero:{paddingTop:spacing.xl},row:{alignItems:"center",gap:spacing.sm},eyebrow:{color:colors.gold,fontSize:10,fontWeight:"800",letterSpacing:1.4},title:{color:colors.textPrimary,fontSize:31,lineHeight:39,fontWeight:"700",marginTop:spacing.md},subtitle:{color:colors.textMuted,fontSize:13,lineHeight:22,marginTop:spacing.sm},searchBox:{minHeight:52,alignItems:"center",gap:spacing.sm,borderWidth:1,borderColor:colors.border,borderRadius:radius.lg,paddingHorizontal:spacing.md,marginTop:spacing.lg,backgroundColor:colors.surface},searchInput:{flex:1,color:colors.textPrimary,fontSize:14},categories:{gap:spacing.sm,paddingVertical:spacing.lg},categoryChip:{borderWidth:1,borderColor:"rgba(201,169,98,0.28)",backgroundColor:"rgba(201,169,98,0.07)",borderRadius:999,paddingHorizontal:spacing.md,paddingVertical:9},categoryText:{color:colors.gold,fontSize:11,fontWeight:"700"},categoriesRtl:{flexDirection:"row-reverse"},leadCard:{borderWidth:1,borderColor:"rgba(201,169,98,0.22)",backgroundColor:"rgba(201,169,98,0.05)",borderRadius:radius.xl,overflow:"hidden",padding:spacing.lg},leadImage:{width:"100%",height:190,borderRadius:radius.lg,marginBottom:spacing.md},leadTitle:{color:colors.textPrimary,fontSize:23,lineHeight:31,fontWeight:"700"},leadExcerpt:{color:colors.textSecondary,fontSize:12,lineHeight:21,marginTop:spacing.sm},readRow:{alignItems:"center",gap:6,marginTop:spacing.md},readText:{color:colors.gold,fontSize:11,fontWeight:"700"},section:{marginTop:spacing.xl},sectionTitle:{color:colors.textPrimary,fontSize:17,fontWeight:"800",marginBottom:spacing.md},sectionList:{gap:spacing.sm},articleCard:{minHeight:92,flexDirection:"row",alignItems:"center",gap:spacing.md,borderWidth:1,borderColor:colors.border,backgroundColor:colors.surface,borderRadius:radius.lg,padding:spacing.md},articleCopy:{flex:1},articleTitle:{color:colors.textPrimary,fontSize:14,lineHeight:20,fontWeight:"700"},articleExcerpt:{color:colors.textMuted,fontSize:10,lineHeight:17,marginTop:4},fallbackCard:{borderWidth:1,borderColor:"rgba(201,169,98,.18)",backgroundColor:"rgba(201,169,98,.045)",borderRadius:radius.xl,padding:spacing.lg,marginTop:spacing.xl},fallbackTitle:{color:colors.textPrimary,fontSize:17,fontWeight:"800"},fallbackText:{color:colors.textMuted,fontSize:12,lineHeight:21,marginTop:spacing.sm},stateCard:{borderWidth:1,borderColor:colors.border,backgroundColor:colors.surface,borderRadius:radius.xl,padding:spacing.lg,marginTop:spacing.xl,alignItems:"center"},stateText:{color:colors.textMuted,fontSize:12,lineHeight:20,textAlign:"center",marginTop:spacing.md},retry:{marginTop:spacing.md,borderRadius:999,backgroundColor:colors.gold,paddingHorizontal:spacing.lg,paddingVertical:10},retryText:{color:"#090909",fontSize:11,fontWeight:"800"}});

@@ -1,6 +1,8 @@
 import { router, usePathname, type Href } from "expo-router";
 import {
   Bell,
+  BookOpenText,
+  CircleHelp,
   BriefcaseBusiness,
   CirclePlus,
   ClipboardList,
@@ -10,13 +12,15 @@ import {
   LogIn,
   Menu,
   MessageCircle,
+  Settings,
   User,
   UserRound,
   UsersRound,
   X,
 } from "lucide-react-native";
-import { type PropsWithChildren, useMemo, useState } from "react";
+import { type PropsWithChildren, useEffect, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   Image,
   Modal,
   Pressable,
@@ -42,7 +46,7 @@ type NavItem = {
 const HIDE_ALL = new Set(["/", "/+not-found"]);
 const HIDE_BOTTOM = new Set(["/login", "/account-type", "/register", "/verify-email", "/setup-account", "/forgot-password", "/reset-password"]);
 
-function push(href: string) {
+function rawPush(href: string) {
   router.push(href as Href);
 }
 
@@ -52,9 +56,20 @@ export function NativeAppChrome({ children }: PropsWithChildren) {
   const session = useSessionContext();
   const { locale, setLocale } = useLocale();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [navigating, setNavigating] = useState(false);
   const isArabic = locale === "ar";
   const hideAll = HIDE_ALL.has(pathname);
   const hideBottom = HIDE_BOTTOM.has(pathname);
+
+  useEffect(() => {
+    setNavigating(false);
+  }, [pathname]);
+
+  function navigate(href: string) {
+    if (href === pathname) return;
+    setNavigating(true);
+    rawPush(href);
+  }
 
   const items = useMemo<NavItem[]>(() => {
     if (session.status === "talent") {
@@ -98,7 +113,7 @@ export function NativeAppChrome({ children }: PropsWithChildren) {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={isArabic ? "الحساب" : "Account"}
-            onPress={() => push(session.status === "guest" ? "/login" : "/account")}
+            onPress={() => navigate(session.status === "guest" ? "/login" : "/account")}
             style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
           >
             <Grid2X2 size={22} color={colors.textSecondary} strokeWidth={1.8} />
@@ -107,7 +122,7 @@ export function NativeAppChrome({ children }: PropsWithChildren) {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={isArabic ? "الرئيسية" : "Home"}
-            onPress={() => push(session.status === "talent" ? "/talent-home" : session.status === "publisher" ? "/publisher-home" : "/public-home")}
+            onPress={() => navigate(session.status === "talent" ? "/talent-home" : session.status === "publisher" ? "/publisher-home" : "/public-home")}
             style={({ pressed }) => [styles.logoButton, pressed && styles.pressed]}
           >
             <Image
@@ -142,7 +157,7 @@ export function NativeAppChrome({ children }: PropsWithChildren) {
                   key={item.key}
                   accessibilityRole="button"
                   accessibilityLabel={label}
-                  onPress={() => push(item.href)}
+                  onPress={() => navigate(item.href)}
                   style={({ pressed }) => [styles.navItem, pressed && styles.pressed]}
                 >
                   <View style={[styles.primaryCircle, active && styles.primaryCircleActive]}>
@@ -157,7 +172,7 @@ export function NativeAppChrome({ children }: PropsWithChildren) {
                 key={item.key}
                 accessibilityRole="button"
                 accessibilityLabel={label}
-                onPress={() => push(item.href)}
+                onPress={() => navigate(item.href)}
                 style={({ pressed }) => [styles.navItem, pressed && styles.pressed]}
               >
                 <Icon size={23} color={active ? colors.goldSoft : "rgba(255,255,255,0.48)"} strokeWidth={active ? 2.2 : 1.7} />
@@ -166,6 +181,13 @@ export function NativeAppChrome({ children }: PropsWithChildren) {
               </Pressable>
             );
           })}
+        </View>
+      ) : null}
+
+      {navigating ? (
+        <View pointerEvents="none" style={styles.navigationFeedback}>
+          <ActivityIndicator size="small" color={colors.gold} />
+          <Text style={styles.navigationFeedbackText}>{isArabic ? "جارٍ الانتقال…" : "Loading…"}</Text>
         </View>
       ) : null}
 
@@ -183,13 +205,17 @@ export function NativeAppChrome({ children }: PropsWithChildren) {
               </Pressable>
             </View>
 
-            <DrawerLink label={isArabic ? "المواهب" : "Talents"} icon={UsersRound} onPress={() => { setMenuOpen(false); push("/talents"); }} isArabic={isArabic} />
-            <DrawerLink label={isArabic ? "الفرص" : "Opportunities"} icon={BriefcaseBusiness} onPress={() => { setMenuOpen(false); push("/opportunities"); }} isArabic={isArabic} />
+            <DrawerLink label={isArabic ? "المواهب" : "Talents"} icon={UsersRound} onPress={() => { setMenuOpen(false); navigate("/talents"); }} isArabic={isArabic} />
+            <DrawerLink label={isArabic ? "الفرص" : "Opportunities"} icon={BriefcaseBusiness} onPress={() => { setMenuOpen(false); navigate("/opportunities"); }} isArabic={isArabic} />
             {session.status === "guest" ? (
-              <DrawerLink label={isArabic ? "للناشرين" : "For Publishers"} icon={Grid2X2} onPress={() => { setMenuOpen(false); push("/publishers"); }} isArabic={isArabic} />
+              <DrawerLink label={isArabic ? "للناشرين" : "For Publishers"} icon={Grid2X2} onPress={() => { setMenuOpen(false); navigate("/publishers"); }} isArabic={isArabic} />
             ) : (
-              <DrawerLink label={isArabic ? "الرسائل" : "Messages"} icon={MessageCircle} onPress={() => { setMenuOpen(false); push("/messages"); }} isArabic={isArabic} />
+              <DrawerLink label={isArabic ? "الرسائل" : "Messages"} icon={MessageCircle} onPress={() => { setMenuOpen(false); navigate("/messages"); }} isArabic={isArabic} />
             )}
+            <DrawerLink label={isArabic ? "مشهد ملامح" : "MLAMH Scene"} icon={BookOpenText} onPress={() => { setMenuOpen(false); navigate("/scene"); }} isArabic={isArabic} />
+            <View style={styles.drawerDivider} />
+            <DrawerLink label={isArabic ? "الإعدادات" : "Settings"} icon={Settings} onPress={() => { setMenuOpen(false); navigate("/settings"); }} isArabic={isArabic} />
+            <DrawerLink label={isArabic ? "المساعدة والدعم" : "Help & support"} icon={CircleHelp} onPress={() => { setMenuOpen(false); navigate("/settings?section=support"); }} isArabic={isArabic} />
             <View style={styles.drawerDivider} />
             <DrawerLink
               label={isArabic ? "English" : "العربية"}
@@ -200,7 +226,7 @@ export function NativeAppChrome({ children }: PropsWithChildren) {
             <DrawerLink
               label={session.status === "guest" ? (isArabic ? "تسجيل الدخول" : "Sign in") : (isArabic ? "حسابي" : "Account")}
               icon={session.status === "guest" ? LogIn : User}
-              onPress={() => { setMenuOpen(false); push(session.status === "guest" ? "/login" : "/account"); }}
+              onPress={() => { setMenuOpen(false); navigate(session.status === "guest" ? "/login" : "/account"); }}
               isArabic={isArabic}
             />
           </View>
@@ -238,6 +264,8 @@ const styles = StyleSheet.create({
   primaryCircle: { position: "absolute", top: -25, width: 58, height: 58, borderRadius: 29, borderWidth: 4, borderColor: "#050505", backgroundColor: colors.goldSoft, alignItems: "center", justifyContent: "center", shadowColor: "#000", shadowOpacity: 0.5, shadowRadius: 12, shadowOffset: { width: 0, height: 6 } },
   primaryCircleActive: { backgroundColor: "#E1C579" },
   primaryLabel: { color: colors.goldSoft, fontSize: 10, fontWeight: "600", marginTop: 32 },
+  navigationFeedback: { position: "absolute", top: 82, alignSelf: "center", zIndex: 50, flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderColor: "rgba(201,169,98,0.24)", backgroundColor: "rgba(8,8,8,0.96)", borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9 },
+  navigationFeedbackText: { color: colors.textSecondary, fontSize: 10, fontWeight: "600" },
   modalRoot: { flex: 1, flexDirection: "row" },
   backdrop: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: "rgba(0,0,0,0.68)" },
   drawer: { position: "absolute", top: 0, bottom: 0, width: "86%", maxWidth: 360, backgroundColor: "#090909", borderColor: "rgba(255,255,255,0.10)", paddingHorizontal: spacing.lg },

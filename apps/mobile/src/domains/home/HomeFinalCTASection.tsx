@@ -53,10 +53,10 @@ export function HomeFinalCTASection({ isArabic }: Props) {
         >
           <BriefcaseBusiness size={24} color={colors.gold} />
           <Text style={[styles.publisherEyebrow, { textAlign: align }]}>{isArabic ? "للجهات" : "FOR ORGANIZATIONS"}</Text>
-          <Text style={[styles.publisherTitle, { textAlign: align }]}>
+          <Text style={[styles.publisherTitle, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
             {isArabic ? "انشر فرصك واكتشف المواهب" : "Publish & Discover Talent"}
           </Text>
-          <Text style={[styles.publisherText, { textAlign: align }]}>
+          <Text style={[styles.publisherText, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
             {isArabic
               ? "أنشئ فرص الكاست، استقبل المتقدمين واختر الأنسب."
               : "Create casting opportunities, review applicants, and choose the right talent."}

@@ -28,7 +28,7 @@ export function formatDate(
 ) {
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return "";
-  return new Intl.DateTimeFormat(locale === "ar" ? "ar-SA" : "en-US", options).format(date);
+  return new Intl.DateTimeFormat(locale === "ar" ? "ar-SA-u-ca-gregory-nu-latn" : "en-US-u-ca-gregory-nu-latn", options).format(date);
 }
 
 export function formatMoney(
@@ -37,7 +37,7 @@ export function formatMoney(
   locale: AppLocale,
 ) {
   if (!Number.isFinite(value)) return "";
-  return new Intl.NumberFormat(locale === "ar" ? "ar-SA" : "en-US", {
+  return new Intl.NumberFormat(locale === "ar" ? "ar-SA-u-nu-latn" : "en-US-u-nu-latn", {
     style: "currency",
     currency,
     maximumFractionDigits: 2,

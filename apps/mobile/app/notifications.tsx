@@ -81,7 +81,7 @@ export default function NotificationsScreen() {
 function NotificationCard({ item, isArabic, onPress }: { item: MobileNotification; isArabic: boolean; onPress: () => void }) {
   const Icon = item.category === "message" ? MessageCircle : item.category === "application" || item.category === "invitation" ? BriefcaseBusiness : item.isRead ? CheckCircle2 : Sparkles;
   const date = item.createdAt ? new Date(item.createdAt) : null;
-  const formatted = date && !Number.isNaN(date.getTime()) ? new Intl.DateTimeFormat(isArabic ? "ar-SA" : "en-US", { dateStyle: "medium", timeStyle: "short" }).format(date) : "";
+  const formatted = date && !Number.isNaN(date.getTime()) ? new Intl.DateTimeFormat(isArabic ? "ar-SA-u-ca-gregory-nu-latn" : "en-US-u-ca-gregory-nu-latn", { dateStyle: "medium", timeStyle: "short" }).format(date) : "";
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.card, !item.isRead && styles.cardUnread, isArabic && styles.rtl, pressed && styles.pressed]}>
       <View style={styles.cardIcon}><Icon size={19} color={colors.gold} /></View>

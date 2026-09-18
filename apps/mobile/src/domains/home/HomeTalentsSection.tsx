@@ -32,7 +32,7 @@ export function HomeTalentsSection({
 
   return (
     <View style={styles.section}>
-      <View style={styles.headerRow}>
+      <View style={[styles.headerRow, isArabic && styles.rowReverse]}>
         <View style={styles.headerCopy}>
           <View style={[styles.eyebrowRow, isArabic ? styles.rowRtl : styles.rowLtr]}>
             <Sparkles size={14} color={colors.gold} />
@@ -173,6 +173,7 @@ const styles = StyleSheet.create({
   headerCopy: { flex: 1 },
   eyebrowRow: { alignSelf: "flex-start" },
   rowRtl: { flexDirection: "row-reverse", alignItems: "center", gap: spacing.sm },
+  rowReverse: { flexDirection: "row-reverse" },
   rowLtr: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   eyebrow: { color: "rgba(201,169,98,0.82)", fontSize: 11, fontWeight: "600" },
   title: { color: colors.textPrimary, fontSize: 25, lineHeight: 31, fontWeight: "700", marginTop: spacing.sm },

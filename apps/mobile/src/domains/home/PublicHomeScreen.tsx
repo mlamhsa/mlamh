@@ -3,11 +3,9 @@ import {
   ArrowLeft,
   ArrowRight,
   BriefcaseBusiness,
-  Building2,
   ClipboardList,
   Search,
   Sparkles,
-  UsersRound,
 } from "lucide-react-native";
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
@@ -57,41 +55,8 @@ export function PublicHomeScreen() {
     : "Discover talents, opportunities, and creative organizations in one place.");
   const primaryLabel = hero?.primaryCtaLabel || (isArabic ? "اكتشف المواهب" : "Discover talent");
   const secondaryLabel = hero?.secondaryCtaLabel || (isArabic ? "تصفح الفرص" : "Browse opportunities");
-  const primaryHref = nativeHref(hero?.primaryCtaHref, "/talents");
+  const primaryHref = /ابدأ|start/i.test(primaryLabel) ? "/account-type" : nativeHref(hero?.primaryCtaHref, "/talents");
   const secondaryHref = nativeHref(hero?.secondaryCtaHref, "/opportunities");
-
-  const quickItems = [
-    {
-      key: "talents",
-      eyebrow: isArabic ? "اكتشف" : "DISCOVER",
-      title: isArabic ? "استكشف المواهب" : "Explore talents",
-      description: isArabic
-        ? "اكتشف الوجوه والخبرات المناسبة لمشروعك."
-        : "Discover the right faces and expertise for your project.",
-      href: "/talents",
-      icon: UsersRound,
-    },
-    {
-      key: "opportunities",
-      eyebrow: isArabic ? "تقدّم" : "APPLY",
-      title: isArabic ? "تصفح الفرص" : "Browse opportunities",
-      description: isArabic
-        ? "اعثر على فرص جديدة تناسب ملفك وطموحك."
-        : "Find new opportunities that match your profile and ambition.",
-      href: "/opportunities",
-      icon: BriefcaseBusiness,
-    },
-    {
-      key: "organizations",
-      eyebrow: isArabic ? "تواصل" : "CONNECT",
-      title: isArabic ? "للناشرين" : "For publishers",
-      description: isArabic
-        ? "انشر احتياجك واعثر على الموهبة المناسبة لمشروعك."
-        : "Post what you need and find the right talent for your project.",
-      href: "/publishers",
-      icon: Building2,
-    },
-  ] as const;
 
   return (
     <View style={styles.safeArea}>
@@ -189,45 +154,6 @@ export function PublicHomeScreen() {
           </View>
         </Pressable>
 
-        <View style={[styles.sectionHeader, isArabic && styles.rowReverse]}>
-          <View>
-            <Text style={[styles.sectionEyebrow, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{isArabic ? "وصول سريع" : "QUICK ACCESS"}</Text>
-            <Text style={[styles.sectionTitle, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{isArabic ? "ابدأ من هنا" : "Start here"}</Text>
-          </View>
-          <Text style={styles.sectionBrand}>MLAMH</Text>
-        </View>
-
-        <Pressable accessibilityRole="button" onPress={() => go(quickItems[0].href)} style={({ pressed }) => [styles.quickPrimary, pressed && styles.pressed]}>
-          <View style={isArabic ? styles.rowRtl : styles.rowLtr}>
-            <View style={styles.quickPrimaryIcon}><UsersRound size={25} color={colors.gold} /></View>
-            <View style={styles.flexOne}>
-              <Text style={[styles.quickEyebrow, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{quickItems[0].eyebrow}</Text>
-              <Text style={[styles.quickTitle, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{quickItems[0].title}</Text>
-              <Text style={[styles.quickText, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{quickItems[0].description}</Text>
-            </View>
-            <DirectionArrow size={18} color={colors.textMuted} />
-          </View>
-        </Pressable>
-
-        <View style={styles.quickGrid}>
-          {quickItems.slice(1).map((item) => {
-            const Icon = item.icon;
-            return (
-              <Pressable key={item.key} accessibilityRole="button" onPress={() => go(item.href)} style={({ pressed }) => [styles.quickSmall, pressed && styles.pressed]}>
-                <View style={[styles.quickSmallTop, isArabic ? styles.rowRtl : styles.rowLtr]}>
-                  <View style={styles.quickSmallIcon}><Icon size={21} color={colors.goldSoft} /></View>
-                  <DirectionArrow size={16} color={colors.textMuted} />
-                </View>
-                <View style={styles.quickSmallBottom}>
-                  <Text style={[styles.quickEyebrow, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{item.eyebrow}</Text>
-                  <Text style={[styles.quickSmallTitle, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{item.title}</Text>
-                  <Text numberOfLines={2} style={[styles.quickSmallText, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{item.description}</Text>
-                </View>
-              </Pressable>
-            );
-          })}
-        </View>
-
         <HomeValuePropsSection isArabic={isArabic} items={valueProps} />
         <HomeHowItWorksSection isArabic={isArabic} />
         <HomeTalentsSection isArabic={isArabic} items={talents} loading={talentsLoading} />
@@ -270,7 +196,7 @@ const styles = StyleSheet.create({
   heroLargeImage: { flex: 1.15, borderRadius: 28 },
   heroSmallColumn: { flex: 0.85, gap: spacing.md },
   heroSmallImage: { flex: 1, borderRadius: 22 },
-  imageFill: { ...absoluteFill, width: "100%", height: "100%" },
+  imageFill: { position: "absolute", top: -1, right: -1, bottom: -1, left: -1 },
   imageShade: { ...absoluteFill, backgroundColor: "rgba(0,0,0,0.24)" },
   imageShadeSoft: { ...absoluteFill, backgroundColor: "rgba(0,0,0,0.18)" },
   imageCaption: { position: "absolute", left: spacing.lg, right: spacing.lg, bottom: spacing.lg },
