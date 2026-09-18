@@ -96,6 +96,88 @@ test("sensitive admin action files keep explicit audit instrumentation", async (
   }
 });
 
+async function adminApiRoutes() {
+  const root = path.join(
+    process.cwd(),
+    "app/api/admin",
+  );
+
+  const routes: string[] = [];
+
+  async function walk(
+    directory: string,
+  ) {
+    const entries =
+      await readdir(
+        directory,
+        {
+          withFileTypes: true,
+        },
+      );
+
+    for (const entry of entries) {
+      const absolute =
+        path.join(
+          directory,
+          entry.name,
+        );
+
+      if (
+        entry.isDirectory()
+      ) {
+        await walk(absolute);
+        continue;
+      }
+
+      if (
+        entry.isFile() &&
+        entry.name === "route.ts"
+      ) {
+        routes.push(
+          path.relative(
+            process.cwd(),
+            absolute,
+          ),
+        );
+      }
+    }
+  }
+
+  await walk(root);
+
+  return routes.sort();
+}
+
+test("admin API routes keep explicit admin authorization and audit coverage", async () => {
+  const routes =
+    await adminApiRoutes();
+
+  assert.ok(
+    routes.length > 0,
+    "expected at least one admin API route",
+  );
+
+  for (const file of routes) {
+    const text = await source(file);
+
+    assert.equal(
+      text.includes(
+        "requireAdminAccess",
+      ),
+      true,
+      `${file} must authenticate through requireAdminAccess()`,
+    );
+
+    assert.equal(
+      text.includes(
+        "recordAdminAction",
+      ),
+      true,
+      `${file} must record sensitive admin API activity`,
+    );
+  }
+});
+
 test("admin access mutations keep dedicated blocked/failed/no-op audit outcomes", async () => {
   const text = await source(
     "lib/actions/admin-access-actions.ts",
