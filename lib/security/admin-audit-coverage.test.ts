@@ -1201,3 +1201,27 @@ test("access center surfaces recent failed MFA activity without secret material"
     "MFA health messaging must explicitly confirm secret values are not persisted in audit data",
   );
 });
+
+
+test("access center surfaces dormant active admin accounts", async () => {
+  const page = await source(
+    "app/admin/admins/page.tsx",
+  );
+
+  assert.equal(
+    page.includes(
+      "DORMANT_ADMIN_MS",
+    ) &&
+      page.includes(
+        "dormantAdminCount",
+      ) &&
+      page.includes(
+        'value="dormant"',
+      ) &&
+      page.includes(
+        "Dormant admin",
+      ),
+    true,
+    "active admin accounts with 90-day sign-in inactivity must be visible and filterable",
+  );
+});
