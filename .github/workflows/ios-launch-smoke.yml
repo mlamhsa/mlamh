@@ -7,6 +7,7 @@ on:
       - feat/mobile-native-v3-foundation
     paths:
       - ".github/workflows/ios-launch-smoke.yml"
+      - ".github/workflows/ios-build15-local.yml"
       - "apps/mobile/app/**"
       - "apps/mobile/assets/**"
       - "apps/mobile/src/navigation/**"
