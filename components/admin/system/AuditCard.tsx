@@ -598,6 +598,31 @@ import {
         return isArabic
           ? "ملف كاستينغ"
           : "Casting file";
+
+      case "managed_casting_invitation":
+        return isArabic
+          ? "دعوة كاستينغ مُدار"
+          : "Managed casting invitation";
+
+      case "casting_role":
+        return isArabic
+          ? "دور كاستينغ"
+          : "Casting role";
+
+      case "casting_shortlist":
+        return isArabic
+          ? "قائمة مختصرة للكاستينغ"
+          : "Casting shortlist";
+
+      case "booking":
+        return isArabic
+          ? "حجز موهبة"
+          : "Talent booking";
+
+      case "casting_replacement":
+        return isArabic
+          ? "استبدال موهبة"
+          : "Casting replacement";
   
       default:
         return targetType;
