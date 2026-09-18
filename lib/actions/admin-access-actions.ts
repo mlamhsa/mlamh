@@ -207,9 +207,12 @@ async function countSuperAdmins() {
   } = await adminClient
     .from("admin_users")
     .select("id")
-    .eq(
+    .in(
       "role",
-      ROLES.SUPER_ADMIN,
+      [
+        ROLES.SUPER_ADMIN,
+        ROLES.ADMIN,
+      ],
     )
     .in(
       "id",
