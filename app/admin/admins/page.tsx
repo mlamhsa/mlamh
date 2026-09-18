@@ -937,6 +937,11 @@ export default async function AdminUsersPage({
               ? "تعذر إعادة إرسال رابط تفعيل حساب الإدارة. حاول مرة أخرى."
               : "The admin activation link could not be resent. Please try again."
             : access_error ===
+                "invite_rate_limited"
+              ? isArabic
+                ? "تم إيقاف إعادة إرسال رابط التفعيل مؤقتًا بسبب تكرار المحاولة. انتظر قليلًا ثم حاول مرة أخرى."
+                : "Activation-link resending is temporarily rate-limited because of repeated attempts. Please wait and try again."
+              : access_error ===
                 "invite_cancel_failed"
               ? isArabic
                 ? "تعذر إلغاء دعوة المشرف بالكامل. لم يتم اعتماد الإلغاء."
