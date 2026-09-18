@@ -31,6 +31,7 @@ import {
       q?: string;
       target?: string;
       event?: string;
+      actor?: string;
     }>;
   };
   
@@ -39,11 +40,13 @@ import {
     q,
     target,
     event,
+    actor,
   }: {
     lang?: string;
     q?: string;
     target?: string;
     event?: string;
+    actor?: string;
   }) {
     const params =
       new URLSearchParams();
@@ -75,6 +78,13 @@ import {
         event,
       );
     }
+
+    if (actor) {
+      params.set(
+        "actor",
+        actor,
+      );
+    }
   
     const query =
       params.toString();
@@ -94,6 +104,7 @@ import {
       q,
       target,
       event,
+      actor,
     } = await searchParams;
   
     const language:
@@ -110,10 +121,23 @@ import {
       q?.trim().toLowerCase() ??
       "";
 
+    const uuidPattern =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
     const exactIdSearch =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      uuidPattern.test(
         cleanSearch,
       );
+
+    const cleanActor =
+      actor?.trim() ?? "";
+
+    const actorFilter =
+      uuidPattern.test(
+        cleanActor,
+      )
+        ? cleanActor
+        : null;
 
     const adminClient =
       createAdminClient();
@@ -137,6 +161,13 @@ import {
       )
       .limit(500);
   
+    if (actorFilter) {
+      query = query.eq(
+        "actor_id",
+        actorFilter,
+      );
+    }
+
     if (target) {
       query = query.eq(
         "target_type",
@@ -250,8 +281,12 @@ import {
           }
           description={
             isArabic
-              ? "سجل زمني للأحداث والقرارات والعمليات المسجلة داخل المنصة. البحث بمعرّف UUID يتم مباشرة من قاعدة البيانات لضمان إظهار سجل المشرف حتى لو كان أقدم من آخر 500 حدث."
-              : "A chronological record of events, decisions, and operational activity across the platform. UUID searches are applied at the database layer so an admin's history is not limited to the latest 500 events."
+              ? actorFilter
+                ? "عرض مخصص لكل العمليات التي نفذها هذا المشرف عبر المنصة. يمكن تضييق النتائج بالمستهدف أو نوع الحدث."
+                : "سجل زمني للأحداث والقرارات والعمليات المسجلة داخل المنصة. البحث بمعرّف UUID يتم مباشرة من قاعدة البيانات لضمان إظهار السجل حتى لو كان أقدم من آخر 500 حدث."
+              : actorFilter
+                ? "A dedicated view of every recorded platform action performed by this admin. Narrow the results by target or event type."
+                : "A chronological record of events, decisions, and operational activity across the platform. UUID searches are applied at the database layer so history is not limited to the latest 500 events."
           }
         />
   
@@ -267,6 +302,7 @@ import {
             href={buildHref({
               lang,
               q,
+              actor: actorFilter ?? undefined,
             })}
           />
   
@@ -284,6 +320,7 @@ import {
             href={buildHref({
               lang,
               q,
+              actor: actorFilter ?? undefined,
               target:
                 "admin",
             })}
@@ -303,6 +340,7 @@ import {
             href={buildHref({
               lang,
               q,
+              actor: actorFilter ?? undefined,
               target:
                 "talent",
             })}
@@ -322,6 +360,7 @@ import {
             href={buildHref({
               lang,
               q,
+              actor: actorFilter ?? undefined,
               target:
                 "publisher",
             })}
@@ -341,6 +380,7 @@ import {
             href={buildHref({
               lang,
               q,
+              actor: actorFilter ?? undefined,
               target:
                 "opportunity",
             })}
@@ -356,6 +396,14 @@ import {
             name="lang"
             value={language}
           />
+
+          {actorFilter ? (
+            <input
+              type="hidden"
+              name="actor"
+              value={actorFilter}
+            />
+          ) : null}
   
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_200px_240px_auto]">
             <input
