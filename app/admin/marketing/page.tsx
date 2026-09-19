@@ -19,7 +19,7 @@ const approvalAr:Record<string,string>={auto:"تلقائي",approval_required:"�
 const riskAr:Record<string,string>={low:"منخفض",medium:"متوسط",high:"مرتفع",critical:"حرج"};
 const contentStatusAr:Record<string,string>={draft:"مسودة",ready:"جاهز",approved:"معتمد",scheduled:"مجدول",published:"منشور",failed:"تعذر النشر",waiting_approval:"بانتظار الاعتماد",approval:"بانتظار قرار"};
 
-function fmt(v:string,ar:boolean){return new Intl.DateTimeFormat(ar?"ar-SA":"en-US",{hour:"numeric",minute:"2-digit",day:"numeric",month:"short"}).format(new Date(v));}
+function fmt(v:string,ar:boolean){return new Intl.DateTimeFormat(ar?"ar-SA-u-ca-gregory-nu-latn":"en-US",{hour:"numeric",minute:"2-digit",day:"numeric",month:"short"}).format(new Date(v));}
 function statusText(v:string,ar:boolean){const x:Record<string,[string,string]>={working:["يعمل الآن","Working now"],idle:["جاهز","Ready"],waiting_approval:["ينتظر قرارًا","Waiting for decision"],scheduled:["مجدول","Scheduled"],error:["يحتاج مراجعة","Needs review"],paused:["متوقف","Paused"]};return x[v]?.[ar?0:1]??v.replaceAll("_"," ");}
 function localize(map:Record<string,string>,value:string|null|undefined,ar:boolean){if(!value)return "—";return ar?(map[value]??value.replaceAll("_"," ")):value.replaceAll("_"," ");}
 function roleText(value:string|null|undefined,ar:boolean){if(!value)return ar?"عضو فريق التسويق":"Marketing team member";if(!ar)return value;const normalized=value.trim().toLowerCase().replace(/[\s-]+/g,"_");return roleAr[normalized]??value;}
