@@ -1,21 +1,29 @@
 import { randomUUID } from "node:crypto";
 import { redirect } from "next/navigation";
 
+import {
+  AdminCard,
+  AdminPageContainer,
+  AdminPageHeader,
+} from "@/components/admin/ui";
+
 import { createPaymentCheckoutAction } from "@/lib/actions/create-payment-checkout";
+import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 const SANDBOX_PRICE_CODE = "sandbox_tap_sar_100";
 
-export default async function AdminPaymentsSandboxPage() {
-  const authClient = await createServerSupabaseClient();
-  const { data: { user } } = await authClient.auth.getUser();
-  if (!user) redirect("/ar/login");
+export default async function AdminPaymentsSandboxPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ lang?: string }>;
+}) {
+  await requireAdminAccess();
+  const query = await searchParams;
+  const language: "ar" | "en" = query.lang === "en" ? "en" : "ar";
+  const isArabic = language === "ar";
 
   const adminClient = createAdminClient();
-  const { data: adminProfile, error: adminProfileError } = await adminClient
-    .from("profiles").select("id").eq("user_id", user.id).eq("account_type", "admin").maybeSingle();
-  if (adminProfileError || !adminProfile) redirect("/ar");
 
   const { data: price, error: priceError } = await adminClient
     .from("payment_prices").select("id, code, currency, amount_minor, active")
@@ -30,41 +38,63 @@ export default async function AdminPaymentsSandboxPage() {
       priceId: Number(price.id),
       requestKey: checkoutRequestKey,
       marketCountry: "SA",
-      locale: "ar",
+      locale: language,
     });
     redirect(result.checkoutUrl);
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-10">
-      <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-8">
-        <p className="text-xs uppercase tracking-[0.25em] text-amber-300">Tap Sandbox</p>
-        <h1 className="mt-4 text-3xl font-semibold text-white">اختبار بوابة الدفع</h1>
-        <p className="mt-4 leading-7 text-white/60">هذه الصفحة مخصصة لمسؤول ملامح فقط. العملية تستخدم كتالوج اختبار منفصل ومفتاح Tap التجريبي، ولا تمثل منتجًا تجاريًا معتمدًا.</p>
+    <div dir={isArabic ? "rtl" : "ltr"}>
+      <AdminPageContainer className="max-w-3xl">
+        <AdminPageHeader
+          eyebrow="TAP SANDBOX"
+          title={isArabic ? "اختبار بوابة الدفع" : "Payment gateway sandbox"}
+          description={
+            isArabic
+              ? "بيئة إدارية معزولة لاختبار Tap باستخدام كتالوج ومفتاح تجريبيين، ولا تمثل عملية شراء تجارية حقيقية."
+              : "An isolated admin workspace for testing Tap with a sandbox catalog and key. It does not represent a live commercial purchase."
+          }
+        />
 
-        {priceError ? (
-          <p className="mt-6 rounded-2xl border border-red-400/20 bg-red-400/5 p-4 text-sm text-red-200">تعذر تحميل سعر الاختبار.</p>
-        ) : !price ? (
-          <p className="mt-6 rounded-2xl border border-amber-300/20 bg-amber-300/5 p-4 text-sm text-amber-100">لم يتم إنشاء سعر Sandbox بعد.</p>
-        ) : (
-          <div className="mt-8 rounded-2xl border border-white/10 bg-black/20 p-5">
-            <div className="flex items-center justify-between gap-4 text-sm">
-              <span className="text-white/50">السعر التجريبي</span>
-              <span className="font-medium text-white">{(Number(price.amount_minor) / 100).toFixed(2)} {price.currency}</span>
+        <AdminCard className="p-5 sm:p-6">
+          {priceError ? (
+            <p className="rounded-xl border border-red-400/20 bg-red-400/[0.05] p-4 text-sm text-red-200">
+              {isArabic ? "تعذر تحميل سعر الاختبار." : "Unable to load the sandbox price."}
+            </p>
+          ) : !price ? (
+            <p className="rounded-xl border border-amber-300/20 bg-amber-300/[0.05] p-4 text-sm text-amber-100">
+              {isArabic ? "لم يتم إنشاء سعر Sandbox بعد." : "The sandbox price has not been created yet."}
+            </p>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-xl border border-white/[0.07] bg-black/20 p-4">
+                <p className="text-[10px] text-white/30">{isArabic ? "السعر التجريبي" : "Sandbox price"}</p>
+                <p className="mt-2 text-lg font-semibold text-white/85">
+                  {(Number(price.amount_minor) / 100).toFixed(2)} {price.currency}
+                </p>
+              </div>
+              <div className="rounded-xl border border-white/[0.07] bg-black/20 p-4">
+                <p className="text-[10px] text-white/30">{isArabic ? "الحالة" : "Status"}</p>
+                <p className={`mt-2 text-sm font-medium ${price.active ? "text-emerald-300" : "text-amber-200"}`}>
+                  {price.active
+                    ? (isArabic ? "جاهز للاختبار" : "Ready for testing")
+                    : (isArabic ? "غير مفعّل" : "Inactive")}
+                </p>
+              </div>
             </div>
-            <div className="mt-3 flex items-center justify-between gap-4 text-sm">
-              <span className="text-white/50">الحالة</span>
-              <span className={price.active ? "text-emerald-300" : "text-amber-200"}>{price.active ? "جاهز للاختبار" : "غير مفعّل"}</span>
-            </div>
-          </div>
-        )}
+          )}
 
-        <form action={startSandboxCheckout} className="mt-8">
-          <button type="submit" disabled={!price?.active} className="inline-flex min-h-12 items-center justify-center rounded-full bg-white px-6 text-sm font-medium text-black transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-40">
-            بدء اختبار Tap Sandbox
-          </button>
-        </form>
-      </div>
+          <form action={startSandboxCheckout} className="mt-5">
+            <button
+              type="submit"
+              disabled={!price?.active}
+              className="inline-flex h-11 items-center justify-center rounded-lg bg-white px-5 text-xs font-semibold text-black transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {isArabic ? "بدء اختبار Tap Sandbox" : "Start Tap Sandbox test"}
+            </button>
+          </form>
+        </AdminCard>
+      </AdminPageContainer>
     </div>
   );
 }
