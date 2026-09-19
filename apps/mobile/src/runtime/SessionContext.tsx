@@ -14,7 +14,7 @@ type SessionState =
   | { status: "publisher"; account: MobileAccountContext };
 
 type SessionContextValue = SessionState & {
-  refresh: () => Promise<void>;
+  refresh: () => Promise<SessionState["status"]>;
 };
 
 const SessionContext = createContext<SessionContextValue | null>(null);
@@ -25,8 +25,9 @@ export function SessionProvider({ children }: PropsWithChildren) {
   const refresh = useCallback(async () => {
     const { data } = await supabase.auth.getSession();
     if (!data.session) {
-      setState({ status: "guest", account: null });
-      return;
+      const next: SessionState = { status: "guest", account: null };
+      setState(next);
+      return next.status;
     }
 
     try {
@@ -40,13 +41,16 @@ export function SessionProvider({ children }: PropsWithChildren) {
         result = await getMobileAccountContext();
       }
       if (!result.ok) {
-        setState({ status: "account_missing", account: null });
-        return;
+        const next: SessionState = { status: "account_missing", account: null };
+        setState(next);
+        return next.status;
       }
-      setState({
+      const next: SessionState = {
         status: result.account.type === "talent" ? "talent" : "publisher",
         account: result.account,
-      });
+      };
+      setState(next);
+      return next.status;
     } catch (error) {
       // Account hydration must never hard-block app startup. Invalid auth is
       // cleared locally; transport/backend failures keep the session intact
@@ -61,7 +65,9 @@ export function SessionProvider({ children }: PropsWithChildren) {
         await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
       }
 
-      setState({ status: "guest", account: null });
+      const next: SessionState = { status: "guest", account: null };
+      setState(next);
+      return next.status;
     }
   }, []);
 
