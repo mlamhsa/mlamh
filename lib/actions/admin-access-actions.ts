@@ -2114,20 +2114,25 @@ export async function updateAdminRoleAction(
     targetAdmin.role !== roleKey;
 
   if (registryOnlySync) {
-    const { error: registrySyncError } =
-      await adminClient
-        .from("admin_users")
-        .update({
-          role: roleKey,
-        })
-        .eq(
-          "id",
+    const {
+      error: registrySyncError,
+    } = await adminClient.rpc(
+      "set_admin_access_role",
+      {
+        p_actor_user_id:
+          actor.id,
+        p_target_user_id:
           targetUserId,
-        );
+        p_new_role_key:
+          roleKey,
+        p_change_reason:
+          null,
+      },
+    );
 
     if (registrySyncError) {
       console.error(
-        "[updateAdminRoleAction registry-only sync]",
+        "[updateAdminRoleAction atomic registry-only sync]",
         registrySyncError,
       );
 
@@ -2154,37 +2159,6 @@ export async function updateAdminRoleAction(
           access_error:
             "role_update_failed",
         }),
-      );
-    }
-
-    try {
-      await createAuditEvent({
-        type:
-          EVENT_TYPES.admin_role_changed,
-        target:
-          EVENT_TARGETS.ADMIN,
-        targetId: targetUserId,
-        actorId: actor.id,
-        metadata: {
-          action:
-            "sync_admin_role_registry",
-          outcome: "success",
-          target_email:
-            targetAdmin.email,
-          previous_registry_role:
-            targetAdmin.role,
-          effective_role:
-            roleKey,
-          registry_only_sync:
-            true,
-          actor_email:
-            actor.email ?? null,
-        },
-      });
-    } catch (auditError) {
-      console.error(
-        "[updateAdminRoleAction registry-only audit]",
-        auditError,
       );
     }
 
