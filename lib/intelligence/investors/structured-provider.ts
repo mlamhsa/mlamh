@@ -8,7 +8,12 @@ import {
 } from "@/lib/marketing/ai/provider";
 
 const INVESTOR_WORKFLOW = "investor_discovery_v1";
-const INVESTOR_MODELS = ["poolside/laguna-s-2.1-free", "inclusionai/ling-3.0-tiny-free"] as const;
+const DEFAULT_INVESTOR_MODELS = ["poolside/laguna-s-2.1-free", "inclusionai/ling-3.0-tiny-free"] as const;
+
+function investorModels() {
+  const configured = process.env.INVESTOR_AI_MODELS?.split(",").map((value) => value.trim()).filter(Boolean) ?? [];
+  return configured.length ? configured : [...DEFAULT_INVESTOR_MODELS];
+}
 let installed = false;
 
 function nullableString() {
@@ -182,12 +187,13 @@ function usageTotal(value: unknown) {
 }
 
 
-async function runInvestorResearch(model: (typeof INVESTOR_MODELS)[number], request: MarketingAIRequest, schema: object) {
+async function runInvestorResearch(model: string, request: MarketingAIRequest, schema: object) {
   return generateText({
     model,
     instructions: researchInstruction(),
     prompt: requestPrompt(request, schema),
     maxOutputTokens: 7000,
+    maxRetries: 0,
     tools: {
       perplexity_search: gateway.tools.perplexitySearch({
         maxResults: 20,
@@ -224,11 +230,12 @@ class InvestorStructuredProvider implements MarketingAIProvider {
     const phase = request.metadata?.phase === "contact_enrichment_v1" ? "contact_enrichment" : "discovery";
     const schema = phase === "contact_enrichment" ? enrichmentSchema : discoverySchema;
 
+    const models = investorModels();
     let result: Awaited<ReturnType<typeof runInvestorResearch>> | null = null;
-    let selectedModel: (typeof INVESTOR_MODELS)[number] = INVESTOR_MODELS[0];
+    let selectedModel = models[0] ?? DEFAULT_INVESTOR_MODELS[0];
     let lastError: unknown = null;
 
-    for (const model of INVESTOR_MODELS) {
+    for (const [index, model] of models.entries()) {
       try {
         result = await runInvestorResearch(model, request, schema);
         selectedModel = model;
@@ -236,8 +243,15 @@ class InvestorStructuredProvider implements MarketingAIProvider {
       } catch (error) {
         lastError = error;
         const message = error instanceof Error ? error.message : String(error);
-        const rateLimited = /rate.?limit|free tier requests on this model/i.test(message);
-        if (!rateLimited || model === INVESTOR_MODELS[INVESTOR_MODELS.length - 1]) throw error;
+        const transientProviderFailure =
+          /rate.?limit|free tier requests on this model|service temporarily unavailable|gatewayinternalservererror|temporar(?:y|ily) unavailable|overloaded|timeout|timed out|connection reset|model .* not found|no provider available/i.test(message);
+        const isLastModel = index === models.length - 1;
+        if (!transientProviderFailure || isLastModel) throw error;
+        console.warn("[InvestorStructuredAI] provider fallback", {
+          failedModel: model,
+          nextModel: models[index + 1],
+          reason: message.slice(0, 300),
+        });
       }
     }
 
