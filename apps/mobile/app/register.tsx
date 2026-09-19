@@ -102,6 +102,15 @@ export default function RegisterScreen() {
         return;
       }
       if (
+        error instanceof MobileApiError &&
+        error.status === 409 &&
+        (error.code === "TALENT_ONBOARDING_INCOMPLETE" || error.code === "PUBLISHER_ONBOARDING_INCOMPLETE")
+      ) {
+        const recoveryType = error.code === "TALENT_ONBOARDING_INCOMPLETE" ? "talent" : "publisher";
+        router.replace(("/setup-account?type=" + recoveryType + "&source=recovery") as never);
+        return;
+      }
+      if (
         !(error instanceof MobileApiError) ||
         error.status !== 404 ||
         error.code !== "ACCOUNT_NOT_FOUND"
