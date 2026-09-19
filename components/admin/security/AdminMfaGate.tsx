@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 
-type Mode = "loading" | "enroll" | "challenge" | "verifying";
+type Mode = "loading" | "enroll" | "challenge" | "verifying" | "error";
 
 type Enrollment = {
   factorId: string;
@@ -48,6 +48,21 @@ export function AdminMfaGate() {
           return;
         }
 
+        // A page reload can leave a previous TOTP enrollment in the
+        // unverified state. Supabase will reject a new enrollment with the
+        // same friendly name, so clear incomplete factors before creating a
+        // fresh QR/secret that the user can actually finish verifying.
+        const unverifiedTotp = factors.data.totp.filter(
+          (factor) => factor.status === "unverified",
+        );
+
+        for (const factor of unverifiedTotp) {
+          const cleanup = await supabase.auth.mfa.unenroll({
+            factorId: factor.id,
+          });
+          if (cleanup.error) throw cleanup.error;
+        }
+
         const enroll = await supabase.auth.mfa.enroll({
           factorType: "totp",
           friendlyName: "MLAMH Admin",
@@ -64,7 +79,9 @@ export function AdminMfaGate() {
       } catch (caught) {
         const message = caught instanceof Error ? caught.message : "تعذر تهيئة التحقق بخطوتين.";
         setError(message);
-        setMode("challenge");
+        setFactorId("");
+        setEnrollment(null);
+        setMode("error");
       }
     })();
   }, [supabase]);
@@ -175,6 +192,23 @@ export function AdminMfaGate() {
 
   if (mode === "loading") {
     return <p className="text-sm text-white/60">جارٍ تجهيز التحقق الآمن…</p>;
+  }
+
+  if (mode === "error") {
+    return (
+      <div className="space-y-4">
+        <p className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm leading-6 text-red-200">
+          {error || "تعذر تهيئة التحقق بخطوتين."}
+        </p>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="w-full rounded-xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-semibold text-white transition hover:border-white/20 hover:bg-white/[0.08]"
+        >
+          إعادة المحاولة
+        </button>
+      </div>
+    );
   }
 
   return (
