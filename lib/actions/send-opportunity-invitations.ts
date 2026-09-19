@@ -134,15 +134,13 @@ export async function sendOpportunityInvitationsAction(
 
   const talentStatus = String(talent?.status ?? "").trim().toLowerCase();
   const talentVisibility = String(talent?.profile_visibility ?? "public").trim().toLowerCase();
-  const talentOperationallyPublic = Boolean(
+  const talentOperationallyActive = Boolean(
     talent?.id &&
       talent.user_id &&
-      talent.published === true &&
-      talentVisibility === "public" &&
       ["approved", "active"].includes(talentStatus),
   );
 
-  if (!talentOperationallyPublic || !talent?.user_id) {
+  if (!talentOperationallyActive || !talent?.user_id) {
     return {
       success: false,
       message:
@@ -191,7 +189,8 @@ export async function sendOpportunityInvitationsAction(
           slug,
           publisher_id,
           status,
-          published
+          published,
+          posting_mode
         `,
       )
       .in("id", opportunityIds)
@@ -224,6 +223,37 @@ export async function sendOpportunityInvitationsAction(
         locale === "ar"
           ? "تحتوي القائمة على فرصة غير منشورة أو لا تخص حسابك."
           : "One or more selected opportunities are unavailable.",
+      sentCount: 0,
+    };
+  }
+
+  const publisherVerified =
+    publisher.verified === true ||
+    publisher.verification_status === "verified";
+  const publisherType = String(publisher.publisher_type ?? "").trim().toLowerCase();
+  const individualPublisherTypes = new Set(["individual", "salon", "store", "photographer", "marketer"]);
+  const allSelectedQuick = validOpportunities.every(
+    (opportunity) => opportunity.posting_mode === "quick",
+  );
+
+  const publicTalentInviteAllowed =
+    talentVisibility === "public" && talent.published === true;
+  const restrictedTalentInviteAllowed =
+    talentVisibility === "verified_publishers" &&
+    (publisherVerified ||
+      (individualPublisherTypes.has(publisherType) && allSelectedQuick));
+
+  if (!publicTalentInviteAllowed && !restrictedTalentInviteAllowed) {
+    return {
+      success: false,
+      message:
+        locale === "ar"
+          ? talentVisibility === "verified_publishers"
+            ? "هذه الموهبة متاحة للناشرين المعتمدين. للحساب الفردي يجب استخدام فرصة سريعة منشورة."
+            : "هذه الموهبة غير متاحة للدعوات حاليًا."
+          : talentVisibility === "verified_publishers"
+            ? "This talent is available to approved publishers. Individual publishers must use a published Quick Opportunity."
+            : "This talent is not currently available for invitations.",
       sentCount: 0,
     };
   }
