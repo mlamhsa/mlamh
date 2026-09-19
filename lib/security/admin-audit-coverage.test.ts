@@ -653,6 +653,40 @@ test("admin MFA enrollment recovers from interrupted unverified factors", async 
 });
 
 
+test("blocked admin identity-gate audit writes are server-side throttled", async () => {
+  const guard = await source(
+    "lib/auth/require-admin.ts",
+  );
+
+  const gateStart =
+    guard.indexOf(
+      '"admin_identity_gate"',
+    );
+  const limiterStart =
+    guard.lastIndexOf(
+      "consumeServerRateLimit",
+      gateStart,
+    );
+
+  assert.ok(
+    gateStart >= 0 &&
+      limiterStart >= 0 &&
+      guard.includes(
+        '"admin_identity_gate_audit"',
+      ),
+    "blocked authenticated accounts must not be able to flood identity-gate audit events",
+  );
+
+  assert.equal(
+    guard.includes(
+      "redirect(ADMIN_LOGIN_PATH)",
+    ),
+    true,
+    "identity-gate rate-limit failures must never weaken the access denial path",
+  );
+});
+
+
 test("admin entry and MFA gates share the centralized active-admin identity guard", async () => {
   const guard = await source(
     "lib/auth/require-admin.ts",
