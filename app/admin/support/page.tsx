@@ -56,6 +56,36 @@ function statusClass(status: string) {
   return "border-amber-400/25 bg-amber-400/[0.08] text-amber-300";
 }
 
+function categoryLabel(category: string, isArabic: boolean) {
+  const labels: Record<string, [string, string]> = {
+    general_inquiry: ["استفسار عام", "General inquiry"],
+    complaint: ["شكوى", "Complaint"],
+    technical_support: ["دعم تقني", "Technical support"],
+    account_support: ["دعم الحساب", "Account support"],
+    partnership: ["شراكة", "Partnership"],
+    publisher_support: ["دعم الناشرين", "Publisher support"],
+    talent_support: ["دعم المواهب", "Talent support"],
+  };
+  const label = labels[category];
+  if (label) return isArabic ? label[0] : label[1];
+
+  return category
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function priorityLabel(priority: string, isArabic: boolean) {
+  const labels: Record<string, [string, string]> = {
+    low: ["منخفضة", "Low"],
+    normal: ["عادية", "Normal"],
+    medium: ["متوسطة", "Medium"],
+    high: ["عالية", "High"],
+    urgent: ["عاجلة", "Urgent"],
+  };
+  const label = labels[priority];
+  return label ? (isArabic ? label[0] : label[1]) : priority;
+}
+
 export const metadata = {
   title: "Support — MLAMH Admin",
   robots: { index: false, follow: false },
@@ -156,7 +186,7 @@ export default async function AdminSupportPage({ searchParams }: PageProps) {
                     </span>
                     {ticket.priority === "high" || ticket.priority === "urgent" ? (
                       <span className="rounded-full border border-red-400/20 bg-red-400/[0.07] px-2.5 py-1 text-[9px] text-red-300">
-                        {ticket.priority}
+                        {priorityLabel(ticket.priority, isArabic)}
                       </span>
                     ) : null}
                   </div>
@@ -166,7 +196,7 @@ export default async function AdminSupportPage({ searchParams }: PageProps) {
 
                 <div className="text-xs text-white/30 sm:text-end">
                   <p>{formatDate(ticket.last_message_at || ticket.created_at, isArabic)}</p>
-                  <p className="mt-1">{ticket.category}</p>
+                  <p className="mt-1">{categoryLabel(ticket.category, isArabic)}</p>
                 </div>
               </Link>
             ))}
