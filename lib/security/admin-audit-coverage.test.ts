@@ -840,21 +840,42 @@ test("legacy role registry repair does not rewrite effective RBAC assignment", a
 
   assert.equal(
     segment.includes(
-      '.from("admin_users")',
+      '"set_admin_access_role"',
     ) &&
       segment.includes(
-        "registry_only_sync",
+        "p_change_reason:",
       ),
     true,
-    "registry-only sync must update and audit the admin registry",
+    "registry-only sync must use the same atomic database audit path as effective access mutations",
   );
 
   assert.equal(
     segment.includes(
-      '.from("user_roles")',
-    ),
+      '.from("admin_users")',
+    ) ||
+      segment.includes(
+        '.from("user_roles")',
+      ),
     false,
-    "registry-only sync must not rewrite the effective RBAC assignment",
+    "registry-only sync must not perform split application-side RBAC or registry writes",
+  );
+
+  const migration = await source(
+    "supabase/migrations/20260918193000_harden_admin_rbac_invariants.sql",
+  );
+
+  assert.equal(
+    migration.includes(
+      "v_registry_only_sync",
+    ) &&
+      migration.includes(
+        "'sync_admin_role_registry'",
+      ) &&
+      migration.includes(
+        "'registry_only_sync'",
+      ),
+    true,
+    "database mutation must recognize registry-only repair and audit it transactionally without rewriting the effective RBAC role",
   );
 });
 
