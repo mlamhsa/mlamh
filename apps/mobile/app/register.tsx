@@ -27,6 +27,7 @@ import {
   TALENT_TYPE_OPTIONS,
 } from "@/src/domains/auth/signup-data";
 import { useLocale } from "@/src/i18n/LocaleProvider";
+import { normalizeInputDigits } from "@/src/i18n/format";
 import { signInWithNativeApple } from "@/src/native/apple-auth";
 import { signInWithNativeGoogle } from "@/src/native/google-auth";
 import { useSessionContext } from "@/src/runtime/SessionContext";
@@ -37,7 +38,7 @@ type AccountType = "talent" | "publisher";
 type Option = { value: string; ar: string; en: string };
 
 function normalizeSaudiPhone(value: string) {
-  let digits = value.replace(/\D/g, "");
+  let digits = normalizeInputDigits(value).replace(/\D/g, "");
   if (digits.startsWith("966")) digits = digits.slice(3);
   if (digits.startsWith("0")) digits = digits.slice(1);
   return digits.slice(0, 9);

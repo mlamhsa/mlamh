@@ -216,7 +216,7 @@ export function NativeAppChrome({ children }: PropsWithChildren) {
             <DrawerLink label={isArabic ? "مشهد ملامح" : "MLAMH Scene"} icon={BookOpenText} onPress={() => { setMenuOpen(false); navigate("/scene"); }} isArabic={isArabic} />
             <View style={styles.drawerDivider} />
             <DrawerLink label={isArabic ? "الإعدادات" : "Settings"} icon={Settings} onPress={() => { setMenuOpen(false); navigate("/settings"); }} isArabic={isArabic} />
-            <DrawerLink label={isArabic ? "المساعدة والدعم" : "Help & support"} icon={CircleHelp} onPress={() => { setMenuOpen(false); navigate("/settings?section=support"); }} isArabic={isArabic} />
+            <DrawerLink label={isArabic ? "المساعدة والدعم" : "Help & support"} icon={CircleHelp} onPress={() => { setMenuOpen(false); navigate("/settings"); }} isArabic={isArabic} />
             <View style={styles.drawerDivider} />
             <DrawerLink
               label={isArabic ? "English" : "العربية"}

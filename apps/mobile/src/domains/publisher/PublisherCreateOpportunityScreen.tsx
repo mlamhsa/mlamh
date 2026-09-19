@@ -14,12 +14,13 @@ import type {
   PublisherTalentType,
 } from "@/src/domains/publisher/types";
 import { useLocale } from "@/src/i18n/LocaleProvider";
+import { normalizeInputDigits, normalizeNumericInput } from "@/src/i18n/format";
 import { colors, radius, spacing } from "@/src/theme/tokens";
 
 function numberValue(value: string) {
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  const parsed = Number(trimmed);
+  const normalized = normalizeNumericInput(value).trim();
+  if (!normalized) return null;
+  const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : null;
 }
 
@@ -115,13 +116,13 @@ export function PublisherCreateOpportunityScreen() {
         minAge: numberValue(minAge),
         maxAge: numberValue(maxAge),
         compensationType: compensation,
-        budget: compensation === "fixed" ? budget.trim() : null,
+        budget: compensation === "fixed" ? normalizeNumericInput(budget).trim() : null,
         talentType,
         applicationDays: numberValue(applicationDays) ?? 7,
         requiredCount: numberValue(requiredCount),
-        workDate: workDate.trim() || null,
-        workTime: workTime.trim() || null,
-        workDuration: workDuration.trim() || null,
+        workDate: normalizeInputDigits(workDate).trim() || null,
+        workTime: normalizeInputDigits(workTime).trim() || null,
+        workDuration: normalizeInputDigits(workDuration).trim() || null,
       });
       setSuccess(result.message);
     } catch (caught) {

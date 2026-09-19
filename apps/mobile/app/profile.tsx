@@ -17,6 +17,7 @@ import {
   type OwnTalentProfile,
 } from "@/src/domains/talent/profile-api";
 import { useLocale } from "@/src/i18n/LocaleProvider";
+import { localizeApprovalStatus, normalizeInputDigits, normalizeNumericInput } from "@/src/i18n/format";
 import { useSessionContext } from "@/src/runtime/SessionContext";
 import { supabase } from "@/src/services/supabase";
 import { colors, radius, spacing, typography } from "@/src/theme/tokens";
@@ -29,13 +30,14 @@ function base64ToArrayBuffer(value: string) {
 }
 
 function numeric(value: string) {
-  if (!value.trim()) return null;
-  const parsed = Number(value);
+  const normalized = normalizeNumericInput(value).trim();
+  if (!normalized) return null;
+  const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : null;
 }
 
 function list(value: string) {
-  return [...new Set(value.split(",").map((item) => item.trim()).filter(Boolean))];
+  return [...new Set(value.split(/[,،;\n]+/).map((item) => item.trim()).filter(Boolean))];
 }
 
 export default function TalentProfileScreen() {
@@ -106,7 +108,8 @@ export default function TalentProfileScreen() {
         availabilityStatus,
       };
       if (!protectedLocked && displayName.trim() !== profile.displayName.trim()) payload.displayName = displayName.trim();
-      if (!protectedLocked && dateOfBirth !== (profile.dateOfBirth?.slice(0, 10) || "")) payload.dateOfBirth = dateOfBirth || null;
+      const normalizedDateOfBirth = normalizeInputDigits(dateOfBirth).trim();
+      if (!protectedLocked && normalizedDateOfBirth !== (profile.dateOfBirth?.slice(0, 10) || "")) payload.dateOfBirth = normalizedDateOfBirth || null;
       await updateOwnTalentProfile(locale, payload);
       await load();
       Alert.alert(isArabic ? "تم الحفظ" : "Saved", isArabic ? "تم تحديث ملفك المهني." : "Your talent profile was updated.");
@@ -218,7 +221,7 @@ export default function TalentProfileScreen() {
         <View style={styles.progressCard}>
           <View style={styles.progressHeader}><Text style={styles.progressValue}>{profile.profileCompletion}%</Text><Text style={styles.progressLabel}>{isArabic ? "اكتمال الملف" : "Profile completion"}</Text></View>
           <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${profile.profileCompletion}%` }]} /></View>
-          <Text style={[styles.statusText, { textAlign: align }]}>{isArabic ? `حالة المراجعة: ${profile.approvalStatus || "غير مرسل"}` : `Review status: ${profile.approvalStatus || "not submitted"}`}</Text>
+          <Text style={[styles.statusText, { textAlign: align, writingDirection }]}>{isArabic ? `حالة المراجعة: ${localizeApprovalStatus(profile.approvalStatus, locale)}` : `Review status: ${localizeApprovalStatus(profile.approvalStatus, locale)}`}</Text>
         </View>
 
         <Section title={isArabic ? "الصورة والمعرض" : "Photo & gallery"} isArabic={isArabic}>

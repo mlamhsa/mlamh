@@ -10,6 +10,7 @@ import {
   type PublisherOpportunityWorkspaceResponse,
 } from "@/src/domains/publisher/workspace";
 import { useLocale } from "@/src/i18n/LocaleProvider";
+import { localizeOpportunityStatus, localizeTalentType } from "@/src/i18n/format";
 import { colors, radius, spacing } from "@/src/theme/tokens";
 
 type FilterKey = "all" | "pending" | "selected" | "rejected";
@@ -166,7 +167,7 @@ export function PublisherOpportunityWorkspaceScreen() {
               <Text style={[styles.meta, { textAlign: align }]}>
                 {isQuick ? (isArabic ? "طلب الآن" : "Quick Request") : (isArabic ? "كاستينغ" : "Casting")}
                 {" · "}{isArabic ? (data.opportunity.cityAr ?? data.opportunity.cityEn ?? "—") : (data.opportunity.cityEn ?? data.opportunity.cityAr ?? "—")}
-                {" · "}{data.opportunity.status}
+                {" · "}{localizeOpportunityStatus(data.opportunity.status, locale)}
               </Text>
               <View style={styles.statsRow}>
                 <Stat value={data.counts.total} label={isArabic ? "المتقدمون" : "Applicants"} />
@@ -242,7 +243,7 @@ function ApplicantCard({
         {item.talent?.imageUrl ? <Image source={{ uri: item.talent.imageUrl }} style={styles.avatar} /> : <View style={styles.avatarFallback}><UserRound size={20} color={colors.textMuted} /></View>}
         <View style={styles.cardCopy}>
           <Text style={[styles.cardTitle, { textAlign: align }]}>{talentName}</Text>
-          <Text style={[styles.meta, { textAlign: align }]}>{city}{item.talent?.role ? ` · ${item.talent.role}` : ""}</Text>
+          <Text style={[styles.meta, { textAlign: align }]}>{city}{item.talent?.role ? ` · ${localizeTalentType(item.talent.role, isArabic ? "ar" : "en")}` : ""}</Text>
         </View>
         <View style={styles.statusPill}><Text style={styles.statusText}>{stateLabel(item.displayState, isArabic)}</Text></View>
       </View>

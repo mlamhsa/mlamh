@@ -16,6 +16,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { useSessionContext } from "@/src/runtime/SessionContext";
 import { useLocale } from "@/src/i18n/LocaleProvider";
+import { localizeApprovalStatus } from "@/src/i18n/format";
 import { colors, radius, spacing, typography } from "@/src/theme/tokens";
 
 type Action = {
@@ -184,8 +185,8 @@ export default function TalentHomeScreen() {
           </View>
           <Text style={[styles.statusMeta, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
             {isArabic
-              ? `الحالة: ${account?.approvalStatus ?? "غير مكتمل"}`
-              : `Status: ${account?.approvalStatus ?? "incomplete"}`}
+              ? `الحالة: ${localizeApprovalStatus(account?.approvalStatus, locale)}`
+              : `Status: ${localizeApprovalStatus(account?.approvalStatus, locale)}`}
           </Text>
         </View>
 

@@ -13,6 +13,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { useSessionContext } from "@/src/runtime/SessionContext";
 import { useLocale } from "@/src/i18n/LocaleProvider";
+import { localizeApprovalStatus, localizeVerificationStatus } from "@/src/i18n/format";
 import { colors, radius, spacing, typography } from "@/src/theme/tokens";
 
 type HomeAction = {
@@ -105,8 +106,8 @@ export default function PublisherHomeScreen() {
             </Text>
             <Text style={[styles.statusText, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
               {isArabic
-                ? `الاعتماد: ${account?.approvalStatus ?? "—"} · التوثيق: ${account?.verificationStatus ?? "unverified"}`
-                : `Approval: ${account?.approvalStatus ?? "—"} · Verification: ${account?.verificationStatus ?? "unverified"}`}
+                ? `الاعتماد: ${localizeApprovalStatus(account?.approvalStatus, locale)} · التوثيق: ${localizeVerificationStatus(account?.verificationStatus, locale)}`
+                : `Approval: ${localizeApprovalStatus(account?.approvalStatus, locale)} · Verification: ${localizeVerificationStatus(account?.verificationStatus, locale)}`}
             </Text>
           </View>
         </View>
