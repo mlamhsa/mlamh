@@ -79,8 +79,10 @@ export default async function AdminMarketsPage({ searchParams }: PageProps) {
   const isArabic = lang !== "en";
 
   return (
-    <AdminPageContainer>
-      <AdminPageHeader
+    <div dir={isArabic ? "rtl" : "ltr"}>
+      <AdminPageContainer>
+        <AdminPageHeader
+        eyebrow={isArabic ? "إدارة المنصة" : "PLATFORM"}
         title={isArabic ? "الأسواق" : "Markets"}
         description={
           isArabic
@@ -174,6 +176,7 @@ export default async function AdminMarketsPage({ searchParams }: PageProps) {
           );
         })}
       </AdminGrid>
-    </AdminPageContainer>
+      </AdminPageContainer>
+    </div>
   );
 }
