@@ -8,7 +8,7 @@ import {
 } from "@/lib/marketing/ai/provider";
 
 const INVESTOR_WORKFLOW = "investor_discovery_v1";
-const INVESTOR_MODELS = ["poolside/laguna-s-2.1-free", "inclusionai/ling-3.0-flash-vl-free"] as const;
+const INVESTOR_MODELS = ["poolside/laguna-s-2.1-free", "inclusionai/ling-3.0-tiny-free"] as const;
 let installed = false;
 
 function nullableString() {
