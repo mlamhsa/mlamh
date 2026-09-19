@@ -1,14 +1,17 @@
 import Link from "next/link";
 import {
-  CalendarDays,
   CreditCard,
   Sparkles,
-  TrendingUp,
   UserRound,
-  WalletCards,
 } from "lucide-react";
 
 import AdminEntitlementActions from "@/components/admin/entitlements/AdminEntitlementActions";
+import {
+  AdminCard,
+  AdminPageContainer,
+  AdminPageHeader,
+  AdminStatCard,
+} from "@/components/admin/ui";
 import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { minorToMajorAmount } from "@/lib/payments/money";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -127,33 +130,53 @@ export default async function AdminEntitlementsPage({searchParams}:PageProps){
   };
 
   return (
-    <main dir={isArabic?"rtl":"ltr"} className="mx-auto max-w-7xl px-4 py-7 text-white sm:px-6 lg:px-8 lg:py-10">
-      <section className="mb-7 sm:mb-8">
-        <p className="text-[10px] uppercase tracking-[0.4em] text-gold">MLAMH ADMIN</p>
-        <h1 className="mt-3 text-3xl font-light tracking-tight md:text-5xl">{isArabic?"الاشتراكات والمزايا":"Subscriptions & Benefits"}</h1>
-        <p className="mt-3 max-w-3xl text-sm leading-7 text-white/45">{isArabic?"لوحة مالية وتشغيلية للإيرادات التجارية والمزايا المدفوعة، مع استبعاد عمليات الاختبار تلقائيًا.":"Financial and operational view of commercial revenue and paid benefits, automatically excluding test payments."}</p>
-        <div className="mt-5 flex flex-wrap gap-2"><Link href={`/admin/payments?lang=${locale}`} className="rounded-full border border-white/10 px-4 py-2 text-xs text-white/55 transition hover:border-gold/30 hover:text-gold">{isArabic?"سجل عمليات الدفع":"Payment log"}</Link></div>
-      </section>
+    <div dir={isArabic ? "rtl" : "ltr"}>
+      <AdminPageContainer>
+        <AdminPageHeader
+          eyebrow={isArabic ? "الإيرادات" : "REVENUE"}
+          title={isArabic ? "الاشتراكات والمزايا" : "Subscriptions & Benefits"}
+          description={
+            isArabic
+              ? "عرض مالي وتشغيلي للإيرادات التجارية والمزايا المدفوعة، مع استبعاد عمليات الاختبار تلقائيًا."
+              : "Financial and operational view of commercial revenue and paid benefits, automatically excluding test payments."
+          }
+          actions={
+            <Link
+              href={`/admin/payments?lang=${locale}`}
+              className="inline-flex h-10 items-center justify-center rounded-lg border border-white/[0.08] px-4 text-xs font-medium text-white/55 transition hover:border-gold/20 hover:text-gold"
+            >
+              {isArabic ? "سجل عمليات الدفع" : "Payment log"}
+            </Link>
+          }
+        />
 
-      <section className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
-        <Metric icon={<WalletCards className="h-4 w-4"/>} label={isArabic?"إجمالي الإيرادات التجارية":"Commercial revenue"} value={money(revenueMinor,"SAR",locale)}/>
-        <Metric icon={<TrendingUp className="h-4 w-4"/>} label={isArabic?"إيراد هذا الشهر":"Revenue this month"} value={money(monthRevenueMinor,"SAR",locale)}/>
-        <Metric icon={<Sparkles className="h-4 w-4"/>} label={isArabic?"المزايا النشطة":"Active benefits"} value={String(activeCount)}/>
-        <Metric icon={<CalendarDays className="h-4 w-4"/>} label={isArabic?"تنتهي خلال 7 أيام":"Expiring in 7 days"} value={String(expiringSoon)}/>
-      </section>
+        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <AdminStatCard label={isArabic ? "إجمالي الإيرادات التجارية" : "Commercial revenue"} value={money(revenueMinor, "SAR", locale)} active={revenueMinor > 0} />
+          <AdminStatCard label={isArabic ? "إيراد هذا الشهر" : "Revenue this month"} value={money(monthRevenueMinor, "SAR", locale)} active={monthRevenueMinor > 0} />
+          <AdminStatCard label={isArabic ? "المزايا النشطة" : "Active benefits"} value={activeCount} active={activeCount > 0} />
+          <AdminStatCard label={isArabic ? "تنتهي خلال 7 أيام" : "Expiring in 7 days"} value={expiringSoon} active={expiringSoon > 0} />
+        </section>
 
-      <section className="mt-3 grid grid-cols-2 gap-3 sm:mt-4 sm:gap-4">
-        <RevenueCard title={isArabic?"موهبة مميزة":"Featured Talent"} amount={money(featuredTalentRevenue,"SAR",locale)} subtitle={isArabic?`${activeFeaturedTalents} اشتراك نشط`:`${activeFeaturedTalents} active`}/>
-        <RevenueCard title={isArabic?"فرصة مميزة":"Featured Opportunity"} amount={money(featuredOpportunityRevenue,"SAR",locale)} subtitle={isArabic?`${activeFeaturedOpportunities} اشتراك نشط`:`${activeFeaturedOpportunities} active`}/>
-      </section>
+        <section className="mt-5 grid gap-3 md:grid-cols-2">
+          <AdminCard className="p-5">
+            <p className="text-[10px] font-medium text-white/38">{isArabic ? "موهبة مميزة" : "Featured Talent"}</p>
+            <p className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-gold">{money(featuredTalentRevenue, "SAR", locale)}</p>
+            <p className="mt-1 text-[10px] text-white/25">{isArabic ? `${activeFeaturedTalents} اشتراك نشط` : `${activeFeaturedTalents} active`}</p>
+          </AdminCard>
+          <AdminCard className="p-5">
+            <p className="text-[10px] font-medium text-white/38">{isArabic ? "فرصة مميزة" : "Featured Opportunity"}</p>
+            <p className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-gold">{money(featuredOpportunityRevenue, "SAR", locale)}</p>
+            <p className="mt-1 text-[10px] text-white/25">{isArabic ? `${activeFeaturedOpportunities} اشتراك نشط` : `${activeFeaturedOpportunities} active`}</p>
+          </AdminCard>
+        </section>
 
-      <section className="mt-6 grid grid-cols-3 gap-2 sm:mt-8 sm:gap-4">
-        <Stat label={isArabic?"إجمالي المزايا":"Total benefits"} value={rows.length}/>
-        <Stat label={isArabic?"نشطة":"Active"} value={activeCount}/>
-        <Stat label={isArabic?"غير نشطة":"Inactive"} value={expiredCount}/>
-      </section>
+        <section className="mt-5 grid gap-3 sm:grid-cols-3">
+          <AdminStatCard label={isArabic ? "إجمالي المزايا" : "Total benefits"} value={rows.length} />
+          <AdminStatCard label={isArabic ? "نشطة" : "Active"} value={activeCount} active={activeCount > 0} />
+          <AdminStatCard label={isArabic ? "غير نشطة" : "Inactive"} value={expiredCount} />
+        </section>
 
-      <section className="mt-7 overflow-hidden rounded-[1.5rem] border border-white/10 bg-white/[0.025] sm:mt-8 sm:rounded-[2rem]">
+        <section className="mt-5 overflow-hidden rounded-2xl border border-white/[0.075] bg-white/[0.022]">
         <div className="border-b border-white/10 px-4 py-4 sm:px-6 sm:py-5"><h2 className="text-base font-medium sm:text-lg">{isArabic?"آخر 100 استحقاق":"Latest 100 entitlements"}</h2></div>
         {rows.length===0?(
           <div className="p-10 text-center text-sm text-white/40">{isArabic?"لا توجد مزايا مدفوعة حتى الآن.":"No paid benefits yet."}</div>
@@ -246,20 +269,12 @@ export default async function AdminEntitlementsPage({searchParams}:PageProps){
             </div>
           </>
         )}
-      </section>
-    </main>
+        </section>
+      </AdminPageContainer>
+    </div>
   );
 }
 
-function Metric({icon,label,value}:{icon:React.ReactNode;label:string;value:string}){
-  return <div className="rounded-2xl border border-gold/15 bg-gold/[0.035] p-4 sm:rounded-3xl sm:p-5"><div className="flex items-center gap-1.5 text-[9px] leading-4 text-white/40 sm:gap-2 sm:text-[10px]">{icon}{label}</div><p className="mt-2 text-xl font-light text-white sm:mt-3 sm:text-3xl">{value}</p></div>;
-}
-function RevenueCard({title,amount,subtitle}:{title:string;amount:string;subtitle:string}){
-  return <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4 sm:rounded-3xl sm:p-5"><p className="text-xs text-white/65 sm:text-sm">{title}</p><p className="mt-2 text-xl font-light text-gold sm:text-2xl">{amount}</p><p className="mt-1.5 text-[10px] text-white/30 sm:mt-2 sm:text-xs">{subtitle}</p></div>;
-}
-function Stat({label,value}:{label:string;value:number}){
-  return <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-3 sm:rounded-3xl sm:p-5"><div className="flex items-center gap-1 text-[8px] leading-3 text-white/35 sm:gap-2 sm:text-[10px]"><CalendarDays className="h-3 w-3 sm:h-3.5 sm:w-3.5"/>{label}</div><p className="mt-2 text-2xl font-light text-white sm:mt-3 sm:text-3xl">{value}</p></div>;
-}
 function Info({label,value,strong=false}:{label:string;value:string;strong?:boolean}){
   return <div className="min-w-0"><p className="text-[9px] text-white/30">{label}</p><p className={`mt-1 truncate text-xs ${strong?"text-gold":"text-white/65"}`}>{value}</p></div>;
 }
