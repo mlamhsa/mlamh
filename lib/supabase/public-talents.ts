@@ -41,6 +41,7 @@ type GetPublicTalentsOptions = {
   skill?: string;
   availability?: string;
   readyToTravel?: boolean;
+  modelType?: string;
 };
 
 type GetPublicTalentsResult = {
@@ -178,6 +179,7 @@ function matchesAdvancedFilters(talent: Talent, options: GetPublicTalentsOptions
   if (!includes(talent.languages, options.language)) return false;
   if (!includes(talent.dialects, options.dialect)) return false;
   if (!includes(talent.skills, options.skill)) return false;
+  if (!includes(talent.modeling_types, options.modelType)) return false;
   if (options.availability && String(talent.availability_status ?? "").toLowerCase() !== options.availability.toLowerCase()) return false;
   if (options.readyToTravel === true && talent.ready_to_travel !== true) return false;
 
@@ -372,6 +374,7 @@ export async function getPublicTalents(options: GetPublicTalentsOptions = {}): P
     skill,
     availability,
     readyToTravel,
+    modelType,
   } = options;
   const safePage = Math.max(1, page);
   const safePageSize = Math.min(Math.max(pageSize, 1), 48);
@@ -402,6 +405,7 @@ export async function getPublicTalents(options: GetPublicTalentsOptions = {}): P
     normalizeSearchValue(skill)?.toLowerCase() ?? "all",
     normalizeSearchValue(availability)?.toLowerCase() ?? "all",
     readyToTravel === true ? "travel" : "all",
+    normalizeSearchValue(modelType)?.toLowerCase() ?? "all",
   ].join(":");
   return getCachedValue(cacheKey, async () => {
     const { talents, total } = await getVisiblePublishedCandidates({
@@ -422,6 +426,7 @@ export async function getPublicTalents(options: GetPublicTalentsOptions = {}): P
       skill: normalizeSearchValue(skill)?.toLowerCase(),
       availability: normalizeSearchValue(availability)?.toLowerCase(),
       readyToTravel,
+      modelType: normalizeSearchValue(modelType)?.toLowerCase(),
     });
     return {
       talents,
