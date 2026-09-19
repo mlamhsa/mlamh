@@ -1,4 +1,4 @@
-import { Redirect, type Href } from "expo-router";
+import { Redirect, router, type Href } from "expo-router";
 import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -52,6 +52,34 @@ export function RootRouteGate() {
             style={({ pressed }) => [styles.retryButton, pressed && styles.retryPressed]}
           >
             <Text style={styles.retryText}>{isArabic ? "إعادة المحاولة" : "Try again"}</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (session.status === "identity_conflict") {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.errorState}>
+          <Text style={styles.brand}>MLAMH</Text>
+          <Text style={styles.errorTitle}>
+            {isArabic ? "هذا البريد مرتبط بحساب موجود" : "This email already has an account"}
+          </Text>
+          <Text style={styles.errorText}>
+            {isArabic
+              ? "لم ننشئ حسابًا جديدًا ولم ندمج الحسابات تلقائيًا. سجّل الدخول بالطريقة التي استخدمتها سابقًا لهذا الحساب."
+              : "We did not create a new account or merge identities automatically. Sign in using the method you originally used for this account."}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => void supabase.auth.signOut({ scope: "local" }).then(async () => {
+              await session.refresh();
+              router.replace("/login" as never);
+            })}
+            style={({ pressed }) => [styles.retryButton, pressed && styles.retryPressed]}
+          >
+            <Text style={styles.retryText}>{isArabic ? "تسجيل الدخول للحساب الموجود" : "Sign in to existing account"}</Text>
           </Pressable>
         </View>
       </SafeAreaView>
