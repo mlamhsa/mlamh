@@ -29,6 +29,7 @@ type PageProps = {
     status?: string;
     q?: string;
     lang?: string;
+    page?: string;
   }>;
 };
 
@@ -77,6 +78,7 @@ function buildHref(
   status?: string,
   q?: string,
   language: "ar" | "en" = "ar",
+  page?: number,
 ) {
   const params = new URLSearchParams();
 
@@ -84,6 +86,7 @@ function buildHref(
 
   if (status) params.set("status", status);
   if (q) params.set("q", q);
+  if (page && page > 1) params.set("page", String(page));
 
   return `/admin/opportunity-applications?${params.toString()}`;
 }
@@ -120,7 +123,7 @@ export default async function AdminOpportunityApplicationsPage({
       | AdminApplicationTalent[]
       | null;
   };
-  const { status, q, lang } = await searchParams;
+  const { status, q, lang, page: pageRaw } = await searchParams;
 
 const language = lang === "en" ? "en" : "ar";
 const isRtl = language === "ar";
@@ -146,6 +149,20 @@ const isRtl = language === "ar";
       (item) => item.status === "rejected",
     ).length,
   };
+
+  const requestedPage = Number(pageRaw ?? "1");
+  const page =
+    Number.isInteger(requestedPage) && requestedPage > 0
+      ? requestedPage
+      : 1;
+  const pageSize = 10;
+  const totalPages = Math.max(1, Math.ceil(applications.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const pageStart = (safePage - 1) * pageSize;
+  const paginatedApplications = applications.slice(
+    pageStart,
+    pageStart + pageSize,
+  );
 
   return (
     <div dir={isRtl ? "rtl" : "ltr"}>
@@ -259,7 +276,7 @@ const isRtl = language === "ar";
         />
         ) : (
           <AdminGrid>
-            {applications.map((application) => {
+            {paginatedApplications.map((application) => {
               const opportunity = Array.isArray(application.opportunities)
                 ? application.opportunities[0]
                 : application.opportunities;
@@ -494,6 +511,48 @@ const isRtl = language === "ar";
             })}
           </AdminGrid>
         )}
+
+        {applications.length > pageSize ? (
+          <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.015] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs text-white/35">
+              {isRtl
+                ? `عرض ${pageStart + 1}–${Math.min(pageStart + pageSize, applications.length)} من ${applications.length}`
+                : `Showing ${pageStart + 1}–${Math.min(pageStart + pageSize, applications.length)} of ${applications.length}`}
+            </p>
+
+            <div className="flex items-center gap-2">
+              <Link
+                href={buildHref(status, q, language, Math.max(1, safePage - 1))}
+                aria-disabled={safePage <= 1}
+                className={[
+                  "inline-flex h-9 items-center justify-center rounded-lg border px-3 text-xs transition",
+                  safePage <= 1
+                    ? "pointer-events-none border-white/[0.05] text-white/20"
+                    : "border-white/[0.08] text-white/50 hover:border-gold/20 hover:text-gold",
+                ].join(" ")}
+              >
+                {isRtl ? "السابق" : "Previous"}
+              </Link>
+
+              <span className="min-w-20 text-center text-xs tabular-nums text-white/35">
+                {safePage} / {totalPages}
+              </span>
+
+              <Link
+                href={buildHref(status, q, language, Math.min(totalPages, safePage + 1))}
+                aria-disabled={safePage >= totalPages}
+                className={[
+                  "inline-flex h-9 items-center justify-center rounded-lg border px-3 text-xs transition",
+                  safePage >= totalPages
+                    ? "pointer-events-none border-white/[0.05] text-white/20"
+                    : "border-white/[0.08] text-white/50 hover:border-gold/20 hover:text-gold",
+                ].join(" ")}
+              >
+                {isRtl ? "التالي" : "Next"}
+              </Link>
+            </div>
+          </div>
+        ) : null}
       </AdminPageContainer>
     </div>
   );
