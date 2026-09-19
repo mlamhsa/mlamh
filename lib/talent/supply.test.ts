@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  buildTalentBriefFromOpportunity,
   calculateTalentSupplyGap,
   evaluateTalentForBrief,
   evaluateTalentSupplyForBrief,
@@ -261,4 +262,24 @@ test("any gender does not block otherwise matching talent", () => {
 
   assert.equal(result.sendable, true);
   assert.ok(!result.reasons.includes("gender_mismatch"));
+});
+
+
+test("quick opportunity adapter preserves model specialization requirements", () => {
+  const brief = buildTalentBriefFromOpportunity({
+    opportunity_type: "model",
+    country_code: "SA",
+    city_slug: "riyadh",
+    required_gender: "female",
+    required_count: 1,
+    role_requirements: {
+      modeling_types: ["hair"],
+      city_flexible: false,
+    },
+  });
+
+  assert.equal(brief.talent_type, "model");
+  assert.equal(brief.city, "riyadh");
+  assert.equal(brief.required_gender, "female");
+  assert.deepEqual(brief.requirements?.modeling_types, ["hair"]);
 });
