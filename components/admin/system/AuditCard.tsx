@@ -59,7 +59,7 @@ import {
     try {
       return new Intl.DateTimeFormat(
         language === "ar"
-          ? "ar-SA"
+          ? "ar-SA-u-ca-gregory-nu-latn"
           : "en-US",
         {
           dateStyle: "medium",
@@ -541,6 +541,56 @@ import {
               ? "تم رفض طلب التقديم."
               : "The application was rejected."),
           icon: XCircle,
+        };
+
+      case "application_submitted":
+        return {
+          title: isArabic
+            ? "إرسال طلب تقديم"
+            : "Application submitted",
+          description:
+            title ||
+            (isArabic
+              ? "تم إرسال طلب تقديم على فرصة."
+              : "An application was submitted for an opportunity."),
+          icon: Send,
+        };
+
+      case "opportunity_viewed":
+        return {
+          title: isArabic
+            ? "مشاهدة فرصة"
+            : "Opportunity viewed",
+          description:
+            title ||
+            (isArabic
+              ? "تم تسجيل مشاهدة للفرصة."
+              : "An opportunity view was recorded."),
+          icon: BriefcaseBusiness,
+        };
+
+      case "talent_created":
+        return {
+          title: isArabic
+            ? "إنشاء ملف موهبة"
+            : "Talent profile created",
+          description:
+            isArabic
+              ? "تم إنشاء سجل موهبة جديد في النظام."
+              : "A new talent profile record was created.",
+          icon: UserRound,
+        };
+
+      case "incomplete_registration_reminder_sent":
+        return {
+          title: isArabic
+            ? "إرسال تذكير بإكمال التسجيل"
+            : "Incomplete registration reminder sent",
+          description:
+            isArabic
+              ? "تم إرسال تذكير للمستخدم لإكمال إنشاء حسابه أو ملفه."
+              : "A reminder was sent to complete account or profile setup.",
+          icon: Bell,
         };
   
       default:
