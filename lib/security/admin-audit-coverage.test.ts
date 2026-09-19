@@ -1153,6 +1153,17 @@ test("admin audit events are append-only at the database layer", async () => {
     true,
     "audit mutation trigger function must not be directly executable by application roles",
   );
+
+  assert.equal(
+    migration.includes(
+      "security invoker",
+    ) &&
+      migration.includes(
+        "set search_path = ''",
+      ),
+    true,
+    "append-only trigger must not carry unnecessary definer privileges or a mutable search path",
+  );
 });
 
 
@@ -1199,7 +1210,7 @@ test("audit CSV export is permission-gated, rate-limited, audited, and formula-s
 
   assert.equal(
     route.includes(
-      "/^[=+\\-@]/",
+      "/^[=+\\-@\\t\\r\\n\\0\\uFF1D\\uFF0B\\uFF0D\\uFF20]/u",
     ) &&
       route.includes(
         '"Cache-Control":\n          "private, no-store"',
