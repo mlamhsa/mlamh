@@ -199,7 +199,7 @@ const isRtl = language === "ar";
 
         <form
           method="GET"
-          className="mb-8 rounded-3xl border border-white/[0.08] bg-gray-elevated/30 p-5"
+          className="mb-8 rounded-2xl border border-white/[0.075] bg-white/[0.022] p-4 sm:p-5"
         >
           <input type="hidden" name="lang" value={language} />
           <div className="grid gap-4 md:grid-cols-[1fr_auto_auto]">
@@ -211,13 +211,13 @@ const isRtl = language === "ar";
                   ? "ابحث عن موهبة أو فرصة أو مدينة..."
                   : "Search talent, opportunity, or city..."
               }
-              className="rounded-2xl border border-white/10 bg-black/40 px-5 py-4 text-sm text-white outline-none placeholder:text-white/30"
+              className="h-11 rounded-lg border border-white/[0.08] bg-black/30 px-4 text-sm text-white outline-none placeholder:text-white/25 focus:border-gold/25"
             />
 
             <select
               name="status"
               defaultValue={status ?? ""}
-              className="rounded-2xl border border-white/10 bg-black/40 px-5 py-4 text-sm text-white outline-none"
+              className="h-11 rounded-lg border border-white/[0.08] bg-black/30 px-4 text-sm text-white outline-none focus:border-gold/25"
             >
               <option value="">
   {isRtl ? "جميع الحالات" : "All Statuses"}
