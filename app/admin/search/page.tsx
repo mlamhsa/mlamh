@@ -179,6 +179,7 @@ export default async function AdminSearchPage({
       )
       .or(
         [
+          ...(isNumeric ? [`id.eq.${numericQuery}`] : []),
           `name_ar.ilike.%${safeQuery}%`,
           `name_en.ilike.%${safeQuery}%`,
           `display_name_ar.ilike.%${safeQuery}%`,
@@ -194,6 +195,7 @@ export default async function AdminSearchPage({
       .select("id,company_name,contact_name,city,email,phone,verification_status")
       .or(
         [
+          ...(isNumeric ? [`id.eq.${numericQuery}`] : []),
           `company_name.ilike.%${safeQuery}%`,
           `contact_name.ilike.%${safeQuery}%`,
           `city.ilike.%${safeQuery}%`,
@@ -220,6 +222,7 @@ export default async function AdminSearchPage({
         )
         .or(
           [
+            ...(isNumeric ? [`id.eq.${numericQuery}`] : []),
             `title.ilike.%${safeQuery}%`,
             `company_name.ilike.%${safeQuery}%`,
             `city_ar.ilike.%${safeQuery}%`,
