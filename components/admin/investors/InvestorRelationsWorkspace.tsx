@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ExternalLink, Mail, Play, RefreshCw, Save, Send, ShieldCheck, Sparkles, X } from "lucide-react";
@@ -223,14 +224,14 @@ export function InvestorRelationsWorkspace({ isArabic, leads, outreach, masterBr
               {isArabic ? "الإرسال وقراءة الردود فقط لعلاقات المستثمرين." : "Used only for investor outreach sending and reply monitoring."}
             </p>
           </div>
-          <a
+          <Link
             href="/api/admin/investors/integrations/gmail/connect"
             className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-white/[0.1] bg-white/[0.035] px-4 py-2 text-sm text-white/70 transition hover:border-gold/25 hover:text-gold"
           >
             <Mail className="h-4 w-4" />
             {gmail.status === "connected" ? (isArabic ? "إعادة ربط Gmail" : "Reconnect Gmail") : (isArabic ? "ربط Gmail" : "Connect Gmail")}
             <ExternalLink className="h-3.5 w-3.5" />
-          </a>
+          </Link>
         </div>
 
         <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-5">
