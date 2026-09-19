@@ -1,6 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "regions": ["icn1"],
+  "regions": [
+    "icn1"
+  ],
   "env": {
     "MARKETING_AI_MODEL": "inclusionai/ling-3.0-tiny-free"
   },
@@ -16,10 +18,6 @@
     {
       "path": "/api/cron/talent-profile-recovery-reminders",
       "schedule": "30 * * * *"
-    },
-    {
-      "path": "/api/cron/investor-relations",
-      "schedule": "45 * * * *"
     }
   ]
 }
