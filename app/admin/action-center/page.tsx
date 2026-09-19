@@ -1,11 +1,10 @@
 import Link from "next/link";
-
-import { AdminPageContainer, AdminPageHeader, AdminStatCard } from "@/components/admin/ui";
 import {
   ArrowLeft,
   ArrowRight,
   BriefcaseBusiness,
   Building2,
+  CircleAlert,
   UserRound,
 } from "lucide-react";
 
@@ -426,7 +425,6 @@ adminClient
           ascending: true,
         },
       ),
-
   ]);
 
   if (
@@ -473,7 +471,6 @@ adminClient
       pendingOpportunitiesResult.error,
     );
   }
-
 
   const pendingRequests =
     (
@@ -570,7 +567,6 @@ adminClient
       []
     ) as PendingOpportunity[];
 
-
   /*
    * هذا الجزء خاص بطلبات تعديل
    * بيانات المواهب القديمة.
@@ -649,51 +645,55 @@ adminClient
       : ArrowRight;
 
   return (
-    <div dir={isArabic ? "rtl" : "ltr"}>
-      <AdminPageContainer>
-        <AdminPageHeader
-          eyebrow={isArabic ? "مساحة العمل" : "WORKSPACE"}
-          title={isArabic ? "مركز الإجراءات" : "Action Center"}
-          description={
-            isArabic
-              ? "كل ما يحتاج قرارًا أو متابعة من الإدارة يظهر هنا حتى تتم معالجته."
-              : "Everything requiring an admin decision or operational follow-up remains here until it is handled."
-          }
-          actions={
-            <div className="rounded-lg border border-gold/20 bg-gold/[0.06] px-4 py-2.5">
-              <p className="text-[10px] text-white/32">{isArabic ? "إجمالي المهام" : "Total tasks"}</p>
-              <p className="mt-0.5 text-xl font-semibold tabular-nums text-gold">{totalPending}</p>
+    <div
+      dir={
+        isArabic
+          ? "rtl"
+          : "ltr"
+      }
+      className="min-h-screen px-4 py-6 sm:px-6 lg:px-8"
+    >
+      <div className="mx-auto max-w-7xl">
+        {/* Header */}
+        <div className="flex flex-col gap-4 border-b border-white/[0.08] pb-6 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-gold">
+              <CircleAlert className="h-4 w-4" />
+
+              <p className="text-[10px] uppercase tracking-[0.25em]">
+                {isArabic
+                  ? "مركز الإجراءات"
+                  : "Action Center"}
+              </p>
             </div>
-          }
-        />
 
-        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <AdminStatCard
-            label={isArabic ? "تسجيلات غير مكتملة" : "Incomplete registrations"}
-            value={incompleteRegistrations.length}
-            active={incompleteRegistrations.length > 0}
-          />
-          <AdminStatCard
-            href={withAdminLanguage("/admin/talents?review=pending", language)}
-            label={isArabic ? "عمل المواهب" : "Talent work"}
-            value={pendingTalents.length + pendingRequests.length}
-            active={pendingTalents.length + pendingRequests.length > 0}
-          />
-          <AdminStatCard
-            href={withAdminLanguage("/admin/publishers?status=pending", language)}
-            label={isArabic ? "عمل الناشرين" : "Publisher work"}
-            value={pendingPublishers.length + pendingPublisherVerifications.length}
-            active={pendingPublishers.length + pendingPublisherVerifications.length > 0}
-          />
-          <AdminStatCard
-            href={withAdminLanguage("/admin/opportunities?status=pending_review", language)}
-            label={isArabic ? "الفرص للمراجعة" : "Opportunity reviews"}
-            value={pendingOpportunities.length}
-            active={pendingOpportunities.length > 0}
-          />
-        </section>
+            <h1 className="mt-3 text-3xl font-light text-white">
+              {isArabic
+                ? "يتطلب إجراء"
+                : "Requires action"}
+            </h1>
 
-        {/* Incomplete registrations */}
+            <p className="mt-2 max-w-2xl text-sm leading-7 text-white/40">
+              {isArabic
+                ? "كل ما يحتاج قرارًا من الإدارة يظهر هنا حتى تتم معالجته."
+                : "Everything requiring an admin decision remains here until it is handled."}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-gold/15 bg-gold/[0.05] px-4 py-3">
+            <p className="text-[10px] text-white/35">
+              {isArabic
+                ? "إجمالي المهام"
+                : "Total tasks"}
+            </p>
+
+            <p className="mt-1 text-2xl font-light text-gold">
+              {totalPending}
+            </p>
+          </div>
+        </div>
+
+{/* Incomplete registrations */}
 <section className="mt-7">
   <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
     <div>
@@ -1369,7 +1369,7 @@ adminClient
             </div>
           )}
         </section>
-      </AdminPageContainer>
+      </div>
     </div>
   );
 }
