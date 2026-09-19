@@ -29,7 +29,7 @@ function formatFeaturedUntil(value: string | null, isArabic: boolean) {
   if (!value) return isArabic ? "بدون تاريخ انتهاء" : "No expiry date";
 
   return new Date(value).toLocaleDateString(
-    isArabic ? "ar-SA-u-nu-latn" : "en-US",
+    isArabic ? "ar-SA-u-ca-gregory-nu-latn" : "en-US",
     { year: "numeric", month: "short", day: "numeric" },
   );
 }
