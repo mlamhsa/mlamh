@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { hasValidActiveAdminAssignment } from "@/lib/rbac/admin-access-policy";
 import { recordAdminAction } from "@/lib/events/admin-audit";
 import { EVENT_TARGETS } from "@/lib/events/event-targets";
+import { consumeServerRateLimit } from "@/lib/security/server-rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -123,30 +124,59 @@ async function requireAdminIdentityInternal() {
                 ? "admin_registry_missing"
                 : "invalid_admin_role_assignment";
 
-    await recordAdminAction({
-      actorId: user.id,
-      actorEmail:
-        user.email,
-      action:
-        "admin_identity_gate",
-      outcome: lookupFailed
-        ? "failed"
-        : "blocked",
-      target:
-        EVENT_TARGETS.AUTH_USER,
-      targetId: user.id,
-      reason,
-      metadata: {
-        registry_present:
-          Boolean(
-            adminRegistry,
-          ),
-        assigned_role_count:
-          assignedRoleKeys.filter(
-            Boolean,
-          ).length,
-      },
-    });
+    // A valid authenticated account can still be unauthorized for admin
+    // access. Throttle the audit write so a blocked account cannot flood the
+    // events table by repeatedly requesting admin routes. Authorization stays
+    // fail-closed regardless of rate-limit availability.
+    let shouldRecordIdentityGate =
+      false;
+
+    try {
+      const auditRateLimit =
+        await consumeServerRateLimit({
+          namespace:
+            "admin_identity_gate_audit",
+          identifier: user.id,
+          limit: 30,
+          windowSeconds:
+            60 * 60,
+        });
+
+      shouldRecordIdentityGate =
+        auditRateLimit.allowed;
+    } catch (rateLimitError) {
+      console.error(
+        "[requireAdminIdentity identity gate audit rate limit]",
+        rateLimitError,
+      );
+    }
+
+    if (shouldRecordIdentityGate) {
+      await recordAdminAction({
+        actorId: user.id,
+        actorEmail:
+          user.email,
+        action:
+          "admin_identity_gate",
+        outcome: lookupFailed
+          ? "failed"
+          : "blocked",
+        target:
+          EVENT_TARGETS.AUTH_USER,
+        targetId: user.id,
+        reason,
+        metadata: {
+          registry_present:
+            Boolean(
+              adminRegistry,
+            ),
+          assigned_role_count:
+            assignedRoleKeys.filter(
+              Boolean,
+            ).length,
+        },
+      });
+    }
 
     redirect(ADMIN_LOGIN_PATH);
   }
