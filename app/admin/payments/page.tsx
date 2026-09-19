@@ -58,7 +58,7 @@ function statusClasses(status: string) {
 
 function formatAmount(amountMinor: number, currency: string, locale: string) {
   const amount = minorToMajorAmount(Number(amountMinor), currency);
-  return new Intl.NumberFormat(locale === "ar" ? "ar-SA" : "en-US", {
+  return new Intl.NumberFormat(locale === "ar" ? "ar-SA-u-ca-gregory-nu-latn" : "en-US", {
     style: "currency",
     currency,
   }).format(amount);
@@ -68,7 +68,7 @@ function formatDate(value: string | null, locale: string) {
   if (!value) return "—";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
-  return new Intl.DateTimeFormat(locale === "ar" ? "ar-SA" : "en-US", {
+  return new Intl.DateTimeFormat(locale === "ar" ? "ar-SA-u-ca-gregory-nu-latn" : "en-US", {
     year: "numeric",
     month: "short",
     day: "numeric",
