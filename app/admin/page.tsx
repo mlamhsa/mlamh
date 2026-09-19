@@ -127,11 +127,21 @@ export default async function AdminPage({
   const currentAdmin =
     await requireAdminAccess();
 
-  const canViewAdminAccess =
-    await userHasPermission(
-      currentAdmin.id,
-      PERMISSIONS.ADMINS_VIEW,
+  let canViewAdminAccess =
+    false;
+
+  try {
+    canViewAdminAccess =
+      await userHasPermission(
+        currentAdmin.id,
+        PERMISSIONS.ADMINS_VIEW,
+      );
+  } catch (permissionError) {
+    console.error(
+      "[AdminDashboard access permission]",
+      permissionError,
     );
+  }
 
   const resolvedSearchParams =
     await searchParams;
