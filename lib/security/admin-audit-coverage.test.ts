@@ -355,7 +355,10 @@ test("admin invitation state is stored in server-owned app metadata", async () =
         "admin_invite_completed_at",
       ) &&
       mfaRoute.includes(
-        "requireAdminAccess",
+        "getAuthenticatorAssuranceLevel",
+      ) &&
+      mfaRoute.includes(
+        '"admin_mfa_activation_recovery"',
       ) &&
       mfaRoute.includes(
         "complete_admin_invite",
@@ -762,6 +765,58 @@ test("blocked admin identity-gate audit writes are server-side throttled", async
     ),
     true,
     "identity-gate rate-limit failures must never weaken the access denial path",
+  );
+});
+
+
+test("pending admin invites stay blocked until the AAL2 activation marker is persisted", async () => {
+  const guard = await source(
+    "lib/auth/require-admin.ts",
+  );
+  const gate = await source(
+    "components/admin/security/AdminMfaGate.tsx",
+  );
+  const route = await source(
+    "app/api/admin/security/mfa-event/route.ts",
+  );
+
+  assert.equal(
+    guard.includes(
+      "admin_invite_status",
+    ) &&
+      guard.includes(
+        '"pending"',
+      ) &&
+      guard.includes(
+        "ADMIN_MFA_PATH",
+      ),
+    true,
+    "normal admin access must redirect pending invited identities back through MFA activation",
+  );
+
+  assert.equal(
+    gate.includes(
+      'mode:\n                      "activation"',
+    ) &&
+      gate.includes(
+        "activationResponse.ok",
+      ) &&
+      gate.includes(
+        "mfaVerified",
+      ),
+    true,
+    "an already-AAL2 pending invite must retry activation and must not misreport a post-verification persistence failure as an MFA failure",
+  );
+
+  assert.equal(
+    route.includes(
+      "getAuthenticatorAssuranceLevel",
+    ) &&
+      route.includes(
+        '"admin_mfa_activation_recovery"',
+      ),
+    true,
+    "activation recovery must independently prove AAL2 on the server before completing the invite",
   );
 });
 
