@@ -275,7 +275,7 @@ function getPendingAdminInviteState(
   user:
     | {
         last_sign_in_at?: string | null;
-        user_metadata?: Record<
+        app_metadata?: Record<
           string,
           unknown
         > | null;
@@ -284,10 +284,10 @@ function getPendingAdminInviteState(
     | undefined,
 ) {
   const invitedAt =
-    typeof user?.user_metadata
+    typeof user?.app_metadata
       ?.admin_invited_at ===
     "string"
-      ? user.user_metadata
+      ? user.app_metadata
           .admin_invited_at
       : null;
 
@@ -640,6 +640,8 @@ export async function inviteAdminAction(
       email_confirm: true,
       user_metadata: {
         account_type: "admin",
+      },
+      app_metadata: {
         admin_invited_by:
           actor.id,
         admin_invited_at: now,
