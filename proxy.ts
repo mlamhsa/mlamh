@@ -22,6 +22,19 @@ function getRequestHost(request: NextRequest) {
     .replace(/:\d+$/, "");
 }
 
+function isStaleAuthSessionError(error: unknown) {
+  const message =
+    error instanceof Error
+      ? error.message.toLowerCase()
+      : String(error ?? "").toLowerCase();
+
+  return (
+    message.includes("refresh token not found") ||
+    message.includes("invalid refresh token") ||
+    message.includes("auth session missing")
+  );
+}
+
 export async function proxy(
   request: NextRequest,
 ) {
@@ -102,7 +115,38 @@ export async function proxy(
     },
   );
 
-  await supabase.auth.getClaims();
+  try {
+    const { error } = await supabase.auth.getClaims();
+
+    if (error && isStaleAuthSessionError(error)) {
+      // A rotated/revoked refresh token is an unauthenticated state, not a
+      // runtime failure. Clear only this Supabase project's auth cookies so
+      // the browser can establish a clean session on the next sign-in.
+      request.cookies
+        .getAll()
+        .filter(({ name }) => name.startsWith("sb-") && name.includes("-auth-token"))
+        .forEach(({ name }) => {
+          request.cookies.delete(name);
+          response.cookies.delete(name);
+        });
+
+      response.headers.set("Cache-Control", "private, no-store");
+    }
+  } catch (error) {
+    if (!isStaleAuthSessionError(error)) {
+      throw error;
+    }
+
+    request.cookies
+      .getAll()
+      .filter(({ name }) => name.startsWith("sb-") && name.includes("-auth-token"))
+      .forEach(({ name }) => {
+        request.cookies.delete(name);
+        response.cookies.delete(name);
+      });
+
+    response.headers.set("Cache-Control", "private, no-store");
+  }
 
   return response;
 }
