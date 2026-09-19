@@ -9,6 +9,7 @@ import {
   AdminEmptyState,
   AdminInfoGrid,
   AdminInfoItem,
+  AdminPageContainer,
   AdminPageHeader,
   AdminStatCard,
 } from "@/components/admin/ui";
@@ -943,15 +944,10 @@ switch (activeFilter) {
 }
 
   return (
-    <main
-      dir={
-        isArabic
-          ? "rtl"
-          : "ltr"
-      }
-      className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8"
-    >
-            <AdminPageHeader
+    <div dir={isArabic ? "rtl" : "ltr"}>
+      <AdminPageContainer>
+        <AdminPageHeader
+        eyebrow={isArabic ? "التشغيل · الحسابات" : "OPERATIONS · ACCOUNTS"}
         title={
           isReviewMode
             ? isArabic
@@ -1954,6 +1950,7 @@ switch (activeFilter) {
           )}
         </section>
       )}
-    </main>
+      </AdminPageContainer>
+    </div>
   );
 }
