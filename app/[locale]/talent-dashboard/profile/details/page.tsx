@@ -478,7 +478,7 @@ export default function TalentCoreDetailsPage({ params }: { params: Promise<{ lo
                 <Field label={isArabic ? "لون البشرة" : "Skin tone"}><SingleChoiceSelect value={skinColor} onChange={setSkinColor} options={SKIN_TONE_CHOICES} isArabic={isArabic} /></Field>
               </div>
               <div className="mt-7">
-                <p className="mb-3 text-sm leading-7 text-white/45">{isArabic ? "اختر التخصصات التي تمثلك فعليًا. إذا كنت متخصصًا في تصوير جزء محدد مثل اليد أو القدم فاختره من «أجزاء الجسم»." : "Choose the specializations that genuinely match your work. If you model a specific body part such as hands or feet, select it under Parts."}</p>
+                <p className="mb-3 text-sm leading-7 text-white/45">{isArabic ? "اختر كل نوع تصوير يناسبك. يمكنك اختيار أكثر من خيار. مثال: إذا كنتِ تصورين الأحذية فقط اختاري «قدم — أحذية وإكسسوارات»." : "Choose every type of modeling that fits your work. You can select more than one. For example, footwear work should select “Parts — Foot”."}</p>
                 <MultiChoiceField label={isArabic ? "تخصصات المودل" : "Model specializations"} values={modelingTypes} onChange={setModelingTypes} options={withLegacyValues(modelingTypes, MODEL_TYPE_CHOICES)} isArabic={isArabic} searchable />
               </div>
               <div className="mt-7 flex flex-col gap-3 sm:flex-row">
