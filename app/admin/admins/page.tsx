@@ -711,11 +711,21 @@ export default async function AdminUsersPage({
                 .app_metadata
                 .admin_invited_at
             : null;
+        const inviteStatus =
+          typeof data.user
+            .app_metadata
+            ?.admin_invite_status ===
+          "string"
+            ? data.user
+                .app_metadata
+                .admin_invite_status
+            : null;
 
         return [
           admin.id,
           {
             invitedAt,
+            inviteStatus,
             lastSignInAt:
               data.user
                 .last_sign_in_at ??
@@ -965,10 +975,8 @@ export default async function AdminUsersPage({
 
       const pendingInvite =
         statusKnown &&
-        Boolean(
-          authState?.invitedAt,
-        ) &&
-        !authState?.lastSignInAt;
+        authState?.inviteStatus ===
+          "pending";
 
       const invitedAtMs =
         authState?.invitedAt
@@ -1988,10 +1996,8 @@ export default async function AdminUsersPage({
                   const pendingInvite =
                     accessStateKnown &&
                     rawHasActiveAccess &&
-                    Boolean(
-                      authState?.invitedAt,
-                    ) &&
-                    !authState?.lastSignInAt;
+                    authState?.inviteStatus ===
+                      "pending";
 
                   const invitedAtMs =
                     authState?.invitedAt
