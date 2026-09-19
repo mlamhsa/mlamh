@@ -608,29 +608,23 @@ export default async function AdminOpportunitiesPage({
   return (
     <AdminPageContainer>
       <div dir={isArabic ? "rtl" : "ltr"}>
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-          <AdminPageHeader
-            title={
-              isArabic
-                ? "إدارة الفرص"
-                : "Opportunity Management"
-            }
-            description={
-              isArabic
-                ? "راجع الفرص واعتمدها أو اطلب تعديلها، وتابع حالتها من مكان واحد."
-                : "Review, approve, publish, hide, and monitor all platform opportunities."
-            }
-          />
-
-          <Link
-            href="/admin/opportunities/new"
-            className="inline-flex min-h-11 items-center justify-center rounded-full border border-gold/40 bg-gold/[0.08] px-6 py-3 text-sm font-medium text-gold transition hover:bg-gold hover:text-black"
-          >
-            {isArabic
-              ? "+ إنشاء فرصة مُدارة"
-              : "+ Create Managed Opportunity"}
-          </Link>
-        </div>
+        <AdminPageHeader
+          eyebrow={isArabic ? "التشغيل" : "OPERATIONS"}
+          title={isArabic ? "الفرص" : "Opportunities"}
+          description={
+            isArabic
+              ? "راجع الفرص واعتمدها أو اطلب تعديلها، وتابع حالتها من مكان واحد."
+              : "Review, approve, publish, hide, and monitor all platform opportunities."
+          }
+          actions={
+            <Link
+              href={`/admin/opportunities/new?lang=${language}`}
+              className="inline-flex h-10 items-center justify-center rounded-lg bg-gold px-4 text-xs font-semibold text-black transition hover:opacity-90"
+            >
+              {isArabic ? "إنشاء فرصة مُدارة" : "Create Managed Opportunity"}
+            </Link>
+          }
+        />
 
         {hasPublisherFilter ? (
           <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-gold/20 bg-gold/[0.05] px-5 py-4">
