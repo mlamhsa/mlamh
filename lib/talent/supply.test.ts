@@ -213,3 +213,52 @@ test("cross-border talent is sendable only when opportunity market is explicitly
   assert.equal(ae.sendable, false);
   assert.ok(ae.reasons.includes("market_mismatch"));
 });
+
+
+test("private unpublished parts model remains sendable for a matching private brief", () => {
+  const privateFootModel: BriefTalent = {
+    ...qualified,
+    published: false,
+    profile_visibility: "verified_publishers",
+    modeling_types: ["commercial", "foot"],
+  };
+
+  const result = evaluateTalentForBrief(privateFootModel, {
+    talent_type: "model",
+    city: "jeddah",
+    required_gender: "any",
+    requirements: {
+      modeling_types: ["foot"],
+    },
+  });
+
+  assert.equal(result.sendable, true);
+  assert.deepEqual(result.reasons, []);
+});
+
+test("model specialization mismatch is explicit and never inferred from photos or generic model role", () => {
+  const commercialModel: BriefTalent = {
+    ...qualified,
+    modeling_types: ["commercial"],
+  };
+
+  const result = evaluateTalentForBrief(commercialModel, {
+    talent_type: "model",
+    requirements: {
+      modeling_types: ["foot"],
+    },
+  });
+
+  assert.equal(result.sendable, false);
+  assert.ok(result.reasons.includes("modeling_types_mismatch"));
+});
+
+test("any gender does not block otherwise matching talent", () => {
+  const result = evaluateTalentForBrief(qualified, {
+    talent_type: "model",
+    required_gender: "any",
+  });
+
+  assert.equal(result.sendable, true);
+  assert.ok(!result.reasons.includes("gender_mismatch"));
+});
