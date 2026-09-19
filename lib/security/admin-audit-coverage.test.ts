@@ -1495,3 +1495,30 @@ test("free-text audit export matches the UI recent-event search window", async (
     "free-text CSV export must remain scoped to the same latest-500-event window disclosed by the audit UI",
   );
 });
+
+
+test("admin dashboard surfaces the Access Center only with admins view permission", async () => {
+  const page = await source(
+    "app/admin/page.tsx",
+  );
+
+  assert.equal(
+    page.includes(
+      "PERMISSIONS.ADMINS_VIEW",
+    ) &&
+      page.includes(
+        "canViewAdminAccess",
+      ) &&
+      page.includes(
+        "Admins & Access Center",
+      ) &&
+      page.includes(
+        '"/admin/admins"',
+      ) &&
+      page.includes(
+        '"/admin/audit-log"',
+      ),
+    true,
+    "admin dashboard must expose the Access Center and audit log only to admins.view holders",
+  );
+});
