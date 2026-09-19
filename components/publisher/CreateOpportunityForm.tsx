@@ -784,7 +784,10 @@ work_duration: workDuration.trim() || null,
                   </p>
 
                   <p className="mt-4 text-xs text-white/45">
-                    {isRtl ? "نوع أعمال المودل" : "Modeling types"}
+                    {isRtl ? "ما نوع المودل الذي تحتاجه؟" : "What type of model do you need?"}
+                  </p>
+                  <p className="mt-2 text-xs leading-6 text-white/35">
+                    {isRtl ? "يمكنك اختيار أكثر من نوع. مثال: لحملة أحذية اختر «قدم — أحذية وإكسسوارات»." : "You can choose more than one. For a footwear campaign, choose “Parts — Foot”."}
                   </p>
 
                   <div className="mt-3 flex flex-wrap gap-2">
