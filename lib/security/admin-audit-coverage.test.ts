@@ -822,7 +822,7 @@ test("legacy role registry repair does not rewrite effective RBAC assignment", a
     );
   const end =
     actions.indexOf(
-      "const { error: deleteError }",
+      "const {\n    error: roleMutationError",
       start,
     );
 
@@ -1575,6 +1575,55 @@ test("database enforces one admin role per user and valid registry states", asyn
       ),
     true,
     "database must prevent multiple RBAC role assignments for the same user",
+  );
+});
+
+
+test("admin access mutations are atomic and final-Super-Admin safe in PostgreSQL", async () => {
+  const migration = await source(
+    "supabase/migrations/20260918193000_harden_admin_rbac_invariants.sql",
+  );
+  const actions = await source(
+    "lib/actions/admin-access-actions.ts",
+  );
+
+  for (const invariant of [
+    "set_admin_access_role",
+    "pg_advisory_xact_lock",
+    "LAST_SUPER_ADMIN",
+    "delete from public.user_roles",
+    "update public.admin_users",
+    "security invoker",
+    "grant execute",
+    "service_role",
+  ]) {
+    assert.equal(
+      migration.includes(invariant),
+      true,
+      `atomic admin access migration must keep ${invariant}`,
+    );
+  }
+
+  assert.equal(
+    actions.includes(
+      'adminClient.rpc(\n    "set_admin_access_role"',
+    ),
+    true,
+    "admin role changes and revocations must use the atomic database mutation",
+  );
+
+  assert.equal(
+    actions.includes(
+      "atomic_role_update_failed",
+    ) &&
+      actions.includes(
+        "atomic_revoke_failed",
+      ) &&
+      actions.includes(
+        "LAST_SUPER_ADMIN",
+      ),
+    true,
+    "application actions must fail closed and preserve a specific final-Super-Admin outcome when the database guard blocks a mutation",
   );
 });
 
