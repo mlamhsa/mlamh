@@ -243,7 +243,7 @@ export default async function AdminTalentPage(props: PageProps) {
   return (
     <>
       <div dir={language === "ar" ? "rtl" : "ltr"} className="px-4 pt-6 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-7xl space-y-4">
+        <div className="mx-auto max-w-[1540px] space-y-4">
           <AdminTalentPrivacyNotice
             language={language}
             visibility={talent.profile_visibility}
