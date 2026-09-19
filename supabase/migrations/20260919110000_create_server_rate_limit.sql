@@ -60,7 +60,7 @@ begin
       else limits.request_count + 1
     end,
     updated_at = v_now
-  returning server_rate_limits.window_started_at, server_rate_limits.request_count
+  returning limits.window_started_at, limits.request_count
     into v_window_started_at, v_request_count;
 
   allowed := v_request_count <= p_limit;
