@@ -93,7 +93,6 @@ export default async function TalentListingPage({ params, searchParams }: PagePr
   const featuredIds = new Set(talents.filter((talent) => talent.featured).map((talent) => talent.id));
   const regularTalents = hasFilters ? talents : talents.filter((talent) => !featuredIds.has(talent.id));
   const visibleTalents = hasFilters ? talents : regularTalents;
-  const resultLabel = isRtl ? `${total} نتيجة` : `${total} result${total === 1 ? "" : "s"}`;
   const seoLinks = [
     { href: `/${locale}/talent/category/actor`, label: isRtl ? "ممثلون في السعودية" : "Actors in Saudi Arabia" },
     { href: `/${locale}/talent/category/model`, label: isRtl ? "مودلز في السعودية" : "Models in Saudi Arabia" },
@@ -148,7 +147,6 @@ export default async function TalentListingPage({ params, searchParams }: PagePr
                 <UsersRound size={14} />
                 <span>{isRtl ? "دليل المواهب" : "Talent directory"}</span>
               </div>
-              <div className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-white/55">{resultLabel}</div>
             </div>
             <h1 className="text-3xl font-semibold leading-tight text-white">{isRtl ? "اكتشف المواهب" : "Discover talents"}</h1>
             <p className="mt-2 max-w-sm text-sm leading-6 text-white/50">
@@ -187,7 +185,6 @@ export default async function TalentListingPage({ params, searchParams }: PagePr
               <p className="text-xs text-gold">{hasFilters ? isRtl ? "نتائج البحث" : "Search results" : isRtl ? "جميع المواهب" : "All talents"}</p>
               <h2 className="mt-1 text-xl font-semibold text-white">{hasFilters ? isRtl ? "المواهب المطابقة" : "Matching talents" : isRtl ? "استكشف المزيد" : "Explore more"}</h2>
             </div>
-            <span className="shrink-0 text-xs text-white/45">{resultLabel}</span>
           </div>
 
           {talents.length === 0 ? (
@@ -222,7 +219,6 @@ export default async function TalentListingPage({ params, searchParams }: PagePr
             <TalentFilters {...filterProps} />
             {!hasFilters ? <FeaturedTalentGrid talents={talents} locale={locale} /> : null}
 
-            <div className="mb-6 flex items-center justify-between gap-4"><p className="text-sm text-gray-muted">{resultLabel}</p></div>
 
             {talents.length === 0 ? (
               <TalentEmptyState title={isRtl ? "لا توجد نتائج" : "No talents found"} />
