@@ -37,23 +37,23 @@ const notoArabic = Noto_Sans_Arabic({
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "MLAMH | ملامح — منصة المواهب والفرص",
+    default: "ملامح MLAMH | منصة المواهب والكاستينغ في السعودية",
     template: "%s",
   },
   description:
     "ملامح منصة سعودية تربط المواهب بالمشاريع والفرص المهنية في التمثيل والمودل، وتساعد الشركات والوكالات على اكتشاف المواهب المناسبة.",
-  applicationName: "MLAMH",
+  applicationName: "ملامح | MLAMH",
   icons: {
     icon: "/icon.png",
     shortcut: "/icon.png",
     apple: "/icon.png",
   },
   openGraph: {
-    title: "MLAMH | ملامح — منصة المواهب والفرص",
+    title: "ملامح MLAMH | منصة المواهب والكاستينغ في السعودية",
     description:
       "اكتشف المواهب وفرص التمثيل والمودل، وتواصل مع الشركات والوكالات وأصحاب المشاريع عبر ملامح.",
     url: SITE_URL,
-    siteName: "MLAMH | ملامح",
+    siteName: "ملامح | MLAMH",
     images: [
       {
         url: "/og-image.png",
@@ -67,7 +67,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "MLAMH | ملامح — منصة المواهب والفرص",
+    title: "ملامح MLAMH | منصة المواهب والكاستينغ في السعودية",
     description:
       "منصة تربط المواهب بالفرص والشركات والوكالات وأصحاب المشاريع.",
     images: ["/og-image.png"],
@@ -79,8 +79,8 @@ const websiteStructuredData = {
   "@type": "WebSite",
   "@id": `${SITE_URL}/#website`,
   url: SITE_URL,
-  name: "MLAMH",
-  alternateName: "ملامح",
+  name: "ملامح",
+  alternateName: ["MLAMH", "ملامح MLAMH"],
   inLanguage: ["ar-SA", "en"],
   publisher: { "@id": `${SITE_URL}/#organization` },
 };
@@ -89,12 +89,29 @@ const organizationStructuredData = {
   "@context": "https://schema.org",
   "@type": "Organization",
   "@id": `${SITE_URL}/#organization`,
-  name: "MLAMH",
-  alternateName: "ملامح",
+  name: "ملامح",
+  alternateName: ["MLAMH", "ملامح MLAMH"],
   url: SITE_URL,
   logo: `${SITE_URL}/icon.png`,
   description:
-    "منصة سعودية تربط المواهب بفرص التمثيل والمودل وتساعد الشركات والوكالات وأصحاب المشاريع على اكتشاف المواهب المناسبة.",
+    "ملامح (MLAMH) منصة سعودية للمواهب والكاستينغ تربط الممثلين والمودلز بالفرص وتساعد الشركات والوكالات وأصحاب المشاريع على نشر الفرص واكتشاف المواهب المناسبة.",
+  brand: {
+    "@type": "Brand",
+    name: "ملامح",
+    alternateName: "MLAMH",
+    url: SITE_URL,
+    logo: `${SITE_URL}/icon.png`,
+  },
+  knowsAbout: [
+    "المواهب",
+    "الكاستينغ",
+    "التمثيل",
+    "المودلز",
+    "فرص التمثيل",
+    "Casting",
+    "Actors",
+    "Models",
+  ],
 };
 
 export default async function RootLayout({
