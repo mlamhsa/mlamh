@@ -168,7 +168,7 @@ export function OpportunityResponseCTA({ item, locale }: Props) {
       };
     }
 
-    if (session.status === "unsupported_account") {
+    if (session.status === "unsupported_account" || session.status === "identity_conflict") {
       return {
         label: isArabic ? "الحساب غير متاح للتقديم" : "Account cannot apply",
         note: isArabic
