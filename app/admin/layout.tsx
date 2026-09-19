@@ -15,8 +15,9 @@ async function getAdminSidebarCounts() {
   const adminClient = createAdminClient();
 
   const [
-    pendingActionsResult,
+    pendingTalentChangesResult,
     pendingTalentsResult,
+    pendingPublisherVerificationsResult,
     pendingOpportunitiesResult,
     reportedMessagesResult,
     unreadAdminNotificationsResult,
@@ -30,6 +31,11 @@ async function getAdminSidebarCounts() {
       .select("id", { count: "exact", head: true })
       .eq("account_type", "talent")
       .eq("approval_status", "pending"),
+    adminClient
+      .from("publishers")
+      .select("id", { count: "exact", head: true })
+      .neq("publisher_type", "individual")
+      .eq("verification_status", "pending"),
     adminClient
       .from("opportunities")
       .select("id", { count: "exact", head: true })
@@ -54,80 +60,90 @@ async function getAdminSidebarCounts() {
       .eq("account_type", "publisher")
       .eq("approval_status", "pending");
 
-  let pendingPublishersCount = 0;
+  let pendingPublisherApprovals = 0;
 
   if (pendingPublisherProfilesError) {
-    console.error("[AdminLayout pendingPublisherProfiles]", pendingPublisherProfilesError);
+    console.error(
+      "[AdminLayout pendingPublisherProfiles]",
+      pendingPublisherProfilesError,
+    );
   } else {
-    const pendingPublisherProfileIds = (pendingPublisherProfiles ?? [])
+    const profileIds = (pendingPublisherProfiles ?? [])
       .map((profile) => Number(profile.id))
       .filter((id) => Number.isInteger(id) && id > 0);
 
-    if (pendingPublisherProfileIds.length > 0) {
+    if (profileIds.length > 0) {
       const { count, error } = await adminClient
         .from("publishers")
         .select("id", { count: "exact", head: true })
-        .in("profile_id", pendingPublisherProfileIds);
+        .in("profile_id", profileIds);
 
       if (error) {
         console.error("[AdminLayout pendingPublishers]", error);
       } else {
-        pendingPublishersCount = count ?? 0;
+        pendingPublisherApprovals = count ?? 0;
       }
     }
   }
 
-  if (pendingActionsResult.error) {
-    console.error("[AdminLayout pendingActions]", pendingActionsResult.error);
+  const results = [
+    ["pendingTalentChanges", pendingTalentChangesResult.error],
+    ["pendingTalents", pendingTalentsResult.error],
+    ["pendingPublisherVerifications", pendingPublisherVerificationsResult.error],
+    ["pendingOpportunities", pendingOpportunitiesResult.error],
+    ["reportedMessages", reportedMessagesResult.error],
+    ["unreadAdminNotifications", unreadAdminNotificationsResult.error],
+  ] as const;
+
+  for (const [label, error] of results) {
+    if (error) {
+      console.error(`[AdminLayout ${label}]`, error);
+    }
   }
-  if (pendingTalentsResult.error) {
-    console.error("[AdminLayout pendingTalents]", pendingTalentsResult.error);
-  }
-  if (pendingOpportunitiesResult.error) {
-    console.error("[AdminLayout pendingOpportunities]", pendingOpportunitiesResult.error);
-  }
-  if (reportedMessagesResult.error) {
-    console.error("[AdminLayout reportedMessages]", reportedMessagesResult.error);
-  }
-  if (unreadAdminNotificationsResult.error) {
-    console.error("[AdminLayout unreadAdminNotifications]", unreadAdminNotificationsResult.error);
-  }
+
+  const pendingTalentChanges = pendingTalentChangesResult.error
+    ? 0
+    : pendingTalentChangesResult.count ?? 0;
+  const pendingTalents = pendingTalentsResult.error
+    ? 0
+    : pendingTalentsResult.count ?? 0;
+  const pendingPublisherVerifications = pendingPublisherVerificationsResult.error
+    ? 0
+    : pendingPublisherVerificationsResult.count ?? 0;
+  const pendingOpportunities = pendingOpportunitiesResult.error
+    ? 0
+    : pendingOpportunitiesResult.count ?? 0;
+  const reportedMessages = reportedMessagesResult.error
+    ? 0
+    : reportedMessagesResult.count ?? 0;
+  const unreadAdminNotifications = unreadAdminNotificationsResult.error
+    ? 0
+    : unreadAdminNotificationsResult.count ?? 0;
 
   return {
     pendingActions:
-      (pendingActionsResult.error ? 0 : pendingActionsResult.count ?? 0) +
-      (pendingTalentsResult.error ? 0 : pendingTalentsResult.count ?? 0) +
-      pendingPublishersCount +
-      (pendingOpportunitiesResult.error ? 0 : pendingOpportunitiesResult.count ?? 0),
-    pendingPublishers: pendingPublishersCount,
-    pendingOpportunities: pendingOpportunitiesResult.error
-      ? 0
-      : pendingOpportunitiesResult.count ?? 0,
-    reportedMessages: reportedMessagesResult.error
-      ? 0
-      : reportedMessagesResult.count ?? 0,
-    unreadAdminNotifications: unreadAdminNotificationsResult.error
-      ? 0
-      : unreadAdminNotificationsResult.count ?? 0,
+      pendingTalentChanges +
+      pendingTalents +
+      pendingPublisherApprovals +
+      pendingPublisherVerifications +
+      pendingOpportunities +
+      reportedMessages,
+    pendingPublishers: pendingPublisherApprovals + pendingPublisherVerifications,
+    pendingOpportunities,
+    reportedMessages,
+    unreadAdminNotifications,
   };
 }
 
 export default async function AdminLayout({ children }: AdminLayoutProps) {
-  const currentAdmin =
-    await requireAdminAccess();
+  const currentAdmin = await requireAdminAccess();
 
   let permissions: Permission[] = [];
 
   try {
-    permissions =
-      await getUserPermissions(
-        currentAdmin.id,
-      );
+    permissions = await getUserPermissions(currentAdmin.id);
   } catch (permissionError) {
-    console.error(
-      "[AdminLayout permissions]",
-      permissionError,
-    );
+    console.error("[AdminLayout permissions]", permissionError);
   }
 
   const counts = await getAdminSidebarCounts();
@@ -144,7 +160,7 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
       <div className="flex min-h-screen">
         <Suspense
           fallback={
-            <div className="hidden min-h-screen w-[286px] shrink-0 border-e border-white/[0.08] bg-[#080808] lg:block" />
+            <div className="hidden min-h-screen w-[272px] shrink-0 border-e border-white/[0.07] bg-[#080808] lg:block" />
           }
         >
           <AdminSidebar
@@ -157,7 +173,7 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
         <div className="min-w-0 flex-1">
           <Suspense
             fallback={
-              <div className="h-[72px] border-b border-white/[0.08] bg-[#070707]/90" />
+              <div className="h-16 border-b border-white/[0.065] bg-[#070707]/92" />
             }
           >
             <AdminTopbar
