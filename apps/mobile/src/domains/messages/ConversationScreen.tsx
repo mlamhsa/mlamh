@@ -299,7 +299,9 @@ export function ConversationScreen() {
 
             {workflow.requestedMaterials.length ? (
               <Text style={[styles.workflowNote, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
-                {isArabic ? `تم طلب: ${workflow.requestedMaterials.join("، ")}` : `Requested: ${workflow.requestedMaterials.join(", ")}`}
+                {isArabic
+                  ? `تم طلب: ${workflow.requestedMaterials.map((type) => MATERIAL_OPTIONS.find((option) => option.type === type)?.ar ?? type).join("، ")}`
+                  : `Requested: ${workflow.requestedMaterials.map((type) => MATERIAL_OPTIONS.find((option) => option.type === type)?.en ?? type).join(", ")}`}
               </Text>
             ) : null}
           </View>

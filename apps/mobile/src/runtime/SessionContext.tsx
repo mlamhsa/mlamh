@@ -9,6 +9,10 @@ type SessionState =
   | { status: "loading"; account: null }
   | { status: "guest"; account: null }
   | { status: "account_missing"; account: null }
+  | { status: "unsupported_account"; account: null }
+  | { status: "identity_conflict"; account: null }
+  | { status: "talent_incomplete"; account: null }
+  | { status: "publisher_incomplete"; account: null }
   | { status: "unavailable"; account: null }
   | { status: "talent"; account: MobileAccountContext }
   | { status: "publisher"; account: MobileAccountContext };
@@ -34,11 +38,23 @@ export function SessionProvider({ children }: PropsWithChildren) {
       let result;
       try {
         result = await getMobileAccountContext();
-      } catch {
-        // Social sign-in can complete a fraction before the backend sees the
-        // freshest Supabase token. Refresh once, then retry account context.
-        await supabase.auth.refreshSession().catch(() => undefined);
-        result = await getMobileAccountContext();
+      } catch (error) {
+        // Retry only authentication propagation failures. A 404 means the
+        // authenticated user has no supported mobile account and must not be
+        // disguised as a transport failure.
+        if (
+          error instanceof MobileApiError &&
+          error.status === 401 &&
+          (error.code === "UNAUTHENTICATED" ||
+            error.code === "INVALID_ACCESS_TOKEN" ||
+            error.code === "MISSING_BEARER_TOKEN")
+        ) {
+          const refreshed = await supabase.auth.refreshSession().catch(() => null);
+          if (!refreshed?.data.session) throw error;
+          result = await getMobileAccountContext();
+        } else {
+          throw error;
+        }
       }
       if (!result.ok) {
         const next: SessionState = { status: "account_missing", account: null };
@@ -52,9 +68,49 @@ export function SessionProvider({ children }: PropsWithChildren) {
       setState(next);
       return next.status;
     } catch (error) {
-      // Account hydration must never hard-block app startup. Invalid auth is
-      // cleared locally; transport/backend failures keep the session intact
-      // and fall back to the public shell so the app remains usable.
+      if (
+        error instanceof MobileApiError &&
+        error.status === 404 &&
+        error.code === "ACCOUNT_NOT_FOUND"
+      ) {
+        const next: SessionState = { status: "account_missing", account: null };
+        setState(next);
+        return next.status;
+      }
+
+      if (
+        error instanceof MobileApiError &&
+        error.status === 409 &&
+        error.code === "ACCOUNT_TYPE_UNSUPPORTED"
+      ) {
+        const next: SessionState = { status: "unsupported_account", account: null };
+        setState(next);
+        return next.status;
+      }
+
+      if (
+        error instanceof MobileApiError &&
+        error.status === 409 &&
+        error.code === "ACCOUNT_EXISTS_DIFFERENT_IDENTITY"
+      ) {
+        const next: SessionState = { status: "identity_conflict", account: null };
+        setState(next);
+        return next.status;
+      }
+
+      if (
+        error instanceof MobileApiError &&
+        error.status === 409 &&
+        (error.code === "TALENT_ONBOARDING_INCOMPLETE" || error.code === "PUBLISHER_ONBOARDING_INCOMPLETE")
+      ) {
+        const next: SessionState = {
+          status: error.code === "TALENT_ONBOARDING_INCOMPLETE" ? "talent_incomplete" : "publisher_incomplete",
+          account: null,
+        };
+        setState(next);
+        return next.status;
+      }
+
       if (
         error instanceof MobileApiError &&
         error.status === 401 &&
@@ -63,9 +119,15 @@ export function SessionProvider({ children }: PropsWithChildren) {
           error.code === "MISSING_BEARER_TOKEN")
       ) {
         await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
+        const next: SessionState = { status: "guest", account: null };
+        setState(next);
+        return next.status;
       }
 
-      const next: SessionState = { status: "guest", account: null };
+      // Keep a valid Supabase session intact when MLAMH's API is temporarily
+      // unavailable. Showing a connection state is safer than silently
+      // presenting an authenticated user as a guest.
+      const next: SessionState = { status: "unavailable", account: null };
       setState(next);
       return next.status;
     }

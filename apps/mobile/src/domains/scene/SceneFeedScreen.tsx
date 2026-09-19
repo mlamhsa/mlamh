@@ -29,8 +29,8 @@ export function SceneFeedScreen() {
     try { setData(await getSceneFeed(locale)); }
     catch {
       setData(null);
-      setError(false);
-      setUsingFallback(true);
+      setError(true);
+      setUsingFallback(false);
     }
     finally { setLoading(false); setRefreshing(false); }
   }, [locale]);
@@ -90,7 +90,7 @@ export function SceneFeedScreen() {
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.categories, isArabic && styles.categoriesRtl]}>
                 {data.categories.map((category) => (
                   <Pressable key={category.id} onPress={() => router.push(`/scene/category/${category.slug}` as never)} style={styles.categoryChip}>
-                    <Text style={styles.categoryText}>{category.name}</Text>
+                    <Text style={[styles.categoryText, { writingDirection: isArabic ? "rtl" : "ltr" }]}>{category.name}</Text>
                   </Pressable>
                 ))}
               </ScrollView>
@@ -118,15 +118,15 @@ export function SceneFeedScreen() {
 function LeadCard({ article, isArabic, DirectionArrow }: { article: SceneArticle; isArabic: boolean; DirectionArrow: typeof ChevronRight }) {
   return <Pressable onPress={() => router.push(`/scene/article/${article.slug}` as never)} style={styles.leadCard}>
     {article.coverImageUrl ? <Image source={{ uri: article.coverImageUrl }} style={styles.leadImage} /> : null}
-    <Text style={[styles.leadTitle, { textAlign: isArabic ? "right" : "left" }]}>{article.title}</Text>
-    <Text style={[styles.leadExcerpt, { textAlign: isArabic ? "right" : "left" }]} numberOfLines={3}>{article.excerpt}</Text>
+    <Text style={[styles.leadTitle, { textAlign: isArabic ? "right" : "left", writingDirection: isArabic ? "rtl" : "ltr" }]}>{article.title}</Text>
+    <Text style={[styles.leadExcerpt, { textAlign: isArabic ? "right" : "left", writingDirection: isArabic ? "rtl" : "ltr" }]} numberOfLines={3}>{article.excerpt}</Text>
     <View style={[styles.readRow, { flexDirection: isArabic ? "row-reverse" : "row" }]}><Text style={styles.readText}>{isArabic ? "اقرأ الآن" : "Read now"}</Text><DirectionArrow size={15} color={colors.gold} /></View>
   </Pressable>;
 }
 
 function ArticleCard({ article, isArabic, DirectionArrow }: { article: SceneArticle; isArabic: boolean; DirectionArrow: typeof ChevronRight }) {
   return <Pressable onPress={() => router.push(`/scene/article/${article.slug}` as never)} style={[styles.articleCard, isArabic && styles.rowReverse]}>
-    <View style={styles.articleCopy}><Text style={[styles.articleTitle, { textAlign: isArabic ? "right" : "left" }]} numberOfLines={2}>{article.title}</Text><Text style={[styles.articleExcerpt, { textAlign: isArabic ? "right" : "left" }]} numberOfLines={2}>{article.excerpt}</Text></View>
+    <View style={styles.articleCopy}><Text style={[styles.articleTitle, { textAlign: isArabic ? "right" : "left", writingDirection: isArabic ? "rtl" : "ltr" }]} numberOfLines={2}>{article.title}</Text><Text style={[styles.articleExcerpt, { textAlign: isArabic ? "right" : "left", writingDirection: isArabic ? "rtl" : "ltr" }]} numberOfLines={2}>{article.excerpt}</Text></View>
     <DirectionArrow size={16} color={colors.gold} />
   </Pressable>;
 }

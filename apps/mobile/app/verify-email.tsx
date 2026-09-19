@@ -5,6 +5,7 @@ import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput,
 
 import { completeMobilePublisherOnboarding, finalizeMobileAccount } from "@/src/domains/account/api";
 import { useLocale } from "@/src/i18n/LocaleProvider";
+import { normalizeInputDigits } from "@/src/i18n/format";
 import { useSessionContext } from "@/src/runtime/SessionContext";
 import { supabase } from "@/src/services/supabase";
 import { colors, radius, spacing } from "@/src/theme/tokens";
@@ -38,7 +39,7 @@ export default function VerifyEmailScreen() {
   }, [secondsLeft]);
 
   function normalizeOtp(value: string) {
-    return value.replace(/[^0-9]/g, "").slice(0, 6);
+    return normalizeInputDigits(value).replace(/[^0-9]/g, "").slice(0, 6);
   }
 
   async function finishVerifiedUser(user: { email?: string | null; user_metadata?: Record<string, unknown> }) {

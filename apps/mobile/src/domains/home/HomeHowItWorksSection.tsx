@@ -1,7 +1,6 @@
 import { BriefcaseBusiness, CheckCircle2, ImagePlus, UserRound, type LucideIcon } from "lucide-react-native";
 import { StyleSheet, Text, View } from "react-native";
 
-import { HomePostJourneySections } from "@/src/domains/home/HomePostJourneySections";
 import { colors, radius, spacing } from "@/src/theme/tokens";
 
 type Step = {
@@ -65,44 +64,40 @@ export function HomeHowItWorksSection({ isArabic }: Props) {
   ];
 
   return (
-    <>
       <View style={styles.section}>
-        <Text style={styles.eyebrow}>{isArabic ? "كيف تعمل ملامح" : "HOW MLAMH WORKS"}</Text>
-        <Text style={styles.title}>
+        <Text style={[styles.eyebrow, { writingDirection: isArabic ? "rtl" : "ltr" }]}>{isArabic ? "كيف تعمل ملامح" : "HOW MLAMH WORKS"}</Text>
+        <Text style={[styles.title, { writingDirection: isArabic ? "rtl" : "ltr" }]}>
           {isArabic ? "رحلة واضحة للطرفين." : "A clear path for both sides."}
         </Text>
-        <Text style={styles.description}>
+        <Text style={[styles.description, { writingDirection: isArabic ? "rtl" : "ltr" }]}>
           {isArabic
             ? "سواء كنت موهبة تبحث عن فرصة، أو جهة تبحث عن الشخص المناسب، التجربة مصممة لتكون بسيطة واحترافية."
             : "Whether you are a talent looking for opportunities or an organization searching for the right person, the experience is simple and professional."}
         </Text>
 
-        <JourneyCard title={isArabic ? "للمواهب" : "For Talents"} steps={talentSteps} align={align} />
-        <JourneyCard title={isArabic ? "للجهات" : "For Organizations"} steps={organizationSteps} align={align} />
+        <JourneyCard title={isArabic ? "للمواهب" : "For Talents"} steps={talentSteps} align={align} isArabic={isArabic} />
+        <JourneyCard title={isArabic ? "للجهات" : "For Organizations"} steps={organizationSteps} align={align} isArabic={isArabic} />
       </View>
-
-      <HomePostJourneySections isArabic={isArabic} />
-    </>
   );
 }
 
-function JourneyCard({ title, steps, align }: { title: string; steps: Step[]; align: "right" | "left" }) {
+function JourneyCard({ title, steps, align, isArabic }: { title: string; steps: Step[]; align: "right" | "left"; isArabic: boolean }) {
   return (
     <View style={styles.journeyCard}>
-      <Text style={[styles.journeyLabel, { textAlign: align }]}>{title}</Text>
+      <Text style={[styles.journeyLabel, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{title}</Text>
       <View style={styles.steps}>
         {steps.map((step, index) => {
           const Icon = step.icon;
           return (
             <View key={step.title} style={styles.stepCard}>
-              <View style={styles.stepTop}>
+              <View style={[styles.stepTop, isArabic && styles.rowReverse]}>
                 <View style={styles.stepIcon}>
                   <Icon size={17} color={colors.gold} />
                 </View>
                 <Text style={styles.stepIndex}>0{index + 1}</Text>
               </View>
-              <Text style={[styles.stepTitle, { textAlign: align }]}>{step.title}</Text>
-              <Text style={[styles.stepText, { textAlign: align }]}>{step.description}</Text>
+              <Text style={[styles.stepTitle, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{step.title}</Text>
+              <Text style={[styles.stepText, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{step.description}</Text>
             </View>
           );
         })}
@@ -112,6 +107,7 @@ function JourneyCard({ title, steps, align }: { title: string; steps: Step[]; al
 }
 
 const styles = StyleSheet.create({
+  rowReverse: { flexDirection: "row-reverse" },
   section: {
     marginTop: 44,
     borderTopWidth: 1,

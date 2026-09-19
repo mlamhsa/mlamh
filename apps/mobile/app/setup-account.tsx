@@ -6,6 +6,7 @@ import { FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView,
 import { completeMobilePublisherOnboarding, finalizeMobileAccount } from "@/src/domains/account/api";
 import { GENDER_OPTIONS, NATIONALITY_OPTIONS, PROFILE_VISIBILITY_OPTIONS, PUBLISHER_TYPE_OPTIONS, SAUDI_SIGNUP_CITIES, TALENT_TYPE_OPTIONS } from "@/src/domains/auth/signup-data";
 import { useLocale } from "@/src/i18n/LocaleProvider";
+import { normalizeInputDigits } from "@/src/i18n/format";
 import { useSessionContext } from "@/src/runtime/SessionContext";
 import { supabase } from "@/src/services/supabase";
 import { colors, radius, spacing } from "@/src/theme/tokens";
@@ -14,7 +15,7 @@ type AccountType = "talent" | "publisher";
 type Option = { value: string; ar: string; en: string };
 
 function normalizeSaudiPhone(value: string) {
-  let digits = value.replace(/\D/g, "");
+  let digits = normalizeInputDigits(value).replace(/\D/g, "");
   if (digits.startsWith("966")) digits = digits.slice(3);
   if (digits.startsWith("0")) digits = digits.slice(1);
   return digits.slice(0, 9);

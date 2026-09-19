@@ -1,9 +1,10 @@
-import { Redirect, type Href } from "expo-router";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { Redirect, router, type Href } from "expo-router";
+import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useLocale } from "@/src/i18n/LocaleProvider";
 import { useSessionContext } from "@/src/runtime/SessionContext";
+import { supabase } from "@/src/services/supabase";
 import { colors, radius, spacing, typography } from "@/src/theme/tokens";
 
 const ROUTES = {
@@ -57,12 +58,80 @@ export function RootRouteGate() {
     );
   }
 
+  if (session.status === "identity_conflict") {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.errorState}>
+          <Text style={styles.brand}>MLAMH</Text>
+          <Text style={styles.errorTitle}>
+            {isArabic ? "هذا البريد مرتبط بحساب موجود" : "This email already has an account"}
+          </Text>
+          <Text style={styles.errorText}>
+            {isArabic
+              ? "لم ننشئ حسابًا جديدًا ولم ندمج الحسابات تلقائيًا. سجّل الدخول بالطريقة التي استخدمتها سابقًا لهذا الحساب."
+              : "We did not create a new account or merge identities automatically. Sign in using the method you originally used for this account."}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => void supabase.auth.signOut({ scope: "local" }).then(async () => {
+              await session.refresh();
+              router.replace("/login" as never);
+            })}
+            style={({ pressed }) => [styles.retryButton, pressed && styles.retryPressed]}
+          >
+            <Text style={styles.retryText}>{isArabic ? "تسجيل الدخول للحساب الموجود" : "Sign in to existing account"}</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (session.status === "unsupported_account") {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.errorState}>
+          <Text style={styles.brand}>MLAMH</Text>
+          <Text style={styles.errorTitle}>
+            {isArabic ? "حساب الإدارة" : "Admin account"}
+          </Text>
+          <Text style={styles.errorText}>
+            {isArabic
+              ? "تم تسجيل الدخول بنجاح، لكن لوحة الإدارة ليست جزءًا من تطبيق المواهب والناشرين. يمكنك فتح لوحة الإدارة على الويب أو تسجيل الخروج."
+              : "You are signed in, but admin tools are not part of the talent and publisher app. Open the web admin panel or sign out."}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => void Linking.openURL("https://mlamh.net/admin")}
+            style={({ pressed }) => [styles.retryButton, pressed && styles.retryPressed]}
+          >
+            <Text style={styles.retryText}>{isArabic ? "فتح لوحة الإدارة" : "Open admin panel"}</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => void supabase.auth.signOut({ scope: "local" }).then(() => session.refresh())}
+            style={({ pressed }) => [styles.secondaryButton, pressed && styles.retryPressed]}
+          >
+            <Text style={styles.secondaryText}>{isArabic ? "تسجيل الخروج" : "Sign out"}</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   if (session.status === "guest") {
     return <Redirect href={ROUTES.public as Href} />;
   }
 
   if (session.status === "account_missing") {
     return <Redirect href={ROUTES.accountType as Href} />;
+  }
+
+  if (session.status === "talent_incomplete") {
+    return <Redirect href={"/setup-account?type=talent&source=recovery" as Href} />;
+  }
+
+  if (session.status === "publisher_incomplete") {
+    return <Redirect href={"/setup-account?type=publisher&source=recovery" as Href} />;
   }
 
   if (session.status === "talent") {
@@ -130,5 +199,20 @@ const styles = StyleSheet.create({
     color: colors.background,
     fontSize: 14,
     fontWeight: "800",
+  },
+  secondaryButton: {
+    minWidth: 180,
+    minHeight: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.xl,
+  },
+  secondaryText: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    fontWeight: "700",
   },
 });

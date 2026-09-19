@@ -32,6 +32,23 @@ function normalizeNationality(value: unknown) {
 }
 
 export async function updateMobileTalentProfile({ userId, locale, input }: { userId: string; locale: "ar" | "en"; input: MobileTalentProfileUpdateInput }) {
+  const protectedFieldRequested = ["primaryRole", "displayName", "gender", "dateOfBirth", "nationalitySlug"]
+    .some((key) => Object.prototype.hasOwnProperty.call(input, key));
+
+  const supabase = createAdminClient();
+  if (protectedFieldRequested) {
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("account_type,approval_status")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (profileError) return { ok: false as const, code: "PROFILE_LOOKUP_FAILED" as const };
+    if (!profile || profile.account_type !== "talent") return { ok: false as const, code: "TALENT_NOT_FOUND" as const };
+    if (profile.approval_status === "pending" || profile.approval_status === "submitted" || profile.approval_status === "approved") {
+      return { ok: false as const, code: "PROTECTED_FIELDS_LOCKED" as const };
+    }
+  }
+
   const primaryRole = normalizeEnum(input.primaryRole, TALENT_ROLES); const displayName = normalizeOptionalText(input.displayName, 80); const bio = normalizeOptionalText(input.bio, 1200); const skills = normalizeArray(input.skills, 12, 40); const languages = normalizeArray(input.languages, 8, 40); const dialects = normalizeArray(input.dialects, 8, 40); const modelingTypes = normalizeArray(input.modelingTypes, 8, 40);
   const gender = normalizeEnum(input.gender, GENDERS); const availability = normalizeEnum(input.availabilityStatus, AVAILABILITY); const eyeColor = normalizeEnum(input.eyeColor, EYE_COLORS); const hairColor = normalizeEnum(input.hairColor, HAIR_COLORS); const hairType = normalizeEnum(input.hairType, HAIR_TYPES); const skinColor = normalizeEnum(input.skinColor, SKIN_COLORS); const clothingSize = normalizeEnum(input.clothingSize, CLOTHING_SIZES, true);
   const dateOfBirth = normalizeDate(input.dateOfBirth); const nationality = normalizeNationality(input.nationalitySlug); const height = normalizeNumber(input.heightCm, 80, 250); const weight = normalizeNumber(input.weightKg, 20, 350); const shoeSize = normalizeNumber(input.shoeSize, 15, 60); const actingAgeMin = normalizeNumber(input.actingAgeMin, 0, 120, true); const actingAgeMax = normalizeNumber(input.actingAgeMax, 0, 120, true); const experienceYears = normalizeNumber(input.experienceYears, 0, 80, true);
@@ -68,7 +85,6 @@ export async function updateMobileTalentProfile({ userId, locale, input }: { use
   if (city !== undefined) { values.city_slug = city?.slug ?? null; values.city_ar = city?.ar ?? null; values.city_en = city?.en ?? null; values.base_country_code = city ? "SA" : null; }
   if (Object.keys(values).length === 0) return { ok: false as const, code: "INVALID_INPUT" as const };
 
-  const supabase = createAdminClient();
   const { data, error } = await supabase.from("talents").update(values).eq("user_id", userId).select("id").maybeSingle();
   if (error) return { ok: false as const, code: "UPDATE_FAILED" as const };
   if (!data) return { ok: false as const, code: "TALENT_NOT_FOUND" as const };

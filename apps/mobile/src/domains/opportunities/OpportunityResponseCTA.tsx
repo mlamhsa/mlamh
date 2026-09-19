@@ -168,6 +168,27 @@ export function OpportunityResponseCTA({ item, locale }: Props) {
       };
     }
 
+    if (session.status === "unsupported_account" || session.status === "identity_conflict") {
+      return {
+        label: isArabic ? "الحساب غير متاح للتقديم" : "Account cannot apply",
+        note: isArabic
+          ? "حساب الإدارة لا يستخدم مسار التقديم الخاص بالمواهب."
+          : "Admin accounts do not use the talent application flow.",
+        enabled: false,
+      };
+    }
+
+    if (session.status === "talent_incomplete" || session.status === "publisher_incomplete") {
+      return {
+        label: isArabic ? "أكمل إعداد حسابك" : "Complete account setup",
+        note: isArabic ? "أكمل بيانات الحساب قبل التفاعل مع الفرص." : "Finish account setup before responding to opportunities.",
+        enabled: true,
+        route: (session.status === "talent_incomplete"
+          ? "/setup-account?type=talent&source=recovery"
+          : "/setup-account?type=publisher&source=recovery") as Href,
+      };
+    }
+
     if (session.status === "guest" || session.status === "account_missing") {
       return {
         label: isArabic ? "سجّل للمتابعة" : "Sign in to continue",

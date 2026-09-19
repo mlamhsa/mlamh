@@ -8,7 +8,7 @@ on:
       - feat/meta-marketing-hub
       - feat/multi-country-foundation
   pull_request:
-    branches: [main, feat/zoho-mail-marketing]
+    branches: [main, feat/zoho-mail-marketing, feat/mobile-native-v3-foundation]
   workflow_dispatch:
 
 permissions:

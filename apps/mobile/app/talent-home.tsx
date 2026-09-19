@@ -16,6 +16,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { useSessionContext } from "@/src/runtime/SessionContext";
 import { useLocale } from "@/src/i18n/LocaleProvider";
+import { localizeApprovalStatus } from "@/src/i18n/format";
 import { colors, radius, spacing, typography } from "@/src/theme/tokens";
 
 type Action = {
@@ -59,19 +60,19 @@ const ACTIONS: Action[] = [
   {
     key: "scene",
     href: "/scene",
-    titleAr: "ملامح Scene",
+    titleAr: "مشهد ملامح",
     titleEn: "MLAMH Scene",
     bodyAr: "اكتشف محتوى يساعدك على فهم المجال والفرص وصناعة ملف أفضل.",
     bodyEn: "Discover content that helps you understand the industry, opportunities, and stronger profiles.",
     icon: BookOpen,
   },
   {
-    key: "account",
-    href: "/account",
-    titleAr: "الحساب والخصوصية",
-    titleEn: "Account & privacy",
-    bodyAr: "إدارة الجلسة وخيارات الحساب، بما فيها حذف الحساب نهائيًا من داخل التطبيق.",
-    bodyEn: "Manage your session and account controls, including permanent account deletion in the app.",
+    key: "profile",
+    href: "/profile",
+    titleAr: "ملفي المهني",
+    titleEn: "My talent profile",
+    bodyAr: "أكمل بياناتك وصورك وتابع نسبة الاكتمال ثم أرسل ملفك للمراجعة.",
+    bodyEn: "Complete your details and photos, track completion, then submit your profile for review.",
     icon: UserRound,
   },
 ];
@@ -184,8 +185,8 @@ export default function TalentHomeScreen() {
           </View>
           <Text style={[styles.statusMeta, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>
             {isArabic
-              ? `الحالة: ${account?.approvalStatus ?? "غير مكتمل"}`
-              : `Status: ${account?.approvalStatus ?? "incomplete"}`}
+              ? `الحالة: ${localizeApprovalStatus(account?.approvalStatus, locale)}`
+              : `Status: ${localizeApprovalStatus(account?.approvalStatus, locale)}`}
           </Text>
         </View>
 

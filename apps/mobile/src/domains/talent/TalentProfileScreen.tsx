@@ -91,21 +91,21 @@ export function TalentProfileScreen() {
           </View>
         </View>
 
-        {talent.bio ? <Section title={isArabic ? "نبذة" : "About"}><Text style={[styles.body, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{talent.bio}</Text></Section> : null}
+        {talent.bio ? <Section title={isArabic ? "نبذة" : "About"} isArabic={isArabic}><Text style={[styles.body, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{talent.bio}</Text></Section> : null}
 
         <View style={styles.infoGrid}>
-          {talent.age != null ? <InfoCard label={isArabic ? "العمر" : "Age"} value={String(talent.age)} icon={UserRound} /> : null}
-          {talent.heightCm != null ? <InfoCard label={isArabic ? "الطول" : "Height"} value={`${talent.heightCm} cm`} icon={Ruler} /> : null}
-          {talent.nationality ? <InfoCard label={isArabic ? "الجنسية" : "Nationality"} value={talent.nationality} icon={Globe2} /> : null}
-          {talent.experienceYears != null ? <InfoCard label={isArabic ? "الخبرة" : "Experience"} value={isArabic ? `${talent.experienceYears} سنوات` : `${talent.experienceYears} years`} icon={BriefcaseBusiness} /> : null}
+          {talent.age != null ? <InfoCard label={isArabic ? "العمر" : "Age"} value={String(talent.age)} icon={UserRound} isArabic={isArabic} /> : null}
+          {talent.heightCm != null ? <InfoCard label={isArabic ? "الطول" : "Height"} value={`${talent.heightCm} cm`} icon={Ruler} isArabic={isArabic} /> : null}
+          {talent.nationality ? <InfoCard label={isArabic ? "الجنسية" : "Nationality"} value={talent.nationality} icon={Globe2} isArabic={isArabic} /> : null}
+          {talent.experienceYears != null ? <InfoCard label={isArabic ? "الخبرة" : "Experience"} value={isArabic ? `${talent.experienceYears} سنوات` : `${talent.experienceYears} years`} icon={BriefcaseBusiness} isArabic={isArabic} /> : null}
         </View>
 
-        {talent.skills.length > 0 ? <TagSection title={isArabic ? "المهارات" : "Skills"} items={talent.skills} /> : null}
-        {talent.languages.length > 0 ? <TagSection title={isArabic ? "اللغات" : "Languages"} items={talent.languages} /> : null}
-        {talent.dialects.length > 0 ? <TagSection title={isArabic ? "اللهجات" : "Dialects"} items={talent.dialects} /> : null}
+        {talent.skills.length > 0 ? <TagSection title={isArabic ? "المهارات" : "Skills"} items={talent.skills} isArabic={isArabic} /> : null}
+        {talent.languages.length > 0 ? <TagSection title={isArabic ? "اللغات" : "Languages"} items={talent.languages} isArabic={isArabic} /> : null}
+        {talent.dialects.length > 0 ? <TagSection title={isArabic ? "اللهجات" : "Dialects"} items={talent.dialects} isArabic={isArabic} /> : null}
 
         {gallery.length > 1 ? (
-          <Section title={isArabic ? "الصور" : "Gallery"}>
+          <Section title={isArabic ? "الصور" : "Gallery"} isArabic={isArabic}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.galleryContent}>
               {gallery.slice(1).map((image, index) => <Image key={`${image}-${index}`} source={{ uri: image }} style={styles.galleryImage} resizeMode="cover" />)}
             </ScrollView>
@@ -128,16 +128,18 @@ function StateScreen({ children }: { children: React.ReactNode }) {
   return <View style={styles.safeArea}><View style={styles.state}>{children}</View></View>;
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return <View style={styles.section}><Text style={styles.sectionTitle}>{title}</Text>{children}</View>;
+function Section({ title, children, isArabic }: { title: string; children: React.ReactNode; isArabic: boolean }) {
+  return <View style={styles.section}><Text style={[styles.sectionTitle, { textAlign: isArabic ? "right" : "left", writingDirection: isArabic ? "rtl" : "ltr" }]}>{title}</Text>{children}</View>;
 }
 
-function TagSection({ title, items }: { title: string; items: string[] }) {
-  return <Section title={title}><View style={styles.tags}>{items.slice(0, 12).map((item) => <View key={item} style={styles.tag}><Text style={styles.tagText}>{item}</Text></View>)}</View></Section>;
+function TagSection({ title, items, isArabic }: { title: string; items: string[]; isArabic: boolean }) {
+  return <Section title={title} isArabic={isArabic}><View style={[styles.tags, isArabic && styles.tagsRtl]}>{items.slice(0, 12).map((item) => <View key={item} style={styles.tag}><Text style={[styles.tagText, { textAlign: isArabic ? "right" : "left", writingDirection: isArabic ? "rtl" : "ltr" }]}>{item}</Text></View>)}</View></Section>;
 }
 
-function InfoCard({ label, value, icon: Icon }: { label: string; value: string; icon: typeof UserRound }) {
-  return <View style={styles.infoCard}><Icon size={17} color={colors.gold} /><Text style={styles.infoLabel}>{label}</Text><Text numberOfLines={2} style={styles.infoValue}>{value}</Text></View>;
+function InfoCard({ label, value, icon: Icon, isArabic }: { label: string; value: string; icon: typeof UserRound; isArabic: boolean }) {
+  const align = isArabic ? "right" : "left";
+  const writingDirection = isArabic ? "rtl" : "ltr";
+  return <View style={styles.infoCard}><Icon size={17} color={colors.gold} /><Text style={[styles.infoLabel, { textAlign: align, writingDirection }]}>{label}</Text><Text numberOfLines={2} style={[styles.infoValue, { textAlign: align, writingDirection }]}>{value}</Text></View>;
 }
 
 const absoluteFill = { position: "absolute" as const, top: 0, right: 0, bottom: 0, left: 0 };
@@ -173,6 +175,7 @@ const styles = StyleSheet.create({
   infoLabel: { color: colors.textMuted, fontSize: 10, marginTop: spacing.md },
   infoValue: { color: colors.textPrimary, fontSize: 14, lineHeight: 20, fontWeight: "600", marginTop: 4 },
   tags: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  tagsRtl: { flexDirection: "row-reverse" },
   tag: { borderWidth: 1, borderColor: colors.border, backgroundColor: "rgba(255,255,255,0.03)", borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 8 },
   tagText: { color: colors.textSecondary, fontSize: 11 },
   galleryContent: { gap: spacing.md },

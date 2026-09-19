@@ -9,23 +9,10 @@ import {
   type PublisherOpportunitiesResponse,
 } from "@/src/domains/publisher/opportunities";
 import { useLocale } from "@/src/i18n/LocaleProvider";
+import { localizeOpportunityStatus } from "@/src/i18n/format";
 import { colors, radius, spacing, typography } from "@/src/theme/tokens";
 
 type FilterKey = "all" | "pending_review" | "needs_changes" | "published" | "rejected" | "closed";
-
-function statusLabel(status: string, isArabic: boolean) {
-  const labels: Record<string, [string, string]> = {
-    draft: ["مسودة", "Draft"],
-    pending_review: ["قيد المراجعة", "In review"],
-    needs_changes: ["تحتاج تعديلات", "Needs changes"],
-    rejected: ["مرفوضة", "Rejected"],
-    published: ["منشورة", "Published"],
-    open: ["منشورة", "Published"],
-    closed: ["مغلقة", "Closed"],
-    archived: ["مؤرشفة", "Archived"],
-  };
-  return isArabic ? (labels[status]?.[0] ?? status) : (labels[status]?.[1] ?? status);
-}
 
 export function PublisherOpportunitiesScreen() {
   const { locale } = useLocale();
@@ -151,7 +138,7 @@ function OpportunityCard({ item, isArabic, align }: { item: PublisherOpportunity
             {" · "}{isArabic ? (item.cityAr ?? item.cityEn ?? "—") : (item.cityEn ?? item.cityAr ?? "—")}
           </Text>
         </View>
-        <View style={styles.statusPill}><Text style={styles.statusText}>{statusLabel(item.status, isArabic)}</Text></View>
+        <View style={styles.statusPill}><Text style={styles.statusText}>{localizeOpportunityStatus(item.status, isArabic ? "ar" : "en")}</Text></View>
       </View>
 
       <View style={[styles.cardBottom, isArabic ? styles.rowRtl : styles.rowLtr]}>

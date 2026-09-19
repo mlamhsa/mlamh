@@ -16,6 +16,7 @@ import {
   View,
 } from "react-native";
 
+import { MobileApiError } from "@/src/api/client";
 import { completeMobilePublisherOnboarding, finalizeMobileAccount, getMobileAccountContext } from "@/src/domains/account/api";
 import {
   GENDER_OPTIONS,
@@ -26,6 +27,7 @@ import {
   TALENT_TYPE_OPTIONS,
 } from "@/src/domains/auth/signup-data";
 import { useLocale } from "@/src/i18n/LocaleProvider";
+import { normalizeInputDigits } from "@/src/i18n/format";
 import { signInWithNativeApple } from "@/src/native/apple-auth";
 import { signInWithNativeGoogle } from "@/src/native/google-auth";
 import { useSessionContext } from "@/src/runtime/SessionContext";
@@ -36,7 +38,7 @@ type AccountType = "talent" | "publisher";
 type Option = { value: string; ar: string; en: string };
 
 function normalizeSaudiPhone(value: string) {
-  let digits = value.replace(/\D/g, "");
+  let digits = normalizeInputDigits(value).replace(/\D/g, "");
   if (digits.startsWith("966")) digits = digits.slice(3);
   if (digits.startsWith("0")) digits = digits.slice(1);
   return digits.slice(0, 9);
@@ -90,7 +92,33 @@ export default function RegisterScreen() {
         router.replace("/" as never);
         return;
       }
-    } catch {}
+    } catch (error) {
+      if (
+        error instanceof MobileApiError &&
+        error.status === 409 &&
+        error.code === "ACCOUNT_TYPE_UNSUPPORTED"
+      ) {
+        await session.refresh();
+        router.replace("/" as never);
+        return;
+      }
+      if (
+        error instanceof MobileApiError &&
+        error.status === 409 &&
+        (error.code === "TALENT_ONBOARDING_INCOMPLETE" || error.code === "PUBLISHER_ONBOARDING_INCOMPLETE")
+      ) {
+        const recoveryType = error.code === "TALENT_ONBOARDING_INCOMPLETE" ? "talent" : "publisher";
+        router.replace(("/setup-account?type=" + recoveryType + "&source=recovery") as never);
+        return;
+      }
+      if (
+        !(error instanceof MobileApiError) ||
+        error.status !== 404 ||
+        error.code !== "ACCOUNT_NOT_FOUND"
+      ) {
+        throw error;
+      }
+    }
     const namePart = providerName?.trim() ? "&name=" + encodeURIComponent(providerName.trim()) : "";
     router.replace(("/setup-account?type=" + accountType + "&source=social" + namePart) as never);
   }
@@ -106,6 +134,13 @@ export default function RegisterScreen() {
         return;
       }
       await finishSocialSignup();
+    } catch (error) {
+      if (error instanceof MobileApiError && error.code === "ACCOUNT_EXISTS_DIFFERENT_IDENTITY") {
+        await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
+        setErrorMessage(isArabic ? "هذا البريد مرتبط بحساب موجود. سجّل الدخول بالطريقة التي استخدمتها سابقًا." : "This email is already registered. Sign in using your original sign-in method.");
+      } else {
+        setErrorMessage(isArabic ? "تمت محاولة التسجيل عبر Google، لكن تعذر إكمال إعداد الحساب داخل التطبيق. حاول مرة أخرى." : "Google sign-up was attempted, but account setup could not be completed in the app. Please try again.");
+      }
     } finally {
       setSocialSubmitting(null);
     }
@@ -122,6 +157,13 @@ export default function RegisterScreen() {
         return;
       }
       await finishSocialSignup(result.displayName);
+    } catch (error) {
+      if (error instanceof MobileApiError && error.code === "ACCOUNT_EXISTS_DIFFERENT_IDENTITY") {
+        await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
+        setErrorMessage(isArabic ? "هذا البريد مرتبط بحساب موجود. سجّل الدخول بالطريقة التي استخدمتها سابقًا." : "This email is already registered. Sign in using your original sign-in method.");
+      } else {
+        setErrorMessage(isArabic ? "تمت محاولة التسجيل عبر Apple، لكن تعذر إكمال إعداد الحساب داخل التطبيق. حاول مرة أخرى." : "Apple sign-up was attempted, but account setup could not be completed in the app. Please try again.");
+      }
     } finally {
       setSocialSubmitting(null);
     }

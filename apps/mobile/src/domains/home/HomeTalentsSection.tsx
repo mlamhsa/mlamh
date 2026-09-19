@@ -151,13 +151,13 @@ function TalentMeta({
 }) {
   return (
     <View style={[styles.metaRow, isArabic ? styles.rowRtl : styles.rowLtr]}>
-      <Text style={[styles.role, compact && styles.metaCompact]}>{roleLabel(talent.role, isArabic)}</Text>
+      <Text style={[styles.role, compact && styles.metaCompact, { writingDirection: isArabic ? "rtl" : "ltr" }]}>{roleLabel(talent.role, isArabic)}</Text>
       {talent.city ? (
         <>
           <View style={styles.metaDot} />
           <View style={[styles.cityRow, isArabic ? styles.rowRtl : styles.rowLtr]}>
             <MapPin size={compact ? 10 : 12} color={colors.textMuted} />
-            <Text numberOfLines={1} style={[styles.city, compact && styles.metaCompact]}>{talent.city}</Text>
+            <Text numberOfLines={1} style={[styles.city, compact && styles.metaCompact, { writingDirection: isArabic ? "rtl" : "ltr" }]}>{talent.city}</Text>
           </View>
         </>
       ) : null}
