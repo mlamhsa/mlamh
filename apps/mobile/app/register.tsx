@@ -16,6 +16,7 @@ import {
   View,
 } from "react-native";
 
+import { MobileApiError } from "@/src/api/client";
 import { completeMobilePublisherOnboarding, finalizeMobileAccount, getMobileAccountContext } from "@/src/domains/account/api";
 import {
   GENDER_OPTIONS,
@@ -90,7 +91,24 @@ export default function RegisterScreen() {
         router.replace("/" as never);
         return;
       }
-    } catch {}
+    } catch (error) {
+      if (
+        error instanceof MobileApiError &&
+        error.status === 409 &&
+        error.code === "ACCOUNT_TYPE_UNSUPPORTED"
+      ) {
+        await session.refresh();
+        router.replace("/" as never);
+        return;
+      }
+      if (
+        !(error instanceof MobileApiError) ||
+        error.status !== 404 ||
+        error.code !== "ACCOUNT_NOT_FOUND"
+      ) {
+        throw error;
+      }
+    }
     const namePart = providerName?.trim() ? "&name=" + encodeURIComponent(providerName.trim()) : "";
     router.replace(("/setup-account?type=" + accountType + "&source=social" + namePart) as never);
   }
