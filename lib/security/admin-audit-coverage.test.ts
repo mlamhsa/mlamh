@@ -616,6 +616,43 @@ test("admin invitation creation keeps server-side throttling", async () => {
 });
 
 
+test("admin MFA enrollment recovers from interrupted unverified factors", async () => {
+  const gate = await source(
+    "components/admin/security/AdminMfaGate.tsx",
+  );
+
+  const cleanupStart =
+    gate.indexOf(
+      'factor.status === "unverified"',
+    );
+  const unenrollStart =
+    gate.indexOf(
+      "supabase.auth.mfa.unenroll",
+      cleanupStart,
+    );
+  const enrollStart =
+    gate.indexOf(
+      "supabase.auth.mfa.enroll",
+      cleanupStart,
+    );
+
+  assert.ok(
+    cleanupStart >= 0 &&
+      unenrollStart > cleanupStart &&
+      enrollStart > unenrollStart,
+    "interrupted unverified TOTP factors must be removed before creating a fresh enrollment",
+  );
+
+  assert.equal(
+    gate.includes(
+      'setMode("error")',
+    ),
+    true,
+    "MFA initialization failures must render a recoverable error state instead of an unusable challenge form",
+  );
+});
+
+
 test("admin entry and MFA gates share the centralized active-admin identity guard", async () => {
   const guard = await source(
     "lib/auth/require-admin.ts",
