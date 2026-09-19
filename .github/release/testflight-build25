@@ -1,2 +1,3 @@
 Build 25 TestFlight release request.
-Approved after iOS Launch Smoke success on 769b1646c423171e722a14c2e9997e5e4b584432.
+Release retry after smoke-trigger coverage fix.
+Parent smoke passed: d25b9468e6bed30f6322b6d5293de3553d13c1fd.
