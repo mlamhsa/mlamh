@@ -130,14 +130,14 @@ export async function updateOwnTalentVisibilityAction(
             ? "تم حفظ الخيار. ملفك العام متاح للظهور في دليل المواهب."
             : "تم حفظ الخيار. سيظهر ملفك في الدليل العام بعد الاعتماد."
           : visibility === "verified_publishers"
-            ? "تم حفظ الخيار. ملفك مخفي عن العامة ومتاح فقط للناشرين الموثقين عبر المطابقة أو الدعوات المناسبة."
+            ? "تم حفظ الخيار. ملفك مخفي عن العامة ومتاح للناشرين المعتمدين حسب صلاحية الوصول عبر المطابقة أو الدعوات المناسبة."
             : "تم حفظ الخيار. ملفك خاص ولن يظهر في دليل المواهب العام، وسيبقى متاحًا للمطابقة الخاصة."
         : visibility === "public"
           ? approved
             ? "Saved. Your public profile can appear in the talent directory."
             : "Saved. Your profile can appear publicly after approval."
           : visibility === "verified_publishers"
-            ? "Saved. Your profile is hidden from the public and can only be opened by verified publishers through relevant matching or invitations."
+            ? "Saved. Your profile is hidden from the public and available to approved publishers who meet the access requirements through relevant matching or invitations."
             : "Saved. Your profile is private and hidden from the public directory while remaining eligible for private matching.",
   };
 }
