@@ -11,6 +11,8 @@ type SessionState =
   | { status: "account_missing"; account: null }
   | { status: "unsupported_account"; account: null }
   | { status: "identity_conflict"; account: null }
+  | { status: "talent_incomplete"; account: null }
+  | { status: "publisher_incomplete"; account: null }
   | { status: "unavailable"; account: null }
   | { status: "talent"; account: MobileAccountContext }
   | { status: "publisher"; account: MobileAccountContext };
@@ -92,6 +94,19 @@ export function SessionProvider({ children }: PropsWithChildren) {
         error.code === "ACCOUNT_EXISTS_DIFFERENT_IDENTITY"
       ) {
         const next: SessionState = { status: "identity_conflict", account: null };
+        setState(next);
+        return next.status;
+      }
+
+      if (
+        error instanceof MobileApiError &&
+        error.status === 409 &&
+        (error.code === "TALENT_ONBOARDING_INCOMPLETE" || error.code === "PUBLISHER_ONBOARDING_INCOMPLETE")
+      ) {
+        const next: SessionState = {
+          status: error.code === "TALENT_ONBOARDING_INCOMPLETE" ? "talent_incomplete" : "publisher_incomplete",
+          account: null,
+        };
         setState(next);
         return next.status;
       }
