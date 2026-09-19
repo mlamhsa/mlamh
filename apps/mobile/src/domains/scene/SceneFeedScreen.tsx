@@ -29,8 +29,8 @@ export function SceneFeedScreen() {
     try { setData(await getSceneFeed(locale)); }
     catch {
       setData(null);
-      setError(false);
-      setUsingFallback(true);
+      setError(true);
+      setUsingFallback(false);
     }
     finally { setLoading(false); setRefreshing(false); }
   }, [locale]);
