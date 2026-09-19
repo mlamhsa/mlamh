@@ -2208,6 +2208,10 @@ export async function updateAdminRoleAction(
         targetUserId,
       p_new_role_key:
         roleKey,
+      p_change_reason:
+        sensitiveRoleChange
+          ? rawChangeReason
+          : null,
     },
   );
 
@@ -2259,37 +2263,6 @@ export async function updateAdminRoleAction(
     );
   }
 
-  try {
-      await createAuditEvent({
-        type:
-          EVENT_TYPES.admin_role_changed,
-        target:
-          EVENT_TARGETS.ADMIN,
-        targetId: targetUserId,
-        actorId: actor.id,
-        metadata: {
-          action:
-            "update_admin_role",
-          outcome: "success",
-          target_email:
-            targetAdmin.email,
-          previous_roles:
-            previousRoleKeys,
-          new_role: roleKey,
-          change_reason:
-            sensitiveRoleChange
-              ? rawChangeReason
-              : null,
-          actor_email:
-            actor.email ?? null,
-        },
-      });
-  } catch (auditError) {
-    console.error(
-      "[updateAdminRoleAction audit]",
-      auditError,
-    );
-  }
 
   revalidateAdminAccessPaths();
 
@@ -2604,6 +2577,8 @@ export async function revokeAdminAccessAction(
         targetUserId,
       p_new_role_key:
         "revoked",
+      p_change_reason:
+        revokeReason,
     },
   );
 
@@ -2653,34 +2628,6 @@ export async function revokeAdminAccessAction(
     );
   }
 
-  try {
-      await createAuditEvent({
-        type:
-          EVENT_TYPES.admin_access_revoked,
-        target:
-          EVENT_TARGETS.ADMIN,
-        targetId: targetUserId,
-        actorId: actor.id,
-        metadata: {
-          action:
-            "revoke_admin_access",
-          outcome: "success",
-          target_email:
-            targetAdmin.email,
-          previous_roles:
-            previousRoleKeys,
-          change_reason:
-            revokeReason,
-          actor_email:
-            actor.email ?? null,
-        },
-      });
-  } catch (auditError) {
-    console.error(
-      "[revokeAdminAccessAction audit]",
-      auditError,
-    );
-  }
 
   revalidateAdminAccessPaths();
 
