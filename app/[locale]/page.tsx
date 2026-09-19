@@ -33,10 +33,10 @@ export async function generateMetadata({ params }: HomePageProps): Promise<Metad
   const locale = localeParam as Locale;
   const isArabic = locale === "ar";
   const title = isArabic
-    ? "ملامح | منصة المواهب وفرص الكاستينغ في السعودية"
+    ? "ملامح MLAMH | منصة المواهب والكاستينغ في السعودية"
     : "MLAMH | Talent Platform & Casting Opportunities in Saudi Arabia";
   const description = isArabic
-    ? "اكتشف ممثلين ومودلز وفرص تمثيل وكاستينغ في السعودية عبر ملامح، المنصة التي تربط المواهب بالشركات والوكالات وجهات الإنتاج."
+    ? "ملامح (MLAMH) منصة سعودية للمواهب والكاستينغ. اكتشف فرص التمثيل والمودل، وانشر فرص الكاستينغ للشركات والوكالات وجهات الإنتاج وأصحاب المشاريع."
     : "Discover actors, models, casting calls and creative opportunities in Saudi Arabia on MLAMH, connecting talent with companies, agencies and production teams.";
   const canonical = `${SITE_URL}/${locale}`;
 
@@ -55,7 +55,7 @@ export async function generateMetadata({ params }: HomePageProps): Promise<Metad
       title,
       description,
       url: canonical,
-      siteName: "MLAMH | ملامح",
+      siteName: "ملامح | MLAMH",
       type: "website",
       locale: isArabic ? "ar_SA" : "en_US",
       images: [

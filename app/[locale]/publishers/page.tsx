@@ -203,6 +203,29 @@ export default async function PublishersPage({ params }: { params: Promise<{ loc
           </div>
         </section>
 
+        <section className="mt-8 rounded-[2rem] border border-white/10 bg-white/[0.02] p-6 sm:p-8">
+          <p className="text-xs text-gold">{isRtl ? "احتياجات شائعة" : "COMMON CASTING NEEDS"}</p>
+          <h2 className="mt-4 text-2xl font-light sm:text-3xl">{isRtl ? "ابدأ من نوع المشروع أو المدينة" : "Start from the project type or city"}</h2>
+          <div className="mt-6 flex flex-wrap gap-2">
+            {[
+              ["models-saudi-arabia", "مودلز السعودية", "Models in Saudi Arabia"],
+              ["actors-saudi-arabia", "ممثلين السعودية", "Actors in Saudi Arabia"],
+              ["casting-saudi-arabia", "كاستنج السعودية", "Casting in Saudi Arabia"],
+              ["casting-riyadh", "كاستنج الرياض", "Casting in Riyadh"],
+              ["commercial-casting-saudi-arabia", "كاستنج إعلانات", "Commercial Casting"],
+              ["models-riyadh", "مودلز الرياض", "Models in Riyadh"],
+            ].map(([slug, ar, en]) => (
+              <Link
+                key={slug}
+                href={`/${locale}/${slug}`}
+                className="rounded-full border border-white/10 px-4 py-2 text-sm text-white/60 transition hover:border-gold/30 hover:text-gold"
+              >
+                {isRtl ? ar : en}
+              </Link>
+            ))}
+          </div>
+        </section>
+
         <section className="mt-8 rounded-[2rem] border border-gold/20 bg-gold/[0.04] px-6 py-10 text-center sm:px-10 sm:py-12">
           <h2 className="text-3xl font-light sm:text-4xl">{isRtl ? "فرصتك القادمة تبدأ بطلب واضح." : "Your next booking starts with a clear opportunity."}</h2>
           <p className="mx-auto mt-4 max-w-2xl text-sm leading-7 text-white/50">
