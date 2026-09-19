@@ -1450,10 +1450,10 @@ test("admin MFA success and failed verification attempts are audited at the corr
     gate.includes(
       '"/api/admin/security/mfa-event"',
     ) &&
-      /outcome:\\s*"success"/.test(
+      /outcome:\s*"success"/.test(
         gate,
       ) &&
-      /outcome:\\s*"failed"/.test(
+      /outcome:\s*"failed"/.test(
         gate,
       ),
     true,
