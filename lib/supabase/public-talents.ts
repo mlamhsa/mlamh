@@ -512,15 +512,35 @@ export async function getPublishedTalentBySlugForViewer(
   let publisherVerified: boolean | null = null;
   let publisherVerificationStatus: string | null = null;
   let publisherStatus: string | null = null;
+  let publisherType: string | null = null;
+  let hasActiveQuickOpportunity = false;
   if (profile.account_type === "publisher") {
     const { data: publisher } = await adminClient
       .from("publishers")
-      .select("verified, verification_status, status")
+      .select("id, publisher_type, verified, verification_status, status")
       .eq("profile_id", profile.id)
       .maybeSingle();
     publisherVerified = publisher?.verified ?? null;
     publisherVerificationStatus = publisher?.verification_status ?? null;
     publisherStatus = publisher?.status ?? null;
+    publisherType = publisher?.publisher_type ?? null;
+
+    const individualTypes = new Set(["individual", "salon", "store", "photographer", "marketer"]);
+    if (publisher?.id && individualTypes.has(String(publisher.publisher_type ?? "").trim().toLowerCase())) {
+      const { data: quickOpportunity, error: quickOpportunityError } = await adminClient
+        .from("opportunities")
+        .select("id")
+        .eq("publisher_id", publisher.id)
+        .eq("posting_mode", "quick")
+        .eq("published", true)
+        .in("status", ["published", "open"])
+        .limit(1)
+        .maybeSingle();
+      if (quickOpportunityError) {
+        console.error("[getPublishedTalentBySlugForViewer:quickOpportunity]", quickOpportunityError);
+      }
+      hasActiveQuickOpportunity = Boolean(quickOpportunity);
+    }
   }
 
   const viewer = {
@@ -531,6 +551,8 @@ export async function getPublishedTalentBySlugForViewer(
     publisherVerified,
     publisherVerificationStatus,
     publisherStatus,
+    publisherType,
+    hasActiveQuickOpportunity,
   };
 
   if (!canViewTalentProfile(viewer, candidate)) return null;
