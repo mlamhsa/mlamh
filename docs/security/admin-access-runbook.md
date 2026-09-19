@@ -11,6 +11,7 @@ Administrator access requires all of the following:
 3. A present and active `admin_users` registry row.
 4. Exactly one active RBAC assignment in `user_roles`.
 5. An AAL2 session for entry to the admin console.
+6. For invited administrators, the server-owned invite lifecycle must no longer be `pending`.
 
 RBAC is the permission source of truth. The `admin_users.role` value is the active/revoked registry gate and may be synchronized to the effective RBAC role when legacy data differs.
 
@@ -44,7 +45,7 @@ Never intentionally operate with zero effective Super Admins.
 
 Maintain at least two verified Super Admin accounts for administrative continuity when possible.
 
-The application protects the final effective Super Admin from demotion or revocation. Super Admin removal attempts are serialized before the final-admin count to reduce concurrent lockout races.
+The application protects the final effective Super Admin from demotion or revocation. Effective role changes, revocations, and registry-only repairs use one service-role-only PostgreSQL mutation. The database takes a transaction-scoped advisory lock, re-checks the final-Super-Admin invariant inside the same transaction, changes RBAC/registry state atomically, and persists the successful access audit before commit. A failed audit or invariant check rolls the access change back.
 
 Crossing the Super Admin privilege boundary requires explicit confirmation for:
 
@@ -59,8 +60,10 @@ Do not bypass these controls with direct database edits during normal operations
 New administrator invitations:
 
 - Are server-side rate limited.
-- Remain pending until the administrator completes password setup and MFA.
-- Cannot be promoted while still pending.
+- Store invitation lifecycle state in server-owned Auth `app_metadata`, never user-editable `user_metadata`.
+- Remain `pending` until the administrator completes password setup, reaches AAL2, and the server persists the completed activation marker.
+- Cannot enter normal admin routes or be promoted while still pending.
+- Recover safely if AAL2 succeeds but the activation marker temporarily fails to persist; the MFA gate retries activation instead of creating an access-state mismatch.
 - Must have consistent registry and RBAC state before resend/cancel operations proceed.
 - Are surfaced as stale after seven days without activation.
 
@@ -75,6 +78,9 @@ The system audits:
 - MFA enrollment success.
 - MFA verification success.
 - MFA verification failure.
+- Pending-invite activation recovery when an already-AAL2 session must retry the server-owned activation marker.
+
+Interrupted TOTP enrollment is recoverable: if a previous attempt left an unverified factor, the MFA gate removes only incomplete TOTP factors before creating a fresh enrollment. Verified factors are not removed by this recovery path.
 
 Failed MFA telemetry is allowed before AAL2 only after the account passes the centralized admin-identity gate. Failure telemetry is rate limited and is rejected after the session is already AAL2.
 
@@ -92,7 +98,7 @@ A legacy account may have an active RBAC role that differs from `admin_users.rol
 
 The Access Center surfaces this explicitly as an access-role mismatch.
 
-Use the safe registry synchronization path. Registry-only repair updates `admin_users.role` to the already-effective RBAC role and deliberately does not delete/reinsert `user_roles`.
+Use the safe registry synchronization path. Registry-only repair updates `admin_users.role` to the already-effective RBAC role and deliberately does not delete/reinsert `user_roles`. The repair uses the same atomic database mutation and transactional success audit as effective access changes.
 
 Do not use mismatch repair to escalate privileges.
 
@@ -113,13 +119,13 @@ The full audit view supports:
 
 Free-text metadata search is intentionally bounded to a recent window and is labeled accordingly.
 
-CSV export is permission gated, rate limited, audited, capped, no-store, and formula-injection protected.
+CSV export is permission gated, rate limited, audited, capped, no-store, and formula-injection protected, including control-character and full-width formula prefixes that spreadsheet applications may interpret dangerously.
 
 ## 10. Append-only admin audit events
 
 The branch includes a migration that makes `admin_*` event rows append-only at the database layer.
 
-Runtime UPDATE or DELETE attempts against those rows fail closed. Inserts remain allowed.
+Runtime UPDATE or DELETE attempts against those rows fail closed. Inserts remain allowed. The trigger function runs as `SECURITY INVOKER` with an empty `search_path`; it does not carry unnecessary definer privileges.
 
 Do not remove or weaken this trigger for convenience. If a future legal retention requirement requires a different policy, implement that change through an explicit reviewed migration.
 
@@ -138,7 +144,7 @@ Authenticated users who fail the admin identity gate are audited with non-secret
 - Active RBAC assignment is invalid.
 - Required access-state lookup failed.
 
-Unauthenticated traffic is redirected to login and cannot be attributed to an authenticated actor.
+Unauthenticated traffic is redirected to login and cannot be attributed to an authenticated actor. Identity-gate audit writes are server-side rate limited so a blocked authenticated account cannot flood the audit table; access denial remains fail-closed if the limiter is unavailable.
 
 ## 13. Incident response
 
@@ -179,6 +185,9 @@ Before deploying changes to administrator access:
 - Production build passes.
 - Vercel preview is healthy.
 - No unresolved review threads remain.
-- New migrations have been reviewed for idempotency and rollback implications.
+- New migrations have been reviewed for idempotency, privilege scope, data compatibility, and rollback implications.
+- Schema-compatible preflight confirms existing admin role values and single-role assignments satisfy the new invariants.
+- Database migrations are applied before application code that depends on `set_admin_access_role`; do not deploy the app first.
 - No Production mutation has been performed unintentionally.
 - The final effective Super Admin cannot be locked out by the change.
+- A registry/RBAC mismatch, if present, is repaired only through the audited registry-sync path after deployment.

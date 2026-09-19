@@ -216,5 +216,19 @@ export async function requireAdminAccess() {
     );
   }
 
+  // A newly invited admin is not fully activated until the successful AAL2
+  // flow has also persisted its server-owned invite lifecycle marker. This
+  // prevents a partial Auth-metadata failure from granting normal admin-route
+  // access while the account still appears pending in the Access Center.
+  if (
+    user.app_metadata
+      ?.admin_invite_status ===
+    "pending"
+  ) {
+    redirect(
+      ADMIN_MFA_PATH,
+    );
+  }
+
   return user;
 }

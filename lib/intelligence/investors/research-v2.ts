@@ -4,8 +4,8 @@ import { getInvestorRelationsSettings } from "./service";
 
 const GCC = new Set(["SA", "AE", "QA", "KW", "BH", "OM"]);
 const ROUTE_TYPES = new Set(["email", "application_form", "contact_form", "linkedin", "website"]);
-const PERSON_PROFILE_KEY = ["contact", "link", "edin", "url"].join("_");
-const COMPANY_PROFILE_KEY = ["link", "edin", "url"].join("_");
+const PERSON_PROFILE_KEY = "contact_linkedin_url";
+const COMPANY_PROFILE_KEY = "linkedin_url";
 
 function asObject(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;

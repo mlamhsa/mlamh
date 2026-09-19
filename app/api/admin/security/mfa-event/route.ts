@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import {
-  requireAdminAccess,
-  requireAdminIdentity,
-} from "@/lib/auth/require-admin";
+import { requireAdminIdentity } from "@/lib/auth/require-admin";
 import { recordAdminAction } from "@/lib/events/admin-audit";
 import { EVENT_TARGETS } from "@/lib/events/event-targets";
 import { consumeServerRateLimit } from "@/lib/security/server-rate-limit";
@@ -12,7 +9,8 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 type MfaAuditMode =
   | "enrollment"
-  | "challenge";
+  | "challenge"
+  | "activation";
 
 type MfaAuditOutcome =
   | "success"
@@ -34,7 +32,8 @@ export async function POST(
 
     if (
       body?.mode !== "enrollment" &&
-      body?.mode !== "challenge"
+      body?.mode !== "challenge" &&
+      body?.mode !== "activation"
     ) {
       throw new Error(
         "invalid mode",
@@ -209,8 +208,53 @@ export async function POST(
     );
   }
 
+  const authClient =
+    await createServerSupabaseClient();
+  const assurance =
+    await authClient.auth.mfa.getAuthenticatorAssuranceLevel();
+
+  if (
+    assurance.error ||
+    assurance.data
+      .currentLevel !== "aal2"
+  ) {
+    await recordAdminAction({
+      actorId:
+        identityUser.id,
+      actorEmail:
+        identityUser.email,
+      action:
+        "record_admin_mfa_event",
+      outcome: "blocked",
+      target:
+        EVENT_TARGETS.ADMIN,
+      targetId:
+        identityUser.id,
+      reason:
+        assurance.error
+          ? "mfa_assurance_lookup_failed"
+          : "mfa_success_event_without_aal2",
+    });
+
+    return NextResponse.json(
+      {
+        recorded: false,
+      },
+      {
+        status:
+          assurance.error
+            ? 503
+            : 403,
+        headers: {
+          "Cache-Control":
+            "no-store",
+        },
+      },
+    );
+  }
+
   const verifiedUser =
-    await requireAdminAccess();
+    identityUser;
 
   const recorded =
     await recordAdminAction({
@@ -221,7 +265,10 @@ export async function POST(
         mode ===
         "enrollment"
           ? "admin_mfa_enrolled"
-          : "admin_mfa_verified",
+          : mode ===
+              "challenge"
+            ? "admin_mfa_verified"
+            : "admin_mfa_activation_recovery",
       outcome: "success",
       target:
         EVENT_TARGETS.ADMIN,

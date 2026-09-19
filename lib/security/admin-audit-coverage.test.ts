@@ -233,15 +233,28 @@ test("admin API routes keep explicit admin authorization and audit coverage", as
   for (const file of routes) {
     const text = await source(file);
 
-    assert.equal(
+    const usesStandardAdminGuard =
       text.includes(
         "requireAdminAccess",
       ) ||
-        text.includes(
-          "requirePermission",
-        ),
+      text.includes(
+        "requirePermission",
+      );
+    const usesMfaLifecycleGuard =
+      file ===
+        "app/api/admin/security/mfa-event/route.ts" &&
+      text.includes(
+        "requireAdminIdentity",
+      ) &&
+      text.includes(
+        "getAuthenticatorAssuranceLevel",
+      );
+
+    assert.equal(
+      usesStandardAdminGuard ||
+        usesMfaLifecycleGuard,
       true,
-      `${file} must authenticate through requireAdminAccess() or requirePermission()`,
+      `${file} must use the standard admin guard or the dedicated MFA identity + assurance guard`,
     );
 
     assert.equal(
@@ -355,7 +368,10 @@ test("admin invitation state is stored in server-owned app metadata", async () =
         "admin_invite_completed_at",
       ) &&
       mfaRoute.includes(
-        "requireAdminAccess",
+        "getAuthenticatorAssuranceLevel",
+      ) &&
+      mfaRoute.includes(
+        '"admin_mfa_activation_recovery"',
       ) &&
       mfaRoute.includes(
         "complete_admin_invite",
@@ -762,6 +778,58 @@ test("blocked admin identity-gate audit writes are server-side throttled", async
     ),
     true,
     "identity-gate rate-limit failures must never weaken the access denial path",
+  );
+});
+
+
+test("pending admin invites stay blocked until the AAL2 activation marker is persisted", async () => {
+  const guard = await source(
+    "lib/auth/require-admin.ts",
+  );
+  const gate = await source(
+    "components/admin/security/AdminMfaGate.tsx",
+  );
+  const route = await source(
+    "app/api/admin/security/mfa-event/route.ts",
+  );
+
+  assert.equal(
+    guard.includes(
+      "admin_invite_status",
+    ) &&
+      guard.includes(
+        '"pending"',
+      ) &&
+      guard.includes(
+        "ADMIN_MFA_PATH",
+      ),
+    true,
+    "normal admin access must redirect pending invited identities back through MFA activation",
+  );
+
+  assert.equal(
+    gate.includes(
+      'mode:\n                      "activation"',
+    ) &&
+      gate.includes(
+        "activationResponse.ok",
+      ) &&
+      gate.includes(
+        "mfaVerified",
+      ),
+    true,
+    "an already-AAL2 pending invite must retry activation and must not misreport a post-verification persistence failure as an MFA failure",
+  );
+
+  assert.equal(
+    route.includes(
+      "getAuthenticatorAssuranceLevel",
+    ) &&
+      route.includes(
+        '"admin_mfa_activation_recovery"',
+      ),
+    true,
+    "activation recovery must independently prove AAL2 on the server before completing the invite",
   );
 });
 
@@ -1350,7 +1418,10 @@ test("admin MFA success and failed verification attempts are audited at the corr
       "requireAdminIdentity",
     ) &&
       route.includes(
-        "requireAdminAccess",
+        "getAuthenticatorAssuranceLevel",
+      ) &&
+      route.includes(
+        'currentLevel !== "aal2"',
       ) &&
       route.includes(
         '"admin_mfa_enrolled"',
@@ -1379,14 +1450,25 @@ test("admin MFA success and failed verification attempts are audited at the corr
     gate.includes(
       '"/api/admin/security/mfa-event"',
     ) &&
-      gate.includes(
-        'outcome:\n                  "success"',
+      /outcome:\s*"success"/.test(
+        gate,
       ) &&
-      gate.includes(
-        'outcome:\n                "failed"',
+      /outcome:\s*"failed"/.test(
+        gate,
       ),
     true,
     "MFA client must report both successful and failed verification outcomes",
+  );
+
+  assert.equal(
+    gate.includes(
+      'throw auditError;',
+    ) &&
+      gate.includes(
+        'mfaVerified\n          ? "error"',
+      ),
+    true,
+    "post-verification audit or invite-activation persistence failures must stop redirect and remain recoverable",
   );
 });
 
