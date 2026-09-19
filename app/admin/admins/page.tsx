@@ -704,11 +704,11 @@ export default async function AdminUsersPage({
 
         const invitedAt =
           typeof data.user
-            .user_metadata
+            .app_metadata
             ?.admin_invited_at ===
           "string"
             ? data.user
-                .user_metadata
+                .app_metadata
                 .admin_invited_at
             : null;
 
