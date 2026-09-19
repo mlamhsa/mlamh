@@ -463,14 +463,36 @@ export async function getPublishedTalentBySlug(
   slug: string,
   countryCode: CountryCode = DEFAULT_PUBLIC_MARKET,
 ): Promise<Talent | null> {
-  return getPublishedTalentBySlugForViewer(slug, countryCode);
+  const candidate = await getPublishedTalentCandidateBySlug(slug, countryCode);
+  return candidate ? toPublicTalent(candidate) : null;
+}
+
+async function getTalentCandidateBySlugForViewer(
+  slug: string,
+  countryCode: CountryCode = DEFAULT_PUBLIC_MARKET,
+): Promise<PublicTalentCandidate | null> {
+  if (!canExposePublicMarket(countryCode, "publicTalentDirectory")) return null;
+  const normalizedSlug = normalizeSlug(slug);
+  const supabase = createAdminClient();
+  let query = supabase
+    .from("talents")
+    .select("*")
+    .eq("slug", normalizedSlug)
+    .in("status", ["approved", "active"]);
+  query = applyTalentMarketFilter(query, countryCode);
+  const { data, error } = await query.maybeSingle();
+  if (error) throw new Error(`[getTalentBySlugForViewer] ${error.message}`);
+  if (!data) return null;
+  const [candidate] = await attachProfileApprovalContext([data as Talent]);
+  if (!candidate) return null;
+  return evaluateTalentQualification(candidate, { requirePublished: false }).qualified ? candidate : null;
 }
 
 export async function getPublishedTalentBySlugForViewer(
   slug: string,
   countryCode: CountryCode = DEFAULT_PUBLIC_MARKET,
 ): Promise<Talent | null> {
-  const candidate = await getPublishedTalentCandidateBySlug(slug, countryCode);
+  const candidate = await getTalentCandidateBySlugForViewer(slug, countryCode);
   if (!candidate) return null;
 
   const anonymousViewer = { userId: null, accountType: null };
