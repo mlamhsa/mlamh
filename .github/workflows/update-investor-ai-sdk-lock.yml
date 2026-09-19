@@ -1,0 +1,38 @@
+name: Update Investor AI SDK Lock
+
+on:
+  push:
+    branches:
+      - fix/investor-search-tool-sdk
+
+permissions:
+  contents: write
+
+jobs:
+  update-lock:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: fix/investor-search-tool-sdk
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Add Vercel AI SDK
+        run: npm install ai@7.0.105 --save-exact
+      - name: Commit lockfile update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          if git diff --cached --quiet; then
+            echo "No dependency changes"
+            exit 0
+          fi
+          git commit -m "chore(investors): add Vercel AI SDK"
+          git push origin HEAD:fix/investor-search-tool-sdk
