@@ -40,8 +40,8 @@ function normalizeTalent(
   return value;
 }
 
-function formatDate(value: string) {
-  return new Date(value).toLocaleString("en-US", {
+function formatDate(value: string, isArabic: boolean) {
+  return new Date(value).toLocaleString(isArabic ? "ar-SA-u-ca-gregory-nu-latn" : "en-US", {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -61,20 +61,33 @@ function getStatusVariant(status: string) {
   }
 }
 
-export default async function AdminRequestsPage() {
+export default async function AdminRequestsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ lang?: string }>;
+}) {
   await requireAdminAccess();
+  const params = await searchParams;
+  const language: "ar" | "en" = params.lang === "en" ? "en" : "ar";
+  const isArabic = language === "ar";
 
   const requests = await TalentRequestService.getAll();
 
   return (
-    <AdminPageContainer>
-      <AdminPageHeader
-        title="Talent Requests"
-        description="Review incoming client requests and follow up with potential leads."
-      />
+    <div dir={isArabic ? "rtl" : "ltr"}>
+      <AdminPageContainer>
+        <AdminPageHeader
+          eyebrow={isArabic ? "طلبات قديمة" : "LEGACY REQUESTS"}
+          title={isArabic ? "طلبات العملاء" : "Client Requests"}
+          description={
+            isArabic
+              ? "مراجعة طلبات العملاء القديمة ومتابعة حالتها وربطها بالمواهب عند توفر ملف مرتبط."
+              : "Review legacy client requests, track their status, and open linked talent profiles when available."
+          }
+        />
 
       {requests.length === 0 ? (
-        <AdminEmptyState message="No talent requests yet." />
+        <AdminEmptyState message={isArabic ? "لا توجد طلبات عملاء حاليًا." : "No client requests yet."} />
       ) : (
         <AdminGrid>
           {requests.map((request) => {
@@ -86,7 +99,7 @@ export default async function AdminRequestsPage() {
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-[10px] uppercase tracking-[0.3em] text-gold">
-                        Request #{request.id}
+                        {isArabic ? "طلب" : "Request"} #{request.id}
                       </p>
 
                       <AdminBadge variant={getStatusVariant(request.status)}>
@@ -99,18 +112,18 @@ export default async function AdminRequestsPage() {
                     </h2>
 
                     <p className="mt-1 text-sm text-white/50">
-                      {request.company || "No company"}
+                      {request.company || (isArabic ? "بدون جهة" : "No company")}
                     </p>
                   </div>
 
                   <p className="text-sm text-gray-muted">
-                    {formatDate(request.created_at)}
+                    {formatDate(request.created_at, isArabic)}
                   </p>
                 </div>
 
                 <AdminInfoGrid columns={2}>
                   <AdminInfoItem
-                    label="Talent"
+                    label={isArabic ? "الموهبة" : "Talent"}
                     value={
                       talent
                         ? `${talent.name_en || "Unnamed"} / ${
@@ -120,25 +133,25 @@ export default async function AdminRequestsPage() {
                     }
                   />
 
-                  <AdminInfoItem label="Email" value={request.email} />
+                  <AdminInfoItem label={isArabic ? "البريد الإلكتروني" : "Email"} value={request.email} />
 
-                  <AdminInfoItem label="Phone" value={request.phone || "—"} />
+                  <AdminInfoItem label={isArabic ? "الجوال" : "Phone"} value={request.phone || "—"} />
 
                   <AdminInfoItem
-                    label="Project Type"
+                    label={isArabic ? "نوع المشروع" : "Project Type"}
                     value={request.project_type || "—"}
                   />
 
-                  <AdminInfoItem label="Budget" value={request.budget || "—"} />
+                  <AdminInfoItem label={isArabic ? "الميزانية" : "Budget"} value={request.budget || "—"} />
 
                   <AdminInfoItem
-                    label="Project Date"
+                    label={isArabic ? "تاريخ المشروع" : "Project Date"}
                     value={request.project_date || "—"}
                   />
 
                   <div className="md:col-span-2">
                     <p className="text-[9px] uppercase tracking-[0.25em] text-gray-muted">
-                      Details
+                      {isArabic ? "التفاصيل" : "Details"}
                     </p>
 
                     <p className="mt-1 whitespace-pre-line text-white/80">
@@ -153,7 +166,7 @@ export default async function AdminRequestsPage() {
                     <input type="hidden" name="status" value="new" />
 
                     <AdminActionButton type="submit" variant="info">
-                      New
+                      {isArabic ? "جديد" : "New"}
                     </AdminActionButton>
                   </form>
 
@@ -162,7 +175,7 @@ export default async function AdminRequestsPage() {
                     <input type="hidden" name="status" value="contacted" />
 
                     <AdminActionButton type="submit" variant="gold">
-                      Contacted
+                      {isArabic ? "تم التواصل" : "Contacted"}
                     </AdminActionButton>
                   </form>
 
@@ -171,17 +184,17 @@ export default async function AdminRequestsPage() {
                     <input type="hidden" name="status" value="closed" />
 
                     <AdminActionButton type="submit" variant="success">
-                      Closed
+                      {isArabic ? "مغلق" : "Closed"}
                     </AdminActionButton>
                   </form>
 
                   {talent?.slug ? (
                     <Link
-                      href={`/ar/talent/${talent.slug}`}
+                      href={`/${language}/talent/${talent.slug}`}
                       target="_blank"
                       className="rounded-full border border-white/10 px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-white/60 transition hover:border-gold/40 hover:text-gold"
                     >
-                      View Talent
+                      {isArabic ? "عرض الموهبة" : "View Talent"}
                     </Link>
                   ) : null}
                 </div>
@@ -190,6 +203,7 @@ export default async function AdminRequestsPage() {
           })}
         </AdminGrid>
       )}
-    </AdminPageContainer>
+      </AdminPageContainer>
+    </div>
   );
 }
