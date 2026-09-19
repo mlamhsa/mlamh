@@ -703,6 +703,14 @@ function getPublisherTypeLabel(
       ar: "وكالة كاستينغ",
       en: "Casting Agency",
     },
+    advertising_agency: {
+      ar: "وكالة إعلانية",
+      en: "Advertising Agency",
+    },
+    individual: {
+      ar: "فرد / مستقل",
+      en: "Individual / Freelancer",
+    },
   };
 
   const match = labels[normalized];
