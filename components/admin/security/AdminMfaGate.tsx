@@ -31,6 +31,45 @@ export function AdminMfaGate() {
         if (assurance.error) throw assurance.error;
 
         if (assurance.data.currentLevel === "aal2") {
+          const currentUser =
+            await supabase.auth.getUser();
+          if (currentUser.error) {
+            throw currentUser.error;
+          }
+
+          if (
+            currentUser.data.user
+              ?.app_metadata
+              ?.admin_invite_status ===
+            "pending"
+          ) {
+            const activationResponse =
+              await fetch(
+                "/api/admin/security/mfa-event",
+                {
+                  method: "POST",
+                  headers: {
+                    "Content-Type":
+                      "application/json",
+                  },
+                  body: JSON.stringify({
+                    mode:
+                      "activation",
+                    outcome:
+                      "success",
+                  }),
+                  cache:
+                    "no-store",
+                },
+              );
+
+            if (!activationResponse.ok) {
+              throw new Error(
+                "تعذر إكمال تفعيل حساب الإدارة بعد التحقق بخطوتين.",
+              );
+            }
+          }
+
           window.location.replace("/admin");
           return;
         }
@@ -90,6 +129,7 @@ export function AdminMfaGate() {
 
   async function verify() {
     const normalizedCode = code.replace(/\s+/g, "");
+    let mfaVerified = false;
     if (!/^\d{6,10}$/.test(normalizedCode) || !factorId) {
       setError("أدخل رمز التحقق الصحيح من تطبيق المصادقة.");
       return;
@@ -115,6 +155,8 @@ export function AdminMfaGate() {
         throw new Error("لم يتم رفع مستوى الجلسة إلى AAL2.");
       }
 
+      mfaVerified = true;
+
       try {
         const auditResponse =
           await fetch(
@@ -138,9 +180,8 @@ export function AdminMfaGate() {
           );
 
         if (!auditResponse.ok) {
-          console.warn(
-            "[AdminMfaGate audit]",
-            auditResponse.status,
+          throw new Error(
+            "تعذر إكمال تسجيل التحقق الآمن لحساب الإدارة.",
           );
         }
       } catch (auditError) {
@@ -152,31 +193,33 @@ export function AdminMfaGate() {
 
       window.location.replace("/admin");
     } catch (caught) {
-      try {
-        await fetch(
-          "/api/admin/security/mfa-event",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type":
-                "application/json",
+      if (!mfaVerified) {
+        try {
+          await fetch(
+            "/api/admin/security/mfa-event",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type":
+                  "application/json",
+              },
+              body: JSON.stringify({
+                mode: enrollment
+                  ? "enrollment"
+                  : "challenge",
+                outcome:
+                  "failed",
+              }),
+              cache: "no-store",
+              keepalive: true,
             },
-            body: JSON.stringify({
-              mode: enrollment
-                ? "enrollment"
-                : "challenge",
-              outcome:
-                "failed",
-            }),
-            cache: "no-store",
-            keepalive: true,
-          },
-        );
-      } catch (auditError) {
-        console.warn(
-          "[AdminMfaGate failed audit]",
-          auditError,
-        );
+          );
+        } catch (auditError) {
+          console.warn(
+            "[AdminMfaGate failed audit]",
+            auditError,
+          );
+        }
       }
 
       const message =
@@ -185,9 +228,11 @@ export function AdminMfaGate() {
           : "رمز التحقق غير صالح.";
       setError(message);
       setMode(
-        enrollment
-          ? "enroll"
-          : "challenge",
+        mfaVerified
+          ? "error"
+          : enrollment
+            ? "enroll"
+            : "challenge",
       );
     }
   }
