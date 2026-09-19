@@ -74,8 +74,10 @@ export default async function AdminInvestorRelationsAIPage({ searchParams }: Pag
   );
 
   return (
-    <AdminPageContainer>
+    <div dir={isArabic ? "rtl" : "ltr"}>
+      <AdminPageContainer>
       <AdminPageHeader
+        eyebrow={isArabic ? "النمو والذكاء" : "GROWTH & INTELLIGENCE"}
         title="MLAMH Investor Relations AI"
         description={
           isArabic
@@ -160,6 +162,7 @@ export default async function AdminInvestorRelationsAIPage({ searchParams }: Pag
           connectedAt: dashboard.gmail.connectedAt,
         }}
       />
-    </AdminPageContainer>
+      </AdminPageContainer>
+    </div>
   );
 }
