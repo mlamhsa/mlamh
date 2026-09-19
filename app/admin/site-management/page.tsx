@@ -68,7 +68,6 @@ export default async function SiteManagementPage({ searchParams }: PageProps) {
 
   const statusLabel = (status: (typeof modules)[number]["status"]) => {
     if (status === "active") return isArabic ? "متاح" : "Active";
-    if (status === "coming") return isArabic ? "قريبًا" : "Coming Next";
     return isArabic ? "مخطط" : "Planned";
   };
 
@@ -90,9 +89,7 @@ export default async function SiteManagementPage({ searchParams }: PageProps) {
             const badgeClass =
               module.status === "active"
                 ? "border-emerald-500/25 bg-emerald-500/[0.06] text-emerald-300"
-                : module.status === "coming"
-                  ? "border-gold/25 bg-gold/[0.05] text-gold"
-                  : "border-white/[0.08] text-white/35";
+                : "border-white/[0.08] text-white/35";
 
             const content = (
               <AdminCard
