@@ -64,7 +64,7 @@ export default async function TalentListingPage({ params, searchParams }: PagePr
   getDictionary(locale);
 
   const requestedPage = Math.max(1, Number(filters.page) || 1);
-  const { talents, total, totalPages, currentPage } = await getFilteredPublicTalents({
+  const { talents, totalPages, currentPage } = await getFilteredPublicTalents({
     page: requestedPage,
     pageSize: PUBLIC_TALENTS_PAGE_SIZE,
     search: filters.q,
