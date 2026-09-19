@@ -18,7 +18,7 @@ export type TalentSignupData = {
   gender: string;
   residenceCountryCode: string;
   citySlug: string;
-  profileVisibility: "public" | "private";
+  profileVisibility: "public" | "verified_publishers" | "private";
   consent: boolean;
   consentAt: string | null;
 };
@@ -46,7 +46,7 @@ export function talentSignupDataFromMetadata(
   const residenceCountryCode = stringValue(metadata, "residence_country_code") || stringValue(metadata, "base_country_code");
   const citySlug = stringValue(metadata, "city_slug");
   const rawVisibility = stringValue(metadata, "profile_visibility");
-  const profileVisibility = rawVisibility === "private" ? "private" : rawVisibility === "public" ? "public" : null;
+  const profileVisibility = rawVisibility === "private" || rawVisibility === "verified_publishers" || rawVisibility === "public" ? rawVisibility : null;
   const consent = metadata.data_accuracy_contact_consent === true;
   const consentAt = stringValue(metadata, "data_accuracy_contact_consent_at") || null;
 
