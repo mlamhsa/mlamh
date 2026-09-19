@@ -1,7 +1,6 @@
 import { BriefcaseBusiness, CheckCircle2, ImagePlus, UserRound, type LucideIcon } from "lucide-react-native";
 import { StyleSheet, Text, View } from "react-native";
 
-import { HomePostJourneySections } from "@/src/domains/home/HomePostJourneySections";
 import { colors, radius, spacing } from "@/src/theme/tokens";
 
 type Step = {
@@ -65,7 +64,6 @@ export function HomeHowItWorksSection({ isArabic }: Props) {
   ];
 
   return (
-    <>
       <View style={styles.section}>
         <Text style={[styles.eyebrow, { writingDirection: isArabic ? "rtl" : "ltr" }]}>{isArabic ? "كيف تعمل ملامح" : "HOW MLAMH WORKS"}</Text>
         <Text style={[styles.title, { writingDirection: isArabic ? "rtl" : "ltr" }]}>
@@ -80,9 +78,6 @@ export function HomeHowItWorksSection({ isArabic }: Props) {
         <JourneyCard title={isArabic ? "للمواهب" : "For Talents"} steps={talentSteps} align={align} isArabic={isArabic} />
         <JourneyCard title={isArabic ? "للجهات" : "For Organizations"} steps={organizationSteps} align={align} isArabic={isArabic} />
       </View>
-
-      <HomePostJourneySections isArabic={isArabic} />
-    </>
   );
 }
 
