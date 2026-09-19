@@ -39,7 +39,7 @@ The suite is intentionally limited to current public Web/read-only surfaces:
 
 - `/ar`
 - `/ar/opportunities`
-- `/ar/talents`
+- `/ar/talent`
 - `/api/opportunities?locale=ar&market=SA`
 
 It does not modify `apps/mobile` or the active Native V3 release branch.
