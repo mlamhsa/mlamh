@@ -40,6 +40,76 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
       period?: string;
     }>;
   };
+
+  const AUDIT_EVENT_FILTERS = [
+    "admin_invited",
+    "admin_invite_resent",
+    "admin_invite_cancelled",
+    "admin_access_action_blocked",
+    "admin_access_action_failed",
+    "admin_access_action_noop",
+    "admin_action_success",
+    "admin_action_blocked",
+    "admin_action_failed",
+    "admin_action_noop",
+    "admin_role_changed",
+    "admin_access_revoked",
+    "talent_created",
+    "talent_approved",
+    "talent_changes_requested",
+    "talent_rejected",
+    "publisher_verified",
+    "publisher_changes_requested",
+    "publisher_rejected",
+    "opportunity_pending_review",
+    "opportunity_published",
+    "opportunity_rejected",
+    "opportunity_needs_changes",
+    "opportunity_invitation",
+    "opportunity_viewed",
+    "application_created",
+    "application_submitted",
+    "application_accepted",
+    "application_rejected",
+    "incomplete_registration_reminder_sent",
+  ] as const;
+
+  function auditEventFilterLabel(value: string, isArabic: boolean) {
+    const labels: Record<string, [string, string]> = {
+      admin_invited: ["دعوة مشرف", "Admin invited"],
+      admin_invite_resent: ["إعادة إرسال دعوة مشرف", "Admin invitation resent"],
+      admin_invite_cancelled: ["إلغاء دعوة مشرف", "Admin invitation cancelled"],
+      admin_access_action_blocked: ["إجراء وصول محظور", "Access action blocked"],
+      admin_access_action_failed: ["فشل إجراء وصول", "Access action failed"],
+      admin_access_action_noop: ["إجراء وصول بلا تغيير", "Access action no-op"],
+      admin_action_success: ["إجراء إداري ناجح", "Admin action succeeded"],
+      admin_action_blocked: ["إجراء إداري محظور", "Admin action blocked"],
+      admin_action_failed: ["فشل إجراء إداري", "Admin action failed"],
+      admin_action_noop: ["إجراء إداري بلا تغيير", "Admin action no-op"],
+      admin_role_changed: ["تغيير دور مشرف", "Admin role changed"],
+      admin_access_revoked: ["سحب وصول مشرف", "Admin access revoked"],
+      talent_created: ["إنشاء ملف موهبة", "Talent profile created"],
+      talent_approved: ["اعتماد ملف موهبة", "Talent approved"],
+      talent_changes_requested: ["طلب تعديل ملف موهبة", "Talent changes requested"],
+      talent_rejected: ["رفض ملف موهبة", "Talent rejected"],
+      publisher_verified: ["اعتماد حساب ناشر", "Publisher approved"],
+      publisher_changes_requested: ["طلب تعديل حساب ناشر", "Publisher changes requested"],
+      publisher_rejected: ["رفض حساب ناشر", "Publisher rejected"],
+      opportunity_pending_review: ["فرصة بانتظار المراجعة", "Opportunity pending review"],
+      opportunity_published: ["نشر فرصة", "Opportunity published"],
+      opportunity_rejected: ["رفض فرصة", "Opportunity rejected"],
+      opportunity_needs_changes: ["طلب تعديل فرصة", "Opportunity changes requested"],
+      opportunity_invitation: ["إرسال دعوة لموهبة", "Talent invitation sent"],
+      opportunity_viewed: ["مشاهدة فرصة", "Opportunity viewed"],
+      application_created: ["إنشاء طلب تقديم", "Application created"],
+      application_submitted: ["إرسال طلب تقديم", "Application submitted"],
+      application_accepted: ["قبول طلب تقديم", "Application accepted"],
+      application_rejected: ["رفض طلب تقديم", "Application rejected"],
+      incomplete_registration_reminder_sent: ["تذكير بإكمال التسجيل", "Incomplete registration reminder sent"],
+    };
+    const label = labels[value];
+    return label ? (isArabic ? label[0] : label[1]) : value.replaceAll("_", " ");
+  }
   
   function buildHref({
     lang,
@@ -1020,109 +1090,11 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
                   : "All event types"}
               </option>
   
-              <option value="admin_invited">
-                admin_invited
-              </option>
-
-              <option value="admin_invite_resent">
-                admin_invite_resent
-              </option>
-
-              <option value="admin_invite_cancelled">
-                admin_invite_cancelled
-              </option>
-
-              <option value="admin_access_action_blocked">
-                admin_access_action_blocked
-              </option>
-
-              <option value="admin_access_action_failed">
-                admin_access_action_failed
-              </option>
-
-              <option value="admin_access_action_noop">
-                admin_access_action_noop
-              </option>
-
-              <option value="admin_action_success">
-                admin_action_success
-              </option>
-
-              <option value="admin_action_blocked">
-                admin_action_blocked
-              </option>
-
-              <option value="admin_action_failed">
-                admin_action_failed
-              </option>
-
-              <option value="admin_action_noop">
-                admin_action_noop
-              </option>
-
-              <option value="admin_role_changed">
-                admin_role_changed
-              </option>
-
-              <option value="admin_access_revoked">
-                admin_access_revoked
-              </option>
-
-              <option value="talent_approved">
-                talent_approved
-              </option>
-  
-              <option value="talent_changes_requested">
-                talent_changes_requested
-              </option>
-  
-              <option value="talent_rejected">
-                talent_rejected
-              </option>
-  
-              <option value="publisher_verified">
-                publisher_verified
-              </option>
-  
-              <option value="publisher_changes_requested">
-                publisher_changes_requested
-              </option>
-  
-              <option value="publisher_rejected">
-                publisher_rejected
-              </option>
-  
-              <option value="opportunity_pending_review">
-                opportunity_pending_review
-              </option>
-  
-              <option value="opportunity_published">
-                opportunity_published
-              </option>
-  
-              <option value="opportunity_rejected">
-                opportunity_rejected
-              </option>
-  
-              <option value="opportunity_needs_changes">
-                opportunity_needs_changes
-              </option>
-  
-              <option value="opportunity_invitation">
-                opportunity_invitation
-              </option>
-  
-              <option value="application_created">
-                application_created
-              </option>
-  
-              <option value="application_accepted">
-                application_accepted
-              </option>
-  
-              <option value="application_rejected">
-                application_rejected
-              </option>
+              {AUDIT_EVENT_FILTERS.map((eventType) => (
+                <option key={eventType} value={eventType}>
+                  {auditEventFilterLabel(eventType, isArabic)}
+                </option>
+              ))}
             </select>
   
             <div className="flex gap-2">
