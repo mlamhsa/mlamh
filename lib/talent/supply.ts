@@ -130,7 +130,12 @@ function getRoleRequirement(brief: TalentBrief) {
 }
 
 function getRequiredGender(brief: TalentBrief) {
-  return text(brief.required_gender) || text(brief.gender) || text(brief.requirements?.required_gender) || text(brief.requirements?.gender);
+  const value =
+    text(brief.required_gender) ||
+    text(brief.gender) ||
+    text(brief.requirements?.required_gender) ||
+    text(brief.requirements?.gender);
+  return value === "any" || value === "all" ? "" : value;
 }
 
 function getRequiredAvailability(brief: TalentBrief): string[] {
