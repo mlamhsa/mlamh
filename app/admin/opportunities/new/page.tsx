@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import AdminLocalizedOpportunityForm from "@/components/admin/opportunities/AdminLocalizedOpportunityForm";
+import { AdminPageContainer, AdminPageHeader } from "@/components/admin/ui";
 import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { SAUDI_CITIES } from "@/lib/data/saudi-cities";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -13,7 +14,7 @@ export const metadata = {
   },
 };
 
-type PageProps = { searchParams: Promise<{ brief_id?: string }> };
+type PageProps = { searchParams: Promise<{ brief_id?: string; lang?: string }> };
 
 function asRecord(value: unknown) {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -124,7 +125,9 @@ function buildOpportunityCopy(args: {
 
 export default async function AdminCreateOpportunityPage({ searchParams }: PageProps) {
   await requireAdminAccess();
-  const { brief_id: briefIdRaw } = await searchParams;
+  const { brief_id: briefIdRaw, lang } = await searchParams;
+  const language: "ar" | "en" = lang === "en" ? "en" : "ar";
+  const isArabic = language === "ar";
   const briefId = Number(briefIdRaw);
   const validBriefId = Number.isInteger(briefId) && briefId > 0 ? briefId : null;
   const db = createAdminClient();
@@ -207,41 +210,42 @@ export default async function AdminCreateOpportunityPage({ searchParams }: PageP
   }
 
   return (
-    <main className="min-h-screen bg-black px-6 py-10 text-white">
-      <div className="mx-auto max-w-5xl">
-        <div className="mb-8 flex items-center justify-between gap-4">
-          <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-[#c8a45d]">
-              MLAMH Admin
-            </p>
-
-            <h1 className="mt-2 text-3xl font-semibold">
-              إنشاء فرصة مُدارة
-            </h1>
-
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-white/50">
+    <div dir={isArabic ? "rtl" : "ltr"}>
+      <AdminPageContainer className="max-w-5xl">
+        <AdminPageHeader
+          eyebrow={isArabic ? "الفرص" : "OPPORTUNITIES"}
+          title={isArabic ? "إنشاء فرصة مُدارة" : "Create managed opportunity"}
+          description={
+            briefReady
+              ? isArabic
+                ? "تم تحميل البريف وصياغة عنوان ووصف مناسبين تلقائيًا. راجع البيانات قبل الحفظ أو النشر؛ سيتم ربط الفرصة بالبريف والـLead عند الإنشاء."
+                : "The brief has been loaded and opportunity copy prepared automatically. Review the data before saving or publishing; the opportunity will stay linked to its brief and lead."
+              : isArabic
+                ? "اكتب بيانات الفرصة بالعربية، وستقوم ملامح بإنشاء النسخة الإنجليزية تلقائيًا عند الحفظ أو النشر."
+                : "Create the managed opportunity from one governed workspace; MLAMH will maintain the localized public content."
+          }
+          actions={
+            <Link
+              href={briefReady ? `/admin/marketing/briefs?lang=${language}` : `/admin/opportunities?lang=${language}`}
+              className="inline-flex h-10 items-center justify-center rounded-lg border border-white/[0.08] px-4 text-xs font-medium text-white/55 transition hover:border-gold/20 hover:text-gold"
+            >
               {briefReady
-                ? "تم تحميل البريف وصياغة عنوان ووصف مناسبين للفرصة تلقائيًا من بياناته. راجع البيانات قبل الحفظ أو النشر؛ عند الإنشاء سيتم ربط الفرصة بالبريف والـLead تلقائيًا."
-                : "اكتب عنوان ووصف الفرصة بالعربية فقط، وستقوم ملامح بإنشاء النسخة الإنجليزية تلقائيًا عند الحفظ أو النشر."}
-            </p>
-          </div>
-
-          <Link
-            href={briefReady ? "/admin/marketing/briefs?lang=ar" : "/admin/opportunities"}
-            className="rounded-full border border-white/10 px-5 py-2.5 text-sm text-white/60 transition hover:border-white/20 hover:text-white"
-          >
-            {briefReady ? "العودة للبريفات" : "العودة للفرص"}
-          </Link>
-        </div>
+                ? (isArabic ? "العودة للبريفات" : "Back to briefs")
+                : (isArabic ? "العودة للفرص" : "Back to opportunities")}
+            </Link>
+          }
+        />
 
         {validBriefId && !briefReady ? (
-          <div className="mb-6 rounded-2xl border border-amber-300/20 bg-amber-300/10 px-5 py-4 text-sm text-amber-100">
-            لا يمكن تحويل هذا البريف الآن: يجب أن يكون مكتملًا وألا يكون مرتبطًا بفرصة سابقة.
+          <div className="mb-5 rounded-2xl border border-amber-300/20 bg-amber-300/[0.06] px-5 py-4 text-sm text-amber-100">
+            {isArabic
+              ? "لا يمكن تحويل هذا البريف الآن: يجب أن يكون مكتملًا وألا يكون مرتبطًا بفرصة سابقة."
+              : "This brief cannot be converted yet: it must be complete and not already linked to an opportunity."}
           </div>
         ) : null}
 
         <AdminLocalizedOpportunityForm initialValues={initialValues} />
-      </div>
-    </main>
+      </AdminPageContainer>
+    </div>
   );
 }
