@@ -28,7 +28,7 @@ export async function AdminTalentResidenceCountryPanel({
 
   return (
     <div dir={language === "ar" ? "rtl" : "ltr"} className="px-4 pt-4 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-7xl">
+      <div className="mx-auto max-w-[1540px]">
         <section className={`rounded-2xl border p-4 sm:flex sm:items-center sm:justify-between sm:gap-5 ${
           isMissing
             ? "border-amber-400/20 bg-amber-400/[0.05]"
