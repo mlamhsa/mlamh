@@ -11,6 +11,7 @@ import {
 import { ensureOpportunityConversation } from "@/lib/messages/ensure-opportunity-conversation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { canRequestTalentFromProfile } from "@/lib/talent/public-profile-access";
+import { buildTalentBriefFromOpportunity, evaluateTalentForBrief, type BriefTalent } from "@/lib/talent/supply";
 
 export type SendOpportunityInvitationsState = {
   success: boolean;
@@ -112,7 +113,7 @@ export async function sendOpportunityInvitationsAction(
   const { data: talent, error: talentError } =
     await adminClient
       .from("talents")
-      .select("id,user_id,published,status,profile_visibility")
+      .select("*")
       .eq("id", talentId)
       .maybeSingle();
 
@@ -190,7 +191,13 @@ export async function sendOpportunityInvitationsAction(
           publisher_id,
           status,
           published,
-          posting_mode
+          posting_mode,
+          opportunity_type,
+          country_code,
+          city_slug,
+          required_gender,
+          required_count,
+          role_requirements
         `,
       )
       .in("id", opportunityIds)
@@ -238,8 +245,23 @@ export async function sendOpportunityInvitationsAction(
 
   const publicTalentInviteAllowed =
     talentVisibility === "public" && talent.published === true;
+
+  const talentForMatching = {
+    ...(talent as BriefTalent),
+    profile_approval_status: talentProfile.approval_status,
+    profile_status: "active",
+  } satisfies BriefTalent;
+
+  const allSelectedMatchTalent = validOpportunities.every((opportunity) =>
+    evaluateTalentForBrief(
+      talentForMatching,
+      buildTalentBriefFromOpportunity(opportunity),
+    ).sendable,
+  );
+
   const restrictedTalentInviteAllowed =
     talentVisibility === "verified_publishers" &&
+    allSelectedMatchTalent &&
     (publisherVerified ||
       (individualPublisherTypes.has(publisherType) && allSelectedQuick));
 
@@ -249,10 +271,14 @@ export async function sendOpportunityInvitationsAction(
       message:
         locale === "ar"
           ? talentVisibility === "verified_publishers"
-            ? "هذه الموهبة متاحة للناشرين المعتمدين. للحساب الفردي يجب استخدام فرصة سريعة منشورة."
+            ? allSelectedMatchTalent
+              ? "هذه الموهبة متاحة للناشرين المعتمدين. للحساب الفردي يجب استخدام فرصة سريعة منشورة."
+              : "الفرصة المختارة لا تطابق متطلبات هذه الموهبة. عدّل متطلبات الفرصة أو اختر موهبة مطابقة."
             : "هذه الموهبة غير متاحة للدعوات حاليًا."
           : talentVisibility === "verified_publishers"
-            ? "This talent is available to approved publishers. Individual publishers must use a published Quick Opportunity."
+            ? allSelectedMatchTalent
+              ? "This talent is available to approved publishers. Individual publishers must use a published Quick Opportunity."
+              : "The selected opportunity does not match this talent's requirements. Update the opportunity or choose a matching talent."
             : "This talent is not currently available for invitations.",
       sentCount: 0,
     };
