@@ -7,6 +7,7 @@ import {
 import { recordAdminAction } from "@/lib/events/admin-audit";
 import { EVENT_TARGETS } from "@/lib/events/event-targets";
 import { consumeServerRateLimit } from "@/lib/security/server-rate-limit";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 type MfaAuditMode =
@@ -235,14 +236,147 @@ export async function POST(
       },
     });
 
+  if (!recorded) {
+    return NextResponse.json(
+      {
+        recorded: false,
+      },
+      {
+        status: 503,
+        headers: {
+          "Cache-Control":
+            "no-store",
+        },
+      },
+    );
+  }
+
+  const adminClient =
+    createAdminClient();
+  const {
+    data: authUserData,
+    error: authUserError,
+  } =
+    await adminClient.auth.admin.getUserById(
+      verifiedUser.id,
+    );
+
+  if (authUserError) {
+    console.error(
+      "[AdminMfaEvent invite lifecycle lookup]",
+      authUserError,
+    );
+
+    return NextResponse.json(
+      {
+        recorded: true,
+        inviteActivated: false,
+      },
+      {
+        status: 503,
+        headers: {
+          "Cache-Control":
+            "no-store",
+        },
+      },
+    );
+  }
+
+  const appMetadata =
+    authUserData.user?.app_metadata ??
+    {};
+
+  if (
+    appMetadata
+      .admin_invite_status ===
+    "pending"
+  ) {
+    const completedAt =
+      new Date().toISOString();
+
+    const {
+      error:
+        inviteActivationError,
+    } =
+      await adminClient.auth.admin.updateUserById(
+        verifiedUser.id,
+        {
+          app_metadata: {
+            ...appMetadata,
+            admin_invite_status:
+              "completed",
+            admin_invite_completed_at:
+              completedAt,
+          },
+        },
+      );
+
+    if (inviteActivationError) {
+      console.error(
+        "[AdminMfaEvent invite lifecycle update]",
+        inviteActivationError,
+      );
+
+      await recordAdminAction({
+        actorId:
+          verifiedUser.id,
+        actorEmail:
+          verifiedUser.email,
+        action:
+          "complete_admin_invite",
+        outcome: "failed",
+        target:
+          EVENT_TARGETS.ADMIN,
+        targetId:
+          verifiedUser.id,
+        reason:
+          "invite_activation_state_update_failed",
+      });
+
+      return NextResponse.json(
+        {
+          recorded: true,
+          inviteActivated:
+            false,
+        },
+        {
+          status: 503,
+          headers: {
+            "Cache-Control":
+              "no-store",
+          },
+        },
+      );
+    }
+
+    await recordAdminAction({
+      actorId:
+        verifiedUser.id,
+      actorEmail:
+        verifiedUser.email,
+      action:
+        "complete_admin_invite",
+      outcome: "success",
+      target:
+        EVENT_TARGETS.ADMIN,
+      targetId:
+        verifiedUser.id,
+      metadata: {
+        completed_at:
+          completedAt,
+        activation_assurance:
+          "aal2",
+      },
+    });
+  }
+
   return NextResponse.json(
     {
-      recorded,
+      recorded: true,
+      inviteActivated: true,
     },
     {
-      status: recorded
-        ? 200
-        : 503,
+      status: 200,
       headers: {
         "Cache-Control":
           "no-store",
