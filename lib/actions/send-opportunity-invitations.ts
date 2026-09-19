@@ -154,7 +154,7 @@ export async function sendOpportunityInvitationsAction(
 
   const { data: talentProfile, error: talentProfileError } = await adminClient
     .from("profiles")
-    .select("approval_status,account_type")
+    .select("approval_status,account_type,status")
     .eq("user_id", talent.user_id)
     .maybeSingle();
 
@@ -249,7 +249,7 @@ export async function sendOpportunityInvitationsAction(
   const talentForMatching = {
     ...(talent as BriefTalent),
     profile_approval_status: talentProfile.approval_status,
-    profile_status: "active",
+    profile_status: talentProfile.status,
   } satisfies BriefTalent;
 
   const allSelectedMatchTalent = validOpportunities.every((opportunity) =>
