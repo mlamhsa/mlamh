@@ -1,4 +1,6 @@
 import Link from "next/link";
+
+import { AdminPageContainer, AdminPageHeader } from "@/components/admin/ui";
 import {
   BriefcaseBusiness,
   Building2,
@@ -292,28 +294,17 @@ export default async function AdminSearchPage({
     conversations.length;
 
   return (
-    <div
-      dir={isArabic ? "rtl" : "ltr"}
-      className="min-h-screen px-4 py-8 sm:px-6 lg:px-8"
-    >
-      <div className="mx-auto max-w-7xl">
-        <div className="mb-8">
-          <span className="text-[11px] font-medium uppercase tracking-[0.18em] text-gold">
-            MLAMH ADMIN
-          </span>
-
-          <h1 className="mt-3 text-3xl font-light text-white sm:text-4xl">
-            {isArabic
-              ? "البحث في لوحة الإدارة"
-              : "Admin Search"}
-          </h1>
-
-          <p className="mt-3 max-w-2xl text-sm leading-7 text-white/40">
-            {isArabic
+    <div dir={isArabic ? "rtl" : "ltr"}>
+      <AdminPageContainer>
+        <AdminPageHeader
+          eyebrow={isArabic ? "بحث شامل" : "GLOBAL SEARCH"}
+          title={isArabic ? "البحث في لوحة الإدارة" : "Admin Search"}
+          description={
+            isArabic
               ? "ابحث عن المواهب والناشرين والفرص والمحادثات من مكان واحد."
-              : "Search talents, publishers, opportunities and conversations from one place."}
-          </p>
-        </div>
+              : "Search talents, publishers, opportunities and conversations from one place."
+          }
+        />
 
         <form
           action="/admin/search"
@@ -684,7 +675,7 @@ export default async function AdminSearchPage({
             )}
           </>
         )}
-      </div>
+      </AdminPageContainer>
     </div>
   );
 }
