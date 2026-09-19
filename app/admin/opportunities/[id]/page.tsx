@@ -961,6 +961,28 @@ opportunity.status === "pending_review" &&
             </div>
           )}
         </section>
+        {isManagedByMlamh &&
+        !opportunity.published &&
+        ["draft", "needs_changes"].includes(opportunity.status) ? (
+          <div className="fixed bottom-6 end-6 z-50 max-w-sm rounded-2xl border border-gold/25 bg-[#101010]/95 p-3 shadow-2xl backdrop-blur">
+            <p className="px-2 text-[10px] font-medium tracking-[0.16em] text-gold/65">
+              MLAMH MANAGED DRAFT
+            </p>
+            <div className="mt-2 flex items-center gap-3">
+              <p className="text-xs leading-5 text-white/52">
+                {isRtl
+                  ? "المسودة قابلة للتعديل قبل النشر."
+                  : "This managed draft can be edited before publication."}
+              </p>
+              <Link
+                href={`/admin/opportunities/${opportunity.id}/edit?lang=${isRtl ? "ar" : "en"}`}
+                className="shrink-0 rounded-lg bg-gold px-3.5 py-2 text-xs font-semibold text-black transition hover:opacity-90"
+              >
+                {isRtl ? "تعديل ومراجعة" : "Edit & review"}
+              </Link>
+            </div>
+          </div>
+        ) : null}
       </AdminPageContainer>
     </div>
   );
