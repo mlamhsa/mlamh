@@ -1815,12 +1815,6 @@ export async function updateAdminRoleAction(
     );
   }
 
-  const previousRoleIds =
-    currentAssignments.map(
-      (assignment) =>
-        assignment.role_id,
-    );
-
   const previousRoleKeys =
     currentAssignments
       .map(extractRoleKey)
@@ -2203,192 +2197,64 @@ export async function updateAdminRoleAction(
     );
   }
 
-  const { error: deleteError } =
-    await adminClient
-      .from("user_roles")
-      .delete()
-      .eq(
-        "user_id",
+  const {
+    error: roleMutationError,
+  } = await adminClient.rpc(
+    "set_admin_access_role",
+    {
+      p_actor_user_id:
+        actor.id,
+      p_target_user_id:
         targetUserId,
+      p_new_role_key:
+        roleKey,
+    },
+  );
+
+  if (roleMutationError) {
+    const lastSuperAdmin =
+      roleMutationError.message.includes(
+        "LAST_SUPER_ADMIN",
+      );
+    const inconsistentState =
+      roleMutationError.message.includes(
+        "ADMIN_ACCESS_INCONSISTENT",
       );
 
-  if (deleteError) {
     console.error(
-      "[updateAdminRoleAction delete]",
-      deleteError,
+      "[updateAdminRoleAction atomic mutation]",
+      roleMutationError,
     );
 
     await recordAdminAccessOutcome({
       actorId: actor.id,
       actorEmail: actor.email,
       action: "update_admin_role",
-      outcome: "failed",
+      outcome: lastSuperAdmin
+        ? "blocked"
+        : "failed",
       targetId: targetUserId,
-      reason: "existing_role_delete_failed",
+      reason: lastSuperAdmin
+        ? "last_super_admin"
+        : inconsistentState
+          ? "admin_access_inconsistent"
+          : "atomic_role_update_failed",
       metadata: {
         target_email:
           targetAdmin.email,
         previous_roles:
           previousRoleKeys,
-        requested_role: roleKey,
+        requested_role:
+          roleKey,
       },
     });
 
     redirect(
       accessCenterUrl(locale, {
         access_error:
-          "role_update_failed",
-      }),
-    );
-  }
-
-  const { error: insertError } =
-    await adminClient
-      .from("user_roles")
-      .insert({
-        user_id: targetUserId,
-        role_id: selectedRole.id,
-      });
-
-  if (insertError) {
-    console.error(
-      "[updateAdminRoleAction insert]",
-      insertError,
-    );
-
-    let rollbackSucceeded = true;
-
-    if (
-      previousRoleIds.length > 0
-    ) {
-      const { error: rollbackError } =
-        await adminClient
-          .from("user_roles")
-          .insert(
-            previousRoleIds.map(
-              (roleId) => ({
-                user_id:
-                  targetUserId,
-                role_id: roleId,
-              }),
-            ),
-          );
-
-      if (rollbackError) {
-        rollbackSucceeded = false;
-        console.error(
-          "[updateAdminRoleAction rollback roles]",
-          rollbackError,
-        );
-      }
-    }
-
-    await recordAdminAccessOutcome({
-      actorId: actor.id,
-      actorEmail: actor.email,
-      action: "update_admin_role",
-      outcome: "failed",
-      targetId: targetUserId,
-      reason: "new_role_insert_failed",
-      metadata: {
-        target_email:
-          targetAdmin.email,
-        previous_roles:
-          previousRoleKeys,
-        requested_role: roleKey,
-        rollback_succeeded:
-          rollbackSucceeded,
-      },
-    });
-
-    redirect(
-      accessCenterUrl(locale, {
-        access_error:
-          "role_update_failed",
-      }),
-    );
-  }
-
-  const { error: registryError } =
-    await adminClient
-      .from("admin_users")
-      .update({
-        role: roleKey,
-      })
-      .eq("id", targetUserId);
-
-  if (registryError) {
-    console.error(
-      "[updateAdminRoleAction registry]",
-      registryError,
-    );
-
-    let rollbackSucceeded = true;
-
-    const { error: cleanupError } =
-      await adminClient
-        .from("user_roles")
-        .delete()
-        .eq(
-          "user_id",
-          targetUserId,
-        );
-
-    if (cleanupError) {
-      rollbackSucceeded = false;
-      console.error(
-        "[updateAdminRoleAction cleanup]",
-        cleanupError,
-      );
-    }
-
-    if (
-      previousRoleIds.length > 0
-    ) {
-      const { error: rollbackError } =
-        await adminClient
-          .from("user_roles")
-          .insert(
-            previousRoleIds.map(
-              (roleId) => ({
-                user_id:
-                  targetUserId,
-                role_id: roleId,
-              }),
-            ),
-          );
-
-      if (rollbackError) {
-        rollbackSucceeded = false;
-        console.error(
-          "[updateAdminRoleAction rollback registry]",
-          rollbackError,
-        );
-      }
-    }
-
-    await recordAdminAccessOutcome({
-      actorId: actor.id,
-      actorEmail: actor.email,
-      action: "update_admin_role",
-      outcome: "failed",
-      targetId: targetUserId,
-      reason: "registry_update_failed",
-      metadata: {
-        target_email:
-          targetAdmin.email,
-        previous_roles:
-          previousRoleKeys,
-        requested_role: roleKey,
-        rollback_succeeded:
-          rollbackSucceeded,
-      },
-    });
-
-    redirect(
-      accessCenterUrl(locale, {
-        access_error:
-          "role_update_failed",
+          lastSuperAdmin
+            ? "last_super_admin"
+            : "role_update_failed",
       }),
     );
   }
@@ -2583,12 +2449,6 @@ export async function revokeAdminAccessAction(
     );
   }
 
-  const previousRoleIds =
-    currentAssignments.map(
-      (assignment) =>
-        assignment.role_id,
-    );
-
   const previousRoleKeys =
     currentAssignments
       .map(extractRoleKey)
@@ -2733,31 +2593,48 @@ export async function revokeAdminAccessAction(
     }
   }
 
-  // Active access is granted by user_roles. Remove those assignments first
-  // so the account is denied immediately while preserving the registry row
-  // as an auditable, restorable admin identity.
-  const { error: roleCleanupError } =
-    await adminClient
-      .from("user_roles")
-      .delete()
-      .eq(
-        "user_id",
+  const {
+    error: revokeMutationError,
+  } = await adminClient.rpc(
+    "set_admin_access_role",
+    {
+      p_actor_user_id:
+        actor.id,
+      p_target_user_id:
         targetUserId,
+      p_new_role_key:
+        "revoked",
+    },
+  );
+
+  if (revokeMutationError) {
+    const lastSuperAdmin =
+      revokeMutationError.message.includes(
+        "LAST_SUPER_ADMIN",
+      );
+    const inconsistentState =
+      revokeMutationError.message.includes(
+        "ADMIN_ACCESS_INCONSISTENT",
       );
 
-  if (roleCleanupError) {
     console.error(
-      "[revokeAdminAccessAction role cleanup]",
-      roleCleanupError,
+      "[revokeAdminAccessAction atomic mutation]",
+      revokeMutationError,
     );
 
     await recordAdminAccessOutcome({
       actorId: actor.id,
       actorEmail: actor.email,
       action: "revoke_admin_access",
-      outcome: "failed",
+      outcome: lastSuperAdmin
+        ? "blocked"
+        : "failed",
       targetId: targetUserId,
-      reason: "role_cleanup_failed",
+      reason: lastSuperAdmin
+        ? "last_super_admin"
+        : inconsistentState
+          ? "admin_access_inconsistent"
+          : "atomic_revoke_failed",
       metadata: {
         target_email:
           targetAdmin.email,
@@ -2769,73 +2646,9 @@ export async function revokeAdminAccessAction(
     redirect(
       accessCenterUrl(locale, {
         access_error:
-          "revoke_failed",
-      }),
-    );
-  }
-
-  const { error: registryError } =
-    await adminClient
-      .from("admin_users")
-      .update({
-        role: "revoked",
-      })
-      .eq("id", targetUserId);
-
-  if (registryError) {
-    console.error(
-      "[revokeAdminAccessAction registry]",
-      registryError,
-    );
-
-    let rollbackSucceeded = true;
-
-    if (
-      previousRoleIds.length > 0
-    ) {
-      const { error: rollbackError } =
-        await adminClient
-          .from("user_roles")
-          .insert(
-            previousRoleIds.map(
-              (roleId) => ({
-                user_id:
-                  targetUserId,
-                role_id: roleId,
-              }),
-            ),
-          );
-
-      if (rollbackError) {
-        rollbackSucceeded = false;
-        console.error(
-          "[revokeAdminAccessAction rollback]",
-          rollbackError,
-        );
-      }
-    }
-
-    await recordAdminAccessOutcome({
-      actorId: actor.id,
-      actorEmail: actor.email,
-      action: "revoke_admin_access",
-      outcome: "failed",
-      targetId: targetUserId,
-      reason: "registry_revoke_failed",
-      metadata: {
-        target_email:
-          targetAdmin.email,
-        previous_roles:
-          previousRoleKeys,
-        rollback_succeeded:
-          rollbackSucceeded,
-      },
-    });
-
-    redirect(
-      accessCenterUrl(locale, {
-        access_error:
-          "revoke_failed",
+          lastSuperAdmin
+            ? "last_super_admin"
+            : "revoke_failed",
       }),
     );
   }
