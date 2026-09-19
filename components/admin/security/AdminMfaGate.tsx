@@ -52,8 +52,10 @@ export function AdminMfaGate() {
         // unverified state. Supabase will reject a new enrollment with the
         // same friendly name, so clear incomplete factors before creating a
         // fresh QR/secret that the user can actually finish verifying.
-        const unverifiedTotp = factors.data.totp.filter(
-          (factor) => factor.status === "unverified",
+        const unverifiedTotp = factors.data.all.filter(
+          (factor) =>
+            factor.factor_type === "totp" &&
+            factor.status === "unverified",
         );
 
         for (const factor of unverifiedTotp) {
