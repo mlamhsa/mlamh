@@ -20,7 +20,9 @@ function csvCell(value: unknown) {
       : String(value);
 
   const formulaSafe =
-    /^[=+\-@]/.test(raw)
+    /^[=+\-@\t\r\n\0\uFF1D\uFF0B\uFF0D\uFF20]/u.test(
+      raw,
+    )
       ? `'${raw}`
       : raw;
 
