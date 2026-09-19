@@ -12,8 +12,15 @@ export async function getMobileAccountContext(userId: string) {
     .maybeSingle();
 
   if (error) return { ok: false as const, code: "ACCOUNT_LOOKUP_FAILED" as const };
-  if (!profile || (profile.account_type !== "talent" && profile.account_type !== "publisher")) {
+  if (!profile) {
     return { ok: false as const, code: "ACCOUNT_NOT_FOUND" as const };
+  }
+  if (profile.account_type !== "talent" && profile.account_type !== "publisher") {
+    return {
+      ok: false as const,
+      code: "ACCOUNT_TYPE_UNSUPPORTED" as const,
+      accountType: profile.account_type ?? null,
+    };
   }
 
   let entityId: number | null = null;
@@ -52,6 +59,15 @@ export async function getMobileAccountContext(userId: string) {
     canCreate = Boolean(entityId && approved && unrestricted);
     canCreateQuick = canCreate;
     canCreateCasting = canCreate && publisherType !== "individual";
+  }
+
+  if (entityId === null) {
+    return {
+      ok: false as const,
+      code: profile.account_type === "publisher"
+        ? "PUBLISHER_ONBOARDING_INCOMPLETE" as const
+        : "TALENT_ONBOARDING_INCOMPLETE" as const,
+    };
   }
 
   return {

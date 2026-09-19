@@ -28,6 +28,7 @@ export type OpportunityStatus =
     description: string;
     slug: string;
     opportunity_type: string;
+    city_slug?: string | null;
     city_ar: string;
     city_en: string;
     required_gender: string | null;

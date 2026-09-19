@@ -392,6 +392,7 @@ export async function createOpportunityAction(
     description: cleanDescription,
     slug: createSlug(cleanTitle),
     opportunity_type: localizedType.value,
+    city_slug: localizedCity.city_slug,
     city_ar: localizedCity.city_ar,
     city_en: localizedCity.city_en,
     required_gender: cleanGender || "any",
