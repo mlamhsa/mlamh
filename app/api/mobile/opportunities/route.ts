@@ -154,6 +154,7 @@ export async function POST(request: Request) {
       description,
       slug: createSlug(title),
       opportunity_type: localizedType.value,
+      city_slug: localizedCity.city_slug,
       city_ar: localizedCity.city_ar,
       city_en: localizedCity.city_en,
       required_gender: requiredGender,
