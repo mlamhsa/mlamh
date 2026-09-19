@@ -30,6 +30,7 @@ type PageProps = {
       status?: string;
       q?: string;
       reported?: string;
+      lang?: string;
     }>;
   };
 
@@ -74,7 +75,8 @@ type PublisherRecord = {
 };
 
 function formatDate(
-  value?: string | null,
+  value: string | null | undefined,
+  isArabic: boolean,
 ) {
   if (!value) {
     return "—";
@@ -93,7 +95,7 @@ function formatDate(
   }
 
   return new Intl.DateTimeFormat(
-    "ar-SA",
+    isArabic ? "ar-SA-u-ca-gregory-nu-latn" : "en-US",
     {
       year: "numeric",
       month: "short",
@@ -108,13 +110,17 @@ function buildHref({
     status,
     q,
     reported,
+    language,
   }: {
     status?: string;
     q?: string;
     reported?: boolean;
+    language?: "ar" | "en";
   }) {
     const params =
       new URLSearchParams();
+
+    params.set("lang", language ?? "ar");
   
     if (status) {
       params.set(
@@ -154,7 +160,11 @@ export default async function AdminMessagesPage({
     status,
     q,
     reported,
+    lang,
   } = await searchParams;
+
+  const language: "ar" | "en" = lang === "en" ? "en" : "ar";
+  const isArabic = language === "ar";
   
   const reportedOnly =
     reported === "1";
@@ -563,30 +573,38 @@ export default async function AdminMessagesPage({
   ).length;
 
   return (
-    <AdminPageContainer>
-      <AdminPageHeader
-  title="مراقبة المحادثات"
-  description="متابعة المحادثات بين الناشرين والمواهب والإشراف على النشاط والبلاغات."
-/>
+    <div dir={isArabic ? "rtl" : "ltr"}>
+      <AdminPageContainer>
+        <AdminPageHeader
+          eyebrow={isArabic ? "التواصل" : "COMMUNICATIONS"}
+          title={isArabic ? "المحادثات والبلاغات" : "Conversations & Reports"}
+          description={
+            isArabic
+              ? "متابعة المحادثات بين الناشرين والمواهب والإشراف على النشاط والبلاغات."
+              : "Monitor publisher-talent conversations, activity, and reported messages."
+          }
+        />
 
       <AdminGrid className="mb-8 md:grid-cols-2 xl:grid-cols-4">
         <AdminStatCard
-          label="إجمالي المحادثات"
+          label={isArabic ? "إجمالي المحادثات" : "Total conversations"}
           value={total}
           active={!status}
           href={buildHref({
+            language,
             q,
           })}
         />
 
         <AdminStatCard
-          label="نشطة"
+          label={isArabic ? "نشطة" : "Active"}
           value={active}
           active={
             status ===
             "active"
           }
           href={buildHref({
+            language,
             status:
               "active",
             q,
@@ -594,23 +612,25 @@ export default async function AdminMessagesPage({
         />
 
 <AdminStatCard
-  label="البلاغات"
+  label={isArabic ? "البلاغات" : "Reports"}
   value={reportedMessages}
   active={reportedOnly}
   href={buildHref({
+            language,
     reported: true,
     q,
   })}
 />
 
         <AdminStatCard
-          label="مغلقة"
+          label={isArabic ? "مغلقة" : "Closed"}
           value={closed}
           active={
             status ===
             "closed"
           }
           href={buildHref({
+            language,
             status:
               "closed",
             q,
@@ -622,6 +642,7 @@ export default async function AdminMessagesPage({
   method="GET"
   className="mb-8 rounded-3xl border border-white/[0.08] bg-gray-elevated/30 p-5"
 >
+  <input type="hidden" name="lang" value={language} />
   {reportedOnly ? (
     <input
       type="hidden"
@@ -634,7 +655,7 @@ export default async function AdminMessagesPage({
     <input
       name="q"
       defaultValue={q}
-      placeholder="ابحث باسم الناشر أو الموهبة أو الفرصة..."
+      placeholder={isArabic ? "ابحث باسم الناشر أو الموهبة أو الفرصة..." : "Search publisher, talent, or opportunity..."}
       className="rounded-2xl border border-white/10 bg-black/40 px-5 py-4 text-sm text-white outline-none placeholder:text-white/30"
     />
 
@@ -646,15 +667,15 @@ export default async function AdminMessagesPage({
       className="rounded-2xl border border-white/10 bg-black/40 px-5 py-4 text-sm text-white outline-none"
     >
       <option value="">
-        جميع الحالات
+        {isArabic ? "جميع الحالات" : "All statuses"}
       </option>
 
       <option value="active">
-        نشطة
+        {isArabic ? "نشطة" : "Active"}
       </option>
 
       <option value="closed">
-        مغلقة
+        {isArabic ? "مغلقة" : "Closed"}
       </option>
     </select>
 
@@ -662,14 +683,14 @@ export default async function AdminMessagesPage({
       type="submit"
       className="rounded-2xl border border-gold/40 px-8 py-4 text-sm text-gold transition hover:bg-gold hover:text-black"
     >
-      بحث
+      {isArabic ? "بحث" : "Search"}
     </button>
   </div>
 </form>
 
       {filteredConversations.length ===
       0 ? (
-        <AdminEmptyState message="لا توجد محادثات مطابقة." />
+        <AdminEmptyState message={isArabic ? "لا توجد محادثات مطابقة." : "No matching conversations."} />
       ) : (
         <AdminGrid>
           {filteredConversations.map(
@@ -713,9 +734,10 @@ export default async function AdminMessagesPage({
                 conversation.updated_at;
 
               const talentName =
-                talent?.name_ar ||
-                talent?.name_en ||
-                "موهبة غير معروفة";
+                (isArabic
+                  ? talent?.name_ar || talent?.name_en
+                  : talent?.name_en || talent?.name_ar) ||
+                (isArabic ? "موهبة غير معروفة" : "Unknown talent");
 
                 const isMlamhConversation =
                 conversation.conversation_type ===
@@ -723,10 +745,10 @@ export default async function AdminMessagesPage({
               
               const publisherName =
                 isMlamhConversation
-                  ? "ملامح"
+                  ? "MLAMH"
                   : publisher?.company_name ||
                     publisher?.contact_name ||
-                    "ناشر غير معروف";
+                    (isArabic ? "ناشر غير معروف" : "Unknown publisher");
 
               const isActive =
                 conversation.status ===
@@ -749,14 +771,18 @@ export default async function AdminMessagesPage({
                           }
                         >
                           {isActive
-                            ? "نشطة"
-                            : "مغلقة"}
+                            ? isArabic ? "نشطة" : "Active"
+                            : isArabic ? "مغلقة" : "Closed"}
                         </AdminBadge>
 {reportedCount > 0 ? (
   <span className="rounded-full border border-red-400/25 bg-red-400/[0.08] px-3 py-1 text-[10px] text-red-300">
-    {reportedCount === 1
-      ? "بلاغ واحد"
-      : `${reportedCount} بلاغات`}
+    {isArabic
+      ? reportedCount === 1
+        ? "بلاغ واحد"
+        : `${reportedCount} بلاغات`
+      : reportedCount === 1
+        ? "1 report"
+        : `${reportedCount} reports`}
   </span>
 ) : null}
                         <span className="text-[10px] uppercase tracking-[0.25em] text-white/35">
@@ -774,7 +800,7 @@ export default async function AdminMessagesPage({
                       </h2>
 
                       <p className="mt-2 text-sm text-white/50">
-                        مع{" "}
+                        {isArabic ? "مع" : "with"}{" "}
                         <span className="text-white/75">
                           {
                             talentName
@@ -784,18 +810,19 @@ export default async function AdminMessagesPage({
 
                       <p className="mt-2 text-sm text-gold/70">
                         {opportunity?.title ??
-                          "فرصة بدون عنوان"}
+                          (isArabic ? "فرصة بدون عنوان" : "Untitled opportunity")}
                       </p>
                     </div>
 
                     <div className="text-left lg:text-right">
                       <p className="text-[10px] uppercase tracking-[0.25em] text-white/35">
-                        آخر نشاط
+                        {isArabic ? "آخر نشاط" : "Last activity"}
                       </p>
 
                       <p className="mt-1 text-sm text-gray-muted">
                         {formatDate(
                           lastActivity,
+                          isArabic,
                         )}
                       </p>
                     </div>
@@ -805,28 +832,28 @@ export default async function AdminMessagesPage({
                     <AdminInfoItem
   label={
     isMlamhConversation
-      ? "مدير الفرصة"
-      : "الناشر"
+      ? isArabic ? "مدير الفرصة" : "Opportunity manager"
+      : isArabic ? "الناشر" : "Publisher"
   }
   value={publisherName}
 />
 
                     <AdminInfoItem
-                      label="الموهبة"
+                      label={isArabic ? "الموهبة" : "Talent"}
                       value={
                         talentName
                       }
                     />
 
                     <AdminInfoItem
-                      label="الفرصة"
+                      label={isArabic ? "الفرصة" : "Opportunity"}
                       value={
                         opportunity?.title
                       }
                     />
 
                     <AdminInfoItem
-                      label="عدد الرسائل"
+                      label={isArabic ? "عدد الرسائل" : "Messages"}
                       value={String(
                         messageCount,
                       )}
@@ -835,40 +862,40 @@ export default async function AdminMessagesPage({
 
                   <div className="mt-5 rounded-2xl border border-white/[0.06] bg-black/20 px-4 py-4">
                     <p className="text-[10px] uppercase tracking-[0.2em] text-white/30">
-                      آخر رسالة
+                      {isArabic ? "آخر رسالة" : "Latest message"}
                     </p>
 
                     <p className="mt-2 line-clamp-2 text-sm leading-6 text-white/55">
                       {latestMessage?.body ||
-                        "لا توجد رسائل حتى الآن."}
+                        (isArabic ? "لا توجد رسائل حتى الآن." : "No messages yet.")}
                     </p>
                   </div>
 
                   <div className="mt-6 flex flex-wrap gap-3">
                     <Link
-                      href={`/admin/messages/${conversation.id}`}
+                      href={`/admin/messages/${conversation.id}?lang=${language}`}
                       className="rounded-full border border-gold/30 bg-gold/[0.04] px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-gold transition hover:bg-gold/10"
                     >
-                      عرض المحادثة
+                      {isArabic ? "عرض المحادثة" : "Open conversation"}
                     </Link>
 
                     {opportunity?.slug ? (
                       <Link
-                        href={`/ar/opportunities/${opportunity.slug}`}
+                        href={`/${language}/opportunities/${opportunity.slug}`}
                         target="_blank"
                         className="rounded-full border border-white/10 px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-white/60 transition hover:border-gold/40 hover:text-gold"
                       >
-                        عرض الفرصة
+                        {isArabic ? "عرض الفرصة" : "View opportunity"}
                       </Link>
                     ) : null}
 
                     {talent?.slug ? (
                       <Link
-                        href={`/ar/talent/${talent.slug}`}
+                        href={`/${language}/talent/${talent.slug}`}
                         target="_blank"
                         className="rounded-full border border-white/10 px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-white/60 transition hover:border-gold/40 hover:text-gold"
                       >
-                        عرض الموهبة
+                        {isArabic ? "عرض الموهبة" : "View talent"}
                       </Link>
                     ) : null}
                   </div>
@@ -878,6 +905,7 @@ export default async function AdminMessagesPage({
           )}
         </AdminGrid>
       )}
-    </AdminPageContainer>
+      </AdminPageContainer>
+    </div>
   );
 }

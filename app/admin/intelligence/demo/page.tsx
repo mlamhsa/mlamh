@@ -44,8 +44,10 @@ export default async function InvestorDemoPage({ searchParams }: PageProps) {
   };
 
   return (
-    <AdminPageContainer>
+    <div dir={isArabic ? "rtl" : "ltr"}>
+      <AdminPageContainer>
       <AdminPageHeader
+        eyebrow={isArabic ? "النمو والذكاء" : "GROWTH & INTELLIGENCE"}
         title={isArabic ? "Investor Demo Mode" : "Investor Demo Mode"}
         description={
           isArabic
@@ -225,6 +227,7 @@ export default async function InvestorDemoPage({ searchParams }: PageProps) {
         {isArabic ? "توليد العرض: " : "Generated: "}
         <span dir="ltr">{snapshot.generatedAt}</span>
       </p>
-    </AdminPageContainer>
+      </AdminPageContainer>
+    </div>
   );
 }

@@ -25,6 +25,9 @@ type PageProps = {
   params: Promise<{
     conversationId: string;
   }>;
+  searchParams: Promise<{
+    lang?: string;
+  }>;
 };
 
 type ConversationRecord = {
@@ -137,7 +140,7 @@ function formatDate(
   }
 
   return new Intl.DateTimeFormat(
-    "ar-SA",
+    "ar-SA-u-ca-gregory-nu-latn",
     {
       year: "numeric",
       month: "short",
@@ -170,14 +173,17 @@ function formatFileSize(
 
 export default async function AdminConversationPage({
   params,
+  searchParams,
 }: PageProps) {
   const adminUser =
   await requireAdminAccess();
 
-  const {
-    conversationId:
-      rawConversationId,
-  } = await params;
+  const [{ conversationId: rawConversationId }, query] = await Promise.all([
+    params,
+    searchParams,
+  ]);
+  const language: "ar" | "en" = query.lang === "en" ? "en" : "ar";
+  const isArabic = language === "ar";
 
   const conversationId =
     Number(rawConversationId);
@@ -613,21 +619,21 @@ export default async function AdminConversationPage({
 
   return (
     <div
-      dir="rtl"
-      className="min-h-screen bg-[#050505] text-white"
+      dir={isArabic ? "rtl" : "ltr"}
+      className="min-h-screen text-white"
     >
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+      <div className="mx-auto max-w-[1540px] px-4 py-6 sm:px-6 lg:px-8">
         <div className="mb-6">
           <Link
-            href="/admin/messages"
+            href={`/admin/messages?lang=${language}`}
             className="inline-flex items-center gap-2 text-sm text-gold transition hover:text-white"
           >
             <ArrowLeft
               size={16}
-              className="rotate-180"
+              className={isArabic ? "rotate-180" : ""}
             />
 
-            العودة إلى المحادثات
+            {isArabic ? "العودة إلى المحادثات" : "Back to conversations"}
           </Link>
         </div>
 
@@ -646,8 +652,8 @@ export default async function AdminConversationPage({
                         }`}
                       >
                         {isActive
-                          ? "محادثة نشطة"
-                          : "محادثة مغلقة"}
+                          ? (isArabic ? "محادثة نشطة" : "Active conversation")
+                          : (isArabic ? "محادثة مغلقة" : "Closed conversation")}
                       </span>
 
                       <span className="text-[10px] uppercase tracking-[0.25em] text-white/30">
@@ -672,7 +678,7 @@ export default async function AdminConversationPage({
                   <div className="flex gap-3">
                     <div className="rounded-xl border border-white/[0.08] bg-black/20 px-4 py-3 text-center">
                       <p className="text-[9px] uppercase tracking-[0.2em] text-white/30">
-                        الرسائل
+                        {isArabic ? "الرسائل" : "Messages"}
                       </p>
 
                       <p className="mt-1 text-xl">
@@ -687,7 +693,7 @@ export default async function AdminConversationPage({
   className="rounded-xl border border-red-400/20 bg-red-400/[0.05] px-4 py-3 text-center transition hover:border-red-400/40 hover:bg-red-400/[0.1]"
 >
   <p className="text-[9px] uppercase tracking-[0.2em] text-red-300/70">
-    البلاغات
+    {isArabic ? "البلاغات" : "Reports"}
   </p>
 
   <p className="mt-1 text-xl text-red-300">
@@ -696,7 +702,7 @@ export default async function AdminConversationPage({
 
   {reportedMessages.length > 0 ? (
     <p className="mt-1 text-[9px] text-red-200/50">
-      عرض البلاغات
+      {isArabic ? "عرض البلاغات" : "View reports"}
     </p>
   ) : null}
 </a>
@@ -716,14 +722,14 @@ export default async function AdminConversationPage({
                       <input
                         type="hidden"
                         name="locale"
-                        value="ar"
+                        value={language}
                       />
 
                       <button
                         type="submit"
                         className="rounded-full border border-red-400/25 bg-red-400/[0.05] px-5 py-2.5 text-xs text-red-300 transition hover:border-red-400/40 hover:bg-red-400/[0.1]"
                       >
-                        إغلاق المحادثة
+                        {isArabic ? "إغلاق المحادثة" : "Close conversation"}
                       </button>
                     </form>
                   ) : null}
@@ -741,12 +747,14 @@ export default async function AdminConversationPage({
           <Flag size={16} />
 
           <h2 className="text-sm font-medium">
-            البلاغات المفتوحة
+            {isArabic ? "البلاغات المفتوحة" : "Open reports"}
           </h2>
         </div>
 
         <p className="mt-1 text-xs text-white/35">
-          راجع الرسائل المبلّغ عنها واتخذ الإجراء المناسب.
+          {isArabic
+            ? "راجع الرسائل المبلّغ عنها واتخذ الإجراء المناسب."
+            : "Review reported messages and take the appropriate action."}
         </p>
       </div>
 
@@ -768,11 +776,11 @@ export default async function AdminConversationPage({
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-xs text-red-300">
-                  رسالة مبلّغ عنها
+                  {isArabic ? "رسالة مبلّغ عنها" : "Reported message"}
                 </p>
 
                 <p className="mt-1 text-[11px] text-white/35">
-                  المرسل: {sender.label}
+                  {isArabic ? "المرسل" : "Sender"}: {sender.label}
                 </p>
               </div>
 
@@ -816,14 +824,14 @@ export default async function AdminConversationPage({
 />
 
               <label className="mb-2 block text-xs text-white/45">
-                ملاحظة الإدارة
+                {isArabic ? "ملاحظة الإدارة" : "Admin note"}
               </label>
 
               <textarea
                 name="admin_note"
                 rows={2}
                 maxLength={1000}
-                placeholder="ملاحظة داخلية اختيارية..."
+                placeholder={isArabic ? "ملاحظة داخلية اختيارية..." : "Optional internal note..."}
                 className="w-full resize-none rounded-xl border border-white/[0.08] bg-black/30 px-3 py-2 text-sm text-white outline-none placeholder:text-white/25 focus:border-gold/30"
               />
 
@@ -832,14 +840,14 @@ export default async function AdminConversationPage({
                   type="submit"
                   className="rounded-full border border-emerald-400/30 bg-emerald-400/[0.07] px-5 py-2.5 text-xs text-emerald-300 transition hover:bg-emerald-400/15"
                 >
-                  تمت المراجعة
+                  {isArabic ? "تمت المراجعة" : "Reviewed"}
                 </button>
 
                 <a
                   href={`#message-${message.id}`}
                   className="rounded-full border border-white/10 px-5 py-2.5 text-xs text-white/55 transition hover:border-gold/30 hover:text-gold"
                 >
-                  عرض مكان الرسالة
+                  {isArabic ? "عرض مكان الرسالة" : "View message"}
                 </a>
               </div>
             </form>
@@ -957,7 +965,7 @@ export default async function AdminConversationPage({
                                                 rel="noopener noreferrer"
                                                 className="shrink-0 text-xs text-gold hover:underline"
                                               >
-                                                فتح
+                                                {isArabic ? "فتح" : "Open"}
                                               </a>
                                             ) : null}
                                           </div>
@@ -972,23 +980,23 @@ export default async function AdminConversationPage({
     <div className="flex items-center gap-2 text-xs text-red-300">
       <Flag size={14} />
 
-      تم الإبلاغ عن هذه الرسالة
+      {isArabic ? "تم الإبلاغ عن هذه الرسالة" : "This message was reported"}
     </div>
 
     <p className="mt-2 text-[11px] text-white/35">
-      تاريخ البلاغ: {formatDate(message.reported_at)}
+      {isArabic ? "تاريخ البلاغ" : "Reported"}: {formatDate(message.reported_at)}
     </p>
 
     {message.report_reason ? (
       <p className="mt-2 text-xs leading-6 text-red-200/70">
-        السبب: {message.report_reason}
+        {isArabic ? "السبب" : "Reason"}: {message.report_reason}
       </p>
     ) : null}
 
     {message.report_reviewed_at ? (
       <div className="mt-4 rounded-xl border border-emerald-400/20 bg-emerald-400/[0.06] p-3">
         <p className="text-xs text-emerald-300">
-          تمت مراجعة البلاغ
+          {isArabic ? "تمت مراجعة البلاغ" : "Report reviewed"}
         </p>
 
         <p className="mt-1 text-[11px] text-white/35">
@@ -997,7 +1005,7 @@ export default async function AdminConversationPage({
 
         {message.report_admin_note ? (
           <p className="mt-2 text-xs leading-6 text-white/55">
-            ملاحظة الإدارة: {message.report_admin_note}
+            {isArabic ? "ملاحظة الإدارة" : "Admin note"}: {message.report_admin_note}
           </p>
         ) : null}
       </div>
@@ -1019,14 +1027,14 @@ export default async function AdminConversationPage({
         />
 
         <label className="mb-2 block text-[11px] text-white/45">
-          ملاحظة الإدارة
+          {isArabic ? "ملاحظة الإدارة" : "Admin note"}
         </label>
 
         <textarea
           name="admin_note"
           rows={2}
           maxLength={1000}
-          placeholder="ملاحظة داخلية اختيارية..."
+          placeholder={isArabic ? "ملاحظة داخلية اختيارية..." : "Optional internal note..."}
           className="w-full resize-none rounded-xl border border-white/[0.08] bg-black/30 px-3 py-2 text-xs text-white outline-none placeholder:text-white/25 focus:border-gold/30"
         />
 
@@ -1034,7 +1042,7 @@ export default async function AdminConversationPage({
           type="submit"
           className="mt-3 rounded-full border border-emerald-400/30 bg-emerald-400/[0.06] px-4 py-2 text-[10px] text-emerald-300 transition hover:bg-emerald-400/10"
         >
-          تمت المراجعة
+          {isArabic ? "تمت المراجعة" : "Reviewed"}
         </button>
       </form>
     )}
@@ -1044,8 +1052,8 @@ export default async function AdminConversationPage({
 
                               <p className="mt-1 text-[9px] text-white/25">
                                 {message.read_at
-                                  ? "مقروءة"
-                                  : "غير مقروءة"}
+                                  ? (isArabic ? "مقروءة" : "Read")
+                                  : (isArabic ? "غير مقروءة" : "Unread")}
                               </p>
                             </div>
                           </div>
@@ -1062,7 +1070,7 @@ export default async function AdminConversationPage({
                       />
 
                       <p className="mt-4 text-sm text-white/40">
-                        لا توجد رسائل في هذه المحادثة.
+                        {isArabic ? "لا توجد رسائل في هذه المحادثة." : "There are no messages in this conversation."}
                       </p>
                     </div>
                   </div>
@@ -1084,7 +1092,7 @@ export default async function AdminConversationPage({
       <input
         type="hidden"
         name="locale"
-        value="ar"
+        value={language}
       />
 
       <textarea
@@ -1092,30 +1100,34 @@ export default async function AdminConversationPage({
         rows={3}
         maxLength={3000}
         required
-        placeholder="اكتب رسالة إلى الموهبة..."
+        placeholder={isArabic ? "اكتب رسالة إلى الموهبة..." : "Write a message to the talent..."}
         className="w-full resize-none rounded-2xl border border-white/[0.08] bg-black/30 px-4 py-3 text-sm leading-7 text-white outline-none placeholder:text-white/25 focus:border-gold/40"
       />
 
       <div className="flex items-center justify-between gap-4">
         <p className="text-[10px] text-white/30">
-          سيتم إرسال الرسالة باسم ملامح
+          {isArabic ? "سيتم إرسال الرسالة باسم ملامح" : "The message will be sent as MLAMH"}
         </p>
 
         <button
           type="submit"
           className="rounded-full border border-gold/30 bg-gold/[0.08] px-6 py-2.5 text-xs text-gold transition hover:bg-gold hover:text-black"
         >
-          إرسال الرسالة
+          {isArabic ? "إرسال الرسالة" : "Send message"}
         </button>
       </div>
     </form>
   ) : isMlamhConversation ? (
     <p className="text-center text-xs text-white/35">
-      هذه المحادثة مرتبطة بمدير نظام آخر أو أنها مغلقة.
+      {isArabic
+        ? "هذه المحادثة مرتبطة بمدير نظام آخر أو أنها مغلقة."
+        : "This conversation is assigned to another admin or is closed."}
     </p>
   ) : (
     <p className="text-center text-xs text-white/35">
-      وضع مراقبة الإدارة — لا يمكن إرسال رسائل من هذه الصفحة.
+      {isArabic
+        ? "وضع مراقبة الإدارة — لا يمكن إرسال رسائل من هذه الصفحة."
+        : "Admin monitoring mode — messages cannot be sent from this page."}
     </p>
   )}
 </footer>
@@ -1125,7 +1137,7 @@ export default async function AdminConversationPage({
           <aside className="space-y-5">
             <section className="rounded-3xl border border-white/[0.08] bg-white/[0.02] p-5">
               <p className="text-[10px] uppercase tracking-[0.22em] text-gold">
-                أطراف المحادثة
+                {isArabic ? "أطراف المحادثة" : "Participants"}
               </p>
 
               <div className="mt-5 space-y-5">
@@ -1160,8 +1172,8 @@ publisher?.profile_image_url ? (
 
                     <p className="mt-1 text-xs text-white/35">
   {isMlamhConversation
-    ? "فريق ملامح"
-    : "الناشر"}
+    ? (isArabic ? "فريق ملامح" : "MLAMH Team")
+    : (isArabic ? "الناشر" : "Publisher")}
 </p>
                   </div>
                 </div>
@@ -1201,7 +1213,7 @@ publisher?.profile_image_url ? (
                     </p>
 
                     <p className="mt-1 text-xs text-white/35">
-                      الموهبة
+                      {isArabic ? "الموهبة" : "Talent"}
                     </p>
                   </div>
                 </div>
@@ -1210,7 +1222,7 @@ publisher?.profile_image_url ? (
 
             <section className="rounded-3xl border border-white/[0.08] bg-white/[0.02] p-5">
               <p className="text-[10px] uppercase tracking-[0.22em] text-gold">
-                السياق
+                {isArabic ? "السياق" : "Context"}
               </p>
 
               <div className="mt-4 space-y-3">
@@ -1222,7 +1234,7 @@ publisher?.profile_image_url ? (
                       }
                     />
                   }
-                  label="الفرصة"
+                  label={isArabic ? "الفرصة" : "Opportunity"}
                   value={
                     opportunityTitle
                   }
@@ -1236,11 +1248,11 @@ publisher?.profile_image_url ? (
                       }
                     />
                   }
-                  label="الحالة"
+                  label={isArabic ? "الحالة" : "Status"}
                   value={
                     isActive
-                      ? "نشطة"
-                      : "مغلقة"
+                      ? (isArabic ? "نشطة" : "Active")
+                      : (isArabic ? "مغلقة" : "Closed")
                   }
                 />
 
@@ -1252,7 +1264,7 @@ publisher?.profile_image_url ? (
                       }
                     />
                   }
-                  label="الرسائل المبلّغ عنها"
+                  label={isArabic ? "الرسائل المبلّغ عنها" : "Reported messages"}
                   value={String(
                     reportedMessages.length,
                   )}
@@ -1261,7 +1273,7 @@ publisher?.profile_image_url ? (
 
               {conversation.closed_at ? (
                 <p className="mt-4 text-xs leading-6 text-white/35">
-                  أُغلقت المحادثة:{" "}
+                  {isArabic ? "أُغلقت المحادثة" : "Conversation closed"}:{" "}
                   {formatDate(
                     conversation.closed_at,
                   )}
@@ -1272,21 +1284,21 @@ publisher?.profile_image_url ? (
             <section className="space-y-2">
               {talent?.slug ? (
                 <Link
-                  href={`/ar/talent/${talent.slug}`}
+                  href={`/${language}/talent/${talent.slug}`}
                   target="_blank"
                   className="flex min-h-11 items-center justify-center rounded-xl border border-white/10 text-sm text-white/60 transition hover:border-gold/40 hover:text-gold"
                 >
-                  فتح ملف الموهبة
+                  {isArabic ? "فتح ملف الموهبة" : "Open talent profile"}
                 </Link>
               ) : null}
 
               {opportunity?.slug ? (
                 <Link
-                  href={`/ar/opportunities/${opportunity.slug}`}
+                  href={`/${language}/opportunities/${opportunity.slug}`}
                   target="_blank"
                   className="flex min-h-11 items-center justify-center rounded-xl border border-gold/25 bg-gold/[0.06] text-sm text-gold transition hover:bg-gold hover:text-black"
                 >
-                  عرض الفرصة
+                  {isArabic ? "عرض الفرصة" : "View opportunity"}
                 </Link>
               ) : null}
             </section>

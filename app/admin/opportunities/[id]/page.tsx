@@ -2,6 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import AdminOpportunityLiveRefresh from "@/components/admin/opportunities/AdminOpportunityLiveRefresh";
+import {
+  AdminPageContainer,
+  AdminPageHeader,
+} from "@/components/admin/ui";
 import OpportunitySocialCreative from "@/components/admin/opportunities/OpportunitySocialCreative";
 import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -40,7 +44,7 @@ function formatDate(
   if (!value) return "—";
 
   return new Date(value).toLocaleDateString(
-    isRtl ? "ar-SA-u-nu-latn" : "en-US",
+    isRtl ? "ar-SA-u-ca-gregory-nu-latn" : "en-US",
     {
       year: "numeric",
       month: "short",
@@ -237,40 +241,26 @@ export default async function AdminOpportunityDetailsPage({
   type AdminApplication = (typeof applicationList)[number];
 
   return (
-    <main
-      dir={isRtl ? "rtl" : "ltr"}
-      className="min-h-screen bg-background px-6 py-10 text-white"
-    >
+    <div dir={isRtl ? "rtl" : "ltr"}>
       <AdminOpportunityLiveRefresh />
-  
-      <div className="mx-auto max-w-7xl">
-        <header className="mb-10 flex flex-col gap-6 border-b border-white/[0.08] pb-8 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className="text-[10px] uppercase tracking-[0.4em] text-gold">
-              MLAMH ADMIN
-            </p>
-
-            <h1
-              className="mt-3 text-4xl font-light tracking-tight text-white md:text-6xl"
-              style={{ fontFamily: "var(--font-cormorant)" }}
+      <AdminPageContainer>
+        <AdminPageHeader
+          eyebrow={isRtl ? "الفرص" : "OPPORTUNITIES"}
+          title={isRtl ? "تفاصيل الفرصة" : "Opportunity details"}
+          description={
+            isRtl
+              ? "راجع جميع بيانات الفرصة وحالة النشر والمتقدمين قبل اتخاذ القرار."
+              : "Review all opportunity data, publishing state, and applicants before taking action."
+          }
+          actions={
+            <Link
+              href={`/admin/opportunities?lang=${isRtl ? "ar" : "en"}`}
+              className="inline-flex h-10 items-center justify-center rounded-lg border border-white/[0.08] px-4 text-xs font-medium text-white/55 transition hover:border-gold/20 hover:text-gold"
             >
-              {isRtl ? "تفاصيل الفرصة" : "Opportunity Details"}
-            </h1>
-
-            <p className="mt-3 text-sm text-gray-muted">
-            {isRtl
-  ? "راجع جميع بيانات الفرصة وحالة النشر والمتقدمين قبل اتخاذ القرار."
-  : "Review all opportunity data, publishing state, and applicants."}
-            </p>
-          </div>
-
-          <Link
-            href={`/admin/opportunities?lang=${isRtl ? "ar" : "en"}`}
-            className="rounded-full border border-white/10 px-5 py-3 text-[10px] uppercase tracking-[0.3em] text-white/60 transition hover:border-gold/40 hover:text-gold"
-          >
-            {isRtl ? "العودة إلى الفرص" : "Back to Opportunities"}
-          </Link>
-        </header>
+              {isRtl ? "العودة إلى الفرص" : "Back to opportunities"}
+            </Link>
+          }
+        />
 
         <section className="mb-8 rounded-3xl border border-white/[0.08] bg-gray-elevated/30 p-6">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
@@ -507,7 +497,7 @@ opportunity.status === "pending_review" &&
 ) : null}
         <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
   <section
-    dir="rtl"
+    dir={isRtl ? "rtl" : "ltr"}
     className="rounded-3xl border border-white/[0.08] bg-gray-elevated/30 p-6"
   >
     <div className="mb-6">
@@ -688,7 +678,7 @@ opportunity.status === "pending_review" &&
   </section>
 
   <section
-    dir="rtl"
+    dir={isRtl ? "rtl" : "ltr"}
     className="rounded-3xl border border-white/[0.08] bg-gray-elevated/30 p-6"
   >
     <div className="mb-6">
@@ -971,8 +961,30 @@ opportunity.status === "pending_review" &&
             </div>
           )}
         </section>
-      </div>
-    </main>
+        {isManagedByMlamh &&
+        !opportunity.published &&
+        ["draft", "needs_changes"].includes(opportunity.status) ? (
+          <div className="fixed bottom-6 end-6 z-50 max-w-sm rounded-2xl border border-gold/25 bg-[#101010]/95 p-3 shadow-2xl backdrop-blur">
+            <p className="px-2 text-[10px] font-medium tracking-[0.16em] text-gold/65">
+              MLAMH MANAGED DRAFT
+            </p>
+            <div className="mt-2 flex items-center gap-3">
+              <p className="text-xs leading-5 text-white/52">
+                {isRtl
+                  ? "المسودة قابلة للتعديل قبل النشر."
+                  : "This managed draft can be edited before publication."}
+              </p>
+              <Link
+                href={`/admin/opportunities/${opportunity.id}/edit?lang=${isRtl ? "ar" : "en"}`}
+                className="shrink-0 rounded-lg bg-gold px-3.5 py-2 text-xs font-semibold text-black transition hover:opacity-90"
+              >
+                {isRtl ? "تعديل ومراجعة" : "Edit & review"}
+              </Link>
+            </div>
+          </div>
+        ) : null}
+      </AdminPageContainer>
+    </div>
   );
 }
 

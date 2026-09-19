@@ -2,25 +2,23 @@ import { PERMISSIONS, type Permission } from "@/lib/rbac/permissions";
 
 import {
   BarChart3,
-  Bell,
-  BookOpenText,
   BrainCircuit,
   BriefcaseBusiness,
   Building2,
-  ClipboardList,
-  CreditCard,
+  CircleDollarSign,
+  ClipboardCheck,
   FileClock,
+  FileSearch,
   Globe2,
-  Handshake,
   Headphones,
   LayoutDashboard,
   Megaphone,
   MessageSquare,
+  MonitorCog,
   ReceiptText,
   Settings,
   ShieldCheck,
   Sparkles,
-  Star,
   Users,
 } from "lucide-react";
 
@@ -41,94 +39,40 @@ export type AdminNavigationItem = {
 };
 
 export type AdminNavigationGroup = {
+  id: string;
   titleAr: string;
   titleEn: string;
+  defaultOpen?: boolean;
   items: AdminNavigationItem[];
 };
 
 export const adminNavigation: AdminNavigationGroup[] = [
   {
-    titleAr: "نظرة عامة",
-    titleEn: "Overview",
+    id: "workspace",
+    titleAr: "مساحة العمل",
+    titleEn: "Workspace",
+    defaultOpen: true,
     items: [
       {
-        labelAr: "لوحة التحكم",
-        labelEn: "Dashboard",
+        labelAr: "نظرة عامة",
+        labelEn: "Overview",
         href: "/admin",
         icon: LayoutDashboard,
       },
       {
-        labelAr: "يتطلب إجراء",
+        labelAr: "مركز الإجراءات",
         labelEn: "Action Center",
         href: "/admin/action-center",
-        icon: FileClock,
+        icon: ClipboardCheck,
         badgeKey: "pendingActions",
       },
     ],
   },
   {
-    titleAr: "ذكاء ملامح",
-    titleEn: "Intelligence",
-    items: [
-      {
-        labelAr: "AI Command Center",
-        labelEn: "AI Command Center",
-        href: "/admin/intelligence",
-        icon: BrainCircuit,
-      },
-      {
-        labelAr: "ذكاء الأسواق",
-        labelEn: "Market Intelligence",
-        href: "/admin/intelligence/markets",
-        icon: Globe2,
-      },
-      {
-        labelAr: "ذكاء عرض المواهب",
-        labelEn: "Talent Supply Intelligence",
-        href: "/admin/intelligence/supply",
-        icon: Users,
-      },
-      {
-        labelAr: "ذكاء النمو",
-        labelEn: "Growth Intelligence",
-        href: "/admin/intelligence/growth",
-        icon: BarChart3,
-      },
-      {
-        labelAr: "علاقات المستثمرين AI",
-        labelEn: "Investor Relations AI",
-        href: "/admin/intelligence/investors",
-        icon: Handshake,
-      },
-      {
-        labelAr: "Investor Demo",
-        labelEn: "Investor Demo",
-        href: "/admin/intelligence/demo",
-        icon: Sparkles,
-      },
-    ],
-  },
-  {
-    titleAr: "النمو والتسويق",
-    titleEn: "Growth & Marketing",
-    items: [
-      {
-        labelAr: "Marketing Hub",
-        labelEn: "Marketing Hub",
-        href: "/admin/marketing",
-        icon: Megaphone,
-      },
-      {
-        labelAr: "مشهد ملامح",
-        labelEn: "MLAMH Scene",
-        href: "/admin/scene",
-        icon: BookOpenText,
-      },
-    ],
-  },
-  {
-    titleAr: "إدارة الحسابات",
-    titleEn: "Account Management",
+    id: "operations",
+    titleAr: "التشغيل",
+    titleEn: "Operations",
+    defaultOpen: true,
     items: [
       {
         labelAr: "المواهب",
@@ -143,12 +87,6 @@ export const adminNavigation: AdminNavigationGroup[] = [
         icon: Building2,
         badgeKey: "pendingPublishers",
       },
-    ],
-  },
-  {
-    titleAr: "التشغيل",
-    titleEn: "Operations",
-    items: [
       {
         labelAr: "الفرص",
         labelEn: "Opportunities",
@@ -157,53 +95,80 @@ export const adminNavigation: AdminNavigationGroup[] = [
         badgeKey: "pendingOpportunities",
       },
       {
+        labelAr: "طلبات التقديم",
+        labelEn: "Applications",
+        href: "/admin/opportunity-applications",
+        icon: FileSearch,
+      },
+      {
         labelAr: "MLAMH Casting",
         labelEn: "MLAMH Casting",
         href: "/admin/casting",
         icon: Sparkles,
       },
+    ],
+  },
+  {
+    id: "communications",
+    titleAr: "التواصل",
+    titleEn: "Communications",
+    items: [
       {
-        labelAr: "الفرص المميزة",
-        labelEn: "Featured Opportunities",
-        href: "/admin/opportunities/featured",
-        icon: Star,
-      },
-      {
-        labelAr: "الطلبات",
-        labelEn: "Applications",
-        href: "/admin/opportunity-applications",
-        icon: ClipboardList,
-      },
-      {
-        labelAr: "مراقبة المحادثات",
-        labelEn: "Conversation Monitoring",
+        labelAr: "المحادثات والبلاغات",
+        labelEn: "Conversations & Reports",
         href: "/admin/messages",
         icon: MessageSquare,
         badgeKey: "reportedMessages",
       },
       {
-        labelAr: "الدعم والتواصل",
-        labelEn: "Support & Contact",
+        labelAr: "الدعم",
+        labelEn: "Support",
         href: "/admin/support",
         icon: Headphones,
       },
     ],
   },
   {
-    titleAr: "الرقابة والتحليلات",
-    titleEn: "Monitoring",
+    id: "growth",
+    titleAr: "النمو والذكاء",
+    titleEn: "Growth & Intelligence",
     items: [
+      {
+        labelAr: "مركز ذكاء ملامح",
+        labelEn: "MLAMH Intelligence",
+        href: "/admin/intelligence",
+        icon: BrainCircuit,
+      },
+      {
+        labelAr: "مركز التسويق",
+        labelEn: "Marketing Hub",
+        href: "/admin/marketing",
+        icon: Megaphone,
+      },
+      {
+        labelAr: "مشهد ملامح",
+        labelEn: "MLAMH Scene",
+        href: "/admin/scene",
+        icon: Sparkles,
+      },
       {
         labelAr: "التحليلات",
         labelEn: "Analytics",
         href: "/admin/analytics",
         icon: BarChart3,
       },
+    ],
+  },
+  {
+    id: "commerce",
+    titleAr: "الإيرادات",
+    titleEn: "Revenue",
+    items: [
       {
         labelAr: "المدفوعات",
         labelEn: "Payments",
         href: "/admin/payments",
-        icon: CreditCard,
+        icon: CircleDollarSign,
       },
       {
         labelAr: "الاشتراكات والمزايا",
@@ -211,26 +176,12 @@ export const adminNavigation: AdminNavigationGroup[] = [
         href: "/admin/entitlements",
         icon: ReceiptText,
       },
-      {
-        labelAr: "الإشعارات",
-        labelEn: "Notifications",
-        href: "/admin/notifications",
-        icon: Bell,
-        badgeKey: "notifications",
-      },
-      {
-        labelAr: "سجل العمليات",
-        labelEn: "Audit Log",
-        href: "/admin/audit-log",
-        icon: FileClock,
-        requiredPermission:
-          PERMISSIONS.ADMINS_VIEW,
-      },
     ],
   },
   {
-    titleAr: "النظام",
-    titleEn: "System",
+    id: "platform",
+    titleAr: "إدارة المنصة",
+    titleEn: "Platform",
     items: [
       {
         labelAr: "الأسواق",
@@ -239,12 +190,11 @@ export const adminNavigation: AdminNavigationGroup[] = [
         icon: Globe2,
       },
       {
-        labelAr: "المشرفون والصلاحيات",
-        labelEn: "Admins & Roles",
-        href: "/admin/admins",
-        icon: ShieldCheck,
-        requiredPermission:
-          PERMISSIONS.ADMINS_VIEW,
+        labelAr: "إدارة الموقع",
+        labelEn: "Site Management",
+        href: "/admin/site-management",
+        icon: MonitorCog,
+        requiredPermission: PERMISSIONS.ADMIN_SITE_MANAGEMENT_VIEW,
       },
       {
         labelAr: "الإعدادات",
@@ -254,4 +204,44 @@ export const adminNavigation: AdminNavigationGroup[] = [
       },
     ],
   },
+  {
+    id: "security",
+    titleAr: "الأمان والحوكمة",
+    titleEn: "Security & Governance",
+    items: [
+      {
+        labelAr: "المشرفون والصلاحيات",
+        labelEn: "Admins & Access",
+        href: "/admin/admins",
+        icon: ShieldCheck,
+        requiredPermission: PERMISSIONS.ADMINS_VIEW,
+      },
+      {
+        labelAr: "سجل العمليات",
+        labelEn: "Audit Log",
+        href: "/admin/audit-log",
+        icon: FileClock,
+        requiredPermission: PERMISSIONS.ADMINS_VIEW,
+      },
+    ],
+  },
 ];
+
+export function isAdminRouteActive(pathname: string, href: string) {
+  if (href === "/admin") return pathname === "/admin";
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+export function getActiveAdminNavigation(pathname: string) {
+  for (const group of adminNavigation) {
+    const item = group.items.find((candidate) =>
+      isAdminRouteActive(pathname, candidate.href),
+    );
+
+    if (item) {
+      return { group, item };
+    }
+  }
+
+  return null;
+}

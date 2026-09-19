@@ -110,7 +110,7 @@ export default async function ManagedBookingAdminPage({ params, searchParams }: 
         </form> : <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4 text-xs leading-6 text-white/35">{ar ? "لا توجد موهبة احتياط مؤهلة لهذا الدور حاليًا. أضف احتياطًا من مركز الفرز أولًا." : "No eligible reserve talent is available for this role. Add a reserve candidate from screening first."}</div>}
       </div> : null}
 
-      <Link href={`/admin/messages/${booking.conversation_id}`} className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl border border-white/10 px-4 text-sm text-white/55 hover:text-gold">{ar ? "فتح محادثة الموهبة" : "Open talent conversation"}</Link>
+      <Link href={`/admin/messages/${booking.conversation_id}?lang=${language}`} className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl border border-white/10 px-4 text-sm text-white/55 hover:text-gold">{ar ? "فتح محادثة الموهبة" : "Open talent conversation"}</Link>
     </div>
     <style>{`.field{min-height:44px;border-radius:12px;border:1px solid rgba(255,255,255,.1);background:#080808;padding:10px 12px;color:white;outline:none}.field:focus{border-color:rgba(201,169,98,.5)}.field option{background:#080808;color:white}`}</style>
   </div></div>;

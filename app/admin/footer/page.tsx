@@ -1,6 +1,7 @@
 import { requirePermission } from "@/lib/rbac/guards";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 import { FooterService } from "@/lib/services/FooterService";
+import { getAdminLanguage } from "@/lib/admin/i18n";
 
 import { AdminPageContainer } from "@/components/admin/ui/AdminPageContainer";
 import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
@@ -35,8 +36,11 @@ type FooterLink = {
   open_in_new_tab: boolean;
 };
 
-export default async function AdminFooterPage() {
+export default async function AdminFooterPage({ searchParams }: { searchParams: Promise<{ lang?: string }> }) {
   await requirePermission(PERMISSIONS.CMS_FOOTER_VIEW);
+  const params = await searchParams;
+  const language = getAdminLanguage(params.lang);
+  const isArabic = language === "ar";
 
   const [settingsResult, linksResult] = await Promise.all([
     FooterService.getSettings(),
@@ -61,12 +65,17 @@ export default async function AdminFooterPage() {
   ).length;
 
   return (
-    <AdminPageContainer>
-      <AdminPageHeader
-        eyebrow="SITE MANAGEMENT"
-        title="Footer Management"
-        description="Manage footer content, navigation links, contact information, and preview how it appears across the platform."
-      />
+    <div dir={isArabic ? "rtl" : "ltr"}>
+      <AdminPageContainer>
+        <AdminPageHeader
+          eyebrow={isArabic ? "إدارة الموقع" : "SITE MANAGEMENT"}
+          title={isArabic ? "إدارة الفوتر" : "Footer Management"}
+          description={
+            isArabic
+              ? "إدارة محتوى الفوتر وروابط التنقل وبيانات التواصل ومعاينة ظهوره في المنصة."
+              : "Manage footer content, navigation links, contact information, and preview how it appears across the platform."
+          }
+        />
 
       <FooterStats
         totalLinks={links.length}
@@ -82,6 +91,7 @@ export default async function AdminFooterPage() {
 
         <FooterPreview settings={settings} links={links} />
       </div>
-    </AdminPageContainer>
+      </AdminPageContainer>
+    </div>
   );
 }

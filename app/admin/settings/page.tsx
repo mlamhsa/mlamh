@@ -1,3 +1,5 @@
+import { AdminPageContainer, AdminPageHeader } from "@/components/admin/ui";
+
 import {
   CheckCircle2,
   CreditCard,
@@ -109,23 +111,17 @@ export default async function AdminSettingsPage({ searchParams }: PageProps) {
     : null;
 
   return (
-    <main
-      dir={isArabic ? "rtl" : "ltr"}
-      className="mx-auto max-w-6xl px-4 py-7 text-white sm:px-6 lg:px-8 lg:py-10"
-    >
-      <section className="mb-7">
-        <p className="text-[10px] uppercase tracking-[0.4em] text-gold">
-          MLAMH ADMIN
-        </p>
-        <h1 className="mt-3 text-3xl font-light md:text-5xl">
-          {isArabic ? "الإعدادات" : "Settings"}
-        </h1>
-        <p className="mt-3 max-w-3xl text-sm leading-7 text-white/45">
-          {isArabic
-            ? "إدارة الإعدادات التجارية والأسعار النشطة مباشرة من لوحة الإدارة."
-            : "Manage active commercial settings and prices directly from the admin dashboard."}
-        </p>
-      </section>
+    <div dir={isArabic ? "rtl" : "ltr"}>
+      <AdminPageContainer className="max-w-6xl">
+      <AdminPageHeader
+        eyebrow={isArabic ? "إدارة المنصة" : "PLATFORM"}
+        title={isArabic ? "الإعدادات" : "Settings"}
+        description={
+          isArabic
+            ? "إدارة الإعدادات التجارية والأسعار النشطة من مساحة إدارية موحدة."
+            : "Manage active commercial settings and prices from one consistent admin workspace."
+        }
+      />
 
       {query.price_saved === "1" ? (
         <div className="mb-5 flex items-start gap-3 rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.07] px-4 py-3 text-sm text-emerald-300">
@@ -167,7 +163,7 @@ export default async function AdminSettingsPage({ searchParams }: PageProps) {
         </div>
       </section>
 
-      <section className="mt-7 overflow-hidden rounded-[1.5rem] border border-white/10 bg-white/[0.025] sm:rounded-[2rem]">
+      <section className="mt-7 overflow-hidden rounded-2xl border border-white/[0.075] bg-white/[0.022]">
         <div className="border-b border-white/10 px-4 py-4 sm:px-5">
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-gold" />
@@ -269,6 +265,7 @@ export default async function AdminSettingsPage({ searchParams }: PageProps) {
           </div>
         )}
       </section>
-    </main>
+      </AdminPageContainer>
+    </div>
   );
 }

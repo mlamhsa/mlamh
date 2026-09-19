@@ -70,7 +70,7 @@ function formatDate(value: string | null | undefined, language: "ar" | "en") {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
 
-  return new Intl.DateTimeFormat(language === "ar" ? "ar-SA" : "en-US", {
+  return new Intl.DateTimeFormat(language === "ar" ? "ar-SA-u-ca-gregory-nu-latn" : "en-US", {
     year: "numeric",
     month: "long",
     day: "numeric",
@@ -221,7 +221,7 @@ export default async function AdminTalentPage({ params, searchParams }: PageProp
 
   return (
     <div dir={isArabic ? "rtl" : "ltr"} className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-7xl space-y-6">
+      <div className="mx-auto max-w-[1540px] space-y-6">
         <section className="overflow-hidden rounded-3xl border border-white/[0.08] bg-white/[0.02]">
           <div className="border-b border-white/[0.07] p-5 sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">

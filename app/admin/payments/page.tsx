@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { AdminPageContainer, AdminPageHeader, AdminStatCard } from "@/components/admin/ui";
+
 import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { minorToMajorAmount } from "@/lib/payments/money";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -54,9 +56,49 @@ function statusClasses(status: string) {
   return "border-amber-400/30 bg-amber-400/10 text-amber-300";
 }
 
+function paymentStatusLabel(status: string, isArabic: boolean) {
+  const labels: Record<string, [string, string]> = {
+    pending: ["معلّقة", "Pending"],
+    processing: ["قيد المعالجة", "Processing"],
+    succeeded: ["ناجحة", "Succeeded"],
+    failed: ["فاشلة", "Failed"],
+    cancelled: ["ملغاة", "Cancelled"],
+    refunded: ["مستردة", "Refunded"],
+    partially_refunded: ["مستردة جزئيًا", "Partially refunded"],
+  };
+  const label = labels[status.toLowerCase()];
+  return label ? (isArabic ? label[0] : label[1]) : status.replaceAll("_", " ");
+}
+
+function productLabel(product: string | null, isArabic: boolean) {
+  if (!product) return "—";
+  const labels: Record<string, [string, string]> = {
+    featured_talent: ["تمييز موهبة", "Featured talent"],
+    featured_opportunity: ["تمييز فرصة", "Featured opportunity"],
+    sandbox_tap_test: ["اختبار Tap", "Tap sandbox test"],
+    managed_casting: ["خدمة Managed Casting", "Managed Casting"],
+  };
+  const label = labels[product.toLowerCase()];
+  return label ? (isArabic ? label[0] : label[1]) : product.replaceAll("_", " ");
+}
+
+function targetLabel(target: string | null, targetId: string | number | null, isArabic: boolean) {
+  const key = (target ?? "account").toLowerCase();
+  const labels: Record<string, [string, string]> = {
+    talent: ["موهبة", "Talent"],
+    opportunity: ["فرصة", "Opportunity"],
+    publisher: ["ناشر", "Publisher"],
+    account: ["حساب", "Account"],
+    casting_project: ["مشروع كاستينغ", "Casting project"],
+  };
+  const label = labels[key];
+  const name = label ? (isArabic ? label[0] : label[1]) : key.replaceAll("_", " ");
+  return targetId ? `${name} · ${targetId}` : name;
+}
+
 function formatAmount(amountMinor: number, currency: string, locale: string) {
   const amount = minorToMajorAmount(Number(amountMinor), currency);
-  return new Intl.NumberFormat(locale === "ar" ? "ar-SA" : "en-US", {
+  return new Intl.NumberFormat(locale === "ar" ? "ar-SA-u-ca-gregory-nu-latn" : "en-US", {
     style: "currency",
     currency,
   }).format(amount);
@@ -66,7 +108,7 @@ function formatDate(value: string | null, locale: string) {
   if (!value) return "—";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
-  return new Intl.DateTimeFormat(locale === "ar" ? "ar-SA" : "en-US", {
+  return new Intl.DateTimeFormat(locale === "ar" ? "ar-SA-u-ca-gregory-nu-latn" : "en-US", {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -123,36 +165,31 @@ export default async function AdminPaymentsPage({ searchParams }: PageProps) {
   const total = PAYMENT_STATUSES.reduce((sum, status) => sum + counts[status], 0);
 
   return (
-    <main dir={isArabic ? "rtl" : "ltr"} className="mx-auto max-w-7xl px-4 py-7 text-white sm:px-6 lg:px-8 lg:py-10">
-      <section className="mb-7 sm:mb-8">
-        <p className="text-[10px] uppercase tracking-[0.4em] text-gold">MLAMH ADMIN</p>
-        <h1 className="mt-3 text-3xl font-light tracking-tight md:text-5xl">
-          {isArabic ? "المدفوعات والاشتراكات" : "Payments & Subscriptions"}
-        </h1>
-        <p className="mt-3 max-w-3xl text-sm leading-7 text-white/45">
-          {isArabic
-            ? "تابع عمليات الدفع، ثم انتقل إلى الاشتراكات والمزايا لمعرفة ما تم تفعيله لكل مستخدم وموعد انتهائه."
-            : "Track payment operations, then open subscriptions and benefits to see what is active for each user and when it expires."}
-        </p>
-
-        <div className="mt-5 flex gap-2 overflow-x-auto rounded-2xl border border-white/[0.08] bg-white/[0.025] p-2 sm:flex-wrap">
-          <Link href={`/admin/payments?lang=${locale}`} className="shrink-0 rounded-xl border border-gold/25 bg-gold/[0.1] px-4 py-2.5 text-xs text-gold sm:text-sm">
-            {isArabic ? "سجل عمليات الدفع" : "Payment log"}
-          </Link>
-          <Link href={`/admin/entitlements?lang=${locale}`} className="shrink-0 rounded-xl border border-white/[0.08] px-4 py-2.5 text-xs text-white/60 transition hover:border-gold/25 hover:text-gold sm:text-sm">
+    <div dir={isArabic ? "rtl" : "ltr"}>
+      <AdminPageContainer>
+      <AdminPageHeader
+        eyebrow={isArabic ? "الإيرادات" : "REVENUE"}
+        title={isArabic ? "المدفوعات" : "Payments"}
+        description={
+          isArabic
+            ? "متابعة عمليات الدفع وحالات مزودي الدفع، مع فصل إدارة الاشتراكات والمزايا في مساحتها المخصصة."
+            : "Monitor payment operations and provider states, with subscriptions and benefits managed in their dedicated workspace."
+        }
+        actions={
+          <Link href={`/admin/entitlements?lang=${locale}`} className="inline-flex h-10 items-center justify-center rounded-lg border border-white/[0.08] px-4 text-xs font-medium text-white/55 transition hover:border-gold/20 hover:text-gold">
             {isArabic ? "الاشتراكات والمزايا" : "Subscriptions & Benefits"}
           </Link>
-        </div>
+        }
+      />
+
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <AdminStatCard label={isArabic ? "إجمالي العمليات" : "Total payments"} value={total} />
+        <AdminStatCard label={isArabic ? "ناجحة" : "Succeeded"} value={counts.succeeded} />
+        <AdminStatCard label={isArabic ? "معلقة / معالجة" : "Pending / Processing"} value={counts.pending + counts.processing} active={counts.pending + counts.processing > 0} />
+        <AdminStatCard label={isArabic ? "فاشلة / ملغاة" : "Failed / Cancelled"} value={counts.failed + counts.cancelled} active={counts.failed + counts.cancelled > 0} />
       </section>
 
-      <section className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
-        <Stat label={isArabic ? "إجمالي العمليات" : "Total payments"} value={total} />
-        <Stat label={isArabic ? "ناجحة" : "Succeeded"} value={counts.succeeded} />
-        <Stat label={isArabic ? "معلقة / معالجة" : "Pending / Processing"} value={counts.pending + counts.processing} />
-        <Stat label={isArabic ? "فاشلة / ملغاة" : "Failed / Cancelled"} value={counts.failed + counts.cancelled} />
-      </section>
-
-      <section className="mt-7 overflow-hidden rounded-[1.5rem] border border-white/10 bg-white/[0.025] sm:mt-8 sm:rounded-[2rem]">
+      <section className="mt-7 overflow-hidden rounded-2xl border border-white/[0.075] bg-white/[0.022] sm:mt-8">
         <div className="border-b border-white/10 px-4 py-4 sm:px-6 sm:py-5">
           <h2 className="text-base font-medium sm:text-lg">
             {isArabic ? "آخر 50 عملية دفع" : "Latest 50 payments"}
@@ -174,11 +211,11 @@ export default async function AdminPaymentsPage({ searchParams }: PageProps) {
                       <div className="min-w-0">
                         <p className="font-mono text-xs text-white/75">#{payment.id}</p>
                         <p className="mt-1 truncate text-sm text-white/65">
-                          {payment.product_code_snapshot ?? "—"}
+                          {productLabel(payment.product_code_snapshot, isArabic)}
                         </p>
                       </div>
                       <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[9px] uppercase ${statusClasses(payment.status)}`}>
-                        {payment.status}
+                        {paymentStatusLabel(payment.status, isArabic)}
                       </span>
                     </div>
 
@@ -186,7 +223,7 @@ export default async function AdminPaymentsPage({ searchParams }: PageProps) {
                       <Info label={isArabic ? "المبلغ" : "Amount"} value={formatAmount(payment.amount_minor, payment.currency, locale)} strong />
                       <Info label={isArabic ? "التاريخ" : "Created"} value={formatDate(payment.created_at, locale)} />
                       <Info label="Tap" value={payment.provider ?? "—"} />
-                      <Info label={isArabic ? "الهدف" : "Target"} value={`${payment.target_type ?? "account"}${payment.target_id ? ` · ${payment.target_id}` : ""}`} />
+                      <Info label={isArabic ? "الهدف" : "Target"} value={targetLabel(payment.target_type, payment.target_id, isArabic)} />
                     </div>
 
                     <div className="mt-3 space-y-1.5 text-[10px] text-white/30">
@@ -224,12 +261,14 @@ export default async function AdminPaymentsPage({ searchParams }: PageProps) {
                           <p className="mt-1 max-w-[190px] truncate font-mono text-[10px] text-white/30" title={payment.public_id}>{payment.public_id}</p>
                         </td>
                         <td className="px-5 py-5">
-                          <p className="text-white/75">{payment.product_code_snapshot ?? "—"}</p>
-                          <p className="mt-1 text-xs text-white/30">{payment.price_code_snapshot ?? "—"}</p>
+                          <p className="text-white/75">{productLabel(payment.product_code_snapshot, isArabic)}</p>
+                          <p className="mt-1 font-mono text-[10px] text-white/30">
+                            {payment.product_code_snapshot ?? "—"} · {payment.price_code_snapshot ?? "—"}
+                          </p>
                         </td>
                         <td className="whitespace-nowrap px-5 py-5 text-white/75">{formatAmount(payment.amount_minor, payment.currency, locale)}</td>
                         <td className="px-5 py-5">
-                          <span className={`inline-flex rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.14em] ${statusClasses(payment.status)}`}>{payment.status}</span>
+                          <span className={`inline-flex rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.14em] ${statusClasses(payment.status)}`}>{paymentStatusLabel(payment.status, isArabic)}</span>
                           {providerStatus ? <p className="mt-2 text-[10px] text-white/30">{providerStatus}</p> : null}
                         </td>
                         <td className="px-5 py-5">
@@ -237,8 +276,8 @@ export default async function AdminPaymentsPage({ searchParams }: PageProps) {
                           <p className="mt-1 max-w-[180px] truncate font-mono text-[10px] text-white/30" title={payment.provider_payment_id ?? undefined}>{payment.provider_payment_id ?? "—"}</p>
                         </td>
                         <td className="px-5 py-5 text-xs text-white/50">
-                          <p>{payment.target_type ?? "account"}</p>
-                          <p className="mt-1 font-mono text-[10px] text-white/30">{payment.target_id ?? "—"}</p>
+                          <p>{targetLabel(payment.target_type, payment.target_id, isArabic)}</p>
+                          <p className="mt-1 font-mono text-[10px] text-white/25">{payment.target_type ?? "account"}</p>
                         </td>
                         <td className="whitespace-nowrap px-5 py-5 text-xs text-white/45">{formatDate(payment.created_at, locale)}</td>
                       </tr>
@@ -250,15 +289,7 @@ export default async function AdminPaymentsPage({ searchParams }: PageProps) {
           </>
         )}
       </section>
-    </main>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4 sm:rounded-3xl sm:p-5">
-      <p className="text-[9px] uppercase leading-4 tracking-[0.12em] text-white/35 sm:text-[10px] sm:tracking-[0.2em]">{label}</p>
-      <p className="mt-2 text-2xl font-light text-white sm:mt-3 sm:text-3xl">{value}</p>
+      </AdminPageContainer>
     </div>
   );
 }

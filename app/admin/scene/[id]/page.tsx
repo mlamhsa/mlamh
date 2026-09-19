@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react";
 import { notFound } from "next/navigation";
 
 import { SceneArticleForm } from "@/components/admin/scene/SceneArticleForm";
+import { AdminPageContainer, AdminPageHeader } from "@/components/admin/ui";
 import { updateSceneArticleAction } from "@/lib/actions/admin-scene-actions";
 import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { SceneService } from "@/lib/services/SceneService";
@@ -61,17 +62,22 @@ export default async function EditSceneArticlePage({ params, searchParams }: Pag
   const BackIcon = isArabic ? ArrowRight : ArrowLeft;
 
   return (
-    <main dir={isArabic ? "rtl" : "ltr"} className="mx-auto max-w-6xl px-4 py-7 text-white sm:px-6 lg:px-8 lg:py-10">
-      <Link href={`/admin/scene?lang=${locale}`} className="inline-flex items-center gap-2 text-xs text-white/45 transition hover:text-gold">
-        <BackIcon className="h-4 w-4" />
-        {isArabic ? "العودة إلى مشهد ملامح" : "Back to MLAMH Scene"}
-      </Link>
-
-      <div className="mb-7 mt-5">
-        <p className="text-[10px] uppercase tracking-[0.4em] text-gold">MLAMH SCENE</p>
-        <h1 className="mt-3 text-3xl font-light md:text-5xl">{isArabic ? "تحرير المقال" : "Edit article"}</h1>
-        <p className="mt-3 max-w-3xl truncate text-sm text-white/40">{isArabic ? article.title_ar : article.title_en || article.title_ar}</p>
-      </div>
+    <div dir={isArabic ? "rtl" : "ltr"}>
+      <AdminPageContainer className="max-w-6xl">
+        <AdminPageHeader
+          eyebrow="MLAMH SCENE"
+          title={isArabic ? "تحرير المقال" : "Edit article"}
+          description={isArabic ? article.title_ar : article.title_en || article.title_ar}
+          actions={
+            <Link
+              href={`/admin/scene?lang=${locale}`}
+              className="inline-flex h-10 items-center gap-2 rounded-lg border border-white/[0.08] px-4 text-xs font-medium text-white/55 transition hover:border-gold/20 hover:text-gold"
+            >
+              <BackIcon className="h-4 w-4" />
+              {isArabic ? "العودة إلى مشهد ملامح" : "Back to MLAMH Scene"}
+            </Link>
+          }
+        />
 
       {query.saved === "1" ? (
         <div className="mb-5 flex items-center gap-3 rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.07] px-4 py-3 text-sm text-emerald-300">
@@ -85,6 +91,7 @@ export default async function EditSceneArticlePage({ params, searchParams }: Pag
       ) : null}
 
       <SceneArticleForm locale={locale} categories={categories} article={article} action={updateSceneArticleAction} />
-    </main>
+      </AdminPageContainer>
+    </div>
   );
 }

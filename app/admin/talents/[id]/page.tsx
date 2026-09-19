@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 
+import { AdminTalentEntitlementsPanel } from "@/components/admin/talents/AdminTalentEntitlementsPanel";
 import { AdminTalentPrivacyNotice } from "@/components/admin/talents/AdminTalentPrivacyNotice";
+import { AdminTalentResidenceCountryPanel } from "@/components/admin/talents/AdminTalentResidenceCountryPanel";
 import { AdminTalentRecoveryPanel } from "@/components/admin/talents/AdminTalentRecoveryPanel";
 import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { TalentProfileService } from "@/lib/services/talent/TalentProfileService";
@@ -243,7 +245,7 @@ export default async function AdminTalentPage(props: PageProps) {
   return (
     <>
       <div dir={language === "ar" ? "rtl" : "ltr"} className="px-4 pt-6 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-7xl space-y-4">
+        <div className="mx-auto max-w-[1540px] space-y-4">
           <AdminTalentPrivacyNotice
             language={language}
             visibility={talent.profile_visibility}
@@ -273,6 +275,8 @@ export default async function AdminTalentPage(props: PageProps) {
           />
         </div>
       </div>
+      <AdminTalentEntitlementsPanel talentId={talent.id} language={language} />
+      <AdminTalentResidenceCountryPanel talentId={talent.id} language={language} />
       <OriginalAdminTalentPage {...props} />
     </>
   );

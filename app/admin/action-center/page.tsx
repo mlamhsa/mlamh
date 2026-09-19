@@ -19,6 +19,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 type PageProps = {
   searchParams: Promise<{
     lang?: string;
+    incomplete_page?: string;
   }>;
 };
 
@@ -110,7 +111,7 @@ function formatDate(
 
   return new Intl.DateTimeFormat(
     language === "ar"
-      ? "ar-SA-u-nu-latn"
+      ? "ar-SA-u-ca-gregory-nu-latn"
       : "en-US",
     {
       year: "numeric",
@@ -130,10 +131,19 @@ export default async function AdminActionCenterPage({
   const resolvedSearchParams =
     await searchParams;
 
+  const incompletePageRaw =
+    resolvedSearchParams.incomplete_page;
+
   const language =
     getAdminLanguage(
       resolvedSearchParams.lang,
     );
+
+  const requestedIncompletePage = Number(incompletePageRaw ?? "1");
+  const incompletePage =
+    Number.isInteger(requestedIncompletePage) && requestedIncompletePage > 0
+      ? requestedIncompletePage
+      : 1;
 
   const isArabic =
     language === "ar";
@@ -631,7 +641,19 @@ adminClient
       ),
     );
 
-    const totalPending =
+    const incompletePageSize = 12;
+  const incompleteTotalPages = Math.max(
+    1,
+    Math.ceil(incompleteRegistrations.length / incompletePageSize),
+  );
+  const safeIncompletePage = Math.min(incompletePage, incompleteTotalPages);
+  const incompleteStart = (safeIncompletePage - 1) * incompletePageSize;
+  const paginatedIncompleteRegistrations = incompleteRegistrations.slice(
+    incompleteStart,
+    incompleteStart + incompletePageSize,
+  );
+
+  const totalPending =
     incompleteRegistrations.length +
     pendingRequests.length +
     pendingTalents.length +
@@ -651,43 +673,43 @@ adminClient
           ? "rtl"
           : "ltr"
       }
-      className="min-h-screen px-4 py-6 sm:px-6 lg:px-8"
+      className="min-h-screen"
     >
-      <div className="mx-auto max-w-7xl">
+      <div className="mx-auto w-full max-w-[1540px] px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-9">
         {/* Header */}
-        <div className="flex flex-col gap-4 border-b border-white/[0.08] pb-6 sm:flex-row sm:items-end sm:justify-between">
+        <div className="mb-7 flex flex-col gap-5 border-b border-white/[0.06] pb-6 md:flex-row md:items-end md:justify-between">
           <div>
-            <div className="flex items-center gap-2 text-gold">
-              <CircleAlert className="h-4 w-4" />
+            <div className="flex items-center gap-2 text-gold/85">
+              <CircleAlert className="h-3.5 w-3.5" />
 
-              <p className="text-[10px] uppercase tracking-[0.25em]">
+              <p className="text-[9px] font-medium uppercase tracking-[0.24em]">
                 {isArabic
-                  ? "مركز الإجراءات"
-                  : "Action Center"}
+                  ? "مساحة العمل"
+                  : "WORKSPACE"}
               </p>
             </div>
 
-            <h1 className="mt-3 text-3xl font-light text-white">
+            <h1 className="mt-2 text-2xl font-semibold tracking-[-0.025em] text-white sm:text-3xl">
               {isArabic
-                ? "يتطلب إجراء"
-                : "Requires action"}
+                ? "مركز الإجراءات"
+                : "Action Center"}
             </h1>
 
-            <p className="mt-2 max-w-2xl text-sm leading-7 text-white/40">
+            <p className="mt-2 max-w-3xl text-[13px] leading-6 text-white/38 sm:text-sm">
               {isArabic
                 ? "كل ما يحتاج قرارًا من الإدارة يظهر هنا حتى تتم معالجته."
                 : "Everything requiring an admin decision remains here until it is handled."}
             </p>
           </div>
 
-          <div className="rounded-2xl border border-gold/15 bg-gold/[0.05] px-4 py-3">
+          <div className="rounded-lg border border-gold/20 bg-gold/[0.06] px-4 py-2.5">
             <p className="text-[10px] text-white/35">
               {isArabic
                 ? "إجمالي المهام"
                 : "Total tasks"}
             </p>
 
-            <p className="mt-1 text-2xl font-light text-gold">
+            <p className="mt-0.5 text-xl font-semibold tabular-nums text-gold">
               {totalPending}
             </p>
           </div>
@@ -727,7 +749,7 @@ adminClient
     </div>
   ) : (
     <div className="grid gap-3 lg:grid-cols-2">
-      {incompleteRegistrations.map((user) => (
+      {paginatedIncompleteRegistrations.map((user) => (
         <article
           key={user.id}
           className="rounded-3xl border border-amber-400/15 bg-amber-400/[0.025] p-5"
@@ -817,6 +839,48 @@ adminClient
       ))}
     </div>
   )}
+
+  {incompleteRegistrations.length > incompletePageSize ? (
+    <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.015] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-xs text-white/35">
+        {isArabic
+          ? `عرض ${incompleteStart + 1}–${Math.min(incompleteStart + incompletePageSize, incompleteRegistrations.length)} من ${incompleteRegistrations.length}`
+          : `Showing ${incompleteStart + 1}–${Math.min(incompleteStart + incompletePageSize, incompleteRegistrations.length)} of ${incompleteRegistrations.length}`}
+      </p>
+
+      <div className="flex items-center gap-2">
+        <Link
+          href={`/admin/action-center?lang=${language}&incomplete_page=${Math.max(1, safeIncompletePage - 1)}`}
+          aria-disabled={safeIncompletePage <= 1}
+          className={[
+            "inline-flex h-9 items-center justify-center rounded-lg border px-3 text-xs transition",
+            safeIncompletePage <= 1
+              ? "pointer-events-none border-white/[0.05] text-white/20"
+              : "border-white/[0.08] text-white/50 hover:border-gold/20 hover:text-gold",
+          ].join(" ")}
+        >
+          {isArabic ? "السابق" : "Previous"}
+        </Link>
+
+        <span className="min-w-20 text-center text-xs tabular-nums text-white/35">
+          {safeIncompletePage} / {incompleteTotalPages}
+        </span>
+
+        <Link
+          href={`/admin/action-center?lang=${language}&incomplete_page=${Math.min(incompleteTotalPages, safeIncompletePage + 1)}`}
+          aria-disabled={safeIncompletePage >= incompleteTotalPages}
+          className={[
+            "inline-flex h-9 items-center justify-center rounded-lg border px-3 text-xs transition",
+            safeIncompletePage >= incompleteTotalPages
+              ? "pointer-events-none border-white/[0.05] text-white/20"
+              : "border-white/[0.08] text-white/50 hover:border-gold/20 hover:text-gold",
+          ].join(" ")}
+        >
+          {isArabic ? "التالي" : "Next"}
+        </Link>
+      </div>
+    </div>
+  ) : null}
 </section>
 
         {/* Pending talents */}

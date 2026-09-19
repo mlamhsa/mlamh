@@ -32,8 +32,10 @@ export default async function MarketIntelligencePage({ searchParams }: PageProps
   const healthByCountry = new Map(overview.marketHealth.map((item) => [item.countryCode, item.health]));
 
   return (
-    <AdminPageContainer>
+    <div dir={isArabic ? "rtl" : "ltr"}>
+      <AdminPageContainer>
       <AdminPageHeader
+        eyebrow={isArabic ? "النمو والذكاء" : "GROWTH & INTELLIGENCE"}
         title="MLAMH Market Intelligence"
         description={
           isArabic
@@ -95,6 +97,7 @@ export default async function MarketIntelligencePage({ searchParams }: PageProps
           );
         })}
       </AdminGrid>
-    </AdminPageContainer>
+      </AdminPageContainer>
+    </div>
   );
 }

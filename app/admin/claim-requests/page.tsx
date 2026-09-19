@@ -9,6 +9,7 @@ import {
   AdminEmptyState,
   AdminInfoGrid,
   AdminInfoItem,
+  AdminPageContainer,
   AdminPageHeader,
 } from "@/components/admin/ui";
 import { requireAdminAccess } from "@/lib/auth/require-admin";
@@ -42,8 +43,8 @@ function normalizeTalent(
   return value;
 }
 
-function formatDate(value: string) {
-  return new Date(value).toLocaleString("en-US", {
+function formatDate(value: string, isArabic: boolean) {
+  return new Date(value).toLocaleString(isArabic ? "ar-SA-u-ca-gregory-nu-latn" : "en-US", {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -63,20 +64,33 @@ function getBadgeVariant(status: string) {
   }
 }
 
-export default async function AdminClaimRequestsPage() {
+export default async function AdminClaimRequestsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ lang?: string }>;
+}) {
   await requireAdminAccess();
+  const params = await searchParams;
+  const language: "ar" | "en" = params.lang === "en" ? "en" : "ar";
+  const isArabic = language === "ar";
 
   const requests = await ClaimService.getAll();
 
   return (
-    <main className="mx-auto max-w-7xl px-6 py-10 text-white">
-      <AdminPageHeader
-        title="Talent Claim Requests"
-        description="Review talent ownership requests and connect existing profiles to talent accounts."
-      />
+    <div dir={isArabic ? "rtl" : "ltr"}>
+      <AdminPageContainer>
+        <AdminPageHeader
+          eyebrow={isArabic ? "طلبات قديمة" : "LEGACY REQUESTS"}
+          title={isArabic ? "طلبات ملكية الملفات" : "Talent Claim Requests"}
+          description={
+            isArabic
+              ? "مراجعة طلبات ربط الحسابات بملفات المواهب الموجودة واتخاذ قرار الاعتماد."
+              : "Review requests to connect user accounts with existing talent profiles."
+          }
+        />
 
       {!requests || requests.length === 0 ? (
-        <AdminEmptyState message="No claim requests yet." />
+        <AdminEmptyState message={isArabic ? "لا توجد طلبات ملكية ملفات حاليًا." : "No claim requests yet."} />
       ) : (
         <section className="grid gap-5">
           {requests.map((request) => {
@@ -88,7 +102,7 @@ export default async function AdminClaimRequestsPage() {
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-[10px] uppercase tracking-[0.3em] text-gold">
-                        Claim #{request.id}
+                        {isArabic ? "طلب" : "Claim"} #{request.id}
                       </p>
 
                       <AdminBadge variant={getBadgeVariant(request.status)}>
@@ -97,7 +111,7 @@ export default async function AdminClaimRequestsPage() {
                     </div>
 
                     <h2 className="mt-2 text-2xl font-light text-white">
-                      {talent?.name_en || "Unknown Talent"}
+                      {(isArabic ? talent?.name_ar || talent?.name_en : talent?.name_en || talent?.name_ar) || (isArabic ? "موهبة غير معروفة" : "Unknown Talent")}
                     </h2>
 
                     <p
@@ -110,13 +124,13 @@ export default async function AdminClaimRequestsPage() {
                   </div>
 
                   <p className="text-sm text-gray-muted">
-                    {formatDate(request.created_at)}
+                    {formatDate(request.created_at, isArabic)}
                   </p>
                 </div>
 
                 <AdminInfoGrid columns={2}>
-                  <AdminInfoItem label="Talent ID" value={request.talent_id} />
-                  <AdminInfoItem label="User ID" value={request.user_id} />
+                  <AdminInfoItem label={isArabic ? "معرّف الموهبة" : "Talent ID"} value={request.talent_id} />
+                  <AdminInfoItem label={isArabic ? "معرّف المستخدم" : "User ID"} value={request.user_id} />
                 </AdminInfoGrid>
 
                 {request.status === "pending" ? (
@@ -125,7 +139,7 @@ export default async function AdminClaimRequestsPage() {
                       <input type="hidden" name="id" value={request.id} />
 
                       <AdminActionButton type="submit" variant="success">
-                        Approve
+                        {isArabic ? "اعتماد" : "Approve"}
                       </AdminActionButton>
                     </form>
 
@@ -133,7 +147,7 @@ export default async function AdminClaimRequestsPage() {
                       <input type="hidden" name="id" value={request.id} />
 
                       <AdminActionButton type="submit" variant="danger">
-                        Reject
+                        {isArabic ? "رفض" : "Reject"}
                       </AdminActionButton>
                     </form>
                   </div>
@@ -143,6 +157,7 @@ export default async function AdminClaimRequestsPage() {
           })}
         </section>
       )}
-    </main>
+      </AdminPageContainer>
+    </div>
   );
 }

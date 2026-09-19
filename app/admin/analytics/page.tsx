@@ -552,8 +552,10 @@ import {
         : "0";
   
     return (
-      <AdminPageContainer>
-        <AdminPageHeader
+      <div dir={isArabic ? "rtl" : "ltr"}>
+        <AdminPageContainer>
+          <AdminPageHeader
+          eyebrow={isArabic ? "النمو والذكاء" : "GROWTH & INTELLIGENCE"}
           title={
             isArabic
               ? "التحليلات"
@@ -993,6 +995,7 @@ import {
             </div>
           </div>
         </AdminCard>
-      </AdminPageContainer>
+        </AdminPageContainer>
+      </div>
     );
   }

@@ -4,6 +4,11 @@ import { notFound } from "next/navigation";
 
 import DanaRunButton from "./DanaRunButton";
 import {
+  AdminCard,
+  AdminPageContainer,
+  AdminPageHeader,
+} from "@/components/admin/ui";
+import {
   adminReplySupportTicketAction,
   runDanaForExistingSupportTicketAction,
   updateSupportTicketStatusAction,
@@ -41,7 +46,7 @@ type MessageRow = {
 };
 
 function formatDate(value: string, isArabic: boolean) {
-  return new Intl.DateTimeFormat(isArabic ? "ar-SA" : "en-US", {
+  return new Intl.DateTimeFormat(isArabic ? "ar-SA-u-ca-gregory-nu-latn" : "en-US", {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -128,16 +133,28 @@ export default async function AdminSupportTicketPage({ params, searchParams }: P
   const danaStatusMessage = danaMessage(query.dana, isArabic);
 
   return (
-    <main dir={isArabic ? "rtl" : "ltr"} className="mx-auto max-w-6xl px-4 py-7 text-white sm:px-6 lg:px-8 lg:py-10">
-      <Link
-        href={`/admin/support?lang=${locale}`}
-        className="inline-flex items-center gap-2 text-xs text-white/40 transition hover:text-gold"
-      >
-        <BackIcon className="h-4 w-4" />
-        {isArabic ? "العودة إلى الدعم" : "Back to support"}
-      </Link>
+    <div dir={isArabic ? "rtl" : "ltr"}>
+      <AdminPageContainer>
+        <AdminPageHeader
+          eyebrow={isArabic ? "الدعم" : "SUPPORT"}
+          title={ticket.subject}
+          description={
+            isArabic
+              ? `تذكرة ${ticket.ticket_number} · إدارة المحادثة والحالة ومسار Dana من مكان واحد.`
+              : `Ticket ${ticket.ticket_number} · Manage the conversation, status and Dana workflow in one place.`
+          }
+          actions={
+            <Link
+              href={`/admin/support?lang=${locale}`}
+              className="inline-flex h-10 items-center gap-2 rounded-lg border border-white/[0.08] px-4 text-xs font-medium text-white/55 transition hover:border-gold/20 hover:text-gold"
+            >
+              <BackIcon className="h-4 w-4" />
+              {isArabic ? "العودة إلى الدعم" : "Back to support"}
+            </Link>
+          }
+        />
 
-      <section className="mt-5 rounded-[2rem] border border-white/10 bg-white/[0.025] p-5 sm:p-7">
+      <AdminCard className="p-5 sm:p-6">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
@@ -150,7 +167,6 @@ export default async function AdminSupportTicketPage({ params, searchParams }: P
               </span>
             </div>
 
-            <h1 className="mt-4 text-2xl font-light sm:text-4xl">{ticket.subject}</h1>
             <p className="mt-3 text-xs text-white/30">{formatDate(ticket.created_at, isArabic)}</p>
           </div>
 
@@ -177,9 +193,9 @@ export default async function AdminSupportTicketPage({ params, searchParams }: P
           <Info icon={<Mail className="h-4 w-4" />} label={isArabic ? "البريد" : "Email"} value={ticket.sender_email} dir="ltr" />
           <Info icon={<Phone className="h-4 w-4" />} label={isArabic ? "الجوال" : "Phone"} value={ticket.sender_phone || "—"} dir="ltr" />
         </div>
-      </section>
+      </AdminCard>
 
-      <section className={`mt-5 rounded-[2rem] border p-5 sm:p-6 ${danaProcessed ? "border-emerald-400/15 bg-emerald-400/[0.035]" : "border-gold/15 bg-gold/[0.035]"}`}>
+      <section className={`mt-5 rounded-2xl border p-5 sm:p-6 ${danaProcessed ? "border-emerald-400/15 bg-emerald-400/[0.035]" : "border-gold/15 bg-gold/[0.035]"}`}>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <div className={`flex items-center gap-2 ${danaProcessed ? "text-emerald-200" : "text-gold"}`}>
@@ -220,7 +236,7 @@ export default async function AdminSupportTicketPage({ params, searchParams }: P
         </div>
       ) : null}
 
-      <section className="mt-6 overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.02]">
+      <section className="mt-6 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]">
         <div className="border-b border-white/10 px-5 py-4">
           <h2 className="text-lg font-medium">{isArabic ? "المحادثة" : "Conversation"}</h2>
         </div>
@@ -274,7 +290,8 @@ export default async function AdminSupportTicketPage({ params, searchParams }: P
           </button>
         </form>
       </section>
-    </main>
+      </AdminPageContainer>
+    </div>
   );
 }
 

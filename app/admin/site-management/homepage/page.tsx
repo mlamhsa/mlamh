@@ -1,4 +1,6 @@
 import { HomepageHeroCard } from "@/components/admin/site-management/HomepageHeroCard";
+import { AdminPageContainer, AdminPageHeader } from "@/components/admin/ui";
+import { getAdminLanguage } from "@/lib/admin/i18n";
 import { HomepageHeroCardsCard } from "@/components/admin/site-management/HomepageHeroCardsCard";
 import { HomepageStatsCard } from "@/components/admin/site-management/HomepageStatsCard";
 import { ValuePropsCard } from "@/components/admin/site-management/ValuePropsCard";
@@ -7,8 +9,15 @@ import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { HomepageService } from "@/lib/services/HomepageService";
 import { ValuePropsService } from "@/lib/services/ValuePropsService";
 
-export default async function HomepageManagementPage() {
+export default async function HomepageManagementPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ lang?: string }>;
+}) {
   await requireAdminAccess();
+  const query = await searchParams;
+  const language = getAdminLanguage(query.lang);
+  const isArabic = language === "ar";
 
   const [
     heroResult,
@@ -48,33 +57,32 @@ export default async function HomepageManagementPage() {
   }
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1
-          className="text-4xl font-light text-white"
-          style={{
-            fontFamily: "var(--font-cormorant)",
-          }}
-        >
-          Homepage Management
-        </h1>
+    <div dir={isArabic ? "rtl" : "ltr"}>
+      <AdminPageContainer>
+        <AdminPageHeader
+          eyebrow={isArabic ? "إدارة الموقع" : "SITE MANAGEMENT"}
+          title={isArabic ? "الصفحة الرئيسية" : "Homepage"}
+          description={
+            isArabic
+              ? "إدارة محتوى الصفحة الرئيسية والعناوين والبطاقات والقيم الظاهرة للزوار."
+              : "Manage homepage content, headlines, cards, and public-facing value propositions."
+          }
+        />
 
-        <p className="mt-3 text-gray-400">
-          Manage the content displayed on the public homepage.
-        </p>
-      </div>
+        <div className="grid gap-6">
+          <HomepageHeroCard hero={heroResult.data} />
 
-      <HomepageHeroCard hero={heroResult.data} />
+          <HomepageHeroCardsCard
+            cards={heroCardsResult.data}
+          />
 
-      <HomepageHeroCardsCard
-        cards={heroCardsResult.data}
-      />
+          <HomepageStatsCard hero={heroResult.data} />
 
-      <HomepageStatsCard hero={heroResult.data} />
-
-      <ValuePropsCard
-        items={valuePropsResult.data}
-      />
+          <ValuePropsCard
+            items={valuePropsResult.data}
+          />
+        </div>
+      </AdminPageContainer>
     </div>
   );
 }

@@ -44,7 +44,8 @@ export default async function GrowthIntelligencePage({ searchParams }: PageProps
   const { funnel } = intelligence;
 
   return (
-    <AdminPageContainer>
+    <div dir={isArabic ? "rtl" : "ltr"}>
+      <AdminPageContainer>
       <AdminPageHeader
         eyebrow="GROWTH INTELLIGENCE"
         title={isArabic ? "ذكاء النمو" : "Growth Intelligence"}
@@ -143,6 +144,7 @@ export default async function GrowthIntelligencePage({ searchParams }: PageProps
           {isArabic ? "فتح تحليلات Marketing Hub" : "Open Marketing Hub analytics"}
         </Link>
       </div>
-    </AdminPageContainer>
+      </AdminPageContainer>
+    </div>
   );
 }
