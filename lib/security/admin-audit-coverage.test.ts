@@ -1591,8 +1591,12 @@ test("admin access mutations are atomic and final-Super-Admin safe in PostgreSQL
     "set_admin_access_role",
     "pg_advisory_xact_lock",
     "LAST_SUPER_ADMIN",
+    "ADMIN_ACCESS_PERMISSION_DENIED",
+    "ADMIN_ROLE_PERMISSION_DENIED",
     "delete from public.user_roles",
     "update public.admin_users",
+    "insert into public.events",
+    "atomic_access_mutation",
     "security invoker",
     "grant execute",
     "service_role",
@@ -1621,10 +1625,55 @@ test("admin access mutations are atomic and final-Super-Admin safe in PostgreSQL
       ) &&
       actions.includes(
         "LAST_SUPER_ADMIN",
+      ) &&
+      actions.includes(
+        "p_change_reason",
       ),
     true,
-    "application actions must fail closed and preserve a specific final-Super-Admin outcome when the database guard blocks a mutation",
+    "application actions must fail closed, pass the validated justification, and preserve a specific final-Super-Admin outcome when the database guard blocks a mutation",
   );
+
+  for (const actionName of [
+    "updateAdminRoleAction",
+    "revokeAdminAccessAction",
+  ]) {
+    const start =
+      actions.indexOf(
+        `export async function ${actionName}`,
+      );
+    const nextExport =
+      actions.indexOf(
+        "export async function ",
+        start + 24,
+      );
+    const segment =
+      actions.slice(
+        start,
+        nextExport >= 0
+          ? nextExport
+          : undefined,
+      );
+    const rpcStart =
+      segment.indexOf(
+        '"set_admin_access_role"',
+      );
+
+    assert.ok(
+      rpcStart >= 0,
+      `${actionName} must call the atomic mutation RPC`,
+    );
+
+    const afterRpc =
+      segment.slice(rpcStart);
+
+    assert.equal(
+      afterRpc.includes(
+        "createAuditEvent({",
+      ),
+      false,
+      `${actionName} must not create a duplicate best-effort success audit after the transactional audit has committed`,
+    );
+  }
 });
 
 
