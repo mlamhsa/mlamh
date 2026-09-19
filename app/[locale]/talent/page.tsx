@@ -25,6 +25,7 @@ type TalentSearchParams = {
   ageMax?: string;
   heightMin?: string;
   heightMax?: string;
+  modelType?: string;
   page?: string;
 };
 
@@ -76,6 +77,7 @@ export default async function TalentListingPage({ params, searchParams }: PagePr
     ageMax: filters.ageMax,
     heightMin: filters.heightMin,
     heightMax: filters.heightMax,
+    modelType: filters.category === "model" ? filters.modelType : undefined,
   });
 
   const hasFilters = Boolean(
@@ -87,7 +89,8 @@ export default async function TalentListingPage({ params, searchParams }: PagePr
       filters.ageMin?.trim() ||
       filters.ageMax?.trim() ||
       filters.heightMin?.trim() ||
-      filters.heightMax?.trim(),
+      filters.heightMax?.trim() ||
+      (filters.category === "model" && filters.modelType?.trim()),
   );
 
   const featuredIds = new Set(talents.filter((talent) => talent.featured).map((talent) => talent.id));
@@ -110,6 +113,7 @@ export default async function TalentListingPage({ params, searchParams }: PagePr
     ageMax: filters.ageMax,
     heightMin: filters.heightMin,
     heightMax: filters.heightMax,
+    modelType: filters.category === "model" ? filters.modelType : undefined,
   };
 
   const paginationProps = {
@@ -125,6 +129,7 @@ export default async function TalentListingPage({ params, searchParams }: PagePr
     ageMax: filters.ageMax,
     heightMin: filters.heightMin,
     heightMax: filters.heightMax,
+    modelType: filters.category === "model" ? filters.modelType : undefined,
   };
 
   const SeoLinks = () => (
