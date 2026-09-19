@@ -61,17 +61,15 @@ export const MODEL_TYPE_CHOICES: TalentProfessionalChoice[] = [
   { value: "ecommerce", ar: "متاجر إلكترونية / كتالوج", en: "E-commerce / Catalog" },
   { value: "lifestyle", ar: "لايف ستايل", en: "Lifestyle" },
   { value: "product", ar: "منتجات", en: "Product" },
-  { value: "parts_hand", ar: "أجزاء الجسم — يد", en: "Parts — Hand" },
-  { value: "parts_foot", ar: "أجزاء الجسم — قدم", en: "Parts — Foot" },
-  { value: "parts_legs", ar: "أجزاء الجسم — ساق", en: "Parts — Legs" },
-  { value: "parts_hair", ar: "أجزاء الجسم — شعر", en: "Parts — Hair" },
-  { value: "parts_eyes", ar: "أجزاء الجسم — عيون", en: "Parts — Eyes" },
-  { value: "parts_smile", ar: "أجزاء الجسم — ابتسامة / أسنان", en: "Parts — Smile / Teeth" },
+  { value: "hand", ar: "أجزاء الجسم — يد", en: "Parts — Hand" },
+  { value: "foot", ar: "أجزاء الجسم — قدم", en: "Parts — Foot" },
+  { value: "legs", ar: "أجزاء الجسم — ساق", en: "Parts — Legs" },
+  { value: "hair", ar: "أجزاء الجسم — شعر", en: "Parts — Hair" },
+  { value: "eyes", ar: "أجزاء الجسم — عيون", en: "Parts — Eyes" },
+  { value: "smile", ar: "أجزاء الجسم — ابتسامة / أسنان", en: "Parts — Smile / Teeth" },
 ];
 
-export const MODEL_PARTS_TYPE_VALUES = new Set(
-  MODEL_TYPE_CHOICES.filter((item) => item.value.startsWith("parts_")).map((item) => item.value),
-);
+export const MODEL_PARTS_TYPE_VALUES = new Set(["hand", "foot", "legs", "hair", "eyes", "smile"]);
 
 export function getModelTypeLabel(value: string, locale: "ar" | "en") {
   const option = MODEL_TYPE_CHOICES.find((item) => item.value === value);
