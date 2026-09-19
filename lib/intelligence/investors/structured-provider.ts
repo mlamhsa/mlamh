@@ -181,6 +181,31 @@ function usageTotal(value: unknown) {
   return typeof total === "number" && Number.isFinite(total) ? total : undefined;
 }
 
+
+async function runInvestorResearch(model: (typeof INVESTOR_MODELS)[number], request: MarketingAIRequest, schema: object) {
+  return generateText({
+    model,
+    instructions: researchInstruction(),
+    prompt: requestPrompt(request, schema),
+    maxOutputTokens: 7000,
+    tools: {
+      perplexity_search: gateway.tools.perplexitySearch({
+        maxResults: 20,
+        maxTokensPerPage: 1800,
+        maxTokens: 30000,
+        searchLanguageFilter: ["en", "ar"],
+      }),
+    },
+    prepareStep: ({ stepNumber }) => ({
+      toolChoice:
+        stepNumber === 0
+          ? { type: "tool", toolName: "perplexity_search" as const }
+          : "none",
+    }),
+    stopWhen: isStepCount(2),
+  });
+}
+
 class InvestorStructuredProvider implements MarketingAIProvider {
   readonly id: string;
 
@@ -199,33 +224,13 @@ class InvestorStructuredProvider implements MarketingAIProvider {
     const phase = request.metadata?.phase === "contact_enrichment_v1" ? "contact_enrichment" : "discovery";
     const schema = phase === "contact_enrichment" ? enrichmentSchema : discoverySchema;
 
-    let result: Awaited<ReturnType<typeof generateText>> | null = null;
-    let selectedModel = INVESTOR_MODELS[0];
+    let result: Awaited<ReturnType<typeof runInvestorResearch>> | null = null;
+    let selectedModel: (typeof INVESTOR_MODELS)[number] = INVESTOR_MODELS[0];
     let lastError: unknown = null;
 
     for (const model of INVESTOR_MODELS) {
       try {
-        result = await generateText({
-          model,
-          instructions: researchInstruction(),
-          prompt: requestPrompt(request, schema),
-          maxOutputTokens: 7000,
-          tools: {
-            perplexity_search: gateway.tools.perplexitySearch({
-              maxResults: 20,
-              maxTokensPerPage: 1800,
-              maxTokens: 30000,
-              searchLanguageFilter: ["en", "ar"],
-            }),
-          },
-          prepareStep: ({ stepNumber }) => ({
-            toolChoice:
-              stepNumber === 0
-                ? { type: "tool", toolName: "perplexity_search" as const }
-                : "none",
-          }),
-          stopWhen: isStepCount(2),
-        });
+        result = await runInvestorResearch(model, request, schema);
         selectedModel = model;
         break;
       } catch (error) {
