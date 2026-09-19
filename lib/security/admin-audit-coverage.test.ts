@@ -233,15 +233,28 @@ test("admin API routes keep explicit admin authorization and audit coverage", as
   for (const file of routes) {
     const text = await source(file);
 
-    assert.equal(
+    const usesStandardAdminGuard =
       text.includes(
         "requireAdminAccess",
       ) ||
-        text.includes(
-          "requirePermission",
-        ),
+      text.includes(
+        "requirePermission",
+      );
+    const usesMfaLifecycleGuard =
+      file ===
+        "app/api/admin/security/mfa-event/route.ts" &&
+      text.includes(
+        "requireAdminIdentity",
+      ) &&
+      text.includes(
+        "getAuthenticatorAssuranceLevel",
+      );
+
+    assert.equal(
+      usesStandardAdminGuard ||
+        usesMfaLifecycleGuard,
       true,
-      `${file} must authenticate through requireAdminAccess() or requirePermission()`,
+      `${file} must use the standard admin guard or the dedicated MFA identity + assurance guard`,
     );
 
     assert.equal(
@@ -1405,7 +1418,10 @@ test("admin MFA success and failed verification attempts are audited at the corr
       "requireAdminIdentity",
     ) &&
       route.includes(
-        "requireAdminAccess",
+        "getAuthenticatorAssuranceLevel",
+      ) &&
+      route.includes(
+        'currentLevel !== "aal2"',
       ) &&
       route.includes(
         '"admin_mfa_enrolled"',
