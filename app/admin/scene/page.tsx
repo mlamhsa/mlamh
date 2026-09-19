@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { BookOpenText, FilePenLine, Plus, Sparkles } from "lucide-react";
 
+import { AdminPageContainer, AdminPageHeader, AdminStatCard } from "@/components/admin/ui";
+
 import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { SceneService } from "@/lib/services/SceneService";
 import type { SceneArticle, SceneCategory } from "@/lib/types/scene";
@@ -73,39 +75,33 @@ export default async function AdminScenePage({ searchParams }: PageProps) {
   const errorMessage = errorLabel(query.error, isArabic);
 
   return (
-    <main dir={isArabic ? "rtl" : "ltr"} className="mx-auto max-w-7xl px-4 py-7 text-white sm:px-6 lg:px-8 lg:py-10">
-      <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.4em] text-gold">MLAMH SCENE</p>
-          <h1 className="mt-3 text-3xl font-light md:text-5xl">{isArabic ? "مشهد ملامح" : "MLAMH Scene"}</h1>
-          <p className="mt-3 max-w-3xl text-sm leading-7 text-white/45">
-            {isArabic
-              ? "إدارة الأدلة والشروحات والمقالات والقصص والتقارير من مكان واحد، بمعزل عن بيانات المستخدمين وسير العمل الأساسي للمنصة."
-              : "Manage guides, help content, articles, stories and reports in one isolated content workspace."}
-          </p>
-        </div>
-        <Link href={`/admin/scene/new?lang=${locale}`} className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-gold px-5 text-sm font-semibold text-black transition hover:bg-gold-soft">
-          <Plus className="h-4 w-4" />
-          {isArabic ? "مقال جديد" : "New article"}
-        </Link>
-      </div>
+    <div dir={isArabic ? "rtl" : "ltr"}>
+      <AdminPageContainer>
+      <AdminPageHeader
+        eyebrow="MLAMH SCENE"
+        title={isArabic ? "مشهد ملامح" : "MLAMH Scene"}
+        description={
+          isArabic
+            ? "إدارة الأدلة والشروحات والمقالات والقصص والتقارير من مساحة محتوى واحدة."
+            : "Manage guides, help content, articles, stories and reports from one content workspace."
+        }
+        actions={
+          <Link href={`/admin/scene/new?lang=${locale}`} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-gold px-4 text-xs font-semibold text-black transition hover:opacity-90">
+            <Plus className="h-4 w-4" />
+            {isArabic ? "مقال جديد" : "New article"}
+          </Link>
+        }
+      />
 
       {errorMessage ? (
         <div className="mt-6 rounded-2xl border border-red-400/20 bg-red-400/[0.06] px-4 py-3 text-sm text-red-300">{errorMessage}</div>
       ) : null}
 
-      <section className="mt-7 grid grid-cols-2 gap-3 md:grid-cols-4">
-        {[
-          { label: isArabic ? "إجمالي المحتوى" : "Total content", value: articles.length, icon: BookOpenText },
-          { label: isArabic ? "منشور" : "Published", value: published, icon: Sparkles },
-          { label: isArabic ? "مسودات" : "Drafts", value: drafts, icon: FilePenLine },
-          { label: isArabic ? "مختارات" : "Featured", value: featured, icon: Sparkles },
-        ].map((stat) => (
-          <div key={stat.label} className="rounded-2xl border border-white/10 bg-white/[0.025] p-4 sm:rounded-3xl sm:p-5">
-            <div className="flex items-center gap-2 text-[10px] text-white/40 sm:text-xs"><stat.icon className="h-4 w-4 text-gold" />{stat.label}</div>
-            <p className="mt-3 text-2xl font-light sm:text-3xl">{stat.value}</p>
-          </div>
-        ))}
+      <section className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
+        <AdminStatCard label={isArabic ? "إجمالي المحتوى" : "Total content"} value={articles.length} />
+        <AdminStatCard label={isArabic ? "منشور" : "Published"} value={published} />
+        <AdminStatCard label={isArabic ? "مسودات" : "Drafts"} value={drafts} active={drafts > 0} />
+        <AdminStatCard label={isArabic ? "مختارات" : "Featured"} value={featured} />
       </section>
 
       <section className="mt-7 rounded-[1.75rem] border border-white/10 bg-white/[0.025] p-5 sm:p-6">
@@ -160,6 +156,7 @@ export default async function AdminScenePage({ searchParams }: PageProps) {
           </div>
         )}
       </section>
-    </main>
+      </AdminPageContainer>
+    </div>
   );
 }
