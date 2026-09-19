@@ -9,6 +9,7 @@ type SessionState =
   | { status: "loading"; account: null }
   | { status: "guest"; account: null }
   | { status: "account_missing"; account: null }
+  | { status: "unsupported_account"; account: null }
   | { status: "unavailable"; account: null }
   | { status: "talent"; account: MobileAccountContext }
   | { status: "publisher"; account: MobileAccountContext };
@@ -70,6 +71,16 @@ export function SessionProvider({ children }: PropsWithChildren) {
         error.code === "ACCOUNT_NOT_FOUND"
       ) {
         const next: SessionState = { status: "account_missing", account: null };
+        setState(next);
+        return next.status;
+      }
+
+      if (
+        error instanceof MobileApiError &&
+        error.status === 409 &&
+        error.code === "ACCOUNT_TYPE_UNSUPPORTED"
+      ) {
+        const next: SessionState = { status: "unsupported_account", account: null };
         setState(next);
         return next.status;
       }
