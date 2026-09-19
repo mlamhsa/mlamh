@@ -10,11 +10,13 @@ import { OpportunityInviteModal } from "./OpportunityInviteModal";
 type Props = {
   talentId: number;
   locale: "ar" | "en";
+  profileVisibility?: string | null;
 };
 
 export async function PublisherTalentInvitePanel({
   talentId,
   locale,
+  profileVisibility,
 }: Props) {
   const { user, profile, publisher } = await requirePublisher(locale);
   const isArabic = locale === "ar";
@@ -38,10 +40,20 @@ export async function PublisherTalentInvitePanel({
     );
   }
 
-  const opportunities =
+  const publisherVerified =
+    publisher.verified === true ||
+    publisher.verification_status === "verified";
+  const restrictedProfile = profileVisibility === "verified_publishers";
+
+  const allOpportunities =
     await getPublishedOpportunitiesByPublisher(
       publisher.id,
     );
+
+  const opportunities =
+    restrictedProfile && !publisherVerified
+      ? allOpportunities.filter((opportunity) => opportunity.posting_mode === "quick")
+      : allOpportunities;
 
   const adminClient = createAdminClient();
 

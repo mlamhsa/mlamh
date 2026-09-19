@@ -12,6 +12,7 @@ type TalentQuery = {
   ageMax?: string;
   heightMin?: string;
   heightMax?: string;
+  modelType?: string;
   page?: number;
 };
 
@@ -26,6 +27,7 @@ function buildTalentQueryString({
   ageMax,
   heightMin,
   heightMax,
+  modelType,
   page,
 }: TalentQuery) {
   const params = new URLSearchParams();
@@ -40,6 +42,7 @@ function buildTalentQueryString({
     ["ageMax", ageMax],
     ["heightMin", heightMin],
     ["heightMax", heightMax],
+    ["modelType", modelType],
   ];
 
   for (const [key, value] of values) {
@@ -70,6 +73,7 @@ export function TalentPagination({
   ageMax,
   heightMin,
   heightMax,
+  modelType,
 }: TalentPaginationProps) {
   if (totalPages <= 1) return null;
 
@@ -87,6 +91,7 @@ export function TalentPagination({
     ageMax,
     heightMin,
     heightMax,
+    modelType,
   };
 
   return (

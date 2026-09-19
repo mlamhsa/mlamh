@@ -18,6 +18,7 @@ export type PublisherInviteOpportunity = {
   title_en?: string | null;
   slug: string;
   opportunity_type: string | null;
+  posting_mode?: "quick" | "project" | null;
   city_ar: string | null;
   city_en: string | null;
   status: string;
@@ -123,6 +124,7 @@ export async function getPublishedOpportunitiesByPublisher(
       title_en: opportunity.title_en ?? null,
       slug: opportunity.slug,
       opportunity_type: opportunity.opportunity_type ?? null,
+      posting_mode: opportunity.posting_mode === "quick" || opportunity.posting_mode === "project" ? opportunity.posting_mode : null,
       city_ar: opportunity.city_ar ?? null,
       city_en: opportunity.city_en ?? null,
       status: opportunity.status,

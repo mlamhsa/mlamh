@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { SAUDI_CITIES } from "@/lib/data/saudi-cities";
+import { MODEL_TYPE_CHOICES } from "@/lib/data/talent-professional-options";
 
 const saudiCities = SAUDI_CITIES.map((city) => ({
   value: city.slug,
@@ -26,13 +27,7 @@ const actorDialectOptions = [
   { value: "gulf", ar: "خليجي", en: "Gulf" },
 ];
 
-const modelingTypeOptions = [
-  { value: "commercial", ar: "إعلاني", en: "Commercial" },
-  { value: "fashion", ar: "أزياء", en: "Fashion" },
-  { value: "beauty", ar: "جمال", en: "Beauty" },
-  { value: "lifestyle", ar: "لايف ستايل", en: "Lifestyle" },
-  { value: "ecommerce", ar: "متاجر إلكترونية", en: "E-commerce" },
-];
+const modelingTypeOptions = MODEL_TYPE_CHOICES;
 
 const hairColorOptions = [
   { value: "black", ar: "أسود", en: "Black" },
@@ -789,7 +784,10 @@ work_duration: workDuration.trim() || null,
                   </p>
 
                   <p className="mt-4 text-xs text-white/45">
-                    {isRtl ? "نوع أعمال المودل" : "Modeling types"}
+                    {isRtl ? "ما نوع المودل الذي تحتاجه؟" : "What type of model do you need?"}
+                  </p>
+                  <p className="mt-2 text-xs leading-6 text-white/35">
+                    {isRtl ? "يمكنك اختيار أكثر من نوع. مثال: لحملة أحذية اختر «قدم — أحذية وإكسسوارات»." : "You can choose more than one. For a footwear campaign, choose “Parts — Foot”."}
                   </p>
 
                   <div className="mt-3 flex flex-wrap gap-2">

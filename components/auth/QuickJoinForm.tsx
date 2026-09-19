@@ -56,7 +56,7 @@ export function QuickJoinForm({ locale, accountType, intent }: QuickJoinFormProp
   const [city, setCity] = useState("");
   const [otherCity, setOtherCity] = useState("");
   const [talentType, setTalentType] = useState(intent === "actor" || intent === "model" ? intent : "");
-  const [profileVisibility, setProfileVisibility] = useState<"public" | "private" | "">("");
+  const [profileVisibility, setProfileVisibility] = useState<"public" | "verified_publishers" | "private" | "">("");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [acceptedDataConsent, setAcceptedDataConsent] = useState(false);
   const [showPassword, setShowPassword] = useState(false);

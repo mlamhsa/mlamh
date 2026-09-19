@@ -2,6 +2,7 @@ import type { Talent } from "@/lib/types/talent";
 
 const INACTIVE_PROFILE_STATUSES = new Set(["suspended", "blocked", "banned", "disabled"]);
 const INACTIVE_PUBLISHER_STATUSES = new Set(["suspended", "blocked", "banned", "disabled", "rejected"]);
+const INDIVIDUAL_PUBLISHER_TYPES = new Set(["individual", "salon", "store", "photographer", "marketer"]);
 
 export type TalentProfileViewer = {
   userId: string | null;
@@ -11,6 +12,8 @@ export type TalentProfileViewer = {
   publisherVerified?: boolean | null;
   publisherVerificationStatus?: string | null;
   publisherStatus?: string | null;
+  publisherType?: string | null;
+  hasActiveQuickOpportunity?: boolean | null;
 };
 
 function isActiveApprovedPublisher(viewer: TalentProfileViewer) {
@@ -38,6 +41,17 @@ function isActiveVerifiedPublisher(viewer: TalentProfileViewer) {
   return isActiveApprovedPublisher(viewer) && publisherVerified;
 }
 
+function canViewRestrictedPublisherProfile(viewer: TalentProfileViewer) {
+  if (isActiveVerifiedPublisher(viewer)) return true;
+
+  const publisherType = viewer.publisherType?.trim().toLowerCase() ?? "";
+  return (
+    isActiveApprovedPublisher(viewer) &&
+    INDIVIDUAL_PUBLISHER_TYPES.has(publisherType) &&
+    viewer.hasActiveQuickOpportunity === true
+  );
+}
+
 export function canViewTalentProfile(
   viewer: TalentProfileViewer,
   talent: Pick<Talent, "user_id" | "profile_visibility">,
@@ -47,7 +61,7 @@ export function canViewTalentProfile(
 
   const visibility = talent.profile_visibility ?? "public";
   if (visibility === "public") return true;
-  if (visibility === "verified_publishers") return isActiveVerifiedPublisher(viewer);
+  if (visibility === "verified_publishers") return canViewRestrictedPublisherProfile(viewer);
   return false;
 }
 

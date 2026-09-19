@@ -1,5 +1,6 @@
 import { getPublicTalents } from "@/lib/supabase/public-talents";
 import { TALENT_CATEGORIES } from "@/lib/data/talent-categories";
+import { MODEL_TYPE_CHOICES } from "@/lib/data/talent-professional-options";
 import { applyActiveFeaturedTalentEntitlements } from "@/lib/talent/public-featured-entitlements";
 
 export type PublicTalentDirectoryFilters = {
@@ -19,12 +20,14 @@ export type PublicTalentDirectoryFilters = {
   skill?: string;
   availability?: string;
   readyToTravel?: string;
+  modelType?: string;
 };
 
 const PUBLIC_CATEGORIES: Set<string> = new Set(
   TALENT_CATEGORIES.map((category) => category.slug),
 );
 const PUBLIC_GENDERS: Set<string> = new Set(["male", "female"]);
+const PUBLIC_MODEL_TYPES: Set<string> = new Set(MODEL_TYPE_CHOICES.map((item) => item.value));
 
 function normalized(value?: string | null) {
   return value?.trim().toLowerCase() || "";
@@ -41,11 +44,15 @@ export async function getFilteredPublicTalents(filters: PublicTalentDirectoryFil
   const pageSize = Math.min(Math.max(Number(filters.pageSize) || 12, 1), 48);
   const category = normalized(filters.category);
   const gender = normalized(filters.gender);
+  const modelType = category === "model" ? normalized(filters.modelType) : "";
 
   if (category && !PUBLIC_CATEGORIES.has(category)) {
     return { talents: [], total: 0, totalPages: 1, currentPage: page, pageSize };
   }
   if (gender && !PUBLIC_GENDERS.has(gender)) {
+    return { talents: [], total: 0, totalPages: 1, currentPage: page, pageSize };
+  }
+  if (modelType && !PUBLIC_MODEL_TYPES.has(modelType)) {
     return { talents: [], total: 0, totalPages: 1, currentPage: page, pageSize };
   }
 
@@ -82,6 +89,7 @@ export async function getFilteredPublicTalents(filters: PublicTalentDirectoryFil
     skill: filters.skill,
     availability: filters.availability,
     readyToTravel: filters.readyToTravel === "true" ? true : undefined,
+    modelType: modelType || undefined,
   });
 
   return {

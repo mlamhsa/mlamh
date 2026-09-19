@@ -22,6 +22,7 @@ import {
   type TalentQualificationInput,
 } from "@/lib/talent/qualification";
 import type { Talent } from "@/lib/types/talent";
+import { buildTalentBriefFromOpportunity, evaluateTalentForBrief } from "@/lib/talent/supply";
 
 type GetPublicTalentsOptions = {
   page?: number;
@@ -41,6 +42,7 @@ type GetPublicTalentsOptions = {
   skill?: string;
   availability?: string;
   readyToTravel?: boolean;
+  modelType?: string;
 };
 
 type GetPublicTalentsResult = {
@@ -178,6 +180,7 @@ function matchesAdvancedFilters(talent: Talent, options: GetPublicTalentsOptions
   if (!includes(talent.languages, options.language)) return false;
   if (!includes(talent.dialects, options.dialect)) return false;
   if (!includes(talent.skills, options.skill)) return false;
+  if (!includes(talent.modeling_types, options.modelType)) return false;
   if (options.availability && String(talent.availability_status ?? "").toLowerCase() !== options.availability.toLowerCase()) return false;
   if (options.readyToTravel === true && talent.ready_to_travel !== true) return false;
 
@@ -372,6 +375,7 @@ export async function getPublicTalents(options: GetPublicTalentsOptions = {}): P
     skill,
     availability,
     readyToTravel,
+    modelType,
   } = options;
   const safePage = Math.max(1, page);
   const safePageSize = Math.min(Math.max(pageSize, 1), 48);
@@ -402,6 +406,7 @@ export async function getPublicTalents(options: GetPublicTalentsOptions = {}): P
     normalizeSearchValue(skill)?.toLowerCase() ?? "all",
     normalizeSearchValue(availability)?.toLowerCase() ?? "all",
     readyToTravel === true ? "travel" : "all",
+    normalizeSearchValue(modelType)?.toLowerCase() ?? "all",
   ].join(":");
   return getCachedValue(cacheKey, async () => {
     const { talents, total } = await getVisiblePublishedCandidates({
@@ -422,6 +427,7 @@ export async function getPublicTalents(options: GetPublicTalentsOptions = {}): P
       skill: normalizeSearchValue(skill)?.toLowerCase(),
       availability: normalizeSearchValue(availability)?.toLowerCase(),
       readyToTravel,
+      modelType: normalizeSearchValue(modelType)?.toLowerCase(),
     });
     return {
       talents,
@@ -458,14 +464,36 @@ export async function getPublishedTalentBySlug(
   slug: string,
   countryCode: CountryCode = DEFAULT_PUBLIC_MARKET,
 ): Promise<Talent | null> {
-  return getPublishedTalentBySlugForViewer(slug, countryCode);
+  const candidate = await getPublishedTalentCandidateBySlug(slug, countryCode);
+  return candidate ? toPublicTalent(candidate) : null;
+}
+
+async function getTalentCandidateBySlugForViewer(
+  slug: string,
+  countryCode: CountryCode = DEFAULT_PUBLIC_MARKET,
+): Promise<PublicTalentCandidate | null> {
+  if (!canExposePublicMarket(countryCode, "publicTalentDirectory")) return null;
+  const normalizedSlug = normalizeSlug(slug);
+  const supabase = createAdminClient();
+  let query = supabase
+    .from("talents")
+    .select("*")
+    .eq("slug", normalizedSlug)
+    .in("status", ["approved", "active"]);
+  query = applyTalentMarketFilter(query, countryCode);
+  const { data, error } = await query.maybeSingle();
+  if (error) throw new Error(`[getTalentBySlugForViewer] ${error.message}`);
+  if (!data) return null;
+  const [candidate] = await attachProfileApprovalContext([data as Talent]);
+  if (!candidate) return null;
+  return evaluateTalentQualification(candidate, { requirePublished: false }).qualified ? candidate : null;
 }
 
 export async function getPublishedTalentBySlugForViewer(
   slug: string,
   countryCode: CountryCode = DEFAULT_PUBLIC_MARKET,
 ): Promise<Talent | null> {
-  const candidate = await getPublishedTalentCandidateBySlug(slug, countryCode);
+  const candidate = await getTalentCandidateBySlugForViewer(slug, countryCode);
   if (!candidate) return null;
 
   const anonymousViewer = { userId: null, accountType: null };
@@ -485,15 +513,38 @@ export async function getPublishedTalentBySlugForViewer(
   let publisherVerified: boolean | null = null;
   let publisherVerificationStatus: string | null = null;
   let publisherStatus: string | null = null;
+  let publisherType: string | null = null;
+  let hasActiveQuickOpportunity = false;
   if (profile.account_type === "publisher") {
     const { data: publisher } = await adminClient
       .from("publishers")
-      .select("verified, verification_status, status")
+      .select("id, publisher_type, verified, verification_status, status")
       .eq("profile_id", profile.id)
       .maybeSingle();
     publisherVerified = publisher?.verified ?? null;
     publisherVerificationStatus = publisher?.verification_status ?? null;
     publisherStatus = publisher?.status ?? null;
+    publisherType = publisher?.publisher_type ?? null;
+
+    const individualTypes = new Set(["individual", "salon", "store", "photographer", "marketer"]);
+    if (publisher?.id && individualTypes.has(String(publisher.publisher_type ?? "").trim().toLowerCase())) {
+      const { data: quickOpportunities, error: quickOpportunityError } = await adminClient
+        .from("opportunities")
+        .select("id, opportunity_type, country_code, city_slug, required_gender, required_count, role_requirements")
+        .eq("publisher_id", publisher.id)
+        .eq("posting_mode", "quick")
+        .eq("published", true)
+        .in("status", ["published", "open"]);
+      if (quickOpportunityError) {
+        console.error("[getPublishedTalentBySlugForViewer:quickOpportunity]", quickOpportunityError);
+      }
+      hasActiveQuickOpportunity = (quickOpportunities ?? []).some((opportunity) =>
+        evaluateTalentForBrief(
+          candidate,
+          buildTalentBriefFromOpportunity(opportunity),
+        ).sendable,
+      );
+    }
   }
 
   const viewer = {
@@ -504,6 +555,8 @@ export async function getPublishedTalentBySlugForViewer(
     publisherVerified,
     publisherVerificationStatus,
     publisherStatus,
+    publisherType,
+    hasActiveQuickOpportunity,
   };
 
   if (!canViewTalentProfile(viewer, candidate)) return null;

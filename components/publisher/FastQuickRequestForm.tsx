@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { SAUDI_CITIES } from "@/lib/data/saudi-cities";
+import { MODEL_TYPE_CHOICES } from "@/lib/data/talent-professional-options";
 import { parseQuickRequestText } from "@/lib/intelligence/opportunities/quick-request-parser";
 
 type Draft = ReturnType<typeof parseQuickRequestText>["draft"];
@@ -33,6 +34,7 @@ export default function FastQuickRequestForm({ locale, isRtl, fallbackCity }: Pr
   const [draft, setDraft] = useState<Draft | null>(null);
   const [followUp, setFollowUp] = useState<string | null>(null);
   const [cityFlexible, setCityFlexible] = useState(false);
+  const [modelingTypes, setModelingTypes] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -62,7 +64,16 @@ export default function FastQuickRequestForm({ locale, isRtl, fallbackCity }: Pr
 
   function setTalentType(value: "actor" | "model") {
     setDraft((current) => (current ? { ...current, opportunity_type: value } : current));
+    if (value !== "model") setModelingTypes([]);
     setFollowUp(null);
+  }
+
+  function toggleModelingType(value: string) {
+    setModelingTypes((current) =>
+      current.includes(value)
+        ? current.filter((item) => item !== value)
+        : [...current, value],
+    );
   }
 
   function updateDraft<K extends keyof Draft>(key: K, value: Draft[K]) {
@@ -114,6 +125,9 @@ export default function FastQuickRequestForm({ locale, isRtl, fallbackCity }: Pr
           work_duration: draft.work_duration,
           role_requirements: {
             city_flexible: cityFlexible,
+            ...(draft.opportunity_type === "model" && modelingTypes.length > 0
+              ? { modeling_types: modelingTypes }
+              : {}),
           },
         }),
       });
@@ -244,6 +258,41 @@ export default function FastQuickRequestForm({ locale, isRtl, fallbackCity }: Pr
                   <option value="male">{isRtl ? "ذكر" : "Male"}</option>
                 </select>
               </Field>
+
+              {draft.opportunity_type === "model" ? (
+                <div className="md:col-span-2">
+                  <div className="rounded-2xl border border-white/[0.08] bg-black/25 p-4">
+                    <p className="text-sm font-medium text-white/75">
+                      {isRtl ? "ما نوع المودل الذي تحتاجه؟" : "What type of model do you need?"}
+                    </p>
+                    <p className="mt-1 text-xs leading-6 text-white/40">
+                      {isRtl
+                        ? "اختياري. اختر ما ينطبق فقط. مثال: لصالون شعر اختر «شعر — عناية وتصفيف»، ولتصوير أحذية اختر «قدم — أحذية وإكسسوارات»."
+                        : "Optional. Choose only what applies. For a hair salon choose “Parts — Hair”; for footwear choose “Parts — Foot”."}
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {MODEL_TYPE_CHOICES.map((option) => {
+                        const selected = modelingTypes.includes(option.value);
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            onClick={() => toggleModelingType(option.value)}
+                            aria-pressed={selected}
+                            className={`rounded-full border px-3 py-2 text-xs transition ${
+                              selected
+                                ? "border-gold/55 bg-gold/[0.10] text-gold"
+                                : "border-white/10 bg-black/20 text-white/55 hover:border-gold/25 hover:text-white"
+                            }`}
+                          >
+                            {isRtl ? option.ar : option.en}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
 
               <div className="md:col-span-2">
                 <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-white/[0.08] bg-black/25 p-4 transition hover:border-gold/25">

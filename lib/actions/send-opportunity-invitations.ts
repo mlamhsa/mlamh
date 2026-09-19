@@ -11,6 +11,7 @@ import {
 import { ensureOpportunityConversation } from "@/lib/messages/ensure-opportunity-conversation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { canRequestTalentFromProfile } from "@/lib/talent/public-profile-access";
+import { buildTalentBriefFromOpportunity, evaluateTalentForBrief, type BriefTalent } from "@/lib/talent/supply";
 
 export type SendOpportunityInvitationsState = {
   success: boolean;
@@ -112,7 +113,7 @@ export async function sendOpportunityInvitationsAction(
   const { data: talent, error: talentError } =
     await adminClient
       .from("talents")
-      .select("id,user_id,published,status,profile_visibility")
+      .select("*")
       .eq("id", talentId)
       .maybeSingle();
 
@@ -134,15 +135,13 @@ export async function sendOpportunityInvitationsAction(
 
   const talentStatus = String(talent?.status ?? "").trim().toLowerCase();
   const talentVisibility = String(talent?.profile_visibility ?? "public").trim().toLowerCase();
-  const talentOperationallyPublic = Boolean(
+  const talentOperationallyActive = Boolean(
     talent?.id &&
       talent.user_id &&
-      talent.published === true &&
-      talentVisibility === "public" &&
       ["approved", "active"].includes(talentStatus),
   );
 
-  if (!talentOperationallyPublic || !talent?.user_id) {
+  if (!talentOperationallyActive || !talent?.user_id) {
     return {
       success: false,
       message:
@@ -155,7 +154,7 @@ export async function sendOpportunityInvitationsAction(
 
   const { data: talentProfile, error: talentProfileError } = await adminClient
     .from("profiles")
-    .select("approval_status,account_type")
+    .select("approval_status,account_type,status")
     .eq("user_id", talent.user_id)
     .maybeSingle();
 
@@ -191,7 +190,14 @@ export async function sendOpportunityInvitationsAction(
           slug,
           publisher_id,
           status,
-          published
+          published,
+          posting_mode,
+          opportunity_type,
+          country_code,
+          city_slug,
+          required_gender,
+          required_count,
+          role_requirements
         `,
       )
       .in("id", opportunityIds)
@@ -224,6 +230,56 @@ export async function sendOpportunityInvitationsAction(
         locale === "ar"
           ? "تحتوي القائمة على فرصة غير منشورة أو لا تخص حسابك."
           : "One or more selected opportunities are unavailable.",
+      sentCount: 0,
+    };
+  }
+
+  const publisherVerified =
+    publisher.verified === true ||
+    publisher.verification_status === "verified";
+  const publisherType = String(publisher.publisher_type ?? "").trim().toLowerCase();
+  const individualPublisherTypes = new Set(["individual", "salon", "store", "photographer", "marketer"]);
+  const allSelectedQuick = validOpportunities.every(
+    (opportunity) => opportunity.posting_mode === "quick",
+  );
+
+  const publicTalentInviteAllowed =
+    talentVisibility === "public" && talent.published === true;
+
+  const talentForMatching = {
+    ...(talent as BriefTalent),
+    profile_approval_status: talentProfile.approval_status,
+    profile_status: talentProfile.status,
+  } satisfies BriefTalent;
+
+  const allSelectedMatchTalent = validOpportunities.every((opportunity) =>
+    evaluateTalentForBrief(
+      talentForMatching,
+      buildTalentBriefFromOpportunity(opportunity),
+    ).sendable,
+  );
+
+  const restrictedTalentInviteAllowed =
+    talentVisibility === "verified_publishers" &&
+    allSelectedMatchTalent &&
+    (publisherVerified ||
+      (individualPublisherTypes.has(publisherType) && allSelectedQuick));
+
+  if (!publicTalentInviteAllowed && !restrictedTalentInviteAllowed) {
+    return {
+      success: false,
+      message:
+        locale === "ar"
+          ? talentVisibility === "verified_publishers"
+            ? allSelectedMatchTalent
+              ? "هذه الموهبة متاحة للناشرين المعتمدين. للحساب الفردي يجب استخدام فرصة سريعة منشورة."
+              : "الفرصة المختارة لا تطابق متطلبات هذه الموهبة. عدّل متطلبات الفرصة أو اختر موهبة مطابقة."
+            : "هذه الموهبة غير متاحة للدعوات حاليًا."
+          : talentVisibility === "verified_publishers"
+            ? allSelectedMatchTalent
+              ? "This talent is available to approved publishers. Individual publishers must use a published Quick Opportunity."
+              : "The selected opportunity does not match this talent's requirements. Update the opportunity or choose a matching talent."
+            : "This talent is not currently available for invitations.",
       sentCount: 0,
     };
   }

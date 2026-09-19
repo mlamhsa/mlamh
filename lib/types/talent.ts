@@ -40,6 +40,7 @@ export type Talent = {
   language_level?: string[] | null;
   dialects?: string[] | null;
   skills?: string[] | null;
+  modeling_types?: string[] | null;
   bio_en?: string | null;
   bio_ar?: string | null;
   whatsapp?: string | null;

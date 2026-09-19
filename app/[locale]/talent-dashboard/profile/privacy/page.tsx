@@ -11,10 +11,29 @@ import { isValidLocale, type Locale } from "@/lib/i18n";
 type TalentRecord = Record<string, unknown> & {
   profile_visibility?: string | null;
   approval_status?: string | null;
+  modeling_types?: unknown;
 };
+
+const PARTS_MODEL_TYPES = new Set(["hand", "foot", "legs", "hair", "eyes", "smile"]);
 
 function clean(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function listValues(value: unknown) {
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === "string").map((item) => item.trim()).filter(Boolean);
+  }
+  const raw = clean(value);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed)
+      ? parsed.filter((item): item is string => typeof item === "string").map((item) => item.trim()).filter(Boolean)
+      : [];
+  } catch {
+    return raw.split(",").map((item) => item.trim()).filter(Boolean);
+  }
 }
 
 export default function TalentProfilePrivacyPage({ params }: { params: Promise<{ locale: string }> }) {
@@ -24,6 +43,7 @@ export default function TalentProfilePrivacyPage({ params }: { params: Promise<{
 
   const [visibility, setVisibility] = useState("");
   const [approvalStatus, setApprovalStatus] = useState("");
+  const [modelingTypes, setModelingTypes] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -40,6 +60,7 @@ export default function TalentProfilePrivacyPage({ params }: { params: Promise<{
         if (cancelled) return;
         setVisibility(clean(talent.profile_visibility).toLowerCase());
         setApprovalStatus(clean(talent.approval_status).toLowerCase());
+        setModelingTypes(listValues(talent.modeling_types).map((value) => value.toLowerCase()));
       } catch {
         if (!cancelled) {
           setMessage(isArabic ? "تعذر تحميل إعدادات الخصوصية." : "Unable to load privacy settings.");
@@ -54,6 +75,8 @@ export default function TalentProfilePrivacyPage({ params }: { params: Promise<{
       cancelled = true;
     };
   }, [isArabic, locale]);
+
+  const hasPartsSpecialization = modelingTypes.some((value) => PARTS_MODEL_TYPES.has(value));
 
   async function save() {
     if (saving || !visibility) return;
@@ -103,6 +126,28 @@ export default function TalentProfilePrivacyPage({ params }: { params: Promise<{
           </div>
         ) : null}
 
+        {hasPartsSpecialization ? (
+          <div className="mb-4 rounded-2xl border border-gold/25 bg-gold/[0.06] px-4 py-4 text-sm leading-7 text-white/75">
+            <strong className="block text-gold">
+              {isArabic ? "خصوصية مناسبة لهذا التخصص" : "Recommended privacy for this specialization"}
+            </strong>
+            <span className="mt-1 block">
+              {isArabic
+                ? "إذا كان عملك يركز على تصوير اليد أو القدم أو الشعر أو أجزاء محددة، نوصي بخيار «للناشرين المعتمدين فقط». لن يظهر ملفك للعامة. يمكن للجهات الموثقة، وكذلك الأفراد وأصحاب المشاريع المعتمدين الذين لديهم فرصة سريعة نشطة، فتحه من المطابقة أو الدعوات المناسبة. القرار لك ولن نغيّر إعدادك تلقائيًا."
+                : "If your work focuses on hands, feet, hair or other specific parts, we recommend “Approved publishers only.” It stays hidden from the public. Verified organizations and approved individual or small-business publishers with an active Quick Opportunity can open it through relevant matching or invitations. We will not change your setting automatically."}
+            </span>
+            {visibility !== "verified_publishers" ? (
+              <button
+                type="button"
+                onClick={() => setVisibility("verified_publishers")}
+                className="mt-3 rounded-full border border-gold/35 px-4 py-2 text-xs text-gold hover:bg-gold/[0.08]"
+              >
+                {isArabic ? "اختيار للناشرين المعتمدين فقط" : "Choose approved publishers only"}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+
         <section className="rounded-[2rem] border border-white/10 bg-white/[0.025] p-5 sm:p-7">
           {loading ? (
             <div className="space-y-3 animate-pulse">
@@ -139,7 +184,7 @@ export default function TalentProfilePrivacyPage({ params }: { params: Promise<{
 
           {!loading && !visibility ? (
             <p className="mt-4 text-xs leading-6 text-amber-100/80">
-              {isArabic ? "لم يتم تحديد إعداد ظهور لهذا الملف بعد. اختر عام أو خاص ثم احفظ الإعداد." : "No visibility setting has been selected for this profile yet. Choose Public or Private, then save."}
+              {isArabic ? "لم يتم تحديد إعداد ظهور لهذا الملف بعد. اختر طريقة الظهور المناسبة ثم احفظ الإعداد." : "No visibility setting has been selected for this profile yet. Choose the visibility option that fits you, then save."}
             </p>
           ) : null}
 

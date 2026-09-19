@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
-export type TalentVisibility = "public" | "private";
+export type TalentVisibility = "public" | "verified_publishers" | "private";
 
 export type UpdateTalentVisibilityResult = {
   success: boolean;
@@ -41,14 +41,14 @@ export async function getOwnTalentVisibilityAction(): Promise<TalentVisibility |
   }
 
   const visibility = String(data?.profile_visibility ?? "").trim().toLowerCase();
-  return visibility === "private" ? "private" : visibility === "public" ? "public" : null;
+  return visibility === "private" || visibility === "verified_publishers" || visibility === "public" ? visibility : null;
 }
 
 export async function updateOwnTalentVisibilityAction(
   visibility: TalentVisibility,
   locale: "ar" | "en",
 ): Promise<UpdateTalentVisibilityResult> {
-  if (visibility !== "public" && visibility !== "private") {
+  if (visibility !== "public" && visibility !== "verified_publishers" && visibility !== "private") {
     return {
       success: false,
       message: locale === "ar" ? "خيار الظهور غير صالح." : "Invalid visibility option.",
@@ -129,11 +129,15 @@ export async function updateOwnTalentVisibilityAction(
           ? approved
             ? "تم حفظ الخيار. ملفك العام متاح للظهور في دليل المواهب."
             : "تم حفظ الخيار. سيظهر ملفك في الدليل العام بعد الاعتماد."
-          : "تم حفظ الخيار. ملفك خاص ولن يظهر في دليل المواهب العام، وسيبقى متاحًا للمطابقة الخاصة."
+          : visibility === "verified_publishers"
+            ? "تم حفظ الخيار. ملفك مخفي عن العامة ومتاح للناشرين المعتمدين حسب صلاحية الوصول عبر المطابقة أو الدعوات المناسبة."
+            : "تم حفظ الخيار. ملفك خاص ولن يظهر في دليل المواهب العام، وسيبقى متاحًا للمطابقة الخاصة."
         : visibility === "public"
           ? approved
             ? "Saved. Your public profile can appear in the talent directory."
             : "Saved. Your profile can appear publicly after approval."
-          : "Saved. Your profile is private and hidden from the public directory while remaining eligible for private matching.",
+          : visibility === "verified_publishers"
+            ? "Saved. Your profile is hidden from the public and available to approved publishers who meet the access requirements through relevant matching or invitations."
+            : "Saved. Your profile is private and hidden from the public directory while remaining eligible for private matching.",
   };
 }
