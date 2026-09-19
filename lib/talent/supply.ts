@@ -82,6 +82,28 @@ export type TalentSupplyEvaluation = {
   evaluations: TalentSupplyCandidateEvaluation[];
 };
 
+export type OpportunityBriefLike = {
+  opportunity_type?: string | null;
+  country_code?: CountryCode | null;
+  city_slug?: string | null;
+  required_gender?: string | null;
+  required_count?: number | null;
+  role_requirements?: Record<string, unknown> | null;
+};
+
+export function buildTalentBriefFromOpportunity(
+  opportunity: OpportunityBriefLike,
+): TalentBrief {
+  return {
+    talent_count: opportunity.required_count ?? 1,
+    talent_type: opportunity.opportunity_type ?? null,
+    country_code: opportunity.country_code ?? "SA",
+    city: opportunity.city_slug ?? null,
+    required_gender: opportunity.required_gender ?? null,
+    requirements: opportunity.role_requirements ?? {},
+  };
+}
+
 const SUPPORTED_HARD_FIELDS = new Set([
   "nationality",
   "nationality_slug",
