@@ -96,6 +96,44 @@ test("verified-publishers profile is visible only to verified approved active pu
   );
 });
 
+test("approved individual publisher with an active quick opportunity can view restricted profile without private contact access", () => {
+  const restrictedTalent = {
+    ...talent,
+    profile_visibility: "verified_publishers" as const,
+  };
+  const quickIndividualPublisher = {
+    ...approvedUnverifiedPublisher,
+    publisherType: "individual",
+    hasActiveQuickOpportunity: true,
+  };
+
+  assert.equal(
+    canViewTalentProfile(quickIndividualPublisher, restrictedTalent),
+    true,
+  );
+  assert.equal(
+    canViewTalentPrivateContent(quickIndividualPublisher, talent.user_id),
+    false,
+  );
+});
+
+test("individual publisher without an active quick opportunity cannot view restricted profile", () => {
+  const restrictedTalent = {
+    ...talent,
+    profile_visibility: "verified_publishers" as const,
+  };
+  const individualWithoutQuickOpportunity = {
+    ...approvedUnverifiedPublisher,
+    publisherType: "individual",
+    hasActiveQuickOpportunity: false,
+  };
+
+  assert.equal(
+    canViewTalentProfile(individualWithoutQuickOpportunity, restrictedTalent),
+    false,
+  );
+});
+
 test("verified approved active publisher can view protected content only on an accessible talent surface", () => {
   assert.equal(
     canViewTalentPrivateContent(verifiedPublisher, talent.user_id),
