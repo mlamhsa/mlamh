@@ -8,7 +8,7 @@ import {
 
 const INVESTOR_WORKFLOW = "investor_discovery_v1";
 const INVESTOR_MODEL = "perplexity/sonar";
-const GATEWAY_RESPONSES_URL = "https://ai-gateway.vercel.sh/v1/responses";
+const GATEWAY_CHAT_URL = "https://ai-gateway.vercel.sh/v1/chat/completions";
 let installed = false;
 
 function nullableString() {
@@ -95,30 +95,23 @@ const enrichmentSchema = {
   required: ["enrichments"],
 } as const;
 
-type Annotation = { url?: string; title?: string };
-type ResponseContent = {
-  type?: string;
-  text?: string;
-  annotations?: Annotation[];
-};
-type ResponseOutput = {
-  type?: string;
-  content?: ResponseContent[];
-};
-type ResponsesPayload = {
+type ChatPayload = {
   model?: string;
-  output_text?: string;
-  output?: ResponseOutput[];
-  citations?: unknown;
+  choices?: Array<{
+    message?: {
+      content?: string | null;
+    };
+  }>;
+  citations?: string[] | null;
   usage?: {
-    input_tokens?: number;
-    output_tokens?: number;
+    prompt_tokens?: number;
+    completion_tokens?: number;
     total_tokens?: number;
   };
   error?: { message?: string } | string;
 };
 
-type WebSource = { url: string; title?: string };
+type WebSource = { url: string };
 
 function gatewayToken() {
   const token = process.env.AI_GATEWAY_API_KEY?.trim() || process.env.VERCEL_OIDC_TOKEN?.trim() || "";
@@ -146,72 +139,26 @@ function cleanJsonText(value: string) {
   }
 }
 
-function outputText(payload: ResponsesPayload) {
-  if (payload.output_text?.trim()) return payload.output_text.trim();
-  return (payload.output ?? [])
-    .flatMap((item) => item.content ?? [])
-    .filter((part) => part.type === "output_text" && typeof part.text === "string")
-    .map((part) => part.text?.trim() ?? "")
-    .filter(Boolean)
-    .join("\n")
-    .trim();
-}
-
-function collectSource(found: Map<string, WebSource>, urlValue: unknown, titleValue?: unknown) {
-  const url = typeof urlValue === "string" ? urlValue.trim() : "";
-  if (!/^https?:\/\//i.test(url) || found.has(url)) return;
-  const title = typeof titleValue === "string" ? titleValue.trim() : "";
-  found.set(url, { url, ...(title ? { title } : {}) });
-}
-
-function collectSourcesFromUnknown(value: unknown, found: Map<string, WebSource>) {
-  if (!value) return;
-  if (typeof value === "string") {
-    collectSource(found, value);
-    return;
+function extractWebSources(payload: ChatPayload) {
+  const found = new Set<string>();
+  for (const value of payload.citations ?? []) {
+    const url = typeof value === "string" ? value.trim() : "";
+    if (/^https?:\/\//i.test(url)) found.add(url);
   }
-  if (Array.isArray(value)) {
-    for (const item of value) collectSourcesFromUnknown(item, found);
-    return;
-  }
-  if (typeof value !== "object") return;
-
-  const record = value as Record<string, unknown>;
-  collectSource(found, record.url, record.title);
-  collectSource(found, record.source_url, record.title);
-  collectSource(found, record.webpage_url, record.title);
-  for (const nested of Object.values(record)) collectSourcesFromUnknown(nested, found);
+  return [...found].slice(0, 40).map((url) => ({ url }));
 }
 
-function extractWebSources(payload: ResponsesPayload) {
-  const found = new Map<string, WebSource>();
-
-  for (const item of payload.output ?? []) {
-    for (const part of item.content ?? []) {
-      for (const annotation of part.annotations ?? []) {
-        collectSource(found, annotation.url, annotation.title);
-      }
-    }
-  }
-
-  collectSourcesFromUnknown(payload.citations, found);
-  return [...found.values()].slice(0, 40);
-}
-
-function researchInstruction(schema: object) {
+function researchInstruction() {
   return [
     "You are the MLAMH Investor Relations research engine.",
-    "Every request must use your built-in live web search and cite current public sources.",
+    "Use your built-in live web search for current public investor evidence.",
     "Never invent firms, people, emails, URLs, roles, investment claims or cheque sizes.",
     "Geography is restricted to Saudi Arabia first, UAE second, then Qatar, Kuwait, Bahrain and Oman only.",
     "For organizations, verify the official website and identify a public business email, official Contact/Apply/Pitch route, or a verified decision-maker LinkedIn /in/ profile when possible.",
     "For individual investors, require a public professional LinkedIn /in/ profile plus evidence of actual startup investing.",
     "Public business emails must be explicitly published. Never infer an email pattern.",
     "Return fewer verified results rather than speculative results.",
-    "Every source URL in the JSON must correspond to a source actually found by live web search.",
-    "Return one raw JSON object only. Do not use Markdown fences or explanatory text.",
-    "The JSON must conform to this schema:",
-    JSON.stringify(schema),
+    "Every source URL in the JSON must correspond to a source found by live web search.",
   ].join("\n");
 }
 
@@ -232,21 +179,17 @@ class InvestorStructuredProvider implements MarketingAIProvider {
 
     const phase = request.metadata?.phase === "contact_enrichment_v1" ? "contact_enrichment" : "discovery";
     const schema = phase === "contact_enrichment" ? enrichmentSchema : discoverySchema;
+    const schemaName = phase === "contact_enrichment" ? "investor_contact_enrichment" : "investor_discovery";
 
-    const input = [
-      {
-        type: "message",
-        role: "developer",
-        content: researchInstruction(schema),
-      },
+    const messages = [
+      { role: "system", content: researchInstruction() },
       ...request.messages.map((message) => ({
-        type: "message",
-        role: message.role === "system" ? "developer" : message.role,
+        role: message.role === "system" ? "system" : message.role,
         content: message.content,
       })),
     ];
 
-    const response = await fetch(GATEWAY_RESPONSES_URL, {
+    const response = await fetch(GATEWAY_CHAT_URL, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${gatewayToken()}`,
@@ -256,17 +199,25 @@ class InvestorStructuredProvider implements MarketingAIProvider {
       },
       body: JSON.stringify({
         model: INVESTOR_MODEL,
-        store: false,
-        input,
+        messages,
+        stream: false,
         temperature: 0,
-        max_output_tokens: 7000,
+        max_tokens: 7000,
+        response_format: {
+          type: "json_schema",
+          json_schema: {
+            name: schemaName,
+            strict: true,
+            schema,
+          },
+        },
       }),
       cache: "no-store",
     });
 
-    let payload: ResponsesPayload;
+    let payload: ChatPayload;
     try {
-      payload = (await response.json()) as ResponsesPayload;
+      payload = (await response.json()) as ChatPayload;
     } catch {
       throw new Error(`[InvestorStructuredAI] Invalid provider response (HTTP ${response.status}).`);
     }
@@ -276,7 +227,7 @@ class InvestorStructuredProvider implements MarketingAIProvider {
       throw new Error(`[InvestorStructuredAI] ${message || `HTTP ${response.status}`}`);
     }
 
-    const rawText = outputText(payload);
+    const rawText = payload.choices?.[0]?.message?.content?.trim() || "";
     if (!rawText) throw new Error("[InvestorStructuredAI] Sonar returned no research output.");
 
     const webSources = extractWebSources(payload);
@@ -289,8 +240,8 @@ class InvestorStructuredProvider implements MarketingAIProvider {
     const finalContent = JSON.stringify({ ...parsed, web_sources: webSources });
 
     const usage: Record<string, number> = {};
-    if (typeof payload.usage?.input_tokens === "number") usage.input_tokens = payload.usage.input_tokens;
-    if (typeof payload.usage?.output_tokens === "number") usage.output_tokens = payload.usage.output_tokens;
+    if (typeof payload.usage?.prompt_tokens === "number") usage.input_tokens = payload.usage.prompt_tokens;
+    if (typeof payload.usage?.completion_tokens === "number") usage.output_tokens = payload.usage.completion_tokens;
     if (typeof payload.usage?.total_tokens === "number") usage.total_tokens = payload.usage.total_tokens;
 
     return {
@@ -300,9 +251,9 @@ class InvestorStructuredProvider implements MarketingAIProvider {
       usage,
       metadata: {
         ...(request.metadata ?? {}),
-        structured_output: false,
+        structured_output: true,
         web_search_used: true,
-        research_stack: "perplexity_sonar_gateway_v1",
+        research_stack: "perplexity_sonar_chat_completions_v1",
         web_source_count: webSources.length,
         web_sources: webSources,
       },
