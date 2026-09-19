@@ -9,16 +9,16 @@ if (isProduction && __ENV.K6_ALLOW_PRODUCTION !== "1") {
   throw new Error("Capacity/stress tests are blocked on production by default.");
 }
 
-if (!Number.isFinite(maxVUs) || maxVUs < 1 || maxVUs > 2000) {
-  throw new Error("MAX_VUS must be a number between 1 and 2000.");
+if (!Number.isFinite(maxVUs) || maxVUs < 50 || maxVUs > 2000) {
+  throw new Error("MAX_VUS must be a number between 50 and 2000.");
 }
 
 export const options = {
   stages: [
-    { duration: "1m", target: Math.max(10, Math.round(maxVUs * 0.2)) },
-    { duration: "2m", target: Math.max(25, Math.round(maxVUs * 0.4)) },
-    { duration: "2m", target: Math.max(50, Math.round(maxVUs * 0.6)) },
-    { duration: "2m", target: Math.max(100, Math.round(maxVUs * 0.8)) },
+    { duration: "1m", target: Math.max(1, Math.round(maxVUs * 0.2)) },
+    { duration: "2m", target: Math.max(1, Math.round(maxVUs * 0.4)) },
+    { duration: "2m", target: Math.max(1, Math.round(maxVUs * 0.6)) },
+    { duration: "2m", target: Math.max(1, Math.round(maxVUs * 0.8)) },
     { duration: "2m", target: maxVUs },
     { duration: "1m", target: 0 },
   ],
