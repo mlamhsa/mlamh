@@ -2,6 +2,12 @@ import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import {
+  AdminCard,
+  AdminEmptyState,
+  AdminPageContainer,
+  AdminPageHeader,
+} from "@/components/admin/ui";
 import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { assessPublisherRoleMismatch } from "@/lib/onboarding/publisher-role-correction";
 import { PublisherService } from "@/lib/services/publishers/PublisherService";
@@ -163,21 +169,25 @@ export default async function PublisherRoleCorrectionPage({ searchParams }: Page
     .filter((item) => item.assessment.likelyTalentMismatch);
 
   return (
-    <main dir={isArabic ? "rtl" : "ltr"} className="mx-auto w-full max-w-5xl px-4 py-10 text-white sm:px-6">
-      <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <p className="text-xs uppercase tracking-[0.3em] text-gold">MLAMH · ROLE CORRECTION</p>
-          <h1 className="mt-3 text-3xl font-light">{isArabic ? "تصحيح نوع الحساب" : "Account Role Correction"}</h1>
-          <p className="mt-3 max-w-3xl text-sm leading-7 text-white/50">
-            {isArabic
-              ? "هذه الشاشة ترصد فقط الحالات التي تبدو كموهبة سُجلت كناشر. لا يحدث أي تحويل تلقائي؛ كل حالة تحتاج تأكيدًا صريحًا من مدير النظام."
-              : "This screen only flags accounts that look like talent registered as publishers. Nothing is converted automatically; every correction requires explicit admin confirmation."}
-          </p>
-        </div>
-        <Link href={`/admin/publishers?lang=${language}`} className="rounded-full border border-white/10 px-5 py-3 text-xs text-white/60 hover:border-gold/40 hover:text-gold">
-          {isArabic ? "العودة للناشرين" : "Back to Publishers"}
-        </Link>
-      </div>
+    <div dir={isArabic ? "rtl" : "ltr"}>
+      <AdminPageContainer>
+        <AdminPageHeader
+          eyebrow={isArabic ? "إدارة الحسابات" : "ACCOUNT MANAGEMENT"}
+          title={isArabic ? "تصحيح نوع الحساب" : "Account role correction"}
+          description={
+            isArabic
+              ? "رصد الحالات التي تبدو كموهبة سُجلت كناشر. لا يحدث أي تحويل تلقائي؛ كل حالة تحتاج تأكيدًا صريحًا من مدير النظام."
+              : "Identify accounts that appear to be talent registered as publishers. Nothing is converted automatically; every correction requires explicit admin confirmation."
+          }
+          actions={
+            <Link
+              href={`/admin/publishers?lang=${language}`}
+              className="inline-flex h-10 items-center justify-center rounded-lg border border-white/[0.08] px-4 text-xs font-medium text-white/55 transition hover:border-gold/20 hover:text-gold"
+            >
+              {isArabic ? "العودة للناشرين" : "Back to publishers"}
+            </Link>
+          }
+        />
 
       {params.corrected === "1" ? (
         <div className="mb-6 rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.05] p-4 text-sm text-emerald-100/80">
@@ -198,13 +208,13 @@ export default async function PublisherRoleCorrectionPage({ searchParams }: Page
       </div>
 
       {candidates.length === 0 ? (
-        <div className="rounded-3xl border border-white/10 bg-white/[0.025] p-10 text-center text-sm text-white/45">
-          {isArabic ? "لا توجد حالات مرجحة حاليًا." : "No likely role mismatches right now."}
-        </div>
+        <AdminEmptyState
+          message={isArabic ? "لا توجد حالات مرجحة حاليًا." : "No likely role mismatches right now."}
+        />
       ) : (
         <div className="grid gap-5">
           {candidates.map(({ publisher, assessment }) => (
-            <section key={publisher.id} className="rounded-3xl border border-white/10 bg-white/[0.025] p-6">
+            <AdminCard key={publisher.id} className="p-5 sm:p-6">
               <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
@@ -254,10 +264,11 @@ export default async function PublisherRoleCorrectionPage({ searchParams }: Page
                   {isArabic ? "الحالة تحتاج مراجعة يدوية ولا تستوفي شروط التحويل الآمن." : "This case needs manual review and is not eligible for governed correction."}
                 </p>
               )}
-            </section>
+            </AdminCard>
           ))}
         </div>
       )}
-    </main>
+      </AdminPageContainer>
+    </div>
   );
 }
