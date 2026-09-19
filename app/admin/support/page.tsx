@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { Headphones, Inbox, MessageSquareText, TimerReset } from "lucide-react";
+import { Headphones } from "lucide-react";
+
+import { AdminPageContainer, AdminPageHeader, AdminStatCard } from "@/components/admin/ui";
 
 import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -98,27 +100,23 @@ export default async function AdminSupportPage({ searchParams }: PageProps) {
   const activeCount = counts.new + counts.open + counts.in_progress + counts.pending_user;
 
   return (
-    <main dir={isArabic ? "rtl" : "ltr"} className="mx-auto max-w-7xl px-4 py-7 text-white sm:px-6 lg:px-8 lg:py-10">
-      <section className="mb-7">
-        <div className="flex items-center gap-2 text-gold">
-          <Headphones className="h-4 w-4" />
-          <p className="text-[10px] uppercase tracking-[0.35em]">MLAMH SUPPORT</p>
-        </div>
-        <h1 className="mt-3 text-3xl font-light sm:text-5xl">
-          {isArabic ? "الدعم والتواصل" : "Support & Contact"}
-        </h1>
-        <p className="mt-3 max-w-3xl text-sm leading-7 text-white/45">
-          {isArabic
+    <div dir={isArabic ? "rtl" : "ltr"}>
+      <AdminPageContainer>
+      <AdminPageHeader
+        eyebrow={isArabic ? "التواصل" : "COMMUNICATIONS"}
+        title={isArabic ? "الدعم" : "Support"}
+        description={
+          isArabic
             ? "صندوق موحّد لطلبات الدعم والاستفسارات والشكاوى والشراكات الواردة من المنصة."
-            : "A unified inbox for support, inquiries, complaints, and partnership requests from the platform."}
-        </p>
-      </section>
+            : "A unified inbox for support, inquiries, complaints, and partnership requests from the platform."
+        }
+      />
 
-      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
-        <Metric icon={<Inbox className="h-4 w-4" />} label={isArabic ? "قيد المتابعة" : "Active"} value={activeCount} />
-        <Metric icon={<MessageSquareText className="h-4 w-4" />} label={isArabic ? "جديدة" : "New"} value={counts.new} />
-        <Metric icon={<TimerReset className="h-4 w-4" />} label={isArabic ? "قيد المعالجة" : "In progress"} value={counts.in_progress} />
-        <Metric icon={<Headphones className="h-4 w-4" />} label={isArabic ? "تم الحل" : "Resolved"} value={counts.resolved} />
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <AdminStatCard label={isArabic ? "قيد المتابعة" : "Active"} value={activeCount} active={activeCount > 0} />
+        <AdminStatCard label={isArabic ? "جديدة" : "New"} value={counts.new} active={counts.new > 0} />
+        <AdminStatCard label={isArabic ? "قيد المعالجة" : "In progress"} value={counts.in_progress} active={counts.in_progress > 0} />
+        <AdminStatCard label={isArabic ? "تم الحل" : "Resolved"} value={counts.resolved} />
       </section>
 
       <div className="mt-6 flex gap-2 overflow-x-auto pb-1">
@@ -177,15 +175,7 @@ export default async function AdminSupportPage({ searchParams }: PageProps) {
           </div>
         )}
       </section>
-    </main>
-  );
-}
-
-function Metric({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) {
-  return (
-    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4 sm:rounded-3xl sm:p-5">
-      <div className="flex items-center gap-1.5 text-[9px] leading-4 text-white/35 sm:text-[10px]">{icon}{label}</div>
-      <p className="mt-2 text-2xl font-light sm:text-3xl">{value}</p>
+      </AdminPageContainer>
     </div>
   );
 }
