@@ -55,6 +55,7 @@ declare
   v_selected_role_id bigint;
   v_super_admin_count integer;
   v_crosses_super_admin_boundary boolean;
+  v_registry_only_sync boolean := false;
   v_event_type text;
   v_action text;
 begin
@@ -62,12 +63,6 @@ begin
     raise exception using
       errcode = 'P0001',
       message = 'ADMIN_ACCESS_INVALID_USER';
-  end if;
-
-  if p_actor_user_id = p_target_user_id then
-    raise exception using
-      errcode = 'P0001',
-      message = 'SELF_ADMIN_ACCESS_CHANGE';
   end if;
 
   if p_new_role_key not in ('admin', 'super_admin', 'revoked') then
@@ -202,6 +197,74 @@ begin
         errcode = 'P0001',
         message = 'ADMIN_ACCESS_ROLE_NOT_FOUND';
     end if;
+  end if;
+
+  v_registry_only_sync :=
+    p_new_role_key <> 'revoked'
+    and v_current_role = p_new_role_key
+    and v_registry_role <> p_new_role_key;
+
+  if
+    v_current_role is not distinct from p_new_role_key
+    and v_registry_role = p_new_role_key
+  then
+    raise exception using
+      errcode = 'P0001',
+      message = 'ADMIN_ACCESS_NOOP';
+  end if;
+
+  if
+    p_actor_user_id = p_target_user_id
+    and not v_registry_only_sync
+  then
+    raise exception using
+      errcode = 'P0001',
+      message = 'SELF_ADMIN_ACCESS_CHANGE';
+  end if;
+
+  if v_registry_only_sync then
+    update public.admin_users
+    set role = p_new_role_key
+    where id = p_target_user_id;
+
+    insert into public.events (
+      event_type,
+      target_type,
+      target_id,
+      actor_id,
+      metadata
+    )
+    values (
+      'admin_role_changed',
+      'admin',
+      p_target_user_id::text,
+      p_actor_user_id::text,
+      jsonb_build_object(
+        'action',
+        'sync_admin_role_registry',
+        'outcome',
+        'success',
+        'target_email',
+        v_target_email,
+        'previous_registry_role',
+        v_registry_role,
+        'effective_role',
+        v_current_role,
+        'registry_only_sync',
+        true,
+        'actor_email',
+        v_actor_email,
+        'atomic_access_mutation',
+        true
+      )
+    );
+
+    return query
+    select
+      v_current_role,
+      p_new_role_key;
+
+    return;
   end if;
 
   v_crosses_super_admin_boundary :=
