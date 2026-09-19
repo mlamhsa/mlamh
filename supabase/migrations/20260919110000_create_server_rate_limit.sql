@@ -25,7 +25,7 @@ returns table (
 )
 language plpgsql
 security invoker
-set search_path = public
+set search_path = ''
 as $$
 declare
   v_now timestamptz := clock_timestamp();
