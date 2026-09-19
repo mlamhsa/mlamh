@@ -31,7 +31,7 @@ export function HomeFinalCTASection({ isArabic }: Props) {
 
         <Pressable
           accessibilityRole="button"
-          onPress={() => router.push("/account-type")}
+          onPress={() => router.push("/register?type=talent" as never)}
           style={({ pressed }) => [styles.talentCard, pressed && styles.pressed]}
         >
           <Users size={24} color="#090909" />
@@ -48,7 +48,7 @@ export function HomeFinalCTASection({ isArabic }: Props) {
 
         <Pressable
           accessibilityRole="button"
-          onPress={() => router.push("/account-type")}
+          onPress={() => router.push("/register?type=publisher" as never)}
           style={({ pressed }) => [styles.publisherCard, pressed && styles.pressed]}
         >
           <BriefcaseBusiness size={24} color={colors.gold} />
