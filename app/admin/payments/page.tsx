@@ -56,6 +56,46 @@ function statusClasses(status: string) {
   return "border-amber-400/30 bg-amber-400/10 text-amber-300";
 }
 
+function paymentStatusLabel(status: string, isArabic: boolean) {
+  const labels: Record<string, [string, string]> = {
+    pending: ["معلّقة", "Pending"],
+    processing: ["قيد المعالجة", "Processing"],
+    succeeded: ["ناجحة", "Succeeded"],
+    failed: ["فاشلة", "Failed"],
+    cancelled: ["ملغاة", "Cancelled"],
+    refunded: ["مستردة", "Refunded"],
+    partially_refunded: ["مستردة جزئيًا", "Partially refunded"],
+  };
+  const label = labels[status.toLowerCase()];
+  return label ? (isArabic ? label[0] : label[1]) : status.replaceAll("_", " ");
+}
+
+function productLabel(product: string | null, isArabic: boolean) {
+  if (!product) return "—";
+  const labels: Record<string, [string, string]> = {
+    featured_talent: ["تمييز موهبة", "Featured talent"],
+    featured_opportunity: ["تمييز فرصة", "Featured opportunity"],
+    sandbox_tap_test: ["اختبار Tap", "Tap sandbox test"],
+    managed_casting: ["خدمة Managed Casting", "Managed Casting"],
+  };
+  const label = labels[product.toLowerCase()];
+  return label ? (isArabic ? label[0] : label[1]) : product.replaceAll("_", " ");
+}
+
+function targetLabel(target: string | null, targetId: string | number | null, isArabic: boolean) {
+  const key = (target ?? "account").toLowerCase();
+  const labels: Record<string, [string, string]> = {
+    talent: ["موهبة", "Talent"],
+    opportunity: ["فرصة", "Opportunity"],
+    publisher: ["ناشر", "Publisher"],
+    account: ["حساب", "Account"],
+    casting_project: ["مشروع كاستينغ", "Casting project"],
+  };
+  const label = labels[key];
+  const name = label ? (isArabic ? label[0] : label[1]) : key.replaceAll("_", " ");
+  return targetId ? `${name} · ${targetId}` : name;
+}
+
 function formatAmount(amountMinor: number, currency: string, locale: string) {
   const amount = minorToMajorAmount(Number(amountMinor), currency);
   return new Intl.NumberFormat(locale === "ar" ? "ar-SA-u-ca-gregory-nu-latn" : "en-US", {
@@ -171,11 +211,11 @@ export default async function AdminPaymentsPage({ searchParams }: PageProps) {
                       <div className="min-w-0">
                         <p className="font-mono text-xs text-white/75">#{payment.id}</p>
                         <p className="mt-1 truncate text-sm text-white/65">
-                          {payment.product_code_snapshot ?? "—"}
+                          {productLabel(payment.product_code_snapshot, isArabic)}
                         </p>
                       </div>
                       <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[9px] uppercase ${statusClasses(payment.status)}`}>
-                        {payment.status}
+                        {paymentStatusLabel(payment.status, isArabic)}
                       </span>
                     </div>
 
@@ -183,7 +223,7 @@ export default async function AdminPaymentsPage({ searchParams }: PageProps) {
                       <Info label={isArabic ? "المبلغ" : "Amount"} value={formatAmount(payment.amount_minor, payment.currency, locale)} strong />
                       <Info label={isArabic ? "التاريخ" : "Created"} value={formatDate(payment.created_at, locale)} />
                       <Info label="Tap" value={payment.provider ?? "—"} />
-                      <Info label={isArabic ? "الهدف" : "Target"} value={`${payment.target_type ?? "account"}${payment.target_id ? ` · ${payment.target_id}` : ""}`} />
+                      <Info label={isArabic ? "الهدف" : "Target"} value={targetLabel(payment.target_type, payment.target_id, isArabic)} />
                     </div>
 
                     <div className="mt-3 space-y-1.5 text-[10px] text-white/30">
@@ -221,12 +261,14 @@ export default async function AdminPaymentsPage({ searchParams }: PageProps) {
                           <p className="mt-1 max-w-[190px] truncate font-mono text-[10px] text-white/30" title={payment.public_id}>{payment.public_id}</p>
                         </td>
                         <td className="px-5 py-5">
-                          <p className="text-white/75">{payment.product_code_snapshot ?? "—"}</p>
-                          <p className="mt-1 text-xs text-white/30">{payment.price_code_snapshot ?? "—"}</p>
+                          <p className="text-white/75">{productLabel(payment.product_code_snapshot, isArabic)}</p>
+                          <p className="mt-1 font-mono text-[10px] text-white/30">
+                            {payment.product_code_snapshot ?? "—"} · {payment.price_code_snapshot ?? "—"}
+                          </p>
                         </td>
                         <td className="whitespace-nowrap px-5 py-5 text-white/75">{formatAmount(payment.amount_minor, payment.currency, locale)}</td>
                         <td className="px-5 py-5">
-                          <span className={`inline-flex rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.14em] ${statusClasses(payment.status)}`}>{payment.status}</span>
+                          <span className={`inline-flex rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.14em] ${statusClasses(payment.status)}`}>{paymentStatusLabel(payment.status, isArabic)}</span>
                           {providerStatus ? <p className="mt-2 text-[10px] text-white/30">{providerStatus}</p> : null}
                         </td>
                         <td className="px-5 py-5">
@@ -234,8 +276,8 @@ export default async function AdminPaymentsPage({ searchParams }: PageProps) {
                           <p className="mt-1 max-w-[180px] truncate font-mono text-[10px] text-white/30" title={payment.provider_payment_id ?? undefined}>{payment.provider_payment_id ?? "—"}</p>
                         </td>
                         <td className="px-5 py-5 text-xs text-white/50">
-                          <p>{payment.target_type ?? "account"}</p>
-                          <p className="mt-1 font-mono text-[10px] text-white/30">{payment.target_id ?? "—"}</p>
+                          <p>{targetLabel(payment.target_type, payment.target_id, isArabic)}</p>
+                          <p className="mt-1 font-mono text-[10px] text-white/25">{payment.target_type ?? "account"}</p>
                         </td>
                         <td className="whitespace-nowrap px-5 py-5 text-xs text-white/45">{formatDate(payment.created_at, locale)}</td>
                       </tr>
