@@ -1,3 +1,4 @@
+import { gateway, generateText, isStepCount } from "ai";
 import {
   getMarketingAIProvider,
   registerMarketingAIProvider,
@@ -7,8 +8,7 @@ import {
 } from "@/lib/marketing/ai/provider";
 
 const INVESTOR_WORKFLOW = "investor_discovery_v1";
-const INVESTOR_MODEL = "perplexity/sonar";
-const GATEWAY_CHAT_URL = "https://ai-gateway.vercel.sh/v1/chat/completions";
+const INVESTOR_MODEL = "poolside/laguna-s-2.1-free";
 let installed = false;
 
 function nullableString() {
@@ -95,33 +95,11 @@ const enrichmentSchema = {
   required: ["enrichments"],
 } as const;
 
-type ChatPayload = {
-  model?: string;
-  choices?: Array<{
-    message?: {
-      content?: string | null;
-    };
-  }>;
-  citations?: string[] | null;
-  usage?: {
-    prompt_tokens?: number;
-    completion_tokens?: number;
-    total_tokens?: number;
-  };
-  error?: { message?: string } | string;
-};
-
-type WebSource = { url: string };
-
-function gatewayToken() {
-  const token = process.env.AI_GATEWAY_API_KEY?.trim() || process.env.VERCEL_OIDC_TOKEN?.trim() || "";
-  if (!token) throw new Error("[InvestorStructuredAI] Vercel AI Gateway is not configured.");
-  return token;
-}
+type WebSource = { url: string; title?: string };
 
 function cleanJsonText(value: string) {
   let text = value.trim();
-  const fenced = text.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+  const fenced = text.match(/^\`\`\`(?:json)?\\s*([\\s\\S]*?)\\s*\`\`\`$/i);
   if (fenced?.[1]) text = fenced[1].trim();
 
   try {
@@ -139,27 +117,68 @@ function cleanJsonText(value: string) {
   }
 }
 
-function extractWebSources(payload: ChatPayload) {
-  const found = new Set<string>();
-  for (const value of payload.citations ?? []) {
-    const url = typeof value === "string" ? value.trim() : "";
-    if (/^https?:\/\//i.test(url)) found.add(url);
-  }
-  return [...found].slice(0, 40).map((url) => ({ url }));
+function requestPrompt(request: MarketingAIRequest, schema: object) {
+  const transcript = request.messages
+    .map((message) => `[${message.role.toUpperCase()}]\n${message.content}`)
+    .join("\n\n");
+
+  return [
+    transcript,
+    "",
+    "Use the web-search results from the required search tool as the ONLY evidence source.",
+    "Do not add a URL unless it appeared in the search tool results.",
+    "After search completes, return one raw JSON object only. No Markdown or explanation.",
+    "The JSON must conform to this schema:",
+    JSON.stringify(schema),
+  ].join("\n");
 }
 
 function researchInstruction() {
   return [
     "You are the MLAMH Investor Relations research engine.",
-    "Use your built-in live web search for current public investor evidence.",
+    "The first step MUST search the public web using the provided Perplexity Search tool.",
+    "Search current professional/business evidence only.",
     "Never invent firms, people, emails, URLs, roles, investment claims or cheque sizes.",
     "Geography is restricted to Saudi Arabia first, UAE second, then Qatar, Kuwait, Bahrain and Oman only.",
-    "For organizations, verify the official website and identify a public business email, official Contact/Apply/Pitch route, or a verified decision-maker LinkedIn /in/ profile when possible.",
+    "For organizations, verify the official website and look for a published business email, official Contact/Apply/Pitch route, or a verified decision-maker LinkedIn /in/ profile.",
     "For individual investors, require a public professional LinkedIn /in/ profile plus evidence of actual startup investing.",
     "Public business emails must be explicitly published. Never infer an email pattern.",
     "Return fewer verified results rather than speculative results.",
-    "Every source URL in the JSON must correspond to a source found by live web search.",
+    "The final JSON may reference only URLs returned by the search tool.",
   ].join("\n");
+}
+
+function extractSearchSources(toolResults: ReadonlyArray<unknown>) {
+  const found = new Map<string, WebSource>();
+
+  for (const rawResult of toolResults) {
+    if (!rawResult || typeof rawResult !== "object") continue;
+    const result = rawResult as Record<string, unknown>;
+    if (result.toolName !== "perplexity_search") continue;
+
+    const output = result.output;
+    if (!output || typeof output !== "object" || Array.isArray(output)) continue;
+    const rows = (output as Record<string, unknown>).results;
+    if (!Array.isArray(rows)) continue;
+
+    for (const rawRow of rows) {
+      if (!rawRow || typeof rawRow !== "object" || Array.isArray(rawRow)) continue;
+      const row = rawRow as Record<string, unknown>;
+      const url = typeof row.url === "string" ? row.url.trim() : "";
+      if (!/^https?:\/\//i.test(url) || found.has(url)) continue;
+      const title = typeof row.title === "string" ? row.title.trim() : "";
+      found.set(url, { url, ...(title ? { title } : {}) });
+    }
+  }
+
+  return [...found.values()].slice(0, 60);
+}
+
+function usageTotal(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const total = (value as Record<string, unknown>).total;
+  return typeof total === "number" && Number.isFinite(total) ? total : undefined;
 }
 
 class InvestorStructuredProvider implements MarketingAIProvider {
@@ -179,81 +198,65 @@ class InvestorStructuredProvider implements MarketingAIProvider {
 
     const phase = request.metadata?.phase === "contact_enrichment_v1" ? "contact_enrichment" : "discovery";
     const schema = phase === "contact_enrichment" ? enrichmentSchema : discoverySchema;
-    const schemaName = phase === "contact_enrichment" ? "investor_contact_enrichment" : "investor_discovery";
 
-    const messages = [
-      { role: "system", content: researchInstruction() },
-      ...request.messages.map((message) => ({
-        role: message.role === "system" ? "system" : message.role,
-        content: message.content,
-      })),
-    ];
-
-    const response = await fetch(GATEWAY_CHAT_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${gatewayToken()}`,
-        "Content-Type": "application/json",
-        "http-referer": "https://mlamh.net",
-        "x-title": "MLAMH Investor Relations AI",
+    const result = await generateText({
+      model: INVESTOR_MODEL,
+      instructions: researchInstruction(),
+      prompt: requestPrompt(request, schema),
+      maxOutputTokens: 7000,
+      tools: {
+        perplexity_search: gateway.tools.perplexitySearch({
+          maxResults: 20,
+          maxTokensPerPage: 1800,
+          maxTokens: 30000,
+          searchLanguageFilter: ["en", "ar"],
+        }),
       },
-      body: JSON.stringify({
-        model: INVESTOR_MODEL,
-        messages,
-        stream: false,
-        temperature: 0,
-        max_tokens: 7000,
-        response_format: {
-          type: "json_schema",
-          json_schema: {
-            name: schemaName,
-            strict: true,
-            schema,
-          },
-        },
+      prepareStep: ({ stepNumber }) => ({
+        toolChoice:
+          stepNumber === 0
+            ? { type: "tool", toolName: "perplexity_search" as const }
+            : "none",
       }),
-      cache: "no-store",
+      stopWhen: isStepCount(2),
     });
 
-    let payload: ChatPayload;
-    try {
-      payload = (await response.json()) as ChatPayload;
-    } catch {
-      throw new Error(`[InvestorStructuredAI] Invalid provider response (HTTP ${response.status}).`);
-    }
-
-    if (!response.ok) {
-      const message = typeof payload.error === "string" ? payload.error : payload.error?.message;
-      throw new Error(`[InvestorStructuredAI] ${message || `HTTP ${response.status}`}`);
-    }
-
-    const rawText = payload.choices?.[0]?.message?.content?.trim() || "";
-    if (!rawText) throw new Error("[InvestorStructuredAI] Sonar returned no research output.");
-
-    const webSources = extractWebSources(payload);
+    const webSources = extractSearchSources(result.toolResults as ReadonlyArray<unknown>);
     if (!webSources.length) {
-      throw new Error("[InvestorStructuredAI] Sonar returned no verifiable web citations.");
+      throw new Error("[InvestorStructuredAI] Perplexity Search returned no verifiable web sources.");
+    }
+
+    const rawText = result.text.trim();
+    if (!rawText) {
+      throw new Error("[InvestorStructuredAI] Research model returned no structured output.");
     }
 
     const text = cleanJsonText(rawText);
     const parsed = JSON.parse(text) as Record<string, unknown>;
     const finalContent = JSON.stringify({ ...parsed, web_sources: webSources });
 
+    const usageRecord = result.usage as unknown as Record<string, unknown>;
     const usage: Record<string, number> = {};
-    if (typeof payload.usage?.prompt_tokens === "number") usage.input_tokens = payload.usage.prompt_tokens;
-    if (typeof payload.usage?.completion_tokens === "number") usage.output_tokens = payload.usage.completion_tokens;
-    if (typeof payload.usage?.total_tokens === "number") usage.total_tokens = payload.usage.total_tokens;
+    const inputTokens = usageTotal(usageRecord.inputTokens);
+    const outputTokens = usageTotal(usageRecord.outputTokens);
+    const totalTokens =
+      typeof usageRecord.totalTokens === "number" && Number.isFinite(usageRecord.totalTokens)
+        ? usageRecord.totalTokens
+        : undefined;
+    if (inputTokens !== undefined) usage.input_tokens = inputTokens;
+    if (outputTokens !== undefined) usage.output_tokens = outputTokens;
+    if (totalTokens !== undefined) usage.total_tokens = totalTokens;
 
     return {
       content: finalContent,
-      model: payload.model || INVESTOR_MODEL,
+      model: INVESTOR_MODEL,
       provider: this.id,
       usage,
       metadata: {
         ...(request.metadata ?? {}),
         structured_output: true,
         web_search_used: true,
-        research_stack: "perplexity_sonar_chat_completions_v1",
+        research_stack: "ai_sdk_v7_laguna_free_perplexity_search_v1",
         web_source_count: webSources.length,
         web_sources: webSources,
       },
