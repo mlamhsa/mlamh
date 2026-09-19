@@ -51,22 +51,22 @@ export const ACTOR_SKILL_CHOICES: TalentProfessionalChoice[] = [
 ];
 
 export const MODEL_TYPE_CHOICES: TalentProfessionalChoice[] = [
-  { value: "commercial", ar: "إعلاني", en: "Commercial" },
-  { value: "fashion", ar: "أزياء", en: "Fashion" },
-  { value: "runway", ar: "عروض أزياء", en: "Runway" },
-  { value: "beauty", ar: "جمال", en: "Beauty" },
-  { value: "fitness", ar: "رياضي / لياقة", en: "Fitness" },
-  { value: "fit", ar: "قياسات الملابس", en: "Fit model" },
-  { value: "promotional", ar: "ترويجي / فعاليات", en: "Promotional" },
-  { value: "ecommerce", ar: "متاجر إلكترونية / كتالوج", en: "E-commerce / Catalog" },
-  { value: "lifestyle", ar: "لايف ستايل", en: "Lifestyle" },
-  { value: "product", ar: "منتجات", en: "Product" },
-  { value: "hand", ar: "أجزاء الجسم — يد", en: "Parts — Hand" },
-  { value: "foot", ar: "أجزاء الجسم — قدم", en: "Parts — Foot" },
-  { value: "legs", ar: "أجزاء الجسم — ساق", en: "Parts — Legs" },
-  { value: "hair", ar: "أجزاء الجسم — شعر", en: "Parts — Hair" },
-  { value: "eyes", ar: "أجزاء الجسم — عيون", en: "Parts — Eyes" },
-  { value: "smile", ar: "أجزاء الجسم — ابتسامة / أسنان", en: "Parts — Smile / Teeth" },
+  { value: "commercial", ar: "إعلانات وبراندات", en: "Commercial" },
+  { value: "fashion", ar: "أزياء وتصوير ملابس", en: "Fashion" },
+  { value: "runway", ar: "عروض أزياء على المنصة", en: "Runway" },
+  { value: "beauty", ar: "مكياج وعناية وجمال", en: "Beauty" },
+  { value: "fitness", ar: "رياضة ولياقة", en: "Fitness" },
+  { value: "fit", ar: "تجربة وقياسات الملابس", en: "Fit model" },
+  { value: "promotional", ar: "فعاليات وترويج", en: "Promotional" },
+  { value: "ecommerce", ar: "متاجر إلكترونية وكتالوج", en: "E-commerce / Catalog" },
+  { value: "lifestyle", ar: "تصوير يومي ولايف ستايل", en: "Lifestyle" },
+  { value: "product", ar: "تصوير واستخدام المنتجات", en: "Product" },
+  { value: "hand", ar: "يد — مجوهرات ومنتجات", en: "Parts — Hand" },
+  { value: "foot", ar: "قدم — أحذية وإكسسوارات", en: "Parts — Foot" },
+  { value: "legs", ar: "ساق — أزياء ومنتجات", en: "Parts — Legs" },
+  { value: "hair", ar: "شعر — عناية وتصفيف", en: "Parts — Hair" },
+  { value: "eyes", ar: "عيون — نظارات وعدسات وجمال", en: "Parts — Eyes" },
+  { value: "smile", ar: "ابتسامة وأسنان — عناية وجمال", en: "Parts — Smile / Teeth" },
 ];
 
 export const MODEL_PARTS_TYPE_VALUES = new Set(["hand", "foot", "legs", "hair", "eyes", "smile"]);
