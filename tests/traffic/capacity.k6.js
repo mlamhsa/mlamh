@@ -30,7 +30,7 @@ export const options = {
 
 const routes = [
   "/ar/opportunities",
-  "/ar/talents",
+  "/ar/talent",
   "/api/opportunities?locale=ar&market=SA",
 ];
 
