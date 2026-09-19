@@ -433,7 +433,7 @@ export function AdminRoleControls({
               action={
                 cancelPendingAdminInviteAction
               }
-              className="mt-6 flex gap-2"
+              className="mt-6"
             >
               <input
                 type="hidden"
@@ -446,49 +446,29 @@ export function AdminRoleControls({
                 value={locale}
               />
 
-              <label className="block text-[11px] leading-5 text-white/55">
-                <span className="mb-1.5 block">
-                  {isArabic
-                    ? "سبب سحب الوصول"
-                    : "Reason for revocation"}
-                </span>
-                <textarea
-                  name="change_reason"
-                  required
-                  minLength={5}
-                  maxLength={300}
-                  rows={3}
-                  placeholder={
-                    isArabic
-                      ? "مثال: انتهاء الحاجة التشغيلية أو تغيير المسؤوليات..."
-                      : "Example: access no longer needed or responsibilities changed..."
-                  }
-                  className="w-full resize-none rounded-xl border border-white/[0.09] bg-black/35 px-3 py-2.5 text-xs leading-5 text-white/70 outline-none placeholder:text-white/25 focus:border-red-400/30"
-                />
-              </label>
-
               <div className="flex gap-2">
-              <RevokeButton
-                label={
-                  isArabic
-                    ? "تأكيد إلغاء الدعوة"
-                    : "Confirm cancellation"
-                }
-              />
+                <RevokeButton
+                  label={
+                    isArabic
+                      ? "تأكيد إلغاء الدعوة"
+                      : "Confirm cancellation"
+                  }
+                />
 
-              <button
-                type="button"
-                onClick={() =>
-                  setCancelInviteOpen(
-                    false,
-                  )
-                }
-                className="h-10 rounded-xl border border-white/[0.09] px-3 text-[11px] text-white/50 transition hover:border-white/[0.16] hover:text-white"
-              >
-                {isArabic
-                  ? "رجوع"
-                  : "Back"}
-              </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCancelInviteOpen(
+                      false,
+                    )
+                  }
+                  className="h-10 rounded-xl border border-white/[0.09] px-3 text-[11px] text-white/50 transition hover:border-white/[0.16] hover:text-white"
+                >
+                  {isArabic
+                    ? "رجوع"
+                    : "Back"}
+                </button>
+              </div>
             </form>
           </section>
         </div>
@@ -717,25 +697,47 @@ export function AdminRoleControls({
                 value={locale}
               />
 
-              <RevokeButton
-                label={
-                  isArabic
-                    ? "تأكيد سحب الوصول"
-                    : "Confirm revoke"
-                }
-              />
+              <label className="block text-[11px] leading-5 text-white/55">
+                <span className="mb-1.5 block">
+                  {isArabic
+                    ? "سبب سحب الوصول"
+                    : "Reason for revocation"}
+                </span>
+                <textarea
+                  name="change_reason"
+                  required
+                  minLength={5}
+                  maxLength={300}
+                  rows={3}
+                  placeholder={
+                    isArabic
+                      ? "مثال: انتهاء الحاجة التشغيلية أو تغيير المسؤوليات..."
+                      : "Example: access no longer needed or responsibilities changed..."
+                  }
+                  className="w-full resize-none rounded-xl border border-white/[0.09] bg-black/35 px-3 py-2.5 text-xs leading-5 text-white/70 outline-none placeholder:text-white/25 focus:border-red-400/30"
+                />
+              </label>
 
-              <button
-                type="button"
-                onClick={() =>
-                  setRevokeOpen(false)
-                }
-                className="h-10 rounded-xl border border-white/[0.09] px-3 text-[11px] text-white/50 transition hover:border-white/[0.16] hover:text-white"
-              >
-                {isArabic
-                  ? "إلغاء"
-                  : "Cancel"}
-              </button>
+              <div className="flex gap-2">
+                <RevokeButton
+                  label={
+                    isArabic
+                      ? "تأكيد سحب الوصول"
+                      : "Confirm revoke"
+                  }
+                />
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setRevokeOpen(false)
+                  }
+                  className="h-10 rounded-xl border border-white/[0.09] px-3 text-[11px] text-white/50 transition hover:border-white/[0.16] hover:text-white"
+                >
+                  {isArabic
+                    ? "إلغاء"
+                    : "Cancel"}
+                </button>
               </div>
             </form>
           </section>
