@@ -8,6 +8,8 @@ on:
     paths:
       - ".github/workflows/ios-launch-smoke.yml"
       - ".github/workflows/ios-build15-local.yml"
+      - ".github/release/testflight-build25"
+      - ".github/testflight-release-request"
       - "apps/mobile/app/**"
       - "apps/mobile/assets/**"
       - "apps/mobile/src/navigation/**"
