@@ -126,6 +126,14 @@ export function RootRouteGate() {
     return <Redirect href={ROUTES.accountType as Href} />;
   }
 
+  if (session.status === "talent_incomplete") {
+    return <Redirect href={"/setup-account?type=talent&source=recovery" as Href} />;
+  }
+
+  if (session.status === "publisher_incomplete") {
+    return <Redirect href={"/setup-account?type=publisher&source=recovery" as Href} />;
+  }
+
   if (session.status === "talent") {
     return <Redirect href={ROUTES.talent as Href} />;
   }
