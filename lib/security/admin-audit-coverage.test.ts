@@ -1477,3 +1477,21 @@ test("audit cards surface human justification for sensitive access changes", asy
     "sensitive access-change justification must be visible without opening raw metadata",
   );
 });
+
+
+test("free-text audit export matches the UI recent-event search window", async () => {
+  const route = await source(
+    "app/api/admin/audit/export/route.ts",
+  );
+
+  assert.equal(
+    route.includes(
+      "const freeTextSearch =",
+    ) &&
+      route.includes(
+        "freeTextSearch\n      ? 500\n      : EXPORT_LIMIT",
+      ),
+    true,
+    "free-text CSV export must remain scoped to the same latest-500-event window disclosed by the audit UI",
+  );
+});
