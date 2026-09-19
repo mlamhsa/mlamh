@@ -110,7 +110,7 @@ function formatDate(
 
   return new Intl.DateTimeFormat(
     language === "ar"
-      ? "ar-SA-u-nu-latn"
+      ? "ar-SA-u-ca-gregory-nu-latn"
       : "en-US",
     {
       year: "numeric",
