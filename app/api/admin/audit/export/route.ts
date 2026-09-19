@@ -217,6 +217,15 @@ export async function GET(
   const adminClient =
     createAdminClient();
 
+  const freeTextSearch =
+    Boolean(q) &&
+    !UUID_PATTERN.test(q);
+
+  const effectiveExportLimit =
+    freeTextSearch
+      ? 500
+      : EXPORT_LIMIT;
+
   let query = adminClient
     .from("events")
     .select(
@@ -237,7 +246,7 @@ export async function GET(
       },
     )
     .limit(
-      EXPORT_LIMIT,
+      effectiveExportLimit,
     );
 
   if (actor) {
@@ -320,7 +329,7 @@ export async function GET(
 
   const exportTruncated =
     (data ?? []).length >=
-    EXPORT_LIMIT;
+    effectiveExportLimit;
 
   const rows =
     (data ?? []).filter(
@@ -485,7 +494,7 @@ export async function GET(
       exported_rows:
         rows.length,
       export_limit:
-        EXPORT_LIMIT,
+        effectiveExportLimit,
       target_filter:
         target || null,
       event_filter:
@@ -495,9 +504,7 @@ export async function GET(
       period_filter:
         period || null,
       free_text_filter:
-        q && !UUID_PATTERN.test(q)
-          ? true
-          : false,
+        freeTextSearch,
       actor_identity_matches:
         actorEmailById.size,
       export_truncated:
@@ -532,7 +539,7 @@ export async function GET(
             : "false",
         "X-MLAMH-Audit-Limit":
           String(
-            EXPORT_LIMIT,
+            effectiveExportLimit,
           ),
       },
     },
