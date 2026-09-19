@@ -808,9 +808,10 @@ export default async function TalentProfilePage({ params }: PageProps) {
                   </div>
 
                   <PublisherTalentInvitePanel
-  talentId={talent.id}
-  locale={locale}
-/>
+                    talentId={talent.id}
+                    locale={locale}
+                    profileVisibility={talent.profile_visibility}
+                  />
                 </div>
               </div>
             ) : isGuest ? (
