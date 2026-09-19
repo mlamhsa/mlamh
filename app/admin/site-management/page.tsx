@@ -16,7 +16,7 @@ const modules = [
     descriptionAr: "إدارة أقسام الصفحة الرئيسية والعناوين والمحتوى المميز والدعوات للإجراء.",
     descriptionEn: "Manage homepage sections, headlines, featured content, and calls to action.",
     href: "/admin/site-management/homepage",
-    status: "coming",
+    status: "active",
   },
   {
     titleAr: "التنقل",
@@ -94,25 +94,40 @@ export default async function SiteManagementPage({ searchParams }: PageProps) {
                   ? "border-gold/25 bg-gold/[0.05] text-gold"
                   : "border-white/[0.08] text-white/35";
 
-            return (
-              <Link key={module.href} href={withAdminLanguage(module.href, language)}>
-                <AdminCard className="h-full p-5 transition hover:border-gold/20 sm:p-6">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0">
-                      <h2 className="text-base font-semibold text-white/85">
-                        {isArabic ? module.titleAr : module.titleEn}
-                      </h2>
-                      <p className="mt-2 text-sm leading-6 text-white/38">
-                        {isArabic ? module.descriptionAr : module.descriptionEn}
-                      </p>
-                    </div>
-
-                    <span className={["shrink-0 rounded-full border px-2.5 py-1 text-[9px] font-medium", badgeClass].join(" ")}>
-                      {statusLabel(module.status)}
-                    </span>
+            const content = (
+              <AdminCard
+                className={[
+                  "h-full p-5 sm:p-6",
+                  module.status === "active"
+                    ? "transition hover:border-gold/20"
+                    : "opacity-65",
+                ].join(" ")}
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <h2 className="text-base font-semibold text-white/85">
+                      {isArabic ? module.titleAr : module.titleEn}
+                    </h2>
+                    <p className="mt-2 text-sm leading-6 text-white/38">
+                      {isArabic ? module.descriptionAr : module.descriptionEn}
+                    </p>
                   </div>
-                </AdminCard>
+
+                  <span className={["shrink-0 rounded-full border px-2.5 py-1 text-[9px] font-medium", badgeClass].join(" ")}>
+                    {statusLabel(module.status)}
+                  </span>
+                </div>
+              </AdminCard>
+            );
+
+            return module.status === "active" ? (
+              <Link key={module.href} href={withAdminLanguage(module.href, language)}>
+                {content}
               </Link>
+            ) : (
+              <div key={module.href} aria-disabled="true">
+                {content}
+              </div>
             );
           })}
         </AdminGrid>
