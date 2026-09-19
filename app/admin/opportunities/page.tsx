@@ -33,6 +33,7 @@ type PageProps = {
     q?: string;
     publisher?: string;
     lang?: string;
+    page?: string;
   }>;
 };
 
@@ -179,6 +180,7 @@ function buildHref(
   q?: string,
   publisher?: string,
   lang?: string,
+  page?: number,
 ) {
   const params = new URLSearchParams();
 
@@ -186,6 +188,7 @@ function buildHref(
   if (q) params.set("q", q);
   if (publisher) params.set("publisher", publisher);
   if (lang) params.set("lang", lang);
+  if (page && page > 1) params.set("page", String(page));
 
   const query = params.toString();
 
@@ -492,6 +495,7 @@ export default async function AdminOpportunitiesPage({
     q,
     publisher,
     lang,
+    page: pageRaw,
   } = await searchParams;
 
   const language =
@@ -603,6 +607,20 @@ export default async function AdminOpportunitiesPage({
   const archivedCount = countByStatus(
     opportunities,
     "archived",
+  );
+
+  const requestedPage = Number(pageRaw ?? "1");
+  const page =
+    Number.isInteger(requestedPage) && requestedPage > 0
+      ? requestedPage
+      : 1;
+  const pageSize = 8;
+  const totalPages = Math.max(1, Math.ceil(opportunities.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const pageStart = (safePage - 1) * pageSize;
+  const paginatedOpportunities = opportunities.slice(
+    pageStart,
+    pageStart + pageSize,
   );
 
   return (
@@ -887,7 +905,7 @@ export default async function AdminOpportunitiesPage({
           />
         ) : (
           <AdminGrid>
-            {opportunities.map(
+            {paginatedOpportunities.map(
   (opportunity) => {
     const isManagedByMlamh =
       opportunity.role_requirements?.managed_by ===
@@ -1417,6 +1435,48 @@ opportunity.status !== "needs_changes" ? (
           )}
           </AdminGrid>
         )}
+
+        {opportunities.length > pageSize ? (
+          <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.015] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs text-white/35">
+              {isArabic
+                ? `عرض ${pageStart + 1}–${Math.min(pageStart + pageSize, opportunities.length)} من ${opportunities.length}`
+                : `Showing ${pageStart + 1}–${Math.min(pageStart + pageSize, opportunities.length)} of ${opportunities.length}`}
+            </p>
+
+            <div className="flex items-center gap-2">
+              <Link
+                href={buildHref(status, q, publisher, language, Math.max(1, safePage - 1))}
+                aria-disabled={safePage <= 1}
+                className={[
+                  "inline-flex h-9 items-center justify-center rounded-lg border px-3 text-xs transition",
+                  safePage <= 1
+                    ? "pointer-events-none border-white/[0.05] text-white/20"
+                    : "border-white/[0.08] text-white/50 hover:border-gold/20 hover:text-gold",
+                ].join(" ")}
+              >
+                {isArabic ? "السابق" : "Previous"}
+              </Link>
+
+              <span className="min-w-20 text-center text-xs tabular-nums text-white/35">
+                {safePage} / {totalPages}
+              </span>
+
+              <Link
+                href={buildHref(status, q, publisher, language, Math.min(totalPages, safePage + 1))}
+                aria-disabled={safePage >= totalPages}
+                className={[
+                  "inline-flex h-9 items-center justify-center rounded-lg border px-3 text-xs transition",
+                  safePage >= totalPages
+                    ? "pointer-events-none border-white/[0.05] text-white/20"
+                    : "border-white/[0.08] text-white/50 hover:border-gold/20 hover:text-gold",
+                ].join(" ")}
+              >
+                {isArabic ? "التالي" : "Next"}
+              </Link>
+            </div>
+          </div>
+        ) : null}
       </div>
     </AdminPageContainer>
   );
