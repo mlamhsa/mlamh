@@ -48,9 +48,9 @@ export function SessionProvider({ children }: PropsWithChildren) {
         account: result.account,
       });
     } catch (error) {
-      // A stale/invalid persisted token is an authentication state problem,
-      // not a network outage. Clear it so TestFlight can recover to the public
-      // experience instead of trapping the user on "Unable to reach MLAMH".
+      // Account hydration must never hard-block app startup. Invalid auth is
+      // cleared locally; transport/backend failures keep the session intact
+      // and fall back to the public shell so the app remains usable.
       if (
         error instanceof MobileApiError &&
         error.status === 401 &&
@@ -59,11 +59,9 @@ export function SessionProvider({ children }: PropsWithChildren) {
           error.code === "MISSING_BEARER_TOKEN")
       ) {
         await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
-        setState({ status: "guest", account: null });
-        return;
       }
 
-      setState({ status: "unavailable", account: null });
+      setState({ status: "guest", account: null });
     }
   }, []);
 
