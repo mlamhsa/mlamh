@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 
+import { AdminTalentEntitlementsPanel } from "@/components/admin/talents/AdminTalentEntitlementsPanel";
 import { AdminTalentPrivacyNotice } from "@/components/admin/talents/AdminTalentPrivacyNotice";
+import { AdminTalentResidenceCountryPanel } from "@/components/admin/talents/AdminTalentResidenceCountryPanel";
 import { AdminTalentRecoveryPanel } from "@/components/admin/talents/AdminTalentRecoveryPanel";
 import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { TalentProfileService } from "@/lib/services/talent/TalentProfileService";
@@ -273,6 +275,8 @@ export default async function AdminTalentPage(props: PageProps) {
           />
         </div>
       </div>
+      <AdminTalentEntitlementsPanel talentId={talent.id} language={language} />
+      <AdminTalentResidenceCountryPanel talentId={talent.id} language={language} />
       <OriginalAdminTalentPage {...props} />
     </>
   );
