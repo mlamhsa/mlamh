@@ -8,7 +8,7 @@ import {
 } from "@/lib/marketing/ai/provider";
 
 const INVESTOR_WORKFLOW = "investor_discovery_v1";
-const INVESTOR_MODEL = "poolside/laguna-s-2.1-free";
+const INVESTOR_MODELS = ["poolside/laguna-s-2.1-free", "inclusionai/ling-3.0-flash-vl-free"] as const;
 let installed = false;
 
 function nullableString() {
@@ -199,27 +199,46 @@ class InvestorStructuredProvider implements MarketingAIProvider {
     const phase = request.metadata?.phase === "contact_enrichment_v1" ? "contact_enrichment" : "discovery";
     const schema = phase === "contact_enrichment" ? enrichmentSchema : discoverySchema;
 
-    const result = await generateText({
-      model: INVESTOR_MODEL,
-      instructions: researchInstruction(),
-      prompt: requestPrompt(request, schema),
-      maxOutputTokens: 7000,
-      tools: {
-        perplexity_search: gateway.tools.perplexitySearch({
-          maxResults: 20,
-          maxTokensPerPage: 1800,
-          maxTokens: 30000,
-          searchLanguageFilter: ["en", "ar"],
-        }),
-      },
-      prepareStep: ({ stepNumber }) => ({
-        toolChoice:
-          stepNumber === 0
-            ? { type: "tool", toolName: "perplexity_search" as const }
-            : "none",
-      }),
-      stopWhen: isStepCount(2),
-    });
+    let result: Awaited<ReturnType<typeof generateText>> | null = null;
+    let selectedModel = INVESTOR_MODELS[0];
+    let lastError: unknown = null;
+
+    for (const model of INVESTOR_MODELS) {
+      try {
+        result = await generateText({
+          model,
+          instructions: researchInstruction(),
+          prompt: requestPrompt(request, schema),
+          maxOutputTokens: 7000,
+          tools: {
+            perplexity_search: gateway.tools.perplexitySearch({
+              maxResults: 20,
+              maxTokensPerPage: 1800,
+              maxTokens: 30000,
+              searchLanguageFilter: ["en", "ar"],
+            }),
+          },
+          prepareStep: ({ stepNumber }) => ({
+            toolChoice:
+              stepNumber === 0
+                ? { type: "tool", toolName: "perplexity_search" as const }
+                : "none",
+          }),
+          stopWhen: isStepCount(2),
+        });
+        selectedModel = model;
+        break;
+      } catch (error) {
+        lastError = error;
+        const message = error instanceof Error ? error.message : String(error);
+        const rateLimited = /rate.?limit|free tier requests on this model/i.test(message);
+        if (!rateLimited || model === INVESTOR_MODELS[INVESTOR_MODELS.length - 1]) throw error;
+      }
+    }
+
+    if (!result) {
+      throw lastError instanceof Error ? lastError : new Error("[InvestorStructuredAI] No research model was available.");
+    }
 
     const webSources = extractSearchSources(result.toolResults as ReadonlyArray<unknown>);
     if (!webSources.length) {
@@ -249,14 +268,15 @@ class InvestorStructuredProvider implements MarketingAIProvider {
 
     return {
       content: finalContent,
-      model: INVESTOR_MODEL,
+      model: selectedModel,
       provider: this.id,
       usage,
       metadata: {
         ...(request.metadata ?? {}),
         structured_output: true,
         web_search_used: true,
-        research_stack: "ai_sdk_v7_laguna_free_perplexity_search_v1",
+        research_stack: "ai_sdk_v7_free_model_fallback_perplexity_search_v1",
+        research_model: selectedModel,
         web_source_count: webSources.length,
         web_sources: webSources,
       },
