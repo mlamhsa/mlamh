@@ -15,6 +15,7 @@ import { buildTalentMetadata } from "@/lib/seo/talent-metadata";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   getPublishedTalentBySlug,
+  getPublishedTalentBySlugForViewer,
   getPublishedTalents,
 } from "@/lib/supabase/public-talents";
 import {
@@ -291,7 +292,7 @@ export default async function TalentProfilePage({ params }: PageProps) {
   const isRtl = locale === "ar";
 
   const [talent, accountType] = await Promise.all([
-    getPublishedTalentBySlug(slug),
+    getPublishedTalentBySlugForViewer(slug),
     getCurrentAccountType(),
   ]);
 
