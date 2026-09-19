@@ -67,11 +67,12 @@ function applyOpportunityMarketFilter<T extends { or: Function; eq: Function }>(
 
 export async function getPublishedOpportunities(
   countryCode: CountryCode = DEFAULT_PUBLIC_MARKET,
+  localeOverride?: "ar" | "en",
 ): Promise<Opportunity[]> {
   if (!canExposePublicMarket(countryCode, "publicOpportunities")) return [];
 
   const supabase = createAdminClient();
-  const locale = await getOpportunityLocale();
+  const locale = localeOverride ?? await getOpportunityLocale();
   let query = supabase
     .from("opportunities")
     .select("*")
