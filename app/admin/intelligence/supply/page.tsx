@@ -42,8 +42,10 @@ export default async function TalentSupplyIntelligencePage({ searchParams }: Pag
   );
 
   return (
-    <AdminPageContainer>
+    <div dir={isArabic ? "rtl" : "ltr"}>
+      <AdminPageContainer>
       <AdminPageHeader
+        eyebrow={isArabic ? "النمو والذكاء" : "GROWTH & INTELLIGENCE"}
         title={isArabic ? "ذكاء عرض المواهب" : "Talent Supply Intelligence"}
         description={
           isArabic
@@ -207,6 +209,7 @@ export default async function TalentSupplyIntelligencePage({ searchParams }: Pag
           ? "ملاحظة: هذه المصفوفة مؤشر تخطيطي فقط. Supply Gap الدقيق يبقى من محرك المطابقة لكل Brief لأنه يطبق الجنس والتوفر والمتطلبات الصلبة وبقية القيود."
           : "Note: this matrix is a planning indicator only. Exact Supply Gap remains brief-specific because the matching engine applies gender, availability, hard requirements, and the rest of the constraints."}
       </p>
-    </AdminPageContainer>
+      </AdminPageContainer>
+    </div>
   );
 }
