@@ -149,7 +149,7 @@ export default async function AdminPaymentsPage({ searchParams }: PageProps) {
         <AdminStatCard label={isArabic ? "فاشلة / ملغاة" : "Failed / Cancelled"} value={counts.failed + counts.cancelled} active={counts.failed + counts.cancelled > 0} />
       </section>
 
-      <section className="mt-7 overflow-hidden rounded-[1.5rem] border border-white/10 bg-white/[0.025] sm:mt-8 sm:rounded-[2rem]">
+      <section className="mt-7 overflow-hidden rounded-2xl border border-white/[0.075] bg-white/[0.022] sm:mt-8">
         <div className="border-b border-white/10 px-4 py-4 sm:px-6 sm:py-5">
           <h2 className="text-base font-medium sm:text-lg">
             {isArabic ? "آخر 50 عملية دفع" : "Latest 50 payments"}
