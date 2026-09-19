@@ -19,14 +19,25 @@ type AdminSearchPageProps = {
   }>;
 };
 
-type ProfileResult = {
+type TalentSearchResult = {
   id: number;
-  user_id: string | null;
-  account_type: string | null;
-  display_name: string | null;
-  phone: string | null;
+  name_ar: string | null;
+  name_en: string | null;
+  display_name_ar: string | null;
+  display_name_en: string | null;
+  account_phone: string | null;
   status: string | null;
   approval_status: string | null;
+};
+
+type PublisherSearchResult = {
+  id: number;
+  company_name: string | null;
+  contact_name: string | null;
+  city: string | null;
+  email: string | null;
+  phone: string | null;
+  verification_status: string | null;
 };
 
 type OpportunityResult = {
@@ -133,7 +144,8 @@ export default async function AdminSearchPage({
     params.q ?? "",
   ).trim();
 
-  let profiles: ProfileResult[] = [];
+  let talents: TalentSearchResult[] = [];
+  let publishers: PublisherSearchResult[] = [];
   let opportunities: OpportunityResult[] = [];
   let conversations: ConversationResult[] = [];
 
@@ -151,28 +163,45 @@ export default async function AdminSearchPage({
       Number.isInteger(numericQuery) &&
       numericQuery > 0;
 
-    const profileSearch = adminClient
-      .from("profiles")
+    const talentSearch = adminClient
+      .from("admin_talent_profiles")
       .select(
         `
           id,
-          user_id,
-          account_type,
-          display_name,
-          phone,
+          name_ar,
+          name_en,
+          display_name_ar,
+          display_name_en,
+          account_phone,
           status,
           approval_status
         `,
       )
       .or(
         [
-          `display_name.ilike.%${safeQuery}%`,
+          `name_ar.ilike.%${safeQuery}%`,
+          `name_en.ilike.%${safeQuery}%`,
+          `display_name_ar.ilike.%${safeQuery}%`,
+          `display_name_en.ilike.%${safeQuery}%`,
+          `account_phone.ilike.%${safeQuery}%`,
+        ].join(","),
+      )
+      .order("id", { ascending: false })
+      .limit(20);
+
+    const publisherSearch = adminClient
+      .from("publishers")
+      .select("id,company_name,contact_name,city,email,phone,verification_status")
+      .or(
+        [
+          `company_name.ilike.%${safeQuery}%`,
+          `contact_name.ilike.%${safeQuery}%`,
+          `city.ilike.%${safeQuery}%`,
+          `email.ilike.%${safeQuery}%`,
           `phone.ilike.%${safeQuery}%`,
         ].join(","),
       )
-      .order("id", {
-        ascending: false,
-      })
+      .order("id", { ascending: false })
       .limit(20);
 
     const opportunitySearch =
@@ -234,24 +263,27 @@ export default async function AdminSearchPage({
           });
 
     const [
-      profileResult,
+      talentResult,
+      publisherResult,
       opportunityResult,
       conversationResult,
     ] = await Promise.all([
-      profileSearch,
+      talentSearch,
+      publisherSearch,
       opportunitySearch,
       conversationSearch,
     ]);
 
-    if (profileResult.error) {
-      console.error(
-        "[AdminSearch profiles]",
-        profileResult.error,
-      );
+    if (talentResult.error) {
+      console.error("[AdminSearch talents]", talentResult.error);
     } else {
-      profiles =
-        (profileResult.data ??
-          []) as ProfileResult[];
+      talents = (talentResult.data ?? []) as TalentSearchResult[];
+    }
+
+    if (publisherResult.error) {
+      console.error("[AdminSearch publishers]", publisherResult.error);
+    } else {
+      publishers = (publisherResult.data ?? []) as PublisherSearchResult[];
     }
 
     if (opportunityResult.error) {
@@ -276,16 +308,6 @@ export default async function AdminSearchPage({
           []) as ConversationResult[];
     }
   }
-
-  const talents = profiles.filter(
-    (profile) =>
-      profile.account_type === "talent",
-  );
-
-  const publishers = profiles.filter(
-    (profile) =>
-      profile.account_type === "publisher",
-  );
 
   const totalResults =
     talents.length +
@@ -440,7 +462,9 @@ export default async function AdminSearchPage({
 
                               <div className="min-w-0 flex-1">
                                 <p className="truncate text-sm font-medium text-white/85 group-hover:text-gold">
-                                  {profile.display_name ||
+                                  {(isArabic
+                                      ? profile.display_name_ar || profile.name_ar || profile.display_name_en || profile.name_en
+                                      : profile.display_name_en || profile.name_en || profile.display_name_ar || profile.name_ar) ||
                                     (isArabic
                                       ? "موهبة بدون اسم"
                                       : "Unnamed talent")}
@@ -450,16 +474,12 @@ export default async function AdminSearchPage({
                                   dir="ltr"
                                   className="mt-1 truncate text-xs text-white/35"
                                 >
-                                  {profile.phone ||
+                                  {profile.account_phone ||
                                     `ID ${profile.id}`}
                                 </p>
 
                                 <p className="mt-3 text-[11px] text-white/30">
-                                  {statusLabel(
-                                    profile.approval_status ??
-                                      profile.status,
-                                    isArabic,
-                                  )}
+                                  {statusLabel(profile.verification_status, isArabic)}
                                 </p>
                               </div>
                             </div>
@@ -487,7 +507,7 @@ export default async function AdminSearchPage({
                         (profile) => (
                           <Link
                             key={profile.id}
-                            href={`/admin/publishers/${profile.id}?lang=${language}`}
+                            href={`/admin/publishers?publisher=${profile.id}&lang=${language}`}
                             className="group rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5 transition hover:border-gold/25 hover:bg-white/[0.035]"
                           >
                             <div className="flex items-start gap-4">
@@ -497,7 +517,9 @@ export default async function AdminSearchPage({
 
                               <div className="min-w-0 flex-1">
                                 <p className="truncate text-sm font-medium text-white/85 group-hover:text-gold">
-                                  {profile.display_name ||
+                                  {(isArabic
+                                      ? profile.display_name_ar || profile.name_ar || profile.display_name_en || profile.name_en
+                                      : profile.display_name_en || profile.name_en || profile.display_name_ar || profile.name_ar) ||
                                     (isArabic
                                       ? "ناشر بدون اسم"
                                       : "Unnamed publisher")}
@@ -507,7 +529,7 @@ export default async function AdminSearchPage({
                                   dir="ltr"
                                   className="mt-1 truncate text-xs text-white/35"
                                 >
-                                  {profile.phone ||
+                                  {profile.account_phone ||
                                     `ID ${profile.id}`}
                                 </p>
 
