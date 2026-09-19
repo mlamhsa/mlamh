@@ -1459,6 +1459,17 @@ test("admin MFA success and failed verification attempts are audited at the corr
     true,
     "MFA client must report both successful and failed verification outcomes",
   );
+
+  assert.equal(
+    gate.includes(
+      'throw auditError;',
+    ) &&
+      gate.includes(
+        'mfaVerified\n          ? "error"',
+      ),
+    true,
+    "post-verification audit or invite-activation persistence failures must stop redirect and remain recoverable",
+  );
 });
 
 
