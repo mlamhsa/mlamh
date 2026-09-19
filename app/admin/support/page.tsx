@@ -27,7 +27,7 @@ function formatDate(value: string | null, isArabic: boolean) {
   if (!value) return "—";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
-  return new Intl.DateTimeFormat(isArabic ? "ar-SA" : "en-US", {
+  return new Intl.DateTimeFormat(isArabic ? "ar-SA-u-ca-gregory-nu-latn" : "en-US", {
     month: "short",
     day: "numeric",
     hour: "2-digit",
