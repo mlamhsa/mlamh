@@ -105,6 +105,26 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     })),
   );
 
+  const availableCategoryCities = new Set(
+    talents
+      .map((talent) => {
+        const category = talent.category_slug?.trim();
+        const city = talent.city_slug?.trim();
+        if (!category || !city || !PUBLIC_TALENT_CATEGORY_SLUGS.has(category)) return null;
+        return `${category}::${city}`;
+      })
+      .filter((value): value is string => Boolean(value)),
+  );
+
+  const categoryCityRoutes: MetadataRoute.Sitemap = Array.from(availableCategoryCities).flatMap((pair) => {
+    const [category, city] = pair.split("::");
+    return locales.map((locale) => ({
+      url: `${SITE_URL}/${locale}/talent/category/${category}/city/${city}`,
+      changeFrequency: "daily" as const,
+      priority: 0.82,
+    }));
+  });
+
   const opportunityRoutes: MetadataRoute.Sitemap = activeOpportunities
     .filter((opportunity) => Boolean(opportunity.slug))
     .flatMap((opportunity) => locales.map((locale) => ({
@@ -134,6 +154,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...talentRoutes,
     ...categoryRoutes,
     ...cityRoutes,
+    ...categoryCityRoutes,
     ...opportunityRoutes,
     ...opportunityIntentRoutes,
   ];
