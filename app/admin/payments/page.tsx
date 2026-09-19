@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { AdminPageContainer, AdminPageHeader, AdminStatCard } from "@/components/admin/ui";
+
 import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { minorToMajorAmount } from "@/lib/payments/money";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -123,33 +125,28 @@ export default async function AdminPaymentsPage({ searchParams }: PageProps) {
   const total = PAYMENT_STATUSES.reduce((sum, status) => sum + counts[status], 0);
 
   return (
-    <main dir={isArabic ? "rtl" : "ltr"} className="mx-auto max-w-7xl px-4 py-7 text-white sm:px-6 lg:px-8 lg:py-10">
-      <section className="mb-7 sm:mb-8">
-        <p className="text-[10px] uppercase tracking-[0.4em] text-gold">MLAMH ADMIN</p>
-        <h1 className="mt-3 text-3xl font-light tracking-tight md:text-5xl">
-          {isArabic ? "المدفوعات والاشتراكات" : "Payments & Subscriptions"}
-        </h1>
-        <p className="mt-3 max-w-3xl text-sm leading-7 text-white/45">
-          {isArabic
-            ? "تابع عمليات الدفع، ثم انتقل إلى الاشتراكات والمزايا لمعرفة ما تم تفعيله لكل مستخدم وموعد انتهائه."
-            : "Track payment operations, then open subscriptions and benefits to see what is active for each user and when it expires."}
-        </p>
-
-        <div className="mt-5 flex gap-2 overflow-x-auto rounded-2xl border border-white/[0.08] bg-white/[0.025] p-2 sm:flex-wrap">
-          <Link href={`/admin/payments?lang=${locale}`} className="shrink-0 rounded-xl border border-gold/25 bg-gold/[0.1] px-4 py-2.5 text-xs text-gold sm:text-sm">
-            {isArabic ? "سجل عمليات الدفع" : "Payment log"}
-          </Link>
-          <Link href={`/admin/entitlements?lang=${locale}`} className="shrink-0 rounded-xl border border-white/[0.08] px-4 py-2.5 text-xs text-white/60 transition hover:border-gold/25 hover:text-gold sm:text-sm">
+    <div dir={isArabic ? "rtl" : "ltr"}>
+      <AdminPageContainer>
+      <AdminPageHeader
+        eyebrow={isArabic ? "الإيرادات" : "REVENUE"}
+        title={isArabic ? "المدفوعات" : "Payments"}
+        description={
+          isArabic
+            ? "متابعة عمليات الدفع وحالات مزودي الدفع، مع فصل إدارة الاشتراكات والمزايا في مساحتها المخصصة."
+            : "Monitor payment operations and provider states, with subscriptions and benefits managed in their dedicated workspace."
+        }
+        actions={
+          <Link href={`/admin/entitlements?lang=${locale}`} className="inline-flex h-10 items-center justify-center rounded-lg border border-white/[0.08] px-4 text-xs font-medium text-white/55 transition hover:border-gold/20 hover:text-gold">
             {isArabic ? "الاشتراكات والمزايا" : "Subscriptions & Benefits"}
           </Link>
-        </div>
-      </section>
+        }
+      />
 
-      <section className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
-        <Stat label={isArabic ? "إجمالي العمليات" : "Total payments"} value={total} />
-        <Stat label={isArabic ? "ناجحة" : "Succeeded"} value={counts.succeeded} />
-        <Stat label={isArabic ? "معلقة / معالجة" : "Pending / Processing"} value={counts.pending + counts.processing} />
-        <Stat label={isArabic ? "فاشلة / ملغاة" : "Failed / Cancelled"} value={counts.failed + counts.cancelled} />
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <AdminStatCard label={isArabic ? "إجمالي العمليات" : "Total payments"} value={total} />
+        <AdminStatCard label={isArabic ? "ناجحة" : "Succeeded"} value={counts.succeeded} />
+        <AdminStatCard label={isArabic ? "معلقة / معالجة" : "Pending / Processing"} value={counts.pending + counts.processing} active={counts.pending + counts.processing > 0} />
+        <AdminStatCard label={isArabic ? "فاشلة / ملغاة" : "Failed / Cancelled"} value={counts.failed + counts.cancelled} active={counts.failed + counts.cancelled > 0} />
       </section>
 
       <section className="mt-7 overflow-hidden rounded-[1.5rem] border border-white/10 bg-white/[0.025] sm:mt-8 sm:rounded-[2rem]">
@@ -250,15 +247,7 @@ export default async function AdminPaymentsPage({ searchParams }: PageProps) {
           </>
         )}
       </section>
-    </main>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4 sm:rounded-3xl sm:p-5">
-      <p className="text-[9px] uppercase leading-4 tracking-[0.12em] text-white/35 sm:text-[10px] sm:tracking-[0.2em]">{label}</p>
-      <p className="mt-2 text-2xl font-light text-white sm:mt-3 sm:text-3xl">{value}</p>
+      </AdminPageContainer>
     </div>
   );
 }
