@@ -76,7 +76,7 @@ export function NativeAppChrome({ children }: PropsWithChildren) {
       return [
         { key: "home", labelAr: "الرئيسية", labelEn: "Home", href: "/talent-home", icon: Home },
         { key: "opportunities", labelAr: "الفرص", labelEn: "Opportunities", href: "/opportunities", icon: BriefcaseBusiness },
-        { key: "profile", labelAr: "ملفي", labelEn: "My profile", href: "/account", icon: UserRound, primary: true },
+        { key: "profile", labelAr: "ملفي", labelEn: "My profile", href: "/profile", icon: UserRound, primary: true },
         { key: "applications", labelAr: "طلباتي", labelEn: "Applications", href: "/applications", icon: ClipboardList },
         { key: "notifications", labelAr: "الإشعارات", labelEn: "Notifications", href: "/notifications", icon: Bell },
       ];
