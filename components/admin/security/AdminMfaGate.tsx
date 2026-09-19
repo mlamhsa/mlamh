@@ -189,6 +189,7 @@ export function AdminMfaGate() {
           "[AdminMfaGate audit]",
           auditError,
         );
+        throw auditError;
       }
 
       window.location.replace("/admin");
