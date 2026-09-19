@@ -78,7 +78,8 @@ function isUnread(
 }
 
 function formatDate(
-  value?: string | null,
+  value: string | null | undefined,
+  isArabic: boolean,
 ) {
   if (!value) {
     return "—";
@@ -96,7 +97,7 @@ function formatDate(
   }
 
   return new Intl.DateTimeFormat(
-    "ar-SA",
+    isArabic ? "ar-SA-u-ca-gregory-nu-latn" : "en-US",
     {
       year: "numeric",
       month: "short",
@@ -108,25 +109,23 @@ function formatDate(
 }
 
 function recipientLabel(
-  type?: string | null,
+  type: string | null | undefined,
+  isArabic: boolean,
 ) {
   switch (
     type?.toUpperCase()
   ) {
     case "TALENT":
-      return "موهبة";
+      return isArabic ? "موهبة" : "Talent";
 
     case "PUBLISHER":
-      return "ناشر";
+      return isArabic ? "ناشر" : "Publisher";
 
     case "ADMIN":
-      return "إدارة";
+      return isArabic ? "إدارة" : "Admin";
 
     default:
-      return (
-        type ||
-        "غير محدد"
-      );
+      return type || (isArabic ? "غير محدد" : "Unknown");
   }
 }
 
@@ -191,6 +190,9 @@ export default async function AdminNotificationsPage({
     recipient,
     status,
   } = await searchParams;
+
+  const language: "ar" | "en" = lang === "en" ? "en" : "ar";
+  const isArabic = language === "ar";
 
   const adminClient =
     createAdminClient();
@@ -335,26 +337,32 @@ export default async function AdminNotificationsPage({
     ).length;
 
   return (
-    <AdminPageContainer>
-      <AdminPageHeader
-        title="إدارة الإشعارات"
-        description="مراقبة إشعارات المنصة للمواهب والناشرين والإدارة ومتابعة حالة قراءتها."
-      />
+    <div dir={isArabic ? "rtl" : "ltr"}>
+      <AdminPageContainer>
+        <AdminPageHeader
+          eyebrow={isArabic ? "التواصل" : "COMMUNICATIONS"}
+          title={isArabic ? "الإشعارات" : "Notifications"}
+          description={
+            isArabic
+              ? "مراقبة إشعارات المنصة للمواهب والناشرين والإدارة ومتابعة حالة قراءتها."
+              : "Monitor platform notifications for talents, publishers, and admins, including read state."
+          }
+        />
 
       {unreadAdminNotifications >
       0 ? (
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gold/20 bg-gold/[0.04] p-4">
           <div>
             <p className="text-sm text-gold">
-              لديك{" "}
-              {
-                unreadAdminNotifications
-              }{" "}
-              إشعارًا إداريًا غير مقروء
+              {isArabic
+                ? `لديك ${unreadAdminNotifications} إشعارًا إداريًا غير مقروء`
+                : `You have ${unreadAdminNotifications} unread admin notifications`}
             </p>
 
             <p className="mt-1 text-xs text-white/35">
-              يمكنك تحديد جميع إشعارات الإدارة كمقروءة دفعة واحدة.
+              {isArabic
+                ? "يمكنك تحديد جميع إشعارات الإدارة كمقروءة دفعة واحدة."
+                : "You can mark all admin notifications as read in one action."}
             </p>
           </div>
 
@@ -367,7 +375,7 @@ export default async function AdminNotificationsPage({
               type="submit"
               className="rounded-full border border-gold/30 bg-gold/[0.05] px-5 py-2.5 text-xs text-gold transition hover:bg-gold hover:text-black"
             >
-              تحديد الكل كمقروء
+              {isArabic ? "تحديد الكل كمقروء" : "Mark all as read"}
             </button>
           </form>
         </div>
@@ -375,7 +383,7 @@ export default async function AdminNotificationsPage({
 
       <AdminGrid className="mb-8 md:grid-cols-2 xl:grid-cols-6">
         <AdminStatCard
-          label="إجمالي الإشعارات"
+          label={isArabic ? "إجمالي الإشعارات" : "Total notifications"}
           value={total}
           active={
             !recipient &&
@@ -388,7 +396,7 @@ export default async function AdminNotificationsPage({
         />
 
         <AdminStatCard
-          label="غير مقروء"
+          label={isArabic ? "غير مقروء" : "Unread"}
           value={unread}
           active={
             status ===
@@ -404,7 +412,7 @@ export default async function AdminNotificationsPage({
         />
 
         <AdminStatCard
-          label="مقروء"
+          label={isArabic ? "مقروء" : "Read"}
           value={read}
           active={
             status ===
@@ -420,7 +428,7 @@ export default async function AdminNotificationsPage({
         />
 
         <AdminStatCard
-          label="المواهب"
+          label={isArabic ? "المواهب" : "Talents"}
           value={
             talentNotifications
           }
@@ -437,7 +445,7 @@ export default async function AdminNotificationsPage({
         />
 
         <AdminStatCard
-          label="الناشرون"
+          label={isArabic ? "الناشرون" : "Publishers"}
           value={
             publisherNotifications
           }
@@ -454,7 +462,7 @@ export default async function AdminNotificationsPage({
         />
 
         <AdminStatCard
-          label="الإدارة"
+          label={isArabic ? "الإدارة" : "Admin"}
           value={
             adminNotifications
           }
@@ -485,7 +493,7 @@ export default async function AdminNotificationsPage({
           <input
             name="q"
             defaultValue={q}
-            placeholder="ابحث في عنوان أو محتوى الإشعار..."
+            placeholder={isArabic ? "ابحث في عنوان أو محتوى الإشعار..." : "Search notification title or content..."}
             className="rounded-2xl border border-white/10 bg-black/40 px-5 py-4 text-sm text-white outline-none placeholder:text-white/30 focus:border-gold/30"
           />
 
@@ -497,19 +505,19 @@ export default async function AdminNotificationsPage({
             className="rounded-2xl border border-white/10 bg-black/40 px-4 py-4 text-sm text-white outline-none"
           >
             <option value="">
-              كل المستلمين
+              {isArabic ? "كل المستلمين" : "All recipients"}
             </option>
 
             <option value="TALENT">
-              المواهب
+              {isArabic ? "المواهب" : "Talents"}
             </option>
 
             <option value="PUBLISHER">
-              الناشرون
+              {isArabic ? "الناشرون" : "Publishers"}
             </option>
 
             <option value="ADMIN">
-              الإدارة
+              {isArabic ? "الإدارة" : "Admin"}
             </option>
           </select>
 
@@ -521,15 +529,15 @@ export default async function AdminNotificationsPage({
             className="rounded-2xl border border-white/10 bg-black/40 px-4 py-4 text-sm text-white outline-none"
           >
             <option value="">
-              كل الحالات
+              {isArabic ? "كل الحالات" : "All statuses"}
             </option>
 
             <option value="unread">
-              غير مقروء
+              {isArabic ? "غير مقروء" : "Unread"}
             </option>
 
             <option value="read">
-              مقروء
+              {isArabic ? "مقروء" : "Read"}
             </option>
           </select>
 
@@ -537,14 +545,14 @@ export default async function AdminNotificationsPage({
             type="submit"
             className="rounded-2xl border border-gold/35 bg-gold/[0.05] px-7 py-4 text-sm text-gold transition hover:bg-gold hover:text-black"
           >
-            بحث
+            {isArabic ? "بحث" : "Search"}
           </button>
         </div>
       </form>
 
       {filteredNotifications.length ===
       0 ? (
-        <AdminEmptyState message="لا توجد إشعارات مطابقة." />
+        <AdminEmptyState message={isArabic ? "لا توجد إشعارات مطابقة." : "No matching notifications."} />
       ) : (
         <div className="space-y-4">
           {filteredNotifications.map(
@@ -578,8 +586,8 @@ export default async function AdminNotificationsPage({
                           }`}
                         >
                           {unreadNotification
-                            ? "غير مقروء"
-                            : "مقروء"}
+                            ? isArabic ? "غير مقروء" : "Unread"
+                            : isArabic ? "مقروء" : "Read"}
                         </span>
 
                         <span
@@ -591,6 +599,7 @@ export default async function AdminNotificationsPage({
                         >
                           {recipientLabel(
                             notification.recipient_type,
+                            isArabic,
                           )}
                         </span>
 
@@ -604,23 +613,24 @@ export default async function AdminNotificationsPage({
 
                       <h2 className="text-xl font-light text-white">
                         {notification.title ||
-                          "إشعار بدون عنوان"}
+                          (isArabic ? "إشعار بدون عنوان" : "Untitled notification")}
                       </h2>
 
                       <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-7 text-white/55">
                         {notification.body ||
-                          "لا يوجد محتوى."}
+                          (isArabic ? "لا يوجد محتوى." : "No content.")}
                       </p>
 
                       <div className="mt-5 grid gap-3 border-t border-white/[0.06] pt-4 sm:grid-cols-3">
                         <div>
                           <p className="text-[9px] uppercase tracking-[0.18em] text-white/25">
-                            المستلم
+                            {isArabic ? "المستلم" : "Recipient"}
                           </p>
 
                           <p className="mt-1 text-xs text-white/55">
                             {recipientLabel(
                               notification.recipient_type,
+                              isArabic,
                             )}
                             {" · "}
                             {String(
@@ -645,12 +655,13 @@ export default async function AdminNotificationsPage({
 
                         <div>
                           <p className="text-[9px] uppercase tracking-[0.18em] text-white/25">
-                            التاريخ
+                            {isArabic ? "التاريخ" : "Date"}
                           </p>
 
                           <p className="mt-1 text-xs text-white/55">
                             {formatDate(
                               notification.created_at,
+                              isArabic,
                             )}
                           </p>
                         </div>
@@ -676,7 +687,7 @@ export default async function AdminNotificationsPage({
                             type="submit"
                             className="rounded-full border border-gold/25 bg-gold/[0.04] px-4 py-2 text-[10px] text-gold transition hover:bg-gold/10"
                           >
-                            تحديد كمقروء
+                            {isArabic ? "تحديد كمقروء" : "Mark as read"}
                           </button>
                         </form>
                       ) : null}
@@ -692,6 +703,7 @@ export default async function AdminNotificationsPage({
           )}
         </div>
       )}
-    </AdminPageContainer>
+      </AdminPageContainer>
+    </div>
   );
 }
