@@ -83,7 +83,7 @@ function formatDateTime(
   if (Number.isNaN(date.getTime())) return "—";
 
   return new Intl.DateTimeFormat(
-    language === "ar" ? "ar-SA-u-nu-latn" : "en-US",
+    language === "ar" ? "ar-SA-u-ca-gregory-nu-latn" : "en-US",
     { dateStyle: "medium", timeStyle: "short" },
   ).format(date);
 }
@@ -595,7 +595,7 @@ export default async function AdminPage({ searchParams }: PageProps) {
                     {isArabic ? "الأمان والحوكمة" : "SECURITY & GOVERNANCE"}
                   </p>
                   <h2 className="mt-1 text-base font-semibold text-white/88">
-                    {isArabic ? "مركز الوصول الإداري" : "Admin access center"}
+                    {isArabic ? "مركز الوصول الإداري" : "Admins & Access Center"}
                   </h2>
                 </div>
               </div>
