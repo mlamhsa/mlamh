@@ -4,6 +4,7 @@ import { SceneCMS } from "@/lib/cms/SceneCMS";
 import { TALENT_CATEGORIES } from "@/lib/data/talent-categories";
 import { locales } from "@/lib/i18n";
 import { canIndexMarket } from "@/lib/markets/seo";
+import { SEO_ACQUISITION_LANDINGS } from "@/lib/seo/acquisition-landings";
 import { isOpportunityOpenForSeo } from "@/lib/seo/opportunity";
 import { getPublishedTalents } from "@/lib/supabase/public-talents";
 import { getPublishedOpportunities } from "@/lib/supabase/opportunities";
@@ -50,6 +51,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/${locale}/refund-policy`, changeFrequency: "yearly", priority: 0.3 },
     { url: `${SITE_URL}/${locale}/complaints`, changeFrequency: "yearly", priority: 0.3 },
   ]);
+
+  const acquisitionLandingRoutes: MetadataRoute.Sitemap = SEO_ACQUISITION_LANDINGS.flatMap((landing) =>
+    locales.map((locale) => ({
+      url: `${SITE_URL}/${locale}/${landing.slug}`,
+      changeFrequency: "weekly" as const,
+      priority: 0.92,
+    })),
+  );
 
   const sceneCategoryRoutes: MetadataRoute.Sitemap = sceneCategories.flatMap((category) =>
     locales.map((locale) => ({
@@ -129,6 +138,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   return [
     ...staticRoutes,
+    ...acquisitionLandingRoutes,
     ...sceneCategoryRoutes,
     ...sceneArticleRoutes,
     ...talentRoutes,
