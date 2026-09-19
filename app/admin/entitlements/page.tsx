@@ -44,6 +44,29 @@ function isActive(row:EntitlementRow) {
 function money(minor:number,currency:string,locale:string){
   return new Intl.NumberFormat(locale==="ar"?"ar-SA-u-ca-gregory-nu-latn":"en-US",{style:"currency",currency}).format(minorToMajorAmount(minor,currency));
 }
+function targetTypeLabel(value:string|null,isArabic:boolean){
+  const key=(value??"account").toLowerCase();
+  const labels:Record<string,[string,string]>={
+    account:["حساب","Account"],
+    talent:["موهبة","Talent"],
+    opportunity:["فرصة","Opportunity"],
+    publisher:["ناشر","Publisher"],
+  };
+  const label=labels[key];
+  return label?(isArabic?label[0]:label[1]):key.replaceAll("_"," ");
+}
+function paymentStatusLabel(value:string,isArabic:boolean){
+  const labels:Record<string,[string,string]>={
+    pending:["معلّقة","Pending"],
+    processing:["قيد المعالجة","Processing"],
+    succeeded:["ناجحة","Succeeded"],
+    failed:["فاشلة","Failed"],
+    cancelled:["ملغاة","Cancelled"],
+    refunded:["مستردة","Refunded"],
+  };
+  const label=labels[value.toLowerCase()];
+  return label?(isArabic?label[0]:label[1]):value.replaceAll("_"," ");
+}
 
 export const metadata={title:"Subscriptions & Entitlements — MLAMH Admin",robots:{index:false,follow:false}};
 
@@ -124,7 +147,7 @@ export default async function AdminEntitlementsPage({searchParams}:PageProps){
     const days=remainingDays(row.expires_at);
     const productName=isArabic?(product?.name_ar||product?.name_en||row.entitlement_code):(product?.name_en||product?.name_ar||row.entitlement_code);
     const talentName=talent?(isArabic?(talent.name_ar||talent.name_en||`#${talent.id}`):(talent.name_en||talent.name_ar||`#${talent.id}`)):null;
-    const targetName=talentName||opportunity?.title||row.target_type||"account";
+    const targetName=talentName||opportunity?.title||targetTypeLabel(row.target_type,isArabic);
     const targetHref=talentName&&row.target_id?`/admin/talents/${row.target_id}?lang=${locale}`:opportunity&&row.target_id?`/admin/opportunities/${row.target_id}?lang=${locale}`:null;
     return {productName,payment,active,days,targetName,targetHref};
   };
@@ -252,7 +275,7 @@ export default async function AdminEntitlementsPage({searchParams}:PageProps){
                         <td className="whitespace-nowrap px-5 py-5 text-xs text-white/50">{formatDate(row.starts_at,locale)}</td>
                         <td className="whitespace-nowrap px-5 py-5 text-xs text-white/50">{formatDate(row.expires_at,locale)}</td>
                         <td className="whitespace-nowrap px-5 py-5 text-xs text-white/60">{resolved.days==null?"—":resolved.active?(isArabic?`${resolved.days} يوم`:`${resolved.days} day${resolved.days===1?"":"s"}`):(isArabic?"انتهت":"Expired")}</td>
-                        <td className="px-5 py-5">{resolved.payment?<div className="flex items-start gap-2"><CreditCard className="mt-0.5 h-4 w-4 text-white/30"/><div><p className="text-xs text-white/70">{money(resolved.payment.amount_minor,resolved.payment.currency,locale)}</p><p className="mt-1 text-[10px] text-white/30">#{resolved.payment.id} · {resolved.payment.status}</p></div></div>:<span className="text-xs text-white/30">—</span>}</td>
+                        <td className="px-5 py-5">{resolved.payment?<div className="flex items-start gap-2"><CreditCard className="mt-0.5 h-4 w-4 text-white/30"/><div><p className="text-xs text-white/70">{money(resolved.payment.amount_minor,resolved.payment.currency,locale)}</p><p className="mt-1 text-[10px] text-white/30">#{resolved.payment.id} · {paymentStatusLabel(resolved.payment.status,isArabic)}</p></div></div>:<span className="text-xs text-white/30">—</span>}</td>
                         <td className="whitespace-nowrap px-5 py-5">
                           <AdminEntitlementActions
                             entitlementId={row.id}
