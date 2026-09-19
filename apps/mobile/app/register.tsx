@@ -124,8 +124,13 @@ export default function RegisterScreen() {
         return;
       }
       await finishSocialSignup();
-    } catch {
-      setErrorMessage(isArabic ? "تمت محاولة التسجيل عبر Google، لكن تعذر إكمال إعداد الحساب داخل التطبيق. حاول مرة أخرى." : "Google sign-up was attempted, but account setup could not be completed in the app. Please try again.");
+    } catch (error) {
+      if (error instanceof MobileApiError && error.code === "ACCOUNT_EXISTS_DIFFERENT_IDENTITY") {
+        await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
+        setErrorMessage(isArabic ? "هذا البريد مرتبط بحساب موجود. سجّل الدخول بالطريقة التي استخدمتها سابقًا." : "This email is already registered. Sign in using your original sign-in method.");
+      } else {
+        setErrorMessage(isArabic ? "تمت محاولة التسجيل عبر Google، لكن تعذر إكمال إعداد الحساب داخل التطبيق. حاول مرة أخرى." : "Google sign-up was attempted, but account setup could not be completed in the app. Please try again.");
+      }
     } finally {
       setSocialSubmitting(null);
     }
@@ -142,8 +147,13 @@ export default function RegisterScreen() {
         return;
       }
       await finishSocialSignup(result.displayName);
-    } catch {
-      setErrorMessage(isArabic ? "تمت محاولة التسجيل عبر Apple، لكن تعذر إكمال إعداد الحساب داخل التطبيق. حاول مرة أخرى." : "Apple sign-up was attempted, but account setup could not be completed in the app. Please try again.");
+    } catch (error) {
+      if (error instanceof MobileApiError && error.code === "ACCOUNT_EXISTS_DIFFERENT_IDENTITY") {
+        await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
+        setErrorMessage(isArabic ? "هذا البريد مرتبط بحساب موجود. سجّل الدخول بالطريقة التي استخدمتها سابقًا." : "This email is already registered. Sign in using your original sign-in method.");
+      } else {
+        setErrorMessage(isArabic ? "تمت محاولة التسجيل عبر Apple، لكن تعذر إكمال إعداد الحساب داخل التطبيق. حاول مرة أخرى." : "Apple sign-up was attempted, but account setup could not be completed in the app. Please try again.");
+      }
     } finally {
       setSocialSubmitting(null);
     }
