@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getRequestUser } from "@/lib/auth/request-user";
 import {
   getUserConversationDetail,
+  markUserConversationRead,
   sendUserMessage,
 } from "@/lib/messages/user-conversation-detail";
 import { consumeServerRateLimit } from "@/lib/security/server-rate-limit";
@@ -27,6 +28,37 @@ export async function GET(
   }
 
   return NextResponse.json(data);
+}
+
+export async function PATCH(
+  request: Request,
+  context: { params: Promise<{ id: string }> },
+) {
+  const auth = await getRequestUser(request);
+  if (!auth.ok) {
+    return NextResponse.json(
+      { ok: false, code: "UNAUTHENTICATED" },
+      { status: 401 },
+    );
+  }
+
+  const { id } = await context.params;
+  const conversationId = Number(id);
+  if (!Number.isInteger(conversationId) || conversationId <= 0) {
+    return NextResponse.json(
+      { ok: false, code: "INVALID_CONVERSATION" },
+      { status: 400 },
+    );
+  }
+
+  const result = await markUserConversationRead(auth.user.id, conversationId);
+  if (!result.ok) {
+    return NextResponse.json(result, {
+      status: result.code === "NOT_FOUND" ? 404 : 500,
+    });
+  }
+
+  return NextResponse.json(result);
 }
 
 export async function POST(
