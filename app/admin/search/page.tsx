@@ -479,7 +479,10 @@ export default async function AdminSearchPage({
                                 </p>
 
                                 <p className="mt-3 text-[11px] text-white/30">
-                                  {statusLabel(profile.verification_status, isArabic)}
+                                  {statusLabel(
+                                    profile.approval_status ?? profile.status,
+                                    isArabic,
+                                  )}
                                 </p>
                               </div>
                             </div>
@@ -517,28 +520,22 @@ export default async function AdminSearchPage({
 
                               <div className="min-w-0 flex-1">
                                 <p className="truncate text-sm font-medium text-white/85 group-hover:text-gold">
-                                  {(isArabic
-                                      ? profile.display_name_ar || profile.name_ar || profile.display_name_en || profile.name_en
-                                      : profile.display_name_en || profile.name_en || profile.display_name_ar || profile.name_ar) ||
-                                    (isArabic
-                                      ? "ناشر بدون اسم"
-                                      : "Unnamed publisher")}
+                                  {profile.company_name ||
+                                    profile.contact_name ||
+                                    (isArabic ? "ناشر بدون اسم" : "Unnamed publisher")}
                                 </p>
 
                                 <p
                                   dir="ltr"
                                   className="mt-1 truncate text-xs text-white/35"
                                 >
-                                  {profile.account_phone ||
+                                  {profile.email ||
+                                    profile.phone ||
                                     `ID ${profile.id}`}
                                 </p>
 
                                 <p className="mt-3 text-[11px] text-white/30">
-                                  {statusLabel(
-                                    profile.approval_status ??
-                                      profile.status,
-                                    isArabic,
-                                  )}
+                                  {statusLabel(profile.verification_status, isArabic)}
                                 </p>
                               </div>
                             </div>
