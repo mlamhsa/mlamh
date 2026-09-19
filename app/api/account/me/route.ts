@@ -36,7 +36,9 @@ export async function GET(request: Request) {
     const status =
       result.code === "ACCOUNT_NOT_FOUND"
         ? 404
-        : result.code === "ACCOUNT_TYPE_UNSUPPORTED"
+        : result.code === "ACCOUNT_TYPE_UNSUPPORTED" ||
+            result.code === "PUBLISHER_ONBOARDING_INCOMPLETE" ||
+            result.code === "TALENT_ONBOARDING_INCOMPLETE"
           ? 409
           : 500;
     return NextResponse.json(result, { status });
