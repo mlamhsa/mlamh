@@ -3,6 +3,9 @@ import { NextResponse } from "next/server";
 import { toMobilePublicTalent } from "@/lib/mobile/public-talent-contract";
 import { getFilteredPublicTalents } from "@/lib/talent/public-directory-filters";
 
+const PUBLIC_READ_CACHE_CONTROL =
+  "public, max-age=0, s-maxage=60, stale-while-revalidate=300";
+
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const locale = url.searchParams.get("locale") === "en" ? "en" : "ar";
@@ -29,7 +32,7 @@ export async function GET(request: Request) {
       readyToTravel: url.searchParams.get("readyToTravel") || undefined,
     });
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       ok: true,
       items: result.talents.map((talent) => toMobilePublicTalent(talent, locale)),
       total: result.total,
@@ -37,6 +40,8 @@ export async function GET(request: Request) {
       currentPage: result.currentPage,
       pageSize: result.pageSize,
     });
+    response.headers.set("Cache-Control", PUBLIC_READ_CACHE_CONTROL);
+    return response;
   } catch (error) {
     console.error("[api/mobile/talents]", error);
     return NextResponse.json({ ok: false, code: "TALENT_DIRECTORY_FAILED" }, { status: 500 });

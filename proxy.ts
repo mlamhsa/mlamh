@@ -11,6 +11,11 @@ const LEGACY_PUBLIC_HOSTS = new Set([
   "mlamh.vercel.app",
 ]);
 
+const PUBLIC_READ_API_PATHS = new Set([
+  "/api/opportunities",
+  "/api/mobile/talents",
+]);
+
 function getRequestHost(request: NextRequest) {
   const forwardedHost = request.headers.get("x-forwarded-host");
   const host = forwardedHost ?? request.headers.get("host") ?? "";
@@ -47,6 +52,13 @@ export async function proxy(
     canonicalUrl.port = "";
 
     return NextResponse.redirect(canonicalUrl, 308);
+  }
+
+  if (
+    request.method === "GET" &&
+    PUBLIC_READ_API_PATHS.has(request.nextUrl.pathname)
+  ) {
+    return NextResponse.next();
   }
 
   const requestHeaders = new Headers(request.headers);
