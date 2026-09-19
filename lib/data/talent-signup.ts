@@ -236,6 +236,13 @@ export const PROFILE_VISIBILITY_OPTIONS = [
     descriptionEn: "Your professional profile, photos and core details may appear in the MLAMH talent directory after approval.",
   },
   {
+    value: "verified_publishers",
+    ar: "للناشرين الموثقين فقط",
+    en: "Verified publishers only",
+    descriptionAr: "لن يظهر ملفك في دليل المواهب العام. يمكن فقط للناشرين الموثقين في ملامح فتح ملفك عند الوصول إليه من المطابقة أو الدعوات المناسبة.",
+    descriptionEn: "Your profile will stay out of the public talent directory. Only verified MLAMH publishers can open it through relevant matching or invitations.",
+  },
+  {
     value: "private",
     ar: "ملفي خاص",
     en: "Keep my profile private",
