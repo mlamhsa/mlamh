@@ -1,7 +1,13 @@
 import Image from "next/image";
 import Link from "next/link";
-import { AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
+import {
+  AdminEmptyState,
+  AdminPageContainer,
+  AdminPageHeader,
+  AdminStatCard,
+} from "@/components/admin/ui";
 import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getTalentProfileDataQualityIssues } from "@/lib/talent/profile-data-quality";
@@ -98,48 +104,43 @@ export default async function AdminTalentDataQualityPage({ searchParams }: PageP
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
-    <main dir={ar ? "rtl" : "ltr"} className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-7xl">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <div className="flex items-center gap-2 text-amber-300">
-              <AlertTriangle className="h-4 w-4" />
-              <p className="text-[10px] uppercase tracking-[0.25em]">
-                {ar ? "تشخيص جودة البيانات" : "Data quality diagnostics"}
-              </p>
-            </div>
-            <h1 className="mt-3 text-3xl font-light text-white sm:text-4xl">
-              {ar ? "قياسات تحتاج مراجعة" : "Measurements needing review"}
-            </h1>
-            <p className="mt-2 max-w-2xl text-sm leading-7 text-white/45">
-              {ar
-                ? "هذه القائمة تعرض فقط الملفات التي تحتوي قياسًا صفريًا أو سالبًا. لا يتم تعديل أي قيمة تلقائيًا؛ الهدف هو تسهيل المراجعة والتصحيح الآمن."
-                : "This list only shows profiles with a zero or negative physical measurement. Nothing is changed automatically; it is an operational queue for safe review and correction."}
-            </p>
-          </div>
+    <div dir={ar ? "rtl" : "ltr"}>
+      <AdminPageContainer>
+        <AdminPageHeader
+          eyebrow={ar ? "جودة البيانات" : "DATA QUALITY"}
+          title={ar ? "قياسات تحتاج مراجعة" : "Measurements needing review"}
+          description={
+            ar
+              ? "تعرض هذه القائمة الملفات التي تحتوي قياسًا صفريًا أو سالبًا فقط. لا يتم تعديل أي قيمة تلقائيًا؛ الهدف هو تسهيل المراجعة والتصحيح الآمن."
+              : "This queue shows profiles containing a zero or negative physical measurement. Nothing is changed automatically; it supports safe review and correction."
+          }
+          actions={
+            <Link
+              href={`/admin/talents?lang=${language}`}
+              className="inline-flex h-10 items-center justify-center rounded-lg border border-white/[0.08] px-4 text-xs font-medium text-white/55 transition hover:border-gold/20 hover:text-gold"
+            >
+              {ar ? "العودة إلى المواهب" : "Back to talents"}
+            </Link>
+          }
+        />
 
-          <Link
-            href={`/admin/talents?lang=${language}`}
-            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-white/10 px-5 text-sm text-white/60 transition hover:border-gold/30 hover:text-gold"
-          >
-            {ar ? "العودة إلى المواهب" : "Back to talents"}
-          </Link>
+        <div className="mb-5 max-w-sm">
+          <AdminStatCard
+            label={ar ? "ملفات تحتاج مراجعة" : "Profiles needing review"}
+            value={total}
+            active={total > 0}
+          />
         </div>
 
-        <section className="mt-6 rounded-3xl border border-amber-400/15 bg-amber-400/[0.035] p-5">
-          <p className="text-xs text-white/40">
-            {ar ? "إجمالي الملفات التي تحتاج مراجعة" : "Profiles needing review"}
-          </p>
-          <p className="mt-2 text-3xl font-light text-amber-200">{total}</p>
-        </section>
-
-        <div className="mt-6 grid gap-4">
+        <div className="grid gap-3">
           {rows.length === 0 ? (
-            <div className="rounded-3xl border border-emerald-400/15 bg-emerald-400/[0.04] p-8 text-center text-sm text-emerald-200">
-              {ar
-                ? "لا توجد حاليًا قياسات صفرية أو سالبة تحتاج مراجعة."
-                : "There are currently no zero or negative measurements requiring review."}
-            </div>
+            <AdminEmptyState
+              message={
+                ar
+                  ? "لا توجد حاليًا قياسات صفرية أو سالبة تحتاج مراجعة."
+                  : "There are currently no zero or negative measurements requiring review."
+              }
+            />
           ) : (
             rows.map((talent) => {
               const issues = getTalentProfileDataQualityIssues(talent);
@@ -153,7 +154,7 @@ export default async function AdminTalentDataQualityPage({ searchParams }: PageP
               return (
                 <article
                   key={talent.id}
-                  className="rounded-3xl border border-white/[0.08] bg-white/[0.02] p-4 sm:p-5"
+                  className="rounded-2xl border border-white/[0.075] bg-white/[0.022] p-4 sm:p-5"
                 >
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex min-w-0 items-center gap-4">
@@ -184,13 +185,13 @@ export default async function AdminTalentDataQualityPage({ searchParams }: PageP
                     <div className="flex shrink-0 gap-2">
                       <Link
                         href={`/admin/talents/${talent.id}?lang=${language}`}
-                        className="inline-flex min-h-10 items-center justify-center rounded-xl border border-white/10 px-4 text-xs text-white/60 transition hover:border-gold/30 hover:text-gold"
+                        className="inline-flex h-10 items-center justify-center rounded-lg border border-white/[0.08] px-4 text-xs font-medium text-white/55 transition hover:border-gold/20 hover:text-gold"
                       >
                         {ar ? "مراجعة الملف" : "Review profile"}
                       </Link>
                       <Link
                         href={`/admin/talents/${talent.id}/edit?lang=${language}`}
-                        className="inline-flex min-h-10 items-center justify-center rounded-xl border border-gold/25 bg-gold/[0.06] px-4 text-xs text-gold transition hover:bg-gold hover:text-black"
+                        className="inline-flex h-10 items-center justify-center rounded-lg border border-gold/25 bg-gold/[0.06] px-4 text-xs font-medium text-gold transition hover:bg-gold hover:text-black"
                       >
                         {ar ? "تعديل" : "Edit"}
                       </Link>
@@ -233,7 +234,7 @@ export default async function AdminTalentDataQualityPage({ searchParams }: PageP
             </Link>
           </nav>
         ) : null}
-      </div>
-    </main>
+      </AdminPageContainer>
+    </div>
   );
 }
