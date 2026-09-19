@@ -106,6 +106,8 @@ export default function RegisterScreen() {
         return;
       }
       await finishSocialSignup();
+    } catch {
+      setErrorMessage(isArabic ? "تمت محاولة التسجيل عبر Google، لكن تعذر إكمال إعداد الحساب داخل التطبيق. حاول مرة أخرى." : "Google sign-up was attempted, but account setup could not be completed in the app. Please try again.");
     } finally {
       setSocialSubmitting(null);
     }
@@ -122,6 +124,8 @@ export default function RegisterScreen() {
         return;
       }
       await finishSocialSignup(result.displayName);
+    } catch {
+      setErrorMessage(isArabic ? "تمت محاولة التسجيل عبر Apple، لكن تعذر إكمال إعداد الحساب داخل التطبيق. حاول مرة أخرى." : "Apple sign-up was attempted, but account setup could not be completed in the app. Please try again.");
     } finally {
       setSocialSubmitting(null);
     }
