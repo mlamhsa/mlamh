@@ -59,6 +59,21 @@ export default function LoginScreen() {
       router.replace("/account-type" as never);
       return;
     }
+    if (accountStatus === "talent_incomplete") {
+      router.replace("/setup-account?type=talent" as never);
+      return;
+    }
+    if (accountStatus === "publisher_incomplete") {
+      router.replace("/setup-account?type=publisher" as never);
+      return;
+    }
+    if (
+      accountStatus === "unsupported_account" ||
+      accountStatus === "identity_conflict"
+    ) {
+      router.replace("/" as never);
+      return;
+    }
 
     throw new Error("ACCOUNT_CONTEXT_UNAVAILABLE");
   }
