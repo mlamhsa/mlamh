@@ -6,8 +6,8 @@
 create or replace function public.prevent_admin_audit_event_mutation()
 returns trigger
 language plpgsql
-security definer
-set search_path = public
+security invoker
+set search_path = ''
 as $$
 begin
   if tg_op = 'DELETE' then
