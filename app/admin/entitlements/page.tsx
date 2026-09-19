@@ -29,7 +29,7 @@ function formatDate(value:string|null, locale:string) {
   if (!value) return "—";
   const date=new Date(value);
   if(Number.isNaN(date.getTime())) return "—";
-  return new Intl.DateTimeFormat(locale==="ar"?"ar-SA":"en-US",{year:"numeric",month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}).format(date);
+  return new Intl.DateTimeFormat(locale==="ar"?"ar-SA-u-ca-gregory-nu-latn":"en-US",{year:"numeric",month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}).format(date);
 }
 function remainingDays(expiresAt:string|null) {
   if(!expiresAt) return null;
@@ -42,7 +42,7 @@ function isActive(row:EntitlementRow) {
   return !row.expires_at||new Date(row.expires_at).getTime()>now;
 }
 function money(minor:number,currency:string,locale:string){
-  return new Intl.NumberFormat(locale==="ar"?"ar-SA":"en-US",{style:"currency",currency}).format(minorToMajorAmount(minor,currency));
+  return new Intl.NumberFormat(locale==="ar"?"ar-SA-u-ca-gregory-nu-latn":"en-US",{style:"currency",currency}).format(minorToMajorAmount(minor,currency));
 }
 
 export const metadata={title:"Subscriptions & Entitlements — MLAMH Admin",robots:{index:false,follow:false}};
