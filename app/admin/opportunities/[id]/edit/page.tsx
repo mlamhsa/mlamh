@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import AdminLocalizedOpportunityEditForm from "@/components/admin/opportunities/AdminLocalizedOpportunityEditForm";
+import { AdminPageContainer, AdminPageHeader } from "@/components/admin/ui";
 import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -31,18 +32,29 @@ export default async function EditManagedOpportunityPage({ params, searchParams 
   const rawPublicMode = typeof roleRequirements.public_source_mode === "string" ? roleRequirements.public_source_mode : "mlamh";
   const publicSourceMode = rawPublicMode === "client_name" || rawPublicMode === "mlamh_clients" ? rawPublicMode : "mlamh";
   const clientCompanyName = typeof roleRequirements.client_company_name === "string" ? roleRequirements.client_company_name : sourceType === "client" ? opportunity.company_name : null;
-  const lang = resolvedSearch.lang === "en" ? "en" : "ar";
+  const lang: "ar" | "en" = resolvedSearch.lang === "en" ? "en" : "ar";
+  const isArabic = lang === "ar";
 
   return (
-    <main dir="rtl" className="min-h-screen bg-background px-6 py-10 text-white">
-      <div className="mx-auto max-w-5xl">
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-[10px] uppercase tracking-[0.3em] text-gold">MLAMH ADMIN · OPPORTUNITY #{opportunity.id}</p>
-            <h1 className="mt-2 text-4xl font-light">تعديل الفرصة</h1>
-          </div>
-          <Link href={`/admin/opportunities/${opportunity.id}?lang=${lang}`} className="rounded-full border border-white/10 px-5 py-3 text-xs text-white/60 hover:border-gold/40 hover:text-gold">العودة إلى التفاصيل</Link>
-        </div>
+    <div dir={isArabic ? "rtl" : "ltr"}>
+      <AdminPageContainer className="max-w-5xl">
+        <AdminPageHeader
+          eyebrow={isArabic ? `الفرصة #${opportunity.id}` : `OPPORTUNITY #${opportunity.id}`}
+          title={isArabic ? "تعديل الفرصة" : "Edit opportunity"}
+          description={
+            isArabic
+              ? "راجع بيانات المسودة المُدارة وحدّثها قبل إعادة المراجعة أو النشر."
+              : "Review and update the managed draft before review or publication."
+          }
+          actions={
+            <Link
+              href={`/admin/opportunities/${opportunity.id}?lang=${lang}`}
+              className="inline-flex h-10 items-center justify-center rounded-lg border border-white/[0.08] px-4 text-xs font-medium text-white/55 transition hover:border-gold/20 hover:text-gold"
+            >
+              {isArabic ? "العودة إلى التفاصيل" : "Back to details"}
+            </Link>
+          }
+        />
 
         <AdminLocalizedOpportunityEditForm initialValues={{
           opportunityId: opportunity.id,
@@ -67,7 +79,7 @@ export default async function EditManagedOpportunityPage({ params, searchParams 
           workTime: opportunity.work_time,
           workDuration: opportunity.work_duration,
         }} />
-      </div>
-    </main>
+      </AdminPageContainer>
+    </div>
   );
 }
