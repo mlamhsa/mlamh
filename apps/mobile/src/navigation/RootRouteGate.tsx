@@ -1,9 +1,10 @@
 import { Redirect, type Href } from "expo-router";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useLocale } from "@/src/i18n/LocaleProvider";
 import { useSessionContext } from "@/src/runtime/SessionContext";
+import { supabase } from "@/src/services/supabase";
 import { colors, radius, spacing, typography } from "@/src/theme/tokens";
 
 const ROUTES = {
@@ -51,6 +52,38 @@ export function RootRouteGate() {
             style={({ pressed }) => [styles.retryButton, pressed && styles.retryPressed]}
           >
             <Text style={styles.retryText}>{isArabic ? "إعادة المحاولة" : "Try again"}</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (session.status === "unsupported_account") {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.errorState}>
+          <Text style={styles.brand}>MLAMH</Text>
+          <Text style={styles.errorTitle}>
+            {isArabic ? "حساب الإدارة" : "Admin account"}
+          </Text>
+          <Text style={styles.errorText}>
+            {isArabic
+              ? "تم تسجيل الدخول بنجاح، لكن لوحة الإدارة ليست جزءًا من تطبيق المواهب والناشرين. يمكنك فتح لوحة الإدارة على الويب أو تسجيل الخروج."
+              : "You are signed in, but admin tools are not part of the talent and publisher app. Open the web admin panel or sign out."}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => void Linking.openURL("https://mlamh.net/admin")}
+            style={({ pressed }) => [styles.retryButton, pressed && styles.retryPressed]}
+          >
+            <Text style={styles.retryText}>{isArabic ? "فتح لوحة الإدارة" : "Open admin panel"}</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => void supabase.auth.signOut({ scope: "local" }).then(() => session.refresh())}
+            style={({ pressed }) => [styles.secondaryButton, pressed && styles.retryPressed]}
+          >
+            <Text style={styles.secondaryText}>{isArabic ? "تسجيل الخروج" : "Sign out"}</Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -130,5 +163,20 @@ const styles = StyleSheet.create({
     color: colors.background,
     fontSize: 14,
     fontWeight: "800",
+  },
+  secondaryButton: {
+    minWidth: 180,
+    minHeight: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.xl,
+  },
+  secondaryText: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    fontWeight: "700",
   },
 });
