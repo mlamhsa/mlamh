@@ -168,6 +168,16 @@ export function OpportunityResponseCTA({ item, locale }: Props) {
       };
     }
 
+    if (session.status === "unsupported_account") {
+      return {
+        label: isArabic ? "الحساب غير متاح للتقديم" : "Account cannot apply",
+        note: isArabic
+          ? "حساب الإدارة لا يستخدم مسار التقديم الخاص بالمواهب."
+          : "Admin accounts do not use the talent application flow.",
+        enabled: false,
+      };
+    }
+
     if (session.status === "guest" || session.status === "account_missing") {
       return {
         label: isArabic ? "سجّل للمتابعة" : "Sign in to continue",
