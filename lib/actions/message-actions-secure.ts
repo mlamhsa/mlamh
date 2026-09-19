@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 
 import { requireAdminAccess } from "@/lib/auth/require-admin";
+import { recordAdminAction } from "@/lib/events/admin-audit";
+import { EVENT_TARGETS } from "@/lib/events/event-targets";
 import { validateAndSanitizeMessageAttachment } from "@/lib/security/message-attachment";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -161,6 +163,17 @@ export async function sendMessageAction(formData: FormData) {
     await getAuthenticatedParticipant(conversationId);
 
   if ((conversation.status ?? "active") !== "active") {
+    if (dashboard === "admin") {
+      await recordAdminAction({
+        actorId: user.id,
+        actorEmail: user.email,
+        action: "send_admin_message",
+        outcome: "blocked",
+        target: EVENT_TARGETS.CONVERSATION,
+        targetId: conversationId,
+        reason: "conversation_not_active",
+      });
+    }
     throw new Error("This conversation is not active.");
   }
 
@@ -183,6 +196,17 @@ export async function sendMessageAction(formData: FormData) {
 
   if (insertError || !createdMessage) {
     console.error("Send message error:", insertError);
+    if (dashboard === "admin") {
+      await recordAdminAction({
+        actorId: user.id,
+        actorEmail: user.email,
+        action: "send_admin_message",
+        outcome: "failed",
+        target: EVENT_TARGETS.CONVERSATION,
+        targetId: conversationId,
+        reason: "message_insert_failed",
+      });
+    }
     throw new Error(insertError?.message ?? "Message could not be created.");
   }
 
@@ -243,6 +267,24 @@ export async function sendMessageAction(formData: FormData) {
     if (messageCleanupError) {
       console.error("Message cleanup error:", messageCleanupError);
     }
+
+    if (dashboard === "admin") {
+      await recordAdminAction({
+        actorId: user.id,
+        actorEmail: user.email,
+        action: "send_admin_message",
+        outcome: "failed",
+        target: EVENT_TARGETS.CONVERSATION,
+        targetId: conversationId,
+        reason: "message_attachment_processing_failed",
+        metadata: {
+          message_id: createdMessage.id,
+          cleanup_failed:
+            Boolean(messageCleanupError),
+        },
+      });
+    }
+
     throw error;
   }
 
@@ -339,6 +381,21 @@ export async function sendMessageAction(formData: FormData) {
     }
   }
 
+  if (dashboard === "admin") {
+    await recordAdminAction({
+      actorId: user.id,
+      actorEmail: user.email,
+      action: "send_admin_message",
+      outcome: "success",
+      target: EVENT_TARGETS.MESSAGE,
+      targetId: createdMessage.id,
+      metadata: {
+        conversation_id: conversationId,
+        has_attachment: hasAttachment,
+      },
+    });
+  }
+
   revalidatePath(getConversationPath(locale, dashboard, conversationId));
   if (dashboard === "admin") {
     revalidatePath("/admin/messages");
@@ -365,7 +422,31 @@ export async function markConversationReadAction(conversationId: number) {
     .eq("conversation_id", conversationId)
     .neq("sender_user_id", user.id)
     .is("read_at", null);
-  if (error) console.error("Mark messages read error:", error);
+
+  if (error) {
+    console.error("Mark messages read error:", error);
+
+    if (dashboard === "admin") {
+      await recordAdminAction({
+        actorId: user.id,
+        actorEmail: user.email,
+        action: "mark_admin_conversation_read",
+        outcome: "failed",
+        target: EVENT_TARGETS.CONVERSATION,
+        targetId: conversationId,
+        reason: "message_read_update_failed",
+      });
+    }
+  } else if (dashboard === "admin") {
+    await recordAdminAction({
+      actorId: user.id,
+      actorEmail: user.email,
+      action: "mark_admin_conversation_read",
+      outcome: "success",
+      target: EVENT_TARGETS.CONVERSATION,
+      targetId: conversationId,
+    });
+  }
 
   const recipientType =
     dashboard === "talent" ? "talent" : dashboard === "admin" ? "ADMIN" : "publisher";
@@ -423,11 +504,63 @@ export async function reportMessageAction(formData: FormData) {
     .eq("conversation_id", conversationId)
     .maybeSingle();
 
-  if (messageError) throw new Error(messageError.message);
-  if (!message) throw new Error("Message not found.");
-  if (message.sender_user_id === user.id) throw new Error("You cannot report your own message.");
+  if (messageError) {
+    if (dashboard === "admin") {
+      await recordAdminAction({
+        actorId: user.id,
+        actorEmail: user.email,
+        action: "report_message_as_admin",
+        outcome: "failed",
+        target: EVENT_TARGETS.MESSAGE,
+        targetId: messageId,
+        reason: "message_lookup_failed",
+      });
+    }
+    throw new Error(messageError.message);
+  }
+
+  if (!message) {
+    if (dashboard === "admin") {
+      await recordAdminAction({
+        actorId: user.id,
+        actorEmail: user.email,
+        action: "report_message_as_admin",
+        outcome: "failed",
+        target: EVENT_TARGETS.MESSAGE,
+        targetId: messageId,
+        reason: "message_not_found",
+      });
+    }
+    throw new Error("Message not found.");
+  }
+
+  if (message.sender_user_id === user.id) {
+    if (dashboard === "admin") {
+      await recordAdminAction({
+        actorId: user.id,
+        actorEmail: user.email,
+        action: "report_message_as_admin",
+        outcome: "blocked",
+        target: EVENT_TARGETS.MESSAGE,
+        targetId: messageId,
+        reason: "cannot_report_own_message",
+      });
+    }
+    throw new Error("You cannot report your own message.");
+  }
 
   if (message.reported_at) {
+    if (dashboard === "admin") {
+      await recordAdminAction({
+        actorId: user.id,
+        actorEmail: user.email,
+        action: "report_message_as_admin",
+        outcome: "noop",
+        target: EVENT_TARGETS.MESSAGE,
+        targetId: messageId,
+        reason: "message_already_reported",
+      });
+    }
     revalidatePath(getConversationPath(locale, dashboard, conversationId));
     return;
   }
@@ -437,7 +570,36 @@ export async function reportMessageAction(formData: FormData) {
     .update({ reported_at: new Date().toISOString(), report_reason: reportReason })
     .eq("id", messageId)
     .eq("conversation_id", conversationId);
-  if (reportError) throw new Error(reportError.message);
+  if (reportError) {
+    if (dashboard === "admin") {
+      await recordAdminAction({
+        actorId: user.id,
+        actorEmail: user.email,
+        action: "report_message_as_admin",
+        outcome: "failed",
+        target: EVENT_TARGETS.MESSAGE,
+        targetId: messageId,
+        reason: "message_report_update_failed",
+      });
+    }
+    throw new Error(reportError.message);
+  }
+
+  if (dashboard === "admin") {
+    await recordAdminAction({
+      actorId: user.id,
+      actorEmail: user.email,
+      action: "report_message_as_admin",
+      outcome: "success",
+      target: EVENT_TARGETS.MESSAGE,
+      targetId: messageId,
+      metadata: {
+        conversation_id: conversationId,
+        report_reason_length:
+          reportReason.length,
+      },
+    });
+  }
 
   revalidatePath(getConversationPath(locale, dashboard, conversationId));
 }
@@ -462,6 +624,17 @@ export async function closeConversationAction(formData: FormData) {
   }
 
   if ((conversation.status ?? "active") !== "active") {
+    if (dashboard === "admin") {
+      await recordAdminAction({
+        actorId: user.id,
+        actorEmail: user.email,
+        action: "close_admin_conversation",
+        outcome: "noop",
+        target: EVENT_TARGETS.CONVERSATION,
+        targetId: conversationId,
+        reason: "conversation_already_closed",
+      });
+    }
     revalidatePath(getConversationPath(locale, dashboard, conversationId));
     revalidatePath(`/${locale}/publisher-dashboard/messages`);
     return;
@@ -489,8 +662,49 @@ export async function closeConversationAction(formData: FormData) {
   const { data: closedConversation, error: closeError } = await closeQuery
     .select("id,status,closed_by,closed_at")
     .maybeSingle();
-  if (closeError) throw new Error(closeError.message);
-  if (!closedConversation) throw new Error("Conversation could not be closed.");
+  if (closeError) {
+    if (dashboard === "admin") {
+      await recordAdminAction({
+        actorId: user.id,
+        actorEmail: user.email,
+        action: "close_admin_conversation",
+        outcome: "failed",
+        target: EVENT_TARGETS.CONVERSATION,
+        targetId: conversationId,
+        reason: "conversation_close_failed",
+      });
+    }
+    throw new Error(closeError.message);
+  }
+
+  if (!closedConversation) {
+    if (dashboard === "admin") {
+      await recordAdminAction({
+        actorId: user.id,
+        actorEmail: user.email,
+        action: "close_admin_conversation",
+        outcome: "failed",
+        target: EVENT_TARGETS.CONVERSATION,
+        targetId: conversationId,
+        reason: "conversation_not_closed",
+      });
+    }
+    throw new Error("Conversation could not be closed.");
+  }
+
+  if (dashboard === "admin") {
+    await recordAdminAction({
+      actorId: user.id,
+      actorEmail: user.email,
+      action: "close_admin_conversation",
+      outcome: "success",
+      target: EVENT_TARGETS.CONVERSATION,
+      targetId: conversationId,
+      metadata: {
+        closed_at: closedAt,
+      },
+    });
+  }
 
   revalidatePath(getConversationPath(locale, dashboard, conversationId));
   if (dashboard === "admin") {

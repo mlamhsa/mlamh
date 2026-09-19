@@ -6,6 +6,8 @@ import { redirect } from "next/navigation";
 import { translateOpportunityContent } from "@/lib/ai/translate-opportunity";
 import { SAUDI_CITIES } from "@/lib/data/saudi-cities";
 import { requireAdminAccess } from "@/lib/auth/require-admin";
+import { recordAdminAction } from "@/lib/events/admin-audit";
+import { EVENT_TARGETS } from "@/lib/events/event-targets";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 function stringValue(value: FormDataEntryValue | null) {
@@ -20,16 +22,36 @@ function numberValue(value: FormDataEntryValue | null) {
 }
 
 export async function updateAdminLocalizedOpportunityFormAction(formData: FormData) {
-  await requireAdminAccess();
+  const adminUser = await requireAdminAccess();
 
   const opportunityId = Number(formData.get("opportunity_id"));
   if (!Number.isInteger(opportunityId) || opportunityId <= 0) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_managed_opportunity",
+      outcome: "blocked",
+      target: EVENT_TARGETS.OPPORTUNITY,
+      targetId: "invalid-input",
+      reason: "invalid_opportunity_id",
+    });
     throw new Error("Invalid opportunity id.");
   }
 
   const titleAr = stringValue(formData.get("title"));
   const descriptionAr = stringValue(formData.get("description"));
-  if (!titleAr || !descriptionAr) throw new Error("عنوان ووصف الفرصة مطلوبان.");
+  if (!titleAr || !descriptionAr) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_managed_opportunity",
+      outcome: "blocked",
+      target: EVENT_TARGETS.OPPORTUNITY,
+      targetId: opportunityId,
+      reason: "required_content_missing",
+    });
+    throw new Error("عنوان ووصف الفرصة مطلوبان.");
+  }
 
   const db = createAdminClient();
   const { data: existing, error: readError } = await db
@@ -37,30 +59,99 @@ export async function updateAdminLocalizedOpportunityFormAction(formData: FormDa
     .select("id,status,published,role_requirements")
     .eq("id", opportunityId)
     .single();
-  if (readError || !existing) throw new Error("تعذر العثور على الفرصة.");
+  if (readError || !existing) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_managed_opportunity",
+      outcome: "failed",
+      target: EVENT_TARGETS.OPPORTUNITY,
+      targetId: opportunityId,
+      reason: "opportunity_load_failed",
+    });
+    throw new Error("تعذر العثور على الفرصة.");
+  }
 
   const roleRequirements = existing.role_requirements && typeof existing.role_requirements === "object" && !Array.isArray(existing.role_requirements)
     ? existing.role_requirements as Record<string, unknown>
     : {};
-  if (roleRequirements.managed_by !== "mlamh") throw new Error("Only MLAMH-managed opportunities can be edited here.");
+  if (roleRequirements.managed_by !== "mlamh") {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_managed_opportunity",
+      outcome: "blocked",
+      target: EVENT_TARGETS.OPPORTUNITY,
+      targetId: opportunityId,
+      reason: "not_mlamh_managed",
+    });
+    throw new Error("Only MLAMH-managed opportunities can be edited here.");
+  }
   if (existing.published || !["draft", "needs_changes"].includes(existing.status)) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_managed_opportunity",
+      outcome: "blocked",
+      target: EVENT_TARGETS.OPPORTUNITY,
+      targetId: opportunityId,
+      reason: "opportunity_not_editable",
+      metadata: {
+        previous_status: existing.status,
+        previous_published: existing.published,
+      },
+    });
     throw new Error("Only unpublished MLAMH-managed drafts can be edited here.");
   }
 
   const citySlug = stringValue(formData.get("city_slug"));
   const city = SAUDI_CITIES.find((item) => item.slug === citySlug) ?? null;
-  if (!city) throw new Error("يرجى اختيار مدينة صحيحة.");
+  if (!city) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_managed_opportunity",
+      outcome: "blocked",
+      target: EVENT_TARGETS.OPPORTUNITY,
+      targetId: opportunityId,
+      reason: "invalid_city",
+      metadata: { requested_city_slug: citySlug },
+    });
+    throw new Error("يرجى اختيار مدينة صحيحة.");
+  }
 
   const compensationRaw = stringValue(formData.get("compensation_type"));
   const compensationType: "fixed" | "negotiable" | "unpaid" =
     compensationRaw === "negotiable" || compensationRaw === "unpaid" ? compensationRaw : "fixed";
   const budget = compensationType === "fixed" ? stringValue(formData.get("budget")) || null : null;
-  if (compensationType === "fixed" && !budget) throw new Error("أدخل مبلغ الفرصة.");
+  if (compensationType === "fixed" && !budget) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_managed_opportunity",
+      outcome: "blocked",
+      target: EVENT_TARGETS.OPPORTUNITY,
+      targetId: opportunityId,
+      reason: "fixed_budget_missing",
+    });
+    throw new Error("أدخل مبلغ الفرصة.");
+  }
 
   const translated = await translateOpportunityContent({ sourceLanguage: "ar", title: titleAr, description: descriptionAr });
   const titleEn = translated.title.trim();
   const descriptionEn = translated.description.trim();
-  if (!titleEn || !descriptionEn) throw new Error("تعذر إنشاء النسخة الإنجليزية للفرصة تلقائيًا.");
+  if (!titleEn || !descriptionEn) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_managed_opportunity",
+      outcome: "failed",
+      target: EVENT_TARGETS.OPPORTUNITY,
+      targetId: opportunityId,
+      reason: "automatic_translation_failed",
+    });
+    throw new Error("تعذر إنشاء النسخة الإنجليزية للفرصة تلقائيًا.");
+  }
 
   const publishNow = formData.get("publish_now") === "true";
   const sourceType = roleRequirements.source_type === "client" ? "client" : "mlamh";
@@ -69,7 +160,18 @@ export async function updateAdminLocalizedOpportunityFormAction(formData: FormDa
   const publicSourceMode = publicSourceModeRaw === "client_name" || publicSourceModeRaw === "mlamh_clients" ? publicSourceModeRaw : "mlamh";
   let companyName = "ملامح";
   if (sourceType === "client" && publicSourceMode === "client_name") {
-    if (!clientCompanyName) throw new Error("اسم الجهة أو العميل مطلوب.");
+    if (!clientCompanyName) {
+      await recordAdminAction({
+        actorId: adminUser.id,
+        actorEmail: adminUser.email,
+        action: "update_managed_opportunity",
+        outcome: "blocked",
+        target: EVENT_TARGETS.OPPORTUNITY,
+        targetId: opportunityId,
+        reason: "client_company_name_required",
+      });
+      throw new Error("اسم الجهة أو العميل مطلوب.");
+    }
     companyName = clientCompanyName;
   } else if (sourceType === "client" && publicSourceMode === "mlamh_clients") {
     companyName = "من عملاء ملامح";
@@ -111,7 +213,41 @@ export async function updateAdminLocalizedOpportunityFormAction(formData: FormDa
     published: publishNow,
     updated_at: now,
   }).eq("id", opportunityId);
-  if (error) throw new Error(`[update managed opportunity] ${error.message}`);
+  if (error) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_managed_opportunity",
+      outcome: "failed",
+      target: EVENT_TARGETS.OPPORTUNITY,
+      targetId: opportunityId,
+      reason: "opportunity_update_failed",
+      metadata: {
+        previous_status: existing.status,
+        previous_published: existing.published,
+        requested_publish_now: publishNow,
+      },
+    });
+    throw new Error(`[update managed opportunity] ${error.message}`);
+  }
+
+  await recordAdminAction({
+    actorId: adminUser.id,
+    actorEmail: adminUser.email,
+    action: "update_managed_opportunity",
+    outcome: "success",
+    target: EVENT_TARGETS.OPPORTUNITY,
+    targetId: opportunityId,
+    metadata: {
+      previous_status: existing.status,
+      new_status: publishNow ? "published" : "draft",
+      previous_published: existing.published,
+      new_published: publishNow,
+      city_slug: city.slug,
+      compensation_type: compensationType,
+      source_type: sourceType,
+    },
+  });
 
   revalidatePath(`/admin/opportunities/${opportunityId}`);
   revalidatePath("/admin/opportunities");

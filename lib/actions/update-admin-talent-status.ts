@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 
 import { requireAdminAccess } from "@/lib/auth/require-admin";
+import { recordAdminAction } from "@/lib/events/admin-audit";
+import { EVENT_TARGETS } from "@/lib/events/event-targets";
 import { TALENT_CATEGORIES } from "@/lib/data/talent-categories";
 import { isActiveTalentCountryCode } from "@/lib/data/talent-active-market";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -64,9 +66,23 @@ export async function updateAdminTalentStatusAction(
   talentId: number | string,
   nextStatus: TalentOperationalStatus,
 ): Promise<AdminTalentActionResult> {
-  await requireAdminAccess();
+  const adminUser =
+    await requireAdminAccess();
 
   if (nextStatus !== "active" && nextStatus !== "suspended") {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_talent_operational_status",
+      outcome: "blocked",
+      target: EVENT_TARGETS.TALENT,
+      targetId: String(talentId),
+      reason: "invalid_talent_status",
+      metadata: {
+        requested_status:
+          nextStatus,
+      },
+    });
     return {
       success: false,
       message: "حالة الموهبة المطلوبة غير صالحة.",
@@ -82,15 +98,52 @@ export async function updateAdminTalentStatusAction(
 
   if (talentError) {
     console.error("[updateAdminTalentStatusAction load]", talentError);
+
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_talent_operational_status",
+      outcome: "failed",
+      target: EVENT_TARGETS.TALENT,
+      targetId: String(talentId),
+      reason: "talent_load_failed",
+    });
+
     return { success: false, message: "تعذر تحميل بيانات الموهبة." };
   }
 
   if (!talent) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_talent_operational_status",
+      outcome: "failed",
+      target: EVENT_TARGETS.TALENT,
+      targetId: String(talentId),
+      reason: "talent_not_found",
+    });
+
     return { success: false, message: "الموهبة غير موجودة." };
   }
 
   const currentTalent = talent as TalentActionRow;
   if (currentTalent.status === nextStatus) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_talent_operational_status",
+      outcome: "noop",
+      target: EVENT_TARGETS.TALENT,
+      targetId: currentTalent.id,
+      reason: "status_already_set",
+      metadata: {
+        current_status:
+          currentTalent.status,
+        requested_status:
+          nextStatus,
+      },
+    });
+
     return {
       success: true,
       message:
@@ -109,6 +162,23 @@ export async function updateAdminTalentStatusAction(
 
   if (updateError) {
     console.error("[updateAdminTalentStatusAction update]", updateError);
+
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_talent_operational_status",
+      outcome: "failed",
+      target: EVENT_TARGETS.TALENT,
+      targetId: currentTalent.id,
+      reason: "talent_status_update_failed",
+      metadata: {
+        previous_status:
+          currentTalent.status,
+        requested_status:
+          nextStatus,
+      },
+    });
+
     return {
       success: false,
       message:
@@ -119,8 +189,35 @@ export async function updateAdminTalentStatusAction(
   }
 
   if (!updatedTalent) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_talent_operational_status",
+      outcome: "failed",
+      target: EVENT_TARGETS.TALENT,
+      targetId: currentTalent.id,
+      reason: "talent_missing_after_status_update",
+    });
+
     return { success: false, message: "تعذر تحديث حالة الموهبة." };
   }
+
+  await recordAdminAction({
+    actorId: adminUser.id,
+    actorEmail: adminUser.email,
+    action: "update_talent_operational_status",
+    outcome: "success",
+    target: EVENT_TARGETS.TALENT,
+    targetId: currentTalent.id,
+    metadata: {
+      previous_status:
+        currentTalent.status,
+      new_status:
+        nextStatus,
+      published:
+        currentTalent.published,
+    },
+  });
 
   revalidateTalentPaths(talentId, updatedTalent.slug);
   return {
@@ -160,10 +257,35 @@ export async function updateAdminTalentPublishedAction(
 
   if (talentError) {
     console.error("[updateAdminTalentPublishedAction load]", talentError);
+
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: published
+        ? "publish_talent_profile"
+        : "hide_talent_profile",
+      outcome: "failed",
+      target: EVENT_TARGETS.TALENT,
+      targetId: String(talentId),
+      reason: "talent_load_failed",
+    });
+
     return { success: false, message: "تعذر تحميل بيانات الموهبة." };
   }
 
   if (!talent) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: published
+        ? "publish_talent_profile"
+        : "hide_talent_profile",
+      outcome: "failed",
+      target: EVENT_TARGETS.TALENT,
+      targetId: String(talentId),
+      reason: "talent_not_found",
+    });
+
     return { success: false, message: "الموهبة غير موجودة." };
   }
 
@@ -171,6 +293,16 @@ export async function updateAdminTalentPublishedAction(
 
   if (!published) {
     if (currentTalent.published !== true) {
+      await recordAdminAction({
+        actorId: adminUser.id,
+        actorEmail: adminUser.email,
+        action: "hide_talent_profile",
+        outcome: "noop",
+        target: EVENT_TARGETS.TALENT,
+        targetId: currentTalent.id,
+        reason: "profile_already_hidden",
+      });
+
       return { success: true, message: "الملف مخفي بالفعل." };
     }
 
@@ -183,8 +315,37 @@ export async function updateAdminTalentPublishedAction(
 
     if (updateError || !updatedTalent) {
       console.error("[updateAdminTalentPublishedAction hide]", updateError);
+
+      await recordAdminAction({
+        actorId: adminUser.id,
+        actorEmail: adminUser.email,
+        action: "hide_talent_profile",
+        outcome: "failed",
+        target: EVENT_TARGETS.TALENT,
+        targetId: currentTalent.id,
+        reason: "talent_hide_failed",
+        metadata: {
+          previous_published:
+            currentTalent.published,
+        },
+      });
+
       return { success: false, message: "تعذر إخفاء ملف الموهبة." };
     }
+
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "hide_talent_profile",
+      outcome: "success",
+      target: EVENT_TARGETS.TALENT,
+      targetId: currentTalent.id,
+      metadata: {
+        previous_published:
+          currentTalent.published,
+        new_published: false,
+      },
+    });
 
     revalidateTalentPaths(talentId, updatedTalent.slug);
     return { success: true, message: "تم إخفاء ملف الموهبة." };
@@ -195,6 +356,20 @@ export async function updateAdminTalentPublishedAction(
     .toLowerCase();
 
   if (visibility !== "public") {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "publish_talent_profile",
+      outcome: "blocked",
+      target: EVENT_TARGETS.TALENT,
+      targetId: currentTalent.id,
+      reason: "profile_visibility_private",
+      metadata: {
+        profile_visibility:
+          visibility,
+      },
+    });
+
     return {
       success: false,
       message:
@@ -203,6 +378,16 @@ export async function updateAdminTalentPublishedAction(
   }
 
   if (!currentTalent.user_id) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "publish_talent_profile",
+      outcome: "blocked",
+      target: EVENT_TARGETS.TALENT,
+      targetId: currentTalent.id,
+      reason: "talent_user_account_missing",
+    });
+
     return {
       success: false,
       message: "لا يمكن نشر الملف لأنه غير مرتبط بحساب موهبة.",
@@ -219,6 +404,22 @@ export async function updateAdminTalentPublishedAction(
   );
 
   if (!roleIsActive || !isActiveTalentCountryCode(currentTalent.base_country_code)) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "publish_talent_profile",
+      outcome: "blocked",
+      target: EVENT_TARGETS.TALENT,
+      targetId: currentTalent.id,
+      reason: "talent_outside_active_launch_scope",
+      metadata: {
+        primary_role:
+          activeRole,
+        base_country_code:
+          currentTalent.base_country_code,
+      },
+    });
+
     return {
       success: false,
       message:
@@ -234,10 +435,31 @@ export async function updateAdminTalentPublishedAction(
 
   if (profileError) {
     console.error("[updateAdminTalentPublishedAction profile]", profileError);
+
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "publish_talent_profile",
+      outcome: "failed",
+      target: EVENT_TARGETS.TALENT,
+      targetId: currentTalent.id,
+      reason: "talent_profile_lookup_failed",
+    });
+
     return { success: false, message: "تعذر قراءة حالة مراجعة الموهبة." };
   }
 
   if (!profile || profile.account_type !== "talent") {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "publish_talent_profile",
+      outcome: "failed",
+      target: EVENT_TARGETS.TALENT,
+      targetId: currentTalent.id,
+      reason: "linked_talent_profile_not_found",
+    });
+
     return {
       success: false,
       message: "لم يتم العثور على حساب موهبة مرتبط بهذا الملف.",
@@ -255,6 +477,23 @@ export async function updateAdminTalentPublishedAction(
   );
 
   if (blockingMissingRequirements.length > 0) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "publish_talent_profile",
+      outcome: "blocked",
+      target: EVENT_TARGETS.TALENT,
+      targetId: currentTalent.id,
+      reason: "core_requirements_incomplete",
+      metadata: {
+        missing_requirements:
+          blockingMissingRequirements.map(
+            (requirement) =>
+              requirement.key,
+          ),
+      },
+    });
+
     return {
       success: false,
       message: `لا يمكن اعتماد ونشر الملف قبل اكتمال المتطلبات الأساسية: ${blockingMissingRequirements
@@ -279,6 +518,21 @@ export async function updateAdminTalentPublishedAction(
         "[updateAdminTalentPublishedAction approve profile]",
         profileUpdateError,
       );
+
+      await recordAdminAction({
+        actorId: adminUser.id,
+        actorEmail: adminUser.email,
+        action: "publish_talent_profile",
+        outcome: "failed",
+        target: EVENT_TARGETS.TALENT,
+        targetId: currentTalent.id,
+        reason: "profile_approval_update_failed",
+        metadata: {
+          previous_approval_status:
+            previousApprovalStatus,
+        },
+      });
+
       return { success: false, message: "تعذر اعتماد حساب الموهبة." };
     }
   }
@@ -308,6 +562,27 @@ export async function updateAdminTalentPublishedAction(
         .eq("id", profile.id)
         .eq("account_type", "talent");
     }
+
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "publish_talent_profile",
+      outcome: "failed",
+      target: EVENT_TARGETS.TALENT,
+      targetId: currentTalent.id,
+      reason: "talent_publish_update_failed",
+      metadata: {
+        previous_approval_status:
+          previousApprovalStatus,
+        previous_talent_status:
+          previousTalentStatus,
+        previous_published:
+          previousPublished,
+        profile_rollback_attempted:
+          previousApprovalStatus !==
+          "approved",
+      },
+    });
 
     return {
       success: false,
@@ -351,12 +626,58 @@ export async function updateAdminTalentPublishedAction(
           .eq("id", talentId),
       ]);
 
+      await recordAdminAction({
+        actorId: adminUser.id,
+        actorEmail: adminUser.email,
+        action: "publish_talent_profile",
+        outcome: "failed",
+        target: EVENT_TARGETS.TALENT,
+        targetId: currentTalent.id,
+        reason: "review_history_write_failed",
+        metadata: {
+          previous_approval_status:
+            previousApprovalStatus,
+          previous_talent_status:
+            previousTalentStatus,
+          previous_published:
+            previousPublished,
+          rollback_attempted: true,
+        },
+      });
+
       return {
         success: false,
         message: "تعذر حفظ سجل الاعتماد، لذلك تم إلغاء عملية النشر.",
       };
     }
   }
+
+  await recordAdminAction({
+    actorId: adminUser.id,
+    actorEmail: adminUser.email,
+    action: "publish_talent_profile",
+    outcome: "success",
+    target: EVENT_TARGETS.TALENT,
+    targetId: currentTalent.id,
+    metadata: {
+      previous_approval_status:
+        previousApprovalStatus,
+      new_approval_status:
+        "approved",
+      previous_talent_status:
+        previousTalentStatus,
+      new_talent_status:
+        "approved",
+      previous_published:
+        previousPublished,
+      new_published: true,
+      profile_visibility:
+        visibility,
+      consent_complete:
+        profile.data_accuracy_contact_consent ===
+        true,
+    },
+  });
 
   revalidateTalentPaths(talentId, updatedTalent.slug);
 

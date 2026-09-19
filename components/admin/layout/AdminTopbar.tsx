@@ -19,6 +19,7 @@ import {
   type AdminLanguage,
 } from "@/lib/admin/i18n";
 import { adminNavigation, type AdminBadgeKey } from "./admin-navigation";
+import type { Permission } from "@/lib/rbac/permissions";
 
 type AdminTopbarCounts = Partial<Record<AdminBadgeKey, number>>;
 
@@ -26,6 +27,8 @@ type AdminTopbarProps = {
   onOpenMobileMenu?: () => void;
   unreadAdminNotifications?: number;
   counts?: AdminTopbarCounts;
+  permissions?: Permission[];
+  adminEmail?: string | null;
 };
 
 function buildLanguageSwitchHref({
@@ -53,6 +56,8 @@ export function AdminTopbar({
   onOpenMobileMenu,
   unreadAdminNotifications = 0,
   counts = {},
+  permissions = [],
+  adminEmail = null,
 }: AdminTopbarProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -61,6 +66,22 @@ export function AdminTopbar({
   const language = getAdminLanguage(searchParams.get("lang"));
   const dictionary = getAdminDictionary(language);
   const isArabic = language === "ar";
+  const permissionSet = new Set<Permission>(permissions);
+  const visibleNavigation = adminNavigation
+    .map((group) => ({
+      ...group,
+      items: group.items.filter(
+        (item) =>
+          !item.requiredPermission ||
+          permissionSet.has(
+            item.requiredPermission,
+          ),
+      ),
+    }))
+    .filter(
+      (group) =>
+        group.items.length > 0,
+    );
 
   const languageSwitchHref = buildLanguageSwitchHref({
     pathname,
@@ -152,7 +173,7 @@ export function AdminTopbar({
               className="flex min-h-10 items-center gap-3 rounded-xl border border-white/[0.08] bg-white/[0.025] px-2.5 py-1.5 text-start transition hover:border-gold/25"
             >
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gold/10 text-xs text-gold">
-                A
+                {(adminEmail?.charAt(0) || "A").toUpperCase()}
               </span>
 
               <span className="hidden min-w-0 sm:block">
@@ -163,7 +184,7 @@ export function AdminTopbar({
                   dir="ltr"
                   className="mt-0.5 block truncate text-[10px] text-white/30"
                 >
-                  admin@mlamh.com
+                  {adminEmail ?? "—"}
                 </span>
               </span>
             </button>
@@ -233,7 +254,7 @@ export function AdminTopbar({
             </div>
 
             <nav className="flex-1 space-y-7 overflow-y-auto px-4 py-5">
-              {adminNavigation.map((group) => (
+              {visibleNavigation.map((group) => (
                 <section key={group.titleEn}>
                   <p className="mb-2 px-3 text-[9px] uppercase tracking-[0.28em] text-white/25">
                     {isArabic ? group.titleAr : group.titleEn}

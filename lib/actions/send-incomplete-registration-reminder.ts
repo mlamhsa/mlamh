@@ -11,6 +11,7 @@ import {
 } from "@/lib/events";
 
 import { requireAdminAccess } from "@/lib/auth/require-admin";
+import { recordAdminAction } from "@/lib/events/admin-audit";
 
 type SendReminderResult = {
   success: boolean;
@@ -31,6 +32,22 @@ export async function sendIncompleteRegistrationReminderAction(
     });
 
   if (!result.success) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action:
+        "send_incomplete_registration_reminder",
+      outcome: "failed",
+      target:
+        EVENT_TARGETS.AUTH_USER,
+      targetId: userId,
+      reason:
+        "reminder_delivery_failed",
+      metadata: {
+        locale,
+      },
+    });
+
     return {
       success: false,
       message: result.message,
@@ -65,6 +82,25 @@ export async function sendIncompleteRegistrationReminderAction(
       eventError,
     );
   }
+
+  await recordAdminAction({
+    actorId: adminUser.id,
+    actorEmail: adminUser.email,
+    action:
+      "send_incomplete_registration_reminder",
+    outcome: "success",
+    target:
+      EVENT_TARGETS.AUTH_USER,
+    targetId: userId,
+    metadata: {
+      locale,
+      provider:
+        result.provider,
+      reminder_channel: "email",
+      registration_created_at:
+        result.registrationCreatedAt,
+    },
+  });
 
   revalidatePath(
     "/admin/action-center",

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { requireAdminAccess } from "@/lib/auth/require-admin";
+import { recordAdminAction } from "@/lib/events/admin-audit";
 
 import {
   createEvent,
@@ -15,6 +16,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 export async function reviewReportedMessageAction(
   formData: FormData,
 ) {
+  const adminUser =
+    await requireAdminAccess();
+
   const messageId = Number(
     formData.get("message_id"),
   );
@@ -31,6 +35,16 @@ export async function reviewReportedMessageAction(
     !Number.isInteger(messageId) ||
     messageId <= 0
   ) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "review_reported_message",
+      outcome: "blocked",
+      target: EVENT_TARGETS.MESSAGE,
+      targetId: "invalid-input",
+      reason: "invalid_message_id",
+    });
+
     throw new Error(
       "Invalid message ID.",
     );
@@ -40,13 +54,20 @@ export async function reviewReportedMessageAction(
     !Number.isInteger(conversationId) ||
     conversationId <= 0
   ) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "review_reported_message",
+      outcome: "blocked",
+      target: EVENT_TARGETS.MESSAGE,
+      targetId: messageId,
+      reason: "invalid_conversation_id",
+    });
+
     throw new Error(
       "Invalid conversation ID.",
     );
   }
-
-  const adminUser =
-    await requireAdminAccess();
 
   const adminClient =
     createAdminClient();
@@ -84,12 +105,40 @@ export async function reviewReportedMessageAction(
       messageSnapshotError,
     );
 
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "review_reported_message",
+      outcome: "failed",
+      target: EVENT_TARGETS.MESSAGE,
+      targetId: messageId,
+      reason: "message_snapshot_load_failed",
+      metadata: {
+        conversation_id:
+          conversationId,
+      },
+    });
+
     throw new Error(
       "Unable to load reported message.",
     );
   }
 
   if (!messageSnapshot) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "review_reported_message",
+      outcome: "failed",
+      target: EVENT_TARGETS.MESSAGE,
+      targetId: messageId,
+      reason: "reported_message_not_found",
+      metadata: {
+        conversation_id:
+          conversationId,
+      },
+    });
+
     throw new Error(
       "Reported message not found.",
     );
@@ -98,6 +147,20 @@ export async function reviewReportedMessageAction(
   if (
     !messageSnapshot.reported_at
   ) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "review_reported_message",
+      outcome: "blocked",
+      target: EVENT_TARGETS.MESSAGE,
+      targetId: messageId,
+      reason: "message_not_reported",
+      metadata: {
+        conversation_id:
+          conversationId,
+      },
+    });
+
     throw new Error(
       "This message has not been reported.",
     );
@@ -106,6 +169,22 @@ export async function reviewReportedMessageAction(
   if (
     messageSnapshot.report_reviewed_at
   ) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "review_reported_message",
+      outcome: "noop",
+      target: EVENT_TARGETS.MESSAGE,
+      targetId: messageId,
+      reason: "report_already_reviewed",
+      metadata: {
+        conversation_id:
+          conversationId,
+        reviewed_at:
+          messageSnapshot.report_reviewed_at,
+      },
+    });
+
     throw new Error(
       "This report has already been reviewed.",
     );
@@ -155,12 +234,40 @@ export async function reviewReportedMessageAction(
       error,
     );
 
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "review_reported_message",
+      outcome: "failed",
+      target: EVENT_TARGETS.MESSAGE,
+      targetId: messageId,
+      reason: "message_report_update_failed",
+      metadata: {
+        conversation_id:
+          conversationId,
+      },
+    });
+
     throw new Error(
       "Unable to review reported message.",
     );
   }
 
   if (!data) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "review_reported_message",
+      outcome: "noop",
+      target: EVENT_TARGETS.MESSAGE,
+      targetId: messageId,
+      reason: "message_report_not_updated",
+      metadata: {
+        conversation_id:
+          conversationId,
+      },
+    });
+
     throw new Error(
       "Reported message not found or already reviewed.",
     );
@@ -215,6 +322,30 @@ export async function reviewReportedMessageAction(
       eventError,
     );
   }
+
+  await recordAdminAction({
+    actorId: adminUser.id,
+    actorEmail: adminUser.email,
+    action: "review_reported_message",
+    outcome: "success",
+    target: EVENT_TARGETS.MESSAGE,
+    targetId: messageId,
+    metadata: {
+      conversation_id:
+        conversationId,
+      sender_user_id:
+        messageSnapshot.sender_user_id,
+      reported_at:
+        messageSnapshot.reported_at,
+      report_reason:
+        messageSnapshot.report_reason ??
+        null,
+      reviewed_at:
+        reviewedAt,
+      admin_note:
+        adminNote || null,
+    },
+  });
 
   revalidatePath(
     "/admin",

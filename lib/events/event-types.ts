@@ -22,6 +22,22 @@ export const EVENT_TYPES = {
   account_type_selected: "account_type_selected",
 
   /*
+   * Admin access / RBAC audit trail
+   */
+  admin_invited: "admin_invited",
+  admin_invite_resent: "admin_invite_resent",
+  admin_invite_cancelled: "admin_invite_cancelled",
+  admin_role_changed: "admin_role_changed",
+  admin_access_revoked: "admin_access_revoked",
+  admin_access_action_blocked: "admin_access_action_blocked",
+  admin_access_action_failed: "admin_access_action_failed",
+  admin_access_action_noop: "admin_access_action_noop",
+  admin_action_success: "admin_action_success",
+  admin_action_blocked: "admin_action_blocked",
+  admin_action_failed: "admin_action_failed",
+  admin_action_noop: "admin_action_noop",
+
+  /*
    * Talent review workflow
    */
   talent_created: "talent_created",

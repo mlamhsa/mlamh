@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 
 import { requireAdminAccess } from "@/lib/auth/require-admin";
+import { recordAdminAction } from "@/lib/events/admin-audit";
+import { EVENT_TARGETS } from "@/lib/events/event-targets";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 type Locale = "ar" | "en";
@@ -43,9 +45,27 @@ export async function approvePublisherVerificationAction(
     const adminUser =
     await requireAdminAccess();
 
-  const id = parsePublisherId(
-    formData.get("id"),
-  );
+  let id: number;
+
+  try {
+    id = parsePublisherId(
+      formData.get("id"),
+    );
+  } catch {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "approve_publisher_verification",
+      outcome: "blocked",
+      target: EVENT_TARGETS.PUBLISHER,
+      targetId: "invalid-input",
+      reason: "invalid_publisher_id",
+    });
+
+    throw new Error(
+      "Invalid publisher id.",
+    );
+  }
 
   const adminClient = createAdminClient();
 
@@ -61,18 +81,52 @@ export async function approvePublisherVerificationAction(
     .maybeSingle();
 
   if (lookupError || !publisher) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "approve_publisher_verification",
+      outcome: "failed",
+      target: EVENT_TARGETS.PUBLISHER,
+      targetId: id,
+      reason: "publisher_verification_not_found",
+    });
+
     throw new Error(
       "Publisher verification request was not found.",
     );
   }
 
   if (publisher.publisher_type === "individual") {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "approve_publisher_verification",
+      outcome: "blocked",
+      target: EVENT_TARGETS.PUBLISHER,
+      targetId: id,
+      reason: "individual_publisher_not_eligible",
+    });
+
     throw new Error(
       "Individual publishers cannot receive organization verification.",
     );
   }
 
   if (publisher.verification_status !== "pending") {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "approve_publisher_verification",
+      outcome: "blocked",
+      target: EVENT_TARGETS.PUBLISHER,
+      targetId: id,
+      reason: "verification_not_pending",
+      metadata: {
+        current_status:
+          publisher.verification_status,
+      },
+    });
+
     throw new Error(
       "Only pending verification requests can be approved.",
     );
@@ -86,6 +140,16 @@ export async function approvePublisherVerificationAction(
     .maybeSingle();
 
 if (profileError || !profile?.user_id) {
+  await recordAdminAction({
+    actorId: adminUser.id,
+    actorEmail: adminUser.email,
+    action: "approve_publisher_verification",
+    outcome: "failed",
+    target: EVENT_TARGETS.PUBLISHER,
+    targetId: id,
+    reason: "publisher_user_account_not_found",
+  });
+
   throw new Error(
     "Publisher user account was not found.",
   );
@@ -105,10 +169,42 @@ if (profileError || !profile?.user_id) {
     .eq("verification_status", "pending");
 
   if (error) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "approve_publisher_verification",
+      outcome: "failed",
+      target: EVENT_TARGETS.PUBLISHER,
+      targetId: id,
+      reason: "verification_update_failed",
+      metadata: {
+        previous_status:
+          publisher.verification_status,
+      },
+    });
+
     throw new Error(
       `Unable to approve verification: ${error.message}`,
     );
   }
+
+  await recordAdminAction({
+    actorId: adminUser.id,
+    actorEmail: adminUser.email,
+    action: "approve_publisher_verification",
+    outcome: "success",
+    target: EVENT_TARGETS.PUBLISHER,
+    targetId: id,
+    metadata: {
+      previous_status:
+        publisher.verification_status,
+      new_status: "verified",
+      publisher_type:
+        publisher.publisher_type,
+      profile_id:
+        publisher.profile_id,
+    },
+  });
 
   const { error: notificationError } =
   await adminClient
@@ -139,9 +235,27 @@ export async function rejectPublisherVerificationAction(
     const adminUser =
     await requireAdminAccess();
 
-  const id = parsePublisherId(
-    formData.get("id"),
-  );
+  let id: number;
+
+  try {
+    id = parsePublisherId(
+      formData.get("id"),
+    );
+  } catch {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "reject_publisher_verification",
+      outcome: "blocked",
+      target: EVENT_TARGETS.PUBLISHER,
+      targetId: "invalid-input",
+      reason: "invalid_publisher_id",
+    });
+
+    throw new Error(
+      "Invalid publisher id.",
+    );
+  }
 
   const locale = normalizeLocale(
     formData.get("locale"),
@@ -154,6 +268,16 @@ export async function rejectPublisherVerificationAction(
   ).trim();
   
   if (!rejectionReason) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "reject_publisher_verification",
+      outcome: "blocked",
+      target: EVENT_TARGETS.PUBLISHER,
+      targetId: id,
+      reason: "rejection_reason_required",
+    });
+
     throw new Error(
       locale === "ar"
         ? "سبب رفض التوثيق مطلوب."
@@ -162,6 +286,20 @@ export async function rejectPublisherVerificationAction(
   }
   
   if (rejectionReason.length > 1000) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "reject_publisher_verification",
+      outcome: "blocked",
+      target: EVENT_TARGETS.PUBLISHER,
+      targetId: id,
+      reason: "rejection_reason_too_long",
+      metadata: {
+        reason_length:
+          rejectionReason.length,
+      },
+    });
+
     throw new Error(
       locale === "ar"
         ? "سبب رفض التوثيق طويل جدًا."
@@ -183,18 +321,52 @@ export async function rejectPublisherVerificationAction(
     .maybeSingle();
 
   if (lookupError || !publisher) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "reject_publisher_verification",
+      outcome: "failed",
+      target: EVENT_TARGETS.PUBLISHER,
+      targetId: id,
+      reason: "publisher_verification_not_found",
+    });
+
     throw new Error(
       "Publisher verification request was not found.",
     );
   }
 
   if (publisher.publisher_type === "individual") {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "reject_publisher_verification",
+      outcome: "blocked",
+      target: EVENT_TARGETS.PUBLISHER,
+      targetId: id,
+      reason: "individual_publisher_not_eligible",
+    });
+
     throw new Error(
       "Individual publishers do not use organization verification.",
     );
   }
 
   if (publisher.verification_status !== "pending") {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "reject_publisher_verification",
+      outcome: "blocked",
+      target: EVENT_TARGETS.PUBLISHER,
+      targetId: id,
+      reason: "verification_not_pending",
+      metadata: {
+        current_status:
+          publisher.verification_status,
+      },
+    });
+
     throw new Error(
       "Only pending verification requests can be rejected.",
     );
@@ -208,6 +380,16 @@ export async function rejectPublisherVerificationAction(
     .maybeSingle();
 
 if (profileError || !profile?.user_id) {
+  await recordAdminAction({
+    actorId: adminUser.id,
+    actorEmail: adminUser.email,
+    action: "reject_publisher_verification",
+    outcome: "failed",
+    target: EVENT_TARGETS.PUBLISHER,
+    targetId: id,
+    reason: "publisher_user_account_not_found",
+  });
+
   throw new Error(
     "Publisher user account was not found.",
   );
@@ -229,10 +411,44 @@ if (profileError || !profile?.user_id) {
     .eq("verification_status", "pending");
 
   if (error) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "reject_publisher_verification",
+      outcome: "failed",
+      target: EVENT_TARGETS.PUBLISHER,
+      targetId: id,
+      reason: "verification_update_failed",
+      metadata: {
+        previous_status:
+          publisher.verification_status,
+      },
+    });
+
     throw new Error(
       `Unable to reject verification: ${error.message}`,
     );
   }
+
+  await recordAdminAction({
+    actorId: adminUser.id,
+    actorEmail: adminUser.email,
+    action: "reject_publisher_verification",
+    outcome: "success",
+    target: EVENT_TARGETS.PUBLISHER,
+    targetId: id,
+    metadata: {
+      previous_status:
+        publisher.verification_status,
+      new_status: "rejected",
+      publisher_type:
+        publisher.publisher_type,
+      profile_id:
+        publisher.profile_id,
+      rejection_reason:
+        rejectionReason,
+    },
+  });
 
   const { error: notificationError } =
   await adminClient

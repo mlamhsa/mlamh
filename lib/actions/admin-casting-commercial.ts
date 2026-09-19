@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 
 import { requireAdminAccess } from "@/lib/auth/require-admin";
+import { recordAdminAction } from "@/lib/events/admin-audit";
+import { EVENT_TARGETS } from "@/lib/events/event-targets";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const commercialStatuses = new Set(["lead", "proposal", "won", "lost", "cancelled"]);
@@ -43,13 +45,47 @@ async function getManagedProject(projectId: number) {
 }
 
 export async function updateCastingCommercialStatusAction(formData: FormData) {
-  await requireAdminAccess();
+  const adminUser =
+    await requireAdminAccess();
   const projectId = positiveInt(formData.get("project_id"));
   const status = text(formData.get("commercial_status"));
-  if (!projectId || !commercialStatuses.has(status)) return;
+
+  if (!projectId || !commercialStatuses.has(status)) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_casting_commercial_status",
+      outcome: "blocked",
+      target: EVENT_TARGETS.CASTING_PROJECT,
+      targetId:
+        projectId ?? "invalid-input",
+      reason: !projectId
+        ? "invalid_casting_project_id"
+        : "invalid_commercial_status",
+      metadata: {
+        requested_status:
+          status || null,
+      },
+    });
+
+    return;
+  }
 
   const project = await getManagedProject(projectId);
-  if (!project) return;
+
+  if (!project) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_casting_commercial_status",
+      outcome: "blocked",
+      target: EVENT_TARGETS.CASTING_PROJECT,
+      targetId: projectId,
+      reason: "managed_casting_project_not_found",
+    });
+
+    return;
+  }
 
   const adminClient = createAdminClient();
   const { error } = await adminClient
@@ -60,13 +96,42 @@ export async function updateCastingCommercialStatusAction(formData: FormData) {
 
   if (error) {
     console.error("[updateCastingCommercialStatusAction]", error);
+
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_casting_commercial_status",
+      outcome: "failed",
+      target: EVENT_TARGETS.CASTING_PROJECT,
+      targetId: projectId,
+      reason: "commercial_status_update_failed",
+      metadata: {
+        requested_status:
+          status,
+      },
+    });
+
     return;
   }
+
+  await recordAdminAction({
+    actorId: adminUser.id,
+    actorEmail: adminUser.email,
+    action: "update_casting_commercial_status",
+    outcome: "success",
+    target: EVENT_TARGETS.CASTING_PROJECT,
+    targetId: projectId,
+    metadata: {
+      new_status: status,
+    },
+  });
+
   refresh(projectId);
 }
 
 export async function createCastingPaymentAction(formData: FormData) {
-  await requireAdminAccess();
+  const adminUser =
+    await requireAdminAccess();
   const projectId = positiveInt(formData.get("project_id"));
   const amount = Number(text(formData.get("amount")));
   const status = text(formData.get("status")) || "pending";
@@ -78,13 +143,72 @@ export async function createCastingPaymentAction(formData: FormData) {
     amount <= 0 ||
     !paymentStatuses.has(status) ||
     !currencyPattern.test(requestedCurrency)
-  ) return;
+  ) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "create_casting_payment",
+      outcome: "blocked",
+      target: EVENT_TARGETS.PAYMENT,
+      targetId: "invalid-input",
+      reason: "invalid_payment_input",
+      metadata: {
+        casting_project_id:
+          projectId,
+        amount:
+          Number.isFinite(amount)
+            ? amount
+            : null,
+        status:
+          status || null,
+        currency:
+          requestedCurrency || null,
+      },
+    });
+
+    return;
+  }
 
   const project = await getManagedProject(projectId);
-  if (!project) return;
+
+  if (!project) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "create_casting_payment",
+      outcome: "blocked",
+      target: EVENT_TARGETS.CASTING_PROJECT,
+      targetId: projectId,
+      reason: "managed_casting_project_not_found",
+    });
+
+    return;
+  }
 
   const projectCurrency = String(project.currency || "SAR").trim().toUpperCase();
-  if (!currencyPattern.test(projectCurrency) || requestedCurrency !== projectCurrency) return;
+
+  if (!currencyPattern.test(projectCurrency) || requestedCurrency !== projectCurrency) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "create_casting_payment",
+      outcome: "blocked",
+      target: EVENT_TARGETS.PAYMENT,
+      targetId: "invalid-input",
+      reason: "payment_currency_mismatch",
+      metadata: {
+        casting_project_id:
+          projectId,
+        requested_currency:
+          requestedCurrency,
+        project_currency:
+          projectCurrency,
+        amount,
+      },
+    });
+
+    return;
+  }
 
   const paidAt = status === "paid" ? text(formData.get("paid_at")) || new Date().toISOString() : null;
   const adminClient = createAdminClient();
@@ -101,20 +225,96 @@ export async function createCastingPaymentAction(formData: FormData) {
 
   if (error) {
     console.error("[createCastingPaymentAction]", error);
+
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "create_casting_payment",
+      outcome: "failed",
+      target: EVENT_TARGETS.PAYMENT,
+      targetId: "creation-failed",
+      reason: "payment_insert_failed",
+      metadata: {
+        casting_project_id:
+          projectId,
+        amount,
+        currency:
+          projectCurrency,
+        status,
+        provider:
+          text(formData.get("provider")) ||
+          "manual",
+      },
+    });
+
     return;
   }
+
+  await recordAdminAction({
+    actorId: adminUser.id,
+    actorEmail: adminUser.email,
+    action: "create_casting_payment",
+    outcome: "success",
+    target: EVENT_TARGETS.CASTING_PROJECT,
+    targetId: projectId,
+    metadata: {
+      amount,
+      currency:
+        projectCurrency,
+      status,
+      provider:
+        text(formData.get("provider")) ||
+        "manual",
+      paid_at:
+        paidAt,
+    },
+  });
+
   refresh(projectId);
 }
 
 export async function updateCastingPaymentStatusAction(formData: FormData) {
-  await requireAdminAccess();
+  const adminUser =
+    await requireAdminAccess();
   const paymentId = positiveInt(formData.get("payment_id"));
   const projectId = positiveInt(formData.get("project_id"));
   const status = text(formData.get("status"));
-  if (!paymentId || !projectId || !paymentStatuses.has(status)) return;
+  if (!paymentId || !projectId || !paymentStatuses.has(status)) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_casting_payment_status",
+      outcome: "blocked",
+      target: EVENT_TARGETS.PAYMENT,
+      targetId:
+        paymentId ?? "invalid-input",
+      reason: "invalid_payment_status_input",
+      metadata: {
+        casting_project_id:
+          projectId,
+        requested_status:
+          status || null,
+      },
+    });
+
+    return;
+  }
 
   const project = await getManagedProject(projectId);
-  if (!project) return;
+
+  if (!project) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_casting_payment_status",
+      outcome: "blocked",
+      target: EVENT_TARGETS.CASTING_PROJECT,
+      targetId: projectId,
+      reason: "managed_casting_project_not_found",
+    });
+
+    return;
+  }
 
   const adminClient = createAdminClient();
   const { data: payment } = await adminClient
@@ -123,11 +323,79 @@ export async function updateCastingPaymentStatusAction(formData: FormData) {
     .eq("id", paymentId)
     .eq("casting_project_id", projectId)
     .maybeSingle();
-  if (!payment) return;
+  if (!payment) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_casting_payment_status",
+      outcome: "failed",
+      target: EVENT_TARGETS.PAYMENT,
+      targetId: paymentId,
+      reason: "payment_not_found",
+      metadata: {
+        casting_project_id:
+          projectId,
+      },
+    });
+
+    return;
+  }
 
   if (payment.status === "refunded") {
-    if (status !== "refunded") return;
+    if (status !== "refunded") {
+      await recordAdminAction({
+        actorId: adminUser.id,
+        actorEmail: adminUser.email,
+        action: "update_casting_payment_status",
+        outcome: "blocked",
+        target: EVENT_TARGETS.PAYMENT,
+        targetId: paymentId,
+        reason: "refunded_payment_is_final",
+        metadata: {
+          current_status:
+            payment.status,
+          requested_status:
+            status,
+        },
+      });
+
+      return;
+    }
   } else if (status === "refunded" || !mutablePaymentStatuses.has(status)) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_casting_payment_status",
+      outcome: "blocked",
+      target: EVENT_TARGETS.PAYMENT,
+      targetId: paymentId,
+      reason: "payment_status_transition_not_allowed",
+      metadata: {
+        current_status:
+          payment.status,
+        requested_status:
+          status,
+      },
+    });
+
+    return;
+  }
+
+  if (payment.status === status) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_casting_payment_status",
+      outcome: "noop",
+      target: EVENT_TARGETS.PAYMENT,
+      targetId: paymentId,
+      reason: "payment_status_already_set",
+      metadata: {
+        current_status:
+          payment.status,
+      },
+    });
+
     return;
   }
 
@@ -140,7 +408,48 @@ export async function updateCastingPaymentStatusAction(formData: FormData) {
 
   if (error) {
     console.error("[updateCastingPaymentStatusAction]", error);
+
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_casting_payment_status",
+      outcome: "failed",
+      target: EVENT_TARGETS.PAYMENT,
+      targetId: paymentId,
+      reason: "payment_status_update_failed",
+      metadata: {
+        casting_project_id:
+          projectId,
+        previous_status:
+          payment.status,
+        requested_status:
+          status,
+      },
+    });
+
     return;
   }
+
+  await recordAdminAction({
+    actorId: adminUser.id,
+    actorEmail: adminUser.email,
+    action: "update_casting_payment_status",
+    outcome: "success",
+    target: EVENT_TARGETS.PAYMENT,
+    targetId: paymentId,
+    metadata: {
+      casting_project_id:
+        projectId,
+      previous_status:
+        payment.status,
+      new_status:
+        status,
+      previous_paid_at:
+        payment.paid_at,
+      new_paid_at:
+        nextPaidAt,
+    },
+  });
+
   refresh(projectId);
 }

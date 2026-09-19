@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 
 import { requireAdminAccess } from "@/lib/auth/require-admin";
+import { recordAdminAction } from "@/lib/events/admin-audit";
+import { EVENT_TARGETS } from "@/lib/events/event-targets";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getTalentSupplyForBrief } from "@/lib/talent/supply";
 
@@ -87,9 +89,71 @@ export async function inviteManagedCastingTalentAction(formData: FormData) {
     admin.from("talents").select("id,user_id,status").eq("id", talentId).maybeSingle(),
   ]);
 
-  if (!project || project.service_mode !== "managed" || project.status === "cancelled") throw new Error("Managed casting project not found.");
-  if (!role || role.status === "cancelled" || !role.opportunity_id) throw new Error("Publish the role opportunity before inviting talent.");
+  if (!project || project.service_mode !== "managed" || project.status === "cancelled") {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "invite_managed_casting_talent",
+      outcome: "blocked",
+      target: EVENT_TARGETS.MANAGED_CASTING_INVITATION,
+      targetId: "invalid-project",
+      reason: "managed_casting_project_unavailable",
+      metadata: {
+        casting_project_id:
+          projectId,
+        casting_role_id:
+          roleId,
+        talent_id:
+          talentId,
+      },
+    });
+
+    throw new Error("Managed casting project not found.");
+  }
+
+  if (!role || role.status === "cancelled" || !role.opportunity_id) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "invite_managed_casting_talent",
+      outcome: "blocked",
+      target: EVENT_TARGETS.MANAGED_CASTING_INVITATION,
+      targetId: "invalid-role",
+      reason: "managed_casting_role_not_publishable",
+      metadata: {
+        casting_project_id:
+          projectId,
+        casting_role_id:
+          roleId,
+        talent_id:
+          talentId,
+      },
+    });
+
+    throw new Error("Publish the role opportunity before inviting talent.");
+  }
+
   if (!talent?.user_id || ["suspended", "blocked", "banned", "disabled", "rejected"].includes(String(talent.status))) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "invite_managed_casting_talent",
+      outcome: "blocked",
+      target: EVENT_TARGETS.MANAGED_CASTING_INVITATION,
+      targetId: "invalid-talent",
+      reason: "talent_not_available",
+      metadata: {
+        casting_project_id:
+          projectId,
+        casting_role_id:
+          roleId,
+        talent_id:
+          talentId,
+        talent_status:
+          talent?.status ?? null,
+      },
+    });
+
     throw new Error("Talent account is not available for invitation.");
   }
 
@@ -97,9 +161,46 @@ export async function inviteManagedCastingTalentAction(formData: FormData) {
     p_project_id: projectId,
   });
   if (sourceGateError) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "invite_managed_casting_talent",
+      outcome: "failed",
+      target: EVENT_TARGETS.MANAGED_CASTING_INVITATION,
+      targetId: "activation-check-failed",
+      reason: "managed_casting_activation_check_failed",
+      metadata: {
+        casting_project_id:
+          projectId,
+        casting_role_id:
+          roleId,
+        talent_id:
+          talentId,
+      },
+    });
+
     throw new Error(`Unable to verify Managed Casting activation: ${sourceGateError.message}`);
   }
+
   if (canSource !== true) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "invite_managed_casting_talent",
+      outcome: "blocked",
+      target: EVENT_TARGETS.MANAGED_CASTING_INVITATION,
+      targetId: "activation-required",
+      reason: "managed_casting_payment_activation_required",
+      metadata: {
+        casting_project_id:
+          projectId,
+        casting_role_id:
+          roleId,
+        talent_id:
+          talentId,
+      },
+    });
+
     throw new Error("Managed Casting payment activation is required before sourcing invitations can be sent.");
   }
 
@@ -108,6 +209,30 @@ export async function inviteManagedCastingTalentAction(formData: FormData) {
     .eq("id", role.opportunity_id)
     .maybeSingle();
   if (!opportunity?.managed_by_mlamh || opportunity.published !== true || !["published", "open"].includes(String(opportunity.status))) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "invite_managed_casting_talent",
+      outcome: "blocked",
+      target: EVENT_TARGETS.MANAGED_CASTING_INVITATION,
+      targetId: "opportunity-not-open",
+      reason: "managed_role_opportunity_not_published",
+      metadata: {
+        casting_project_id:
+          projectId,
+        casting_role_id:
+          roleId,
+        talent_id:
+          talentId,
+        opportunity_id:
+          role.opportunity_id,
+        opportunity_status:
+          opportunity?.status ?? null,
+        opportunity_published:
+          opportunity?.published ?? null,
+      },
+    });
+
     throw new Error("The managed role opportunity must be published before talent can be invited.");
   }
 
@@ -132,6 +257,29 @@ export async function inviteManagedCastingTalentAction(formData: FormData) {
   );
   if (!candidate?.sendable) {
     const reasons = candidate?.reasons?.join(", ") || "not_in_qualified_supply";
+
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "invite_managed_casting_talent",
+      outcome: "blocked",
+      target: EVENT_TARGETS.MANAGED_CASTING_INVITATION,
+      targetId: "talent-not-sendable",
+      reason: "talent_not_sendable",
+      metadata: {
+        casting_project_id:
+          projectId,
+        casting_role_id:
+          roleId,
+        opportunity_id:
+          opportunity.id,
+        talent_id:
+          talentId,
+        qualification_reasons:
+          candidate?.reasons ?? [],
+      },
+    });
+
     throw new Error(`Talent is not sendable for this Brief: ${reasons}`);
   }
 
@@ -141,6 +289,28 @@ export async function inviteManagedCastingTalentAction(formData: FormData) {
     .eq("talent_id", talentId)
     .maybeSingle();
   if (existingApplication) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "invite_managed_casting_talent",
+      outcome: "noop",
+      target: EVENT_TARGETS.MANAGED_CASTING_INVITATION,
+      targetId: "existing-application",
+      reason: "talent_already_applied",
+      metadata: {
+        casting_project_id:
+          projectId,
+        casting_role_id:
+          roleId,
+        opportunity_id:
+          opportunity.id,
+        talent_id:
+          talentId,
+        application_id:
+          existingApplication.id,
+      },
+    });
+
     revalidatePath(`/admin/casting/${projectId}/applications`);
     return;
   }
@@ -159,7 +329,29 @@ export async function inviteManagedCastingTalentAction(formData: FormData) {
     applied_at: null,
     updated_at: now,
   }, { onConflict: "opportunity_id,talent_id" }).select("id").single();
-  if (invitationError || !invitation) throw new Error(invitationError?.message || "Unable to create managed casting invitation.");
+  if (invitationError || !invitation) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "invite_managed_casting_talent",
+      outcome: "failed",
+      target: EVENT_TARGETS.MANAGED_CASTING_INVITATION,
+      targetId: "creation-failed",
+      reason: "managed_casting_invitation_upsert_failed",
+      metadata: {
+        casting_project_id:
+          projectId,
+        casting_role_id:
+          roleId,
+        opportunity_id:
+          opportunity.id,
+        talent_id:
+          talentId,
+      },
+    });
+
+    throw new Error(invitationError?.message || "Unable to create managed casting invitation.");
+  }
 
   await createTalentNotification({
     admin,
@@ -170,6 +362,29 @@ export async function inviteManagedCastingTalentAction(formData: FormData) {
     roleId,
     opportunityId: Number(opportunity.id),
     roleTitle: String(role.title || role.title_en || "Casting role"),
+  });
+
+  await recordAdminAction({
+    actorId: adminUser.id,
+    actorEmail: adminUser.email,
+    action: "invite_managed_casting_talent",
+    outcome: "success",
+    target: EVENT_TARGETS.MANAGED_CASTING_INVITATION,
+    targetId: invitation.id,
+    metadata: {
+      casting_project_id:
+        projectId,
+      casting_role_id:
+        roleId,
+      opportunity_id:
+        opportunity.id,
+      talent_id:
+        talentId,
+      invitation_status:
+        "sent",
+      custom_message:
+        Boolean(message),
+    },
   });
 
   revalidatePath(`/admin/casting/${projectId}/supply`);

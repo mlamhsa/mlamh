@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
 import { requireAdminAccess } from "@/lib/auth/require-admin";
+import { recordAdminAction } from "@/lib/events/admin-audit";
+import { EVENT_TARGETS } from "@/lib/events/event-targets";
 import { assertApprovedInvestorGmail } from "@/lib/intelligence/investors/account-policy";
 import {
   exchangeInvestorGmailAuthorizationCode,
@@ -22,7 +24,8 @@ function adminRedirect(request: Request, result: "connected" | "error") {
 }
 
 export async function GET(request: Request) {
-  await requireAdminAccess();
+  const adminUser =
+    await requireAdminAccess();
   const requestUrl = new URL(request.url);
   const errorParam = requestUrl.searchParams.get("error");
   const code = requestUrl.searchParams.get("code")?.trim() ?? "";
@@ -44,10 +47,36 @@ export async function GET(request: Request) {
       refreshToken: tokenSet.refreshToken,
     });
     assertApprovedInvestorGmail(profile.emailAddress);
+
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "complete_investor_gmail_connection",
+      outcome: "success",
+      target: EVENT_TARGETS.INTEGRATION,
+      targetId: "investor_relations_gmail",
+      metadata: {
+        email_address:
+          profile.emailAddress,
+        status: "connected",
+      },
+    });
+
     return adminRedirect(request, "connected");
   } catch (error) {
     console.error("[Investor Gmail callback]", error instanceof Error ? error.message : "oauth_callback_failed");
     await persistInvestorGmailError(error);
+
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "complete_investor_gmail_connection",
+      outcome: "failed",
+      target: EVENT_TARGETS.INTEGRATION,
+      targetId: "investor_relations_gmail",
+      reason: "oauth_callback_failed",
+    });
+
     return adminRedirect(request, "error");
   }
 }

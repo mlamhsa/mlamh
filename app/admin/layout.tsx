@@ -3,6 +3,8 @@ import { Suspense } from "react";
 import { AdminSidebar } from "@/components/admin/layout/AdminSidebar";
 import { AdminTopbar } from "@/components/admin/layout/AdminTopbar";
 import { requireAdminAccess } from "@/lib/auth/require-admin";
+import { getUserPermissions } from "@/lib/rbac/helpers";
+import type { Permission } from "@/lib/rbac/permissions";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 type AdminLayoutProps = {
@@ -111,7 +113,23 @@ async function getAdminSidebarCounts() {
 }
 
 export default async function AdminLayout({ children }: AdminLayoutProps) {
-  await requireAdminAccess();
+  const currentAdmin =
+    await requireAdminAccess();
+
+  let permissions: Permission[] = [];
+
+  try {
+    permissions =
+      await getUserPermissions(
+        currentAdmin.id,
+      );
+  } catch (permissionError) {
+    console.error(
+      "[AdminLayout permissions]",
+      permissionError,
+    );
+  }
+
   const counts = await getAdminSidebarCounts();
   const navigationCounts = {
     pendingActions: counts.pendingActions,
@@ -129,7 +147,11 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
             <div className="hidden min-h-screen w-[286px] shrink-0 border-e border-white/[0.08] bg-[#080808] lg:block" />
           }
         >
-          <AdminSidebar counts={navigationCounts} />
+          <AdminSidebar
+            counts={navigationCounts}
+            permissions={permissions}
+            adminEmail={currentAdmin.email}
+          />
         </Suspense>
 
         <div className="min-w-0 flex-1">
@@ -141,6 +163,8 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
             <AdminTopbar
               counts={navigationCounts}
               unreadAdminNotifications={counts.unreadAdminNotifications}
+              permissions={permissions}
+              adminEmail={currentAdmin.email}
             />
           </Suspense>
 

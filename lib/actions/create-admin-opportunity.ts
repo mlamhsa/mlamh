@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { SAUDI_CITIES } from "@/lib/data/saudi-cities";
 import { requireAdminAccess } from "@/lib/auth/require-admin";
+import { recordAdminAction } from "@/lib/events/admin-audit";
+import { EVENT_TARGETS } from "@/lib/events/event-targets";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 type ManagedSourceType =
@@ -73,7 +75,8 @@ function createSlug(value: string) {
 export async function createAdminOpportunityAction(
   input: CreateAdminOpportunityInput,
 ) {
-  await requireAdminAccess();
+  const adminUser =
+    await requireAdminAccess();
 
   const adminClient = createAdminClient();
 
@@ -83,12 +86,35 @@ export async function createAdminOpportunityAction(
   );
 
   if (!title) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "create_admin_opportunity",
+      outcome: "blocked",
+      target: EVENT_TARGETS.OPPORTUNITY,
+      targetId: "invalid-input",
+      reason: "opportunity_title_required",
+    });
+
     throw new Error(
       "Opportunity title is required.",
     );
   }
 
   if (!description) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "create_admin_opportunity",
+      outcome: "blocked",
+      target: EVENT_TARGETS.OPPORTUNITY,
+      targetId: "invalid-input",
+      reason: "opportunity_description_required",
+      metadata: {
+        title,
+      },
+    });
+
     throw new Error(
       "Opportunity description is required.",
     );
@@ -98,6 +124,19 @@ export async function createAdminOpportunityAction(
     input.opportunityType !== "actor" &&
     input.opportunityType !== "model"
   ) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "create_admin_opportunity",
+      outcome: "blocked",
+      target: EVENT_TARGETS.OPPORTUNITY,
+      targetId: "invalid-input",
+      reason: "invalid_opportunity_type",
+      metadata: {
+        title,
+      },
+    });
+
     throw new Error(
       "Invalid opportunity type.",
     );
@@ -114,6 +153,21 @@ export async function createAdminOpportunityAction(
       : cleanText(input.companyName);
 
   if (!companyName) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "create_admin_opportunity",
+      outcome: "blocked",
+      target: EVENT_TARGETS.OPPORTUNITY,
+      targetId: "invalid-input",
+      reason: "client_company_name_required",
+      metadata: {
+        title,
+        source_type:
+          sourceType,
+      },
+    });
+
     throw new Error(
       "Client company name is required.",
     );
@@ -244,11 +298,72 @@ export async function createAdminOpportunityAction(
       error,
     );
 
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "create_admin_opportunity",
+      outcome: "failed",
+      target: EVENT_TARGETS.OPPORTUNITY,
+      targetId: "creation-failed",
+      reason: "opportunity_insert_failed",
+      metadata: {
+        title,
+        source_type:
+          sourceType,
+        opportunity_type:
+          input.opportunityType,
+        city_slug:
+          cleanText(input.citySlug) ||
+          null,
+        publish_now:
+          publishNow,
+      },
+    });
+
     throw new Error(
       error.message ||
         "Unable to create opportunity.",
     );
   }
+
+  await recordAdminAction({
+    actorId: adminUser.id,
+    actorEmail: adminUser.email,
+    action: "create_admin_opportunity",
+    outcome: "success",
+    target: EVENT_TARGETS.OPPORTUNITY,
+    targetId: data.id,
+    metadata: {
+      title:
+        data.title,
+      slug:
+        data.slug,
+      source_type:
+        sourceType,
+      opportunity_type:
+        input.opportunityType,
+      city_slug:
+        cleanText(input.citySlug) ||
+        null,
+      status:
+        data.status,
+      published:
+        data.published,
+      posting_mode:
+        input.postingMode === "quick"
+          ? "quick"
+          : "project",
+      compensation_type:
+        input.compensationType ??
+        "fixed",
+      required_count:
+        Number.isInteger(
+          input.requiredCount,
+        )
+          ? input.requiredCount
+          : null,
+    },
+  });
 
   revalidatePath(
     "/admin/opportunities",

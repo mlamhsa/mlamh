@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { recordAdminAction } from "@/lib/events/admin-audit";
 
 import {
   createEvent,
@@ -257,10 +258,31 @@ async function setApplicationStatus(
   const adminUser =
     await requireAdminAccess();
 
-  const id =
-    getApplicationId(
-      formData,
+  let id: number;
+
+  try {
+    id =
+      getApplicationId(
+        formData,
+      );
+  } catch {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_application_status",
+      outcome: "blocked",
+      target: EVENT_TARGETS.APPLICATION,
+      targetId: "invalid-input",
+      reason: "invalid_application_id",
+      metadata: {
+        requested_status: status,
+      },
+    });
+
+    throw new Error(
+      "Invalid application ID.",
     );
+  }
 
   const locale =
     getLocale(
@@ -280,6 +302,19 @@ async function setApplicationStatus(
     status === "rejected" &&
     !reason
   ) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_application_status",
+      outcome: "blocked",
+      target: EVENT_TARGETS.APPLICATION,
+      targetId: id,
+      reason: "rejection_reason_required",
+      metadata: {
+        requested_status: status,
+      },
+    });
+
     throw new Error(
       locale === "ar"
         ? "سبب رفض الطلب مطلوب."
@@ -293,6 +328,19 @@ async function setApplicationStatus(
     );
 
   if (!application) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_application_status",
+      outcome: "failed",
+      target: EVENT_TARGETS.APPLICATION,
+      targetId: id,
+      reason: "application_not_found",
+      metadata: {
+        requested_status: status,
+      },
+    });
+
     throw new Error(
       "Application not found.",
     );
@@ -324,13 +372,57 @@ async function setApplicationStatus(
         opportunity?.id &&
         talent?.id
       ) {
-        await ensureMlamhAcceptedConversation({
-          applicationId: id,
-          opportunityId: opportunity.id,
-          talentId: talent.id,
-          adminUserId: adminUser.id,
-        });
+        try {
+          await ensureMlamhAcceptedConversation({
+            applicationId: id,
+            opportunityId: opportunity.id,
+            talentId: talent.id,
+            adminUserId: adminUser.id,
+          });
+        } catch (error) {
+          await recordAdminAction({
+            actorId: adminUser.id,
+            actorEmail: adminUser.email,
+            action: "update_application_status",
+            outcome: "failed",
+            target: EVENT_TARGETS.APPLICATION,
+            targetId: id,
+            reason: "accepted_conversation_sync_failed",
+            metadata: {
+              current_status:
+                currentStatus,
+              requested_status:
+                status,
+              opportunity_id:
+                opportunity.id,
+              talent_id:
+                talent.id,
+            },
+          });
+
+          throw error;
+        }
       }
+
+      await recordAdminAction({
+        actorId: adminUser.id,
+        actorEmail: adminUser.email,
+        action: "update_application_status",
+        outcome: "noop",
+        target: EVENT_TARGETS.APPLICATION,
+        targetId: id,
+        reason: "status_already_set",
+        metadata: {
+          current_status:
+            currentStatus,
+          requested_status:
+            status,
+          opportunity_id:
+            opportunity?.id ?? null,
+          talent_id:
+            talent?.id ?? null,
+        },
+      });
     
       revalidateApplicationPaths(id);
     
@@ -345,6 +437,22 @@ async function setApplicationStatus(
     currentStatus === "accepted" &&
     status !== "accepted"
   ) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_application_status",
+      outcome: "blocked",
+      target: EVENT_TARGETS.APPLICATION,
+      targetId: id,
+      reason: "accepted_application_is_final",
+      metadata: {
+        current_status:
+          currentStatus,
+        requested_status:
+          status,
+      },
+    });
+
     throw new Error(
       locale === "ar"
         ? "لا يمكن تغيير حالة طلب مقبول مباشرة."
@@ -352,10 +460,30 @@ async function setApplicationStatus(
     );
   }
 
-  await updateAdminApplicationStatus({
-    id,
-    status,
-  });
+  try {
+    await updateAdminApplicationStatus({
+      id,
+      status,
+    });
+  } catch (error) {
+    await recordAdminAction({
+      actorId: adminUser.id,
+      actorEmail: adminUser.email,
+      action: "update_application_status",
+      outcome: "failed",
+      target: EVENT_TARGETS.APPLICATION,
+      targetId: id,
+      reason: "application_status_update_failed",
+      metadata: {
+        previous_status:
+          currentStatus,
+        requested_status:
+          status,
+      },
+    });
+
+    throw error;
+  }
   
   if (
     status === "accepted" &&
@@ -372,14 +500,69 @@ async function setApplicationStatus(
       });
     } catch (error) {
       // لا نترك الطلب مقبولًا بدون محادثة في فرص MLAMH.
-      await updateAdminApplicationStatus({
-        id,
-        status: currentStatus,
+      let rollbackSucceeded = true;
+
+      try {
+        await updateAdminApplicationStatus({
+          id,
+          status: currentStatus,
+        });
+      } catch (rollbackError) {
+        rollbackSucceeded = false;
+        console.error(
+          "[setApplicationStatus rollback]",
+          rollbackError,
+        );
+      }
+
+      await recordAdminAction({
+        actorId: adminUser.id,
+        actorEmail: adminUser.email,
+        action: "update_application_status",
+        outcome: "failed",
+        target: EVENT_TARGETS.APPLICATION,
+        targetId: id,
+        reason: "accepted_conversation_create_failed",
+        metadata: {
+          previous_status:
+            currentStatus,
+          requested_status:
+            status,
+          rollback_succeeded:
+            rollbackSucceeded,
+          opportunity_id:
+            opportunity.id,
+          talent_id:
+            talent.id,
+        },
       });
   
       throw error;
     }
   }
+
+  await recordAdminAction({
+    actorId: adminUser.id,
+    actorEmail: adminUser.email,
+    action: "update_application_status",
+    outcome: "success",
+    target: EVENT_TARGETS.APPLICATION,
+    targetId: id,
+    metadata: {
+      previous_status:
+        currentStatus,
+      new_status: status,
+      reason,
+      opportunity_id:
+        opportunity?.id ?? null,
+      talent_id:
+        talent?.id ?? null,
+      managed_by_mlamh:
+        isMlamhManagedOpportunity(
+          opportunity,
+        ),
+    },
+  });
 
 const eventType =
   getEventType(

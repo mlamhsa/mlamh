@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 
-type Mode = "loading" | "enroll" | "challenge" | "verifying";
+type Mode = "loading" | "enroll" | "challenge" | "verifying" | "error";
 
 type Enrollment = {
   factorId: string;
@@ -31,6 +31,45 @@ export function AdminMfaGate() {
         if (assurance.error) throw assurance.error;
 
         if (assurance.data.currentLevel === "aal2") {
+          const currentUser =
+            await supabase.auth.getUser();
+          if (currentUser.error) {
+            throw currentUser.error;
+          }
+
+          if (
+            currentUser.data.user
+              ?.app_metadata
+              ?.admin_invite_status ===
+            "pending"
+          ) {
+            const activationResponse =
+              await fetch(
+                "/api/admin/security/mfa-event",
+                {
+                  method: "POST",
+                  headers: {
+                    "Content-Type":
+                      "application/json",
+                  },
+                  body: JSON.stringify({
+                    mode:
+                      "activation",
+                    outcome:
+                      "success",
+                  }),
+                  cache:
+                    "no-store",
+                },
+              );
+
+            if (!activationResponse.ok) {
+              throw new Error(
+                "تعذر إكمال تفعيل حساب الإدارة بعد التحقق بخطوتين.",
+              );
+            }
+          }
+
           window.location.replace("/admin");
           return;
         }
@@ -46,6 +85,23 @@ export function AdminMfaGate() {
           setFactorId(verifiedTotp.id);
           setMode("challenge");
           return;
+        }
+
+        // A page reload can leave a previous TOTP enrollment in the
+        // unverified state. Supabase will reject a new enrollment with the
+        // same friendly name, so clear incomplete factors before creating a
+        // fresh QR/secret that the user can actually finish verifying.
+        const unverifiedTotp = factors.data.all.filter(
+          (factor) =>
+            factor.factor_type === "totp" &&
+            factor.status === "unverified",
+        );
+
+        for (const factor of unverifiedTotp) {
+          const cleanup = await supabase.auth.mfa.unenroll({
+            factorId: factor.id,
+          });
+          if (cleanup.error) throw cleanup.error;
         }
 
         const enroll = await supabase.auth.mfa.enroll({
@@ -64,13 +120,16 @@ export function AdminMfaGate() {
       } catch (caught) {
         const message = caught instanceof Error ? caught.message : "تعذر تهيئة التحقق بخطوتين.";
         setError(message);
-        setMode("challenge");
+        setFactorId("");
+        setEnrollment(null);
+        setMode("error");
       }
     })();
   }, [supabase]);
 
   async function verify() {
     const normalizedCode = code.replace(/\s+/g, "");
+    let mfaVerified = false;
     if (!/^\d{6,10}$/.test(normalizedCode) || !factorId) {
       setError("أدخل رمز التحقق الصحيح من تطبيق المصادقة.");
       return;
@@ -96,16 +155,108 @@ export function AdminMfaGate() {
         throw new Error("لم يتم رفع مستوى الجلسة إلى AAL2.");
       }
 
+      mfaVerified = true;
+
+      try {
+        const auditResponse =
+          await fetch(
+            "/api/admin/security/mfa-event",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type":
+                  "application/json",
+              },
+              body: JSON.stringify({
+                mode: enrollment
+                  ? "enrollment"
+                  : "challenge",
+                outcome:
+                  "success",
+              }),
+              cache: "no-store",
+              keepalive: true,
+            },
+          );
+
+        if (!auditResponse.ok) {
+          throw new Error(
+            "تعذر إكمال تسجيل التحقق الآمن لحساب الإدارة.",
+          );
+        }
+      } catch (auditError) {
+        console.warn(
+          "[AdminMfaGate audit]",
+          auditError,
+        );
+        throw auditError;
+      }
+
       window.location.replace("/admin");
     } catch (caught) {
-      const message = caught instanceof Error ? caught.message : "رمز التحقق غير صالح.";
+      if (!mfaVerified) {
+        try {
+          await fetch(
+            "/api/admin/security/mfa-event",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type":
+                  "application/json",
+              },
+              body: JSON.stringify({
+                mode: enrollment
+                  ? "enrollment"
+                  : "challenge",
+                outcome:
+                  "failed",
+              }),
+              cache: "no-store",
+              keepalive: true,
+            },
+          );
+        } catch (auditError) {
+          console.warn(
+            "[AdminMfaGate failed audit]",
+            auditError,
+          );
+        }
+      }
+
+      const message =
+        caught instanceof Error
+          ? caught.message
+          : "رمز التحقق غير صالح.";
       setError(message);
-      setMode(enrollment ? "enroll" : "challenge");
+      setMode(
+        mfaVerified
+          ? "error"
+          : enrollment
+            ? "enroll"
+            : "challenge",
+      );
     }
   }
 
   if (mode === "loading") {
     return <p className="text-sm text-white/60">جارٍ تجهيز التحقق الآمن…</p>;
+  }
+
+  if (mode === "error") {
+    return (
+      <div className="space-y-4">
+        <p className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm leading-6 text-red-200">
+          {error || "تعذر تهيئة التحقق بخطوتين."}
+        </p>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="w-full rounded-xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-semibold text-white transition hover:border-white/20 hover:bg-white/[0.08]"
+        >
+          إعادة المحاولة
+        </button>
+      </div>
+    );
   }
 
   return (

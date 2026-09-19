@@ -8,11 +8,18 @@ import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 
 export default function ResetPasswordPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams?: Promise<{ mode?: string }>;
 }) {
   const { locale } = use(params);
+  const query = searchParams
+    ? use(searchParams)
+    : {};
   const isArabic = locale === "ar";
+  const isAdminInvite =
+    query.mode === "admin-invite";
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -62,7 +69,7 @@ export default function ResetPasswordPage({
             return;
           }
 
-          window.history.replaceState(null, "", window.location.pathname);
+          window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
         }
 
         const {
@@ -117,11 +124,17 @@ export default function ResetPasswordPage({
       return;
     }
 
-    if (password.length < 8) {
+    const minimumPasswordLength =
+      isAdminInvite ? 12 : 8;
+
+    if (
+      password.length <
+      minimumPasswordLength
+    ) {
       setErrorMessage(
         isArabic
-          ? "يجب أن تتكون كلمة المرور من 8 أحرف على الأقل."
-          : "Password must be at least 8 characters long.",
+          ? `يجب أن تتكون كلمة المرور من ${minimumPasswordLength} حرفًا على الأقل.`
+          : `Password must be at least ${minimumPasswordLength} characters long.`,
       );
       return;
     }
@@ -177,15 +190,31 @@ export default function ResetPasswordPage({
             <Sparkles size={20} />
           </div>
           <p className="text-xs text-gold">
-            {isArabic ? "تأمين الحساب" : "Secure Your Account"}
+            {isAdminInvite
+              ? isArabic
+                ? "تفعيل حساب الإدارة"
+                : "Admin Account Activation"
+              : isArabic
+                ? "تأمين الحساب"
+                : "Secure Your Account"}
           </p>
           <h1 className="mt-3 text-3xl font-light">
-            {isArabic ? "كلمة مرور جديدة" : "Create a new password"}
+            {isAdminInvite
+              ? isArabic
+                ? "أنشئ كلمة مرور الإدارة"
+                : "Create your admin password"
+              : isArabic
+                ? "كلمة مرور جديدة"
+                : "Create a new password"}
           </h1>
           <p className="mt-3 text-sm leading-7 text-white/45">
-            {isArabic
-              ? "اختر كلمة مرور قوية جديدة لحسابك في ملامح."
-              : "Choose a strong new password for your MLAMH account."}
+            {isAdminInvite
+              ? isArabic
+                ? "اختر كلمة مرور قوية. بعد حفظها ستنتقل لتفعيل المصادقة الثنائية المطلوبة لحسابات إدارة ملامح."
+                : "Choose a strong password. After saving it, you'll continue to the required MFA setup for MLAMH admin accounts."
+              : isArabic
+                ? "اختر كلمة مرور قوية جديدة لحسابك في ملامح."
+                : "Choose a strong new password for your MLAMH account."}
           </p>
         </div>
 
@@ -200,10 +229,20 @@ export default function ResetPasswordPage({
               {isArabic ? "تم تحديث كلمة المرور" : "Password updated"}
             </p>
             <Link
-              href={`/${locale}/dashboard-router`}
+              href={
+                isAdminInvite
+                  ? "/admin-mfa"
+                  : `/${locale}/dashboard-router`
+              }
               className="mt-4 inline-flex rounded-xl bg-gold px-5 py-3 text-sm font-medium text-black"
             >
-              {isArabic ? "الانتقال إلى حسابي" : "Continue to my account"}
+              {isAdminInvite
+                ? isArabic
+                  ? "متابعة تأمين حساب الإدارة"
+                  : "Continue admin security setup"
+                : isArabic
+                  ? "الانتقال إلى حسابي"
+                  : "Continue to my account"}
             </Link>
           </div>
         ) : (
@@ -222,6 +261,7 @@ export default function ResetPasswordPage({
                   show={showPassword}
                   label={isArabic ? "كلمة المرور الجديدة" : "New password"}
                   isArabic={isArabic}
+                  minLength={isAdminInvite ? 12 : 8}
                 />
                 <PasswordInput
                   value={confirmPassword}
@@ -229,6 +269,7 @@ export default function ResetPasswordPage({
                   show={showPassword}
                   label={isArabic ? "تأكيد كلمة المرور" : "Confirm password"}
                   isArabic={isArabic}
+                  minLength={isAdminInvite ? 12 : 8}
                 />
 
                 <button
@@ -281,12 +322,14 @@ function PasswordInput({
   show,
   label,
   isArabic,
+  minLength = 8,
 }: {
   value: string;
   onChange: (value: string) => void;
   show: boolean;
   label: string;
   isArabic: boolean;
+  minLength?: number;
 }) {
   return (
     <div className="relative">
@@ -300,7 +343,7 @@ function PasswordInput({
         type={show ? "text" : "password"}
         autoComplete="new-password"
         required
-        minLength={8}
+        minLength={minLength}
         placeholder={label}
         className={`w-full rounded-2xl border border-white/10 bg-black/30 py-4 text-white outline-none placeholder:text-white/25 focus:border-gold/50 ${isArabic ? "pr-12 pl-4" : "pl-12 pr-4"}`}
       />

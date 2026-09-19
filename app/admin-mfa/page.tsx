@@ -1,30 +1,14 @@
 import { redirect } from "next/navigation";
 
 import { AdminMfaGate } from "@/components/admin/security/AdminMfaGate";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { requireAdminIdentity } from "@/lib/auth/require-admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export default async function AdminMfaPage() {
-  const authClient = await createServerSupabaseClient();
-  const {
-    data: { user },
-    error: userError,
-  } = await authClient.auth.getUser();
+  await requireAdminIdentity();
 
-  if (userError || !user) {
-    redirect("/ar/login");
-  }
-
-  const adminClient = createAdminClient();
-  const { data: profile, error: profileError } = await adminClient
-    .from("profiles")
-    .select("account_type")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (profileError || !profile || profile.account_type !== "admin") {
-    redirect("/ar/login");
-  }
+  const authClient =
+    await createServerSupabaseClient();
 
   const assurance = await authClient.auth.mfa.getAuthenticatorAssuranceLevel();
   if (!assurance.error && assurance.data.currentLevel === "aal2") {

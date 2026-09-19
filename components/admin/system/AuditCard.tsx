@@ -100,6 +100,245 @@ import {
       );
   
     switch (event.event_type) {
+      case "admin_invited":
+        return {
+          title: isArabic
+            ? "دعوة مشرف"
+            : "Admin invited",
+          description:
+            getMetadataString(
+              metadata,
+              "invited_email",
+            ) ||
+            (isArabic
+              ? "تم إنشاء دعوة جديدة لحساب إدارة."
+              : "A new admin invitation was created."),
+          icon: Send,
+        };
+
+      case "admin_invite_resent":
+        return {
+          title: isArabic
+            ? "إعادة إرسال دعوة مشرف"
+            : "Admin invitation resent",
+          description:
+            getMetadataString(
+              metadata,
+              "invited_email",
+            ) ||
+            (isArabic
+              ? "تمت إعادة إرسال رابط التفعيل."
+              : "The activation link was resent."),
+          icon: Send,
+        };
+
+      case "admin_invite_cancelled":
+        return {
+          title: isArabic
+            ? "إلغاء دعوة مشرف"
+            : "Admin invitation cancelled",
+          description:
+            getMetadataString(
+              metadata,
+              "invited_email",
+            ) ||
+            (isArabic
+              ? "تم إلغاء دعوة مشرف غير مفعلة."
+              : "An unactivated admin invitation was cancelled."),
+          icon: XCircle,
+        };
+
+      case "admin_role_changed": {
+        const previousRoles =
+          getMetadataString(
+            metadata,
+            "previous_roles",
+          );
+        const newRole =
+          getMetadataString(
+            metadata,
+            "new_role",
+          );
+        const registryOnlySync =
+          metadata.registry_only_sync ===
+          true;
+
+        if (registryOnlySync) {
+          const previousRegistryRole =
+            getMetadataString(
+              metadata,
+              "previous_registry_role",
+            );
+          const effectiveRole =
+            getMetadataString(
+              metadata,
+              "effective_role",
+            );
+
+          return {
+            title: isArabic
+              ? "مزامنة سجل دور مشرف"
+              : "Admin role registry synchronized",
+            description:
+              previousRegistryRole &&
+              effectiveRole
+                ? `${previousRegistryRole} → ${effectiveRole}`
+                : isArabic
+                  ? "تمت مزامنة سجل الإدارة مع دور RBAC الفعلي دون تغيير الصلاحيات."
+                  : "The admin registry was synchronized with the effective RBAC role without changing permissions.",
+            icon: FilePenLine,
+          };
+        }
+
+        return {
+          title: isArabic
+            ? "تغيير دور مشرف"
+            : "Admin role changed",
+          description:
+            previousRoles &&
+            newRole
+              ? `${previousRoles} → ${newRole}`
+              : isArabic
+                ? "تم تغيير الدور الإداري."
+                : "The admin role was changed.",
+          icon: FilePenLine,
+        };
+      }
+
+      case "admin_access_revoked":
+        return {
+          title: isArabic
+            ? "سحب وصول مشرف"
+            : "Admin access revoked",
+          description:
+            getMetadataString(
+              metadata,
+              "target_email",
+            ) ||
+            (isArabic
+              ? "تم سحب وصول الحساب إلى لوحة الإدارة."
+              : "The account's admin-console access was revoked."),
+          icon: XCircle,
+        };
+
+      case "admin_access_action_blocked":
+        return {
+          title: isArabic
+            ? "إجراء إداري محظور"
+            : "Admin action blocked",
+          description:
+            reason ||
+            (isArabic
+              ? "تم منع الإجراء بواسطة ضوابط الحماية."
+              : "The action was blocked by access safeguards."),
+          icon: Bell,
+        };
+
+      case "admin_access_action_failed":
+        return {
+          title: isArabic
+            ? "فشل إجراء إداري"
+            : "Admin action failed",
+          description:
+            reason ||
+            (isArabic
+              ? "فشل الإجراء وتم تسجيل السبب."
+              : "The action failed and the reason was recorded."),
+          icon: XCircle,
+        };
+
+      case "admin_access_action_noop":
+        return {
+          title: isArabic
+            ? "إجراء بلا تغيير"
+            : "Admin action no-op",
+          description:
+            reason ||
+            (isArabic
+              ? "تم تنفيذ الطلب دون الحاجة إلى تغيير الحالة."
+              : "The request required no state change."),
+          icon: History,
+        };
+
+      case "admin_action_success":
+        return {
+          title: isArabic
+            ? "إجراء إداري ناجح"
+            : "Admin action succeeded",
+          description:
+            getMetadataString(
+              metadata,
+              "action",
+            ) ||
+            (isArabic
+              ? "تم تنفيذ إجراء إداري بنجاح."
+              : "An administrative action completed successfully."),
+          icon: CheckCircle2,
+        };
+
+      case "admin_action_blocked":
+        return {
+          title: isArabic
+            ? "إجراء إداري تم منعه"
+            : "Admin action blocked",
+          description:
+            [
+              getMetadataString(
+                metadata,
+                "action",
+              ),
+              reason,
+            ]
+              .filter(Boolean)
+              .join(" · ") ||
+            (isArabic
+              ? "تم منع الإجراء بواسطة ضوابط الحماية."
+              : "The action was blocked by safeguards."),
+          icon: Bell,
+        };
+
+      case "admin_action_failed":
+        return {
+          title: isArabic
+            ? "فشل إجراء إداري"
+            : "Admin action failed",
+          description:
+            [
+              getMetadataString(
+                metadata,
+                "action",
+              ),
+              reason,
+            ]
+              .filter(Boolean)
+              .join(" · ") ||
+            (isArabic
+              ? "فشل الإجراء وتم تسجيل السبب."
+              : "The action failed and the reason was recorded."),
+          icon: XCircle,
+        };
+
+      case "admin_action_noop":
+        return {
+          title: isArabic
+            ? "إجراء إداري بلا تغيير"
+            : "Admin action no-op",
+          description:
+            [
+              getMetadataString(
+                metadata,
+                "action",
+              ),
+              reason,
+            ]
+              .filter(Boolean)
+              .join(" · ") ||
+            (isArabic
+              ? "لم يحتج الطلب إلى تغيير الحالة."
+              : "The request required no state change."),
+          icon: History,
+        };
+
       case "talent_approved":
         return {
           title: isArabic
@@ -339,11 +578,116 @@ import {
         return isArabic
           ? "الإدارة"
           : "Admin";
+
+      case "auth_user":
+        return isArabic
+          ? "حساب مصادقة"
+          : "Auth user";
   
       case "opportunity":
         return isArabic
           ? "فرصة"
           : "Opportunity";
+
+      case "application":
+        return isArabic
+          ? "طلب تقديم"
+          : "Application";
+
+      case "claim_request":
+        return isArabic
+          ? "طلب مطالبة"
+          : "Claim request";
+
+      case "support":
+        return isArabic
+          ? "تذكرة دعم"
+          : "Support ticket";
+
+      case "message":
+        return isArabic
+          ? "رسالة"
+          : "Message";
+
+      case "conversation":
+        return isArabic
+          ? "محادثة"
+          : "Conversation";
+
+      case "casting_project":
+        return isArabic
+          ? "مشروع كاستينغ"
+          : "Casting project";
+
+      case "payment":
+        return isArabic
+          ? "دفعة"
+          : "Payment";
+
+      case "entitlement":
+        return isArabic
+          ? "استحقاق"
+          : "Entitlement";
+
+      case "notification":
+        return isArabic
+          ? "إشعار"
+          : "Notification";
+
+      case "scene_article":
+        return isArabic
+          ? "مقال مشهد"
+          : "Scene article";
+
+      case "casting_file":
+        return isArabic
+          ? "ملف كاستينغ"
+          : "Casting file";
+
+      case "managed_casting_invitation":
+        return isArabic
+          ? "دعوة كاستينغ مُدار"
+          : "Managed casting invitation";
+
+      case "casting_role":
+        return isArabic
+          ? "دور كاستينغ"
+          : "Casting role";
+
+      case "casting_shortlist":
+        return isArabic
+          ? "قائمة مختصرة للكاستينغ"
+          : "Casting shortlist";
+
+      case "booking":
+        return isArabic
+          ? "حجز موهبة"
+          : "Talent booking";
+
+      case "casting_replacement":
+        return isArabic
+          ? "استبدال موهبة"
+          : "Casting replacement";
+
+      case "investor":
+        return isArabic
+          ? "مستثمر"
+          : "Investor";
+
+      case "investor_outreach":
+        return isArabic
+          ? "تواصل مستثمر"
+          : "Investor outreach";
+
+      case "integration":
+        return isArabic
+          ? "تكامل"
+          : "Integration";
+
+      case "verification_proof":
+        return isArabic
+          ? "مستند تحقق"
+          : "Verification proof";
   
       default:
         return targetType;
@@ -408,12 +752,35 @@ import {
                     : "Target"}
                 </p>
   
-                <p className="mt-1 text-xs text-white/60">
+                <p
+                  dir={
+                    getMetadataString(
+                      event.metadata,
+                      "target_email",
+                    ) ||
+                    getMetadataString(
+                      event.metadata,
+                      "invited_email",
+                    )
+                      ? "ltr"
+                      : undefined
+                  }
+                  className="mt-1 truncate text-xs text-white/60"
+                >
                   {getTargetLabel(
                     event.target_type,
                     language,
                   )}{" "}
-                  · {event.target_id}
+                  ·{" "}
+                  {getMetadataString(
+                    event.metadata,
+                    "target_email",
+                  ) ||
+                    getMetadataString(
+                      event.metadata,
+                      "invited_email",
+                    ) ||
+                    event.target_id}
                 </p>
               </div>
   
@@ -428,11 +795,19 @@ import {
                   dir="ltr"
                   className="mt-1 truncate text-xs text-white/60"
                   title={
-                    event.actor_id ??
+                    getMetadataString(
+                      event.metadata,
+                      "actor_email",
+                    ) ||
+                    event.actor_id ||
                     undefined
                   }
                 >
-                  {event.actor_id ||
+                  {getMetadataString(
+                    event.metadata,
+                    "actor_email",
+                  ) ||
+                    event.actor_id ||
                     (isArabic
                       ? "النظام"
                       : "System")}
@@ -455,6 +830,25 @@ import {
               </div>
             </div>
   
+            {getMetadataString(
+              event.metadata,
+              "change_reason",
+            ) ? (
+              <div className="mt-4 rounded-xl border border-gold/10 bg-gold/[0.035] p-3">
+                <p className="text-[10px] uppercase tracking-[0.16em] text-gold/60">
+                  {isArabic
+                    ? "مبرر التغيير"
+                    : "Change justification"}
+                </p>
+                <p className="mt-1.5 text-xs leading-6 text-white/60">
+                  {getMetadataString(
+                    event.metadata,
+                    "change_reason",
+                  )}
+                </p>
+              </div>
+            ) : null}
+
             {event.metadata &&
             Object.keys(event.metadata)
               .length > 0 ? (

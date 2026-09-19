@@ -5,9 +5,14 @@ import { AdminLogoutButton } from "../AdminLogoutButton";
 import { usePathname, useSearchParams, type ReadonlyURLSearchParams } from "next/navigation";
 import { getAdminDictionary, getAdminLanguage, withAdminLanguage, type AdminLanguage } from "@/lib/admin/i18n";
 import { adminNavigation, type AdminBadgeKey } from "./admin-navigation";
+import type { Permission } from "@/lib/rbac/permissions";
 
 type AdminSidebarCounts = Partial<Record<AdminBadgeKey, number>>;
-type AdminSidebarProps = { counts?: AdminSidebarCounts };
+type AdminSidebarProps = {
+  counts?: AdminSidebarCounts;
+  permissions?: Permission[];
+  adminEmail?: string | null;
+};
 
 function isActiveRoute(pathname: string, href: string) {
   if (href === "/admin") return pathname === "/admin";
@@ -21,13 +26,33 @@ function buildLanguageSwitchHref({ pathname, searchParams, language }: { pathnam
   return query ? `${pathname}?${query}` : pathname;
 }
 
-export function AdminSidebar({ counts = {} }: AdminSidebarProps) {
+export function AdminSidebar({
+  counts = {},
+  permissions = [],
+  adminEmail = null,
+}: AdminSidebarProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const language = getAdminLanguage(searchParams.get("lang"));
   const dictionary = getAdminDictionary(language);
   const isArabic = language === "ar";
   const languageSwitchHref = buildLanguageSwitchHref({ pathname, searchParams, language: isArabic ? "en" : "ar" });
+  const permissionSet = new Set<Permission>(permissions);
+  const visibleNavigation = adminNavigation
+    .map((group) => ({
+      ...group,
+      items: group.items.filter(
+        (item) =>
+          !item.requiredPermission ||
+          permissionSet.has(
+            item.requiredPermission,
+          ),
+      ),
+    }))
+    .filter(
+      (group) =>
+        group.items.length > 0,
+    );
 
   return (
     <aside dir={isArabic ? "rtl" : "ltr"} className="hidden min-h-screen w-[286px] shrink-0 border-e border-white/[0.075] bg-[radial-gradient(circle_at_top,rgba(212,175,55,0.055),transparent_28%),#080808] lg:sticky lg:top-0 lg:block lg:h-screen">
@@ -48,7 +73,7 @@ export function AdminSidebar({ counts = {} }: AdminSidebarProps) {
 
         <nav aria-label={isArabic ? "تنقل لوحة الإدارة" : "Admin navigation"} className="flex-1 overflow-y-auto px-4 pb-6">
           <div className="space-y-7">
-            {adminNavigation.map((group) => (
+            {visibleNavigation.map((group) => (
               <section key={group.titleEn}>
                 <p className="mb-2 px-3 text-[9px] uppercase tracking-[0.28em] text-white/25">{isArabic ? group.titleAr : group.titleEn}</p>
                 <div className="space-y-1">
@@ -80,10 +105,14 @@ export function AdminSidebar({ counts = {} }: AdminSidebarProps) {
         <div className="border-t border-white/[0.08] p-4">
           <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-3 shadow-[0_12px_30px_rgba(0,0,0,0.18)]">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gold/15 bg-gold/10 text-sm text-gold">A</div>
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gold/15 bg-gold/10 text-sm text-gold">
+                {(adminEmail?.charAt(0) || "A").toUpperCase()}
+              </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm text-white/80">{dictionary.layout.systemAdmin}</p>
-                <p dir="ltr" className="mt-0.5 truncate text-xs text-white/30">admin@mlamh.com</p>
+                <p dir="ltr" className="mt-0.5 truncate text-xs text-white/30">
+                  {adminEmail ?? "—"}
+                </p>
               </div>
             </div>
             <div className="mt-3 grid grid-cols-2 gap-2">
