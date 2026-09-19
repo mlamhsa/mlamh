@@ -6,7 +6,7 @@ import { EVENT_TARGETS } from "@/lib/events/event-targets";
 import { assertApprovedInvestorGmail } from "@/lib/intelligence/investors/account-policy";
 import { getInvestorGmailConnectionState } from "@/lib/intelligence/investors/gmail";
 import { discoverVerifiedInvestors, enrichInvestorContacts } from "@/lib/intelligence/investors/research-v2";
-import { withInvestorResearchRetry } from "@/lib/intelligence/investors/research-retry";
+import { runInvestorResearchDegraded } from "@/lib/intelligence/investors/research-resilience";
 import { ensureInvestorStructuredProvider } from "@/lib/intelligence/investors/structured-provider";
 import {
   prepareDueInvestorFollowUps,
@@ -26,8 +26,8 @@ export async function POST() {
     if (gmail.status === "connected") assertApprovedInvestorGmail(gmail.emailAddress);
     const replies = await syncInvestorReplies({ limit: 20 });
     const followUps = await prepareDueInvestorFollowUps({ limit: 10 });
-    const discovery = await withInvestorResearchRetry(() => discoverVerifiedInvestors({ limit: 8 }));
-    const contactEnrichment = await withInvestorResearchRetry(() => enrichInvestorContacts({ limit: 12 }));
+    const discovery = await runInvestorResearchDegraded("discovery", () => discoverVerifiedInvestors({ limit: 8 }));
+    const contactEnrichment = await runInvestorResearchDegraded("contact_enrichment", () => enrichInvestorContacts({ limit: 12 }));
 
     await recordAdminAction({
       actorId: adminUser.id,
