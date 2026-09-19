@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getOpportunities } from "@/lib/api/opportunities";
+import { PUBLIC_READ_CACHE_HEADERS } from "@/lib/http/public-read-cache";
 import { isCountryCode } from "@/lib/markets/countries";
 
 export async function GET(request: Request) {
@@ -27,5 +28,7 @@ export async function GET(request: Request) {
     locale,
   });
 
-  return NextResponse.json(data);
+  return NextResponse.json(data, {
+    headers: PUBLIC_READ_CACHE_HEADERS,
+  });
 }
