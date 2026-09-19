@@ -52,6 +52,44 @@ function metricValue(value: number | null, unit: "percent" | "ratio") {
   return unit === "percent" ? `${value}%` : value.toFixed(1);
 }
 
+function dataGapLabel(key: string, description: string, isArabic: boolean) {
+  const labels: Record<string, { ar: string; en: string; arDescription: string }> = {
+    market_demand_history: {
+      ar: "السجل التاريخي للطلب",
+      en: "Market demand history",
+      arDescription:
+        "لا يتم حتى الآن احتساب صحة السوق بالاعتماد على الطلب التاريخي؛ التقييم الحالي يعتمد على مؤشرات الحلقة التشغيلية المتاحة.",
+    },
+    historical_supply_pressure: {
+      ar: "ضغط عرض المواهب تاريخيًا",
+      en: "Historical supply pressure",
+      arDescription:
+        "ذكاء عرض المواهب يوفر حاليًا قراءة أساسية حسب الدور والمدينة، لكن اتجاهات ضغط العرض عبر الزمن لم تُخزّن بعد.",
+    },
+  };
+  const item = labels[key];
+  return {
+    title: item ? (isArabic ? item.ar : item.en) : key.replaceAll("_", " "),
+    description: isArabic && item ? item.arDescription : description,
+  };
+}
+
+function formatGeneratedAt(value: string, isArabic: boolean) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return new Intl.DateTimeFormat(
+    isArabic ? "ar-SA-u-ca-gregory-nu-latn" : "en-US",
+    {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    },
+  ).format(date);
+}
+
 export default async function AdminIntelligencePage({ searchParams }: PageProps) {
   await requireAdminAccess();
 
@@ -330,24 +368,39 @@ export default async function AdminIntelligencePage({ searchParams }: PageProps)
           </h2>
 
           <div className="mt-5 space-y-3">
-            {overview.dataGaps.map((gap) => (
-              <div
-                key={gap.key}
-                className="rounded-xl border border-white/[0.07] bg-white/[0.025] p-3"
-              >
-                <p className="text-xs font-medium text-white/60">{gap.key}</p>
-                <p className="mt-1 text-xs leading-5 text-white/35">
-                  {gap.description}
-                </p>
-              </div>
-            ))}
+            {overview.dataGaps.map((gap) => {
+              const localizedGap = dataGapLabel(
+                gap.key,
+                gap.description,
+                isArabic,
+              );
+
+              return (
+                <div
+                  key={gap.key}
+                  className="rounded-xl border border-white/[0.07] bg-white/[0.025] p-3"
+                >
+                  <p className="text-xs font-medium text-white/60">
+                    {localizedGap.title}
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-white/35">
+                    {localizedGap.description}
+                  </p>
+                  {isArabic ? (
+                    <p dir="ltr" className="mt-2 text-[9px] text-white/20">
+                      {gap.key}
+                    </p>
+                  ) : null}
+                </div>
+              );
+            })}
           </div>
         </AdminCard>
       </AdminGrid>
 
       <p className="pb-2 text-[11px] text-white/25">
         {isArabic ? "آخر توليد: " : "Generated: "}
-        <span dir="ltr">{overview.generatedAt}</span>
+        <span>{formatGeneratedAt(overview.generatedAt, isArabic)}</span>
       </p>
       </AdminPageContainer>
     </div>
