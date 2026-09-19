@@ -7,10 +7,6 @@ on:
       - feat/mobile-native-v3-foundation
     paths:
       - ".github/release/testflight-build25"
-  push:
-    branches:
-      - feat/mobile-native-v3-foundation
-    paths:
       - ".github/testflight-release-request"
 
 permissions:
