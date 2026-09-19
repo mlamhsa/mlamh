@@ -61,6 +61,15 @@ export async function getMobileAccountContext(userId: string) {
     canCreateCasting = canCreate && publisherType !== "individual";
   }
 
+  if (entityId === null) {
+    return {
+      ok: false as const,
+      code: profile.account_type === "publisher"
+        ? "PUBLISHER_ONBOARDING_INCOMPLETE" as const
+        : "TALENT_ONBOARDING_INCOMPLETE" as const,
+    };
+  }
+
   return {
     ok: true as const,
     account: {
