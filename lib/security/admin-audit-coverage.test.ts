@@ -1510,6 +1510,9 @@ test("admin dashboard surfaces the Access Center only with admins view permissio
         "canViewAdminAccess",
       ) &&
       page.includes(
+        "[AdminDashboard access permission]",
+      ) &&
+      page.includes(
         "Admins & Access Center",
       ) &&
       page.includes(
