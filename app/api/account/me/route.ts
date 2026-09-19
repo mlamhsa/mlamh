@@ -9,7 +9,13 @@ export async function GET(request: Request) {
 
   const result = await getMobileAccountContext(auth.user.id);
   if (!result.ok) {
-    return NextResponse.json(result, { status: result.code === "ACCOUNT_NOT_FOUND" ? 404 : 500 });
+    const status =
+      result.code === "ACCOUNT_NOT_FOUND"
+        ? 404
+        : result.code === "ACCOUNT_TYPE_UNSUPPORTED"
+          ? 409
+          : 500;
+    return NextResponse.json(result, { status });
   }
   return NextResponse.json(result);
 }
