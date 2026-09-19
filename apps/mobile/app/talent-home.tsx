@@ -59,7 +59,7 @@ const ACTIONS: Action[] = [
   {
     key: "scene",
     href: "/scene",
-    titleAr: "ملامح Scene",
+    titleAr: "مشهد ملامح",
     titleEn: "MLAMH Scene",
     bodyAr: "اكتشف محتوى يساعدك على فهم المجال والفرص وصناعة ملف أفضل.",
     bodyEn: "Discover content that helps you understand the industry, opportunities, and stronger profiles.",
