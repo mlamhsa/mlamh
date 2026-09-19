@@ -115,6 +115,13 @@ export default function LoginScreen() {
         return;
       }
       await finishSignIn();
+    } catch {
+      Alert.alert(
+        isArabic ? "تعذر إكمال تسجيل الدخول" : "Unable to complete sign in",
+        isArabic
+          ? "تمت محاولة تسجيل الدخول عبر Google، لكن تعذر تحميل حسابك داخل التطبيق. حاول مرة أخرى."
+          : "Google sign-in was attempted, but your MLAMH account could not be loaded in the app. Please try again.",
+      );
     } finally {
       setGoogleSubmitting(false);
     }
@@ -135,6 +142,13 @@ export default function LoginScreen() {
         return;
       }
       await finishSignIn();
+    } catch {
+      Alert.alert(
+        isArabic ? "تعذر إكمال تسجيل الدخول" : "Unable to complete sign in",
+        isArabic
+          ? "تمت محاولة تسجيل الدخول عبر Apple، لكن تعذر تحميل حسابك داخل التطبيق. حاول مرة أخرى."
+          : "Apple sign-in was attempted, but your MLAMH account could not be loaded in the app. Please try again.",
+      );
     } finally {
       setAppleSubmitting(false);
     }
