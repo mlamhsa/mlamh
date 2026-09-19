@@ -26,7 +26,7 @@ export async function PATCH(request: Request) {
 
   const result = await updateMobileTalentProfile({ userId: auth.user.id, locale: getLocale(request), input });
   if (!result.ok) {
-    const status = result.code === "INVALID_INPUT" ? 400 : result.code === "TALENT_NOT_FOUND" ? 404 : 500;
+    const status = result.code === "INVALID_INPUT" ? 400 : result.code === "TALENT_NOT_FOUND" ? 404 : result.code === "PROTECTED_FIELDS_LOCKED" ? 409 : 500;
     return NextResponse.json(result, { status });
   }
   return NextResponse.json(result);

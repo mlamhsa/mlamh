@@ -7,9 +7,13 @@ export type MobilePublisherOpportunity = {
   status: string | null;
   published: boolean;
   countryCode: string | null;
+  postingMode: "quick" | "casting";
   createdAt: string | null;
   applications: number;
   accepted: number;
+  responses: number;
+  preliminarySelections: number;
+  acceptedCasting: number;
 };
 
 export async function getMobilePublisherDashboard({ userId, locale }: { userId: string; locale: "ar" | "en" }) {
@@ -26,7 +30,7 @@ export async function getMobilePublisherDashboard({ userId, locale }: { userId: 
 
   const { data: publisher, error: publisherError } = await supabase
     .from("publishers")
-    .select("id,company_name,contact_name,city,verified,verification_status,status,country_code,profile_image_url")
+    .select("id,company_name,contact_name,city,publisher_type,verified,verification_status,status,country_code,profile_image_url")
     .eq("profile_id", profile.id)
     .maybeSingle();
 
@@ -36,7 +40,7 @@ export async function getMobilePublisherDashboard({ userId, locale }: { userId: 
 
   const { data: opportunities, error: opportunitiesError } = await supabase
     .from("opportunities")
-    .select("id,title,title_en,status,published,country_code,created_at")
+    .select("id,title,title_en,status,published,country_code,posting_mode,created_at")
     .eq("publisher_id", publisher.id)
     .order("created_at", { ascending: false });
 
@@ -59,16 +63,32 @@ export async function getMobilePublisherDashboard({ userId, locale }: { userId: 
     }
   }
 
-  const items: MobilePublisherOpportunity[] = (opportunities ?? []).slice(0, 20).map((item) => ({
-    id: Number(item.id),
-    title: locale === "en" ? item.title_en || item.title : item.title,
-    status: item.status ?? null,
-    published: Boolean(item.published),
-    countryCode: item.country_code ?? null,
-    createdAt: item.created_at ?? null,
-    applications: counts.get(Number(item.id))?.applications ?? 0,
-    accepted: counts.get(Number(item.id))?.accepted ?? 0,
-  }));
+  const items: MobilePublisherOpportunity[] = (opportunities ?? []).slice(0, 20).map((item) => {
+    const postingMode = item.posting_mode === "quick" ? "quick" as const : "casting" as const;
+    const responseCount = counts.get(Number(item.id))?.applications ?? 0;
+    const rawAccepted = counts.get(Number(item.id))?.accepted ?? 0;
+
+    return {
+      id: Number(item.id),
+      title: locale === "en" ? item.title_en || item.title : item.title,
+      status: item.status ?? null,
+      published: Boolean(item.published),
+      countryCode: item.country_code ?? null,
+      postingMode,
+      createdAt: item.created_at ?? null,
+      // Legacy fields remain additive-compatible for existing mobile clients.
+      applications: responseCount,
+      accepted: rawAccepted,
+      // V3 semantic fields prevent Quick `accepted` from being presented as final acceptance.
+      responses: responseCount,
+      preliminarySelections: postingMode === "quick" ? rawAccepted : 0,
+      acceptedCasting: postingMode === "casting" ? rawAccepted : 0,
+    };
+  });
+
+  const approved = profile.approval_status === "approved";
+  const canCreate = approved;
+  const publisherType = publisher.publisher_type ?? null;
 
   return {
     ok: true as const,
@@ -77,17 +97,34 @@ export async function getMobilePublisherDashboard({ userId, locale }: { userId: 
       name: publisher.company_name || publisher.contact_name || profile.display_name || "MLAMH Publisher",
       city: publisher.city ?? null,
       countryCode: publisher.country_code ?? null,
+      publisherType,
       verified: Boolean(publisher.verified),
       verificationStatus: publisher.verification_status ?? null,
       approvalStatus: profile.approval_status ?? null,
       status: publisher.status ?? profile.status ?? null,
       imageUrl: publisher.profile_image_url ?? null,
+      capabilities: {
+        canCreate,
+        canCreateQuick: canCreate,
+        canCreateCasting: canCreate && publisherType !== "individual",
+      },
     },
     metrics: {
       opportunities: items.length,
       published: items.filter((item) => item.published).length,
+      // Legacy aggregate fields retained for existing clients.
       applications: items.reduce((sum, item) => sum + item.applications, 0),
       accepted: items.reduce((sum, item) => sum + item.accepted, 0),
+      // V3 semantic aggregates.
+      responses: items.reduce((sum, item) => sum + item.responses, 0),
+      quickInterests: items
+        .filter((item) => item.postingMode === "quick")
+        .reduce((sum, item) => sum + item.responses, 0),
+      preliminarySelections: items.reduce((sum, item) => sum + item.preliminarySelections, 0),
+      castingApplications: items
+        .filter((item) => item.postingMode === "casting")
+        .reduce((sum, item) => sum + item.responses, 0),
+      acceptedCasting: items.reduce((sum, item) => sum + item.acceptedCasting, 0),
     },
     opportunities: items,
   };
