@@ -54,7 +54,7 @@ export async function Opportunities({ locale }: { locale: Locale }) {
     ? "اكتشف من يبحث عن مواهب الآن، من الطلبات السريعة إلى فرص الكاستينغ."
     : "See who is looking for talent now, from quick requests to casting opportunities.";
 
-  const data = (await getPublishedOpportunities()).slice(0, 6);
+  const data = (await getPublishedOpportunities("SA", locale)).slice(0, 6);
   const mobileData = data.slice(0, 3);
 
   return (
