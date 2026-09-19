@@ -34,7 +34,7 @@ function active(row: EntitlementRow) {
 
 function formatDate(value: string | null, language: "ar" | "en") {
   if (!value) return "—";
-  return new Intl.DateTimeFormat(language === "ar" ? "ar-SA" : "en-US", {
+  return new Intl.DateTimeFormat(language === "ar" ? "ar-SA-u-ca-gregory-nu-latn" : "en-US", {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -48,7 +48,7 @@ function remainingDays(value: string | null) {
 
 function money(payment: PaymentRow | null, language: "ar" | "en") {
   if (!payment) return "—";
-  return new Intl.NumberFormat(language === "ar" ? "ar-SA" : "en-US", {
+  return new Intl.NumberFormat(language === "ar" ? "ar-SA-u-ca-gregory-nu-latn" : "en-US", {
     style: "currency",
     currency: payment.currency,
   }).format(minorToMajorAmount(payment.amount_minor, payment.currency));
@@ -95,8 +95,8 @@ export async function AdminTalentEntitlementsPanel({ talentId, language }: Props
   const activeRows = rows.filter(active);
 
   return (
-    <section dir={ar ? "rtl" : "ltr"} className="mx-auto mt-5 max-w-7xl px-4 sm:px-6 lg:px-8">
-      <div className="rounded-[1.75rem] border border-gold/20 bg-gold/[0.025] p-5 sm:p-6">
+    <section dir={ar ? "rtl" : "ltr"} className="mx-auto mt-5 max-w-[1540px] px-4 sm:px-6 lg:px-8">
+      <div className="rounded-2xl border border-gold/20 bg-gold/[0.025] p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-[10px] uppercase tracking-[0.35em] text-gold">{ar ? "الحساب التجاري" : "Commercial account"}</p>
@@ -105,7 +105,7 @@ export async function AdminTalentEntitlementsPanel({ talentId, language }: Props
               {ar ? "يمكن إيقاف الميزة أو إعادة تفعيلها إداريًا، مع بقاء سجل الدفع والإيراد محفوظًا بشكل مستقل." : "Benefits can be revoked or administratively reactivated while payment and revenue history remain intact."}
             </p>
           </div>
-          <Link href={`/admin/entitlements?lang=${language}`} className="rounded-full border border-white/10 px-4 py-2 text-xs text-white/60 transition hover:border-gold/30 hover:text-gold">
+          <Link href={`/admin/entitlements?lang=${language}`} className="inline-flex h-10 items-center justify-center rounded-lg border border-white/[0.08] px-4 text-xs font-medium text-white/55 transition hover:border-gold/20 hover:text-gold">
             {ar ? "فتح سجل الاشتراكات" : "Open subscriptions"}
           </Link>
         </div>
