@@ -44,9 +44,9 @@ export const metadata: Metadata = {
     "ملامح منصة سعودية تربط المواهب بالمشاريع والفرص المهنية في التمثيل والمودل، وتساعد الشركات والوكالات على اكتشاف المواهب المناسبة.",
   applicationName: "MLAMH",
   icons: {
-    icon: "/icon.png",
-    shortcut: "/icon.png",
-    apple: "/icon.png",
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
   },
   openGraph: {
     title: "MLAMH | ملامح — منصة المواهب والفرص",
@@ -92,7 +92,7 @@ const organizationStructuredData = {
   name: "MLAMH",
   alternateName: "ملامح",
   url: SITE_URL,
-  logo: `${SITE_URL}/icon.png`,
+  logo: `${SITE_URL}/brand/mlamh.svg`,
   description:
     "منصة سعودية تربط المواهب بفرص التمثيل والمودل وتساعد الشركات والوكالات وأصحاب المشاريع على اكتشاف المواهب المناسبة.",
 };
