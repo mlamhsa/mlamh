@@ -303,10 +303,16 @@ test("admin invitation state is stored in server-owned app metadata", async () =
         "admin_invited_at",
       ) &&
       actions.includes(
+        "admin_invite_status",
+      ) &&
+      actions.includes(
+        'inviteStatus ===\n      "pending"',
+      ) &&
+      actions.includes(
         "user?.app_metadata",
       ),
     true,
-    "admin invite lifecycle markers must use server-owned app_metadata",
+    "admin invite lifecycle markers and pending-state decisions must use explicit server-owned app_metadata",
   );
 
   assert.equal(
@@ -323,9 +329,39 @@ test("admin invitation state is stored in server-owned app metadata", async () =
   assert.equal(
     page.includes(
       ".app_metadata\n            ?.admin_invited_at",
-    ),
+    ) &&
+      page.includes(
+        ".app_metadata\n            ?.admin_invite_status",
+      ) &&
+      page.includes(
+        'authState?.inviteStatus ===\n          "pending"',
+      ),
     true,
-    "access center invite status must read the server-owned marker",
+    "access center must read the server-owned invite timestamp and explicit activation state",
+  );
+
+  const mfaRoute = await source(
+    "app/api/admin/security/mfa-event/route.ts",
+  );
+
+  assert.equal(
+    mfaRoute.includes(
+      "admin_invite_status",
+    ) &&
+      mfaRoute.includes(
+        '"completed"',
+      ) &&
+      mfaRoute.includes(
+        "admin_invite_completed_at",
+      ) &&
+      mfaRoute.includes(
+        "requireAdminAccess",
+      ) &&
+      mfaRoute.includes(
+        "complete_admin_invite",
+      ),
+    true,
+    "pending admin invites must transition to completed only from the successful AAL2 MFA path",
   );
 });
 
