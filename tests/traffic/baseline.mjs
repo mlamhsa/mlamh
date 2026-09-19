@@ -5,7 +5,7 @@ const target = new URL(baseUrl);
 const routes = [
   ["web.home", "/ar"],
   ["web.opportunities", "/ar/opportunities"],
-  ["web.talents", "/ar/talents"],
+  ["web.talents", "/ar/talent"],
   ["api.opportunities", "/api/opportunities?locale=ar&market=SA"],
 ];
 
