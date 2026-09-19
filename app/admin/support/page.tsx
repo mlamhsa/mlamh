@@ -1,6 +1,4 @@
 import Link from "next/link";
-import { Headphones } from "lucide-react";
-
 import { AdminPageContainer, AdminPageHeader, AdminStatCard } from "@/components/admin/ui";
 
 import { requireAdminAccess } from "@/lib/auth/require-admin";
