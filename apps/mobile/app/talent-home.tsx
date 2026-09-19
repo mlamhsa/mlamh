@@ -66,12 +66,12 @@ const ACTIONS: Action[] = [
     icon: BookOpen,
   },
   {
-    key: "account",
-    href: "/account",
-    titleAr: "الحساب والخصوصية",
-    titleEn: "Account & privacy",
-    bodyAr: "إدارة الجلسة وخيارات الحساب، بما فيها حذف الحساب نهائيًا من داخل التطبيق.",
-    bodyEn: "Manage your session and account controls, including permanent account deletion in the app.",
+    key: "profile",
+    href: "/profile",
+    titleAr: "ملفي المهني",
+    titleEn: "My talent profile",
+    bodyAr: "أكمل بياناتك وصورك وتابع نسبة الاكتمال ثم أرسل ملفك للمراجعة.",
+    bodyEn: "Complete your details and photos, track completion, then submit your profile for review.",
     icon: UserRound,
   },
 ];
