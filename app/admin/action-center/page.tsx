@@ -287,7 +287,6 @@ last_reminder_at:
     pendingPublishersResult,
     pendingPublisherVerificationsResult,
     pendingOpportunitiesResult,
-    reportedMessagesResult,
   ] = await Promise.all([
     /*
      * طلبات تعديل بيانات المواهب
@@ -428,11 +427,6 @@ adminClient
         },
       ),
 
-    adminClient
-      .from("messages")
-      .select("id", { count: "exact", head: true })
-      .not("reported_at", "is", null)
-      .is("report_reviewed_at", null),
   ]);
 
   if (
@@ -480,12 +474,6 @@ adminClient
     );
   }
 
-  if (reportedMessagesResult.error) {
-    console.error(
-      "[AdminActionCenterPage reportedMessages]",
-      reportedMessagesResult.error,
-    );
-  }
 
   const pendingRequests =
     (
@@ -582,9 +570,6 @@ adminClient
       []
     ) as PendingOpportunity[];
 
-  const reportedMessages = reportedMessagesResult.error
-    ? 0
-    : reportedMessagesResult.count ?? 0;
 
   /*
    * هذا الجزء خاص بطلبات تعديل
@@ -656,8 +641,7 @@ adminClient
     pendingTalents.length +
     pendingPublishers.length +
     pendingPublisherVerifications.length +
-    pendingOpportunities.length +
-    reportedMessages;
+    pendingOpportunities.length;
 
   const ArrowIcon =
     isArabic
@@ -683,7 +667,7 @@ adminClient
           }
         />
 
-        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <AdminStatCard
             label={isArabic ? "تسجيلات غير مكتملة" : "Incomplete registrations"}
             value={incompleteRegistrations.length}
@@ -706,12 +690,6 @@ adminClient
             label={isArabic ? "الفرص للمراجعة" : "Opportunity reviews"}
             value={pendingOpportunities.length}
             active={pendingOpportunities.length > 0}
-          />
-          <AdminStatCard
-            href={withAdminLanguage("/admin/messages?reported=1", language)}
-            label={isArabic ? "بلاغات المحادثات" : "Conversation reports"}
-            value={reportedMessages}
-            active={reportedMessages > 0}
           />
         </section>
 
