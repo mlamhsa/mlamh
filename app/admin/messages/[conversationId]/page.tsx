@@ -137,7 +137,7 @@ function formatDate(
   }
 
   return new Intl.DateTimeFormat(
-    "ar-SA",
+    "ar-SA-u-ca-gregory-nu-latn",
     {
       year: "numeric",
       month: "short",
