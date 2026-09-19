@@ -4,6 +4,7 @@ import { SlidersHorizontal } from "lucide-react";
 import { NationalityCombobox } from "@/components/talent-dashboard/NationalityCombobox";
 import { SAUDI_CITIES } from "@/lib/data/saudi-cities";
 import { TALENT_CATEGORIES } from "@/lib/data/talent-categories";
+import { MODEL_TYPE_CHOICES } from "@/lib/data/talent-professional-options";
 import type { Locale } from "@/lib/i18n";
 import { talentPath } from "@/lib/utils/routes";
 
@@ -18,6 +19,7 @@ type TalentFiltersProps = {
   ageMax?: string;
   heightMin?: string;
   heightMax?: string;
+  modelType?: string;
 };
 
 export function TalentFilters({
@@ -31,6 +33,7 @@ export function TalentFilters({
   ageMax,
   heightMin,
   heightMax,
+  modelType,
 }: TalentFiltersProps) {
   const isRtl = locale === "ar";
   const advancedActive = Boolean(
@@ -39,7 +42,8 @@ export function TalentFilters({
       ageMin?.trim() ||
       ageMax?.trim() ||
       heightMin?.trim() ||
-      heightMax?.trim(),
+      heightMax?.trim() ||
+      modelType?.trim(),
   );
   const hasFilters = Boolean(q?.trim() || category?.trim() || city?.trim() || advancedActive);
 
@@ -185,6 +189,22 @@ export function TalentFilters({
                 />
               </div>
             </div>
+
+            {category === "model" ? (
+              <label className="grid gap-2 sm:col-span-2 lg:col-span-1">
+                <span className="text-xs text-white/45">
+                  {isRtl ? "تخصص المودل" : "Model specialization"}
+                </span>
+                <select name="modelType" defaultValue={modelType ?? ""} className={fieldClass}>
+                  <option value="">{isRtl ? "كل تخصصات المودل" : "All model specializations"}</option>
+                  {MODEL_TYPE_CHOICES.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {isRtl ? option.ar : option.en}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
 
             <div className="flex items-end gap-2 sm:col-span-2">
               <button
