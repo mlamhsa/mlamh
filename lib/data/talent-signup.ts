@@ -237,10 +237,10 @@ export const PROFILE_VISIBILITY_OPTIONS = [
   },
   {
     value: "verified_publishers",
-    ar: "للناشرين الموثقين فقط",
-    en: "Verified publishers only",
-    descriptionAr: "لن يظهر ملفك في دليل المواهب العام. يمكن فقط للناشرين الموثقين في ملامح فتح ملفك عند الوصول إليه من المطابقة أو الدعوات المناسبة.",
-    descriptionEn: "Your profile will stay out of the public talent directory. Only verified MLAMH publishers can open it through relevant matching or invitations.",
+    ar: "للناشرين المعتمدين فقط",
+    en: "Approved publishers only",
+    descriptionAr: "لن يظهر ملفك في دليل المواهب العام. يمكن للجهات الموثقة، وكذلك الأفراد وأصحاب المشاريع المعتمدين الذين لديهم فرصة سريعة نشطة، فتحه من المطابقة أو الدعوات المناسبة.",
+    descriptionEn: "Your profile stays out of the public talent directory. Verified organizations and approved individual or small-business publishers with an active Quick Opportunity can open it through relevant matching or invitations.",
   },
   {
     value: "private",
