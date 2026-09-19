@@ -184,7 +184,7 @@ export default function TalentProfilePrivacyPage({ params }: { params: Promise<{
 
           {!loading && !visibility ? (
             <p className="mt-4 text-xs leading-6 text-amber-100/80">
-              {isArabic ? "لم يتم تحديد إعداد ظهور لهذا الملف بعد. اختر عام أو خاص ثم احفظ الإعداد." : "No visibility setting has been selected for this profile yet. Choose Public or Private, then save."}
+              {isArabic ? "لم يتم تحديد إعداد ظهور لهذا الملف بعد. اختر طريقة الظهور المناسبة ثم احفظ الإعداد." : "No visibility setting has been selected for this profile yet. Choose the visibility option that fits you, then save."}
             </p>
           ) : null}
 
