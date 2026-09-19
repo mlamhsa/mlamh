@@ -17,7 +17,7 @@ export async function updateOwnTalentProfileVisibilityAction(
   const isArabic = locale === "ar";
   const visibility = String(formData.get("profile_visibility") ?? "").trim().toLowerCase();
 
-  if (visibility !== "public" && visibility !== "private") {
+  if (visibility !== "public" && visibility !== "verified_publishers" && visibility !== "private") {
     return {
       success: false,
       message: isArabic ? "اختر طريقة ظهور الملف." : "Choose your profile visibility.",
