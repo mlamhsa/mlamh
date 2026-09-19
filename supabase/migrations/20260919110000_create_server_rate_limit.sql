@@ -10,7 +10,8 @@ create table if not exists public.server_rate_limits (
 
 alter table public.server_rate_limits enable row level security;
 
-revoke all on table public.server_rate_limits from anon, authenticated;
+revoke all on table public.server_rate_limits from public, anon, authenticated;
+grant select, insert, update on table public.server_rate_limits to service_role;
 
 create or replace function public.consume_support_rate_limit(
   p_key_hash text,
@@ -23,7 +24,7 @@ returns table (
   retry_after_seconds integer
 )
 language plpgsql
-security definer
+security invoker
 set search_path = public
 as $$
 declare
