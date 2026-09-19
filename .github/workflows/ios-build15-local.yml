@@ -2,6 +2,11 @@ name: iOS TestFlight Release Gate
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - feat/mobile-native-v3-foundation
+    paths:
+      - ".github/testflight-release-request"
 
 permissions:
   contents: read
