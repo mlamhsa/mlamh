@@ -62,8 +62,10 @@ export default async function AdminIntelligencePage({ searchParams }: PageProps)
   const executive = overview.executiveBrief;
 
   return (
-    <AdminPageContainer>
+    <div dir={isArabic ? "rtl" : "ltr"}>
+      <AdminPageContainer>
       <AdminPageHeader
+        eyebrow={isArabic ? "النمو والذكاء" : "GROWTH & INTELLIGENCE"}
         title="MLAMH AI Command Center"
         description={
           isArabic
@@ -347,6 +349,7 @@ export default async function AdminIntelligencePage({ searchParams }: PageProps)
         {isArabic ? "آخر توليد: " : "Generated: "}
         <span dir="ltr">{overview.generatedAt}</span>
       </p>
-    </AdminPageContainer>
+      </AdminPageContainer>
+    </div>
   );
 }
