@@ -150,21 +150,21 @@ function OpportunityCard({
 
       <View style={[styles.companyRow, isArabic ? styles.rowRtl : styles.rowLtr]}>
         <Building2 size={13} color="rgba(201,169,98,0.68)" />
-        <Text numberOfLines={1} style={styles.company}>{item.companyName}</Text>
+        <Text numberOfLines={1} style={[styles.company, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{item.companyName}</Text>
       </View>
 
       <View style={styles.infoGrid}>
         <View style={styles.infoCard}>
           <View style={[styles.infoLabelRow, isArabic ? styles.rowRtl : styles.rowLtr]}>
             <MapPin size={11} color="rgba(201,169,98,0.65)" />
-            <Text style={styles.infoLabel}>{isArabic ? "الموقع" : "Location"}</Text>
+            <Text style={[styles.infoLabel, { writingDirection: isArabic ? "rtl" : "ltr" }]}>{isArabic ? "الموقع" : "Location"}</Text>
           </View>
           <Text numberOfLines={1} style={[styles.infoValue, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{item.city || "-"}</Text>
         </View>
         <View style={styles.infoCard}>
           <View style={[styles.infoLabelRow, isArabic ? styles.rowRtl : styles.rowLtr]}>
             <Wallet size={11} color="rgba(201,169,98,0.65)" />
-            <Text style={styles.infoLabel}>{isArabic ? "المقابل" : "Compensation"}</Text>
+            <Text style={[styles.infoLabel, { writingDirection: isArabic ? "rtl" : "ltr" }]}>{isArabic ? "المقابل" : "Compensation"}</Text>
           </View>
           <Text numberOfLines={1} style={[styles.infoValue, { textAlign: align, writingDirection: isArabic ? "rtl" : "ltr" }]}>{formatCompensation(item, isArabic)}</Text>
         </View>
