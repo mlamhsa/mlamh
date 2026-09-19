@@ -22,6 +22,7 @@ import {
   type TalentQualificationInput,
 } from "@/lib/talent/qualification";
 import type { Talent } from "@/lib/types/talent";
+import { buildTalentBriefFromOpportunity, evaluateTalentForBrief } from "@/lib/talent/supply";
 
 type GetPublicTalentsOptions = {
   page?: number;
@@ -527,19 +528,22 @@ export async function getPublishedTalentBySlugForViewer(
 
     const individualTypes = new Set(["individual", "salon", "store", "photographer", "marketer"]);
     if (publisher?.id && individualTypes.has(String(publisher.publisher_type ?? "").trim().toLowerCase())) {
-      const { data: quickOpportunity, error: quickOpportunityError } = await adminClient
+      const { data: quickOpportunities, error: quickOpportunityError } = await adminClient
         .from("opportunities")
-        .select("id")
+        .select("id, opportunity_type, country_code, city_slug, required_gender, required_count, role_requirements")
         .eq("publisher_id", publisher.id)
         .eq("posting_mode", "quick")
         .eq("published", true)
-        .in("status", ["published", "open"])
-        .limit(1)
-        .maybeSingle();
+        .in("status", ["published", "open"]);
       if (quickOpportunityError) {
         console.error("[getPublishedTalentBySlugForViewer:quickOpportunity]", quickOpportunityError);
       }
-      hasActiveQuickOpportunity = Boolean(quickOpportunity);
+      hasActiveQuickOpportunity = (quickOpportunities ?? []).some((opportunity) =>
+        evaluateTalentForBrief(
+          candidate,
+          buildTalentBriefFromOpportunity(opportunity),
+        ).sendable,
+      );
     }
   }
 
