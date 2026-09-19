@@ -53,15 +53,29 @@ export const ACTOR_SKILL_CHOICES: TalentProfessionalChoice[] = [
 export const MODEL_TYPE_CHOICES: TalentProfessionalChoice[] = [
   { value: "commercial", ar: "إعلاني", en: "Commercial" },
   { value: "fashion", ar: "أزياء", en: "Fashion" },
+  { value: "runway", ar: "عروض أزياء", en: "Runway" },
   { value: "beauty", ar: "جمال", en: "Beauty" },
-  { value: "product", ar: "منتجات", en: "Product" },
+  { value: "fitness", ar: "رياضي / لياقة", en: "Fitness" },
+  { value: "fit", ar: "قياسات الملابس", en: "Fit model" },
+  { value: "promotional", ar: "ترويجي / فعاليات", en: "Promotional" },
+  { value: "ecommerce", ar: "متاجر إلكترونية / كتالوج", en: "E-commerce / Catalog" },
   { value: "lifestyle", ar: "لايف ستايل", en: "Lifestyle" },
-  { value: "ecommerce", ar: "متاجر إلكترونية", en: "E-commerce" },
-  { value: "fitness", ar: "لياقة", en: "Fitness" },
-  { value: "runway", ar: "منصة عرض", en: "Runway" },
-  { value: "hand", ar: "مودل يد", en: "Hand model" },
-  { value: "hair", ar: "مودل شعر", en: "Hair model" },
+  { value: "product", ar: "منتجات", en: "Product" },
+  { value: "hand", ar: "أجزاء الجسم — يد", en: "Parts — Hand" },
+  { value: "foot", ar: "أجزاء الجسم — قدم", en: "Parts — Foot" },
+  { value: "legs", ar: "أجزاء الجسم — ساق", en: "Parts — Legs" },
+  { value: "hair", ar: "أجزاء الجسم — شعر", en: "Parts — Hair" },
+  { value: "eyes", ar: "أجزاء الجسم — عيون", en: "Parts — Eyes" },
+  { value: "smile", ar: "أجزاء الجسم — ابتسامة / أسنان", en: "Parts — Smile / Teeth" },
 ];
+
+export const MODEL_PARTS_TYPE_VALUES = new Set(["hand", "foot", "legs", "hair", "eyes", "smile"]);
+
+export function getModelTypeLabel(value: string, locale: "ar" | "en") {
+  const option = MODEL_TYPE_CHOICES.find((item) => item.value === value);
+  if (option) return locale === "ar" ? option.ar : option.en;
+  return value.replaceAll("_", " ");
+}
 
 export const EYE_COLOR_CHOICES: TalentProfessionalChoice[] = [
   { value: "brown", ar: "بني", en: "Brown" },

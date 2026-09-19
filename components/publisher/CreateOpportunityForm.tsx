@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { SAUDI_CITIES } from "@/lib/data/saudi-cities";
+import { MODEL_TYPE_CHOICES } from "@/lib/data/talent-professional-options";
 
 const saudiCities = SAUDI_CITIES.map((city) => ({
   value: city.slug,
@@ -26,13 +27,7 @@ const actorDialectOptions = [
   { value: "gulf", ar: "خليجي", en: "Gulf" },
 ];
 
-const modelingTypeOptions = [
-  { value: "commercial", ar: "إعلاني", en: "Commercial" },
-  { value: "fashion", ar: "أزياء", en: "Fashion" },
-  { value: "beauty", ar: "جمال", en: "Beauty" },
-  { value: "lifestyle", ar: "لايف ستايل", en: "Lifestyle" },
-  { value: "ecommerce", ar: "متاجر إلكترونية", en: "E-commerce" },
-];
+const modelingTypeOptions = MODEL_TYPE_CHOICES;
 
 const hairColorOptions = [
   { value: "black", ar: "أسود", en: "Black" },

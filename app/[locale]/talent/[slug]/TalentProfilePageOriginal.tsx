@@ -10,6 +10,7 @@ import { PublisherTalentInvitePanel } from "@/components/publisher/PublisherTale
 
 import { getCurrentAccountType } from "@/lib/auth/get-current-account-type";
 import { isValidLocale, type Locale } from "@/lib/i18n";
+import { getModelTypeLabel } from "@/lib/data/talent-professional-options";
 import { buildTalentMetadata } from "@/lib/seo/talent-metadata";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
@@ -361,6 +362,11 @@ export default async function TalentProfilePage({ params }: PageProps) {
   const languages = translateTalentValues(locale, "language", talent.languages);
   const dialects = translateTalentValues(locale, "dialect", talent.dialects);
   const skills = translateTalentValues(locale, "skill", talent.skills);
+  const modelSpecializations = Array.isArray(talent.modeling_types)
+    ? talent.modeling_types
+        .filter((value): value is string => typeof value === "string" && Boolean(value.trim()))
+        .map((value) => getModelTypeLabel(value, locale))
+    : [];
 
   const availabilityMap: Record<string, string> = {
     available_now: isRtl ? "متاح حاليًا" : "Available Now",
@@ -655,6 +661,19 @@ export default async function TalentProfilePage({ params }: PageProps) {
                   { label: isRtl ? "الجنس" : "Gender", value: gender },
                 ].filter((item) => hasDisplayValue(item.value))}
               />
+
+              {modelSpecializations.length > 0 ? (
+                <ContentCard
+                  eyebrow={isRtl ? "تخصصات المودل" : "Model Specializations"}
+                  title={isRtl ? "مجالات العمل" : "Areas of work"}
+                  isRtl={isRtl}
+                >
+                  <TagGroup
+                    title={isRtl ? "التخصصات" : "Specializations"}
+                    values={modelSpecializations}
+                  />
+                </ContentCard>
+              ) : null}
 
               {languages.length > 0 ||
               dialects.length > 0 ||
