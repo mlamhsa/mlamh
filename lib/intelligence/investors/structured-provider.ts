@@ -8,7 +8,7 @@ import {
 } from "@/lib/marketing/ai/provider";
 
 const INVESTOR_WORKFLOW = "investor_discovery_v1";
-const DEFAULT_INVESTOR_MODELS = ["poolside/laguna-s-2.1-free", "inclusionai/ling-3.0-tiny-free"] as const;
+const DEFAULT_INVESTOR_MODELS = ["poolside/laguna-s-2.1-free", "inclusionai/ling-3.0-flash-vl-free"] as const;
 
 function investorModels() {
   const configured = process.env.INVESTOR_AI_MODELS?.split(",").map((value) => value.trim()).filter(Boolean) ?? [];
