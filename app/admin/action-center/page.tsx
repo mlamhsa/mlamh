@@ -131,6 +131,9 @@ export default async function AdminActionCenterPage({
   const resolvedSearchParams =
     await searchParams;
 
+  const incompletePageRaw =
+    resolvedSearchParams.incomplete_page;
+
   const language =
     getAdminLanguage(
       resolvedSearchParams.lang,
