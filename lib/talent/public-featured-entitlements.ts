@@ -1,3 +1,5 @@
+import { unstable_cache } from "next/cache";
+
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Talent } from "@/lib/types/talent";
 
@@ -18,6 +20,29 @@ function isActiveFeaturedEntitlement(row: FeaturedEntitlementRow, now: number) {
   return row.status === "active" && !row.revoked_at && isActiveWindow(row, now);
 }
 
+const loadFeaturedEntitlementRows = unstable_cache(
+  async (targetIds: string[]) => {
+    const adminClient = createAdminClient();
+    const { data, error } = await adminClient
+      .from("entitlements")
+      .select("target_id, status, revoked_at, starts_at, expires_at")
+      .eq("target_type", "talent")
+      .eq("entitlement_code", "featured_talent")
+      .in("target_id", targetIds);
+
+    if (error) {
+      throw new Error(`[loadFeaturedEntitlementState] ${error.message}`);
+    }
+
+    return (data ?? []) as FeaturedEntitlementRow[];
+  },
+  ["featured-talent-entitlements-v1"],
+  {
+    revalidate: 30,
+    tags: ["featured-talent-entitlements"],
+  },
+);
+
 async function loadFeaturedEntitlementState<T extends Talent>(talents: T[]) {
   if (talents.length === 0) {
     return {
@@ -27,21 +52,16 @@ async function loadFeaturedEntitlementState<T extends Talent>(talents: T[]) {
   }
 
   const targetIds = talents.map((talent) => String(talent.id));
-  const adminClient = createAdminClient();
-  const { data, error } = await adminClient
-    .from("entitlements")
-    .select("target_id, status, revoked_at, starts_at, expires_at")
-    .eq("target_type", "talent")
-    .eq("entitlement_code", "featured_talent")
-    .in("target_id", targetIds);
 
-  if (error) {
+  let rows: FeaturedEntitlementRow[];
+  try {
+    rows = await loadFeaturedEntitlementRows(targetIds);
+  } catch (error) {
     console.error("[loadFeaturedEntitlementState]", error);
     return null;
   }
 
   const now = Date.now();
-  const rows = (data ?? []) as FeaturedEntitlementRow[];
   const managedIds = new Set(
     rows
       .filter((row) => row.target_id)

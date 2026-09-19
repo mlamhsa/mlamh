@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { getOpportunities } from "@/lib/api/opportunities";
 import { isCountryCode } from "@/lib/markets/countries";
 
+const PUBLIC_CACHE_CONTROL = "public, s-maxage=30, stale-while-revalidate=300";
+
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const requestedMarket = (url.searchParams.get("market") ?? "SA")
@@ -27,5 +29,9 @@ export async function GET(request: Request) {
     locale,
   });
 
-  return NextResponse.json(data);
+  return NextResponse.json(data, {
+    headers: {
+      "Cache-Control": PUBLIC_CACHE_CONTROL,
+    },
+  });
 }

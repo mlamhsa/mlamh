@@ -1,3 +1,5 @@
+import { unstable_cache } from "next/cache";
+
 import type { CountryCode } from "@/lib/markets/countries";
 import { canExposePublicMarket, canExposePublicRecord } from "@/lib/markets/public-access";
 import { compareFeaturedThenNewest } from "@/lib/opportunities/featured";
@@ -16,25 +18,35 @@ function applyMarketFilter<T extends { or: Function; eq: Function }>(query: T, c
   return (countryCode === "SA" ? query.or("country_code.eq.SA,country_code.is.null") : query.eq("country_code", countryCode)) as T;
 }
 
+const getCachedPublicOpportunities = unstable_cache(
+  async (countryCode: CountryCode, locale: "ar" | "en"): Promise<PublicOpportunitiesResponse> => {
+    const supabase = createAdminClient();
+    let query = supabase.from("opportunities").select(PUBLIC_OPPORTUNITY_SELECT).eq("published", true).in("status", [...PUBLISHED_STATUSES]);
+    query = applyMarketFilter(query, countryCode);
+    const { data, error } = await query.order("created_at", { ascending: false });
+    if (error) {
+      console.error("[getPublicOpportunities]", error);
+      return { items: [], market: countryCode, locale };
+    }
+
+    const rows = (data ?? []) as PublicOpportunityRow[];
+    const items = rows
+      .filter((row) => canExposePublicRecord(row, countryCode, "publicOpportunities"))
+      .sort(compareFeaturedThenNewest)
+      .map((row) => toPublicOpportunity(row, locale));
+    return { items, market: countryCode, locale };
+  },
+  ["public-opportunities-v1"],
+  {
+    revalidate: 30,
+    tags: ["public-opportunities"],
+  },
+);
+
 export async function getPublicOpportunities(input: PublicOpportunitiesInput): Promise<PublicOpportunitiesResponse> {
   const { countryCode, locale } = input;
   if (!canExposePublicMarket(countryCode, "publicOpportunities")) return { items: [], market: countryCode, locale };
-
-  const supabase = createAdminClient();
-  let query = supabase.from("opportunities").select(PUBLIC_OPPORTUNITY_SELECT).eq("published", true).in("status", [...PUBLISHED_STATUSES]);
-  query = applyMarketFilter(query, countryCode);
-  const { data, error } = await query.order("created_at", { ascending: false });
-  if (error) {
-    console.error("[getPublicOpportunities]", error);
-    return { items: [], market: countryCode, locale };
-  }
-
-  const rows = (data ?? []) as PublicOpportunityRow[];
-  const items = rows
-    .filter((row) => canExposePublicRecord(row, countryCode, "publicOpportunities"))
-    .sort(compareFeaturedThenNewest)
-    .map((row) => toPublicOpportunity(row, locale));
-  return { items, market: countryCode, locale };
+  return getCachedPublicOpportunities(countryCode, locale);
 }
 
 export async function getPublicOpportunityByIdentifier(input: PublicOpportunityDetailInput): Promise<PublicOpportunity | null> {
