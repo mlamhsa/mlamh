@@ -287,6 +287,49 @@ test("platform admin audit metadata stays sanitized before persistence", async (
 });
 
 
+test("admin invitation state is stored in server-owned app metadata", async () => {
+  const actions = await source(
+    "lib/actions/admin-access-actions.ts",
+  );
+  const page = await source(
+    "app/admin/admins/page.tsx",
+  );
+
+  assert.equal(
+    actions.includes(
+      "app_metadata: {",
+    ) &&
+      actions.includes(
+        "admin_invited_at",
+      ) &&
+      actions.includes(
+        "user?.app_metadata",
+      ),
+    true,
+    "admin invite lifecycle markers must use server-owned app_metadata",
+  );
+
+  assert.equal(
+    actions.includes(
+      "user?.user_metadata",
+    ) ||
+      page.includes(
+        ".user_metadata\n            ?.admin_invited_at",
+      ),
+    false,
+    "pending admin invite decisions must not rely on user-editable user_metadata",
+  );
+
+  assert.equal(
+    page.includes(
+      ".app_metadata\n            ?.admin_invited_at",
+    ),
+    true,
+    "access center invite status must read the server-owned marker",
+  );
+});
+
+
 test("admin invitation lifecycle keeps activation and resend safeguards", async () => {
   const text = await source(
     "lib/actions/admin-access-actions.ts",
