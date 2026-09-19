@@ -1,7 +1,5 @@
 import Image from "next/image";
 import Link from "next/link";
-
-import { AdminPageContainer, AdminPageHeader, AdminStatCard } from "@/components/admin/ui";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -335,50 +333,95 @@ export default async function AdminTalentsPage({
   ];
 
   return (
-    <div dir={isArabic ? "rtl" : "ltr"}>
-      <AdminPageContainer>
-        <AdminPageHeader
-          eyebrow={isArabic ? "التشغيل · الحسابات" : "OPERATIONS · ACCOUNTS"}
-          title={isArabic ? "المواهب" : "Talents"}
-          description={
-            isArabic
-              ? "إدارة ملفات المواهب ومراجعة الاعتماد والنشر والخصوصية وجودة البيانات من مكان واحد."
-              : "Manage talent profiles, approval, publishing, privacy, and data quality from one workspace."
-          }
-        />
+    <div
+      dir={isArabic ? "rtl" : "ltr"}
+      className="min-h-screen px-4 py-6 sm:px-6 lg:px-8"
+    >
+      <div className="mx-auto max-w-7xl">
+        <section className="rounded-3xl border border-white/[0.08] bg-white/[0.02] p-5 sm:p-6">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <div className="flex items-center gap-2 text-gold">
+                <Users className="h-4 w-4" />
+                <p className="text-[10px] uppercase tracking-[0.25em]">
+                  {isArabic ? "إدارة الحسابات" : "Account Management"}
+                </p>
+              </div>
 
-        <section className="grid gap-3 sm:grid-cols-3">
-          <AdminStatCard
-            href={buildAdminTalentsUrl({ language, search, visibility })}
-            label={isArabic ? "إجمالي المواهب" : "Total talents"}
-            value={stats.total}
-            active={!status && !review && !ops}
-          />
-          <AdminStatCard
-            href={buildAdminTalentsUrl({
-              language,
-              status: "published",
-              search,
-              visibility,
-            })}
-            label={isArabic ? "منشورة" : "Published"}
-            value={stats.published}
-            active={status === "published" && !review && !ops}
-          />
-          <AdminStatCard
-            href={buildAdminTalentsUrl({
-              language,
-              review: "pending",
-              search,
-              visibility,
-            })}
-            label={isArabic ? "قيد المراجعة" : "Under review"}
-            value={pendingReviewCount}
-            active={review === "pending"}
-          />
+              <h1 className="mt-3 text-3xl font-light text-white sm:text-4xl">
+                {isArabic ? "المواهب" : "Talents"}
+              </h1>
+
+              <p className="mt-2 max-w-2xl text-sm leading-7 text-white/40">
+                {isArabic
+                  ? "إدارة ملفات المواهب ومراجعة حالة الاعتماد والنشر والخصوصية والحساب."
+                  : "Manage talent profiles, approval, publishing, privacy, and account state."}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <Link
+                href={buildAdminTalentsUrl({ language, search, visibility })}
+                className={`group rounded-2xl border px-4 py-3 transition ${
+                  !status && !review && !ops
+                    ? "border-gold/30 bg-gold/[0.08]"
+                    : "border-white/[0.08] bg-black/20 hover:border-gold/25 hover:bg-gold/[0.04]"
+                }`}
+              >
+                <p className="text-[10px] text-white/30 group-hover:text-gold/70">
+                  {isArabic ? "إجمالي المواهب" : "Total talents"}
+                </p>
+                <p className="mt-1 text-2xl font-light text-white">
+                  {stats.total}
+                </p>
+              </Link>
+
+              <Link
+                href={buildAdminTalentsUrl({
+                  language,
+                  status: "published",
+                  search,
+                  visibility,
+                })}
+                className={`group rounded-2xl border px-4 py-3 transition ${
+                  status === "published" && !review && !ops
+                    ? "border-emerald-400/35 bg-emerald-400/[0.09]"
+                    : "border-emerald-400/15 bg-emerald-400/[0.04] hover:border-emerald-400/35 hover:bg-emerald-400/[0.08]"
+                }`}
+              >
+                <p className="text-[10px] text-white/30 group-hover:text-emerald-300/70">
+                  {isArabic ? "منشورة" : "Published"}
+                </p>
+                <p className="mt-1 text-2xl font-light text-emerald-300">
+                  {stats.published}
+                </p>
+              </Link>
+
+              <Link
+                href={buildAdminTalentsUrl({
+                  language,
+                  review: "pending",
+                  search,
+                  visibility,
+                })}
+                className={`group rounded-2xl border px-4 py-3 transition ${
+                  review === "pending"
+                    ? "border-amber-400/35 bg-amber-400/[0.09]"
+                    : "border-amber-400/15 bg-amber-400/[0.04] hover:border-amber-400/35 hover:bg-amber-400/[0.08]"
+                }`}
+              >
+                <p className="text-[10px] text-white/30 group-hover:text-amber-300/70">
+                  {isArabic ? "قيد المراجعة" : "Under review"}
+                </p>
+                <p className="mt-1 text-2xl font-light text-amber-300">
+                  {pendingReviewCount}
+                </p>
+              </Link>
+            </div>
+          </div>
         </section>
 
-        <section className="mt-5 rounded-3xl border border-white/[0.08] bg-white/[0.02] p-4 sm:p-5">
+        <section className="mt-6 rounded-3xl border border-white/[0.08] bg-white/[0.02] p-4 sm:p-5">
           <form method="get" className="flex flex-col gap-3 sm:flex-row">
             <input type="hidden" name="lang" value={language} />
             {status ? (
@@ -903,7 +946,7 @@ export default async function AdminTalentsPage({
             ) : null}
           </div>
         ) : null}
-      </AdminPageContainer>
+      </div>
     </div>
   );
 }
