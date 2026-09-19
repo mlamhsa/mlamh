@@ -916,6 +916,38 @@ test("Super Admin privilege boundary changes require explicit confirmation", asy
 });
 
 
+test("admin audit CSV export escapes spreadsheet formula triggers", async () => {
+  const route = await source(
+    "app/api/admin/audit/export/route.ts",
+  );
+
+  for (const trigger of [
+    "\\t",
+    "\\r",
+    "\\n",
+    "\\0",
+    "\\uFF1D",
+    "\\uFF0B",
+    "\\uFF0D",
+    "\\uFF20",
+  ]) {
+    assert.equal(
+      route.includes(trigger),
+      true,
+      `audit CSV sanitizer must protect ${trigger} formula/control prefixes`,
+    );
+  }
+
+  assert.equal(
+    route.includes(
+      "formulaSafe.replaceAll",
+    ),
+    true,
+    "audit CSV cells must continue escaping embedded quotes after formula neutralization",
+  );
+});
+
+
 test("audit log keeps server-side pagination and exact actor scoping", async () => {
   const page = await source(
     "app/admin/audit-log/page.tsx",
