@@ -148,17 +148,15 @@ const isRtl = language === "ar";
   };
 
   return (
-    <div dir={isRtl ? "rtl" : "ltr"}>
-      <AdminPageContainer>
+    <AdminPageContainer>
         <AdminPageHeader
-          eyebrow={isRtl ? "التشغيل" : "OPERATIONS"}
-          title={isRtl ? "طلبات التقديم" : "Applications"}
-          description={
-            isRtl
-              ? "راجع طلبات المواهب، وأضفها للقائمة المختصرة، ثم اقبلها أو ارفضها."
-              : "Review, shortlist, accept, and reject talent applications."
-          }
-        />
+  title={isRtl ? "طلبات الفرص" : "Opportunity Applications"}
+  description={
+    isRtl
+      ? "راجع طلبات المواهب، وأضفها للقائمة المختصرة، ثم اقبلها أو ارفضها."
+      : "Review, shortlist, accept, and reject talent applications."
+  }
+/>
 
 <AdminGrid className="mb-8 md:grid-cols-5">
   <AdminStatCard
@@ -495,6 +493,5 @@ const isRtl = language === "ar";
           </AdminGrid>
         )}
       </AdminPageContainer>
-    </div>
   );
 }
