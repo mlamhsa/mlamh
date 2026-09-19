@@ -290,12 +290,19 @@ function getPendingAdminInviteState(
       ? user.app_metadata
           .admin_invited_at
       : null;
+  const inviteStatus =
+    typeof user?.app_metadata
+      ?.admin_invite_status ===
+    "string"
+      ? user.app_metadata
+          .admin_invite_status
+      : null;
 
   return {
     invitedAt,
     pending:
-      Boolean(invitedAt) &&
-      !user?.last_sign_in_at,
+      inviteStatus ===
+      "pending",
   };
 }
 
@@ -645,6 +652,8 @@ export async function inviteAdminAction(
         admin_invited_by:
           actor.id,
         admin_invited_at: now,
+        admin_invite_status:
+          "pending",
       },
     },
   );
