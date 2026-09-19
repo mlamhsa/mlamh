@@ -163,7 +163,7 @@ export default async function AdminSettingsPage({ searchParams }: PageProps) {
         </div>
       </section>
 
-      <section className="mt-7 overflow-hidden rounded-[1.5rem] border border-white/10 bg-white/[0.025] sm:rounded-[2rem]">
+      <section className="mt-7 overflow-hidden rounded-2xl border border-white/[0.075] bg-white/[0.022]">
         <div className="border-b border-white/10 px-4 py-4 sm:px-5">
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-gold" />
