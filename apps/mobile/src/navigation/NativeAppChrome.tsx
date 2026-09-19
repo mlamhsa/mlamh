@@ -60,6 +60,7 @@ export function NativeAppChrome({ children }: PropsWithChildren) {
   const isArabic = locale === "ar";
   const hideAll = HIDE_ALL.has(pathname);
   const hideBottom = HIDE_BOTTOM.has(pathname);
+  const isAuthenticatedAppAccount = session.status === "talent" || session.status === "publisher";
 
   useEffect(() => {
     setNavigating(false);
@@ -113,7 +114,7 @@ export function NativeAppChrome({ children }: PropsWithChildren) {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={isArabic ? "الحساب" : "Account"}
-            onPress={() => navigate(session.status === "guest" ? "/login" : "/account")}
+            onPress={() => navigate(isAuthenticatedAppAccount ? "/account" : "/login")}
             style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
           >
             <Grid2X2 size={22} color={colors.textSecondary} strokeWidth={1.8} />
@@ -207,7 +208,7 @@ export function NativeAppChrome({ children }: PropsWithChildren) {
 
             <DrawerLink label={isArabic ? "المواهب" : "Talents"} icon={UsersRound} onPress={() => { setMenuOpen(false); navigate("/talents"); }} isArabic={isArabic} />
             <DrawerLink label={isArabic ? "الفرص" : "Opportunities"} icon={BriefcaseBusiness} onPress={() => { setMenuOpen(false); navigate("/opportunities"); }} isArabic={isArabic} />
-            {session.status === "guest" ? (
+            {!isAuthenticatedAppAccount ? (
               <DrawerLink label={isArabic ? "للناشرين" : "For Publishers"} icon={Grid2X2} onPress={() => { setMenuOpen(false); navigate("/publishers"); }} isArabic={isArabic} />
             ) : (
               <DrawerLink label={isArabic ? "الرسائل" : "Messages"} icon={MessageCircle} onPress={() => { setMenuOpen(false); navigate("/messages"); }} isArabic={isArabic} />
@@ -224,9 +225,9 @@ export function NativeAppChrome({ children }: PropsWithChildren) {
               isArabic={isArabic}
             />
             <DrawerLink
-              label={session.status === "guest" ? (isArabic ? "تسجيل الدخول" : "Sign in") : (isArabic ? "حسابي" : "Account")}
-              icon={session.status === "guest" ? LogIn : User}
-              onPress={() => { setMenuOpen(false); navigate(session.status === "guest" ? "/login" : "/account"); }}
+              label={!isAuthenticatedAppAccount ? (isArabic ? "تسجيل الدخول" : "Sign in") : (isArabic ? "حسابي" : "Account")}
+              icon={!isAuthenticatedAppAccount ? LogIn : User}
+              onPress={() => { setMenuOpen(false); navigate(isAuthenticatedAppAccount ? "/account" : "/login"); }}
               isArabic={isArabic}
             />
           </View>
