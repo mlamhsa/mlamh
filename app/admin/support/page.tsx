@@ -129,7 +129,7 @@ export default async function AdminSupportPage({ searchParams }: PageProps) {
         ))}
       </div>
 
-      <section className="mt-5 overflow-hidden rounded-[1.5rem] border border-white/10 bg-white/[0.025] sm:rounded-[2rem]">
+      <section className="mt-5 overflow-hidden rounded-2xl border border-white/[0.075] bg-white/[0.022]">
         <div className="border-b border-white/10 px-4 py-4 sm:px-6">
           <h2 className="text-base font-medium sm:text-lg">
             {isArabic ? `التذاكر (${tickets.length})` : `Tickets (${tickets.length})`}
