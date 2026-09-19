@@ -1,3 +1,3 @@
-Build 26 TestFlight release request.
-Startup hydration hard-block removed.
-Parent smoke passed: f3b8c7c315e9ae1e37985e6c85809cb04a7861f2.
+Build 27 TestFlight release request.
+Authentication post-sign-in session verification fixed.
+Parent smoke passed: 662255bf5bd87465f4a1757d2fe453f43b51aedc.
