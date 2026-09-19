@@ -7,6 +7,7 @@ import {
   AdminEmptyState,
   AdminPageContainer,
   AdminPageHeader,
+  AdminStatCard,
 } from "@/components/admin/ui";
 import {
   clearFeaturedOpportunityAction,
@@ -66,8 +67,10 @@ export default async function FeaturedOpportunitiesAdminPage({
   ).length;
 
   return (
-    <AdminPageContainer>
+    <div dir={isArabic ? "rtl" : "ltr"}>
+      <AdminPageContainer>
       <AdminPageHeader
+        eyebrow={isArabic ? "الإيرادات" : "REVENUE"}
         title={isArabic ? "الفرص المميزة" : "Featured Opportunities"}
         description={
           isArabic
@@ -77,31 +80,23 @@ export default async function FeaturedOpportunitiesAdminPage({
         actions={
           <Link
             href={`/admin/opportunities?lang=${isArabic ? "ar" : "en"}`}
-            className="rounded-full border border-white/10 px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-white/60 transition hover:border-gold/40 hover:text-gold"
+            className="inline-flex h-10 items-center justify-center rounded-lg border border-white/[0.08] px-4 text-xs font-medium text-white/55 transition hover:border-gold/20 hover:text-gold"
           >
             {isArabic ? "جميع الفرص" : "All Opportunities"}
           </Link>
         }
       />
 
-      <div className="mb-8 grid gap-4 md:grid-cols-2">
-        <AdminCard className="p-5">
-          <p className="text-[9px] uppercase tracking-[0.25em] text-gray-muted">
-            {isArabic ? "الفرص المنشورة" : "Published Opportunities"}
-          </p>
-          <p className="mt-3 text-3xl font-light text-white">
-            {opportunities.length}
-          </p>
-        </AdminCard>
-
-        <AdminCard className="p-5">
-          <p className="text-[9px] uppercase tracking-[0.25em] text-gray-muted">
-            {isArabic ? "المميزة حاليًا" : "Active Featured"}
-          </p>
-          <p className="mt-3 text-3xl font-light text-gold">
-            {activeFeaturedCount}
-          </p>
-        </AdminCard>
+      <div className="mb-5 grid gap-3 md:grid-cols-2">
+        <AdminStatCard
+          label={isArabic ? "الفرص المنشورة" : "Published opportunities"}
+          value={opportunities.length}
+        />
+        <AdminStatCard
+          label={isArabic ? "المميزة حاليًا" : "Active featured"}
+          value={activeFeaturedCount}
+          active={activeFeaturedCount > 0}
+        />
       </div>
 
       {opportunities.length === 0 ? (
@@ -139,7 +134,7 @@ export default async function FeaturedOpportunitiesAdminPage({
                       </span>
                     </div>
 
-                    <h2 className="mt-3 truncate text-xl font-light text-white">
+                    <h2 className="mt-3 truncate text-base font-semibold text-white/88">
                       {opportunity.title}
                     </h2>
                     <p className="mt-1 text-sm text-gray-muted">
@@ -160,7 +155,7 @@ export default async function FeaturedOpportunitiesAdminPage({
                   <div className="flex flex-wrap items-center gap-3">
                     <Link
                       href={`/admin/opportunities/${opportunity.id}?lang=${isArabic ? "ar" : "en"}`}
-                      className="rounded-full border border-white/10 px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-white/60 transition hover:border-gold/40 hover:text-gold"
+                      className="inline-flex h-10 items-center justify-center rounded-lg border border-white/[0.08] px-4 text-xs font-medium text-white/55 transition hover:border-gold/20 hover:text-gold"
                     >
                       {isArabic ? "التفاصيل" : "Details"}
                     </Link>
@@ -187,6 +182,7 @@ export default async function FeaturedOpportunitiesAdminPage({
           })}
         </section>
       )}
-    </AdminPageContainer>
+      </AdminPageContainer>
+    </div>
   );
 }
