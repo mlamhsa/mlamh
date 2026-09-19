@@ -1450,11 +1450,11 @@ test("admin MFA success and failed verification attempts are audited at the corr
     gate.includes(
       '"/api/admin/security/mfa-event"',
     ) &&
-      gate.includes(
-        'outcome:\n                  "success"',
+      /outcome:\\s*"success"/.test(
+        gate,
       ) &&
-      gate.includes(
-        'outcome:\n                "failed"',
+      /outcome:\\s*"failed"/.test(
+        gate,
       ),
     true,
     "MFA client must report both successful and failed verification outcomes",
