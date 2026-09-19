@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { History, ShieldCheck, UsersRound } from "lucide-react";
 
 import { AdminTalentAnalytics } from "@/components/admin/AdminTalentAnalytics";
 import {
@@ -13,6 +14,8 @@ import {
 } from "@/lib/admin/i18n";
 
 import { requireAdminAccess } from "@/lib/auth/require-admin";
+import { userHasPermission } from "@/lib/rbac/helpers";
+import { PERMISSIONS } from "@/lib/rbac/permissions";
 import { TalentService } from "@/lib/services/talents/TalentService";
 import { PublisherService } from "@/lib/services/publishers/PublisherService";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -121,7 +124,14 @@ function formatDateTime(
 export default async function AdminPage({
   searchParams,
 }: PageProps) {
-  await requireAdminAccess();
+  const currentAdmin =
+    await requireAdminAccess();
+
+  const canViewAdminAccess =
+    await userHasPermission(
+      currentAdmin.id,
+      PERMISSIONS.ADMINS_VIEW,
+    );
 
   const resolvedSearchParams =
     await searchParams;
@@ -700,6 +710,90 @@ return {
             />
           </div>
         </section>
+
+        {canViewAdminAccess ? (
+          <section className="mb-10 rounded-[2rem] border border-gold/15 bg-gradient-to-br from-gold/[0.065] via-white/[0.02] to-transparent p-5 sm:p-7">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-gold" />
+                  <p className="text-[10px] uppercase tracking-[0.32em] text-gold">
+                    {isArabic
+                      ? "الأمان والوصول"
+                      : "Access & Security"}
+                  </p>
+                </div>
+
+                <h2 className="mt-2 text-2xl font-light text-white">
+                  {isArabic
+                    ? "مركز المشرفين والصلاحيات"
+                    : "Admins & Access Center"}
+                </h2>
+
+                <p className="mt-2 max-w-2xl text-sm leading-7 text-white/40">
+                  {isArabic
+                    ? "إدارة حسابات المشرفين والأدوار، مراجعة حالة الوصول، ومتابعة سجل العمليات الأمنية من مكان واحد."
+                    : "Manage administrator identities and roles, review access health, and inspect the security audit trail from one place."}
+                </p>
+              </div>
+
+              <Link
+                href={withLanguage(
+                  "/admin/admins",
+                  language,
+                )}
+                className="inline-flex items-center justify-center gap-2 rounded-full border border-gold/30 bg-gold/[0.07] px-5 py-2.5 text-xs font-medium text-gold transition hover:bg-gold hover:text-black"
+              >
+                <UsersRound className="h-3.5 w-3.5" />
+                {isArabic
+                  ? "فتح مركز الوصول"
+                  : "Open Access Center"}
+              </Link>
+            </div>
+
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <Link
+                href={withLanguage(
+                  "/admin/admins",
+                  language,
+                )}
+                className="group rounded-2xl border border-white/[0.08] bg-black/20 p-4 transition hover:border-gold/20 hover:bg-white/[0.025]"
+              >
+                <div className="flex items-center gap-2 text-xs text-white/45">
+                  <UsersRound className="h-4 w-4 text-gold/80" />
+                  {isArabic
+                    ? "المشرفون والصلاحيات"
+                    : "Admins & Roles"}
+                </div>
+                <p className="mt-2 text-sm leading-6 text-white/55 group-hover:text-white/70">
+                  {isArabic
+                    ? "دعوات المشرفين، الأدوار، حالة MFA، الحسابات الخاملة، ومراجعة الوصول."
+                    : "Admin invites, roles, MFA state, dormant accounts, and access review."}
+                </p>
+              </Link>
+
+              <Link
+                href={withLanguage(
+                  "/admin/audit-log",
+                  language,
+                )}
+                className="group rounded-2xl border border-white/[0.08] bg-black/20 p-4 transition hover:border-gold/20 hover:bg-white/[0.025]"
+              >
+                <div className="flex items-center gap-2 text-xs text-white/45">
+                  <History className="h-4 w-4 text-gold/80" />
+                  {isArabic
+                    ? "سجل العمليات الأمنية"
+                    : "Security Audit Log"}
+                </div>
+                <p className="mt-2 text-sm leading-6 text-white/55 group-hover:text-white/70">
+                  {isArabic
+                    ? "استعراض نشاط المشرفين، محاولات MFA، تغييرات الصلاحيات، والتصدير للمراجعة."
+                    : "Review admin activity, MFA attempts, access changes, and export audit evidence."}
+                </p>
+              </Link>
+            </div>
+          </section>
+        ) : null}
 
         {/* Resubmitted opportunities */}
         <section className="mb-10 rounded-[2rem] border border-white/[0.08] bg-white/[0.025] p-5 sm:p-7">
