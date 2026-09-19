@@ -43,8 +43,24 @@ export default function LoginScreen() {
   }, []);
 
   async function finishSignIn() {
-    await session.refresh();
-    router.replace("/" as never);
+    const {
+      data: { session: authSession },
+    } = await supabase.auth.getSession();
+    if (!authSession?.access_token) {
+      throw new Error("AUTH_SESSION_MISSING");
+    }
+
+    const accountStatus = await session.refresh();
+    if (accountStatus === "talent" || accountStatus === "publisher") {
+      router.replace("/" as never);
+      return;
+    }
+    if (accountStatus === "account_missing") {
+      router.replace("/account-type" as never);
+      return;
+    }
+
+    throw new Error("ACCOUNT_CONTEXT_UNAVAILABLE");
   }
 
   async function handleEmailSignIn() {
