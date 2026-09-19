@@ -99,7 +99,7 @@ type WebSource = { url: string; title?: string };
 
 function cleanJsonText(value: string) {
   let text = value.trim();
-  const fenced = text.match(/^\`\`\`(?:json)?\\s*([\\s\\S]*?)\\s*\`\`\`$/i);
+  const fenced = text.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
   if (fenced?.[1]) text = fenced[1].trim();
 
   try {
