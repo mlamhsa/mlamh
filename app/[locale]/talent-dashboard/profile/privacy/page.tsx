@@ -133,8 +133,8 @@ export default function TalentProfilePrivacyPage({ params }: { params: Promise<{
             </strong>
             <span className="mt-1 block">
               {isArabic
-                ? "إذا كان عملك يركز على تصوير اليد أو القدم أو الشعر أو أجزاء محددة، نوصي بخيار «للناشرين الموثقين فقط». لن يظهر ملفك للعامة، ويمكن للجهات الموثقة فتحه من المطابقة أو الدعوات المناسبة. القرار لك ولن نغيّر إعدادك تلقائيًا."
-                : "If your work focuses on hands, feet, hair or other specific parts, we recommend “Verified publishers only.” It stays hidden from the public while verified publishers can open it through relevant matching or invitations. We will not change your setting automatically."}
+                ? "إذا كان عملك يركز على تصوير اليد أو القدم أو الشعر أو أجزاء محددة، نوصي بخيار «للناشرين المعتمدين فقط». لن يظهر ملفك للعامة. يمكن للجهات الموثقة، وكذلك الأفراد وأصحاب المشاريع المعتمدين الذين لديهم فرصة سريعة نشطة، فتحه من المطابقة أو الدعوات المناسبة. القرار لك ولن نغيّر إعدادك تلقائيًا."
+                : "If your work focuses on hands, feet, hair or other specific parts, we recommend “Approved publishers only.” It stays hidden from the public. Verified organizations and approved individual or small-business publishers with an active Quick Opportunity can open it through relevant matching or invitations. We will not change your setting automatically."}
             </span>
             {visibility !== "verified_publishers" ? (
               <button
@@ -142,7 +142,7 @@ export default function TalentProfilePrivacyPage({ params }: { params: Promise<{
                 onClick={() => setVisibility("verified_publishers")}
                 className="mt-3 rounded-full border border-gold/35 px-4 py-2 text-xs text-gold hover:bg-gold/[0.08]"
               >
-                {isArabic ? "اختيار للناشرين الموثقين فقط" : "Choose verified publishers only"}
+                {isArabic ? "اختيار للناشرين المعتمدين فقط" : "Choose approved publishers only"}
               </button>
             ) : null}
           </div>
