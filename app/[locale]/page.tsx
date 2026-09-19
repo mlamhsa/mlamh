@@ -20,6 +20,8 @@ import { isValidLocale, type Locale } from "@/lib/i18n";
 import { getPublicTalents } from "@/lib/supabase/public-talents";
 import { getHomepageTalentsWithFeaturedEntitlements } from "@/lib/talent/public-featured-entitlements";
 
+export const revalidate = 60;
+
 const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://mlamh.net").replace(/\/$/, "");
 
 type HomePageProps = {
