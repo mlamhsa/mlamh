@@ -19,6 +19,7 @@ export type MobilePublicTalent = {
   languages: string[];
   dialects: string[];
   skills: string[];
+  modelingTypes: string[];
   experienceYears: number | null;
   availabilityStatus: string | null;
   readyToTravel: boolean | null;
@@ -68,6 +69,7 @@ export function toMobilePublicTalent(talent: Talent, locale: "ar" | "en"): Mobil
     languages: Array.isArray(talent.languages) ? talent.languages.filter(Boolean) : [],
     dialects: Array.isArray(talent.dialects) ? talent.dialects.filter(Boolean) : [],
     skills: Array.isArray(talent.skills) ? talent.skills.filter(Boolean) : [],
+    modelingTypes: Array.isArray(talent.modeling_types) ? talent.modeling_types.filter(Boolean) : [],
     experienceYears: typeof talent.experience_years === "number" ? talent.experience_years : null,
     availabilityStatus: talent.availability_status ?? null,
     readyToTravel: typeof talent.ready_to_travel === "boolean" ? talent.ready_to_travel : null,

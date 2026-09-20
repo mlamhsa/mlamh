@@ -7,7 +7,6 @@ import { createAdminClient } from "@/lib/supabase/admin";
 const ALLOWED_TYPES = new Set(["actor", "model"]);
 const ALLOWED_COMPENSATION = new Set(["fixed", "negotiable", "unpaid"]);
 const ALLOWED_GENDERS = new Set(["male", "female", "any"]);
-const ALLOWED_DURATIONS = new Set(["1_hour", "2_hours", "4_hours", "full_day"]);
 
 function cleanText(value: unknown, max: number) {
   if (typeof value !== "string") return "";
@@ -36,6 +35,8 @@ export async function createMobilePublisherOpportunityDraft(userId: string, inpu
   const title = cleanText(input.title, 140);
   const description = cleanText(input.description, 5000);
   const opportunityType = cleanText(input.opportunityType, 32);
+  const requestedPostingMode = cleanText(input.postingMode, 16);
+  const postingMode = requestedPostingMode === "quick" ? "quick" : requestedPostingMode === "casting" || requestedPostingMode === "project" || !requestedPostingMode ? "project" : "";
   const city = cleanText(input.city, 120);
   const compensationType = cleanText(input.compensationType, 32) || "fixed";
   const budget = cleanText(input.budget, 120);
@@ -43,20 +44,23 @@ export async function createMobilePublisherOpportunityDraft(userId: string, inpu
   const minAge = nullableInt(input.minAge, 0, 120);
   const maxAge = nullableInt(input.maxAge, 0, 120);
   const requiredCount = nullableInt(input.requiredCount, 1, 10000);
+  const applicationDays = nullableInt(input.applicationDays, 1, 90);
   const workDate = cleanDate(input.workDate);
   const applicationStartDate = cleanDate(input.applicationStartDate);
   const applicationDeadline = cleanDate(input.applicationDeadline);
-  const workDuration = input.workDuration == null || input.workDuration === "" ? null : cleanText(input.workDuration, 32);
+  const workTime = input.workTime == null || input.workTime === "" ? null : cleanText(input.workTime, 10);
+  const workDuration = input.workDuration == null || input.workDuration === "" ? null : cleanText(input.workDuration, 120);
 
   if (title.length < 4) return { ok: false as const, code: "INVALID_TITLE" as const };
   if (description.length < 20) return { ok: false as const, code: "INVALID_DESCRIPTION" as const };
   if (!ALLOWED_TYPES.has(opportunityType)) return { ok: false as const, code: "INVALID_OPPORTUNITY_TYPE" as const };
+  if (!postingMode) return { ok: false as const, code: "INVALID_POSTING_MODE" as const };
   if (!ALLOWED_COMPENSATION.has(compensationType)) return { ok: false as const, code: "INVALID_COMPENSATION" as const };
   if (!ALLOWED_GENDERS.has(requiredGender)) return { ok: false as const, code: "INVALID_GENDER" as const };
-  if (minAge === undefined || maxAge === undefined || requiredCount === undefined) return { ok: false as const, code: "INVALID_NUMERIC_FIELD" as const };
+  if (minAge === undefined || maxAge === undefined || requiredCount === undefined || applicationDays === undefined) return { ok: false as const, code: "INVALID_NUMERIC_FIELD" as const };
   if (minAge !== null && maxAge !== null && minAge > maxAge) return { ok: false as const, code: "INVALID_AGE_RANGE" as const };
   if (workDate === undefined || applicationStartDate === undefined || applicationDeadline === undefined) return { ok: false as const, code: "INVALID_DATE" as const };
-  if (workDuration && !ALLOWED_DURATIONS.has(workDuration)) return { ok: false as const, code: "INVALID_WORK_DURATION" as const };
+  if (workTime && !/^([01]\d|2[0-3]):[0-5]\d$/.test(workTime)) return { ok: false as const, code: "INVALID_WORK_TIME" as const };
   if (applicationStartDate && applicationDeadline && applicationStartDate > applicationDeadline) return { ok: false as const, code: "INVALID_APPLICATION_WINDOW" as const };
 
   const roleInput = input.roleRequirements && typeof input.roleRequirements === "object" && !Array.isArray(input.roleRequirements)
@@ -111,12 +115,12 @@ export async function createMobilePublisherOpportunityDraft(userId: string, inpu
     city_en: city || null,
     company_name: companyName,
     publisher_id: publisher.id,
-    status: "draft",
+    status: "pending_review",
     published: false,
-    posting_mode: "project",
+    posting_mode: postingMode,
     compensation_type: compensationType,
     budget: compensationType === "unpaid" ? null : budget || null,
-    application_days: 30,
+    application_days: applicationDays ?? 30,
     country_code: countryCode,
     currency,
     managed_by_mlamh: false,
@@ -125,6 +129,7 @@ export async function createMobilePublisherOpportunityDraft(userId: string, inpu
     max_age: maxAge,
     required_count: requiredCount,
     work_date: workDate,
+    work_time: workTime,
     work_duration: workDuration,
     application_start_date: applicationStartDate,
     application_deadline: applicationDeadline,
@@ -132,5 +137,5 @@ export async function createMobilePublisherOpportunityDraft(userId: string, inpu
   }).select("id,title,status,published,country_code,created_at").single();
 
   if (insertError || !opportunity) return { ok: false as const, code: "CREATE_FAILED" as const };
-  return { ok: true as const, item: { id: Number(opportunity.id), title: opportunity.title, status: opportunity.status, published: Boolean(opportunity.published), countryCode: opportunity.country_code ?? null, createdAt: opportunity.created_at ?? null } };
+  return { ok: true as const, item: { id: Number(opportunity.id), title: opportunity.title, status: opportunity.status, published: Boolean(opportunity.published), postingMode, countryCode: opportunity.country_code ?? null, createdAt: opportunity.created_at ?? null } };
 }

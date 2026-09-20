@@ -41,6 +41,7 @@ export type MobileTalentProfile = {
   workOutsideCity: boolean;
   workOutsideCountry: boolean;
   verified: boolean;
+  reviewReason: string | null;
   approvalStatus: string | null;
   profileStatus: string | null;
   published: boolean;
@@ -59,7 +60,7 @@ function nullableNumber(value: unknown) {
 export async function getMobileTalentProfile({ userId, locale }: { userId: string; locale: "ar" | "en" }) {
   const supabase = createAdminClient();
   const [{ data: profile, error: profileError }, { data: talent, error: talentError }] = await Promise.all([
-    supabase.from("profiles").select("account_type,approval_status,status").eq("user_id", userId).maybeSingle(),
+    supabase.from("profiles").select("id,account_type,approval_status,status").eq("user_id", userId).maybeSingle(),
     supabase.from("talents").select("id,slug,name_ar,name_en,display_name_ar,display_name_en,category_ar,category_en,primary_role,city_slug,city_ar,city_en,gender,date_of_birth,nationality,nationality_slug,image_url,gallery_images,photos,full_body_photos,bio_ar,bio_en,skills,languages,dialects,base_country_code,availability_status,height_cm,weight_kg,eye_color,hair_color,hair_type,skin_color,clothing_size,shoe_size,acting_age_min,acting_age_max,modeling_types,experience_years,ready_to_travel,has_passport,has_car,work_outside_city,work_outside_country,verified,is_verified,status,published,portfolio_url,showreel_url,chest_size,waist_size,hip_size,previous_work").eq("user_id", userId).maybeSingle(),
   ]);
 
@@ -81,6 +82,20 @@ export async function getMobileTalentProfile({ userId, locale }: { userId: strin
     ...talent,
     gallery_images: galleryRefs,
   });
+
+  let reviewReason: string | null = null;
+  if (String(profile.approval_status ?? "").trim().toLowerCase() === "changes_requested") {
+    const { data: latestReview } = await supabase
+      .from("profile_review_history")
+      .select("reason")
+      .eq("profile_id", profile.id)
+      .eq("account_type", "talent")
+      .eq("decision", "changes_requested")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    reviewReason = String(latestReview?.reason ?? "").trim() || null;
+  }
 
   const item: MobileTalentProfile = {
     id: Number(talent.id),
@@ -121,6 +136,7 @@ export async function getMobileTalentProfile({ userId, locale }: { userId: strin
     workOutsideCity: Boolean(talent.work_outside_city),
     workOutsideCountry: Boolean(talent.work_outside_country),
     verified: Boolean(talent.verified || talent.is_verified),
+    reviewReason,
     approvalStatus: profile.approval_status ?? null,
     profileStatus: talent.status ?? profile.status ?? null,
     published: Boolean(talent.published),
