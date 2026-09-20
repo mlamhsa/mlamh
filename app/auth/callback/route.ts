@@ -61,6 +61,7 @@ export async function GET(request: Request) {
   const intent = requestUrl.searchParams.get("intent");
   const provider = requestUrl.searchParams.get("provider");
   const isSignup = mode === "signup";
+  const isNative = mode === "native";
   const isRecovery = mode === "recovery";
   const isCastingClaim = mode === "casting_claim";
   const isCastingClientLogin = mode === "casting_client_login";
@@ -77,6 +78,12 @@ export async function GET(request: Request) {
             ? `${origin}/${locale}/casting/client/login?error=invalid_link`
             : `${origin}/${locale}/login?error=oauth_callback`,
     );
+  }
+
+  if (isNative) {
+    const callback = new URL("mlamh://auth/callback");
+    callback.searchParams.set("code", code);
+    return NextResponse.redirect(callback);
   }
 
   const supabase = await createServerSupabaseClient();

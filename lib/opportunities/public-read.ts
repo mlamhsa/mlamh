@@ -9,7 +9,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 const PUBLISHED_STATUSES = ["published", "open"] as const;
 const PUBLIC_OPPORTUNITY_SELECT =
-  "id,title,title_en,slug,description,description_en,opportunity_type,country_code,currency,city_slug,city_ar,city_en,required_gender,min_age,max_age,required_count,work_date,work_duration,application_start_date,application_deadline,role_requirements,compensation_type,budget,company_name,featured,featured_until,managed_by_mlamh,expires_at,created_at,published,status";
+  "id,title,title_en,slug,description,description_en,opportunity_type,posting_mode,country_code,currency,city_slug,city_ar,city_en,required_gender,min_age,max_age,required_count,work_date,work_duration,application_start_date,application_deadline,role_requirements,compensation_type,budget,company_name,featured,featured_until,managed_by_mlamh,expires_at,created_at,published,status";
 
 export type PublicOpportunitiesInput = { countryCode: CountryCode; locale: "ar" | "en" };
 export type PublicOpportunityDetailInput = PublicOpportunitiesInput & { identifier: string };

@@ -13,47 +13,39 @@ const LINK_PATHS = [
   "/talent/*",
   "/talents",
   "/talents/*",
+  "/ar/talent",
   "/ar/talent/*",
+  "/ar/talents",
   "/ar/talents/*",
+  "/en/talent",
   "/en/talent/*",
+  "/en/talents",
   "/en/talents/*",
   "/messages/*",
   "/conversations/*",
   "/applications",
-  "/notifications",
-  "/publisher/*",
-  "/profile*",
-  "/casting*",
-  "/ar/casting*",
-  "/en/casting*",
-  "/support",
-  "/privacy",
-  "/terms",
-  "/refund",
-  "/refund-policy",
-  "/complaints",
-  "/ar/privacy",
-  "/ar/terms",
-  "/ar/refund",
-  "/ar/refund-policy",
-  "/ar/complaints",
-  "/en/privacy",
-  "/en/terms",
-  "/en/refund",
-  "/en/refund-policy",
-  "/en/complaints",
-  "/reset-password*",
-  "/forgot-password*",
-  "/ar/reset-password*",
-  "/ar/forgot-password*",
-  "/en/reset-password*",
-  "/en/forgot-password*",
+  "/ar/applications",
+  "/en/applications",
+  "/casting",
+  "/casting/*",
+  "/ar/casting",
+  "/ar/casting/*",
+  "/en/casting",
+  "/en/casting/*",
+  "/scene",
+  "/scene/*",
+  "/ar/scene",
+  "/ar/scene/*",
+  "/en/scene",
+  "/en/scene/*",
 ];
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const configuredTeamId = process.env.MLAMH_APPLE_TEAM_ID?.trim();
+  const configuredTeamId = (
+    process.env.MLAMH_APPLE_TEAM_ID?.trim() || process.env.APPLE_TEAM_ID?.trim()
+  );
   const teamId = configuredTeamId && /^[A-Z0-9]{10}$/.test(configuredTeamId)
     ? configuredTeamId
     : VERIFIED_APPLE_TEAM_ID;

@@ -6,6 +6,7 @@ export type PublicOpportunity = {
   slug: string;
   description: string;
   opportunityType: string;
+  postingMode: "quick" | "casting";
   countryCode: CountryCode | null;
   currency: string | null;
   citySlug: string | null;
