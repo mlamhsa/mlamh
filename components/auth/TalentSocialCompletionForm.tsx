@@ -4,12 +4,16 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { SignupOptionPicker } from "@/components/auth/SignupOptionPicker";
+import { NationalityCombobox } from "@/components/talent-dashboard/NationalityCombobox";
+import { SaudiCityCombobox } from "@/components/talent-dashboard/SaudiCityCombobox";
 import { TALENT_CATEGORIES } from "@/lib/data/talent-categories";
 import {
-  GENDER_OPTIONS,
-  NATIONALITY_OPTIONS,
+  SIGNUP_GENDER_OPTIONS,
   TALENT_SIGNUP_COUNTRIES,
 } from "@/lib/data/talent-signup";
+import { normalizeNationalitySlug } from "@/lib/data/nationality-normalization";
+import { getSaudiCityBySlug } from "@/lib/data/saudi-cities";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 
 type Props = {
@@ -44,24 +48,14 @@ export function TalentSocialCompletionForm({
   const router = useRouter();
   const [fullName, setFullName] = useState(suggestedName);
   const [phone, setPhone] = useState("");
-  const [nationality, setNationality] = useState(initial?.nationality ?? "");
-  const [gender, setGender] = useState(initial?.gender ?? "");
-  const [city, setCity] = useState(initial?.citySlug ?? "");
+  const [nationality, setNationality] = useState(() => normalizeNationalitySlug(initial?.nationality));
+  const [gender, setGender] = useState(() => initial?.gender === "male" || initial?.gender === "female" ? initial.gender : "");
+  const [city, setCity] = useState(() => getSaudiCityBySlug(initial?.citySlug)?.slug ?? "");
   const [talentType, setTalentType] = useState(initial?.talentType ?? "");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [acceptedAccuracy, setAcceptedAccuracy] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-
-  // New registrations use the currently active Saudi market. If an older,
-  // incomplete account already carries a valid country value, preserve it so
-  // this UX change never rewrites that user's existing market data.
-  const selectedResidenceCountry = useMemo(() => {
-    const preserved = initial?.residenceCountryCode
-      ? TALENT_SIGNUP_COUNTRIES.find((item) => item.code === initial.residenceCountryCode)
-      : null;
-    return preserved ?? TALENT_SIGNUP_COUNTRIES.find((item) => item.code === ACTIVE_MARKET_CODE) ?? TALENT_SIGNUP_COUNTRIES[0];
-  }, [initial?.residenceCountryCode]);
 
   const phoneCountry = useMemo(
     () => TALENT_SIGNUP_COUNTRIES.find((item) => item.code === ACTIVE_MARKET_CODE) ?? TALENT_SIGNUP_COUNTRIES[0],
@@ -78,7 +72,7 @@ export function TalentSocialCompletionForm({
 
     const cleanName = fullName.trim().replace(/\s+/g, " ");
     const category = TALENT_CATEGORIES.find((item) => item.slug === talentType);
-    const selectedCity = selectedResidenceCountry.cities.find((item) => item.value === city);
+    const selectedCity = getSaudiCityBySlug(city);
 
     if (cleanName.length < 2) return setError(isRtl ? "أدخل اسمًا صحيحًا." : "Enter a valid name.");
     if (!/^\+[1-9]\d{7,14}$/.test(normalizedPhone)) return setError(isRtl ? "أدخل رقم جوال صحيحًا." : "Enter a valid mobile number.");
@@ -105,8 +99,8 @@ export function TalentSocialCompletionForm({
         talent_type: category.slug,
         nationality_slug: nationality,
         gender,
-        residence_country_code: selectedResidenceCountry.code,
-        city_slug: selectedCity.value,
+        residence_country_code: ACTIVE_MARKET_CODE,
+        city_slug: selectedCity.slug,
         city_ar: selectedCity.ar,
         city_en: selectedCity.en,
         profile_visibility: initial?.profileVisibility ?? "public",
@@ -150,14 +144,17 @@ export function TalentSocialCompletionForm({
 
   return (
     <form onSubmit={(event) => void submit(event)} className="space-y-5">
-      <div className="rounded-2xl border border-gold/20 bg-gold/[0.05] px-4 py-3 text-sm leading-6 text-white/65">
-        {providerLabel
-          ? isRtl
-            ? `تم تسجيل دخولك عبر ${providerLabel}. جلبنا بيانات حسابك، وأكمل فقط البيانات الأساسية أدناه.`
-            : `You're signed in with ${providerLabel}. We loaded your account details; complete only the essentials below.`
-          : isRtl
-            ? "أكمل البيانات الأساسية مرة واحدة، ثم ستنتقل مباشرة إلى ملفك المهني."
-            : "Complete the essentials once, then you'll go straight to your professional profile."}
+      <div className="flex items-center gap-3 rounded-2xl border border-gold/20 bg-gold/[0.05] px-4 py-3 text-sm text-white/65">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-gold/30 bg-gold/10 text-gold">✓</span>
+        <span>
+          {providerLabel
+            ? isRtl
+              ? `تم ربط حساب ${providerLabel}. أكمل البيانات الأساسية فقط.`
+              : `${providerLabel} connected. Complete only the essential details.`
+            : isRtl
+              ? "أكمل البيانات الأساسية مرة واحدة للمتابعة."
+              : "Complete the essential details once to continue."}
+        </span>
       </div>
 
       {error ? <div role="alert" className="rounded-2xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm text-red-200">{error}</div> : null}
@@ -181,33 +178,41 @@ export function TalentSocialCompletionForm({
       </Field>
 
       <div className="grid gap-5 sm:grid-cols-2">
-        <Field label={isRtl ? "الجنسية" : "Nationality"}>
-          <select required value={nationality} onChange={(e) => setNationality(e.currentTarget.value)} className={inputClass}>
-            <option value="">{isRtl ? "اختر الجنسية" : "Select nationality"}</option>
-            {NATIONALITY_OPTIONS.map((item) => <option key={item.value} value={item.value} className="bg-black">{isRtl ? item.ar : item.en}</option>)}
-          </select>
-        </Field>
-        <Field label={isRtl ? "الجنس" : "Gender"}>
-          <select required value={gender} onChange={(e) => setGender(e.currentTarget.value)} className={inputClass}>
-            <option value="">{isRtl ? "اختر" : "Select"}</option>
-            {GENDER_OPTIONS.map((item) => <option key={item.value} value={item.value} className="bg-black">{isRtl ? item.ar : item.en}</option>)}
-          </select>
-        </Field>
+        <PickerField label={isRtl ? "الجنسية" : "Nationality"}>
+          <NationalityCombobox id="social-signup-nationality" locale={locale} value={nationality} onChange={setNationality} name="" showLabel={false} />
+        </PickerField>
+        <PickerField label={isRtl ? "الجنس" : "Gender"}>
+          <SignupOptionPicker
+            id="social-signup-gender"
+            locale={locale}
+            value={gender}
+            onChange={setGender}
+            options={SIGNUP_GENDER_OPTIONS}
+            placeholderAr="اختر الجنس"
+            placeholderEn="Select gender"
+            titleAr="اختر الجنس"
+            titleEn="Select gender"
+          />
+        </PickerField>
       </div>
 
       <div className="grid gap-5 sm:grid-cols-2">
-        <Field label={isRtl ? "المدينة" : "City"}>
-          <select required value={city} onChange={(e) => setCity(e.currentTarget.value)} className={inputClass}>
-            <option value="">{isRtl ? "اختر المدينة" : "Select city"}</option>
-            {selectedResidenceCountry.cities.map((item) => <option key={item.value} value={item.value} className="bg-black">{isRtl ? item.ar : item.en}</option>)}
-          </select>
-        </Field>
-        <Field label={isRtl ? "نوع الموهبة" : "Talent type"}>
-          <select required value={talentType} onChange={(e) => setTalentType(e.currentTarget.value)} className={inputClass}>
-            <option value="">{isRtl ? "اختر نوع الموهبة" : "Select talent type"}</option>
-            {TALENT_CATEGORIES.map((item) => <option key={item.slug} value={item.slug} className="bg-black">{isRtl ? item.ar : item.en}</option>)}
-          </select>
-        </Field>
+        <PickerField label={isRtl ? "المدينة" : "City"}>
+          <SaudiCityCombobox id="social-signup-city" locale={locale} value={city} onChange={setCity} name="" showLabel={false} />
+        </PickerField>
+        <PickerField label={isRtl ? "نوع الموهبة" : "Talent type"}>
+          <SignupOptionPicker
+            id="social-signup-talent-type"
+            locale={locale}
+            value={talentType}
+            onChange={setTalentType}
+            options={TALENT_CATEGORIES.map((item) => ({ value: item.slug, ar: item.ar, en: item.en }))}
+            placeholderAr="اختر نوع الموهبة"
+            placeholderEn="Select talent type"
+            titleAr="اختر نوع الموهبة"
+            titleEn="Select talent type"
+          />
+        </PickerField>
       </div>
 
       <p className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3 text-xs leading-6 text-white/45">
@@ -241,4 +246,8 @@ export function TalentSocialCompletionForm({
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return <label className="block"><span className="mb-2 block text-sm text-white/70">{label}<span className="text-gold"> *</span></span>{children}</label>;
+}
+
+function PickerField({ label, children }: { label: string; children: React.ReactNode }) {
+  return <div className="block"><span className="mb-2 block text-sm text-white/70">{label}<span className="text-gold"> *</span></span>{children}</div>;
 }
