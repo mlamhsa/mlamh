@@ -6,6 +6,12 @@ export type MobilePublisherOpportunity = {
   title: string;
   status: string | null;
   published: boolean;
+  slug: string | null;
+  postingMode: "quick" | "casting";
+  cityAr: string | null;
+  cityEn: string | null;
+  talentType: string | null;
+  applicationDeadline: string | null;
   countryCode: string | null;
   createdAt: string | null;
   applications: number;
@@ -36,9 +42,10 @@ export async function getMobilePublisherDashboard({ userId, locale }: { userId: 
 
   const { data: opportunities, error: opportunitiesError } = await supabase
     .from("opportunities")
-    .select("id,title,title_en,status,published,country_code,created_at")
+    .select("id,title,title_en,slug,posting_mode,city_ar,city_en,opportunity_type,status,published,application_deadline,country_code,created_at")
     .eq("publisher_id", publisher.id)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(100);
 
   if (opportunitiesError) return { ok: false as const, code: "OPPORTUNITIES_LOOKUP_FAILED" as const };
 
@@ -59,11 +66,17 @@ export async function getMobilePublisherDashboard({ userId, locale }: { userId: 
     }
   }
 
-  const items: MobilePublisherOpportunity[] = (opportunities ?? []).slice(0, 20).map((item) => ({
+  const items: MobilePublisherOpportunity[] = (opportunities ?? []).map((item) => ({
     id: Number(item.id),
     title: locale === "en" ? item.title_en || item.title : item.title,
     status: item.status ?? null,
     published: Boolean(item.published),
+    slug: item.slug ?? null,
+    postingMode: item.posting_mode === "quick" ? "quick" : "casting",
+    cityAr: item.city_ar ?? null,
+    cityEn: item.city_en ?? null,
+    talentType: item.opportunity_type ?? null,
+    applicationDeadline: item.application_deadline ?? null,
     countryCode: item.country_code ?? null,
     createdAt: item.created_at ?? null,
     applications: counts.get(Number(item.id))?.applications ?? 0,
