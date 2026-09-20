@@ -42,6 +42,7 @@ export function SignupOptionPicker({
   const [mounted, setMounted] = useState(false);
   const isArabic = locale === "ar";
   const selected = options.find((option) => option.value === value) ?? null;
+  const useCompactDialog = options.length <= 4;
 
   useEffect(() => setMounted(true), []);
 
@@ -130,23 +131,27 @@ export function SignupOptionPicker({
             role="dialog"
             aria-modal="true"
             aria-labelledby={`${id}-title`}
-            className="fixed inset-x-0 bottom-0 z-[10020] max-h-[min(82dvh,calc(100dvh-env(safe-area-inset-top)-0.75rem))] overflow-hidden rounded-t-[1.75rem] border border-b-0 border-gold/20 bg-[#080808] pb-[env(safe-area-inset-bottom)] shadow-2xl sm:absolute sm:z-[100] sm:inset-x-auto sm:bottom-auto sm:mt-2 sm:w-full sm:rounded-2xl sm:border sm:pb-0"
+            className={
+              useCompactDialog
+                ? "fixed left-1/2 top-1/2 z-[10020] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[1.75rem] border border-gold/20 bg-[#080808] shadow-2xl sm:absolute sm:left-0 sm:top-auto sm:z-[100] sm:mt-2 sm:w-full sm:max-w-none sm:translate-x-0 sm:translate-y-0 sm:rounded-2xl"
+                : "fixed inset-x-0 bottom-0 z-[10020] max-h-[min(82dvh,calc(100dvh-env(safe-area-inset-top)-0.75rem))] overflow-hidden rounded-t-[1.75rem] border border-b-0 border-gold/20 bg-[#080808] pb-[env(safe-area-inset-bottom)] shadow-2xl sm:absolute sm:z-[100] sm:inset-x-auto sm:bottom-auto sm:mt-2 sm:w-full sm:rounded-2xl sm:border sm:pb-0"
+            }
           >
-            <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3.5 sm:hidden">
-              <span id={`${id}-title`} className="text-base font-semibold text-white">
+            <div className="flex items-center justify-between gap-3 border-b border-white/10 px-5 py-4 sm:hidden">
+              <span id={`${id}-title`} className="text-lg font-semibold text-white">
                 {isArabic ? titleAr : titleEn}
               </span>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 text-white/60"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 text-white/60 transition hover:border-white/20 hover:text-white"
                 aria-label={isArabic ? "إغلاق" : "Close"}
               >
-                <X size={17} aria-hidden="true" />
+                <X size={18} aria-hidden="true" />
               </button>
             </div>
 
-            <div className="max-h-[65dvh] overflow-y-auto overscroll-contain p-2 sm:max-h-64">
+            <div className={useCompactDialog ? "grid gap-2 p-3 sm:max-h-64 sm:overflow-y-auto" : "max-h-[65dvh] overflow-y-auto overscroll-contain p-2 sm:max-h-64"}>
               {options.map((option) => {
                 const active = option.value === value;
                 return (
@@ -154,10 +159,18 @@ export function SignupOptionPicker({
                     key={option.value}
                     type="button"
                     onClick={() => choose(option.value)}
-                    className={`flex min-h-12 w-full items-center justify-between gap-3 rounded-xl px-3.5 text-start text-sm transition ${active ? "bg-gold/[0.10] text-gold" : "text-white/80 hover:bg-white/[0.05] hover:text-white"}`}
+                    className={`flex w-full items-center justify-between gap-3 rounded-2xl border text-start transition ${
+                      useCompactDialog
+                        ? `min-h-16 px-4 text-base ${active ? "border-gold/35 bg-gold/[0.12] text-gold" : "border-white/[0.08] bg-white/[0.025] text-white/85 hover:border-white/15 hover:bg-white/[0.05]"}`
+                        : `min-h-12 px-3.5 text-sm ${active ? "border-transparent bg-gold/[0.10] text-gold" : "border-transparent text-white/80 hover:bg-white/[0.05] hover:text-white"}`
+                    }`}
                   >
                     <span>{isArabic ? option.ar : option.en}</span>
-                    {active ? <Check size={16} aria-hidden="true" /> : null}
+                    {active ? (
+                      <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-gold/30 bg-gold/[0.08]">
+                        <Check size={15} aria-hidden="true" />
+                      </span>
+                    ) : null}
                   </button>
                 );
               })}
