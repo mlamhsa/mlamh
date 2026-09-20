@@ -26,6 +26,7 @@ export type PublisherOpportunityDetail = {
     description: string;
     opportunityType: string;
     city: string | null;
+    citySlug: string | null;
     countryCode: string | null;
     currency: string | null;
     budget: string | null;
@@ -35,7 +36,9 @@ export type PublisherOpportunityDetail = {
     maxAge: number | null;
     requiredCount: number | null;
     workDate: string | null;
+    workTime: string | null;
     workDuration: string | null;
+    applicationDays: number | null;
     applicationStartDate: string | null;
     applicationDeadline: string | null;
     roleRequirements: Record<string, unknown>;
