@@ -229,7 +229,9 @@ export default function TalentProfileGuidedPage({ params }: { params: Promise<{ 
     {
       href: `/${locale}/talent-dashboard/profile/details`,
       title: isArabic ? "البيانات المهنية" : "Professional details",
-      description: isArabic ? "التوفر، التنقل، المهارات، الخبرة والمظهر والقياسات المناسبة لنوع موهبتك." : "Availability, travel, skills, experience and relevant appearance or measurements.",
+      description: role === "model"
+        ? (isArabic ? "تخصصات المودل أولًا، ثم التوفر والمقاسات والمظهر المهني." : "Model specializations first, then availability, measurements and professional appearance.")
+        : (isArabic ? "التوفر، التنقل، المهارات، الخبرة والمظهر المناسب لنوع موهبتك." : "Availability, travel, skills, experience and relevant professional details."),
       status: isArabic ? "إدارة" : "Manage",
     },
     {
