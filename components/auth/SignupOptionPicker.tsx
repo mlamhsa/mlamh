@@ -83,6 +83,9 @@ export function SignupOptionPicker({
       overflow: body.style.overflow,
     };
 
+    const previousPickerOpen = body.dataset.mlamhPickerOpen;
+    body.dataset.mlamhPickerOpen = "true";
+
     scrollYRef.current = window.scrollY;
     body.style.position = "fixed";
     body.style.top = `-${scrollYRef.current}px`;
@@ -98,6 +101,11 @@ export function SignupOptionPicker({
       body.style.right = previous.right;
       body.style.width = previous.width;
       body.style.overflow = previous.overflow;
+      if (previousPickerOpen === undefined) {
+        delete body.dataset.mlamhPickerOpen;
+      } else {
+        body.dataset.mlamhPickerOpen = previousPickerOpen;
+      }
       window.scrollTo({ top: scrollYRef.current, left: 0, behavior: "auto" });
     };
   }, [open]);
@@ -114,7 +122,7 @@ export function SignupOptionPicker({
             type="button"
             aria-label={isArabic ? "إغلاق قائمة الاختيار" : "Close picker"}
             onClick={() => setOpen(false)}
-            className="fixed inset-0 z-[9998] bg-black/70 backdrop-blur-[2px] sm:hidden"
+            className="fixed inset-0 z-[10010] bg-black/75 backdrop-blur-[3px] sm:hidden"
           />
 
           <div
@@ -122,7 +130,7 @@ export function SignupOptionPicker({
             role="dialog"
             aria-modal="true"
             aria-labelledby={`${id}-title`}
-            className="fixed inset-x-0 bottom-0 z-[9999] overflow-hidden rounded-t-[1.75rem] border border-b-0 border-gold/20 bg-[#080808] pb-[env(safe-area-inset-bottom)] shadow-2xl sm:absolute sm:z-[100] sm:inset-x-auto sm:bottom-auto sm:mt-2 sm:w-full sm:rounded-2xl sm:border sm:pb-0"
+            className="fixed inset-x-0 bottom-0 z-[10020] max-h-[min(82dvh,calc(100dvh-env(safe-area-inset-top)-0.75rem))] overflow-hidden rounded-t-[1.75rem] border border-b-0 border-gold/20 bg-[#080808] pb-[env(safe-area-inset-bottom)] shadow-2xl sm:absolute sm:z-[100] sm:inset-x-auto sm:bottom-auto sm:mt-2 sm:w-full sm:rounded-2xl sm:border sm:pb-0"
           >
             <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3.5 sm:hidden">
               <span id={`${id}-title`} className="text-base font-semibold text-white">
@@ -138,7 +146,7 @@ export function SignupOptionPicker({
               </button>
             </div>
 
-            <div className="max-h-[55dvh] overflow-y-auto p-2 sm:max-h-64">
+            <div className="max-h-[65dvh] overflow-y-auto overscroll-contain p-2 sm:max-h-64">
               {options.map((option) => {
                 const active = option.value === value;
                 return (

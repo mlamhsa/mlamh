@@ -231,9 +231,10 @@ export function MobileBottomNavigation({
 
   return createPortal(
     <nav
+      data-mlamh-mobile-bottom-nav="true"
       dir={isArabic ? "rtl" : "ltr"}
       aria-label={isArabic ? "التنقل الرئيسي للجوال" : "Mobile primary navigation"}
-      className="fixed inset-x-0 bottom-0 z-[9999] isolate block border-t border-white/10 bg-black/95 shadow-[0_-10px_35px_rgba(0,0,0,0.55)] backdrop-blur-2xl lg:hidden"
+      className="fixed inset-x-0 bottom-0 z-[9999] isolate block border-t border-white/10 bg-black/95 shadow-[0_-10px_35px_rgba(0,0,0,0.55)] backdrop-blur-2xl transition-[opacity,transform] duration-200 lg:hidden"
     >
       <div className="mx-auto grid h-[4.75rem] max-w-lg grid-cols-5 items-center px-1 pb-[max(env(safe-area-inset-bottom),0.35rem)]">
         {navigationItems.map((item) => {

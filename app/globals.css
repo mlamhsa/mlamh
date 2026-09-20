@@ -365,6 +365,17 @@ option:hover {
   transition: border-color 160ms ease, box-shadow 160ms ease;
 }
 
+/* Mobile pickers own the bottom edge while open. Keep the persistent nav from
+   covering sheet actions/results, especially with the iOS keyboard visible. */
+@media (max-width: 1023px) {
+  body[data-mlamh-picker-open="true"] [data-mlamh-mobile-bottom-nav="true"] {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateY(calc(100% + env(safe-area-inset-bottom)));
+  }
+}
+
 /* Keep save/status feedback above mobile navbars and sticky headers. */
 :where([role="status"], [role="alert"])[aria-live] {
   z-index: 10060 !important;
