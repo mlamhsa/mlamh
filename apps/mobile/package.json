@@ -9,7 +9,8 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
-    "doctor": "npx expo-doctor",\n    "validate:shell": "node scripts/validate-shell-smoke.mjs",
+    "doctor": "npx expo-doctor",
+    "validate:shell": "node scripts/validate-shell-smoke.mjs",
     "validate:build-env": "node scripts/validate-build-env.mjs",
     "eas-build-pre-install": "npm run validate:build-env"
   },
