@@ -93,6 +93,7 @@ type IncompleteRegistration = {
   created_at: string | null;
   reminder_count: number;
   last_reminder_at: string | null;
+  account_type: "talent" | "publisher" | null;
 };
 
 function formatDate(
@@ -164,24 +165,36 @@ export default async function AdminActionCenterPage({
         authUsersError,
       );
     }
-    const {
-      data: profileUserRows,
-      error: profileUsersError,
-    } = await adminClient
-      .from("profiles")
-      .select("user_id");
+    const [
+      { data: profileUserRows, error: profileUsersError },
+      { data: talentUserRows, error: talentUsersError },
+      { data: publisherProfileRows, error: publisherProfilesError },
+    ] = await Promise.all([
+      adminClient.from("profiles").select("id,user_id,account_type"),
+      adminClient.from("talents").select("user_id"),
+      adminClient.from("publishers").select("profile_id"),
+    ]);
     
     if (profileUsersError) {
-      console.error(
-        "[AdminActionCenterPage profileUsers]",
-        profileUsersError,
-      );
+      console.error("[AdminActionCenterPage profileUsers]", profileUsersError);
+    }
+    if (talentUsersError) {
+      console.error("[AdminActionCenterPage talentUsers]", talentUsersError);
+    }
+    if (publisherProfilesError) {
+      console.error("[AdminActionCenterPage publisherProfiles]", publisherProfilesError);
     }
     
-    const profileUserIds = new Set(
+    const profileByUserId = new Map(
       (profileUserRows ?? [])
-        .map((row) => row.user_id)
-        .filter(Boolean),
+        .filter((row) => row.user_id)
+        .map((row) => [String(row.user_id), row]),
+    );
+    const talentUserIds = new Set(
+      (talentUserRows ?? []).map((row) => String(row.user_id ?? "")).filter(Boolean),
+    );
+    const publisherProfileIds = new Set(
+      (publisherProfileRows ?? []).map((row) => String(row.profile_id ?? "")).filter(Boolean),
     );
     const {
       data: reminderEventRows,
@@ -249,13 +262,17 @@ export default async function AdminActionCenterPage({
     }
     const incompleteRegistrations: IncompleteRegistration[] =
   (authUsersData?.users ?? [])
-    .filter(
-      (user) =>
-        !profileUserIds.has(user.id),
-    )
+    .filter((user) => {
+      const profile = profileByUserId.get(user.id);
+      if (!profile) return true;
+      if (profile.account_type === "talent") return !talentUserIds.has(user.id);
+      if (profile.account_type === "publisher") return !publisherProfileIds.has(String(profile.id));
+      return profile.account_type !== "admin";
+    })
     .map((user) => {
       const metadata =
         user.user_metadata ?? {};
+      const profile = profileByUserId.get(user.id);
 
       const identities =
         user.identities ?? [];
@@ -276,6 +293,16 @@ export default async function AdminActionCenterPage({
               "",
           ).trim() || null,
         provider,
+        account_type:
+          profile?.account_type === "talent" || profile?.account_type === "publisher"
+            ? profile.account_type
+            : metadata.account_type === "talent" || metadata.account_type === "publisher"
+              ? metadata.account_type
+              : metadata.signup_intent === "publisher"
+                ? "publisher"
+                : metadata.signup_intent === "talent" || metadata.talent_type
+                  ? "talent"
+                  : null,
         created_at:
           user.created_at ?? null,
           reminder_count:
@@ -727,8 +754,8 @@ adminClient
 
       <p className="mt-1 text-sm text-white/35">
         {isArabic
-          ? "مستخدمون بدأوا التسجيل أو تسجيل الدخول لكن لم يحددوا نوع الحساب ولم يكتمل إنشاء ملفهم."
-          : "Users who authenticated but did not complete account type selection and profile creation."}
+          ? "مستخدمون بدأوا التسجيل لكن لم يكتمل إنشاء ملفهم. إذا كان نوع الحساب محفوظًا سنعرضه هنا."
+          : "Users who authenticated but did not finish profile creation. Stored account type is shown when available."}
       </p>
     </div>
 
@@ -796,9 +823,11 @@ adminClient
               </p>
 
               <p className="mt-2 text-xs text-white/30">
-  {isArabic
-    ? "لم يتم تحديد موهبة أو ناشر بعد."
-    : "Talent or publisher account type has not been selected yet."}
+  {user.account_type === "talent"
+    ? (isArabic ? "تم اختيار «موهبة»، لكن لم يكتمل إنشاء الملف بعد." : "Talent was selected, but profile creation is not complete yet.")
+    : user.account_type === "publisher"
+      ? (isArabic ? "تم اختيار «ناشر»، لكن لم يكتمل إنشاء الملف بعد." : "Publisher was selected, but profile creation is not complete yet.")
+      : (isArabic ? "نوع الحساب غير محفوظ في البيانات الحالية." : "Account type is not stored in the current data.")}
 </p>
 
 {user.reminder_count > 0 ? (

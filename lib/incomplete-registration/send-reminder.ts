@@ -76,14 +76,35 @@ export async function sendIncompleteRegistrationReminder({
   }
 
   if (existingProfile) {
-    return {
-      success: false,
-      status: "registration_completed",
-      message:
-        locale === "ar"
-          ? "هذا المستخدم أكمل التسجيل بالفعل."
-          : "This user has already completed registration.",
-    };
+    const registrationRowResult =
+      existingProfile.account_type === "talent"
+        ? await adminClient.from("talents").select("id").eq("user_id", user.id).maybeSingle()
+        : existingProfile.account_type === "publisher"
+          ? await adminClient.from("publishers").select("id").eq("profile_id", existingProfile.id).maybeSingle()
+          : { data: null, error: null };
+
+    if (registrationRowResult.error) {
+      console.error("[IncompleteRegistrationReminder.registrationRow]", registrationRowResult.error);
+      return {
+        success: false,
+        status: "profile_check_failed",
+        message:
+          locale === "ar"
+            ? "تعذر التحقق من حالة التسجيل."
+            : "Unable to verify registration status.",
+      };
+    }
+
+    if (registrationRowResult.data || existingProfile.account_type === "admin") {
+      return {
+        success: false,
+        status: "registration_completed",
+        message:
+          locale === "ar"
+            ? "هذا المستخدم أكمل التسجيل بالفعل."
+            : "This user has already completed registration.",
+      };
+    }
   }
 
   const email = user.email?.trim();
@@ -100,6 +121,16 @@ export async function sendIncompleteRegistrationReminder({
   }
 
   const metadata = user.user_metadata ?? {};
+  const storedAccountType =
+    existingProfile?.account_type === "talent" || existingProfile?.account_type === "publisher"
+      ? existingProfile.account_type
+      : metadata.account_type === "talent" || metadata.account_type === "publisher"
+        ? metadata.account_type
+        : metadata.signup_intent === "publisher"
+          ? "publisher"
+          : metadata.signup_intent === "talent" || metadata.talent_type
+            ? "talent"
+            : null;
   const name = String(
     metadata.full_name ?? metadata.name ?? metadata.display_name ?? "",
   ).trim();
@@ -121,7 +152,9 @@ export async function sendIncompleteRegistrationReminder({
   }
 
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://mlamh.net";
-  const continueUrl = `${baseUrl}/${locale}/join/account-type`;
+  const continueUrl = storedAccountType
+    ? `${baseUrl}/${locale}/join?type=${storedAccountType}`
+    : `${baseUrl}/${locale}/join/account-type`;
   const replyTo = process.env.RESEND_REPLY_TO_EMAIL ?? "hello@mlamh.net";
 
   const greeting = name
@@ -139,8 +172,8 @@ export async function sendIncompleteRegistrationReminder({
 
   const text =
     locale === "ar"
-      ? `${greeting}\n\nبدأت إنشاء حساب في ملامح، لكن التسجيل لم يكتمل بعد.\n\nيمكنك إكمال إنشاء حسابك واختيار نوع الحساب من هنا:\n${continueUrl}\n\nإذا واجهتك مشكلة أثناء التسجيل، يمكنك الرد مباشرة على هذه الرسالة وسنساعدك.\n\nإذا لم تكن أنت من بدأ التسجيل أو لم تعد ترغب في إكماله، يمكنك تجاهل هذه الرسالة.\n\nMLAMH | ملامح\nhttps://mlamh.net`
-      : `${greeting}\n\nYou started creating an account on MLAMH, but the registration is not complete yet.\n\nContinue your account setup and choose your account type here:\n${continueUrl}\n\nIf you need help with registration, reply directly to this email and we'll help you.\n\nIf you did not start this registration or no longer wish to complete it, you can ignore this email.\n\nMLAMH\nhttps://mlamh.net`;
+      ? `${greeting}\n\nبدأت إنشاء حساب في ملامح، لكن التسجيل لم يكتمل بعد.\n\nيمكنك إكمال إنشاء حسابك من هنا:\n${continueUrl}\n\nإذا واجهتك مشكلة أثناء التسجيل، يمكنك الرد مباشرة على هذه الرسالة وسنساعدك.\n\nإذا لم تكن أنت من بدأ التسجيل أو لم تعد ترغب في إكماله، يمكنك تجاهل هذه الرسالة.\n\nMLAMH | ملامح\nhttps://mlamh.net`
+      : `${greeting}\n\nYou started creating an account on MLAMH, but the registration is not complete yet.\n\nContinue your account setup here:\n${continueUrl}\n\nIf you need help with registration, reply directly to this email and we'll help you.\n\nIf you did not start this registration or no longer wish to complete it, you can ignore this email.\n\nMLAMH\nhttps://mlamh.net`;
 
   const html =
     locale === "ar"
@@ -148,7 +181,7 @@ export async function sendIncompleteRegistrationReminder({
         <div dir="rtl" style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;line-height:1.8;color:#2E2E2E">
           <p style="font-size:18px;font-weight:700">${greeting}</p>
           <p>بدأت إنشاء حساب في ملامح، لكن التسجيل لم يكتمل بعد.</p>
-          <p>يمكنك إكمال إنشاء حسابك واختيار نوع الحساب من الزر التالي:</p>
+          <p>يمكنك إكمال إنشاء حسابك من الزر التالي:</p>
           <p style="margin:24px 0">
             <a href="${continueUrl}" style="display:inline-block;background:#D4A017;color:#2E2E2E;text-decoration:none;padding:12px 22px;border-radius:8px;font-weight:700">إكمال إنشاء الحساب</a>
           </p>
@@ -163,7 +196,7 @@ export async function sendIncompleteRegistrationReminder({
         <div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;line-height:1.8;color:#2E2E2E">
           <p style="font-size:18px;font-weight:700">${greeting}</p>
           <p>You started creating an account on MLAMH, but the registration is not complete yet.</p>
-          <p>Continue your account setup and choose your account type using the button below:</p>
+          <p>Continue your account setup using the button below:</p>
           <p style="margin:24px 0">
             <a href="${continueUrl}" style="display:inline-block;background:#D4A017;color:#2E2E2E;text-decoration:none;padding:12px 22px;border-radius:8px;font-weight:700">Complete account setup</a>
           </p>

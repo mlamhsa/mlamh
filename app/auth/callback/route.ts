@@ -231,6 +231,47 @@ export async function GET(request: Request) {
     }
   }
 
+  if (isSignup && isValidAccountType && !profile) {
+    const displayName = String(
+      user.user_metadata?.full_name ??
+        user.user_metadata?.name ??
+        user.user_metadata?.display_name ??
+        user.email ??
+        "",
+    ).trim() || null;
+
+    const { error: profileCreateError } = await adminClient
+      .from("profiles")
+      .insert({
+        user_id: user.id,
+        account_type: accountType,
+        display_name: displayName,
+        onboarding_status: "profile_in_progress",
+        onboarding_step: "account_details",
+      });
+
+    if (profileCreateError && profileCreateError.code !== "23505") {
+      console.error("[OAuthCallback.signupProfileCreate]", profileCreateError);
+      return NextResponse.redirect(
+        completeAccountUrl(origin, locale, { type: accountType, intent, provider }),
+      );
+    }
+
+    const { error: metadataError } = await adminClient.auth.admin.updateUserById(user.id, {
+      user_metadata: {
+        ...(user.user_metadata ?? {}),
+        account_type: accountType,
+        signup_intent: intent || (accountType === "publisher" ? "publisher" : "talent"),
+        onboarding_status: "profile_in_progress",
+        onboarding_step: "account_details",
+      },
+    });
+
+    if (metadataError) {
+      console.error("[OAuthCallback.signupMetadata]", metadataError);
+    }
+  }
+
   if (isSignup && accountType === "talent" && provider === "email") {
     const signupData = talentSignupDataFromMetadata(user.user_metadata ?? {});
 
