@@ -668,7 +668,13 @@ adminClient
       ),
     );
 
-    const incompletePageSize = 12;
+    const incompleteRegistrationCounts = {
+    talent: incompleteRegistrations.filter((user) => user.account_type === "talent").length,
+    publisher: incompleteRegistrations.filter((user) => user.account_type === "publisher").length,
+    unknown: incompleteRegistrations.filter((user) => !user.account_type).length,
+  };
+
+  const incompletePageSize = 12;
   const incompleteTotalPages = Math.max(
     1,
     Math.ceil(incompleteRegistrations.length / incompletePageSize),
@@ -754,8 +760,8 @@ adminClient
 
       <p className="mt-1 text-sm text-white/35">
         {isArabic
-          ? "مستخدمون بدأوا التسجيل لكن لم يكتمل إنشاء ملفهم. إذا كان نوع الحساب محفوظًا سنعرضه هنا."
-          : "Users who authenticated but did not finish profile creation. Stored account type is shown when available."}
+          ? "الحسابات التي توقفت أثناء التسجيل، مصنفة حسب المرحلة الفعلية: موهبة، ناشر، أو نوع غير معروف."
+          : "Accounts that stopped during signup, classified by their actual stage: talent, publisher, or unknown type."}
       </p>
     </div>
 
@@ -763,6 +769,26 @@ adminClient
       {incompleteRegistrations.length}
     </span>
   </div>
+
+  {incompleteRegistrations.length > 0 ? (
+    <div className="mb-4 grid gap-2 sm:grid-cols-3">
+      <div className="rounded-2xl border border-gold/15 bg-gold/[0.045] px-4 py-3">
+        <p className="text-[10px] text-white/35">{isArabic ? "اختاروا موهبة" : "Talent selected"}</p>
+        <p className="mt-1 text-xl font-semibold tabular-nums text-gold">{incompleteRegistrationCounts.talent}</p>
+        <p className="mt-1 text-[11px] text-white/30">{isArabic ? "لم يكتمل ملف الموهبة" : "Talent profile not completed"}</p>
+      </div>
+      <div className="rounded-2xl border border-sky-300/15 bg-sky-300/[0.04] px-4 py-3">
+        <p className="text-[10px] text-white/35">{isArabic ? "اختاروا ناشر" : "Publisher selected"}</p>
+        <p className="mt-1 text-xl font-semibold tabular-nums text-sky-200">{incompleteRegistrationCounts.publisher}</p>
+        <p className="mt-1 text-[11px] text-white/30">{isArabic ? "لم يكتمل ملف الناشر" : "Publisher profile not completed"}</p>
+      </div>
+      <div className="rounded-2xl border border-amber-300/15 bg-amber-300/[0.04] px-4 py-3">
+        <p className="text-[10px] text-white/35">{isArabic ? "النوع غير معروف" : "Unknown type"}</p>
+        <p className="mt-1 text-xl font-semibold tabular-nums text-amber-200">{incompleteRegistrationCounts.unknown}</p>
+        <p className="mt-1 text-[11px] text-white/30">{isArabic ? "لا يوجد اختيار موثوق محفوظ" : "No reliable stored selection"}</p>
+      </div>
+    </div>
+  ) : null}
 
   {incompleteRegistrations.length === 0 ? (
     <div className="rounded-3xl border border-white/[0.08] bg-white/[0.02] px-6 py-10 text-center">
@@ -802,10 +828,18 @@ adminClient
               </p>
 
               <div className="mt-3 flex flex-wrap gap-2">
-                <span className="rounded-full border border-amber-400/20 bg-amber-400/[0.05] px-3 py-1 text-[10px] text-amber-200">
-                  {isArabic
-                    ? "التسجيل غير مكتمل"
-                    : "Incomplete"}
+                <span className={
+                  user.account_type === "talent"
+                    ? "rounded-full border border-gold/25 bg-gold/[0.07] px-3 py-1 text-[10px] text-gold"
+                    : user.account_type === "publisher"
+                      ? "rounded-full border border-sky-300/20 bg-sky-300/[0.06] px-3 py-1 text-[10px] text-sky-200"
+                      : "rounded-full border border-amber-400/20 bg-amber-400/[0.05] px-3 py-1 text-[10px] text-amber-200"
+                }>
+                  {user.account_type === "talent"
+                    ? (isArabic ? "موهبة · يحتاج استكمال" : "Talent · incomplete")
+                    : user.account_type === "publisher"
+                      ? (isArabic ? "ناشر · يحتاج استكمال" : "Publisher · incomplete")
+                      : (isArabic ? "النوع غير معروف" : "Unknown type")}
                 </span>
 
                 {user.provider ? (
@@ -824,10 +858,10 @@ adminClient
 
               <p className="mt-2 text-xs text-white/30">
   {user.account_type === "talent"
-    ? (isArabic ? "تم اختيار «موهبة»، لكن لم يكتمل إنشاء الملف بعد." : "Talent was selected, but profile creation is not complete yet.")
+    ? (isArabic ? "اختيار الحساب محفوظ: موهبة. المطلوب إكمال ملف الموهبة فقط." : "Saved account choice: Talent. Only the talent profile still needs completion.")
     : user.account_type === "publisher"
-      ? (isArabic ? "تم اختيار «ناشر»، لكن لم يكتمل إنشاء الملف بعد." : "Publisher was selected, but profile creation is not complete yet.")
-      : (isArabic ? "نوع الحساب غير محفوظ في البيانات الحالية." : "Account type is not stored in the current data.")}
+      ? (isArabic ? "اختيار الحساب محفوظ: ناشر. المطلوب إكمال ملف الناشر فقط." : "Saved account choice: Publisher. Only the publisher profile still needs completion.")
+      : (isArabic ? "لا يوجد اختيار موثوق لنوع الحساب؛ يحتاج المستخدم اختيار موهبة أو ناشر." : "No reliable account type is stored; the user still needs to choose Talent or Publisher.")}
 </p>
 
 {user.reminder_count > 0 ? (
