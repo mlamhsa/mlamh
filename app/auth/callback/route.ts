@@ -30,6 +30,20 @@ function existingAccountLoginUrl(
   return url.toString();
 }
 
+function isMissingPkceVerifierError(error: unknown) {
+  const code =
+    typeof error === "object" && error !== null && "code" in error
+      ? String((error as { code?: unknown }).code ?? "").toLowerCase()
+      : "";
+  const message =
+    error instanceof Error ? error.message.toLowerCase() : String(error ?? "").toLowerCase();
+
+  return (
+    code === "pkce_code_verifier_not_found" ||
+    message.includes("pkce code verifier not found")
+  );
+}
+
 function normalizedEmail(value: string | null | undefined) {
   return (value || "").trim().toLowerCase();
 }
@@ -69,7 +83,13 @@ export async function GET(request: Request) {
   const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
 
   if (exchangeError) {
-    console.error("[OAuthCallback.exchangeCodeForSession]", exchangeError);
+    // Missing PKCE state is expected when a callback is replayed, opened on a
+    // different device/browser, or pre-fetched by a link scanner (often HEAD).
+    // Treat it as an expired sign-in attempt rather than a production error.
+    if (!isMissingPkceVerifierError(exchangeError)) {
+      console.error("[OAuthCallback.exchangeCodeForSession]", exchangeError);
+    }
+
     return NextResponse.redirect(
       isRecovery
         ? `${origin}/${locale}/forgot-password?error=expired_link`
@@ -77,7 +97,7 @@ export async function GET(request: Request) {
           ? `${origin}/${locale}/casting?claim=expired_link`
           : isCastingClientLogin
             ? `${origin}/${locale}/casting/client/login?error=expired_link`
-            : `${origin}/${locale}/login?error=oauth_callback`,
+            : `${origin}/${locale}/login?message=session_expired`,
     );
   }
 
