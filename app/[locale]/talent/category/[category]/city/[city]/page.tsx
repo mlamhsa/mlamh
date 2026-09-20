@@ -14,7 +14,7 @@ type PageProps = {
   params: Promise<{ locale: string; category: string; city: string }>;
 };
 
-function categoryLabel(category: "actor" | "model", locale: Locale) {
+function categoryLabel(category: string, locale: Locale) {
   if (locale === "ar") {
     return category === "model" ? "مودلز" : "ممثلين";
   }
@@ -34,7 +34,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const hasPublishedSupply = talents.length > 0;
   const isArabic = locale === "ar";
   const cityName = isArabic ? cityItem.ar : cityItem.en;
-  const categoryName = categoryLabel(category as "actor" | "model", locale);
+  const categoryName = categoryLabel(category, locale);
   const title = isArabic
     ? `${categoryName} ${cityName} | كاستنج ومواهب في ${cityName} | ملامح`
     : `${categoryName} in ${cityName} | Casting & Talent | MLAMH`;
@@ -86,7 +86,7 @@ export default async function TalentCategoryCityPage({ params }: PageProps) {
   const { talents } = await getPublicTalents({ category, city, pageSize: 48 });
   const isArabic = locale === "ar";
   const cityName = isArabic ? cityItem.ar : cityItem.en;
-  const categoryName = categoryLabel(category as "actor" | "model", locale);
+  const categoryName = categoryLabel(category, locale);
   const canonical = `${SITE_URL}/${locale}/talent/category/${category}/city/${city}`;
 
   const breadcrumbJsonLd = {
