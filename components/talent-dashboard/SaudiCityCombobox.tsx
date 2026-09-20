@@ -45,6 +45,7 @@ export function SaudiCityCombobox({
 
   const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false);
+  const [visualViewport, setVisualViewport] = useState<{ top: number; height: number } | null>(null);
   const [query, setQuery] = useState("");
   const [internalSlug, setInternalSlug] = useState(() => normalizeSaudiCitySlug(defaultValue));
 
@@ -92,6 +93,35 @@ export function SaudiCityCombobox({
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, []);
+
+  useEffect(() => {
+    if (!open || typeof window === "undefined") return;
+    if (!window.matchMedia("(max-width: 639px)").matches) return;
+
+    const viewport = window.visualViewport;
+
+    function updateVisualViewport() {
+      if (!viewport) {
+        setVisualViewport(null);
+        return;
+      }
+
+      setVisualViewport({
+        top: Math.max(0, viewport.offsetTop),
+        height: Math.max(320, viewport.height),
+      });
+    }
+
+    updateVisualViewport();
+    viewport?.addEventListener("resize", updateVisualViewport);
+    viewport?.addEventListener("scroll", updateVisualViewport);
+
+    return () => {
+      viewport?.removeEventListener("resize", updateVisualViewport);
+      viewport?.removeEventListener("scroll", updateVisualViewport);
+      setVisualViewport(null);
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open || typeof window === "undefined") return;
@@ -200,7 +230,19 @@ export function SaudiCityCombobox({
             role="dialog"
             aria-modal="true"
             aria-label={isArabic ? "اختيار المدينة" : "Select city"}
-            className="fixed inset-x-0 bottom-0 z-[10020] flex max-h-[min(82dvh,calc(100dvh-env(safe-area-inset-top)-0.75rem))] flex-col overflow-hidden rounded-t-[1.75rem] border border-b-0 border-gold/20 bg-[#080808] pb-[env(safe-area-inset-bottom)] shadow-2xl sm:hidden"
+            className="fixed inset-x-0 bottom-0 z-[10020] flex flex-col overflow-hidden rounded-t-[1.75rem] border border-b-0 border-gold/20 bg-[#080808] pb-[env(safe-area-inset-bottom)] shadow-2xl sm:hidden"
+            style={
+              visualViewport
+                ? {
+                    top: `${visualViewport.top + 8}px`,
+                    bottom: "auto",
+                    height: `${Math.max(300, visualViewport.height - 8)}px`,
+                    maxHeight: `${Math.max(300, visualViewport.height - 8)}px`,
+                  }
+                : {
+                    maxHeight: "82dvh",
+                  }
+            }
           >
             {searchBlock}
             {optionsList}
