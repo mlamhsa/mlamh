@@ -115,8 +115,16 @@ export async function sendIncompleteRegistrationReminderAction(
   return {
     success: true,
     message:
-      locale === "ar"
-        ? "تم إرسال تذكير إكمال التسجيل."
-        : "Registration reminder sent.",
+      result.reminderKind === "talent_profile"
+        ? locale === "ar"
+          ? "تم إرسال تذكير إكمال ملف الموهبة."
+          : "Talent profile reminder sent."
+        : result.reminderKind === "publisher_profile"
+          ? locale === "ar"
+            ? "تم إرسال تذكير إكمال حساب الناشر."
+            : "Publisher account reminder sent."
+          : locale === "ar"
+            ? "تم إرسال تذكير اختيار نوع الحساب."
+            : "Account type reminder sent.",
   };
 }
