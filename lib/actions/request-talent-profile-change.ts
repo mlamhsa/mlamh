@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { NATIONALITY_OPTIONS } from "@/lib/data/talent-signup";
+import { normalizeNationalitySlug } from "@/lib/data/nationality-normalization";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -86,9 +86,9 @@ export async function requestOwnTalentProfileChangeAction(
 
   const requestedName = text(formData, "name");
   const requestedPhone = text(formData, "phone");
-  const requestedNationality = text(formData, "nationality_slug");
+  const requestedNationality = normalizeNationalitySlug(text(formData, "nationality_slug"));
 
-  if (requestedNationality && !NATIONALITY_OPTIONS.some((item) => item.value === requestedNationality)) {
+  if (text(formData, "nationality_slug") && !requestedNationality) {
     return {
       success: false,
       message: isArabic ? "اختر جنسية صحيحة." : "Choose a valid nationality.",
@@ -98,7 +98,7 @@ export async function requestOwnTalentProfileChangeAction(
   const currentNameAr = String(talent.name_ar ?? "").trim();
   const currentNameEn = String(talent.name_en ?? "").trim();
   const currentPhone = String(profile.phone ?? "").trim();
-  const currentNationality = String(talent.nationality_slug ?? talent.nationality ?? "").trim();
+  const currentNationality = normalizeNationalitySlug(String(talent.nationality_slug ?? talent.nationality ?? "").trim());
 
   const nameChanged = Boolean(requestedName) && requestedName !== currentNameAr && requestedName !== currentNameEn;
   const phoneChanged = Boolean(requestedPhone) && requestedPhone !== currentPhone;
