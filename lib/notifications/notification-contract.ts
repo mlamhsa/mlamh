@@ -9,6 +9,7 @@ export type NotificationTarget =
   | { type: "opportunity"; id: string | number }
   | { type: "publisher_opportunity"; id: string | number }
   | { type: "talent_applications" }
+  | { type: "talent_requests" }
   | { type: "none" };
 
 export type MobileNotification = {
