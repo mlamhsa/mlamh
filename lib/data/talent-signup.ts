@@ -1,3 +1,6 @@
+import { NATIONALITIES } from "@/lib/data/nationalities";
+import { SAUDI_CITIES } from "@/lib/data/saudi-cities";
+
 export type TalentSignupCountry = {
   code: string;
   dialCode: string;
@@ -14,26 +17,7 @@ export const TALENT_SIGNUP_COUNTRIES: TalentSignupCountry[] = [
     ar: "السعودية",
     en: "Saudi Arabia",
     phoneExample: "5XXXXXXXX",
-    cities: [
-      { value: "riyadh", ar: "الرياض", en: "Riyadh" },
-      { value: "jeddah", ar: "جدة", en: "Jeddah" },
-      { value: "makkah", ar: "مكة المكرمة", en: "Makkah" },
-      { value: "madinah", ar: "المدينة المنورة", en: "Madinah" },
-      { value: "dammam", ar: "الدمام", en: "Dammam" },
-      { value: "khobar", ar: "الخبر", en: "Al Khobar" },
-      { value: "dhahran", ar: "الظهران", en: "Dhahran" },
-      { value: "taif", ar: "الطائف", en: "Taif" },
-      { value: "tabuk", ar: "تبوك", en: "Tabuk" },
-      { value: "abha", ar: "أبها", en: "Abha" },
-      { value: "khamis_mushait", ar: "خميس مشيط", en: "Khamis Mushait" },
-      { value: "qassim", ar: "القصيم", en: "Al Qassim" },
-      { value: "hail", ar: "حائل", en: "Hail" },
-      { value: "jazan", ar: "جازان", en: "Jazan" },
-      { value: "najran", ar: "نجران", en: "Najran" },
-      { value: "al_ahsa", ar: "الأحساء", en: "Al Ahsa" },
-      { value: "al_muzahimiyah", ar: "المزاحمية", en: "Al Muzahimiyah" },
-      { value: "other", ar: "مدينة أخرى", en: "Other city" },
-    ],
+    cities: SAUDI_CITIES.map((city) => ({ value: city.slug, ar: city.ar, en: city.en })),
   },
   {
     code: "AE",
@@ -182,43 +166,19 @@ export const TALENT_SIGNUP_COUNTRIES: TalentSignupCountry[] = [
   },
 ];
 
-export const NATIONALITY_OPTIONS = [
-  { value: "saudi", ar: "سعودي/سعودية", en: "Saudi" },
-  { value: "emirati", ar: "إماراتي/إماراتية", en: "Emirati" },
-  { value: "kuwaiti", ar: "كويتي/كويتية", en: "Kuwaiti" },
-  { value: "qatari", ar: "قطري/قطرية", en: "Qatari" },
-  { value: "bahraini", ar: "بحريني/بحرينية", en: "Bahraini" },
-  { value: "omani", ar: "عُماني/عُمانية", en: "Omani" },
-  { value: "egyptian", ar: "مصري/مصرية", en: "Egyptian" },
-  { value: "jordanian", ar: "أردني/أردنية", en: "Jordanian" },
-  { value: "moroccan", ar: "مغربي/مغربية", en: "Moroccan" },
-  { value: "algerian", ar: "جزائري/جزائرية", en: "Algerian" },
-  { value: "tunisian", ar: "تونسي/تونسية", en: "Tunisian" },
-  { value: "lebanese", ar: "لبناني/لبنانية", en: "Lebanese" },
-  { value: "syrian", ar: "سوري/سورية", en: "Syrian" },
-  { value: "iraqi", ar: "عراقي/عراقية", en: "Iraqi" },
-  { value: "yemeni", ar: "يمني/يمنية", en: "Yemeni" },
-  { value: "sudanese", ar: "سوداني/سودانية", en: "Sudanese" },
-  { value: "palestinian", ar: "فلسطيني/فلسطينية", en: "Palestinian" },
-  { value: "libyan", ar: "ليبي/ليبية", en: "Libyan" },
-  { value: "mauritanian", ar: "موريتاني/موريتانية", en: "Mauritanian" },
-  { value: "somali", ar: "صومالي/صومالية", en: "Somali" },
-  { value: "ethiopian", ar: "إثيوبي/إثيوبية", en: "Ethiopian" },
-  { value: "eritrea", ar: "إريتري/إريترية", en: "Eritrean" },
-  { value: "turkish", ar: "تركي/تركية", en: "Turkish" },
-  { value: "iranian", ar: "إيراني/إيرانية", en: "Iranian" },
-  { value: "pakistani", ar: "باكستاني/باكستانية", en: "Pakistani" },
-  { value: "indian", ar: "هندي/هندية", en: "Indian" },
-  { value: "filipino", ar: "فلبيني/فلبينية", en: "Filipino" },
-  { value: "american", ar: "أمريكي/أمريكية", en: "American" },
-  { value: "british", ar: "بريطاني/بريطانية", en: "British" },
-  { value: "french", ar: "فرنسي/فرنسية", en: "French" },
-  { value: "spanish", ar: "إسباني/إسبانية", en: "Spanish" },
-  { value: "italian", ar: "إيطالي/إيطالية", en: "Italian" },
-  { value: "german", ar: "ألماني/ألمانية", en: "German" },
-  { value: "canadian", ar: "كندي/كندية", en: "Canadian" },
-  { value: "other", ar: "أخرى", en: "Other" },
-] as const;
+export const NATIONALITY_OPTIONS = NATIONALITIES.map((item) => ({
+  value: item.slug,
+  ar: item.ar,
+  en: item.en,
+  countryAr: item.countryAr,
+  countryEn: item.countryEn,
+})) as readonly {
+  value: string;
+  ar: string;
+  en: string;
+  countryAr: string;
+  countryEn: string;
+}[];
 
 export const GENDER_OPTIONS = [
   { value: "male", ar: "ذكر", en: "Male" },
@@ -227,6 +187,24 @@ export const GENDER_OPTIONS = [
   { value: "prefer_not_to_say", ar: "أفضل عدم الإفصاح", en: "Prefer not to say" },
 ] as const;
 
+/**
+ * New MLAMH registrations intentionally collect only the two operational
+ * gender values used by casting filters. Keep GENDER_OPTIONS above intact for
+ * read/edit compatibility with legacy accounts that may already store older
+ * values.
+ */
+export const SIGNUP_GENDER_OPTIONS = GENDER_OPTIONS.filter(
+  (item) => item.value === "male" || item.value === "female",
+);
+
+export function getGenderOptionsForSelection(currentValue?: string | null) {
+  const current = GENDER_OPTIONS.find((item) => item.value === currentValue);
+  if (!current || SIGNUP_GENDER_OPTIONS.some((item) => item.value === current.value)) {
+    return SIGNUP_GENDER_OPTIONS;
+  }
+  return [...SIGNUP_GENDER_OPTIONS, current];
+}
+
 export const PROFILE_VISIBILITY_OPTIONS = [
   {
     value: "public",
@@ -234,13 +212,6 @@ export const PROFILE_VISIBILITY_OPTIONS = [
     en: "Public after approval",
     descriptionAr: "يمكن عرض ملفك المهني وصورك ومعلوماتك الأساسية في دليل مواهب ملامح بعد الاعتماد.",
     descriptionEn: "Your professional profile, photos and core details may appear in the MLAMH talent directory after approval.",
-  },
-  {
-    value: "verified_publishers",
-    ar: "للناشرين المعتمدين فقط",
-    en: "Approved publishers only",
-    descriptionAr: "لن يظهر ملفك في دليل المواهب العام. يمكن للجهات الموثقة، وكذلك الأفراد وأصحاب المشاريع المعتمدين الذين لديهم فرصة سريعة نشطة، فتحه من المطابقة أو الدعوات المناسبة.",
-    descriptionEn: "Your profile stays out of the public talent directory. Verified organizations and approved individual or small-business publishers with an active Quick Opportunity can open it through relevant matching or invitations.",
   },
   {
     value: "private",
