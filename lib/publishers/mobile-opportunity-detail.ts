@@ -3,6 +3,7 @@ import { canTransitionApplicationStatus, isApplicationStatus, normalizeApplicati
 import { createApplicationStatusNotification } from "@/lib/notifications/application-status-notification";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { signTalentMediaReference } from "@/lib/talents/talent-media-signing";
+import { resolveQuickRequestProductState, type QuickRequestProductStateResult } from "@/lib/quick-requests/product-state";
 
 export type PublisherApplicant = {
   applicationId: number;
@@ -15,6 +16,7 @@ export type PublisherApplicant = {
   status: string;
   createdAt: string | null;
   conversationId: number | null;
+  quickWorkflow: QuickRequestProductStateResult | null;
 };
 
 export type PublisherOpportunityDetail = {
@@ -40,6 +42,7 @@ export type PublisherOpportunityDetail = {
     status: string | null;
     published: boolean;
     createdAt: string | null;
+    postingMode: "quick" | "casting";
   };
   applicants: PublisherApplicant[];
 };
@@ -58,7 +61,7 @@ export async function getPublisherOpportunityDetail(userId: string, opportunityI
   const context = await publisherContext(userId);
   if (!context) return null;
   const { admin, publisher } = context;
-  const { data: opportunity } = await admin.from("opportunities").select("id,title,title_en,description,description_en,opportunity_type,city_ar,city_en,country_code,currency,budget,compensation_type,required_gender,min_age,max_age,required_count,work_date,work_duration,application_start_date,application_deadline,role_requirements,status,published,created_at").eq("id", opportunityId).eq("publisher_id", publisher.id).maybeSingle();
+  const { data: opportunity } = await admin.from("opportunities").select("id,title,title_en,description,description_en,opportunity_type,city_slug,city_ar,city_en,country_code,currency,budget,compensation_type,required_gender,min_age,max_age,required_count,work_date,work_time,work_duration,application_days,application_start_date,application_deadline,role_requirements,status,published,created_at,posting_mode").eq("id", opportunityId).eq("publisher_id", publisher.id).maybeSingle();
   if (!opportunity) return null;
 
   const { data: applications, error } = await admin.from("opportunity_applications").select("id,talent_id,status,created_at").eq("opportunity_id", opportunityId).order("created_at", { ascending: false });
@@ -73,6 +76,18 @@ export async function getPublisherOpportunityDetail(userId: string, opportunityI
   if (conversationsResult.error) throw new Error(`[getPublisherOpportunityDetail] ${conversationsResult.error.message}`);
   const talentMap = new Map((talentsResult.data ?? []).map((talent) => [talent.id, talent]));
   const conversationMap = new Map((conversationsResult.data ?? []).map((conversation) => [Number(conversation.application_id), Number(conversation.id)]));
+  const conversationIds = (conversationsResult.data ?? []).map((conversation) => Number(conversation.id));
+  const { data: workflowEvents, error: workflowEventsError } = conversationIds.length
+    ? await admin.from("events").select("target_id,event_type,metadata").eq("target_type", "conversation").in("target_id", conversationIds.map(String)).in("event_type", ["quick_request_materials_requested","quick_request_selection_confirmed","quick_request_talent_confirmed","quick_request_talent_declined","quick_request_contact_shared"])
+    : { data: [], error: null };
+  if (workflowEventsError) throw new Error(`[getPublisherOpportunityDetail] ${workflowEventsError.message}`);
+  const eventsByConversation = new Map<string, Array<{ eventType: string; metadata: Record<string, unknown> | null }>>();
+  for (const event of workflowEvents ?? []) {
+    const key = String(event.target_id);
+    const current = eventsByConversation.get(key) ?? [];
+    current.push({ eventType: event.event_type, metadata: (event.metadata as Record<string, unknown> | null) ?? null });
+    eventsByConversation.set(key, current);
+  }
   const localized = (ar: string | null | undefined, en: string | null | undefined, fallback = "") => locale === "ar" ? (ar || en || fallback) : (en || ar || fallback);
 
   const applicants = await Promise.all((applications ?? []).map(async (application) => {
@@ -89,6 +104,14 @@ export async function getPublisherOpportunityDetail(userId: string, opportunityI
       status,
       createdAt: application.created_at ?? null,
       conversationId: status === "accepted" ? conversationMap.get(Number(application.id)) ?? null : null,
+      quickWorkflow: opportunity.posting_mode === "quick"
+        ? resolveQuickRequestProductState({
+            applicationStatus: status,
+            hasConversation: conversationMap.has(Number(application.id)),
+            viewerRole: "publisher",
+            events: conversationMap.has(Number(application.id)) ? (eventsByConversation.get(String(conversationMap.get(Number(application.id)))) ?? []) : [],
+          })
+        : null,
     };
   }));
 
@@ -99,6 +122,7 @@ export async function getPublisherOpportunityDetail(userId: string, opportunityI
       description: localized(opportunity.description, opportunity.description_en),
       opportunityType: opportunity.opportunity_type,
       city: localized(opportunity.city_ar, opportunity.city_en) || null,
+      citySlug: opportunity.city_slug ?? null,
       countryCode: opportunity.country_code ?? null,
       currency: opportunity.currency ?? null,
       budget: opportunity.budget ?? null,
@@ -108,13 +132,16 @@ export async function getPublisherOpportunityDetail(userId: string, opportunityI
       maxAge: opportunity.max_age == null ? null : Number(opportunity.max_age),
       requiredCount: opportunity.required_count == null ? null : Number(opportunity.required_count),
       workDate: opportunity.work_date ?? null,
+      workTime: opportunity.work_time ?? null,
       workDuration: opportunity.work_duration ?? null,
+      applicationDays: opportunity.application_days == null ? null : Number(opportunity.application_days),
       applicationStartDate: opportunity.application_start_date ?? null,
       applicationDeadline: opportunity.application_deadline ?? null,
       roleRequirements: opportunity.role_requirements && typeof opportunity.role_requirements === "object" && !Array.isArray(opportunity.role_requirements) ? opportunity.role_requirements as Record<string, unknown> : {},
       status: opportunity.status ?? null,
       published: Boolean(opportunity.published),
       createdAt: opportunity.created_at ?? null,
+      postingMode: opportunity.posting_mode === "quick" ? "quick" : "casting",
     },
     applicants,
   };
