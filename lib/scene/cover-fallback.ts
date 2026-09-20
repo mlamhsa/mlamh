@@ -20,5 +20,7 @@ function getGeneratedSceneCoverUrl(article: SceneCoverArticle) {
 }
 
 export function getSceneCoverUrl(article: SceneCoverArticle) {
+  const coverImageUrl = article.coverImageUrl?.trim();
+  if (coverImageUrl) return coverImageUrl;
   return getGeneratedSceneCoverUrl(article);
 }
