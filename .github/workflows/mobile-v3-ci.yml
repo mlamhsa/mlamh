@@ -39,3 +39,7 @@ jobs:
 
       - name: Typecheck
         run: npm run typecheck
+
+
+      - name: Shell smoke gate
+        run: npm run validate:shell
