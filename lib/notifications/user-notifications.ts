@@ -29,7 +29,7 @@ function readMetadataId(
 }
 
 function getReferenceId(metadata: Record<string, unknown> | null) {
-  const keys = ["conversation_id", "opportunity_id", "application_id", "reference_id"];
+  const keys = ["conversation_id", "conversationId", "opportunity_id", "opportunityId", "application_id", "applicationId", "reference_id", "referenceId"];
   for (const key of keys) {
     const value = readMetadataId(metadata, key);
     if (value !== null) return value;
@@ -42,8 +42,8 @@ function getTarget(
   category: NotificationCategory,
   metadata: Record<string, unknown> | null,
 ): NotificationTarget {
-  const conversationId = readMetadataId(metadata, "conversation_id");
-  const opportunityId = readMetadataId(metadata, "opportunity_id");
+  const conversationId = readMetadataId(metadata, "conversation_id") ?? readMetadataId(metadata, "conversationId");
+  const opportunityId = readMetadataId(metadata, "opportunity_id") ?? readMetadataId(metadata, "opportunityId");
 
   if (category === "message" && conversationId !== null) {
     return { type: "conversation", id: conversationId };
@@ -57,8 +57,16 @@ function getTarget(
     return { type: "talent_applications" };
   }
 
-  if (recipient.type === "talent" && category === "invitation" && opportunityId !== null) {
-    return { type: "opportunity", id: opportunityId };
+  if (category === "invitation" && conversationId !== null) {
+    return { type: "conversation", id: conversationId };
+  }
+
+  if (recipient.type === "talent" && category === "invitation") {
+    return { type: "talent_requests" };
+  }
+
+  if (recipient.type === "publisher" && category === "invitation" && opportunityId !== null) {
+    return { type: "publisher_opportunity", id: opportunityId };
   }
 
   return { type: "none" };
