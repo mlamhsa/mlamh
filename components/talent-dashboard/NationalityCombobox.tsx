@@ -107,6 +107,9 @@ export function NationalityCombobox({
       overflow: body.style.overflow,
     };
 
+    const previousPickerOpen = body.dataset.mlamhPickerOpen;
+    body.dataset.mlamhPickerOpen = "true";
+
     scrollYRef.current = window.scrollY;
     body.style.position = "fixed";
     body.style.top = `-${scrollYRef.current}px`;
@@ -122,6 +125,11 @@ export function NationalityCombobox({
       body.style.right = previous.right;
       body.style.width = previous.width;
       body.style.overflow = previous.overflow;
+      if (previousPickerOpen === undefined) {
+        delete body.dataset.mlamhPickerOpen;
+      } else {
+        body.dataset.mlamhPickerOpen = previousPickerOpen;
+      }
       window.scrollTo({ top: scrollYRef.current, left: 0, behavior: "auto" });
     };
   }, [open]);
@@ -138,7 +146,7 @@ export function NationalityCombobox({
   }
 
   const searchBlock = (
-    <div className="border-b border-white/10 p-4 sm:p-3">
+    <div className="shrink-0 border-b border-white/10 p-4 sm:p-3">
       <div className="mb-3 flex items-center justify-between gap-3 px-1 sm:hidden">
         <span className="text-base font-semibold text-white">{isArabic ? "اختر الجنسية" : "Select nationality"}</span>
         <button type="button" onClick={closePicker} className="min-h-9 rounded-full border border-white/10 px-4 text-xs text-white/65">{isArabic ? "إغلاق" : "Close"}</button>
@@ -157,7 +165,7 @@ export function NationalityCombobox({
   );
 
   const optionsList = (
-    <div role="listbox" className="max-h-[55dvh] overflow-y-auto overscroll-contain p-2 sm:max-h-80">
+    <div role="listbox" className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2 sm:max-h-80 sm:flex-none">
       {filteredNationalities.length > 0 ? filteredNationalities.map((nationality) => {
         const selected = nationality.slug === selectedSlug;
         return (
@@ -184,14 +192,14 @@ export function NationalityCombobox({
             type="button"
             aria-label={isArabic ? "إغلاق اختيار الجنسية" : "Close nationality picker"}
             onClick={closePicker}
-            className="fixed inset-0 z-[140] bg-black/70 backdrop-blur-[2px] sm:hidden"
+            className="fixed inset-0 z-[10010] bg-black/75 backdrop-blur-[3px] sm:hidden"
           />
           <div
             ref={sheetRef}
             role="dialog"
             aria-modal="true"
             aria-label={isArabic ? "اختيار الجنسية" : "Select nationality"}
-            className="fixed inset-x-0 bottom-0 z-[150] max-h-[78dvh] overflow-hidden rounded-t-[1.75rem] border border-b-0 border-gold/20 bg-[#080808] pb-[calc(env(safe-area-inset-bottom)+5.5rem)] shadow-2xl sm:hidden"
+            className="fixed inset-x-0 bottom-0 z-[10020] flex max-h-[min(82dvh,calc(100dvh-env(safe-area-inset-top)-0.75rem))] flex-col overflow-hidden rounded-t-[1.75rem] border border-b-0 border-gold/20 bg-[#080808] pb-[env(safe-area-inset-bottom)] shadow-2xl sm:hidden"
           >
             {searchBlock}
             {optionsList}
