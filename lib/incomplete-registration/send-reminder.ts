@@ -14,6 +14,8 @@ type SendIncompleteRegistrationReminderResult =
       email: string;
       provider: string | null;
       registrationCreatedAt: string | null;
+      reminderKind: "talent_profile" | "publisher_profile" | "account_type";
+      accountType: "talent" | "publisher" | null;
     }
   | {
       success: false;
@@ -152,9 +154,18 @@ export async function sendIncompleteRegistrationReminder({
   }
 
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://mlamh.net";
-  const continueUrl = storedAccountType
-    ? `${baseUrl}/${locale}/join?type=${storedAccountType}`
-    : `${baseUrl}/${locale}/join/account-type`;
+  const reminderKind =
+    storedAccountType === "talent"
+      ? "talent_profile"
+      : storedAccountType === "publisher"
+        ? "publisher_profile"
+        : "account_type";
+  const continueUrl =
+    reminderKind === "talent_profile"
+      ? `${baseUrl}/${locale}/join?type=talent`
+      : reminderKind === "publisher_profile"
+        ? `${baseUrl}/${locale}/join?type=publisher&intent=publisher`
+        : `${baseUrl}/${locale}/join/account-type`;
   const replyTo = process.env.RESEND_REPLY_TO_EMAIL ?? "hello@mlamh.net";
 
   const greeting = name
@@ -165,25 +176,71 @@ export async function sendIncompleteRegistrationReminder({
       ? "مرحبًا"
       : "Hello";
 
-  const subject =
-    locale === "ar"
-      ? "أكمل إنشاء حسابك في ملامح"
-      : "Complete your MLAMH account setup";
+  const reminderContent =
+    reminderKind === "talent_profile"
+      ? locale === "ar"
+        ? {
+            subject: "أكمل ملف موهبتك في ملامح",
+            intro: "اخترت التسجيل في ملامح كموهبة، لكن ملفك لم يكتمل بعد.",
+            detail:
+              "أكمل بيانات ملف الموهبة حتى يصبح جاهزًا للفرص، ويمكنك بعدها إضافة صورك وأعمالك وإرسال الملف للمراجعة عندما تكون جاهزًا.",
+            cta: "إكمال ملف الموهبة",
+          }
+        : {
+            subject: "Complete your talent profile on MLAMH",
+            intro: "You selected a Talent account on MLAMH, but your profile is not complete yet.",
+            detail:
+              "Finish your talent profile so it is ready for opportunities. You can then add your portfolio and submit the profile for review when you are ready.",
+            cta: "Complete talent profile",
+          }
+      : reminderKind === "publisher_profile"
+        ? locale === "ar"
+          ? {
+              subject: "أكمل حساب الناشر في ملامح",
+              intro: "اخترت التسجيل في ملامح كناشر، لكن إعداد حساب الناشر لم يكتمل بعد.",
+              detail:
+                "أكمل بيانات حسابك لتتمكن من إنشاء الفرص، استقبال طلبات المواهب، وبناء قوائم الترشيح داخل ملامح.",
+              cta: "إكمال حساب الناشر",
+            }
+          : {
+              subject: "Complete your publisher account on MLAMH",
+              intro: "You selected a Publisher account on MLAMH, but your publisher setup is not complete yet.",
+              detail:
+                "Finish your account setup to create opportunities, receive talent applications, and build shortlists in MLAMH.",
+              cta: "Complete publisher account",
+            }
+        : locale === "ar"
+          ? {
+              subject: "اختر نوع حسابك لإكمال التسجيل في ملامح",
+              intro: "بدأت إنشاء حساب في ملامح، لكن لم يتم حفظ اختيار نوع الحساب بعد.",
+              detail:
+                "اختر «موهبة» إذا كنت تريد إنشاء ملف والتقديم على الفرص، أو «ناشر» إذا كنت تبحث عن مواهب لمشروع أو إعلان أو فعالية.",
+              cta: "اختيار نوع الحساب",
+            }
+          : {
+              subject: "Choose your account type to finish MLAMH signup",
+              intro: "You started creating an account on MLAMH, but an account type has not been saved yet.",
+              detail:
+                "Choose Talent if you want to build a profile and apply to opportunities, or Publisher if you are looking for talent for a project, campaign, or event.",
+              cta: "Choose account type",
+            };
+
+  const subject = reminderContent.subject;
 
   const text =
     locale === "ar"
-      ? `${greeting}\n\nبدأت إنشاء حساب في ملامح، لكن التسجيل لم يكتمل بعد.\n\nيمكنك إكمال إنشاء حسابك من هنا:\n${continueUrl}\n\nإذا واجهتك مشكلة أثناء التسجيل، يمكنك الرد مباشرة على هذه الرسالة وسنساعدك.\n\nإذا لم تكن أنت من بدأ التسجيل أو لم تعد ترغب في إكماله، يمكنك تجاهل هذه الرسالة.\n\nMLAMH | ملامح\nhttps://mlamh.net`
-      : `${greeting}\n\nYou started creating an account on MLAMH, but the registration is not complete yet.\n\nContinue your account setup here:\n${continueUrl}\n\nIf you need help with registration, reply directly to this email and we'll help you.\n\nIf you did not start this registration or no longer wish to complete it, you can ignore this email.\n\nMLAMH\nhttps://mlamh.net`;
+      ? `${greeting}\n\n${reminderContent.intro}\n\n${reminderContent.detail}\n\n${reminderContent.cta}:\n${continueUrl}\n\nإذا واجهتك مشكلة أثناء التسجيل، يمكنك الرد مباشرة على هذه الرسالة وسنساعدك.\n\nإذا لم تكن أنت من بدأ التسجيل أو لم تعد ترغب في إكماله، يمكنك تجاهل هذه الرسالة.\n\nMLAMH | ملامح\nhttps://mlamh.net`
+      : `${greeting}\n\n${reminderContent.intro}\n\n${reminderContent.detail}\n\n${reminderContent.cta}:\n${continueUrl}\n\nIf you need help, reply directly to this email and we'll help you.\n\nIf you did not start this registration or no longer wish to complete it, you can ignore this email.\n\nMLAMH\nhttps://mlamh.net`;
 
   const html =
     locale === "ar"
       ? `
-        <div dir="rtl" style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;line-height:1.8;color:#2E2E2E">
+        <div dir="rtl" style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;line-height:1.9;color:#2E2E2E">
           <p style="font-size:18px;font-weight:700">${greeting}</p>
-          <p>بدأت إنشاء حساب في ملامح، لكن التسجيل لم يكتمل بعد.</p>
-          <p>يمكنك إكمال إنشاء حسابك من الزر التالي:</p>
+          <p>${reminderContent.intro}</p>
+          <p>${reminderContent.detail}</p>
           <p style="margin:24px 0">
-            <a href="${continueUrl}" style="display:inline-block;background:#D4A017;color:#2E2E2E;text-decoration:none;padding:12px 22px;border-radius:8px;font-weight:700">إكمال إنشاء الحساب</a>
+            <a href="${continueUrl}" style="display:inline-block;background:#D4A017;color:#111;text-decoration:none;padding:12px 22px;border-radius:8px;font-weight:700">${reminderContent.cta}</a>
           </p>
           <p>إذا واجهتك مشكلة أثناء التسجيل، يمكنك الرد مباشرة على هذه الرسالة وسنساعدك.</p>
           <p style="color:#666;font-size:13px">إذا لم تكن أنت من بدأ التسجيل أو لم تعد ترغب في إكماله، يمكنك تجاهل هذه الرسالة.</p>
@@ -193,14 +250,14 @@ export async function sendIncompleteRegistrationReminder({
         </div>
       `
       : `
-        <div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;line-height:1.8;color:#2E2E2E">
+        <div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;line-height:1.9;color:#2E2E2E">
           <p style="font-size:18px;font-weight:700">${greeting}</p>
-          <p>You started creating an account on MLAMH, but the registration is not complete yet.</p>
-          <p>Continue your account setup using the button below:</p>
+          <p>${reminderContent.intro}</p>
+          <p>${reminderContent.detail}</p>
           <p style="margin:24px 0">
-            <a href="${continueUrl}" style="display:inline-block;background:#D4A017;color:#2E2E2E;text-decoration:none;padding:12px 22px;border-radius:8px;font-weight:700">Complete account setup</a>
+            <a href="${continueUrl}" style="display:inline-block;background:#D4A017;color:#111;text-decoration:none;padding:12px 22px;border-radius:8px;font-weight:700">${reminderContent.cta}</a>
           </p>
-          <p>If you need help with registration, reply directly to this email and we'll help you.</p>
+          <p>If you need help, reply directly to this email and we'll help you.</p>
           <p style="color:#666;font-size:13px">If you did not start this registration or no longer wish to complete it, you can ignore this email.</p>
           <hr style="border:0;border-top:1px solid #e5e5e5;margin:24px 0" />
           <p style="color:#666;font-size:12px;margin:0">MLAMH — Talent & Opportunities Platform</p>
@@ -246,5 +303,7 @@ export async function sendIncompleteRegistrationReminder({
     email,
     provider: user.app_metadata?.provider ?? null,
     registrationCreatedAt: user.created_at ?? null,
+    reminderKind,
+    accountType: storedAccountType,
   };
 }

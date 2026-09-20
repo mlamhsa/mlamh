@@ -342,6 +342,10 @@ export async function GET(
             "email",
           reminder_reason:
             "incomplete_registration",
+          reminder_kind:
+            result.reminderKind,
+          account_type:
+            result.accountType,
           reminder_source:
             "system",
           reminder_number:
