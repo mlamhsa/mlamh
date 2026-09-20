@@ -10,6 +10,22 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 const ADMIN_LOGIN_PATH = "/ar/login";
 const ADMIN_MFA_PATH = "/admin-mfa";
 
+function isMissingOrStaleAuthSession(error: unknown) {
+  if (!error) return false;
+
+  const authError = error as { code?: string; message?: string };
+  const code = authError.code?.toLowerCase() ?? "";
+  const message = authError.message?.toLowerCase() ?? String(error).toLowerCase();
+
+  return (
+    code === "refresh_token_not_found" ||
+    code === "session_not_found" ||
+    message.includes("refresh token not found") ||
+    message.includes("invalid refresh token") ||
+    message.includes("auth session missing")
+  );
+}
+
 async function requireAdminIdentityInternal() {
   const authClient =
     await createServerSupabaseClient();
@@ -21,6 +37,14 @@ async function requireAdminIdentityInternal() {
     await authClient.auth.getUser();
 
   if (userError || !user) {
+    // Expired, revoked, or already-rotated sessions are expected unauthenticated
+    // states. Do not surface them as runtime failures from protected routes.
+    // Proxy owns cookie refresh/cleanup; this guard remains fail-closed.
+    if (!userError || isMissingOrStaleAuthSession(userError)) {
+      redirect(ADMIN_LOGIN_PATH);
+    }
+
+    console.error("[requireAdminIdentity auth]", userError);
     redirect(ADMIN_LOGIN_PATH);
   }
 
