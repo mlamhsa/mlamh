@@ -24,6 +24,7 @@ export async function GET(request: Request) {
       ageMax: url.searchParams.get("ageMax") || undefined,
       heightMin: url.searchParams.get("heightMin") || undefined,
       heightMax: url.searchParams.get("heightMax") || undefined,
+      modelType: url.searchParams.get("category") === "model" ? (url.searchParams.get("modelType") || undefined) : undefined,
       language: url.searchParams.get("language") || undefined,
       dialect: url.searchParams.get("dialect") || undefined,
       skill: url.searchParams.get("skill") || undefined,
