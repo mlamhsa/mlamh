@@ -26,6 +26,15 @@ export type SceneSearchResponse = {
   items: ScenePublicArticle[];
 };
 
+function isSceneStorageUnavailable(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  return (
+    message.includes("scene_categories") ||
+    message.includes("scene_articles") ||
+    message.includes("schema cache")
+  );
+}
+
 export function normalizeSceneSearch(value: string) {
   return value
     .normalize("NFKC")
@@ -46,30 +55,42 @@ function matchesArticle(article: ScenePublicArticle, query: string) {
 }
 
 export async function getSceneFeed(locale: SceneLocale): Promise<SceneFeedResponse> {
-  const [categories, articles] = await Promise.all([
-    SceneCMS.getPublicCategories(locale),
-    SceneCMS.getPublicArticles({ locale, limit: 30 }),
-  ]);
+  try {
+    const [categories, articles] = await Promise.all([
+      SceneCMS.getPublicCategories(locale),
+      SceneCMS.getPublicArticles({ locale, limit: 30 }),
+    ]);
 
-  const featured = articles.filter((article) => article.isFeatured);
-  const lead = featured[0] ?? articles[0] ?? null;
-  const latest = articles.filter((article) => article.id !== lead?.id).slice(0, 6);
-  const reportCategory = categories.find((category) => category.slug === "reports");
-  const storyCategory = categories.find((category) => category.slug === "stories");
-  const reports = reportCategory
-    ? articles.filter((article) => article.categoryId === reportCategory.id).slice(0, 3)
-    : [];
-  const stories = storyCategory
-    ? articles.filter((article) => article.categoryId === storyCategory.id).slice(0, 3)
-    : [];
+    const featured = articles.filter((article) => article.isFeatured);
+    const lead = featured[0] ?? articles[0] ?? null;
+    const latest = articles.filter((article) => article.id !== lead?.id).slice(0, 6);
+    const reportCategory = categories.find((category) => category.slug === "reports");
+    const storyCategory = categories.find((category) => category.slug === "stories");
+    const reports = reportCategory
+      ? articles.filter((article) => article.categoryId === reportCategory.id).slice(0, 3)
+      : [];
+    const stories = storyCategory
+      ? articles.filter((article) => article.categoryId === storyCategory.id).slice(0, 3)
+      : [];
 
-  return { locale, categories, lead, latest, reports, stories };
+    return { locale, categories, lead, latest, reports, stories };
+  } catch (error) {
+    if (isSceneStorageUnavailable(error)) {
+      return { locale, categories: [], lead: null, latest: [], reports: [], stories: [] };
+    }
+    throw error;
+  }
 }
 
 export async function getSceneArticle(locale: SceneLocale, slug: string) {
   const normalizedSlug = slug.trim();
   if (!normalizedSlug) return null;
-  return SceneCMS.getPublicArticleBySlug({ slug: normalizedSlug, locale });
+  try {
+    return await SceneCMS.getPublicArticleBySlug({ slug: normalizedSlug, locale });
+  } catch (error) {
+    if (isSceneStorageUnavailable(error)) return null;
+    throw error;
+  }
 }
 
 export async function getSceneCategory(
@@ -79,18 +100,23 @@ export async function getSceneCategory(
   const normalizedSlug = slug.trim();
   if (!normalizedSlug) return null;
 
-  const category = await SceneCMS.getPublicCategoryBySlug({
-    slug: normalizedSlug,
-    locale,
-  });
-  if (!category) return null;
+  try {
+    const category = await SceneCMS.getPublicCategoryBySlug({
+      slug: normalizedSlug,
+      locale,
+    });
+    if (!category) return null;
 
-  const articles = await SceneCMS.getPublicArticles({
-    locale,
-    categoryId: category.id,
-    limit: 100,
-  });
-  return { locale, category, articles };
+    const articles = await SceneCMS.getPublicArticles({
+      locale,
+      categoryId: category.id,
+      limit: 100,
+    });
+    return { locale, category, articles };
+  } catch (error) {
+    if (isSceneStorageUnavailable(error)) return null;
+    throw error;
+  }
 }
 
 export async function searchScene(
@@ -101,10 +127,15 @@ export async function searchScene(
   const normalizedQuery = normalizeSceneSearch(query);
   if (normalizedQuery.length < 2) return { locale, query, items: [] };
 
-  const articles = await SceneCMS.getPublicArticles({ locale, limit: 100 });
-  return {
-    locale,
-    query,
-    items: articles.filter((article) => matchesArticle(article, normalizedQuery)),
-  };
+  try {
+    const articles = await SceneCMS.getPublicArticles({ locale, limit: 100 });
+    return {
+      locale,
+      query,
+      items: articles.filter((article) => matchesArticle(article, normalizedQuery)),
+    };
+  } catch (error) {
+    if (isSceneStorageUnavailable(error)) return { locale, query, items: [] };
+    throw error;
+  }
 }
