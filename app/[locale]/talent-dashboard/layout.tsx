@@ -22,12 +22,16 @@ export default async function TalentDashboardLayout({
     data: { user },
   } = await supabase.auth.getUser();
 
+  if (!user) {
+    redirect(`/${safeLocale}/login?message=session_expired`);
+  }
+
   let talentId: string | number | null = null;
   let totalApplications = 0;
   let notificationCount = 0;
   let unreadMessagesCount = 0;
 
-  if (user) {
+  {
     const [talentResult, profileResult] = await Promise.all([
       supabase.from("talents").select("*").eq("user_id", user.id).maybeSingle(),
       supabase
@@ -81,20 +85,18 @@ export default async function TalentDashboardLayout({
 
   return (
     <>
-      {user ? <TalentRealtimeSync userId={user.id} talentId={talentId} /> : null}
-      {user ? (
-        <TalentDashboardHomeOnly locale={safeLocale}>
-          <TalentFeaturedEntryPoint locale={locale} userId={user.id} />
-        </TalentDashboardHomeOnly>
-      ) : null}
+      <TalentRealtimeSync userId={user.id} talentId={talentId} />
+      <TalentDashboardHomeOnly locale={safeLocale}>
+        <TalentFeaturedEntryPoint locale={locale} userId={user.id} />
+      </TalentDashboardHomeOnly>
       <TalentDashboardShell
         locale={locale}
         totalApplications={totalApplications}
         notificationCount={notificationCount}
         unreadMessagesCount={unreadMessagesCount}
       >
-        {user ? <TalentConsentCompletionCard locale={locale} /> : null}
-        {user ? <TalentApprovedLegacyRequiredFieldsCard locale={locale} /> : null}
+        <TalentConsentCompletionCard locale={locale} />
+        <TalentApprovedLegacyRequiredFieldsCard locale={locale} />
         {children}
       </TalentDashboardShell>
     </>

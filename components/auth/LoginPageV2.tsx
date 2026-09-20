@@ -141,6 +141,7 @@ export function LoginPageV2({ locale, initialEmail = "", errorCode, messageCode 
   }
 
   const legacyVerifyMessage = messageCode === "verify_email";
+  const sessionExpired = messageCode === "session_expired";
   const accountExists = errorCode === "account_exists";
   const forgotPasswordHref = email.trim()
     ? `/${locale}/forgot-password?email=${encodeURIComponent(email.trim().toLowerCase())}`
@@ -178,6 +179,19 @@ export function LoginPageV2({ locale, initialEmail = "", errorCode, messageCode 
                 {isArabic ? "إدخال رمز التحقق" : "Enter verification code"}
               </Link>
             ) : null}
+          </div>
+        ) : null}
+
+        {sessionExpired ? (
+          <div role="status" className="mb-5 rounded-2xl border border-gold/25 bg-gold/[0.06] p-4 text-sm leading-7 text-white/70">
+            <p className="font-medium text-white">
+              {isArabic ? "انتهت جلسة الدخول" : "Your sign-in session ended"}
+            </p>
+            <p className="mt-1">
+              {isArabic
+                ? "سجّل الدخول مرة أخرى للعودة إلى حسابك. لم يتم حذف بيانات ملفك."
+                : "Sign in again to return to your account. Your profile data has not been deleted."}
+            </p>
           </div>
         ) : null}
 
