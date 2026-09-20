@@ -44,7 +44,7 @@ type NavItem = {
 };
 
 const HIDE_ALL = new Set(["/", "/+not-found"]);
-const HIDE_BOTTOM = new Set(["/login", "/account-type", "/register", "/verify-email", "/setup-account", "/forgot-password", "/reset-password"]);
+const HIDE_BOTTOM = new Set(["/login", "/register", "/verify-email", "/setup-account", "/forgot-password", "/reset-password"]);
 
 function rawPush(href: string) {
   router.push(href as Href);
