@@ -104,18 +104,28 @@ export async function GET(
       (user) => user.id,
     );
 
-  const {
-    data: profileRows,
-    error: profilesError,
-  } = await adminClient
-    .from("profiles")
-    .select("user_id")
-    .in("user_id", userIds);
+  const [
+    { data: profileRows, error: profilesError },
+    { data: talentRows, error: talentsError },
+    { data: publisherRows, error: publishersError },
+  ] = await Promise.all([
+    adminClient
+      .from("profiles")
+      .select("id,user_id,account_type")
+      .in("user_id", userIds),
+    adminClient
+      .from("talents")
+      .select("user_id")
+      .in("user_id", userIds),
+    adminClient
+      .from("publishers")
+      .select("profile_id"),
+  ]);
 
-  if (profilesError) {
+  if (profilesError || talentsError || publishersError) {
     console.error(
-      "[IncompleteRegistrationCron.profiles]",
-      profilesError,
+      "[IncompleteRegistrationCron.registrationState]",
+      profilesError ?? talentsError ?? publishersError,
     );
 
     return NextResponse.json(
@@ -130,23 +140,26 @@ export async function GET(
     );
   }
 
-  const profileUserIds =
-    new Set(
-      (profileRows ?? []).map(
-        (profile) =>
-          String(
-            profile.user_id ?? "",
-          ),
-      ),
-    );
+  const profileByUserId = new Map(
+    (profileRows ?? [])
+      .filter((profile) => profile.user_id)
+      .map((profile) => [String(profile.user_id), profile]),
+  );
+  const talentUserIds = new Set(
+    (talentRows ?? []).map((talent) => String(talent.user_id ?? "")).filter(Boolean),
+  );
+  const publisherProfileIds = new Set(
+    (publisherRows ?? []).map((publisher) => String(publisher.profile_id ?? "")).filter(Boolean),
+  );
 
   const incompleteUsers =
-    authUsers.filter(
-      (user) =>
-        !profileUserIds.has(
-          user.id,
-        ),
-    );
+    authUsers.filter((user) => {
+      const profile = profileByUserId.get(user.id);
+      if (!profile) return true;
+      if (profile.account_type === "talent") return !talentUserIds.has(user.id);
+      if (profile.account_type === "publisher") return !publisherProfileIds.has(String(profile.id));
+      return false;
+    });
 
   if (
     incompleteUsers.length === 0
