@@ -5,7 +5,7 @@ import { useMemo, useState, useTransition } from "react";
 import {
   updateOwnTalentResidenceCountryAction,
 } from "@/lib/actions/update-own-talent-residence-country";
-import { TALENT_SIGNUP_COUNTRIES } from "@/lib/data/talent-signup";
+import { ACTIVE_TALENT_SIGNUP_COUNTRIES } from "@/lib/data/talent-active-market";
 
 type Props = {
   locale: "ar" | "en";
@@ -23,7 +23,7 @@ export function TalentResidenceCountrySelectorV1({
 
   const options = useMemo(
     () =>
-      TALENT_SIGNUP_COUNTRIES.map((country) => ({
+      ACTIVE_TALENT_SIGNUP_COUNTRIES.map((country) => ({
         value: country.code,
         label: isArabic ? country.ar : country.en,
       })),
@@ -70,8 +70,8 @@ export function TalentResidenceCountrySelectorV1({
 
           <p className="mt-2 text-sm leading-7 text-white/45">
             {isArabic
-              ? "اختر بلد إقامتك الفعلي. بعد الحفظ ستتحدث قائمة المدن تلقائيًا حسب البلد المختار."
-              : "Choose your actual country of residence. After saving, the city list will update automatically for that country."}
+              ? "السوق النشط حاليًا هو السعودية. يتم اعتماد بلد الإقامة وفق السوق المتاح، وتتحدث قائمة المدن تلقائيًا."
+              : "Saudi Arabia is the active market. Residence country follows the available market, and the city list updates automatically."}
           </p>
 
           <select

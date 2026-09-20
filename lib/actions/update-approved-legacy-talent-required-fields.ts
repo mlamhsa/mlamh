@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 
 import { TALENT_CATEGORIES } from "@/lib/data/talent-categories";
-import { GENDER_OPTIONS, NATIONALITY_OPTIONS } from "@/lib/data/talent-signup";
+import { SIGNUP_GENDER_OPTIONS } from "@/lib/data/talent-signup";
+import { resolveNationality } from "@/lib/data/nationality-normalization";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -100,7 +101,7 @@ export async function updateApprovedLegacyTalentRequiredFieldsAction(
   }
 
   if (missing(talent.gender) && gender) {
-    if (!GENDER_OPTIONS.some((item) => item.value === gender)) {
+    if (!SIGNUP_GENDER_OPTIONS.some((item) => item.value === gender)) {
       return {
         success: false,
         message: isArabic ? "اختر قيمة صحيحة للجنس." : "Choose a valid gender value.",
@@ -110,14 +111,15 @@ export async function updateApprovedLegacyTalentRequiredFieldsAction(
   }
 
   if (missing(talent.nationality_slug) && missing(talent.nationality) && nationality) {
-    if (!NATIONALITY_OPTIONS.some((item) => item.value === nationality)) {
+    const nationalityOption = resolveNationality(nationality);
+    if (!nationalityOption) {
       return {
         success: false,
         message: isArabic ? "اختر جنسية صحيحة." : "Choose a valid nationality.",
       };
     }
-    talentPayload.nationality_slug = nationality;
-    talentPayload.nationality = nationality;
+    talentPayload.nationality_slug = nationalityOption.slug;
+    talentPayload.nationality = nationalityOption.en;
   }
 
   if (missing(talent.date_of_birth) && dateOfBirth) {

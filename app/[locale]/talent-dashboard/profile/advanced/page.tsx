@@ -10,7 +10,11 @@ import { updateOwnTalentCoreDetailsAction } from "@/lib/actions/update-own-talen
 import { getOwnTalentProfileAction } from "@/lib/actions/update-own-talent-profile";
 import { TALENT_CATEGORIES } from "@/lib/data/talent-categories";
 import { ACTIVE_TALENT_SIGNUP_COUNTRIES } from "@/lib/data/talent-active-market";
-import { GENDER_OPTIONS, NATIONALITY_OPTIONS } from "@/lib/data/talent-signup";
+import {
+  GENDER_OPTIONS,
+  NATIONALITY_OPTIONS,
+  getGenderOptionsForSelection,
+} from "@/lib/data/talent-signup";
 import { normalizeNationalitySlug } from "@/lib/data/nationality-normalization";
 import { normalizeSaudiCitySlug, SAUDI_CITIES } from "@/lib/data/saudi-cities";
 import { isValidLocale, type Locale } from "@/lib/i18n";
@@ -340,7 +344,7 @@ export default function TalentRequiredFieldsPage({
                 <Field label={isArabic ? "الجنس" : "Gender"}>
                   <select id="gender" value={gender} onChange={(e) => setGender(e.target.value)} className="input">
                     <option value="">{isArabic ? "اختر" : "Select"}</option>
-                    {GENDER_OPTIONS.map((item) => (
+                    {getGenderOptionsForSelection(gender).map((item) => (
                       <option key={item.value} value={item.value}>{isArabic ? item.ar : item.en}</option>
                     ))}
                   </select>

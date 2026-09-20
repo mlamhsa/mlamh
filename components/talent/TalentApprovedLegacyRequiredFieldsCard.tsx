@@ -4,10 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import { CheckCircle2, ShieldCheck } from "lucide-react";
 
+import { NationalityCombobox } from "@/components/talent-dashboard/NationalityCombobox";
 import { getOwnTalentProfileAction } from "@/lib/actions/update-own-talent-profile";
 import { updateApprovedLegacyTalentRequiredFieldsAction } from "@/lib/actions/update-approved-legacy-talent-required-fields";
 import { TALENT_CATEGORIES } from "@/lib/data/talent-categories";
-import { GENDER_OPTIONS, NATIONALITY_OPTIONS } from "@/lib/data/talent-signup";
+import { SIGNUP_GENDER_OPTIONS } from "@/lib/data/talent-signup";
 
 type TalentSnapshot = {
   approval_status?: string | null;
@@ -173,7 +174,7 @@ export default function TalentApprovedLegacyRequiredFieldsCard({ locale }: Props
                     className="min-h-12 w-full rounded-2xl border border-white/10 bg-black/20 px-4 text-white outline-none focus:border-gold/50"
                   >
                     <option value="">{isArabic ? "اختر" : "Select"}</option>
-                    {GENDER_OPTIONS.map((option) => (
+                    {SIGNUP_GENDER_OPTIONS.map((option) => (
                       <option key={option.value} value={option.value}>{isArabic ? option.ar : option.en}</option>
                     ))}
                   </select>
@@ -181,19 +182,17 @@ export default function TalentApprovedLegacyRequiredFieldsCard({ locale }: Props
               ) : null}
 
               {missingFields.includes("nationality") ? (
-                <label className="block">
+                <div className="block">
                   <span className="mb-2 block text-sm text-white/70">{isArabic ? "الجنسية" : "Nationality"}</span>
-                  <select
+                  <NationalityCombobox
+                    id="legacy-required-nationality"
+                    locale={profileLocale}
                     value={nationality}
-                    onChange={(event) => setNationality(event.target.value)}
-                    className="min-h-12 w-full rounded-2xl border border-white/10 bg-black/20 px-4 text-white outline-none focus:border-gold/50"
-                  >
-                    <option value="">{isArabic ? "اختر" : "Select"}</option>
-                    {NATIONALITY_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>{isArabic ? option.ar : option.en}</option>
-                    ))}
-                  </select>
-                </label>
+                    onChange={setNationality}
+                    name=""
+                    showLabel={false}
+                  />
+                </div>
               ) : null}
 
               {missingFields.includes("date_of_birth") ? (

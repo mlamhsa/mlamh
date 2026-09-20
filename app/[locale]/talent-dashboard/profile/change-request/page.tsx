@@ -3,12 +3,14 @@
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
 
+import { NationalityCombobox } from "@/components/talent-dashboard/NationalityCombobox";
+
 import {
   getOwnPendingTalentProfileChangeAction,
   getOwnTalentProfileAction,
 } from "@/lib/actions/update-own-talent-profile";
 import { requestOwnTalentProfileChangeAction } from "@/lib/actions/request-talent-profile-change";
-import { NATIONALITY_OPTIONS } from "@/lib/data/talent-signup";
+import { normalizeNationalitySlug, resolveNationality } from "@/lib/data/nationality-normalization";
 import { isValidLocale, type Locale } from "@/lib/i18n";
 
 type TalentSnapshot = {
@@ -65,7 +67,7 @@ export default function TalentProfileChangeRequestPage({
       setPending(pendingRequest);
       setName(clean(profile?.name_ar) || clean(profile?.name_en));
       setPhone(clean(profile?.phone));
-      setNationality(clean(profile?.nationality_slug) || clean(profile?.nationality));
+      setNationality(normalizeNationalitySlug(clean(profile?.nationality_slug) || clean(profile?.nationality)));
     } catch (error) {
       setMessage(error instanceof Error ? error.message : isArabic ? "تعذر تحميل بياناتك." : "Unable to load your details.");
     } finally {
@@ -205,14 +207,17 @@ export default function TalentProfileChangeRequestPage({
                   <Field label={isArabic ? "رقم الجوال" : "Phone number"}>
                     <input value={phone} onChange={(event) => setPhone(event.target.value)} dir="ltr" className="input text-left" />
                   </Field>
-                  <Field label={isArabic ? "الجنسية" : "Nationality"}>
-                    <select value={nationality} onChange={(event) => setNationality(event.target.value)} className="input">
-                      <option value="">{isArabic ? "اختر" : "Select"}</option>
-                      {NATIONALITY_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>{isArabic ? option.ar : option.en}</option>
-                      ))}
-                    </select>
-                  </Field>
+                  <div className="block">
+                    <span className="mb-2 block text-sm text-white/70">{isArabic ? "الجنسية" : "Nationality"}</span>
+                    <NationalityCombobox
+                      id="change-request-nationality"
+                      locale={locale}
+                      value={nationality}
+                      onChange={setNationality}
+                      name=""
+                      showLabel={false}
+                    />
+                  </div>
                 </div>
               </section>
 
@@ -275,6 +280,6 @@ function PendingItem({ label, value, ltr = false }: { label: string; value: stri
 }
 
 function nationalityLabel(value: string, isArabic: boolean) {
-  const option = NATIONALITY_OPTIONS.find((item) => item.value === value);
+  const option = resolveNationality(value);
   return option ? (isArabic ? option.ar : option.en) : value;
 }

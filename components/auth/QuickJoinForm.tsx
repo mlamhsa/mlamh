@@ -6,8 +6,9 @@ import { useRouter } from "next/navigation";
 
 import { checkAuthEmailExistsAction } from "@/lib/actions/check-auth-email";
 import { TALENT_CATEGORIES } from "@/lib/data/talent-categories";
+import { ACTIVE_TALENT_SIGNUP_COUNTRIES } from "@/lib/data/talent-active-market";
 import {
-  GENDER_OPTIONS,
+  SIGNUP_GENDER_OPTIONS,
   NATIONALITY_OPTIONS,
   PROFILE_VISIBILITY_OPTIONS,
   TALENT_SIGNUP_COUNTRIES,
@@ -54,9 +55,8 @@ export function QuickJoinForm({ locale, accountType, intent }: QuickJoinFormProp
   const [gender, setGender] = useState("");
   const [residenceCountry, setResidenceCountry] = useState("SA");
   const [city, setCity] = useState("");
-  const [otherCity, setOtherCity] = useState("");
   const [talentType, setTalentType] = useState(intent === "actor" || intent === "model" ? intent : "");
-  const [profileVisibility, setProfileVisibility] = useState<"public" | "verified_publishers" | "private" | "">("");
+  const [profileVisibility, setProfileVisibility] = useState<"public" | "private" | "">("");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [acceptedDataConsent, setAcceptedDataConsent] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -70,11 +70,11 @@ export function QuickJoinForm({ locale, accountType, intent }: QuickJoinFormProp
     [phoneCountryCode],
   );
   const selectedResidenceCountry = useMemo(
-    () => TALENT_SIGNUP_COUNTRIES.find((country) => country.code === residenceCountry) ?? TALENT_SIGNUP_COUNTRIES[0],
+    () => ACTIVE_TALENT_SIGNUP_COUNTRIES.find((country) => country.code === residenceCountry) ?? ACTIVE_TALENT_SIGNUP_COUNTRIES[0],
     [residenceCountry],
   );
   const normalizedPhone = phone ? `${selectedPhoneCountry.dialCode}${phone}` : "";
-  const resolvedCity = city === "other" ? otherCity.trim() : city;
+  const selectedTalentCity = selectedResidenceCountry.cities.find((item) => item.value === city) ?? null;
   const inputClass = "min-h-14 w-full rounded-2xl border border-white/10 bg-black/30 px-4 text-base text-white outline-none transition placeholder:text-white/25 focus:border-gold/50 sm:text-sm";
   const requiredMark = <span className="text-gold" aria-hidden="true"> *</span>;
 
@@ -94,7 +94,7 @@ export function QuickJoinForm({ locale, accountType, intent }: QuickJoinFormProp
       setErrorMessage(isRtl ? "أدخل رقم جوال صحيحًا مع مفتاح الدولة." : "Enter a valid mobile number including the country code.");
       return;
     }
-    if (isTalent && (!nationality || !gender || !residenceCountry || !resolvedCity || !talentType || !profileVisibility)) {
+    if (isTalent && (!nationality || !gender || !residenceCountry || !selectedTalentCity || !talentType || !profileVisibility)) {
       setErrorMessage(isRtl ? "أكمل جميع بيانات الموهبة المطلوبة للمتابعة." : "Complete all required talent details to continue.");
       return;
     }
@@ -142,10 +142,12 @@ export function QuickJoinForm({ locale, accountType, intent }: QuickJoinFormProp
             account_type: accountType,
             signup_intent: resolvedIntent,
             talent_type: isTalent ? talentType : null,
-            nationality: isTalent ? nationality : null,
+            nationality_slug: isTalent ? nationality : null,
             gender: isTalent ? gender : null,
-            country_of_residence: isTalent ? residenceCountry : null,
-            city: isTalent ? resolvedCity : null,
+            residence_country_code: isTalent ? residenceCountry : null,
+            city_slug: isTalent ? selectedTalentCity?.value ?? null : null,
+            city_ar: isTalent ? selectedTalentCity?.ar ?? null : null,
+            city_en: isTalent ? selectedTalentCity?.en ?? null : null,
             profile_visibility: isTalent ? profileVisibility : null,
             onboarding_status: "email_verification_required",
             onboarding_step: "email_verification",
@@ -153,8 +155,8 @@ export function QuickJoinForm({ locale, accountType, intent }: QuickJoinFormProp
             preferred_locale: locale,
             terms_accepted: true,
             terms_accepted_at: now,
-            data_contact_consent: isTalent ? true : null,
-            data_contact_consent_at: isTalent ? now : null,
+            data_accuracy_contact_consent: isTalent ? true : null,
+            data_accuracy_contact_consent_at: isTalent ? now : null,
           },
         },
       });
@@ -238,14 +240,14 @@ export function QuickJoinForm({ locale, accountType, intent }: QuickJoinFormProp
               <label htmlFor="join-gender" className="mb-2 block text-sm text-white/65">{isRtl ? "الجنس" : "Gender"}{requiredMark}</label>
               <select id="join-gender" required value={gender} onChange={(event) => setGender(event.currentTarget.value)} className={inputClass}>
                 <option value="">{isRtl ? "اختر" : "Choose"}</option>
-                {GENDER_OPTIONS.map((option) => <option key={option.value} value={option.value} className="bg-black text-white">{isRtl ? option.ar : option.en}</option>)}
+                {SIGNUP_GENDER_OPTIONS.map((option) => <option key={option.value} value={option.value} className="bg-black text-white">{isRtl ? option.ar : option.en}</option>)}
               </select>
             </div>
 
             <div>
               <label htmlFor="join-residence-country" className="mb-2 block text-sm text-white/65">{isRtl ? "بلد الإقامة" : "Country of residence"}{requiredMark}</label>
-              <select id="join-residence-country" required value={residenceCountry} onChange={(event) => { setResidenceCountry(event.currentTarget.value); setCity(""); setOtherCity(""); }} className={inputClass}>
-                {TALENT_SIGNUP_COUNTRIES.map((country) => <option key={country.code} value={country.code} className="bg-black text-white">{isRtl ? country.ar : country.en}</option>)}
+              <select id="join-residence-country" required value={residenceCountry} onChange={(event) => { setResidenceCountry(event.currentTarget.value); setCity(""); }} className={inputClass}>
+                {ACTIVE_TALENT_SIGNUP_COUNTRIES.map((country) => <option key={country.code} value={country.code} className="bg-black text-white">{isRtl ? country.ar : country.en}</option>)}
               </select>
             </div>
 
@@ -256,13 +258,6 @@ export function QuickJoinForm({ locale, accountType, intent }: QuickJoinFormProp
                 {selectedResidenceCountry.cities.map((option) => <option key={option.value} value={option.value} className="bg-black text-white">{isRtl ? option.ar : option.en}</option>)}
               </select>
             </div>
-
-            {city === "other" ? (
-              <div className="sm:col-span-2">
-                <label htmlFor="join-other-city" className="mb-2 block text-sm text-white/65">{isRtl ? "اكتب اسم المدينة" : "Enter city name"}{requiredMark}</label>
-                <input id="join-other-city" required value={otherCity} onChange={(event) => setOtherCity(event.currentTarget.value)} className={inputClass} />
-              </div>
-            ) : null}
 
             <div className="sm:col-span-2">
               <label htmlFor="join-talent-type" className="mb-2 block text-sm text-white/65">{isRtl ? "نوع الموهبة" : "Talent type"}{requiredMark}</label>

@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { updateOwnTalentProfessionalDetailsAction } from "@/lib/actions/update-own-talent-professional-details";
 import { TALENT_CATEGORIES } from "@/lib/data/talent-categories";
 import { getActiveTalentCountry, isActiveTalentCountryCode } from "@/lib/data/talent-active-market";
-import { GENDER_OPTIONS, TALENT_SIGNUP_COUNTRIES } from "@/lib/data/talent-signup";
+import { getGenderOptionsForSelection, TALENT_SIGNUP_COUNTRIES } from "@/lib/data/talent-signup";
 import { resolveNationality } from "@/lib/data/nationality-normalization";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -85,7 +85,7 @@ export async function updateOwnTalentCoreDetailsAction(
       .maybeSingle(),
     admin
       .from("talents")
-      .select("id, slug, primary_role, category_slug, profile_visibility, base_country_code")
+      .select("id, slug, primary_role, category_slug, gender, profile_visibility, base_country_code")
       .eq("user_id", user.id)
       .maybeSingle(),
   ]);
@@ -118,7 +118,7 @@ export async function updateOwnTalentCoreDetailsAction(
     ? TALENT_CATEGORIES.find((item) => item.slug === categorySlug)
     : null;
   const genderOption = gender
-    ? GENDER_OPTIONS.find((item) => item.value === gender)
+    ? getGenderOptionsForSelection(String(talent.gender ?? "").trim()).find((item) => item.value === gender)
     : null;
   const nationalityOption = nationality ? resolveNationality(nationality) : null;
   const existingCountryCode = String(talent.base_country_code ?? "").trim().toUpperCase();

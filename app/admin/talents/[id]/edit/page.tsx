@@ -35,13 +35,13 @@ import {
   AVAILABILITY_OPTIONS,
   CLOTHING_SIZE_OPTIONS,
   EYE_COLOR_OPTIONS,
-  GENDER_OPTIONS,
   HAIR_COLOR_OPTIONS,
   HAIR_TYPE_OPTIONS,
   PRIMARY_ROLE_OPTIONS,
   SKIN_COLOR_OPTIONS,
   type LocalizedTalentOption,
 } from "@/lib/data/talent-profile-options";
+import { getGenderOptionsForSelection } from "@/lib/data/talent-signup";
 import { COUNTRY_CODES, COUNTRY_REGISTRY } from "@/lib/markets/countries";
 import { TalentService } from "@/lib/services/talents/TalentService";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -139,7 +139,7 @@ function Select({
   );
 }
 
-function localize(options: LocalizedTalentOption[], isArabic: boolean) {
+function localize(options: readonly LocalizedTalentOption[], isArabic: boolean) {
   return options.map((option) => ({
     value: option.value,
     label: isArabic ? option.ar : option.en,
@@ -502,7 +502,7 @@ export default async function EditTalentPage({ params, searchParams }: PageProps
                   <FieldGroup title={isArabic ? "التصنيف الأساسي" : "Core classification"} description={isArabic ? "بيانات تؤثر على البحث والمطابقة والظهور." : "These fields affect search, matching and discovery."}>
                     <div className="grid gap-4 md:grid-cols-2">
                       <Select label={isArabic ? "نوع الموهبة" : "Talent type"} name="primary_role" defaultValue={primaryRole} options={localize(PRIMARY_ROLE_OPTIONS, isArabic)} placeholder={isArabic ? "اختر نوع الموهبة" : "Choose talent type"} />
-                      <Select label={isArabic ? "الجنس" : "Gender"} name="gender" defaultValue={talent.gender} options={localize(GENDER_OPTIONS, isArabic)} placeholder={isArabic ? "اختر الجنس" : "Choose gender"} />
+                      <Select label={isArabic ? "الجنس" : "Gender"} name="gender" defaultValue={talent.gender} options={localize(getGenderOptionsForSelection(talent.gender), isArabic)} placeholder={isArabic ? "اختر الجنس" : "Choose gender"} />
                       <div className="md:col-span-2"><Field label={isArabic ? "تاريخ الميلاد" : "Date of birth"} name="date_of_birth" type="date" defaultValue={talent.date_of_birth} dir="ltr" /></div>
                     </div>
                   </FieldGroup>

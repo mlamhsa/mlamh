@@ -12,7 +12,7 @@ import {
   type OwnTalentResidence,
 } from "@/lib/actions/get-own-talent-residence";
 import { NATIONALITIES } from "@/lib/data/nationalities";
-import { GENDER_OPTIONS, TALENT_SIGNUP_COUNTRIES } from "@/lib/data/talent-signup";
+import { SIGNUP_GENDER_OPTIONS, TALENT_SIGNUP_COUNTRIES } from "@/lib/data/talent-signup";
 
 const PHYSICAL_MEASUREMENT_FIELDS = [
   "height_cm",
@@ -103,14 +103,14 @@ function buildGenderOptions(select: HTMLSelectElement) {
   placeholder.textContent = ar ? "اختر الجنس" : "Select gender";
   fragment.appendChild(placeholder);
 
-  for (const gender of GENDER_OPTIONS) {
+  for (const gender of SIGNUP_GENDER_OPTIONS) {
     const option = document.createElement("option");
     option.value = gender.value;
     option.textContent = ar ? gender.ar : gender.en;
     fragment.appendChild(option);
   }
 
-  if (currentValue && !GENDER_OPTIONS.some((gender) => gender.value === currentValue)) {
+  if (currentValue && !SIGNUP_GENDER_OPTIONS.some((gender) => gender.value === currentValue)) {
     const legacyOption = document.createElement("option");
     legacyOption.value = currentValue;
     legacyOption.textContent = ar

@@ -10,7 +10,7 @@ import { NationalityCombobox } from "@/components/talent-dashboard/NationalityCo
 import { SaudiCityCombobox } from "@/components/talent-dashboard/SaudiCityCombobox";
 import { checkAuthEmailExistsAction } from "@/lib/actions/check-auth-email";
 import { TALENT_CATEGORIES } from "@/lib/data/talent-categories";
-import { GENDER_OPTIONS, TALENT_SIGNUP_COUNTRIES } from "@/lib/data/talent-signup";
+import { SIGNUP_GENDER_OPTIONS, TALENT_SIGNUP_COUNTRIES } from "@/lib/data/talent-signup";
 import { getSaudiCityBySlug } from "@/lib/data/saudi-cities";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 
@@ -227,7 +227,7 @@ export function TalentEmailSignupForm({ locale }: Props) {
             locale={locale}
             value={gender}
             onChange={setGender}
-            options={GENDER_OPTIONS}
+            options={SIGNUP_GENDER_OPTIONS}
             placeholderAr="اختر الجنس"
             placeholderEn="Select gender"
             titleAr="اختر الجنس"

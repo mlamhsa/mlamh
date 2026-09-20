@@ -192,19 +192,23 @@ export default async function CompleteAccountPage({ params, searchParams }: Page
     const profileVisibility = rawVisibility === "private" ? "private" : rawVisibility === "public" ? "public" : undefined;
 
     return (
-      <main dir={isRtl ? "rtl" : "ltr"} className="min-h-screen bg-black px-4 py-12 text-white sm:px-6 sm:py-16">
-        <div className="mx-auto max-w-3xl">
-          <div className="rounded-[2rem] border border-white/10 bg-white/[0.035] p-5 shadow-2xl sm:p-8">
-            <div className="mb-8 text-center">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-gold/30 bg-gold/[0.08] text-gold">
-                <CheckCircle2 size={25} />
+      <main dir={isRtl ? "rtl" : "ltr"} className="min-h-screen bg-black px-4 pb-32 pt-6 text-white sm:px-6 sm:py-16">
+        <div className="mx-auto max-w-2xl">
+          <div className="rounded-[1.75rem] border border-white/10 bg-white/[0.035] p-4 shadow-2xl sm:rounded-[2rem] sm:p-8">
+            <div className="mb-6 sm:mb-8 sm:text-center">
+              <div className="flex items-center gap-3 sm:flex-col sm:gap-0">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-gold/30 bg-gold/[0.08] text-gold sm:mx-auto sm:h-14 sm:w-14">
+                  <CheckCircle2 size={22} />
+                </div>
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gold sm:mt-5 sm:text-xs sm:tracking-[0.25em]">{isRtl ? "خطوة أخيرة" : "ONE LAST STEP"}</p>
+                  <h1 className="mt-1 text-2xl font-light sm:mt-3 sm:text-4xl">{isRtl ? "أكمل حساب الموهبة" : "Complete your talent account"}</h1>
+                </div>
               </div>
-              <p className="mt-5 text-xs font-semibold uppercase tracking-[0.25em] text-gold">{isRtl ? "أكمل البيانات المطلوبة" : "COMPLETE REQUIRED DETAILS"}</p>
-              <h1 className="mt-3 text-3xl font-light sm:text-4xl">{isRtl ? "جهّز حساب الموهبة" : "Finish your talent account"}</h1>
-              <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-white/50">
+              <p className="mt-4 text-sm leading-7 text-white/50 sm:mx-auto sm:max-w-xl">
                 {isRtl
-                  ? "لن نكرر البيانات الموجودة لدينا. أكمل الحقول الضرورية مرة واحدة، وبعدها تدخل مباشرة إلى لوحة التحكم."
-                  : "We won’t ask again for information we already have. Complete the required fields once, then go directly to your dashboard."}
+                  ? "أكمل البيانات الأساسية مرة واحدة، وبعدها تنتقل مباشرة إلى ملفك المهني."
+                  : "Complete the essential details once, then continue directly to your professional profile."}
               </p>
             </div>
 
