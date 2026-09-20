@@ -51,6 +51,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/${locale}/complaints`, changeFrequency: "yearly", priority: 0.3 },
   ]);
 
+  const castingCityRoutes: MetadataRoute.Sitemap = ["riyadh", "jeddah"].flatMap((city) =>
+    locales.map((locale) => ({
+      url: `${SITE_URL}/${locale}/casting/city/${city}`,
+      changeFrequency: "weekly" as const,
+      priority: 0.82,
+    })),
+  );
+
   const sceneCategoryRoutes: MetadataRoute.Sitemap = sceneCategories.flatMap((category) =>
     locales.map((locale) => ({
       url: `${SITE_URL}/${locale}/scene/category/${category.slug}`,
@@ -149,6 +157,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   return [
     ...staticRoutes,
+    ...castingCityRoutes,
     ...sceneCategoryRoutes,
     ...sceneArticleRoutes,
     ...talentRoutes,

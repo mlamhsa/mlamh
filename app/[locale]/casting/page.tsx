@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { CastingRequestForm } from "@/components/casting/CastingRequestForm";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -131,6 +132,19 @@ export default async function CastingPage({ params }: { params: Promise<{ locale
         </section> : <section className="mt-5 rounded-[1.75rem] border border-gold/15 bg-gold/[0.035] p-5 sm:p-6"><p className="text-xs uppercase tracking-[0.22em] text-gold">MANAGED CASTING</p><h2 className="mt-2 text-xl font-light text-white">{isRtl ? "اكتملت دفعة الإطلاق المجانية" : "The free launch cohort is complete"}</h2><p className="mt-2 max-w-3xl text-sm leading-7 text-white/45">{isRtl ? "أرسل الـBrief للحصول على نطاق وعرض مخصص للمشروع. لا يوجد أي التزام مالي بمجرد إرسال الطلب." : "Send your brief to receive a project-specific scope and quote. Submitting a request creates no payment commitment."}</p></section>}
 
         <section className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-4">{steps.map(([number,title,description])=><article key={number} className="rounded-[1.75rem] border border-white/10 bg-white/[0.025] p-6"><span className="text-sm text-gold">{number}</span><h2 className="mt-4 text-xl font-light">{title}</h2><p className="mt-3 text-sm leading-7 text-white/50">{description}</p></article>)}</section>
+
+        <section className="mt-8 rounded-[1.75rem] border border-white/10 bg-white/[0.02] p-5 sm:p-6">
+          <p className="text-xs uppercase tracking-[0.22em] text-gold">{isRtl ? "حسب المدينة" : "BY CITY"}</p>
+          <h2 className="mt-2 text-xl font-light text-white">{isRtl ? "خدمة الكاستينغ في المدن الرئيسية" : "Casting in key cities"}</h2>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link href={`/${locale}/casting/city/riyadh`} className="rounded-full border border-white/10 px-4 py-2 text-sm text-white/60 transition hover:border-gold/30 hover:text-gold">
+              {isRtl ? "كاستنج الرياض" : "Casting in Riyadh"}
+            </Link>
+            <Link href={`/${locale}/casting/city/jeddah`} className="rounded-full border border-white/10 px-4 py-2 text-sm text-white/60 transition hover:border-gold/30 hover:text-gold">
+              {isRtl ? "كاستنج جدة" : "Casting in Jeddah"}
+            </Link>
+          </div>
+        </section>
 
         <section className="mt-8 rounded-[2.25rem] border border-white/10 bg-white/[0.025] p-6 sm:p-8 lg:p-10">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"><div className="max-w-3xl"><p className="text-xs uppercase tracking-[0.25em] text-gold">{isRtl ? "نطاق الخدمة" : "SERVICE SCOPE"}</p><h2 className="mt-4 text-3xl font-light">{isRtl ? "ثلاثة مستويات تشغيل حسب احتياج المشروع" : "Three operating scopes for different project needs"}</h2><p className="mt-4 text-sm leading-8 text-white/50">{isRtl ? "نراجع كل Brief أولًا ثم نحدد المستوى والنطاق والعرض المناسب حسب عدد الأدوار، حجم البحث، ومتطلبات الفرز والتأكيد. إرسال الطلب لا ينشئ التزامًا ماليًا." : "We review every brief first, then define the service scope and quote based on roles, sourcing volume, screening, and confirmation needs. Sending a brief creates no payment commitment."}</p></div><a href="#casting-brief" className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl border border-gold/30 px-5 py-2.5 text-sm text-gold transition hover:bg-gold/10">{isRtl ? "اطلب عرضًا للمشروع" : "Request a project quote"}</a></div>
