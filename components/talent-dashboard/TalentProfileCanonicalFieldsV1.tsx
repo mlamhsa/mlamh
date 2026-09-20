@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 
-import { GENDER_OPTIONS, TALENT_SIGNUP_COUNTRIES } from "@/lib/data/talent-signup";
+import { SIGNUP_GENDER_OPTIONS, TALENT_SIGNUP_COUNTRIES } from "@/lib/data/talent-signup";
 
 function isArabicPage() {
   return document.documentElement.lang === "ar" || document.documentElement.dir === "rtl";
@@ -24,14 +24,14 @@ function normalizeGenderSelect() {
   placeholder.textContent = isArabic ? "اختر الجنس" : "Select gender";
   fragment.appendChild(placeholder);
 
-  for (const option of GENDER_OPTIONS) {
+  for (const option of SIGNUP_GENDER_OPTIONS) {
     const element = document.createElement("option");
     element.value = option.value;
     element.textContent = isArabic ? option.ar : option.en;
     fragment.appendChild(element);
   }
 
-  if (currentValue && !GENDER_OPTIONS.some((option) => option.value === currentValue)) {
+  if (currentValue && !SIGNUP_GENDER_OPTIONS.some((option) => option.value === currentValue)) {
     const legacy = document.createElement("option");
     legacy.value = currentValue;
     legacy.textContent = isArabic
