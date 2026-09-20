@@ -119,33 +119,25 @@ export async function proxy(
     const { error } = await supabase.auth.getClaims();
 
     if (error && isStaleAuthSessionError(error)) {
-      // A rotated/revoked refresh token is an unauthenticated state, not a
-      // runtime failure. Clear only this Supabase project's auth cookies so
-      // the browser can establish a clean session on the next sign-in.
-      request.cookies
-        .getAll()
-        .filter(({ name }) => name.startsWith("sb-") && name.includes("-auth-token"))
-        .forEach(({ name }) => {
-          request.cookies.delete(name);
-          response.cookies.delete(name);
-        });
-
+      // Do not clear auth cookies from middleware here. Multiple concurrent
+      // requests (common on Safari/iOS when returning to a backgrounded tab)
+      // can race while Supabase rotates a refresh token. One request may see
+      // the old token while another has already issued a fresh cookie. Deleting
+      // cookies from the stale request can overwrite the fresh session and log
+      // the user out unexpectedly. Treat this request as unauthenticated and
+      // let the normal sign-in flow replace genuinely invalid sessions.
       response.headers.set("Cache-Control", "private, no-store");
+      response.headers.set("x-mlamh-auth-recovery", "stale-session");
     }
   } catch (error) {
     if (!isStaleAuthSessionError(error)) {
       throw error;
     }
 
-    request.cookies
-      .getAll()
-      .filter(({ name }) => name.startsWith("sb-") && name.includes("-auth-token"))
-      .forEach(({ name }) => {
-        request.cookies.delete(name);
-        response.cookies.delete(name);
-      });
-
+    // Same recovery rule as above: never let one stale concurrent
+    // request delete a newer session cookie written by another request.
     response.headers.set("Cache-Control", "private, no-store");
+    response.headers.set("x-mlamh-auth-recovery", "stale-session");
   }
 
   return response;
