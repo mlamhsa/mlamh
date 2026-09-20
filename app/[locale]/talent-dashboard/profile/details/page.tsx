@@ -24,6 +24,8 @@ import {
   NATIONALITY_OPTIONS,
   TALENT_SIGNUP_COUNTRIES,
 } from "@/lib/data/talent-signup";
+import { normalizeNationalitySlug } from "@/lib/data/nationality-normalization";
+import { normalizeSaudiCitySlug } from "@/lib/data/saudi-cities";
 import { isValidLocale, type Locale } from "@/lib/i18n";
 
 type TalentRecord = Record<string, unknown> & {
@@ -169,9 +171,9 @@ export default function TalentCoreDetailsPage({ params }: { params: Promise<{ lo
       setPhone(clean(talent.phone));
       setRole(clean(talent.primary_role) || clean(talent.category_slug));
       setGender(clean(talent.gender));
-      setNationality(clean(talent.nationality_slug) || clean(talent.nationality));
+      setNationality(normalizeNationalitySlug(clean(talent.nationality_slug) || clean(talent.nationality)));
       setCountryCode(clean(talent.base_country_code).toUpperCase() || "SA");
-      setCitySlug(clean(talent.city_slug));
+      setCitySlug(normalizeSaudiCitySlug(clean(talent.city_slug)));
       setApprovalStatus(clean(talent.approval_status) || "not_submitted");
       setBirthDate(clean(talent.date_of_birth).slice(0, 10));
 
@@ -463,7 +465,7 @@ export default function TalentCoreDetailsPage({ params }: { params: Promise<{ lo
           {showModelFields ? (
             <section className="rounded-[2rem] border border-gold/20 bg-gold/[0.03] p-5 sm:p-7">
               <div className="flex flex-wrap items-center gap-3"><p className="text-[11px] uppercase tracking-[0.22em] text-gold">{isArabic ? "بيانات المودل" : "MODEL PROFILE"}</p><span className="rounded-full border border-white/10 px-3 py-1 text-[10px] text-white/45">{isArabic ? "اختياري" : "Optional"}</span></div>
-              <h2 className="mt-2 text-xl font-light">{isArabic ? "التخصصات والمقاسات المهنية" : "Professional specializations and measurements"}</h2>
+              <h2 className="mt-2 text-xl font-light">{isArabic ? "المقاسات والمظهر المهني" : "Professional measurements and appearance"}</h2>
               <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
                 <Field label={isArabic ? "الطول (سم)" : "Height (cm)"}><input type="number" min="1" max="250" value={heightCm} onChange={(e) => setHeightCm(e.target.value)} className="input" /></Field>
                 <Field label={isArabic ? "الوزن (كجم)" : "Weight (kg)"}><input type="number" min="1" max="300" value={weightKg} onChange={(e) => setWeightKg(e.target.value)} className="input" /></Field>
@@ -477,10 +479,7 @@ export default function TalentCoreDetailsPage({ params }: { params: Promise<{ lo
                 <Field label={isArabic ? "نوع الشعر" : "Hair type"}><SingleChoiceSelect value={hairType} onChange={setHairType} options={HAIR_TYPE_CHOICES} isArabic={isArabic} /></Field>
                 <Field label={isArabic ? "لون البشرة" : "Skin tone"}><SingleChoiceSelect value={skinColor} onChange={setSkinColor} options={SKIN_TONE_CHOICES} isArabic={isArabic} /></Field>
               </div>
-              <div className="mt-7">
-                <p className="mb-3 text-sm leading-7 text-white/45">{isArabic ? "اختر كل نوع تصوير يناسبك. يمكنك اختيار أكثر من خيار. مثال: إذا كنتِ تصورين الأحذية فقط اختاري «قدم — أحذية وإكسسوارات»." : "Choose every type of modeling that fits your work. You can select more than one. For example, footwear work should select “Parts — Foot”."}</p>
-                <MultiChoiceField label={isArabic ? "تخصصات المودل" : "Model specializations"} values={modelingTypes} onChange={setModelingTypes} options={withLegacyValues(modelingTypes, MODEL_TYPE_CHOICES)} isArabic={isArabic} searchable />
-              </div>
+              <div className="mt-7"><MultiChoiceField label={isArabic ? "أنواع المودل" : "Modeling types"} values={modelingTypes} onChange={setModelingTypes} options={withLegacyValues(modelingTypes, MODEL_TYPE_CHOICES)} isArabic={isArabic} searchable /></div>
               <div className="mt-7 flex flex-col gap-3 sm:flex-row">
                 <Link href={`/${locale}/talent-dashboard/gallery`} className="inline-flex min-h-11 items-center justify-center rounded-2xl border border-gold/25 px-5 text-sm text-gold hover:bg-gold/[0.05]">{isArabic ? "إدارة الصور والأعمال" : "Manage photos & work"}</Link>
                 <Link href={`/${locale}/talent-dashboard/gallery/links`} className="inline-flex min-h-11 items-center justify-center rounded-2xl border border-white/10 px-5 text-sm text-white/65 hover:border-gold/30 hover:text-gold">{isArabic ? "إدارة الفيديو والروابط المهنية" : "Manage video & professional links"}</Link>
