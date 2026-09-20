@@ -123,7 +123,10 @@ export function RootRouteGate() {
   }
 
   if (session.status === "account_missing") {
-    return <Redirect href={ROUTES.accountType as Href} />;
+    // Preserve the public app shell on cold launch when an auth identity exists
+    // but no MLAMH account/profile has been created yet. Account type is chosen
+    // only from an explicit join flow or immediately after a fresh sign-in.
+    return <Redirect href={ROUTES.public as Href} />;
   }
 
   if (session.status === "talent_incomplete") {
