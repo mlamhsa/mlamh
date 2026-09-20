@@ -8,7 +8,7 @@ import { isValidLocale, type Locale } from "@/lib/i18n";
 import { getPublicTalents } from "@/lib/supabase/public-talents";
 
 const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://mlamh.net").replace(/\/$/, "");
-const INDEXABLE_CATEGORIES = new Set(TALENT_CATEGORIES.map((item) => item.slug));
+const INDEXABLE_CATEGORIES: Set<string> = new Set(TALENT_CATEGORIES.map((item) => item.slug));
 
 type PageProps = {
   params: Promise<{ locale: string; category: string; city: string }>;
