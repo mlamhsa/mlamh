@@ -14,6 +14,7 @@ import {
 } from "@/lib/admin/i18n";
 import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { IncompleteRegistrationReminderButton } from "@/components/admin/IncompleteRegistrationReminderButton";
+import { AdminPageContainer, AdminPageHeader } from "@/components/admin/ui";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 type PageProps = {
@@ -700,53 +701,27 @@ adminClient
       : ArrowRight;
 
   return (
-    <div
-      dir={
-        isArabic
-          ? "rtl"
-          : "ltr"
-      }
-      className="min-h-screen"
-    >
-      <div className="mx-auto w-full max-w-[1540px] px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-9">
-        {/* Header */}
-        <div className="mb-7 flex flex-col gap-5 border-b border-white/[0.06] pb-6 md:flex-row md:items-end md:justify-between">
-          <div>
-            <div className="flex items-center gap-2 text-gold/85">
-              <CircleAlert className="h-3.5 w-3.5" />
-
-              <p className="text-[9px] font-medium uppercase tracking-[0.24em]">
-                {isArabic
-                  ? "مساحة العمل"
-                  : "WORKSPACE"}
+    <div dir={isArabic ? "rtl" : "ltr"} className="min-h-screen">
+      <AdminPageContainer>
+        <AdminPageHeader
+          eyebrow={isArabic ? "مساحة العمل" : "WORKSPACE"}
+          title={isArabic ? "مركز الإجراءات" : "Action Center"}
+          description={
+            isArabic
+              ? "كل ما يحتاج قرارًا من الإدارة يظهر هنا حتى تتم معالجته."
+              : "Everything requiring an admin decision remains here until it is handled."
+          }
+          actions={
+            <div className="rounded-lg border border-gold/20 bg-gold/[0.06] px-4 py-2.5">
+              <p className="text-[10px] text-white/35">
+                {isArabic ? "إجمالي المهام" : "Total tasks"}
+              </p>
+              <p className="mt-0.5 text-xl font-semibold tabular-nums text-gold">
+                {totalPending}
               </p>
             </div>
-
-            <h1 className="mt-2 text-2xl font-semibold tracking-[-0.025em] text-white sm:text-3xl">
-              {isArabic
-                ? "مركز الإجراءات"
-                : "Action Center"}
-            </h1>
-
-            <p className="mt-2 max-w-3xl text-[13px] leading-6 text-white/38 sm:text-sm">
-              {isArabic
-                ? "كل ما يحتاج قرارًا من الإدارة يظهر هنا حتى تتم معالجته."
-                : "Everything requiring an admin decision remains here until it is handled."}
-            </p>
-          </div>
-
-          <div className="rounded-lg border border-gold/20 bg-gold/[0.06] px-4 py-2.5">
-            <p className="text-[10px] text-white/35">
-              {isArabic
-                ? "إجمالي المهام"
-                : "Total tasks"}
-            </p>
-
-            <p className="mt-0.5 text-xl font-semibold tabular-nums text-gold">
-              {totalPending}
-            </p>
-          </div>
-        </div>
+          }
+        />
 
 {/* Incomplete registrations */}
 <section className="mt-7">
@@ -1496,7 +1471,7 @@ adminClient
             </div>
           )}
         </section>
-      </div>
+      </AdminPageContainer>
     </div>
   );
 }
