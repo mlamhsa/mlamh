@@ -10,6 +10,24 @@ function isTransientSupabaseError(error: { message?: string } | null | undefined
   return message.includes("gateway timeout") || message.includes("timeout") || message.includes("fetch failed");
 }
 
+function isExpectedUnauthenticatedError(error: unknown) {
+  if (!error) return false;
+
+  const authError = error as { code?: string; name?: string; message?: string };
+  const code = String(authError.code ?? "").toLowerCase();
+  const name = String(authError.name ?? "").toLowerCase();
+  const message = String(authError.message ?? error).toLowerCase();
+
+  return (
+    code === "refresh_token_not_found" ||
+    code === "session_not_found" ||
+    name === "authsessionmissingerror" ||
+    message.includes("auth session missing") ||
+    message.includes("refresh token not found") ||
+    message.includes("invalid refresh token")
+  );
+}
+
 async function retryTransient<T extends { data: unknown; error: { message?: string } | null }>(
   operation: () => PromiseLike<T>,
 ): Promise<T> {
@@ -34,11 +52,14 @@ export async function requireTalent(
     error: userError,
   } = await authClient.auth.getUser();
 
-  if (userError) {
-    console.error("[requireTalent:auth]", userError);
-  }
+  if (userError || !user) {
+    // Missing, expired, revoked, or already-rotated sessions are normal
+    // unauthenticated states. Keep the guard fail-closed without turning them
+    // into Production runtime errors. Unexpected Auth failures remain visible.
+    if (userError && !isExpectedUnauthenticatedError(userError)) {
+      console.error("[requireTalent:auth]", userError);
+    }
 
-  if (!user) {
     redirect(`/${safeLocale}/login`);
   }
 
