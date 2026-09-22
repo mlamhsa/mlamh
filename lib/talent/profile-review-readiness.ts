@@ -41,7 +41,7 @@ function hasValue(value: unknown) {
 
 function hasValidVisibility(value: unknown) {
   const normalized = typeof value === "string" ? value.trim().toLowerCase() : "";
-  return normalized === "public" || normalized === "private";
+  return normalized === "public" || normalized === "verified_publishers" || normalized === "private";
 }
 
 function normalizeTalentCategory(value: unknown): TalentCategorySlug | null {
