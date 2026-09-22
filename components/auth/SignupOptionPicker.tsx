@@ -116,7 +116,7 @@ export function SignupOptionPicker({
     setOpen(false);
   }
 
-  const sheet = open && !disabled && mounted
+  const mobileSheet = open && !disabled && mounted
     ? createPortal(
         <>
           <button
@@ -133,11 +133,11 @@ export function SignupOptionPicker({
             aria-labelledby={`${id}-title`}
             className={
               useCompactDialog
-                ? "fixed left-1/2 top-1/2 z-[10020] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[1.75rem] border border-gold/20 bg-[#080808] shadow-2xl sm:absolute sm:left-0 sm:top-auto sm:z-[100] sm:mt-2 sm:w-full sm:max-w-none sm:translate-x-0 sm:translate-y-0 sm:rounded-2xl"
-                : "fixed inset-x-0 bottom-0 z-[10020] max-h-[min(82dvh,calc(100dvh-env(safe-area-inset-top)-0.75rem))] overflow-hidden rounded-t-[1.75rem] border border-b-0 border-gold/20 bg-[#080808] pb-[env(safe-area-inset-bottom)] shadow-2xl sm:absolute sm:z-[100] sm:inset-x-auto sm:bottom-auto sm:mt-2 sm:w-full sm:rounded-2xl sm:border sm:pb-0"
+                ? "fixed left-1/2 top-1/2 z-[10020] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[1.75rem] border border-gold/20 bg-[#080808] shadow-2xl sm:hidden"
+                : "fixed inset-x-0 bottom-0 z-[10020] max-h-[min(82dvh,calc(100dvh-env(safe-area-inset-top)-0.75rem))] overflow-hidden rounded-t-[1.75rem] border border-b-0 border-gold/20 bg-[#080808] pb-[env(safe-area-inset-bottom)] shadow-2xl sm:hidden"
             }
           >
-            <div className="flex items-center justify-between gap-3 border-b border-white/10 px-5 py-4 sm:hidden">
+            <div className="flex items-center justify-between gap-3 border-b border-white/10 px-5 py-4">
               <span id={`${id}-title`} className="text-lg font-semibold text-white">
                 {isArabic ? titleAr : titleEn}
               </span>
@@ -151,7 +151,7 @@ export function SignupOptionPicker({
               </button>
             </div>
 
-            <div className={useCompactDialog ? "grid gap-2 p-3 sm:max-h-64 sm:overflow-y-auto" : "max-h-[65dvh] overflow-y-auto overscroll-contain p-2 sm:max-h-64"}>
+            <div className={useCompactDialog ? "grid gap-2 p-3" : "max-h-[65dvh] overflow-y-auto overscroll-contain p-2"}>
               {options.map((option) => {
                 const active = option.value === value;
                 return (
@@ -197,7 +197,31 @@ export function SignupOptionPicker({
         </span>
         <ChevronDown size={16} className="shrink-0 text-white/35" aria-hidden="true" />
       </button>
-      {sheet}
+      {open && !disabled ? (
+        <div
+          role="listbox"
+          aria-label={isArabic ? titleAr : titleEn}
+          className="absolute inset-x-0 top-full z-[100] mt-2 hidden max-h-64 overflow-y-auto rounded-2xl border border-gold/20 bg-[#080808] p-2 shadow-2xl sm:block"
+        >
+          {options.map((option) => {
+            const active = option.value === value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                role="option"
+                aria-selected={active}
+                onClick={() => choose(option.value)}
+                className={`flex min-h-12 w-full items-center justify-between gap-3 rounded-xl px-3.5 text-start text-sm transition ${active ? "bg-gold/[0.10] text-gold" : "text-white/80 hover:bg-white/[0.05] hover:text-white"}`}
+              >
+                <span>{isArabic ? option.ar : option.en}</span>
+                {active ? <Check size={16} aria-hidden="true" /> : null}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+      {mobileSheet}
     </div>
   );
 }
