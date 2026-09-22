@@ -1,3 +1,4 @@
+import { isRestrictedAccountStatus } from "@/lib/accounts/account-rules";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type MobileAccountType = "talent" | "publisher";
@@ -19,6 +20,11 @@ export async function getMobileAccountContext(userId: string) {
   let countryCode: string | null = null;
   let displayName = profile.display_name?.trim() || null;
   let avatarUrl: string | null = null;
+  let publisherType: string | null = null;
+  let publisherTypeOther: string | null = null;
+  let verificationStatus: string | null = null;
+  let verified = false;
+  let publisherStatus: string | null = null;
 
   if (profile.account_type === "talent") {
     const { data } = await supabase
@@ -33,14 +39,25 @@ export async function getMobileAccountContext(userId: string) {
   } else {
     const { data } = await supabase
       .from("publishers")
-      .select("id,country_code,company_name,contact_name,profile_image_url")
+      .select("id,country_code,company_name,contact_name,profile_image_url,publisher_type,publisher_type_other,verified,verification_status,status")
       .eq("profile_id", profile.id)
       .maybeSingle();
     entityId = data?.id ? Number(data.id) : null;
     countryCode = data?.country_code?.toUpperCase() ?? null;
     displayName = data?.company_name?.trim() || data?.contact_name?.trim() || displayName;
     avatarUrl = data?.profile_image_url?.trim() || null;
+    publisherType = data?.publisher_type ?? null;
+    publisherTypeOther = data?.publisher_type_other ?? null;
+    verificationStatus = data?.verification_status ?? null;
+    verified = data?.verified === true;
+    publisherStatus = data?.status ?? null;
   }
+
+  const publisherApproved =
+    profile.account_type === "publisher" &&
+    profile.approval_status === "approved" &&
+    !isRestrictedAccountStatus(profile.status) &&
+    !isRestrictedAccountStatus(publisherStatus);
 
   return {
     ok: true as const,
@@ -56,6 +73,19 @@ export async function getMobileAccountContext(userId: string) {
       onboardingStep: profile.onboarding_step ?? null,
       entityId,
       countryCode,
+      publisherType,
+      publisherTypeOther,
+      fastTrackPublisher:
+        profile.account_type === "publisher" &&
+        typeof publisherTypeOther === "string" &&
+        publisherTypeOther.startsWith("fast:"),
+      verificationStatus,
+      verified,
+      capabilities: {
+        canCreate: publisherApproved,
+        canCreateQuick: publisherApproved,
+        canCreateCasting: publisherApproved,
+      },
     },
   };
 }
