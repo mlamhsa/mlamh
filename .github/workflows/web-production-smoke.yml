@@ -19,3 +19,5 @@ jobs:
           node-version: 24
       - name: Verify production signup controls
         run: node scripts/web-critical-smoke.mjs --base-url=https://mlamh.net
+      - name: Verify production public journeys
+        run: node scripts/web-critical-journeys-smoke.mjs --base-url=https://mlamh.net
