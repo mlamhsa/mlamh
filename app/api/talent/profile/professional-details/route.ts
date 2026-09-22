@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 
+import { getRequestUser } from "@/lib/auth/request-user";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { validateModelingTypes } from "@/lib/talent/modeling-types";
 
 function text(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -28,17 +30,43 @@ function booleanValue(formData: FormData, key: string) {
 }
 
 export async function POST(request: Request) {
-  const formData = await request.formData();
+  let formData: FormData;
+  const contentType = request.headers.get("content-type") || "";
+  if (contentType.includes("application/json")) {
+    let body: Record<string, unknown>;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ success: false, message: "Invalid request body." }, { status: 400 });
+    }
+    formData = new FormData();
+    for (const [key, value] of Object.entries(body)) {
+      if (value === undefined) continue;
+      if (Array.isArray(value)) formData.set(key, value.join(","));
+      else if (value === null) formData.set(key, "");
+      else formData.set(key, String(value));
+    }
+  } else {
+    formData = await request.formData();
+  }
+
   const locale = text(formData, "locale") === "en" ? "en" : "ar";
   const isArabic = locale === "ar";
 
-  const authClient = await createServerSupabaseClient();
-  const {
-    data: { user },
-    error: authError,
-  } = await authClient.auth.getUser();
+  let userId: string | null = null;
+  if (request.headers.get("authorization")?.toLowerCase().startsWith("bearer ")) {
+    const auth = await getRequestUser(request);
+    if (auth.ok) userId = auth.user.id;
+  } else {
+    const authClient = await createServerSupabaseClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await authClient.auth.getUser();
+    if (!authError && user) userId = user.id;
+  }
 
-  if (authError || !user) {
+  if (!userId) {
     return NextResponse.json(
       {
         success: false,
@@ -52,7 +80,7 @@ export async function POST(request: Request) {
   const { data: talent, error: talentError } = await admin
     .from("talents")
     .select("id, slug, primary_role, category_slug")
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .maybeSingle();
 
   if (talentError || !talent) {
@@ -70,7 +98,7 @@ export async function POST(request: Request) {
   const payload: Record<string, unknown> = {};
 
   if (formData.has("availability_status")) {
-    payload.availability_status = text(formData, "availability_status") || "available_now";
+    payload.availability_status = text(formData, "availability_status") || null;
   }
 
   for (const key of ["ready_to_travel", "has_passport", "has_car", "work_outside_city", "work_outside_country"] as const) {
@@ -119,7 +147,20 @@ export async function POST(request: Request) {
     payload.hair_color = text(formData, "hair_color") || null;
     payload.hair_type = text(formData, "hair_type") || null;
     payload.skin_color = text(formData, "skin_color") || null;
-    payload.modeling_types = list(formData, "modeling_types");
+
+    const modelingTypes = validateModelingTypes(list(formData, "modeling_types"));
+    if (!modelingTypes.ok) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: isArabic
+            ? "توجد تخصصات مودل غير صالحة. حدّث الصفحة وأعد اختيار التخصصات."
+            : "Some model specializations are invalid. Refresh the page and select them again.",
+        },
+        { status: 400 },
+      );
+    }
+    payload.modeling_types = modelingTypes.values;
   }
 
   if (Object.keys(payload).length === 0) {
@@ -136,7 +177,7 @@ export async function POST(request: Request) {
     .from("talents")
     .update(payload)
     .eq("id", talent.id)
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .select("id")
     .maybeSingle();
 
