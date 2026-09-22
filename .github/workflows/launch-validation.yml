@@ -1,6 +1,8 @@
 name: Launch Validation
 
 on:
+  pull_request:
+    branches: [main]
   push:
     branches: [main]
   workflow_dispatch:
@@ -32,3 +34,17 @@ jobs:
       - run: npm run test:marketing
       - run: npm run test:intelligence
       - run: npm run build
+      - name: Start built web app
+        run: |
+          node_modules/.bin/next start -p 3000 > /tmp/mlamh-next.log 2>&1 &
+          echo $! > /tmp/mlamh-next.pid
+          for i in {1..40}; do
+            if curl -fsS http://127.0.0.1:3000/ar/join?type=talent >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/mlamh-next.log
+          exit 1
+      - name: Browser smoke - critical signup controls
+        run: node scripts/web-critical-smoke.mjs --base-url=http://127.0.0.1:3000
