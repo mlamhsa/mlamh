@@ -12,12 +12,21 @@ const SKIN_COLORS = new Set(["fair", "light", "medium", "olive", "tan", "brown",
 const CLOTHING_SIZES = new Set(["XS", "S", "M", "L", "XL", "XXL"]);
 
 export type MobileTalentProfileUpdateInput = {
-  primaryRole?: unknown; displayName?: unknown; bio?: unknown; skills?: unknown; citySlug?: unknown; gender?: unknown; dateOfBirth?: unknown; nationalitySlug?: unknown; heightCm?: unknown; availabilityStatus?: unknown;
+  primaryRole?: unknown; displayName?: unknown; phone?: unknown; dataAccuracyContactConsent?: unknown; bio?: unknown; skills?: unknown; citySlug?: unknown; gender?: unknown; dateOfBirth?: unknown; nationalitySlug?: unknown; heightCm?: unknown; availabilityStatus?: unknown;
   languages?: unknown; dialects?: unknown; weightKg?: unknown; eyeColor?: unknown; hairColor?: unknown; hairType?: unknown; skinColor?: unknown; clothingSize?: unknown; shoeSize?: unknown;
   actingAgeMin?: unknown; actingAgeMax?: unknown; modelingTypes?: unknown; experienceYears?: unknown; readyToTravel?: unknown; hasPassport?: unknown; hasCar?: unknown; workOutsideCity?: unknown; workOutsideCountry?: unknown;
 };
 
 function normalizeOptionalText(value: unknown, maxLength: number) { if (value === undefined) return { ok: true as const, value: undefined }; if (value === null) return { ok: true as const, value: null }; if (typeof value !== "string") return { ok: false as const }; const normalized = value.trim(); if (normalized.length > maxLength) return { ok: false as const }; return { ok: true as const, value: normalized || null }; }
+function normalizePhone(value: unknown) {
+  if (value === undefined) return { ok: true as const, value: undefined };
+  if (value === null || value === "") return { ok: true as const, value: null };
+  if (typeof value !== "string") return { ok: false as const };
+  const raw = value.trim();
+  const normalized = raw.startsWith("+") ? "+" + raw.slice(1).replace(/\D/g, "") : raw.replace(/\D/g, "");
+  if (!/^\+[1-9]\d{7,14}$/.test(normalized)) return { ok: false as const };
+  return { ok: true as const, value: normalized };
+}
 function normalizeArray(value: unknown, maxItems: number, maxLength: number) { if (value === undefined) return { ok: true as const, value: undefined }; if (!Array.isArray(value) || value.length > maxItems) return { ok: false as const }; const values = [...new Set(value.map((item) => typeof item === "string" ? item.trim() : "").filter(Boolean))]; if (values.some((item) => item.length > maxLength)) return { ok: false as const }; return { ok: true as const, value: values }; }
 function normalizeEnum(value: unknown, allowed: Set<string>, preserveCase = false) { if (value === undefined) return { ok: true as const, value: undefined }; if (value === null || value === "") return { ok: true as const, value: null }; if (typeof value !== "string") return { ok: false as const }; const normalized = preserveCase ? value.trim().toUpperCase() : value.trim().toLowerCase(); return allowed.has(normalized) ? { ok: true as const, value: normalized } : { ok: false as const }; }
 function normalizeDate(value: unknown) { if (value === undefined) return { ok: true as const, value: undefined }; if (value === null || value === "") return { ok: true as const, value: null }; if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return { ok: false as const }; const date = new Date(`${value}T00:00:00Z`); if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value) return { ok: false as const }; const today = new Date(); if (date > today || date.getUTCFullYear() < 1900) return { ok: false as const }; return { ok: true as const, value }; }
@@ -32,7 +41,7 @@ function normalizeNationality(value: unknown) {
 }
 
 export async function updateMobileTalentProfile({ userId, locale, input }: { userId: string; locale: "ar" | "en"; input: MobileTalentProfileUpdateInput }) {
-  const primaryRole = normalizeEnum(input.primaryRole, TALENT_ROLES); const displayName = normalizeOptionalText(input.displayName, 80); const bio = normalizeOptionalText(input.bio, 1200); const skills = normalizeArray(input.skills, 12, 40); const languages = normalizeArray(input.languages, 8, 40); const dialects = normalizeArray(input.dialects, 8, 40); const modelingTypes = normalizeArray(input.modelingTypes, 8, 40);
+  const primaryRole = normalizeEnum(input.primaryRole, TALENT_ROLES); const displayName = normalizeOptionalText(input.displayName, 80); const phone = normalizePhone(input.phone); const dataAccuracyContactConsent = normalizeBoolean(input.dataAccuracyContactConsent); const bio = normalizeOptionalText(input.bio, 1200); const skills = normalizeArray(input.skills, 12, 40); const languages = normalizeArray(input.languages, 8, 40); const dialects = normalizeArray(input.dialects, 8, 40); const modelingTypes = normalizeArray(input.modelingTypes, 8, 40);
   const gender = normalizeEnum(input.gender, GENDERS); const availability = normalizeEnum(input.availabilityStatus, AVAILABILITY); const eyeColor = normalizeEnum(input.eyeColor, EYE_COLORS); const hairColor = normalizeEnum(input.hairColor, HAIR_COLORS); const hairType = normalizeEnum(input.hairType, HAIR_TYPES); const skinColor = normalizeEnum(input.skinColor, SKIN_COLORS); const clothingSize = normalizeEnum(input.clothingSize, CLOTHING_SIZES, true);
   const dateOfBirth = normalizeDate(input.dateOfBirth); const nationality = normalizeNationality(input.nationalitySlug); const height = normalizeNumber(input.heightCm, 80, 250); const weight = normalizeNumber(input.weightKg, 20, 350); const shoeSize = normalizeNumber(input.shoeSize, 15, 60); const actingAgeMin = normalizeNumber(input.actingAgeMin, 0, 120, true); const actingAgeMax = normalizeNumber(input.actingAgeMax, 0, 120, true); const experienceYears = normalizeNumber(input.experienceYears, 0, 80, true);
   const readyToTravel = normalizeBoolean(input.readyToTravel); const hasPassport = normalizeBoolean(input.hasPassport); const hasCar = normalizeBoolean(input.hasCar); const workOutsideCity = normalizeBoolean(input.workOutsideCity); const workOutsideCountry = normalizeBoolean(input.workOutsideCountry);
@@ -46,7 +55,7 @@ export async function updateMobileTalentProfile({ userId, locale, input }: { use
   }
   const cityInvalid = rawCitySlug !== undefined && rawCitySlug !== null && rawCitySlug !== "" && !city;
 
-  const fields = [primaryRole,displayName,bio,skills,languages,dialects,modelingTypes,gender,availability,eyeColor,hairColor,hairType,skinColor,clothingSize,dateOfBirth,nationality,height,weight,shoeSize,actingAgeMin,actingAgeMax,experienceYears,readyToTravel,hasPassport,hasCar,workOutsideCity,workOutsideCountry];
+  const fields = [primaryRole,displayName,phone,dataAccuracyContactConsent,bio,skills,languages,dialects,modelingTypes,gender,availability,eyeColor,hairColor,hairType,skinColor,clothingSize,dateOfBirth,nationality,height,weight,shoeSize,actingAgeMin,actingAgeMax,experienceYears,readyToTravel,hasPassport,hasCar,workOutsideCity,workOutsideCountry];
   if (fields.some((field) => !field.ok) || cityInvalid) return { ok: false as const, code: "INVALID_INPUT" as const };
   if (actingAgeMin.value != null && actingAgeMax.value != null && actingAgeMin.value > actingAgeMax.value) return { ok: false as const, code: "INVALID_INPUT" as const };
 
@@ -66,11 +75,37 @@ export async function updateMobileTalentProfile({ userId, locale, input }: { use
   if (height.value !== undefined) values.height_cm = height.value; if (weight.value !== undefined) values.weight_kg = weight.value; if (shoeSize.value !== undefined) values.shoe_size = shoeSize.value; if (actingAgeMin.value !== undefined) values.acting_age_min = actingAgeMin.value; if (actingAgeMax.value !== undefined) values.acting_age_max = actingAgeMax.value; if (experienceYears.value !== undefined) values.experience_years = experienceYears.value;
   if (readyToTravel.value !== undefined) values.ready_to_travel = readyToTravel.value; if (hasPassport.value !== undefined) values.has_passport = hasPassport.value; if (hasCar.value !== undefined) values.has_car = hasCar.value; if (workOutsideCity.value !== undefined) values.work_outside_city = workOutsideCity.value; if (workOutsideCountry.value !== undefined) values.work_outside_country = workOutsideCountry.value;
   if (city !== undefined) { values.city_slug = city?.slug ?? null; values.city_ar = city?.ar ?? null; values.city_en = city?.en ?? null; values.base_country_code = city ? "SA" : null; }
-  if (Object.keys(values).length === 0) return { ok: false as const, code: "INVALID_INPUT" as const };
+
+  const profileValues: Record<string, unknown> = {};
+  if (phone.value !== undefined) profileValues.phone = phone.value;
+  if (dataAccuracyContactConsent.value !== undefined) {
+    profileValues.data_accuracy_contact_consent = dataAccuracyContactConsent.value;
+    if (dataAccuracyContactConsent.value === true) profileValues.data_accuracy_contact_consent_at = new Date().toISOString();
+  }
+
+  if (Object.keys(values).length === 0 && Object.keys(profileValues).length === 0) {
+    return { ok: false as const, code: "INVALID_INPUT" as const };
+  }
 
   const supabase = createAdminClient();
-  const { data, error } = await supabase.from("talents").update(values).eq("user_id", userId).select("id").maybeSingle();
-  if (error) return { ok: false as const, code: "UPDATE_FAILED" as const };
-  if (!data) return { ok: false as const, code: "TALENT_NOT_FOUND" as const };
-  return { ok: true as const, id: Number(data.id) };
+  const { data: talent, error: talentLookupError } = await supabase
+    .from("talents")
+    .select("id")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (talentLookupError) return { ok: false as const, code: "UPDATE_FAILED" as const };
+  if (!talent) return { ok: false as const, code: "TALENT_NOT_FOUND" as const };
+
+  if (Object.keys(values).length > 0) {
+    const { error } = await supabase.from("talents").update(values).eq("id", talent.id).eq("user_id", userId);
+    if (error) return { ok: false as const, code: "UPDATE_FAILED" as const };
+  }
+
+  if (Object.keys(profileValues).length > 0) {
+    profileValues.updated_at = new Date().toISOString();
+    const { error } = await supabase.from("profiles").update(profileValues).eq("user_id", userId);
+    if (error) return { ok: false as const, code: "UPDATE_FAILED" as const };
+  }
+
+  return { ok: true as const, id: Number(talent.id) };
 }
