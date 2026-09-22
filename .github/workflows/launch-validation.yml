@@ -48,3 +48,5 @@ jobs:
           exit 1
       - name: Browser smoke - critical signup controls
         run: node scripts/web-critical-smoke.mjs --base-url=http://127.0.0.1:3000
+      - name: Browser smoke - critical public journeys
+        run: node scripts/web-critical-journeys-smoke.mjs --base-url=http://127.0.0.1:3000
