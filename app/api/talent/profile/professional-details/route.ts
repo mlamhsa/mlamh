@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 import { getRequestUser } from "@/lib/auth/request-user";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { validateModelingTypes } from "@/lib/talent/modeling-types";
 
 function text(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -98,7 +97,7 @@ export async function POST(request: Request) {
   const payload: Record<string, unknown> = {};
 
   if (formData.has("availability_status")) {
-    payload.availability_status = text(formData, "availability_status") || null;
+    payload.availability_status = text(formData, "availability_status") || "available_now";
   }
 
   for (const key of ["ready_to_travel", "has_passport", "has_car", "work_outside_city", "work_outside_country"] as const) {
@@ -147,20 +146,7 @@ export async function POST(request: Request) {
     payload.hair_color = text(formData, "hair_color") || null;
     payload.hair_type = text(formData, "hair_type") || null;
     payload.skin_color = text(formData, "skin_color") || null;
-
-    const modelingTypes = validateModelingTypes(list(formData, "modeling_types"));
-    if (!modelingTypes.ok) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: isArabic
-            ? "توجد تخصصات مودل غير صالحة. حدّث الصفحة وأعد اختيار التخصصات."
-            : "Some model specializations are invalid. Refresh the page and select them again.",
-        },
-        { status: 400 },
-      );
-    }
-    payload.modeling_types = modelingTypes.values;
+    payload.modeling_types = list(formData, "modeling_types");
   }
 
   if (Object.keys(payload).length === 0) {
