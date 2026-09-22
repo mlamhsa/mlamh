@@ -135,15 +135,23 @@ async function navigate(send, evaluate, pathname) {
 
 let client;
 try {
-  await Promise.all([
-    checkPage("/ar"),
-    checkPage("/ar/login"),
-    checkPage("/ar/join"),
-    checkPage("/ar/join?type=talent"),
-    checkPage("/ar/join?type=publisher"),
-    checkPage("/ar/talent"),
-    checkPage("/ar/opportunities"),
-  ]);
+  const isLocalBuild = /^https?:\/\/(127\.0\.0\.1|localhost)(:|\/|$)/.test(baseUrl);
+  const alwaysSafePages = [
+    "/ar/login",
+    "/ar/join",
+    "/ar/join?type=talent",
+    "/ar/join?type=publisher",
+  ];
+  const productionDataPages = [
+    "/ar",
+    "/ar/talent",
+    "/ar/opportunities",
+  ];
+
+  await Promise.all(alwaysSafePages.map(checkPage));
+  if (!isLocalBuild) {
+    await Promise.all(productionDataPages.map(checkPage));
+  }
   await checkUnauthenticatedOpportunityGuard();
 
   const target = await waitForTarget();
