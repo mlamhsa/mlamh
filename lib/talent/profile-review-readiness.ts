@@ -1,3 +1,5 @@
+[Reading 135 lines from start (total: 135 lines, 0 remaining)]
+
 import { TALENT_CATEGORIES, type TalentCategorySlug } from "../data/talent-categories.ts";
 
 export type TalentProfileReadinessData = {
@@ -5,6 +7,9 @@ export type TalentProfileReadinessData = {
   name_en?: unknown;
   phone?: unknown;
   image_url?: unknown;
+  gallery_images?: unknown;
+  photos?: unknown;
+  full_body_photos?: unknown;
   primary_role?: unknown;
   category_slug?: unknown;
   category_en?: unknown;
@@ -39,6 +44,13 @@ function hasValue(value: unknown) {
   return true;
 }
 
+function hasProfileImage(talent: TalentProfileReadinessData) {
+  if (hasValue(talent.image_url)) return true;
+  return [talent.gallery_images, talent.photos, talent.full_body_photos].some((value) =>
+    Array.isArray(value) && value.some((item) => typeof item === "string" && item.trim().length > 0),
+  );
+}
+
 function hasValidVisibility(value: unknown) {
   const normalized = typeof value === "string" ? value.trim().toLowerCase() : "";
   return normalized === "public" || normalized === "verified_publishers" || normalized === "private";
@@ -66,7 +78,7 @@ function getSharedRequirements(talent: TalentProfileReadinessData): ProfileReadi
   return [
     { key: "name", ar: "الاسم", en: "Name", completed: hasValue(talent.name_ar) || hasValue(talent.name_en) },
     { key: "phone", ar: "رقم الجوال", en: "Phone number", completed: hasValue(talent.phone) },
-    { key: "profile_image", ar: "الصورة الشخصية", en: "Profile photo", completed: hasValue(talent.image_url) },
+    { key: "profile_image", ar: "الصورة الشخصية", en: "Profile photo", completed: hasProfileImage(talent) },
     { key: "primary_role", ar: "نوع الموهبة", en: "Talent type", completed: getCanonicalTalentRole(talent) !== null },
     { key: "country", ar: "بلد الإقامة", en: "Country of residence", completed: hasValue(talent.base_country_code) },
     { key: "city", ar: "المدينة", en: "City", completed: hasValue(talent.city_slug) },
@@ -123,3 +135,5 @@ export function getTalentProfileReviewReadiness(talent: TalentProfileReadinessDa
   const readiness = buildReadiness(talent, CANONICAL_APPROVAL_REQUIREMENTS);
   return { ...readiness, canSubmitForReview: readiness.isReady };
 }
+
+[executed on device: alMacBook-Pro-alkhas-bAmal.local (d662d586-54db-4611-9103-8a941364b2bd)]
