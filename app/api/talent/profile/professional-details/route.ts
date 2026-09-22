@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { getRequestUser } from "@/lib/auth/request-user";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -28,17 +29,44 @@ function booleanValue(formData: FormData, key: string) {
 }
 
 export async function POST(request: Request) {
-  const formData = await request.formData();
+  let formData: FormData;
+  const contentType = request.headers.get("content-type") || "";
+  if (contentType.includes("application/json")) {
+    let body: Record<string, unknown>;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ success: false, message: "Invalid request body." }, { status: 400 });
+    }
+
+    formData = new FormData();
+    for (const [key, value] of Object.entries(body)) {
+      if (value === undefined) continue;
+      if (Array.isArray(value)) formData.set(key, value.join(","));
+      else if (value === null) formData.set(key, "");
+      else formData.set(key, String(value));
+    }
+  } else {
+    formData = await request.formData();
+  }
+
   const locale = text(formData, "locale") === "en" ? "en" : "ar";
   const isArabic = locale === "ar";
 
-  const authClient = await createServerSupabaseClient();
-  const {
-    data: { user },
-    error: authError,
-  } = await authClient.auth.getUser();
+  let userId: string | null = null;
+  if (request.headers.get("authorization")?.toLowerCase().startsWith("bearer ")) {
+    const auth = await getRequestUser(request);
+    if (auth.ok) userId = auth.user.id;
+  } else {
+    const authClient = await createServerSupabaseClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await authClient.auth.getUser();
+    if (!authError && user) userId = user.id;
+  }
 
-  if (authError || !user) {
+  if (!userId) {
     return NextResponse.json(
       {
         success: false,
@@ -52,7 +80,7 @@ export async function POST(request: Request) {
   const { data: talent, error: talentError } = await admin
     .from("talents")
     .select("id, slug, primary_role, category_slug")
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .maybeSingle();
 
   if (talentError || !talent) {
@@ -136,7 +164,7 @@ export async function POST(request: Request) {
     .from("talents")
     .update(payload)
     .eq("id", talent.id)
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .select("id")
     .maybeSingle();
 
