@@ -290,19 +290,29 @@ async function getVisiblePublishedCandidates(options: VisiblePublishedCandidateO
   while (true) {
     // Public directory is role-agnostic: any approved MLAMH Talent category may appear.
     // Privacy is still enforced both in SQL and again through the visibility policy.
-    let query = supabase
-      .from("talents")
-      .select("*")
-      .eq("published", true)
-      .eq("profile_visibility", "public")
-      .in("status", ["approved", "active"]);
-    query = applyTalentMarketFilter(query, countryCode);
-    query = applyAdvancedDbFilters(query, options);
-    const { data, error } = await query
-      .order("featured", { ascending: false, nullsFirst: false })
-      .order("sort_order", { ascending: true, nullsFirst: false })
-      .order("id", { ascending: false })
-      .range(offset, offset + PUBLIC_DIRECTORY_BATCH_SIZE - 1);
+    const fetchCandidateBatch = async () => {
+      let query = supabase
+        .from("talents")
+        .select("*")
+        .eq("published", true)
+        .eq("profile_visibility", "public")
+        .in("status", ["approved", "active"]);
+      query = applyTalentMarketFilter(query, countryCode);
+      query = applyAdvancedDbFilters(query, options);
+      return query
+        .order("featured", { ascending: false, nullsFirst: false })
+        .order("sort_order", { ascending: true, nullsFirst: false })
+        .order("id", { ascending: false })
+        .range(offset, offset + PUBLIC_DIRECTORY_BATCH_SIZE - 1);
+    };
+
+    let { data, error } = await fetchCandidateBatch();
+    if (error?.message.includes("JWT issued at future")) {
+      // Supabase can reject an otherwise valid server credential during a brief
+      // clock-skew window. Retry once so a cache revalidation does not fail visitors.
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      ({ data, error } = await fetchCandidateBatch());
+    }
     if (error) throw new Error(`[public-talents:candidates] ${error.message}`);
     const rows = (data ?? []) as Talent[];
     const candidates = await attachProfileApprovalContext(rows);
