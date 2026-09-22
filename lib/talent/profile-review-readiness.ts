@@ -1,5 +1,3 @@
-[Reading 135 lines from start (total: 135 lines, 0 remaining)]
-
 import { TALENT_CATEGORIES, type TalentCategorySlug } from "../data/talent-categories.ts";
 
 export type TalentProfileReadinessData = {
@@ -135,5 +133,3 @@ export function getTalentProfileReviewReadiness(talent: TalentProfileReadinessDa
   const readiness = buildReadiness(talent, CANONICAL_APPROVAL_REQUIREMENTS);
   return { ...readiness, canSubmitForReview: readiness.isReady };
 }
-
-[executed on device: alMacBook-Pro-alkhas-bAmal.local (d662d586-54db-4611-9103-8a941364b2bd)]
