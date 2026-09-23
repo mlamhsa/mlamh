@@ -1,0 +1,68 @@
+name: Traffic & Scalability Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: Preview/staging base URL. Production is blocked by the scripts unless explicitly overridden.
+        required: true
+        type: string
+      profile:
+        description: Test profile
+        required: true
+        default: public-read
+        type: choice
+        options:
+          - baseline
+          - public-read
+          - capacity
+      max_vus:
+        description: Capacity profile maximum VUs
+        required: false
+        default: "250"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  traffic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      TRAFFIC_BASE_URL: ${{ inputs.base_url }}
+      MAX_VUS: ${{ inputs.max_vus }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Reject production load target
+        if: inputs.profile != 'baseline'
+        shell: bash
+        run: |
+          case "$TRAFFIC_BASE_URL" in
+            https://mlamh.net|https://mlamh.net/*|https://www.mlamh.net|https://www.mlamh.net/*)
+              echo "Load/capacity workflow refuses Production."
+              exit 2
+              ;;
+          esac
+
+      - name: Run baseline
+        if: inputs.profile == 'baseline'
+        run: node tests/traffic/baseline.mjs
+
+      - name: Run public-read load
+        if: inputs.profile == 'public-read'
+        run: |
+          docker run --rm \
+            -e TRAFFIC_BASE_URL="$TRAFFIC_BASE_URL" \
+            -v "$PWD:/work" \
+            grafana/k6 run /work/tests/traffic/public-read.k6.js
+
+      - name: Run capacity ladder
+        if: inputs.profile == 'capacity'
+        run: |
+          docker run --rm \
+            -e TRAFFIC_BASE_URL="$TRAFFIC_BASE_URL" \
+            -e MAX_VUS="$MAX_VUS" \
+            -v "$PWD:/work" \
+            grafana/k6 run /work/tests/traffic/capacity.k6.js
