@@ -49,6 +49,24 @@ export async function proxy(
     return NextResponse.redirect(canonicalUrl, 308);
   }
 
+  // Next.js interprets any POST carrying next-action as a Server Action request.
+  // Internet probes can forge that header (including against paths like /index.php),
+  // which otherwise reaches the framework and is reported as a 500 "Failed to find
+  // Server Action". A genuine action id is a 40-character lowercase hex digest.
+  const serverActionId = request.headers.get("next-action");
+  if (
+    request.method === "POST" &&
+    serverActionId &&
+    !/^[a-f0-9]{40}$/.test(serverActionId)
+  ) {
+    return new NextResponse(null, {
+      status: 400,
+      headers: {
+        "Cache-Control": "private, no-store",
+      },
+    });
+  }
+
   const requestHeaders = new Headers(request.headers);
   const firstPathSegment = request.nextUrl.pathname.split("/")[1];
 
