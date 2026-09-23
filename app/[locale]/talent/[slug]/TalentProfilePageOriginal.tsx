@@ -895,15 +895,16 @@ export default async function TalentProfilePage({ params }: PageProps) {
       </Link>
     </div>
 
-    <div className="grid items-stretch gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 lg:grid-cols-3">
       {relatedTalents.map((item) => (
         <div
           key={item.id}
-          className="h-full min-w-0 w-full"
+          className="w-[72vw] max-w-[290px] shrink-0 snap-start sm:w-auto sm:max-w-none"
         >
           <PublicTalentCard
             talent={item}
             locale={locale}
+            variant="compact"
           />
         </div>
       ))}
