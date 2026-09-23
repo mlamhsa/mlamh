@@ -10,7 +10,7 @@ export async function submitMobileTalentProfileReview(userId: string, locale: "a
 
   const { data: profile, error: profileError } = await admin
     .from("profiles")
-    .select("id,account_type,approval_status")
+    .select("id,account_type,approval_status,phone,data_accuracy_contact_consent")
     .eq("user_id", userId)
     .maybeSingle();
   if (profileError || !profile) {
@@ -36,7 +36,17 @@ export async function submitMobileTalentProfileReview(userId: string, locale: "a
   }
 
   const completion = TalentProfileService.calculateCompletion(talent);
-  const readiness = getTalentProfileReviewReadiness(talent);
+  const { data: authUserResult } = await admin.auth.admin.getUserById(userId);
+  const metadataPhoneRaw = authUserResult.user?.user_metadata?.phone;
+  const metadataPhone = typeof metadataPhoneRaw === "string" && /^\+[1-9]\d{7,14}$/.test(metadataPhoneRaw.trim())
+    ? metadataPhoneRaw.trim()
+    : null;
+  const effectivePhone = String(profile.phone ?? "").trim() || metadataPhone;
+  const readiness = getTalentProfileReviewReadiness({
+    ...talent,
+    phone: effectivePhone,
+    data_accuracy_contact_consent: profile.data_accuracy_contact_consent,
+  });
   if (!readiness.canSubmitForReview) {
     const missingFields = readiness.missingRequirements
       .map((requirement) => isArabic ? requirement.ar : requirement.en)
