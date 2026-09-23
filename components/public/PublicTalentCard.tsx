@@ -25,12 +25,14 @@ type PublicTalentCardProps = {
   talent: Talent;
   locale: Locale;
   showInviteAction?: boolean;
+  variant?: "default" | "compact";
 };
 
 export async function PublicTalentCard({
   talent,
   locale,
   showInviteAction,
+  variant = "default",
 }: PublicTalentCardProps) {
   const isRtl = locale === "ar";
   const shouldShowInviteAction =
@@ -56,6 +58,81 @@ export async function PublicTalentCard({
     .toUpperCase();
 
   const ViewProfileIcon = isRtl ? ArrowLeft : ArrowRight;
+
+  if (variant === "compact") {
+    return (
+      <article className="group min-w-0 overflow-hidden rounded-[1.4rem] border border-white/[0.08] bg-gray-elevated/20 transition duration-300 hover:border-gold/25 focus-within:ring-2 focus-within:ring-gold/50">
+        <Link
+          href={profileHref}
+          aria-label={
+            isRtl
+              ? `عرض ملف ${displayName}`
+              : `View ${displayName}'s profile`
+          }
+          className="relative block aspect-[3/4] w-full overflow-hidden bg-black/70 focus-visible:outline-none"
+        >
+          {talent.image_url ? (
+            <Image
+              src={talent.image_url}
+              alt={imageAlt}
+              fill
+              sizes="(max-width: 640px) 72vw, (max-width: 1024px) 42vw, 300px"
+              className="object-cover object-center transition-transform duration-500 group-hover:scale-[1.025]"
+            />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-white/[0.06] via-black to-gold/[0.07]">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full border border-gold/25 bg-black/35 text-xl font-light text-gold">
+                {placeholderInitials || "M"}
+              </div>
+            </div>
+          )}
+
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black via-black/5 to-black/10" />
+
+          {(talent.featured || talent.verified) ? (
+            <div
+              className={`absolute top-3 z-10 flex max-w-[calc(100%-1.5rem)] flex-wrap gap-1.5 ${isRtl ? "right-3" : "left-3"}`}
+            >
+              {talent.featured ? (
+                <StatusBadge
+                  icon={<Sparkles size={11} aria-hidden="true" />}
+                  label={isRtl ? "مميزة" : "Featured"}
+                  tone="gold"
+                  isRtl={isRtl}
+                />
+              ) : null}
+              {talent.verified ? (
+                <StatusBadge
+                  icon={<BadgeCheck size={11} aria-hidden="true" />}
+                  label={isRtl ? "موثق" : "Verified"}
+                  tone="success"
+                  isRtl={isRtl}
+                />
+              ) : null}
+            </div>
+          ) : null}
+
+          <div className={`absolute inset-x-0 bottom-0 z-10 p-3.5 sm:p-4 ${isRtl ? "text-right" : "text-left"}`}>
+            {(category || city) ? (
+              <p className="mb-1.5 truncate text-[9px] text-gold">
+                {[category, city].filter(Boolean).join(" • ")}
+              </p>
+            ) : null}
+            <h3
+              className={`line-clamp-2 break-words text-lg font-light leading-tight text-white sm:text-xl ${isRtl ? "tracking-normal" : "tracking-tight"}`}
+              style={{
+                fontFamily: isRtl
+                  ? "var(--font-noto-arabic)"
+                  : "var(--font-cormorant)",
+              }}
+            >
+              {displayName}
+            </h3>
+          </div>
+        </Link>
+      </article>
+    );
+  }
 
   return (
     <article className="group flex h-full min-w-0 flex-col overflow-hidden rounded-[1.75rem] border border-white/[0.08] bg-gray-elevated/20 transition duration-500 hover:-translate-y-1 hover:border-gold/25 hover:bg-gray-elevated/30 focus-within:ring-2 focus-within:ring-gold/50">
