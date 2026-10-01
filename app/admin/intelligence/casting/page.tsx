@@ -38,7 +38,8 @@ export default async function CastingIntelligencePage({
   const active = rows.filter((row) => ["active", "screening", "shortlist_ready", "client_review"].includes(row.status)).length;
 
   return (
-    <AdminPageContainer>
+    <div dir={isArabic ? "rtl" : "ltr"}>
+      <AdminPageContainer>
       <AdminPageHeader
         title={isArabic ? "ذكاء الكاستينغ" : "Casting Intelligence"}
         description={
@@ -101,6 +102,7 @@ export default async function CastingIntelligencePage({
           </div>
         )}
       </AdminCard>
-    </AdminPageContainer>
+      </AdminPageContainer>
+    </div>
   );
 }
