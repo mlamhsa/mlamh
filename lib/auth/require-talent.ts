@@ -34,7 +34,9 @@ export async function requireTalent(
     error: userError,
   } = await authClient.auth.getUser();
 
-  if (userError) {
+  // Missing sessions are expected when guests open protected pages.
+  // Avoid logging them as production failures; still report unexpected auth errors.
+  if (userError && userError.name !== "AuthSessionMissingError") {
     console.error("[requireTalent:auth]", userError);
   }
 
