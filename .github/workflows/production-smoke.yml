@@ -1,6 +1,11 @@
 name: Production availability smoke check
 
 on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/production-smoke.mjs'
+      - '.github/workflows/production-smoke.yml'
   workflow_dispatch:
   schedule:
     - cron: '*/15 * * * *'
