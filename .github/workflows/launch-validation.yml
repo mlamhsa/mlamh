@@ -46,6 +46,10 @@ jobs:
           done
           cat /tmp/mlamh-next.log
           exit 1
+      - name: Verify browser availability for smoke tests
+        run: |
+          command -v google-chrome || command -v chromium || true
+          google-chrome --version || true
       - name: Browser smoke - critical signup controls
         run: node scripts/web-critical-smoke.mjs --base-url=http://127.0.0.1:3000
       - name: Browser smoke - critical public journeys
