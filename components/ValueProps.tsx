@@ -131,8 +131,8 @@ export function ValueProps({
             <Shield size={16} className="text-gold" />
             <span>
               {isAr
-                ? "مراجعة واعتماد للملفات"
-                : "Profile review and approval"}
+                ? "ملفات مهنية ينشرها أصحابها"
+                : "Talent-managed professional profiles"}
             </span>
           </div>
 
