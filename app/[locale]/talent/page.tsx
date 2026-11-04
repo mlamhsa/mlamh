@@ -43,8 +43,8 @@ export async function generateMetadata({ params }: Pick<PageProps, "params">): P
     ? "مواهب احترافية في السعودية | دليل المواهب | ملامح"
     : "Professional Talent in Saudi Arabia | MLAMH Talent Directory";
   const description = isArabic
-    ? "اكتشف ممثلين ومودلز معتمدين في السعودية عبر ملامح. ابحث حسب النوع والمدينة والعمر والجنسية للوصول إلى الموهبة المناسبة لمشروعك."
-    : "Discover approved actors and models in Saudi Arabia on MLAMH. Search by talent type, city, age and nationality to find the right fit for your project.";
+    ? "اكتشف ممثلين ومودلز في السعودية عبر ملامح. ابحث حسب النوع والمدينة والعمر والجنسية للوصول إلى الموهبة المناسبة لمشروعك."
+    : "Discover actors and models in Saudi Arabia on MLAMH. Search by talent type, city, age and nationality to find the right fit for your project.";
   const canonical = `${SITE_URL}/${locale}/talent`;
   return {
     title,
@@ -156,8 +156,8 @@ export default async function TalentListingPage({ params, searchParams }: PagePr
             <h1 className="text-3xl font-semibold leading-tight text-white">{isRtl ? "اكتشف المواهب" : "Discover talents"}</h1>
             <p className="mt-2 max-w-sm text-sm leading-6 text-white/50">
               {isRtl
-                ? "ابحث عن ممثلين ومودلز معتمدين، ثم صفِّ النتائج حسب احتياج مشروعك."
-                : "Find approved actors and models, then filter results for your project needs."}
+                ? "ابحث عن ممثلين ومودلز، ثم صفِّ النتائج حسب احتياج مشروعك."
+                : "Find actors and models, then filter results for your project needs."}
             </p>
             <SeoLinks />
           </header>
