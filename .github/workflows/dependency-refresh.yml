@@ -1,6 +1,11 @@
 name: Refresh vulnerable dependencies on stabilization branch
 
 on:
+  pull_request:
+    branches: [main]
+    paths:
+      - package.json
+      - .github/workflows/dependency-refresh.yml
   push:
     branches:
       - fix/production-smoke-check-20261104
@@ -12,13 +17,14 @@ permissions:
 
 jobs:
   refresh:
-    if: github.repository == 'mlamhsa/mlamh' && github.ref == 'refs/heads/fix/production-smoke-check-20261104'
+    if: github.repository == 'mlamhsa/mlamh' && ((github.event_name == 'pull_request' && github.head_ref == 'fix/production-smoke-check-20261104' && github.event.pull_request.head.repo.full_name == 'mlamhsa/mlamh') || (github.event_name == 'push' && github.ref == 'refs/heads/fix/production-smoke-check-20261104'))
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: true
+          ref: fix/production-smoke-check-20261104
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
