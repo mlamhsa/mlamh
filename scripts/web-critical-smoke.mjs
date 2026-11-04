@@ -37,23 +37,31 @@ const browser = spawn(
     "--no-sandbox",
     pageUrl,
   ],
-  { stdio: "ignore" },
+  { stdio: ["ignore", "pipe", "pipe"] },
 );
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+let browserOutput = "";
+for (const stream of [browser.stdout, browser.stderr]) {
+  stream?.on("data", (chunk) => {
+    browserOutput = (browserOutput + chunk.toString()).slice(-12000);
+  });
+}
+
 
 async function waitForTargets() {
   let lastError;
-  for (let i = 0; i < 80; i += 1) {
+  for (let i = 0; i < 160; i += 1) {
     try {
       const response = await fetch(`http://127.0.0.1:${port}/json`);
       if (response.ok) return await response.json();
     } catch (error) {
       lastError = error;
     }
-    await sleep(125);
+    if (browser.exitCode !== null) throw new Error(`Chrome exited (${browser.exitCode}): ${browserOutput}`);
+    await sleep(250);
   }
-  throw lastError || new Error("Timed out waiting for browser debugging endpoint");
+  throw new Error(`Chrome debugging endpoint unavailable after 40s: ${lastError?.message || "timeout"}; browser output: ${browserOutput}`);
 }
 
 async function connect(target) {
