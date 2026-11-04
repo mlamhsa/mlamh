@@ -1,7 +1,13 @@
 #!/usr/bin/env node
 // Public production smoke check. Read-only; no credentials or database writes.
 const base = (process.env.SMOKE_BASE_URL || 'https://mlamh.net').replace(/\/$/, '');
-const paths = ['/ar', '/ar/talent', '/ar/opportunities', '/en'];
+const paths = [
+  '/ar', '/en',
+  '/ar/talent', '/en/talent',
+  '/ar/opportunities', '/en/opportunities',
+  '/ar/login', '/en/login',
+  '/ar/join', '/en/join',
+];
 const timeoutMs = Number(process.env.SMOKE_TIMEOUT_MS || 15000);
 let failed = 0;
 for (const path of paths) {
