@@ -32,7 +32,7 @@ jobs:
       - name: Update patched direct dependencies and lockfile
         run: |
           npm install --save-exact next@16.4.5 sharp@0.35.5
-          npm audit fix --omit=dev
+          npm audit fix --omit=dev --audit-level=high
           npm audit --omit=dev --audit-level=high
       - name: Commit dependency changes to stabilization branch only
         run: |
