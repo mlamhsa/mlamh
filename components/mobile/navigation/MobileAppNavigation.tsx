@@ -48,6 +48,7 @@ type DrawerItem = {
 };
 
 const mainItems: DrawerItem[] = [
+  { key: "services", labelAr: "الخدمات — إنتاج بالذكاء الاصطناعي", labelEn: "Services — AI Production", href: "/services/ai-production", icon: Building2 },
   {
     key: "talents",
     labelAr: "المواهب",
