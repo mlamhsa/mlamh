@@ -10,7 +10,7 @@ export function MobileCastingBriefCTA({ locale }: { locale: Locale }) {
   return (
     <section dir={isArabic ? "rtl" : "ltr"} className="px-4 pb-6 pt-1">
       <Link
-        href={`/${locale}/casting#casting-brief`}
+        href={`/${locale}/join/publisher`}
         className="group relative block overflow-hidden rounded-[1.75rem] border border-gold/25 bg-gold/[0.065] p-5 shadow-[0_20px_60px_rgba(0,0,0,0.22)] transition active:scale-[0.99]"
       >
         <div className="pointer-events-none absolute -end-16 -top-20 h-44 w-44 rounded-full bg-gold/[0.11] blur-3xl" />
@@ -22,17 +22,17 @@ export function MobileCastingBriefCTA({ locale }: { locale: Locale }) {
 
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-medium text-gold/70">
-              {isArabic ? "للشركات والوكالات وجهات الإنتاج" : "FOR COMPANIES, AGENCIES & PRODUCTIONS"}
+              {isArabic ? "للمتاجر والصالونات والمصورين والشركات" : "FOR SHOPS, SALONS, PHOTOGRAPHERS & BRANDS"}
             </p>
             <h2 className="mt-1 text-[1.05rem] font-semibold leading-6 text-white">
               {isArabic
-                ? "عندك مشروع وتحتاج ممثلين أو مودلز؟ أرسل الـ Brief"
-                : "Need actors or models for a project? Send the brief"}
+                ? "تحتاج مودل لتصويرك؟ انشر طلبك"
+                : "Need a model for your shoot? Post a request"}
             </h2>
             <p className="mt-1.5 text-[12px] leading-5 text-white/40">
               {isArabic
-                ? "أرسل احتياج الكاستينغ مباشرة إلى فريق ملامح."
-                : "Send your casting requirements directly to the MLAMH team."}
+                ? "ابدأ كناشر وانشر طلبك عبر ملامح ليستقبل المواهب."
+                : "Join as a publisher and post your request for talent."}
             </p>
           </div>
 
