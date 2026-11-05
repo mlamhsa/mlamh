@@ -10,7 +10,7 @@ export function MobileCastingBriefCTA({ locale }: { locale: Locale }) {
   return (
     <section dir={isArabic ? "rtl" : "ltr"} className="px-4 pb-6 pt-1">
       <Link
-        href={`/${locale}/join/publisher`}
+        href={`/${locale}/join?type=publisher`}
         className="group relative block overflow-hidden rounded-[1.75rem] border border-gold/25 bg-gold/[0.065] p-5 shadow-[0_20px_60px_rgba(0,0,0,0.22)] transition active:scale-[0.99]"
       >
         <div className="pointer-events-none absolute -end-16 -top-20 h-44 w-44 rounded-full bg-gold/[0.11] blur-3xl" />
