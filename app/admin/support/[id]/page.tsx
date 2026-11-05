@@ -1,4 +1,5 @@
 import Link from "next/link";
+import AIExecutorHandoff from "./AIExecutorHandoff";
 import { ArrowLeft, ArrowRight, Bot, Mail, Phone, Send, UserRound } from "lucide-react";
 import { notFound } from "next/navigation";
 
@@ -224,6 +225,12 @@ export default async function AdminSupportTicketPage({ params, searchParams }: P
           </form>
         </div>
       </section>
+
+      {isAIRequest && (() => {
+        const briefMessage = messages.find(message => message.sender_type !== "admin" && parseAIProductionBrief(message.message));
+        const details = briefMessage ? parseAIProductionBrief(briefMessage.message) : null;
+        return details ? <AIExecutorHandoff ticketNumber={ticket.ticket_number} fields={details.fields} brief={details.brief} isArabic={isArabic} /> : null;
+      })()}
 
       {danaStatusMessage ? (
         <div className="mt-5 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-200">
