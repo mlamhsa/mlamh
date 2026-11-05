@@ -179,8 +179,7 @@ try {
   assert(loginState.reveal, "Password reveal control missing");
 
   await evaluate(`document.querySelector('button[aria-label="إظهار كلمة المرور"]')?.click(); true`);
-  await sleep(100);
-  assert(await evaluate(`document.querySelector('input[autocomplete=current-password]')?.type === "text"`), "Password reveal control did not work");
+  await waitFor(evaluate, `document.querySelector('input[autocomplete=current-password]')?.type === "text"`, "Password reveal control did not work");
 
   await navigate(send, evaluate, "/ar/join");
   await waitFor(evaluate, `Array.from(document.querySelectorAll('a')).some((a)=>a.getAttribute('href')==='/ar/join?type=talent')`, "Talent join choice missing");
