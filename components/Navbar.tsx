@@ -49,6 +49,7 @@ type NavbarNotification = {
 };
 
 const desktopNavigationItems: NavigationItem[] = [
+  { key: "services", ar: "الخدمات", en: "Services", href: "/services/ai-production" },
   {
     key: "talents",
     ar: "المواهب",
