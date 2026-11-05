@@ -35,7 +35,10 @@ export async function createSupportTicketAction(formData: FormData) {
   const locale: "ar" | "en" = field(formData, "locale") === "en" ? "en" : "ar";
   const aiProduction = field(formData, "return_to") === "ai-production";
   const senderName = field(formData, "sender_name");
-  const senderEmail = field(formData, "sender_email").toLowerCase();
+  const providedEmail = field(formData, "sender_email").toLowerCase();
+  const senderEmail = aiProduction && !providedEmail
+    ? `no-email-${createHash("sha256").update(field(formData, "sender_phone")).digest("hex").slice(0,20)}@no-email.invalid`
+    : providedEmail;
   const senderPhone = field(formData, "sender_phone") || null;
   const subject = field(formData, "subject");
   const message = field(formData, "message");
@@ -48,7 +51,7 @@ export async function createSupportTicketAction(formData: FormData) {
     (aiProduction && (!senderPhone || !/^\+?[0-9\s()-]{7,40}$/.test(senderPhone) || senderPhone.replace(/\D/g, "").length < 7)) ||
     senderName.length < 2 ||
     senderName.length > 120 ||
-    senderEmail.length < 3 ||
+    (!aiProduction && senderEmail.length < 3) ||
     senderEmail.length > 320 ||
     subject.length < 3 ||
     subject.length > 200 ||
@@ -77,7 +80,7 @@ export async function createSupportTicketAction(formData: FormData) {
   }
 
   const rateKey = createHash("sha256")
-    .update(`support:${user?.id ?? senderEmail}`)
+    .update(`support:${user?.id ?? (aiProduction ? senderPhone : senderEmail)}`)
     .digest("hex");
 
   const { data: rateRows, error: rateError } = await adminClient.rpc(
