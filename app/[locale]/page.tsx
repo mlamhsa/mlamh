@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import { AIServiceHomeEntry } from "@/components/services/AIServiceHomeEntry";
 import { Agencies } from "@/components/Agencies";
 import { FinalCTA } from "@/components/FinalCTA";
 import { Footer } from "@/components/Footer";
@@ -128,6 +129,8 @@ export default async function HomePage({ params }: HomePageProps) {
         <Opportunities locale={locale} />
 
         <Agencies locale={locale} />
+
+        <AIServiceHomeEntry locale={locale} />
 
         <SceneHomeEntry locale={locale} />
 
