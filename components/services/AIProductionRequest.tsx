@@ -13,10 +13,11 @@ export function AIProductionRequest({locale}:{locale:"ar"|"en"}){
  const [charactersText,setCharactersText]=useState("");
  const [ideaText,setIdeaText]=useState("");
  const [referencesText,setReferencesText]=useState("");
- const requiredLabel=ar?" (إجباري)":" (Required)";
- const optionalLabel=ar?" (اختياري)":" (Optional)";
+ const requiredLabel=<span className="ms-1 text-amber-400" aria-label={ar?"حقل مطلوب":"Required field"}>*</span>;
+ const optionalLabel=null;
  const input="w-full rounded-xl border border-white/15 bg-white/5 p-3 text-white placeholder:text-white/35";
  return <form action={createAIProductionRequestAction} className="mt-8 grid gap-5 rounded-3xl border border-white/10 bg-white/[.03] p-5 md:grid-cols-2 md:p-8">
+ <p className="text-xs text-white/50 md:col-span-2">{ar?"الحقول المميزة بعلامة * مطلوبة.":"Fields marked * are required."}</p>
  <input type="hidden" name="locale" value={locale}/><input type="hidden" name="category" value="partnership"/><input type="hidden" name="subject" value="MLAMH AI production request"/><label className="text-sm">{ar?"الاسم":"Name"}{requiredLabel}<input name="sender_name" required maxLength={120} className={`mt-2 ${input}`}/></label>
  <label className="text-sm">{ar?"البريد الإلكتروني":"Email"}{optionalLabel}<input name="sender_email" type="email" maxLength={160} className={`mt-2 ${input}`}/></label>
  <label className="text-sm">{ar?"رقم الجوال":"Phone number"}{requiredLabel}<input name="sender_phone" type="tel" required minLength={5} maxLength={40} className={`mt-2 ${input}`}/></label>
