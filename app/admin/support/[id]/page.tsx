@@ -317,7 +317,7 @@ type AIProductionBriefDetails = { fields: { key: string; value: string }[]; brie
 function parseAIProductionBrief(raw: string): AIProductionBriefDetails | null {
   if (!raw.startsWith("MLAMH AI production request")) return null;
   const lines = raw.split(/\r?\n/);
-  const keys = ["Project type", "Duration", "Style", "Format", "Budget", "Deadline", "Reference links"];
+  const keys = ["Project type", "Duration", "Style", "Format", "Budget", "Deadline", "Reference links", "Exact duration", "Characters", "Scenes", "Audio", "Script status", "Characters and scenes"];
   const fields = lines.slice(1).map(line => {
     const separator = line.indexOf(":");
     if (separator < 1) return null;
@@ -335,6 +335,7 @@ function AIProductionBrief({ details, isArabic }: { details: AIProductionBriefDe
     Style: ["الأسلوب", "Style"], Format: ["المقاس", "Format"],
     Budget: ["الميزانية", "Budget"], Deadline: ["موعد التسليم", "Deadline"],
     "Reference links": ["روابط مرجعية", "Reference links"],
+    "Exact duration": ["المدة الدقيقة", "Exact duration"], Characters: ["الشخصيات", "Characters"], Scenes: ["المشاهد", "Scenes"], Audio: ["الصوت", "Audio"], "Script status": ["حالة السيناريو", "Script status"], "Characters and scenes": ["تفاصيل الشخصيات والمشاهد", "Characters and scenes"],
   };
   const values: Record<string, [string, string]> = {
     commercial: ["إعلان تجاري", "Commercial"], trailer: ["تريلر", "Trailer"],
