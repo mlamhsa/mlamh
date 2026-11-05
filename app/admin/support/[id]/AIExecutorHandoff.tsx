@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Check, Copy, MessageCircle } from "lucide-react";
 type Props = { ticketNumber: string; fields: {key:string;value:string}[]; brief: string; isArabic: boolean };
-const labels:Record<string,string>={"Project type":"نوع المشروع","Duration":"المدة","Style":"الأسلوب","Format":"المقاس","Budget":"الميزانية","Deadline":"موعد التسليم","Reference links":"روابط مرجعية"};
+const labels:Record<string,string>={"Project type":"نوع المشروع","Duration":"المدة","Style":"الأسلوب","Format":"المقاس","Budget":"الميزانية","Deadline":"موعد التسليم","Reference links":"روابط مرجعية","Exact duration":"المدة الدقيقة","Characters":"الشخصيات","Scenes":"المشاهد","Audio":"الصوت","Script status":"حالة السيناريو","Characters and scenes":"تفاصيل الشخصيات والمشاهد"};
 const values:Record<string,string>={commercial:"إعلان تجاري",trailer:"تريلر",cinematic:"سينمائي",vertical:"عمودي",horizontal:"أفقي",square:"مربع",quote:"حسب عرض السعر","Not Specified":"غير محدد"};
 export default function AIExecutorHandoff({ticketNumber,fields,brief,isArabic}:Props){
  const [copied,setCopied]=useState(false);
