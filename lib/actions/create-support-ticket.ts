@@ -142,7 +142,7 @@ export async function createSupportTicketAction(formData: FormData) {
   redirect(
     supportUrl(locale, {
       support_sent: "1",
-      ...(ticketNumber ? { ticket: ticketNumber } : {}),
+      ...(!aiProduction && ticketNumber ? { ticket: ticketNumber } : {}),
     }, aiProduction),
   );
 }
