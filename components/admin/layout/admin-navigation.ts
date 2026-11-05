@@ -126,6 +126,12 @@ export const adminNavigation: AdminNavigationGroup[] = [
         href: "/admin/support",
         icon: Headphones,
       },
+      {
+        labelAr: "طلبات MLAMH AI",
+        labelEn: "MLAMH AI Requests",
+        href: "/admin/ai-production",
+        icon: Sparkles,
+      },
     ],
   },
   {
