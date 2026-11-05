@@ -45,7 +45,7 @@ export async function createSupportTicketAction(formData: FormData) {
     : "general_inquiry";
 
   if (
-    (aiProduction && !senderPhone) ||
+    (aiProduction && (!senderPhone || !/^\+?[0-9\s()-]{7,40}$/.test(senderPhone) || senderPhone.replace(/\D/g, "").length < 7)) ||
     senderName.length < 2 ||
     senderName.length > 120 ||
     senderEmail.length < 3 ||
