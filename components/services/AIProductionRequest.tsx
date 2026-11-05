@@ -15,6 +15,6 @@ export function AIProductionRequest({locale}:{locale:"ar"|"en"}){
  <label className="text-sm">{ar?"موعد التسليم المتوقع":"Preferred deadline"}<input name="deadline" type="date" className={`mt-2 ${input}`}/></label>
  <label className="text-sm md:col-span-2">{ar?"هدف المشروع والجمهور المستهدف والفكرة والهوية البصرية":"Project goal, target audience, concept and visual identity"}<textarea name="message" placeholder={ar?"ما الذي تريد تحقيقه؟ لمن الإعلان؟ هل لديك فكرة أو هوية معينة؟":"What is your goal, audience, concept and brand style?"} required maxLength={5000} rows={5} className={`mt-2 ${input}`}/></label>
  <label className="text-sm md:col-span-2">{ar?"روابط صور المنتج أو أعمال مرجعية (اختياري)":"Reference links (optional)"}<textarea name="references" rows={2} maxLength={2000} className={`mt-2 ${input}`}/></label>
- <div className="md:col-span-2"><button className="rounded-full bg-amber-400 px-8 py-3 font-semibold text-black" type="submit">{ar?"إرسال طلب الإنتاج":"Submit production request"}</button><p aria-live="polite" className="mt-3 text-sm text-white/60">{ar?"سيُسجل الطلب في نظام تذاكر ملامح الحالي. ":"Your request is saved as a MLAMH support ticket. "}</p></div>
+ <div className="md:col-span-2"><button className="rounded-full bg-amber-400 px-8 py-3 font-semibold text-black" type="submit">{ar?"إرسال طلب الإنتاج":"Submit production request"}</button><p aria-live="polite" className="mt-3 text-sm text-white/60">{ar?"سيتم التواصل معكم بعد مراجعة الطلب.":"We will contact you after reviewing your request."}</p></div>
  </form>;
 }
