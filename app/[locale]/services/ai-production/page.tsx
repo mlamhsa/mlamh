@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { AIShowcase } from "@/components/services/AIShowcase";
 import { AIProductionRequest } from "@/components/services/AIProductionRequest";
 import { isValidLocale } from "@/lib/i18n";
 
@@ -21,7 +22,7 @@ export default async function Page({params}:{params:Promise<{locale:string}>}){
  <h1 className="mt-5 max-w-3xl text-4xl font-semibold leading-tight md:text-6xl">{ar?"خيالك أصبح إعلانًا.":"Turn imagination into a commercial."}</h1>
  <p className="mt-5 max-w-2xl text-base leading-8 text-white/65">{ar?"إعلانات تجارية، تريلرات ومشاهد سينمائية بالذكاء الاصطناعي. شاركنا فكرتك لنجهز لك عرضًا يناسب متطلباتك.":"AI-powered commercials, trailers and cinematic scenes. Share your brief and receive a tailored proposal."}</p>
  <a href="#request" className="mt-8 inline-flex rounded-full bg-amber-400 px-7 py-3 font-semibold text-black">{ar?"اطلب إنتاج مشروعك":"Request production"}</a>
- <section className="mt-20" aria-labelledby="work-heading"><h2 id="work-heading" className="text-2xl font-semibold">{ar?"نماذج الأعمال":"Selected work"}</h2><p className="mt-3 text-white/55">{ar?"سيتم عرض التريلرات ونماذج الإنتاج هنا بعد اعتماد أعمال الفريق وحقوق نشرها.":"Trailers and production samples will appear here after the team approves their publication."}</p></section>
+ <AIShowcase locale={locale as "ar"|"en"} videos={[]} />
  <section className="mt-16 grid gap-4 md:grid-cols-3">{(ar?[["إعلانات تجارية","للمنتجات والمتاجر والعلامات التجارية"],["تريلرات","إعلانات تشويقية للمشاريع والأعمال"],["مشاهد سينمائية","محتوى بصري قصصي وإبداعي"]]:[["Commercials","Products, stores and brands"],["Trailers","Teasers for projects and campaigns"],["Cinematic scenes","Creative visual storytelling"]]).map(([name,description])=><article key={name} className="rounded-2xl border border-white/10 bg-white/[.04] p-6"><h3 className="font-semibold">{name}</h3><p className="mt-2 text-sm text-white/55">{description}</p></article>)}</section>
  <section id="request" className="mt-20 scroll-mt-28"><h2 className="text-2xl font-semibold">{ar?"اطلب إنتاج مشروعك":"Tell us about your project"}</h2><p className="mt-3 text-white/55">{ar?"لا تحتاج إلى إنشاء حساب. املأ التفاصيل وسنراجعها لتقديم عرض سعر.":"No account needed. Share your requirements for a custom quote."}</p><AIProductionRequest locale={locale as "ar"|"en"}/></section>
  </div></main>;
