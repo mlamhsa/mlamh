@@ -26,13 +26,14 @@ function field(formData: FormData, key: string) {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function supportUrl(locale: "ar" | "en", params: Record<string, string>) {
+function supportUrl(locale: "ar" | "en", params: Record<string, string>, aiProduction = false) {
   const query = new URLSearchParams(params).toString();
-  return `/${locale}/contact${query ? `?${query}` : ""}`;
+  return `/${locale}/${aiProduction ? "services/ai-production" : "contact"}${query ? `?${query}` : ""}`;
 }
 
 export async function createSupportTicketAction(formData: FormData) {
   const locale: "ar" | "en" = field(formData, "locale") === "en" ? "en" : "ar";
+  const aiProduction = field(formData, "return_to") === "ai-production";
   const senderName = field(formData, "sender_name");
   const senderEmail = field(formData, "sender_email").toLowerCase();
   const senderPhone = field(formData, "sender_phone") || null;
@@ -54,7 +55,7 @@ export async function createSupportTicketAction(formData: FormData) {
     message.length > 10000 ||
     (senderPhone && (senderPhone.length < 5 || senderPhone.length > 40))
   ) {
-    redirect(supportUrl(locale, { support_error: "invalid" }));
+    redirect(supportUrl(locale, { support_error: "invalid" }, aiProduction));
   }
 
   const adminClient = createAdminClient();
@@ -92,7 +93,7 @@ export async function createSupportTicketAction(formData: FormData) {
   } else {
     const rate = Array.isArray(rateRows) ? rateRows[0] : rateRows;
     if (rate && rate.allowed === false) {
-      redirect(supportUrl(locale, { support_error: "rate_limit" }));
+      redirect(supportUrl(locale, { support_error: "rate_limit" }, aiProduction));
     }
   }
 
@@ -111,7 +112,7 @@ export async function createSupportTicketAction(formData: FormData) {
 
   if (error) {
     console.error("[createSupportTicketAction.create]", error);
-    redirect(supportUrl(locale, { support_error: "create_failed" }));
+    redirect(supportUrl(locale, { support_error: "create_failed" }, aiProduction));
   }
 
   const result = Array.isArray(data) ? data[0] : data;
@@ -142,6 +143,6 @@ export async function createSupportTicketAction(formData: FormData) {
     supportUrl(locale, {
       support_sent: "1",
       ...(ticketNumber ? { ticket: ticketNumber } : {}),
-    }),
+    }, aiProduction),
   );
 }
