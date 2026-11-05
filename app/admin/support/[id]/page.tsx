@@ -114,6 +114,7 @@ export default async function AdminSupportTicketPage({ params, searchParams }: P
   if (messageError) throw new Error(`Unable to load support messages: ${messageError.message}`);
 
   const ticket = ticketData as TicketRow;
+  const isAIRequest = ticket.subject === "MLAMH AI production request";
   const messages = (messageData ?? []) as MessageRow[];
   const sourceReference = `support-ticket:${ticket.ticket_number}`;
   const { data: danaApproval, error: danaApprovalError } = await adminClient
@@ -137,7 +138,7 @@ export default async function AdminSupportTicketPage({ params, searchParams }: P
       <AdminPageContainer>
         <AdminPageHeader
           eyebrow={isArabic ? "الدعم" : "SUPPORT"}
-          title={ticket.subject}
+          title={isAIRequest ? (isArabic ? "طلب إنتاج بالذكاء الاصطناعي" : "AI Production Request") : ticket.subject}
           description={
             isArabic
               ? `تذكرة ${ticket.ticket_number} · إدارة المحادثة والحالة ومسار Dana من مكان واحد.`
@@ -145,11 +146,11 @@ export default async function AdminSupportTicketPage({ params, searchParams }: P
           }
           actions={
             <Link
-              href={`/admin/support?lang=${locale}`}
+              href={isAIRequest ? `/admin/ai-production?lang=${locale}` : `/admin/support?lang=${locale}`}
               className="inline-flex h-10 items-center gap-2 rounded-lg border border-white/[0.08] px-4 text-xs font-medium text-white/55 transition hover:border-gold/20 hover:text-gold"
             >
               <BackIcon className="h-4 w-4" />
-              {isArabic ? "العودة إلى الدعم" : "Back to support"}
+              {isAIRequest ? (isArabic ? "العودة لطلبات MLAMH AI" : "Back to AI requests") : (isArabic ? "العودة إلى الدعم" : "Back to support")}
             </Link>
           }
         />
@@ -163,7 +164,7 @@ export default async function AdminSupportTicketPage({ params, searchParams }: P
                 {statusLabel(ticket.status, isArabic)}
               </span>
               <span className="rounded-full border border-white/10 px-3 py-1 text-[10px] text-white/35">
-                {ticket.category}
+                {isAIRequest ? (isArabic ? "إنتاج MLAMH AI" : "MLAMH AI Production") : ticket.category}
               </span>
             </div>
 
@@ -247,6 +248,7 @@ export default async function AdminSupportTicketPage({ params, searchParams }: P
           ) : (
             messages.map((message) => {
               const fromAdmin = message.sender_type === "admin";
+              const aiBrief = isAIRequest && !fromAdmin ? parseAIProductionBrief(message.message) : null;
               return (
                 <article
                   key={message.id}
@@ -262,7 +264,7 @@ export default async function AdminSupportTicketPage({ params, searchParams }: P
                     </p>
                     <p className="text-[9px] text-white/25">{formatDate(message.created_at, isArabic)}</p>
                   </div>
-                  <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-white/70">{message.message}</p>
+                  {aiBrief ? <AIProductionBrief details={aiBrief} isArabic={isArabic} /> : <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-7 text-white/70" dir="auto">{message.message}</p>}
                 </article>
               );
             })
@@ -302,4 +304,48 @@ function Info({ icon, label, value, dir }: { icon: React.ReactNode; label: strin
       <p dir={dir} className="mt-2 break-words text-sm text-white/65">{value}</p>
     </div>
   );
+}
+
+type AIProductionBriefDetails = { fields: { key: string; value: string }[]; brief: string };
+function parseAIProductionBrief(raw: string): AIProductionBriefDetails | null {
+  if (!raw.startsWith("MLAMH AI production request")) return null;
+  const lines = raw.split(/\r?\n/);
+  const keys = ["Project type", "Duration", "Style", "Format", "Budget", "Deadline", "Reference links"];
+  const fields = lines.slice(1).map(line => {
+    const separator = line.indexOf(":");
+    if (separator < 1) return null;
+    const key = line.slice(0, separator).trim();
+    return keys.includes(key) ? { key, value: line.slice(separator + 1).trim() } : null;
+  }).filter((item): item is { key: string; value: string } => item !== null);
+  if (fields.length < 3) return null;
+  const briefIndex = lines.findIndex(line => line.trim() === "Brief:");
+  const brief = briefIndex >= 0 ? lines.slice(briefIndex + 1).join("\n").trim() : "";
+  return { fields, brief };
+}
+function AIProductionBrief({ details, isArabic }: { details: AIProductionBriefDetails; isArabic: boolean }) {
+  const labels: Record<string, [string, string]> = {
+    "Project type": ["نوع المشروع", "Project type"], Duration: ["المدة", "Duration"],
+    Style: ["الأسلوب", "Style"], Format: ["المقاس", "Format"],
+    Budget: ["الميزانية", "Budget"], Deadline: ["موعد التسليم", "Deadline"],
+    "Reference links": ["روابط مرجعية", "Reference links"],
+  };
+  const values: Record<string, [string, string]> = {
+    commercial: ["إعلان تجاري", "Commercial"], trailer: ["تريلر", "Trailer"],
+    cinematic: ["سينمائي", "Cinematic"], vertical: ["عمودي", "Vertical"],
+    horizontal: ["أفقي", "Horizontal"], square: ["مربع", "Square"],
+    quote: ["حسب عرض السعر", "Request a quote"],
+    "Not Specified": ["غير محدد", "Not specified"],
+  };
+  return <div className="mt-4 space-y-4">
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+      {details.fields.map(({ key, value }) => <div key={key} className="min-w-0 rounded-xl border border-white/[.07] bg-black/20 p-3">
+        <p className="text-[11px] text-white/40">{isArabic ? labels[key]?.[0] : labels[key]?.[1]}</p>
+        <p dir="auto" className="mt-1 break-words text-sm text-white/80">{values[value] ? (isArabic ? values[value][0] : values[value][1]) : value}</p>
+      </div>)}
+    </div>
+    {details.brief && <div className="rounded-xl border border-gold/15 bg-gold/[.035] p-4">
+      <h3 className="text-xs font-medium text-gold">{isArabic ? "وصف الفكرة" : "Creative brief"}</h3>
+      <p dir="auto" className="mt-2 whitespace-pre-wrap break-words text-sm leading-7 text-white/80">{details.brief}</p>
+    </div>}
+  </div>;
 }
