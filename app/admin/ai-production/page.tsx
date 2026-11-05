@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AIRequestsLiveRefresh } from "@/components/admin/AIRequestsLiveRefresh";
 import { AdminPageContainer, AdminPageHeader, AdminStatCard } from "@/components/admin/ui";
 import { requireAdminAccess } from "@/lib/auth/require-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -20,6 +21,7 @@ export default async function AIProductionAdminPage({searchParams}:PageProps){
  const pending=tickets.filter(t=>["new","open","in_progress","pending_user"].includes(t.status)).length;
  return <div dir={ar?"rtl":"ltr"}><AdminPageContainer>
  <AdminPageHeader eyebrow="MLAMH AI" title={ar?"طلبات الإنتاج بالذكاء الاصطناعي":"AI Production Requests"} description={ar?"طلبات العملاء الواردة من نموذج MLAMH AI، مع فتح كل طلب في نظام الدعم لإدارته والرد عليه.":"Client briefs received through MLAMH AI. Open any request in Support to manage and reply."}/>
+ <AIRequestsLiveRefresh isArabic={ar} />
  <section className="grid grid-cols-2 gap-3"><AdminStatCard label={ar?"إجمالي الطلبات":"Total requests"} value={tickets.length}/><AdminStatCard label={ar?"قيد المتابعة":"Active"} value={pending} active={pending>0}/></section>
  <section className="mt-6 overflow-hidden rounded-2xl border border-white/10 bg-white/[.025]">
  {tickets.length===0?<p className="p-8 text-center text-sm text-white/50">{ar?"لا توجد طلبات MLAMH AI حتى الآن.":"No MLAMH AI requests yet."}</p>:<div className="divide-y divide-white/10">{tickets.map(t=><Link key={t.id} href={`/admin/support/${t.id}?lang=${ar?"ar":"en"}`} className="block px-4 py-4 transition hover:bg-white/5 sm:px-6">
