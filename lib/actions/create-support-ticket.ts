@@ -45,6 +45,7 @@ export async function createSupportTicketAction(formData: FormData) {
     : "general_inquiry";
 
   if (
+    (aiProduction && !senderPhone) ||
     senderName.length < 2 ||
     senderName.length > 120 ||
     senderEmail.length < 3 ||
