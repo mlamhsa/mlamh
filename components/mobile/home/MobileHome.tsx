@@ -1,3 +1,4 @@
+import { AIServiceHomeEntry } from "@/components/services/AIServiceHomeEntry";
 import { HowItWorks } from "@/components/HowItWorks";
 import { SceneHomeEntry } from "@/components/home/SceneHomeEntry";
 import { ValueProps } from "@/components/ValueProps";
@@ -52,6 +53,8 @@ export function MobileHome({
       <MobileOpportunitiesSection locale={locale} />
 
       <MobileOrganizationsSection locale={locale} />
+
+      <AIServiceHomeEntry locale={locale} />
 
       <SceneHomeEntry locale={locale} />
 
