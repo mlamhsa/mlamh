@@ -8,5 +8,6 @@ export async function createAIProductionRequestAction(formData:FormData){
  formData.set("message",`MLAMH AI production request\n${details}\n\nBrief:\n${brief}`);
  formData.set("subject","MLAMH AI production request");
  formData.set("category","partnership");
+ formData.set("return_to","ai-production");
  return createSupportTicketAction(formData);
 }
