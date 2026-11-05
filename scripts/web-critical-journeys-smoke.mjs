@@ -178,8 +178,18 @@ try {
   assert(loginState.forgot, "Forgot password link missing");
   assert(loginState.reveal, "Password reveal control missing");
 
-  await evaluate(`document.querySelector('button[aria-label="إظهار كلمة المرور"]')?.click(); true`);
-  await waitFor(evaluate, `document.querySelector('input[autocomplete=current-password]')?.type === "text"`, "Password reveal control did not work");
+  // A server-rendered button can exist before React hydration attaches its handler.
+  // Retry the interaction until the client-side control becomes responsive.
+  let passwordRevealWorked = false;
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    await evaluate(`document.querySelector('button[aria-label="إظهار كلمة المرور"]')?.click(); true`);
+    await sleep(250);
+    if (await evaluate(`document.querySelector('input[autocomplete=current-password]')?.type === "text"`)) {
+      passwordRevealWorked = true;
+      break;
+    }
+  }
+  assert(passwordRevealWorked, "Password reveal control did not work");
 
   await navigate(send, evaluate, "/ar/join");
   await waitFor(evaluate, `Array.from(document.querySelectorAll('a')).some((a)=>a.getAttribute('href')==='/ar/join?type=talent')`, "Talent join choice missing");
