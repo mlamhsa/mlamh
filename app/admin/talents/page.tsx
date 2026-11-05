@@ -28,6 +28,7 @@ import {
 } from "@/lib/repositories/talents/TalentRepository";
 import { TalentService } from "@/lib/services/talents/TalentService";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getValidTalentImage } from "@/lib/talent/qualification";
 import { getTalentProfileDataQualityIssues } from "@/lib/talent/profile-data-quality";
 import { getTalentProfileReadiness } from "@/lib/talent/profile-review-readiness";
 
@@ -656,6 +657,7 @@ export default async function AdminTalentsPage({
               );
 
               const isPrivateProfile = talent.profile_visibility === "private";
+              const talentImage = getValidTalentImage(talent);
 
               return (
                 <Link
@@ -668,9 +670,9 @@ export default async function AdminTalentsPage({
                 >
                   <div className="flex min-h-[180px]">
                     <div className="relative w-32 shrink-0 bg-black/30 sm:w-40">
-                      {talent.image_url ? (
+                      {talentImage ? (
                         <Image
-                          src={talent.image_url}
+                          src={talentImage}
                           alt={primaryName}
                           fill
                           sizes="160px"
