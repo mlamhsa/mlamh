@@ -192,7 +192,7 @@ export default async function AdminSupportTicketPage({ params, searchParams }: P
 
         <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <Info icon={<UserRound className="h-4 w-4" />} label={isArabic ? "المرسل" : "Sender"} value={ticket.sender_name} />
-          <Info icon={<Mail className="h-4 w-4" />} label={isArabic ? "البريد" : "Email"} value={ticket.sender_email} dir="ltr" />
+          <Info icon={<Mail className="h-4 w-4" />} label={isArabic ? "البريد" : "Email"} value={isAIRequest && ticket.sender_email.endsWith("@no-email.invalid") ? (isArabic ? "لم يُقدَّم بريد إلكتروني" : "No email provided") : ticket.sender_email} dir={isAIRequest && ticket.sender_email.endsWith("@no-email.invalid") ? undefined : "ltr"} />
           <Info icon={<Phone className="h-4 w-4" />} label={isArabic ? "الجوال" : "Phone"} value={ticket.sender_phone || "—"} dir="ltr" />
         </div>
       </AdminCard>

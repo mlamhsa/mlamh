@@ -87,7 +87,7 @@ export default async function AIProductionAdminPage({ searchParams }: PageProps)
                 <span className={`rounded-full border px-2.5 py-1 text-[11px] ${s?.style ?? "border-white/10 text-white/50"}`}>{s ? (ar ? s.ar : s.en) : t.status}</span>
               </div>
               <h3 className="mt-2 truncate text-sm font-semibold text-white/90 sm:text-base">{t.sender_name}</h3>
-              <p className="mt-1 truncate text-xs text-white/45" dir="ltr">{t.sender_email}{t.sender_phone ? ` · ${t.sender_phone}` : ""}</p>
+              <p className="mt-1 truncate text-xs text-white/45" dir="ltr">{t.sender_email.endsWith("@no-email.invalid") ? (ar ? "لم يُقدَّم بريد إلكتروني" : "No email provided") : t.sender_email}{t.sender_phone ? ` · ${t.sender_phone}` : ""}</p>
             </div>
             <div className="flex shrink-0 items-center justify-between gap-3 sm:flex-col sm:items-end">
               <time className="text-xs text-white/40" dateTime={t.created_at}>{new Intl.DateTimeFormat(ar ? "ar-SA-u-ca-gregory-nu-latn" : "en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(t.created_at))}</time>
