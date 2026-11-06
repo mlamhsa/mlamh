@@ -24,31 +24,31 @@ export function CastingBriefCTA({ locale }: { locale: Locale }) {
 
           <h2 className="mt-4 text-3xl font-light leading-tight sm:text-4xl lg:text-5xl">
             {isRtl
-              ? "عندك مشروع وتحتاج ممثلين أو مودلز؟ أرسل الـ Brief"
-              : "Need actors or models for a project? Send the brief"}
+              ? "تحتاج مودل أو ممثل لتصويرك؟ انشر طلبك"
+              : "Need a model or actor? Post your request"}
           </h2>
 
           <p className="mt-4 max-w-2xl text-sm leading-8 text-white/50 sm:text-base">
             {isRtl
-              ? "للشركات والوكالات وجهات الإنتاج والعلامات: أرسل احتياجك حتى لو لم يكن إعلانًا كاملًا، وملامح تساعدك في تنظيم الكاستينغ والوصول إلى قائمة مختصرة للمراجعة."
-              : "For companies, agencies, production teams, and brands: send your current requirements even if the casting notice is not finished, and MLAMH will help organize the casting into a review-ready shortlist."}
+              ? "للمتاجر والصالونات والمصورين والشركات: أنشئ حساب ناشر وانشر احتياجك لتتقدم المواهب المناسبة مباشرة."
+              : "For shops, salons, photographers and brands: join as a publisher and post a request so relevant talent can apply."}
           </p>
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
           <Link
-            href={`/${locale}/casting#casting-brief`}
+            href={`/${locale}/join?type=publisher`}
             className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-gold px-6 py-3 text-sm font-medium text-black transition hover:brightness-110"
           >
-            {isRtl ? "أرسل الـ Brief" : "Send the brief"}
+            {isRtl ? "انشر طلبك" : "Post a request"}
             <ArrowUpRight className="h-4 w-4" />
           </Link>
 
           <Link
-            href={`/${locale}/casting`}
+            href={`/${locale}/talent`}
             className="inline-flex min-h-12 items-center justify-center rounded-xl border border-white/10 px-6 py-3 text-sm text-white/60 transition hover:border-gold/30 hover:text-gold"
           >
-            {isRtl ? "اعرف أكثر عن MLAMH Casting" : "Learn about MLAMH Casting"}
+            {isRtl ? "استكشف المواهب" : "Browse talent"}
           </Link>
         </div>
       </div>
