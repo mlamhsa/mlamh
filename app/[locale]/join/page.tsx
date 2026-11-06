@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import { ArrowLeft, BriefcaseBusiness, Check, UserRound } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
 
-import { AppleSignupButton } from "@/components/auth/AppleSignupButton";
 import { GoogleSignupButton } from "@/components/auth/GoogleSignupButton";
 import { QuickJoinForm } from "@/components/auth/QuickJoinForm";
 import { TalentEmailSignupForm } from "@/components/auth/TalentEmailSignupForm";
@@ -48,8 +47,8 @@ function accountCopy(accountType: AccountType, isRtl: boolean) {
     eyebrow: isRtl ? "إنشاء الحساب" : "CREATE ACCOUNT",
     title: isRtl ? "إنشاء حساب الموهبة" : "Create your talent account",
     body: isRtl
-      ? "سجّل بالبريد الإلكتروني أو استخدم Google أو Apple، وسنطلب فقط البيانات الضرورية لإكمال حسابك."
-      : "Continue with email, Google or Apple. We’ll only ask for the required information needed to complete your account.",
+      ? "سجّل بالبريد الإلكتروني أو استخدم Google، وسنطلب فقط البيانات الضرورية لإكمال حسابك."
+      : "Continue with email or Google. We’ll only ask for the required information needed to complete your account.",
   };
 }
 
@@ -119,16 +118,12 @@ export default async function JoinPage({ params, searchParams }: PageProps) {
                 accountType={selectedAccountType}
                 intent={selectedAccountType === "publisher" ? "publisher" : undefined}
               />
-              <AppleSignupButton
-                locale={locale}
-                accountType={selectedAccountType}
-              />
 
               {selectedAccountType === "talent" ? (
                 <p className="mt-3 text-center text-xs leading-6 text-white/40">
                   {isRtl
-                    ? "بعد Google أو Apple ستظهر لك فقط الحقول الضرورية التي لم نحصل عليها من حسابك."
-                    : "After Google or Apple, you’ll only see required fields we could not obtain from your account."}
+                    ? "بعد Google ستظهر لك فقط الحقول الضرورية التي لم نحصل عليها من حسابك."
+                    : "After Google, you’ll only see required fields we could not obtain from your account."}
                 </p>
               ) : null}
 
