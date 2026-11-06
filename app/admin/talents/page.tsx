@@ -207,10 +207,11 @@ export default async function AdminTalentsPage({
     }),
     TalentService.getAdminStats(),
     TalentService.getAdminOperationalStats(),
+    // Count only reviewable talent records shown by the admin listing.
+    // Counting profiles directly can include orphaned accounts without a talent record.
     createAdminClient()
-      .from("profiles")
+      .from("admin_talent_profiles")
       .select("id", { count: "exact", head: true })
-      .eq("account_type", "talent")
       .eq("approval_status", "pending"),
   ]);
 
