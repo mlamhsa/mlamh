@@ -42,6 +42,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/${locale}/opportunities`, changeFrequency: "daily", priority: 0.9 },
     { url: `${SITE_URL}/${locale}/scene`, changeFrequency: "daily", priority: 0.88 },
     { url: `${SITE_URL}/${locale}/casting`, changeFrequency: "weekly", priority: 0.85 },
+    { url: `${SITE_URL}/${locale}/services/ai-production`, changeFrequency: "weekly", priority: 0.9 },
     { url: `${SITE_URL}/${locale}/publishers`, changeFrequency: "weekly", priority: 0.8 },
     { url: `${SITE_URL}/${locale}/about`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${SITE_URL}/${locale}/contact`, changeFrequency: "monthly", priority: 0.5 },
