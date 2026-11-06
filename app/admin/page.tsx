@@ -130,10 +130,10 @@ export default async function AdminPage({ searchParams }: PageProps) {
       .from("talent_profile_change_requests")
       .select("id", { count: "exact", head: true })
       .eq("status", "pending"),
+    // Keep the overview count consistent with the reviewable talent list.
     adminClient
-      .from("profiles")
+      .from("admin_talent_profiles")
       .select("id", { count: "exact", head: true })
-      .eq("account_type", "talent")
       .eq("approval_status", "pending"),
     PublisherService.getAll(),
     adminClient
