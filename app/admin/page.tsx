@@ -7,6 +7,7 @@ import {
   CircleAlert,
   FileClock,
   History,
+  Clapperboard,
   Megaphone,
   MonitorCog,
   ShieldCheck,
@@ -121,6 +122,7 @@ export default async function AdminPage({ searchParams }: PageProps) {
     publishedOpportunitiesResult,
     applicationsTotalResult,
     resubmittedEventsResult,
+    aiProductionRequestsResult,
   ] = await Promise.all([
     TalentService.getAdminStats(),
     TalentService.getTopViewed(5),
@@ -168,6 +170,11 @@ export default async function AdminPage({ searchParams }: PageProps) {
       .contains("metadata", { reason: "resubmitted_after_changes" })
       .order("created_at", { ascending: false })
       .limit(6),
+    adminClient
+      .from("support_tickets")
+      .select("id", { count: "exact", head: true })
+      .eq("subject", "MLAMH AI production request")
+      .in("status", ["new", "open", "in_progress", "pending_user"]),
   ]);
 
   const logError = (label: string, error: unknown) => {
@@ -187,6 +194,7 @@ export default async function AdminPage({ searchParams }: PageProps) {
   logError("publishedOpportunities", publishedOpportunitiesResult.error);
   logError("applicationsTotal", applicationsTotalResult.error);
   logError("resubmittedEvents", resubmittedEventsResult.error);
+  logError("aiProductionRequests", aiProductionRequestsResult.error);
 
   const pendingTalentChanges = pendingTalentChangesResult.error
     ? 0
@@ -203,6 +211,9 @@ export default async function AdminPage({ searchParams }: PageProps) {
   const pendingOpportunities = pendingOpportunitiesResult.error
     ? 0
     : pendingOpportunitiesResult.count ?? 0;
+  const aiProductionRequests = aiProductionRequestsResult.error
+    ? 0
+    : aiProductionRequestsResult.count ?? 0;
   const reportedMessages = reportedMessagesResult.error
     ? 0
     : reportedMessagesResult.count ?? 0;
@@ -290,7 +301,8 @@ export default async function AdminPage({ searchParams }: PageProps) {
     pendingPublishers +
     pendingPublisherVerifications +
     pendingOpportunities +
-    reportedMessages;
+    reportedMessages +
+    aiProductionRequests;
 
   const actionItems = [
     {
@@ -329,6 +341,13 @@ export default async function AdminPage({ searchParams }: PageProps) {
       icon: BriefcaseBusiness,
     },
     {
+      labelAr: "طلبات إنتاج AI",
+      labelEn: "AI production requests",
+      value: aiProductionRequests,
+      href: "/admin/ai-production?status=active",
+      icon: Clapperboard,
+    },
+    {
       labelAr: "بلاغات محادثات",
       labelEn: "Conversation reports",
       value: reportedMessages,
@@ -353,6 +372,14 @@ export default async function AdminPage({ searchParams }: PageProps) {
       descriptionEn: "Create, review and publish opportunities",
       href: "/admin/opportunities",
       icon: BriefcaseBusiness,
+    },
+    {
+      labelAr: "طلبات إنتاج MLAMH AI",
+      labelEn: "MLAMH AI production inbox",
+      descriptionAr: "رسائل العملاء وطلبات الإنتاج",
+      descriptionEn: "Client briefs and production requests",
+      href: "/admin/ai-production",
+      icon: Clapperboard,
     },
     {
       labelAr: "ذكاء ملامح",
