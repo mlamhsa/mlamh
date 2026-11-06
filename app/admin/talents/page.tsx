@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { BulkTalentApproval } from "@/components/admin/talents/BulkTalentApproval";
 import Link from "next/link";
 
 import { AdminPageContainer, AdminPageHeader, AdminStatCard } from "@/components/admin/ui";
@@ -569,6 +570,8 @@ export default async function AdminTalentsPage({
             </p>
           </div>
         </div>
+
+        <BulkTalentApproval language={language} items={talents.filter(talent => talent.user_id && approvalByUserId.get(talent.user_id) === "pending").map(talent => ({ id: talent.id, name: (isArabic ? talent.name_ar || talent.name_en : talent.name_en || talent.name_ar) || `#${talent.id}` }))} />
 
         {talents.length === 0 ? (
           <div className="mt-5 rounded-3xl border border-white/[0.08] bg-white/[0.02] px-6 py-16 text-center">
