@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { BulkTalentApproval } from "@/components/admin/talents/BulkTalentApproval";
+import { BulkTalentApproval, TalentSelectionCheckbox } from "@/components/admin/talents/BulkTalentApproval";
 import Link from "next/link";
 
 import { AdminPageContainer, AdminPageHeader, AdminStatCard } from "@/components/admin/ui";
@@ -571,7 +571,7 @@ export default async function AdminTalentsPage({
           </div>
         </div>
 
-        <BulkTalentApproval language={language} items={talents.filter(talent => talent.user_id && approvalByUserId.get(talent.user_id) === "pending").map(talent => ({ id: talent.id, name: (isArabic ? talent.name_ar || talent.name_en : talent.name_en || talent.name_ar) || `#${talent.id}` }))} />
+        <BulkTalentApproval language={language} items={talents.filter(talent => talent.user_id && approvalByUserId.get(talent.user_id) === "pending").map(talent => ({ id: talent.id, name: (isArabic ? talent.name_ar || talent.name_en : talent.name_en || talent.name_ar) || `#${talent.id}` }))}>
 
         {talents.length === 0 ? (
           <div className="mt-5 rounded-3xl border border-white/[0.08] bg-white/[0.02] px-6 py-16 text-center">
@@ -661,13 +661,14 @@ export default async function AdminTalentsPage({
               const isPrivateProfile = talent.profile_visibility === "private";
 
               return (
+                <div key={talent.id} className="relative">
+                {approvalStatus === "pending" ? <TalentSelectionCheckbox id={talent.id} /> : null}
                 <Link
-                  key={talent.id}
                   href={withAdminLanguage(
                     `/admin/talents/${talent.id}`,
                     language,
                   )}
-                  className="group overflow-hidden rounded-3xl border border-white/[0.08] bg-white/[0.02] transition hover:border-gold/20 hover:bg-white/[0.035]"
+                  className="group relative overflow-hidden rounded-3xl border border-white/[0.08] bg-white/[0.02] transition hover:border-gold/20 hover:bg-white/[0.035]"
                 >
                   <div className="flex min-h-[180px]">
                     <div className="relative w-32 shrink-0 bg-black/30 sm:w-40">
@@ -848,10 +849,13 @@ export default async function AdminTalentsPage({
                     </div>
                   </div>
                 </Link>
+                </div>
               );
             })}
           </div>
         )}
+
+        </BulkTalentApproval>
 
         {totalPages > 1 ? (
           <div className="mt-8 flex items-center justify-center gap-3">
