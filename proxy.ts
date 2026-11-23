@@ -58,7 +58,7 @@ export async function proxy(
     (pathname === "/" || pathname === "/ar" || pathname === "/en" || pathname === "/ar/" || pathname === "/en/");
   if (process.env.MLAMH_PUBLIC_SERVICE_NOTICE !== "off" && publicDocument) {
     const url = request.nextUrl.clone();
-    url.pathname = "/service-update.html";
+    url.pathname = pathname.startsWith("/en") ? "/service-update-en.html" : "/service-update.html";
     const notice = NextResponse.rewrite(url);
     notice.headers.set("Cache-Control", "no-store");
     notice.headers.set("X-Robots-Tag", "noindex, nofollow");
