@@ -53,10 +53,14 @@ export async function proxy(
   // Do not intercept APIs, administration, authentication, assets or non-document requests.
   // No auth cookies are read, changed or deleted by this branch.
   const pathname = request.nextUrl.pathname;
+  const segments = pathname.split("/").filter(Boolean);
+  const restricted = new Set(["api", "admin", "auth", "login", "signin", "signup", "register", "callback", "_next"]);
+  const first = segments[0] ?? "";
+  const second = segments[1] ?? "";
   const publicDocument = request.method === "GET" &&
     request.headers.get("accept")?.includes("text/html") &&
-    !/^\\/(?:api|admin|auth|login|signin|signup|register|callback|_next)(?:\\/|$)/.test(pathname) &&
-    !/^\\/(?:ar|en)\\/(?:admin|auth|login|signin|signup|register|callback)(?:\\/|$)/.test(pathname) &&
+    !restricted.has(first) &&
+    !((first === "ar" || first === "en") && restricted.has(second)) &&
     !pathname.includes(".");
   if (process.env.MLAMH_PUBLIC_SERVICE_NOTICE !== "off" && publicDocument) {
     const url = request.nextUrl.clone();
