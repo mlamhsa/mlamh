@@ -1,19 +1,23 @@
 import Link from "next/link";
-import { unstable_noStore as noStore } from "next/cache";
+import { unstable_cache } from "next/cache";
 import { Headphones, MapPin } from "lucide-react";
 
 import { FooterCMS } from "@/lib/cms/FooterCMS";
 import { getDictionary, type Locale } from "@/lib/i18n";
+
+const getCachedPublicFooter = unstable_cache(
+  async (locale: Locale) => FooterCMS.getPublicFooter(locale),
+  ["public-footer-v1"],
+  { revalidate: 3600, tags: ["public-footer"] },
+);
 
 export async function Footer({
   locale,
 }: {
   locale: Locale;
 }) {
-  noStore();
-
   const dict = getDictionary(locale);
-  const footer = await FooterCMS.getPublicFooter(locale);
+  const footer = await getCachedPublicFooter(locale);
   const isRtl = locale === "ar";
   const socialLinks = footer.links.filter((link) => link.section === "social");
 
