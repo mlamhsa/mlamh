@@ -1,12 +1,13 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 
 import { FooterService } from "@/lib/services/FooterService";
 import { requirePermission } from "@/lib/rbac/guards";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 
 function revalidateFooterPaths() {
+  revalidateTag("public-footer");
   revalidatePath("/admin/footer");
   revalidatePath("/admin/site-management");
   revalidatePath("/admin/site-management/footer");
