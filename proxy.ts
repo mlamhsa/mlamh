@@ -58,7 +58,6 @@ export async function proxy(
   const first = segments[0] ?? "";
   const second = segments[1] ?? "";
   const publicDocument = request.method === "GET" &&
-    request.headers.get("accept")?.includes("text/html") &&
     !restricted.has(first) &&
     !((first === "ar" || first === "en") && restricted.has(second)) &&
     !pathname.includes(".");
