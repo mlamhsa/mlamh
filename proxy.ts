@@ -49,6 +49,22 @@ export async function proxy(
     return NextResponse.redirect(canonicalUrl, 308);
   }
 
+  // Temporary public notice while the existing Supabase project is quota-restricted.
+  // Do not intercept APIs, administration, authentication, assets or non-document requests.
+  // No auth cookies are read, changed or deleted by this branch.
+  const pathname = request.nextUrl.pathname;
+  // Only replace the public homepage; leave every other route untouched.
+  const publicDocument = request.method === "GET" &&
+    (pathname === "/" || pathname === "/ar" || pathname === "/en" || pathname === "/ar/" || pathname === "/en/");
+  if (process.env.MLAMH_PUBLIC_SERVICE_NOTICE !== "off" && publicDocument) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/service-update.html";
+    const notice = NextResponse.rewrite(url);
+    notice.headers.set("Cache-Control", "no-store");
+    notice.headers.set("X-Robots-Tag", "noindex, nofollow");
+    return notice;
+  }
+
   const requestHeaders = new Headers(request.headers);
   const firstPathSegment = request.nextUrl.pathname.split("/")[1];
 
