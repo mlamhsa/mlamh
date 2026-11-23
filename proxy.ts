@@ -54,7 +54,7 @@ export async function proxy(
   // No auth cookies are read, changed or deleted by this branch.
   const pathname = request.nextUrl.pathname;
   const segments = pathname.split("/").filter(Boolean);
-  const restricted = new Set(["api", "admin", "auth", "login", "signin", "signup", "register", "callback", "_next"]);
+  const restricted = new Set(["api", "admin", "auth", "login", "signin", "signup", "register", "callback", "_next", "talent-login", "talent-dashboard", "client-dashboard", "dashboard", "profile", "settings", "onboarding", "publisher-dashboard", "agency-dashboard"]);
   const first = segments[0] ?? "";
   const second = segments[1] ?? "";
   const publicDocument = request.method === "GET" &&
