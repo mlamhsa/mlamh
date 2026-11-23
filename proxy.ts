@@ -53,14 +53,9 @@ export async function proxy(
   // Do not intercept APIs, administration, authentication, assets or non-document requests.
   // No auth cookies are read, changed or deleted by this branch.
   const pathname = request.nextUrl.pathname;
-  const segments = pathname.split("/").filter(Boolean);
-  const restricted = new Set(["api", "admin", "auth", "login", "signin", "signup", "register", "callback", "_next", "talent-login", "talent-dashboard", "client-dashboard", "dashboard", "profile", "settings", "onboarding", "publisher-dashboard", "agency-dashboard"]);
-  const first = segments[0] ?? "";
-  const second = segments[1] ?? "";
+  // Only replace the public homepage; leave every other route untouched.
   const publicDocument = request.method === "GET" &&
-    !restricted.has(first) &&
-    !((first === "ar" || first === "en") && restricted.has(second)) &&
-    !pathname.includes(".");
+    (pathname === "/" || pathname === "/ar" || pathname === "/en" || pathname === "/ar/" || pathname === "/en/");
   if (process.env.MLAMH_PUBLIC_SERVICE_NOTICE !== "off" && publicDocument) {
     const url = request.nextUrl.clone();
     url.pathname = "/service-update.html";
